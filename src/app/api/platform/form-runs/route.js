@@ -4,7 +4,7 @@ import { after } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import { sendDecisionEmail, getTemplate, resolvePersonName, resolveSubmissionEmail, resolveProjectName, recordEmailStatus, isGenericName, isPlaceholderEmail, hasSentEmailToRecipientInRun, detectLanguage, getEmailLogRow } from "@/lib/email";
-import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded } from "@/lib/platform/automation";
+import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded, sendAcknowledgementForSubmission } from "@/lib/platform/automation";
 import { resolveAutomationFlag } from "@/lib/platform/automationSettings";
 import { syncApprovedSubmissionToProgramGroup } from "@/lib/contact-group-sync";
 import {
@@ -176,7 +176,7 @@ async function enrichAssignments(assignments) {
   const rows = Array.isArray(assignments) ? assignments : assignments?.rows || [];
   if (rows.length === 0) return rows;
 
-  const byType = (t) => rows.filter((r) => r.target_type === t).map((r) => r.target_id).filter(Boolean);
+  const byType = (targetType) => rows.filter((row) => row.target_type === targetType).map((row) => row.target_id).filter(Boolean);
 
   const userMap = new Map();
   const groupMap = new Map();
@@ -185,9 +185,9 @@ async function enrichAssignments(assignments) {
   const userIds = byType('user');
   if (userIds.length > 0) {
     try {
-      const emails = userIds.map((u) => String(u).toLowerCase());
-      const res = await getContactsForAssignmentEnrichment(userIds, emails);
-      for (const row of res.rows) {
+      const emails = userIds.map((userId) => String(userId).toLowerCase());
+      const contactsResult = await getContactsForAssignmentEnrichment(userIds, emails);
+      for (const row of contactsResult.rows) {
         userMap.set(row.cid, row);
         if (row.email) userMap.set(String(row.email).toLowerCase(), row);
       }
@@ -197,8 +197,8 @@ async function enrichAssignments(assignments) {
   const groupIds = byType('group');
   if (groupIds.length > 0) {
     try {
-      const res = await getFamiliesForAssignmentEnrichment(groupIds);
-      for (const row of res.rows) {
+      const familiesResult = await getFamiliesForAssignmentEnrichment(groupIds);
+      for (const row of familiesResult.rows) {
         if (row.registration_id) groupMap.set(row.registration_id, row);
         groupMap.set(String(row.id), row);
       }
@@ -208,27 +208,27 @@ async function enrichAssignments(assignments) {
   const programIds = byType('program');
   if (programIds.length > 0) {
     try {
-      const res = await getProgramsForAssignmentEnrichment(programIds);
-      for (const row of res.rows) programMap.set(String(row.id), row);
+      const programsResult = await getProgramsForAssignmentEnrichment(programIds);
+      for (const row of programsResult.rows) programMap.set(String(row.id), row);
     } catch (_) {}
   }
 
-  for (const a of rows) {
-    if (a.target_type === 'user') {
-      const c = userMap.get(a.target_id) || userMap.get(String(a.target_id).toLowerCase());
-      if (c) {
-        a.target_email = c.email || null;
-        a.target_name = c.name && !isGenericName(c.name) ? c.name : c.email || null;
+  for (const assignment of rows) {
+    if (assignment.target_type === 'user') {
+      const user = userMap.get(assignment.target_id) || userMap.get(String(assignment.target_id).toLowerCase());
+      if (user) {
+        assignment.target_email = user.email || null;
+        assignment.target_name = user.name && !isGenericName(user.name) ? user.name : user.email || null;
       } else {
-        a.target_name = null;
-        a.target_email = null;
+        assignment.target_name = null;
+        assignment.target_email = null;
       }
-    } else if (a.target_type === 'group') {
-      const g = groupMap.get(a.target_id) || groupMap.get(String(a.target_id).toLowerCase());
-      a.target_name = g ? g.name || null : null;
-    } else if (a.target_type === 'program') {
-      const p = programMap.get(a.target_id) || programMap.get(String(a.target_id).toLowerCase());
-      a.target_name = p ? p.name || null : null;
+    } else if (assignment.target_type === 'group') {
+      const group = groupMap.get(assignment.target_id) || groupMap.get(String(assignment.target_id).toLowerCase());
+      assignment.target_name = group ? group.name || null : null;
+    } else if (assignment.target_type === 'program') {
+      const program = programMap.get(assignment.target_id) || programMap.get(String(assignment.target_id).toLowerCase());
+      assignment.target_name = program ? program.name || null : null;
     }
   }
   return rows;
@@ -328,8 +328,8 @@ async function calculateSubmissionScores(runId, submissionData) {
     }
 
     return { sections: sectionResults, overall: overallScore, ranking };
-  } catch (e) {
-    console.error("[Scoring] Calculation failed:", e.message);
+  } catch (error) {
+    console.error("[Scoring] Calculation failed:", error.message);
     return null;
   }
 }
@@ -354,16 +354,16 @@ export async function GET(req) {
       const session = await getSession();
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
 
-      const sub = await getSubmissionById(submissionId);
-      if (sub.rows.length === 0) return NextResponse.json({ success: false, error: "Submission not found" }, { status: 404 });
+      const submissionResult = await getSubmissionById(submissionId);
+      if (submissionResult.rows.length === 0) return NextResponse.json({ success: false, error: "Submission not found" }, { status: 404 });
 
-      const run = await getRunById(sub.rows[0].run_id);
+      const run = await getRunById(submissionResult.rows[0].run_id);
 
       const reviews = await getSubmissionReviewsBySubmissionId(submissionId);
 
       return NextResponse.json({
         success: true,
-        submission: sub.rows[0],
+        submission: submissionResult.rows[0],
         run: run.rows[0] || null,
         reviews: reviews.rows,
       });
@@ -374,8 +374,8 @@ export async function GET(req) {
       const { getSession } = await import("@/lib/auth");
       const session = await getSession();
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const subs = await getMySubmissionsBySubmitterId(session.cid);
-      return NextResponse.json({ success: true, submissions: subs.rows });
+      const submissionsResult = await getMySubmissionsBySubmitterId(session.cid);
+      return NextResponse.json({ success: true, submissions: submissionsResult.rows });
     }
 
     // ─── PARTICIPANT: Get single run (for filling forms, returns user's own submission) ───
@@ -385,8 +385,8 @@ export async function GET(req) {
       const { getSession } = await import("@/lib/auth");
       const session = await getSession();
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const mySub = await getParticipantSubmissionByRunAndSubmitter(id, session.cid);
-      return NextResponse.json({ success: true, run: run.rows[0], submission: mySub.rows[0] || null });
+      const mySubmissionResult = await getParticipantSubmissionByRunAndSubmitter(id, session.cid);
+      return NextResponse.json({ success: true, run: run.rows[0], submission: mySubmissionResult.rows[0] || null });
     }
 
     const authError = await requireAuthorization("runs", "view");
@@ -400,7 +400,7 @@ export async function GET(req) {
 
     // ─── DASHBOARD STATS ───
     if (searchParams.get("dashboard") === "true") {
-      const [active, assigned, subs, pending, approved, overdue] = await Promise.all([
+      const [active, assigned, nonDraftSubmissions, pending, approved, overdue] = await Promise.all([
         countActiveRuns(),
         countTotalAssignments(),
         countNonDraftSubmissions(),
@@ -408,7 +408,7 @@ export async function GET(req) {
         countApprovedSubmissions(),
         countOverdueSubmissions(),
       ]);
-      const totalSubs = parseInt(subs.rows[0].c) || 0;
+      const totalNonDraftSubmissions = parseInt(nonDraftSubmissions.rows[0].c) || 0;
       const totalApproved = parseInt(approved.rows[0].c) || 0;
 
       return NextResponse.json({
@@ -416,9 +416,9 @@ export async function GET(req) {
         stats: {
           active_runs: parseInt(active.rows[0].c) || 0,
           total_assignments: parseInt(assigned.rows[0].c) || 0,
-          total_submissions: totalSubs,
+          total_submissions: totalNonDraftSubmissions,
           pending_reviews: parseInt(pending.rows[0].c) || 0,
-          approval_rate: totalSubs > 0 ? Math.round((totalApproved / totalSubs) * 100) : 0,
+          approval_rate: totalNonDraftSubmissions > 0 ? Math.round((totalApproved / totalNonDraftSubmissions) * 100) : 0,
           overdue: parseInt(overdue.rows[0].c) || 0,
         },
       });
@@ -441,10 +441,10 @@ export async function GET(req) {
       const submissionId = parseInt(searchParams.get("scoring"));
       if (!submissionId) return NextResponse.json({ success: false, error: "Invalid submission id" }, { status: 400 });
 
-      const sub = await getScoringSubmissionById(submissionId);
-      if (sub.rows.length === 0) return NextResponse.json({ success: false, error: "Submission not found" }, { status: 404 });
+      const submissionResult = await getScoringSubmissionById(submissionId);
+      if (submissionResult.rows.length === 0) return NextResponse.json({ success: false, error: "Submission not found" }, { status: 404 });
 
-      const submission = sub.rows[0];
+      const submission = submissionResult.rows[0];
       const subData = submission.data || {};
       const scores = subData._scores || null;
 
@@ -458,9 +458,9 @@ export async function GET(req) {
         if (runSettings.scoring?.enabled) {
           scoringConfig = runSettings.scoring;
         } else {
-          const form = await getFormScoringConfigById(run.rows[0].form_id);
-          if (form.rows.length > 0) {
-            const formSettings = form.rows[0].settings || {};
+          const formResult = await getFormScoringConfigById(run.rows[0].form_id);
+          if (formResult.rows.length > 0) {
+            const formSettings = formResult.rows[0].settings || {};
             if (formSettings.scoring?.enabled) scoringConfig = formSettings.scoring;
           }
         }
@@ -484,8 +484,8 @@ export async function GET(req) {
     // fields - with the table waiting for the last one before it stopped loading.
     // This answers it in one query.
     if (searchParams.get("responses") === "true") {
-      const rows = await listSubmissionsForOpenRuns();
-      return NextResponse.json({ success: true, submissions: rows.rows });
+      const submissionsResult = await listSubmissionsForOpenRuns();
+      return NextResponse.json({ success: true, submissions: submissionsResult.rows });
     }
 
     // Single run with submissions
@@ -493,82 +493,97 @@ export async function GET(req) {
       const run = await getRunDetailWithGroupTargetById(id);
       if (run.rows.length === 0) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
-      const assignments = await getAssignmentsByRunId(id);
-      const submissions = await getSubmissionsByRunId(id);
-      const reviews = await getReviewsByRunId(id);
+      // The Run is the only read the others depend on (for its form_id), so it
+      // is wave 1 and everything below rides in wave 2: assignments,
+      // submissions, reviews, the AI evaluations, the email logs, the form's
+      // fields and the report-file descriptor all need only the Run id. Awaiting
+      // them one after another made this screen twelve round trips long.
+      const formIdOfRun = run.rows[0].form_id;
+
+      const [
+        assignments,
+        submissions,
+        reviews,
+        evaluationsResult,
+        emailsResult,
+        activationLogsResult,
+        formFieldsResult,
+        reportFileRow,
+      ] = await Promise.all([
+        getAssignmentsByRunId(id),
+        getSubmissionsByRunId(id),
+        getReviewsByRunId(id),
+        // Supplementary reads: a hiccup must not stop the run from opening, so
+        // each falls back to an empty answer instead of rejecting the wave.
+        getLatestEvaluationsByRunId(id).catch(() => ({ rows: [] })),
+        getLatestEmailsByRunId(id).catch(() => ({ rows: [] })),
+        getActivationEmailLogsByRunId(id).catch(() => ({ rows: [] })),
+        getFormFieldsForRunById(formIdOfRun).catch(() => ({ rows: [] })),
+        getRunReportFileByRunId(id).catch(() => null),
+      ]);
 
       // AI evaluation rows (latest per submission) so the Responses table can
       // show stored scores/rankings without loading each submission individually.
-      let evaluations = [];
-      try {
-        const evalRes = await getLatestEvaluationsByRunId(id);
-        evaluations = evalRes.rows;
-      } catch (_) {}
+      const evaluations = evaluationsResult.rows || [];
 
       // Email delivery log so the Responses table can show activation-email state.
-      let emails = [];
-      try {
-        const emailRes = await getLatestEmailsByRunId(id);
-        emails = emailRes.rows;
-      } catch (_) {}
+      const emails = emailsResult.rows || [];
 
       // Full activation email history for the run (ALL rows, not just latest)
       // so first/last sent timestamps can be surfaced per submission.
-      let activationLogs = [];
-      try {
-        const actRes = await getActivationEmailLogsByRunId(id);
-        activationLogs = actRes.rows;
-      } catch (_) {}
+      const activationLogs = activationLogsResult.rows || [];
 
-      // ── Run-scoped respondent enrichment: emails + dynamic filter fields ──
-      const formIdOfRun = run.rows[0].form_id;
+      // Assignment display names depend only on the assignments read, not on the
+      // contact lookups further down: start them now so their reads overlap
+      // instead of waiting for the enrichment to finish.
+      const enrichedAssignmentsPromise = enrichAssignments(assignments.rows);
 
+      // ── Run-scoped respondent enrichment: dynamic filter fields ──
       let fieldLabels = {};
       let filterableFields = [];
       try {
-        const fRes = await getFormFieldsForRunById(formIdOfRun);
-        for (const f of fRes.rows) {
-          fieldLabels[String(f.id)] = f.label;
-          let parsedOpts = null;
-          if (f.options) {
+        for (const field of formFieldsResult.rows) {
+          fieldLabels[String(field.id)] = field.label;
+          let parsedOptions = null;
+          if (field.options) {
             try {
-              parsedOpts = typeof f.options === "string" ? JSON.parse(f.options) : f.options;
+              parsedOptions = typeof field.options === "string" ? JSON.parse(field.options) : field.options;
             } catch (_) {
-              parsedOpts = null;
+              parsedOptions = null;
             }
           }
-          const opts = Array.isArray(parsedOpts)
-            ? parsedOpts
-                .map((o) => (typeof o === "string" ? o : o?.label || o?.value || String(o)))
-                .filter((s) => s != null && String(s).trim() !== "")
+          const options = Array.isArray(parsedOptions)
+            ? parsedOptions
+                .map((option) => (typeof option === "string" ? option : option?.label || option?.value || String(option)))
+                .filter((option) => option != null && String(option).trim() !== "")
             : [];
-          if (opts.length > 0) filterableFields.push({ label: f.label, options: opts });
+          if (options.length > 0) filterableFields.push({ label: field.label, options: options });
         }
       } catch (_) {}
 
       // Emails: batch contact lookup, falling back to the submission data
-      const rawSubs = submissions.rows;
-      const cids = [...new Set(rawSubs.map((s) => s.submitter_id).filter(Boolean))];
+      const rawSubmissions = submissions.rows;
+      const cids = [...new Set(rawSubmissions.map((submission) => submission.submitter_id).filter(Boolean))];
 
       // Pre-resolve each applicant's real email so we can look up contacts by
       // BOTH submitter_id AND email — anonymous/imported submissions often
       // have a null/mismatched submitter_id while the contact exists by email.
-      const resolvedEmails = rawSubs.map((s) =>
+      const resolvedEmails = rawSubmissions.map((submission) =>
         resolveSubmissionEmail({
-          submissionData: s.data || {},
+          submissionData: submission.data || {},
           fieldLabels,
           contactEmail: "",
         }),
       );
-      const emailKeys = [...new Set(resolvedEmails.map((e) => (e ? String(e).toLowerCase() : "")).filter(Boolean))];
+      const emailKeys = [...new Set(resolvedEmails.map((email) => (email ? String(email).toLowerCase() : "")).filter(Boolean))];
 
       const emailMap = new Map();
       const nameMap = new Map();
       const accountMap = new Map(); // keyed by BOTH cid and lower(email)
       if (cids.length > 0) {
         try {
-          const cres = await getContactsByCids(cids);
-          for (const row of cres.rows) {
+          const contactsByCidResult = await getContactsByCids(cids);
+          for (const row of contactsByCidResult.rows) {
             emailMap.set(row.cid, row.email || "");
             nameMap.set(row.cid, row.name || "");
             accountMap.set(row.cid, row);
@@ -578,8 +593,8 @@ export async function GET(req) {
       }
       if (emailKeys.length > 0) {
         try {
-          const cres = await getContactsByLowerEmails(emailKeys);
-          for (const row of cres.rows) {
+          const contactsByEmailResult = await getContactsByLowerEmails(emailKeys);
+          for (const row of contactsByEmailResult.rows) {
             accountMap.set(row.cid, row);
             if (row.email) accountMap.set(String(row.email).toLowerCase(), row);
             if (!emailMap.has(row.cid)) emailMap.set(row.cid, row.email || "");
@@ -591,35 +606,35 @@ export async function GET(req) {
       // Password-setup tokens per contact (latest per contact) — for link validity
       const tokenByCid = new Map();
       try {
-        const contactCids = [...new Set([...accountMap.values()].map((c) => c.cid).filter(Boolean))];
+        const contactCids = [...new Set([...accountMap.values()].map((account) => account.cid).filter(Boolean))];
         if (contactCids.length > 0) {
-          const tokRes = await getPasswordTokensByContactCids(contactCids);
-          for (const t of tokRes.rows) {
-            if (!tokenByCid.has(t.contact_cid)) tokenByCid.set(t.contact_cid, t);
+          const tokensResult = await getPasswordTokensByContactCids(contactCids);
+          for (const tokenRow of tokensResult.rows) {
+            if (!tokenByCid.has(tokenRow.contact_cid)) tokenByCid.set(tokenRow.contact_cid, tokenRow);
           }
         }
       } catch (_) {}
 
-      const enrichedSubmissions = rawSubs.map((s) => {
+      const enrichedSubmissions = rawSubmissions.map((submission) => {
         // Real applicant email: the form's actual email answer first, then any
         // real email in the submission, then the CRM email — placeholder
         // import addresses are NEVER shown.
         const email = resolveSubmissionEmail({
-          submissionData: s.data || {},
+          submissionData: submission.data || {},
           fieldLabels,
-          contactEmail: emailMap.get(s.submitter_id) || "",
+          contactEmail: emailMap.get(submission.submitter_id) || "",
         });
         const displayName =
           resolvePersonName({
-            contactName: nameMap.get(s.submitter_id) || "",
-            submitterName: s.submitter_name || "",
-            submissionData: s.data || {},
+            contactName: nameMap.get(submission.submitter_id) || "",
+            submitterName: submission.submitter_name || "",
+            submissionData: submission.data || {},
             fieldLabels,
           }) ||
           // Fallbacks must never surface placeholder names when a real one
           // is missing — prefer the submitter id over "Unknown"/"Anonymous".
-          (!isGenericName(s.submitter_name) ? s.submitter_name : "") ||
-          s.submitter_id;
+          (!isGenericName(submission.submitter_name) ? submission.submitter_name : "") ||
+          submission.submitter_id;
         // Account activation is independent of email delivery. A non-empty
         // password means the user completed account setup (the activate route
         // sets both password and status = 'active'). Resolve by submitter_id
@@ -631,7 +646,7 @@ export async function GET(req) {
         // never activated even though the person activated the real-email
         // account. So: placeholder submitter contact → prefer the contact
         // matched by the resolved real email; otherwise keep submitter contact.
-        const contactByCid = accountMap.get(s.submitter_id) || null;
+        const contactByCid = accountMap.get(submission.submitter_id) || null;
         const contactByEmail = email ? accountMap.get(String(email).toLowerCase()) : null;
         const contactRow =
           (contactByCid && !isPlaceholderEmail(contactByCid.email) ? contactByCid : null) ||
@@ -643,12 +658,12 @@ export async function GET(req) {
 
         // Activation history from the REAL email log + token state (first/last
         // sent, link validity) — the source of truth for Send vs Resend.
-        const actRows = activationLogs.filter((l) => l.submission_id === s.id);
-        const sentAct = actRows.filter((r) => r.status === "sent");
+        const actRows = activationLogs.filter((log) => log.submission_id === submission.id);
+        const sentAct = actRows.filter((activationRow) => activationRow.status === "sent");
         const token = contactRow ? tokenByCid.get(contactRow.cid) : null;
         const token_valid = !!(token && Number(token.used) === 0 && new Date(token.expires_at) > new Date());
         return {
-          ...s,
+          ...submission,
           email,
           display_name: displayName,
           account_created,
@@ -667,21 +682,21 @@ export async function GET(req) {
       });
 
       // The document this Run hands to its report writer, if any. Read together
-      // with the Run so the configuration screen can show it — and offer
-      // "regenerate" — without a second round trip. Supplementary: a hiccup here
-      // must not stop the run from opening.
+      // with the rest of the wave so the configuration screen can show it — and
+      // offer "regenerate" — without a second round trip. Supplementary: a hiccup
+      // here must not stop the run from opening.
       let reportFile = null;
       try {
-        reportFile = runReportFileDescriptor(await getRunReportFileByRunId(id));
+        reportFile = runReportFileDescriptor(reportFileRow);
       } catch (_) {}
 
-      return NextResponse.json({ success: true, run: run.rows[0], report_file: reportFile, assignments: await enrichAssignments(assignments.rows), submissions: enrichedSubmissions, reviews: reviews.rows, evaluations, emails, field_labels: fieldLabels, filterable_fields: filterableFields });
+      return NextResponse.json({ success: true, run: run.rows[0], report_file: reportFile, assignments: await enrichedAssignmentsPromise, submissions: enrichedSubmissions, reviews: reviews.rows, evaluations, emails, field_labels: fieldLabels, filterable_fields: filterableFields });
     }
 
     // Submissions for a specific user
     if (submitterId) {
-      const subs = await getSubmissionsBySubmitterId(submitterId);
-      return NextResponse.json({ success: true, submissions: subs.rows });
+      const submissionsResult = await getSubmissionsBySubmitterId(submitterId);
+      return NextResponse.json({ success: true, submissions: submissionsResult.rows });
     }
 
     // List all runs (optionally filtered by group_id or program_id), paginated server-side.
@@ -712,9 +727,9 @@ export async function GET(req) {
  * Returns { status: "sent"|"already_sent"|"skipped"|"failed"|"not_found", error?, to? }.
  */
 async function sendDecisionEmailForSubmission({ submission_id, decision, comment }) {
-  const subRes = await getDecisionEmailSubmissionById(submission_id);
-  if (subRes.rows.length === 0) return { status: "not_found", error: "Submission not found" };
-  const row = subRes.rows[0];
+  const submissionResult = await getDecisionEmailSubmissionById(submission_id);
+  if (submissionResult.rows.length === 0) return { status: "not_found", error: "Submission not found" };
+  const row = submissionResult.rows[0];
 
   try {
     const subData = row.data || {};
@@ -726,8 +741,8 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
     let crmName = "";
     let crmEmail = "";
     try {
-      const fieldRes = await getFieldLabelsByRunId(row.run_id);
-      for (const frow of fieldRes.rows) labels[String(frow.id)] = frow.label;
+      const fieldLabelsResult = await getFieldLabelsByRunId(row.run_id);
+      for (const fieldRow of fieldLabelsResult.rows) labels[String(fieldRow.id)] = fieldRow.label;
       const cNameRes = await getContactNameEmailByCid(row.submitter_id);
       if (cNameRes.rows[0]) {
         crmName = cNameRes.rows[0].name || "";
@@ -776,8 +791,8 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
     // serves both this verdict and the template lookup further down.
     let decisionSettings = null;
     try {
-      const s = await getRunTemplateSettingsForDecisionById(row.run_id);
-      decisionSettings = s.rows[0] || null;
+      const settingsResult = await getRunTemplateSettingsForDecisionById(row.run_id);
+      decisionSettings = settingsResult.rows[0] || null;
     } catch (_) {}
 
     let shouldSend = true;
@@ -838,8 +853,8 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
           if (groupRes.rows.length > 0) templateVars.group_name = groupRes.rows[0].group_name;
         } catch (_) {}
       }
-      const evalRes = await getLatestScoreBySubmissionId(submission_id);
-      if (evalRes.rows.length > 0) score = evalRes.rows[0].overall_score;
+      const scoreResult = await getLatestScoreBySubmissionId(submission_id);
+      if (scoreResult.rows.length > 0) score = scoreResult.rows[0].overall_score;
     } catch (_) {}
 
     const { sendTrackedEmail } = await import("@/lib/email");
@@ -867,9 +882,9 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
     if (tracked.skipped) return { status: "already_sent", to: applicantEmail };
     logTimeline(parseInt(submission_id), "email_failed", "system", "System", { to: applicantEmail, decision, email_type: emailType, retry: true });
     return { status: "failed", error: tracked.error || "Email send failed", to: applicantEmail };
-  } catch (e) {
-    console.error("[form-runs] Decision email error:", e);
-    return { status: "failed", error: e?.message || "Email error" };
+  } catch (error) {
+    console.error("[form-runs] Decision email error:", error);
+    return { status: "failed", error: error?.message || "Email error" };
   }
 }
 
@@ -877,14 +892,14 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
 function formatResultAnswer(value) {
   if (value === undefined || value === null || value === "") return "";
   if (typeof value === "string") {
-    const t = value.trim();
-    if (t.startsWith("{") && t.includes('"code"')) {
+    const trimmedValue = value.trim();
+    if (trimmedValue.startsWith("{") && trimmedValue.includes('"code"')) {
       try {
-        const p = JSON.parse(t);
-        if (p.code && p.number) return `${p.code} ${p.number}`;
+        const parsedCode = JSON.parse(trimmedValue);
+        if (parsedCode.code && parsedCode.number) return `${parsedCode.code} ${parsedCode.number}`;
       } catch (_) {}
     }
-    return t;
+    return trimmedValue;
   }
   if (Array.isArray(value)) return value.map(formatResultAnswer).filter(Boolean).join(", ");
   if (typeof value === "object") {
@@ -929,9 +944,9 @@ function isFounderFitResultRun(ctx) {
  * both. Without an instruction nothing changes.
  */
 async function buildResultDocument({ submission_id, forceReport = false }) {
-  const subRes = await getDecisionEmailSubmissionById(submission_id);
-  if (subRes.rows.length === 0) return { status: "not_found", error: "Submission not found" };
-  const row = subRes.rows[0];
+  const submissionResult = await getDecisionEmailSubmissionById(submission_id);
+  if (submissionResult.rows.length === 0) return { status: "not_found", error: "Submission not found" };
+  const row = submissionResult.rows[0];
 
   if (String(row.status || "") === "draft") {
     return { status: "failed", error: "Cannot send a result for a draft submission" };
@@ -952,10 +967,10 @@ async function buildResultDocument({ submission_id, forceReport = false }) {
   // means something is genuinely broken.
   let ctx = null;
   try {
-    const ctxRes = await getRunFormContextBySubmissionId(submission_id);
-    ctx = ctxRes.rows[0] || null;
-  } catch (e) {
-    console.error(`[form-runs] Run/form context read failed for submission ${submission_id}:`, e);
+    const ctxResult = await getRunFormContextBySubmissionId(submission_id);
+    ctx = ctxResult.rows[0] || null;
+  } catch (error) {
+    console.error(`[form-runs] Run/form context read failed for submission ${submission_id}:`, error);
     return {
       status: "failed",
       error: "Could not read the run and form this submission belongs to — no result sent. Retry; if it keeps failing, the submission's run or its form is missing.",
@@ -970,11 +985,11 @@ async function buildResultDocument({ submission_id, forceReport = false }) {
   }
 
   // A result document requires an evaluation (dimensions + overall score).
-  const evalRes = await getLatestEvaluationBySubmissionId(submission_id);
-  if (evalRes.rows.length === 0) {
+  const evaluationResult = await getLatestEvaluationBySubmissionId(submission_id);
+  if (evaluationResult.rows.length === 0) {
     return { status: "failed", error: "This submission has not been evaluated yet — run the evaluation first" };
   }
-  const evalRow = evalRes.rows[0];
+  const evalRow = evaluationResult.rows[0];
   let rawDims = Array.isArray(evalRow.dimensions) ? evalRow.dimensions : [];
   if (!rawDims.length && typeof evalRow.dimensions === "string") {
     try {
@@ -995,8 +1010,8 @@ async function buildResultDocument({ submission_id, forceReport = false }) {
     let crmName = "";
     let crmEmail = "";
     try {
-      const fieldRes = await getFieldLabelsByRunId(row.run_id);
-      for (const frow of fieldRes.rows) labels[String(frow.id)] = frow.label;
+      const fieldLabelsResult = await getFieldLabelsByRunId(row.run_id);
+      for (const fieldRow of fieldLabelsResult.rows) labels[String(fieldRow.id)] = fieldRow.label;
       const cNameRes = await getContactNameEmailByCid(row.submitter_id);
       if (cNameRes.rows[0]) {
         crmName = cNameRes.rows[0].name || "";
@@ -1034,81 +1049,81 @@ async function buildResultDocument({ submission_id, forceReport = false }) {
     let fieldRows = [];
     if (ctx?.form_id) {
       try {
-        const secRes = await getPlatformFormSections(ctx.form_id);
-        sectionsRows = secRes.rows || [];
-        const fldRes = await getPlatformFormFields(ctx.form_id);
-        fieldRows = fldRes.rows || [];
+        const sectionsResult = await getPlatformFormSections(ctx.form_id);
+        sectionsRows = sectionsResult.rows || [];
+        const fieldsResult = await getPlatformFormFields(ctx.form_id);
+        fieldRows = fieldsResult.rows || [];
       } catch (_) {}
     }
-    const isHidden = (f) => String(f.field_type || "") === "hidden";
-    const getVal = (f) => subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
+    const isHidden = (field) => String(field.field_type || "") === "hidden";
+    const getVal = (field) => subData[field.label] ?? subData[String(field.id)] ?? subData[field.id];
 
     const sections = [];
     const matchedKeys = new Set();
-    for (const sec of sectionsRows) {
+    for (const section of sectionsRows) {
       const items = [];
-      for (const f of fieldRows) {
-        if (String(f.section_id) !== String(sec.id)) continue;
-        if (isHidden(f)) continue;
-        const value = formatResultAnswer(getVal(f));
+      for (const field of fieldRows) {
+        if (String(field.section_id) !== String(section.id)) continue;
+        if (isHidden(field)) continue;
+        const value = formatResultAnswer(getVal(field));
         if (value === "") continue;
-        matchedKeys.add(String(f.id));
-        if (f.label) matchedKeys.add(f.label);
-        items.push({ label: f.label || String(f.id), value });
+        matchedKeys.add(String(field.id));
+        if (field.label) matchedKeys.add(field.label);
+        items.push({ label: field.label || String(field.id), value });
       }
-      if (items.length > 0) sections.push({ title: sec.title, items });
+      if (items.length > 0) sections.push({ title: section.title, items });
     }
 
     // Fields without any section (older forms) → one flat group.
     const looseItems = [];
-    for (const f of fieldRows) {
-      if (sectionsRows.some((s) => String(s.id) === String(f.section_id))) continue;
-      if (isHidden(f)) continue;
-      const value = formatResultAnswer(getVal(f));
+    for (const field of fieldRows) {
+      if (sectionsRows.some((section) => String(section.id) === String(field.section_id))) continue;
+      if (isHidden(field)) continue;
+      const value = formatResultAnswer(getVal(field));
       if (value === "") continue;
-      matchedKeys.add(String(f.id));
-      if (f.label) matchedKeys.add(f.label);
-      looseItems.push({ label: f.label || String(f.id), value });
+      matchedKeys.add(String(field.id));
+      if (field.label) matchedKeys.add(field.label);
+      looseItems.push({ label: field.label || String(field.id), value });
     }
     if (looseItems.length > 0) sections.push({ title: null, items: looseItems });
 
     // Unmatched data keys (imported submissions may store answers under keys
     // that no longer map to a form field) — still part of the response.
     const unmatchedItems = Object.entries(subData)
-      .filter(([k]) => !String(k).startsWith("_"))
-      .filter(([k, v]) => !matchedKeys.has(String(k)) && formatResultAnswer(v) !== "")
-      .map(([k, v]) => ({ label: k, value: formatResultAnswer(v) }));
+      .filter(([key]) => !String(key).startsWith("_"))
+      .filter(([key, value]) => !matchedKeys.has(String(key)) && formatResultAnswer(value) !== "")
+      .map(([key, value]) => ({ label: key, value: formatResultAnswer(value) }));
     if (unmatchedItems.length > 0) sections.push({ title: null, items: unmatchedItems });
 
     // ── Evaluation: final dimension scores + feedback for the PDF ──
     // Weighted recompute mirrors the review page: human overrides (final_score)
     // are the source of truth when present.
-    const totalWeight = rawDims.reduce((s, d) => s + (d.weight ?? 1), 0);
-    const weighted = rawDims.reduce((s, d) => s + ((d.final_score ?? d.score ?? 0) * (d.weight ?? 1)), 0);
+    const totalWeight = rawDims.reduce((sum, dimension) => sum + (dimension.weight ?? 1), 0);
+    const weighted = rawDims.reduce((sum, dimension) => sum + ((dimension.final_score ?? dimension.score ?? 0) * (dimension.weight ?? 1)), 0);
     const finalScore = rawDims.length > 0 && totalWeight > 0
       ? Math.round((weighted / totalWeight) * 10)
       : evalRow.overall_score;
     const dimensions = rawDims
-      .map((d) => {
-        const humanComment = typeof d.human_comment === "string" ? d.human_comment.trim() : "";
-        const reasoning = typeof d.reasoning === "string" ? d.reasoning.trim() : "";
+      .map((dimension) => {
+        const humanComment = typeof dimension.human_comment === "string" ? dimension.human_comment.trim() : "";
+        const reasoning = typeof dimension.reasoning === "string" ? dimension.reasoning.trim() : "";
         return {
-          name: d.name,
-          score: d.final_score ?? d.score ?? null,
+          name: dimension.name,
+          score: dimension.final_score ?? dimension.score ?? null,
           feedback: humanComment || reasoning,
-          strengths: Array.isArray(d.strengths) ? d.strengths.map((s) => String(s)) : [],
-          improvements: Array.isArray(d.weaknesses) ? d.weaknesses.map((s) => String(s)) : [],
+          strengths: Array.isArray(dimension.strengths) ? dimension.strengths.map((strength) => String(strength)) : [],
+          improvements: Array.isArray(dimension.weaknesses) ? dimension.weaknesses.map((weakness) => String(weakness)) : [],
         };
       })
-      .filter((d) => d.name);
+      .filter((dimension) => dimension.name);
 
     // ── Outcome: only when a real decision exists (approved/rejected/revision) ──
     let outcome = null;
     if (["approved", "rejected", "revision_requested"].includes(row.status)) {
       let comment = "";
       try {
-        const revRes = await getSubmissionReviewsBySubmissionId(submission_id);
-        const latest = revRes.rows[0];
+        const reviewsResult = await getSubmissionReviewsBySubmissionId(submission_id);
+        const latest = reviewsResult.rows[0];
         if (latest && typeof latest.comment === "string") comment = latest.comment;
       } catch (_) {}
       outcome = { decision: row.status, comment };
@@ -1199,9 +1214,9 @@ async function buildResultDocument({ submission_id, forceReport = false }) {
       projectName,
       template: isFounderFitResultRun(ctx) ? "founder_fit" : "generic",
     };
-  } catch (e) {
-    console.error("[form-runs] Result document error:", e);
-    return { status: "failed", error: e?.message || "Document error" };
+  } catch (error) {
+    console.error("[form-runs] Result document error:", error);
+    return { status: "failed", error: error?.message || "Document error" };
   }
 }
 
@@ -1217,9 +1232,9 @@ async function buildResultDocument({ submission_id, forceReport = false }) {
  */
 async function sendResultEmailForSubmission({ submission_id }) {
   try {
-    const doc = await buildResultDocument({ submission_id });
-    if (doc.status !== "ok") return { status: doc.status, error: doc.error };
-    const { row, to: applicantEmail, applicantName, lang, pdfBytes, score, projectName, template } = doc;
+    const resultDocument = await buildResultDocument({ submission_id });
+    if (resultDocument.status !== "ok") return { status: resultDocument.status, error: resultDocument.error };
+    const { row, to: applicantEmail, applicantName, lang, pdfBytes, score, projectName, template } = resultDocument;
 
     // Already emailed for THIS submission → polite already_sent (re-click).
     const existingLog = await getEmailLogRow(parseInt(submission_id), "result");
@@ -1273,9 +1288,9 @@ async function sendResultEmailForSubmission({ submission_id }) {
     if (tracked.skipped) return { status: "already_sent", to: applicantEmail };
     logTimeline(parseInt(submission_id), "email_failed", "system", "System", { to: applicantEmail, email_type: "result" });
     return { status: "failed", error: tracked.error || "Email send failed", to: applicantEmail };
-  } catch (e) {
-    console.error("[form-runs] Result email error:", e);
-    return { status: "failed", error: e?.message || "Email error" };
+  } catch (error) {
+    console.error("[form-runs] Result email error:", error);
+    return { status: "failed", error: error?.message || "Email error" };
   }
 }
 
@@ -1329,8 +1344,8 @@ async function processReviewInternal({ submission_id, decision, comment, interna
 
   let reviewerName = session.cid;
   try {
-    const r = await getReviewerNameByCid(session.cid);
-    if (r.rows.length) reviewerName = r.rows[0].name;
+    const reviewerResult = await getReviewerNameByCid(session.cid);
+    if (reviewerResult.rows.length) reviewerName = reviewerResult.rows[0].name;
   } catch (_) {}
 
   // Save review with dimension overrides if provided
@@ -1346,16 +1361,16 @@ async function processReviewInternal({ submission_id, decision, comment, interna
   // Store dimension overrides in separate evaluation update
   if (dimension_overrides && Array.isArray(dimension_overrides) && dimension_overrides.length > 0) {
     try {
-      const evalRes = await getLatestEvaluationForOverridesBySubmissionId(submission_id);
-      if (evalRes.rows.length > 0) {
-        const existing = evalRes.rows[0];
+      const evaluationResult = await getLatestEvaluationForOverridesBySubmissionId(submission_id);
+      if (evaluationResult.rows.length > 0) {
+        const existing = evaluationResult.rows[0];
         const dims = existing.dimensions || [];
-        const updatedDims = dims.map(d => {
-          const override = dimension_overrides.find(o => o.name === d.name);
+        const updatedDims = dims.map(dimension => {
+          const override = dimension_overrides.find(overrideCandidate => overrideCandidate.name === dimension.name);
           if (override) {
-            return { ...d, human_score: override.human_score, human_comment: override.human_comment || "", final_score: override.final_score };
+            return { ...dimension, human_score: override.human_score, human_comment: override.human_comment || "", final_score: override.final_score };
           }
-          return d;
+          return dimension;
         });
         await updateEvaluationDimensionsById(existing.id, updatedDims);
       }
@@ -1381,19 +1396,19 @@ async function processReviewInternal({ submission_id, decision, comment, interna
   if (includeResultPdf && decision === "approved") {
     try {
       resultPdf = await sendResultEmailForSubmission({ submission_id });
-    } catch (e) {
-      resultPdf = { status: "failed", error: e?.message || "Result PDF failed" };
+    } catch (error) {
+      resultPdf = { status: "failed", error: error?.message || "Result PDF failed" };
     }
   }
 
   // Fire automation — get run details + form config for context
-  const sub = await getSubmissionRunIdById(submission_id);
-  if (sub.rows.length > 0) {
-    const runData = await getRunDataForReviewAutomationById(sub.rows[0].run_id);
+  const submissionRunResult = await getSubmissionRunIdById(submission_id);
+  if (submissionRunResult.rows.length > 0) {
+    const runData = await getRunDataForReviewAutomationById(submissionRunResult.rows[0].run_id);
     let formData = null;
     if (runData.rows[0]) {
-      const f = await getFormById(runData.rows[0].form_id);
-      formData = f.rows[0] || null;
+      const formResult = await getFormById(runData.rows[0].form_id);
+      formData = formResult.rows[0] || null;
     }
 
     // Record a PENDING activation email BEFORE firing the background task.
@@ -1497,9 +1512,9 @@ export async function POST(req) {
       }
 
       if (existing.rows.length > 0) {
-        const cur = await getSubmissionCurrentStatusById(existing.rows[0].id);
+        const currentStatus = await getSubmissionCurrentStatusById(existing.rows[0].id);
         // Don't allow overwriting approved/rejected submissions
-        if (cur.rows[0] && (cur.rows[0].status === "approved" || cur.rows[0].status === "rejected")) {
+        if (currentStatus.rows[0] && (currentStatus.rows[0].status === "approved" || currentStatus.rows[0].status === "rejected")) {
           return NextResponse.json({ success: false, error: "Cannot modify an already decided submission" }, { status: 400 });
         }
         const result = await updateSubmissionContentAndStatusById({
@@ -1514,8 +1529,8 @@ export async function POST(req) {
           const runRow = fullRun.rows[0];
           let formRow = null;
           if (runRow) {
-            const f = await getFormForSubmissionAutomationById(runRow.form_id);
-            formRow = f.rows[0] || null;
+            const formResult = await getFormForSubmissionAutomationById(runRow.form_id);
+            formRow = formResult.rows[0] || null;
           }
           onSubmission(result.rows[0], runRow || { id: parseInt(run_id) }, formRow, session);
           // AI evaluation — but ONLY when this response has never been evaluated.
@@ -1524,17 +1539,17 @@ export async function POST(req) {
           // human values, so it would also hide whatever a human had entered.
           // If we cannot tell whether it was evaluated, we do NOT evaluate.
           if (formAiEnabled) {
-            const subId = result.rows[0].id;
+            const newSubmissionId = result.rows[0].id;
             try {
               const { submissionHasEvaluation, evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
-              const alreadyEvaluated = await submissionHasEvaluation(subId).catch(() => true);
+              const alreadyEvaluated = await submissionHasEvaluation(newSubmissionId).catch(() => true);
               if (!alreadyEvaluated) {
-                await evaluateSubmission(subId);
-                logTimeline(subId, "ai_evaluated", "system", "System", {});
+                await evaluateSubmission(newSubmissionId);
+                logTimeline(newSubmissionId, "ai_evaluated", "system", "System", {});
               }
-            } catch (e) {
-              console.error("[form-runs] AI eval failed for submission", subId, ":", e.message);
-              logTimeline(subId, "ai_eval_failed", "system", "System", { error: e.message });
+            } catch (error) {
+              console.error("[form-runs] AI eval failed for submission", newSubmissionId, ":", error.message);
+              logTimeline(newSubmissionId, "ai_eval_failed", "system", "System", { error: error.message });
             }
           }
         }
@@ -1554,21 +1569,21 @@ export async function POST(req) {
           const runRow = fullRun.rows[0];
           let formRow = null;
           if (runRow) {
-            const f = await getFormForInsertSubmissionAutomationById(runRow.form_id);
-            formRow = f.rows[0] || null;
+            const formResult = await getFormForInsertSubmissionAutomationById(runRow.form_id);
+            formRow = formResult.rows[0] || null;
           }
           onSubmission(result.rows[0], runRow || { id: parseInt(run_id) }, formRow, session);
           // A brand-new response cannot already have an evaluation, so the
           // form-level switch is the whole question here.
           if (formAiEnabled) {
-            const subId = result.rows[0].id;
+            const newSubmissionId = result.rows[0].id;
             try {
               const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
-              await evaluateSubmission(subId);
-              logTimeline(subId, "ai_evaluated", "system", "System", {});
-            } catch (e) {
-              console.error("[form-runs] AI eval failed for submission", subId, ":", e.message);
-              logTimeline(subId, "ai_eval_failed", "system", "System", { error: e.message });
+              await evaluateSubmission(newSubmissionId);
+              logTimeline(newSubmissionId, "ai_evaluated", "system", "System", {});
+            } catch (error) {
+              console.error("[form-runs] AI eval failed for submission", newSubmissionId, ":", error.message);
+              logTimeline(newSubmissionId, "ai_eval_failed", "system", "System", { error: error.message });
             }
           }
         }
@@ -1658,19 +1673,19 @@ export async function POST(req) {
         const runRow = run.rows[0];
         let formRow = null;
         if (runRow) {
-          const f = await getFormForManualAddAutomationById(runRow.form_id);
-          formRow = f.rows[0] || null;
+          const formResult = await getFormForManualAddAutomationById(runRow.form_id);
+          formRow = formResult.rows[0] || null;
         }
         onSubmission(result.rows[0], runRow || { id: parseInt(run_id) }, formRow, session);
         if (formAiEnabled) {
-          const subId = result.rows[0].id;
+          const newSubmissionId = result.rows[0].id;
           try {
             const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
-            await evaluateSubmission(subId);
-            logTimeline(subId, "ai_evaluated", "system", "System", {});
-          } catch (e) {
-            console.error("[form-runs] AI eval failed for manual submission", subId, ":", e.message);
-            logTimeline(subId, "ai_eval_failed", "system", "System", { error: e.message });
+            await evaluateSubmission(newSubmissionId);
+            logTimeline(newSubmissionId, "ai_evaluated", "system", "System", {});
+          } catch (error) {
+            console.error("[form-runs] AI eval failed for manual submission", newSubmissionId, ":", error.message);
+            logTimeline(newSubmissionId, "ai_eval_failed", "system", "System", { error: error.message });
           }
         }
       }
@@ -1692,7 +1707,7 @@ export async function POST(req) {
       const { submission_id, decision, comment, internal_note, dimension_overrides, force, include_result_pdf } = body;
       if (!submission_id || !decision) return NextResponse.json({ success: false, error: "submission_id and decision required" }, { status: 400 });
 
-      const res = await processReviewInternal({
+      const reviewResult = await processReviewInternal({
         submission_id: parseInt(submission_id),
         decision,
         comment,
@@ -1702,18 +1717,18 @@ export async function POST(req) {
         session,
         includeResultPdf: include_result_pdf === true,
       });
-      if (!res.ok) {
-        return NextResponse.json({ success: false, error: res.error, error_code: res.errorCode || null }, { status: res.statusCode || 500 });
+      if (!reviewResult.ok) {
+        return NextResponse.json({ success: false, error: reviewResult.error, error_code: reviewResult.errorCode || null }, { status: reviewResult.statusCode || 500 });
       }
-      if (res.already_approved) {
+      if (reviewResult.already_approved) {
         return NextResponse.json({
           success: true,
           already_approved: true,
-          submission: res.submission,
+          submission: reviewResult.submission,
           message: "Submission already approved — no duplicate actions performed",
         });
       }
-      return NextResponse.json({ success: true, submission: res.submission, result_pdf: res.result_pdf || null });
+      return NextResponse.json({ success: true, submission: reviewResult.submission, result_pdf: reviewResult.result_pdf || null });
     }
 
     // ─── BULK REVIEW ACTION ───
@@ -1738,15 +1753,15 @@ export async function POST(req) {
         return NextResponse.json({ success: false, error: "Only 'approved' is supported as a bulk action right now" }, { status: 400 });
       }
 
-      const idList = [...new Set(submission_ids.map((id) => parseInt(id)).filter((n) => Number.isFinite(n)))];
+      const idList = [...new Set(submission_ids.map((id) => parseInt(id)).filter((numericId) => Number.isFinite(numericId)))];
       if (idList.length === 0) {
         return NextResponse.json({ success: false, error: "No valid submission ids provided" }, { status: 400 });
       }
 
       // Backend validation: every id must belong to THIS run — the frontend
       // selection state is never trusted alone.
-      const valRes = await getBulkReviewValidationsByIdsInRun(idList, run_id);
-      const validMap = new Map(valRes.rows.map((r) => [r.id, r]));
+      const validationsResult = await getBulkReviewValidationsByIdsInRun(idList, run_id);
+      const validMap = new Map(validationsResult.rows.map((row) => [row.id, row]));
 
       const results = [];
       for (const id of idList) {
@@ -1760,7 +1775,7 @@ export async function POST(req) {
           continue;
         }
         try {
-          const res = await processReviewInternal({
+          const reviewResult = await processReviewInternal({
             submission_id: id,
             decision: "approved",
             comment: comment || "Bulk approved",
@@ -1769,18 +1784,18 @@ export async function POST(req) {
           });
           results.push({
             submission_id: id,
-            status: res.ok ? (res.already_approved ? "already_approved" : "approved") : "failed",
+            status: reviewResult.ok ? (reviewResult.already_approved ? "already_approved" : "approved") : "failed",
             name: row.submitter_name || "",
-            error: res.ok ? undefined : res.error,
-            result_pdf: res.result_pdf ? res.result_pdf.status : undefined,
-            result_pdf_error: res.result_pdf ? res.result_pdf.error : undefined,
+            error: reviewResult.ok ? undefined : reviewResult.error,
+            result_pdf: reviewResult.result_pdf ? reviewResult.result_pdf.status : undefined,
+            result_pdf_error: reviewResult.result_pdf ? reviewResult.result_pdf.error : undefined,
           });
-        } catch (e) {
+        } catch (error) {
           results.push({
             submission_id: id,
             status: "failed",
             name: row.submitter_name || "",
-            error: e?.message || "Unknown error",
+            error: error?.message || "Unknown error",
           });
         }
       }
@@ -1804,14 +1819,14 @@ export async function POST(req) {
         return NextResponse.json({ success: false, error: "run_id and retries are required" }, { status: 400 });
       }
 
-      if (!retries.every((r) => r && Number.isFinite(parseInt(r.submission_id)) && typeof r.email_type === "string")) {
+      if (!retries.every((retry) => retry && Number.isFinite(parseInt(retry.submission_id)) && typeof retry.email_type === "string")) {
         return NextResponse.json({ success: false, error: "Each retry needs submission_id and email_type" }, { status: 400 });
       }
 
       // Backend validation: every submission must belong to THIS run.
-      const idList = [...new Set(retries.map((r) => parseInt(r.submission_id)))];
-      const valRes = await getRetryEmailValidationsByIdsInRun(idList, run_id);
-      const validMap = new Map(valRes.rows.map((r) => [r.id, r]));
+      const idList = [...new Set(retries.map((retry) => parseInt(retry.submission_id)))];
+      const validationsResult = await getRetryEmailValidationsByIdsInRun(idList, run_id);
+      const validMap = new Map(validationsResult.rows.map((row) => [row.id, row]));
 
       const { getEmailLogRow } = await import("@/lib/email");
       const results = [];
@@ -1834,27 +1849,32 @@ export async function POST(req) {
         }
 
         if (type === "approval" || type === "rejection") {
-          const r = await sendDecisionEmailForSubmission({
+          const sendResult = await sendDecisionEmailForSubmission({
             submission_id: id,
             decision: type === "approval" ? "approved" : "rejected",
             comment: "",
           });
-          results.push({ submission_id: id, email_type: type, name, status: r.status, error: r.error, to: r.to });
+          results.push({ submission_id: id, email_type: type, name, status: sendResult.status, error: sendResult.error, to: sendResult.to });
         } else if (type === "result") {
-          const r = await sendResultEmailForSubmission({ submission_id: id });
-          results.push({ submission_id: id, email_type: type, name, status: r.status, error: r.error, to: r.to });
+          const sendResult = await sendResultEmailForSubmission({ submission_id: id });
+          results.push({ submission_id: id, email_type: type, name, status: sendResult.status, error: sendResult.error, to: sendResult.to });
+        } else if (type === "acknowledgement") {
+          // Submission confirmation — same resolution chain as when it first
+          // fired (recipient, name, run → form → default template).
+          const sendResult = await sendAcknowledgementForSubmission({ submission_id: id });
+          results.push({ submission_id: id, email_type: type, name, status: sendResult.status, error: sendResult.error, to: sendResult.to });
         } else if (type === "activation") {
           try {
-            const sub = await getSubmissionForActivationRetryById(id);
-            const runData = await getRunDataForActivationRetryById(sub.rows[0]?.run_id);
+            const submissionResult = await getSubmissionForActivationRetryById(id);
+            const runData = await getRunDataForActivationRetryById(submissionResult.rows[0]?.run_id);
             let formData = null;
             if (runData.rows[0]) {
-              const f = await getFormForActivationRetryById(runData.rows[0].form_id);
-              formData = f.rows[0] || null;
+              const formResult = await getFormForActivationRetryById(runData.rows[0].form_id);
+              formData = formResult.rows[0] || null;
             }
             await onReview(
               { id: null, submission_id: id, decision: "approved", comment: "Manual email retry", reviewer_name: session.cid },
-              sub.rows[0],
+              submissionResult.rows[0],
               runData.rows[0] || null,
               session,
               formData
@@ -1868,8 +1888,8 @@ export async function POST(req) {
               error: after?.status === "failed" ? (after.error || "Activation email failed") : undefined,
               to: after?.recipient,
             });
-          } catch (e) {
-            results.push({ submission_id: id, email_type: "activation", name, status: "failed", error: e?.message || "Retry error" });
+          } catch (error) {
+            results.push({ submission_id: id, email_type: "activation", name, status: "failed", error: error?.message || "Retry error" });
           }
         } else {
           results.push({ submission_id: id, email_type: type, name, status: "failed", error: `Unsupported email type: ${type}` });
@@ -1895,9 +1915,9 @@ export async function POST(req) {
         return NextResponse.json({ success: false, error: "A cancel batch can process at most 100 items" }, { status: 400 });
       }
 
-      const idList = [...new Set(items.map((r) => parseInt(r?.submission_id)).filter((n) => Number.isFinite(n)))];
-      const valRes = await getCancelledBatchSubmissionIdsInRun(idList, run_id);
-      const validSet = new Set(valRes.rows.map((r) => r.id));
+      const idList = [...new Set(items.map((item) => parseInt(item?.submission_id)).filter((numericId) => Number.isFinite(numericId)))];
+      const validationsResult = await getCancelledBatchSubmissionIdsInRun(idList, run_id);
+      const validSet = new Set(validationsResult.rows.map((row) => row.id));
 
       const { getEmailLogRow } = await import("@/lib/email");
       let marked = 0;
@@ -1954,11 +1974,11 @@ export async function POST(req) {
       // (e.g. Program AND Group) in a single request.
       const { run_id, target_type, target_id, targets } = body;
       const ALLOWED_TARGET_TYPES = ["user", "group", "program", "cohort", "team", "organization", "all"];
-      const list = Array.isArray(targets)
+      const targetList = Array.isArray(targets)
         ? targets
         : [{ target_type: target_type || "user", target_id }];
-      const valid = list.filter(
-        (t) => t && ALLOWED_TARGET_TYPES.includes(t.target_type) && t.target_id,
+      const valid = targetList.filter(
+        (target) => target && ALLOWED_TARGET_TYPES.includes(target.target_type) && target.target_id,
       );
       if (!run_id || valid.length === 0) {
         return NextResponse.json({ success: false, error: "run_id and target required" }, { status: 400 });
@@ -1968,16 +1988,16 @@ export async function POST(req) {
       let added = 0;
       let skipped = 0;
       const createdTargets = [];
-      for (const t of valid) {
-        const insertRes = await insertRunAssignmentForAction({
+      for (const target of valid) {
+        const insertResult = await insertRunAssignmentForAction({
           runId,
-          targetType: t.target_type,
-          targetId: t.target_id,
+          targetType: target.target_type,
+          targetId: target.target_id,
           assignedBy: session.cid,
         });
-        if (insertRes.rowsAffected > 0) {
+        if (insertResult.rowsAffected > 0) {
           added++;
-          createdTargets.push({ target_type: t.target_type, target_id: t.target_id });
+          createdTargets.push({ target_type: target.target_type, target_id: target.target_id });
         } else {
           skipped++;
         }
@@ -1986,8 +2006,8 @@ export async function POST(req) {
       const assignments = await getAssignmentsAfterAssignByRunId(runId);
       // Fire automation for each newly created assignment
       const fullRun = await getFullRunAfterAssignById(runId);
-      for (const t of createdTargets) {
-        onAssignmentAdded(t, fullRun.rows[0] || { id: runId });
+      for (const target of createdTargets) {
+        onAssignmentAdded(target, fullRun.rows[0] || { id: runId });
       }
       return NextResponse.json({ success: true, added, skipped, assignments: await enrichAssignments(assignments.rows) });
     }
@@ -2001,8 +2021,8 @@ export async function POST(req) {
       const { assignment_id } = body;
       if (!assignment_id) return NextResponse.json({ success: false, error: "assignment_id required" }, { status: 400 });
 
-      const a = await getRunIdByAssignmentId(assignment_id);
-      const runId = a.rows[0]?.run_id;
+      const assignmentResult = await getRunIdByAssignmentId(assignment_id);
+      const runId = assignmentResult.rows[0]?.run_id;
 
       await deleteAssignmentById(assignment_id);
 
@@ -2026,14 +2046,14 @@ export async function POST(req) {
       const { submission_id } = body;
       if (!submission_id) return NextResponse.json({ success: false, error: "submission_id required" }, { status: 400 });
 
-      const doc = await buildResultDocument({ submission_id });
-      if (doc.status !== "ok") {
+      const resultDocument = await buildResultDocument({ submission_id });
+      if (resultDocument.status !== "ok") {
         return NextResponse.json(
-          { success: false, error: doc.error || "Result document unavailable" },
-          { status: doc.status === "not_found" ? 404 : 400 },
+          { success: false, error: resultDocument.error || "Result document unavailable" },
+          { status: resultDocument.status === "not_found" ? 404 : 400 },
         );
       }
-      return new NextResponse(doc.pdfBytes, {
+      return new NextResponse(resultDocument.pdfBytes, {
         status: 200,
         headers: {
           "Content-Type": "application/pdf",
@@ -2056,15 +2076,15 @@ export async function POST(req) {
       const { submission_id } = body;
       if (!submission_id) return NextResponse.json({ success: false, error: "submission_id required" }, { status: 400 });
 
-      const doc = await buildResultDocument({ submission_id, forceReport: true });
-      if (doc.status !== "ok") {
+      const resultDocument = await buildResultDocument({ submission_id, forceReport: true });
+      if (resultDocument.status !== "ok") {
         return NextResponse.json(
-          { success: false, error: doc.error || "Result document unavailable" },
-          { status: doc.status === "not_found" ? 404 : 400 },
+          { success: false, error: resultDocument.error || "Result document unavailable" },
+          { status: resultDocument.status === "not_found" ? 404 : 400 },
         );
       }
       logTimeline(parseInt(submission_id), "report_regenerated", "system", "System", {});
-      return new NextResponse(doc.pdfBytes, {
+      return new NextResponse(resultDocument.pdfBytes, {
         status: 200,
         headers: {
           "Content-Type": "application/pdf",
@@ -2094,19 +2114,19 @@ export async function POST(req) {
         return NextResponse.json({ success: false, error: "Result emails can be sent to at most 500 submissions at once" }, { status: 400 });
       }
 
-      const idList = [...new Set(submission_ids.map((id) => parseInt(id)).filter((n) => Number.isFinite(n)))];
-      const valRes = await getManualMessageSubmissionsByIdsInRun(idList, run_id);
-      const validMap = new Map(valRes.rows.map((r) => [r.id, r]));
+      const idList = [...new Set(submission_ids.map((id) => parseInt(id)).filter((numericId) => Number.isFinite(numericId)))];
+      const validationsResult = await getManualMessageSubmissionsByIdsInRun(idList, run_id);
+      const validMap = new Map(validationsResult.rows.map((row) => [row.id, row]));
 
       const results = [];
       for (const id of idList) {
-        const sub = validMap.get(id);
-        if (!sub) {
+        const submission = validMap.get(id);
+        if (!submission) {
           results.push({ submission_id: id, name: "", status: "failed", error: "Submission is not in this run" });
           continue;
         }
-        const r = await sendResultEmailForSubmission({ submission_id: id });
-        results.push({ submission_id: id, name: sub.submitter_name || "", status: r.status || "failed", error: r.error, to: r.to });
+        const sendResult = await sendResultEmailForSubmission({ submission_id: id });
+        results.push({ submission_id: id, name: submission.submitter_name || "", status: sendResult.status || "failed", error: sendResult.error, to: sendResult.to });
       }
 
       return NextResponse.json({ success: true, results });
@@ -2159,21 +2179,21 @@ export async function POST(req) {
       }
 
       const batchId = "msg_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-      const idList = [...new Set(submission_ids.map((id) => parseInt(id)).filter((n) => Number.isFinite(n)))];
-      const valRes = await getManualMessageSubmissionsByIdsInRun(idList, run_id);
-      const validMap = new Map(valRes.rows.map((r) => [r.id, r]));
+      const idList = [...new Set(submission_ids.map((id) => parseInt(id)).filter((numericId) => Number.isFinite(numericId)))];
+      const validationsResult = await getManualMessageSubmissionsByIdsInRun(idList, run_id);
+      const validMap = new Map(validationsResult.rows.map((row) => [row.id, row]));
 
       // Fetch the form's field labels once for identity resolution.
       let fieldLabels = {};
       try {
-        const flRes = await getManualMessageFieldLabelsByRunId(run_id);
-        for (const frow of flRes.rows) fieldLabels[String(frow.id)] = frow.label;
+        const fieldLabelsResult = await getManualMessageFieldLabelsByRunId(run_id);
+        for (const fieldRow of fieldLabelsResult.rows) fieldLabels[String(fieldRow.id)] = fieldRow.label;
       } catch (_) {}
 
       let groupName = null;
       try {
-        const grpRes = await getManualMessageGroupNameByRunId(run_id);
-        if (grpRes.rows.length > 0) groupName = grpRes.rows[0].name;
+        const groupResult = await getManualMessageGroupNameByRunId(run_id);
+        if (groupResult.rows.length > 0) groupName = groupResult.rows[0].name;
       } catch (_) {}
 
       const { sendManualMessage, resolveSubmissionEmail, resolvePersonName, isPlaceholderEmail } = await import("@/lib/email");
@@ -2183,35 +2203,35 @@ export async function POST(req) {
       let failed = 0;
 
       for (const id of idList) {
-        const sub = validMap.get(id);
-        if (!sub) {
+        const submission = validMap.get(id);
+        if (!submission) {
           results.push({ submission_id: id, status: "failed", error: "Submission is not in this run" });
           failed++;
           continue;
         }
 
-        const subData = sub.data || {};
+        const subData = submission.data || {};
         const contactEmail = resolveSubmissionEmail({ submissionData: subData, fieldLabels, contactEmail: "" });
         if (!contactEmail || isPlaceholderEmail(contactEmail)) {
-          results.push({ submission_id: id, name: sub.submitter_name || "", status: "failed", error: "No usable recipient email" });
+          results.push({ submission_id: id, name: submission.submitter_name || "", status: "failed", error: "No usable recipient email" });
           failed++;
           continue;
         }
 
         const name = resolvePersonName({
           contactName: "",
-          submitterName: sub.submitter_name || "",
+          submitterName: submission.submitter_name || "",
           submissionData: subData,
           fieldLabels,
-        }) || sub.submitter_name || "Participant";
+        }) || submission.submitter_name || "Participant";
 
-        const res = await sendManualMessage({
+        const sendResult = await sendManualMessage({
           to: contactEmail,
           name,
           subject,
           body: messageBody,
           submission_id: id,
-          contact_cid: sub.submitter_id || null,
+          contact_cid: submission.submitter_id || null,
           batch_id: batchId,
           templateVars: {
             form_name: "",
@@ -2219,12 +2239,12 @@ export async function POST(req) {
           },
         });
 
-        if (res.success) {
+        if (sendResult.success) {
           sent++;
           results.push({ submission_id: id, name, status: "sent", to: contactEmail });
         } else {
           failed++;
-          results.push({ submission_id: id, name, status: "failed", error: res.error || "Send failed", to: contactEmail });
+          results.push({ submission_id: id, name, status: "failed", error: sendResult.error || "Send failed", to: contactEmail });
         }
       }
 
@@ -2253,19 +2273,19 @@ export async function POST(req) {
 
       // Backend validation: every submission must belong to THIS run.
       const idList = [...new Set(submission_ids.map((id) => parseInt(id)))];
-      const valRes = await getActivationMessageSubmissionsByIdsInRun(idList, run_id);
-      const validMap = new Map(valRes.rows.map((r) => [r.id, r]));
+      const validationsResult = await getActivationMessageSubmissionsByIdsInRun(idList, run_id);
+      const validMap = new Map(validationsResult.rows.map((row) => [row.id, row]));
 
       const { getEmailLogRow, getActivationHistory } = await import("@/lib/email");
       const results = [];
       for (const id of idList) {
-        const sub = validMap.get(id);
-        if (!sub) {
+        const submission = validMap.get(id);
+        if (!submission) {
           results.push({ submission_id: id, name: "", status: "failed", error: "Submission is not in this run" });
           continue;
         }
-        const name = sub.submitter_name || "";
-        if (String(sub.status || "").toLowerCase() !== "approved") {
+        const name = submission.submitter_name || "";
+        if (String(submission.status || "").toLowerCase() !== "approved") {
           results.push({ submission_id: id, name, status: "skipped", error: "Submission is not approved" });
           continue;
         }
@@ -2279,7 +2299,7 @@ export async function POST(req) {
         // Account already activated → no activation email needed. This avoids
         // the misleading "Send failed" when the person already completed setup.
         try {
-          const actCheck = await getContactStatusForActivationById(sub.submitter_id);
+          const actCheck = await getContactStatusForActivationById(submission.submitter_id);
           if (actCheck.rows[0] && String(actCheck.rows[0].status || "").toLowerCase() === "active") {
             results.push({ submission_id: id, name, status: "skipped", error: "Account already activated — no activation email needed" });
             continue;
@@ -2287,15 +2307,15 @@ export async function POST(req) {
         } catch (_) {}
 
         try {
-          const runData = await getRunDataForActivationSendById(sub.run_id);
+          const runData = await getRunDataForActivationSendById(submission.run_id);
           let formData = null;
           if (runData.rows[0]) {
-            const f = await getFormForActivationSendById(runData.rows[0].form_id);
-            formData = f.rows[0] || null;
+            const formResult = await getFormForActivationSendById(runData.rows[0].form_id);
+            formData = formResult.rows[0] || null;
           }
           // Force resend bypasses the once-per-submission dedup so an admin can
           // issue a fresh activation link after the previous 48h link expired.
-          const reviewSubmission = forceResend ? { ...sub, _forceActivationResend: true } : sub;
+          const reviewSubmission = forceResend ? { ...submission, _forceActivationResend: true } : submission;
           await onReview(
             { id: null, submission_id: id, decision: "approved", comment: forceResend ? "Manual activation resend" : "Manual activation send", reviewer_name: session.cid },
             reviewSubmission,
@@ -2304,7 +2324,7 @@ export async function POST(req) {
             formData
           );
           const after = await getEmailLogRow(id, "activation");
-          const hist = await getActivationHistory({ submission_id: id, contact_cid: sub.submitter_id || null });
+          const hist = await getActivationHistory({ submission_id: id, contact_cid: submission.submitter_id || null });
           results.push({
             submission_id: id,
             name,
@@ -2320,8 +2340,8 @@ export async function POST(req) {
             token_valid: hist.token_valid,
             token_expires_at: hist.token_expires_at,
           });
-        } catch (e) {
-          results.push({ submission_id: id, name, status: "failed", error: e?.message || "Activation send error" });
+        } catch (error) {
+          results.push({ submission_id: id, name, status: "failed", error: error?.message || "Activation send error" });
         }
       }
 
@@ -2388,11 +2408,11 @@ export async function POST(req) {
 
     // Create assignments
     if (Array.isArray(assignments)) {
-      for (const a of assignments) {
+      for (const assignment of assignments) {
         await createRunAssignmentForRunCreation({
           runId: result.rows[0].id,
-          targetType: a.target_type || "user",
-          targetId: a.target_id,
+          targetType: assignment.target_type || "user",
+          targetId: assignment.target_id,
           assignedBy: session.cid,
         });
       }

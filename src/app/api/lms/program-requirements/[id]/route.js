@@ -41,8 +41,8 @@ export async function PUT(req, { params }) {
       session_id: body.session_id,
     });
     return NextResponse.json({ success: true, requirement });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }
 
@@ -56,7 +56,7 @@ export async function DELETE(req, { params }) {
     const { id } = await params;
     const result = await detachCourseFromProgram(id);
     return NextResponse.json(result);
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

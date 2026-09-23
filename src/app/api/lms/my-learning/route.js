@@ -32,7 +32,7 @@ export async function GET(req) {
     }
     const courses = await getLearnerCourses(session.cid);
     return NextResponse.json({ success: true, courses });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

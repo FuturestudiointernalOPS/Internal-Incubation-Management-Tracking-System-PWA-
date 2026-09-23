@@ -44,8 +44,8 @@ export async function POST(req) {
     // existing email, in which case the generated cid is not the real one).
     let contactCid = cid;
     try {
-      const cRes = await getContactCidByEmail(email);
-      if (cRes.rows.length > 0) contactCid = cRes.rows[0].cid;
+      const contactResult = await getContactCidByEmail(email);
+      if (contactResult.rows.length > 0) contactCid = contactResult.rows[0].cid;
     } catch (_) {}
 
     // Same-program conflict guard (Phase 2A): a facilitator in this program

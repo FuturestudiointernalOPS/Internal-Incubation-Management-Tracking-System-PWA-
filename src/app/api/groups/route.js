@@ -78,28 +78,28 @@ export async function POST(req) {
       Math.random().toString(36).slice(2, 6).toUpperCase() +
       Math.floor(Math.random() * 1000);
 
-    const INSERT_ARGS = [program_id || null, name, type || "individual", description || null, body.default_role || null, registration_id];
+    const insertArgs = [program_id || null, name, type || "individual", description || null, body.default_role || null, registration_id];
 
     let result;
     try {
       // Fast path: no extra queries when schema is healthy
-      result = await createGroup(INSERT_ARGS);
-    } catch (insertErr) {
+      result = await createGroup(insertArgs);
+    } catch (insertError) {
       // Self-heal only on failure: add missing columns once, then retry once
-      if (!/does not exist/i.test(insertErr.message || "")) throw insertErr;
+      if (!/does not exist/i.test(insertError.message || "")) throw insertError;
       await addFamilyDescriptionColumn();
       await addFamilyDefaultRoleColumn();
       await addFamilyIsArchivedColumn();
-      result = await createGroupAfterColumnSelfHeal(INSERT_ARGS);
+      result = await createGroupAfterColumnSelfHeal(insertArgs);
     }
 
     const row = result.rows?.[0];
     const id = row?.id ?? result.lastInsertRowid;
-    const regId = row?.registration_id ?? registration_id;
+    const registrationId = row?.registration_id ?? registration_id;
 
     return NextResponse.json({
       success: true,
-      group: { id, registration_id: regId, program_id, name, type, description },
+      group: { id, registration_id: registrationId, program_id, name, type, description },
     });
   } catch (error) {
     return NextResponse.json(
@@ -156,9 +156,9 @@ export async function PUT(req) {
     try {
       // Fast path: no extra queries when schema is healthy
       await updateGroup(updates, args);
-    } catch (updateErr) {
+    } catch (updateError) {
       // Self-heal only on failure: add missing columns once, then retry once
-      if (!/does not exist/i.test(updateErr.message || "")) throw updateErr;
+      if (!/does not exist/i.test(updateError.message || "")) throw updateError;
       await addFamilyDescriptionColumnOnUpdate();
       await addFamilyDefaultRoleColumnOnUpdate();
       await addFamilyIsArchivedColumnOnUpdate();

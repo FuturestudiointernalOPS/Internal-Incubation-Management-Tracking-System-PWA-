@@ -23,7 +23,7 @@ export async function POST(req) {
     const body = await req.json();
     const result = await enrollLearner(body);
     return NextResponse.json({ success: true, ...result });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

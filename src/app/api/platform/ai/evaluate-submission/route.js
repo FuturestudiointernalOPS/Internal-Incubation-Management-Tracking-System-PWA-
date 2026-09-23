@@ -60,8 +60,8 @@ async function ensureTables() {
   try {
     await createEvaluationClaimsTable();
     await createEvaluationFailuresTable();
-  } catch (e) {
-    console.warn("[Batch Eval] Could not ensure tables:", e.message);
+  } catch (error) {
+    console.warn("[Batch Eval] Could not ensure tables:", error.message);
   }
 }
 
@@ -103,28 +103,28 @@ function withTimeout(promise, ms, label) {
   ]);
 }
 
-async function processSubmission(subId) {
+async function processSubmission(submissionId) {
   try {
-    const result = await withTimeout(evaluateSubmission(subId), AI_TIMEOUT_MS, "AI evaluation timed out");
+    const result = await withTimeout(evaluateSubmission(submissionId), AI_TIMEOUT_MS, "AI evaluation timed out");
     if (result === null) {
       // evaluateSubmission returns null on failure — record it
       throw new Error("Evaluation failed (null result)");
     }
     // Success: clear any failure record
     try {
-      await deleteEvaluationFailureRecord(subId);
+      await deleteEvaluationFailureRecord(submissionId);
     } catch (_) {}
 
     // ── AUTO-APPROVE BY CUTOFF (optional, configurable per form) ──
-    await maybeAutoApprove(subId, result);
+    await maybeAutoApprove(submissionId, result);
 
     return { ok: true, score: result.overall_score };
-  } catch (e) {
-    const msg = e?.message || "Unknown error";
+  } catch (error) {
+    const errorMessage = error?.message || "Unknown error";
     try {
-      await recordEvaluationFailure(subId, msg);
+      await recordEvaluationFailure(submissionId, errorMessage);
     } catch (_) {}
-    return { ok: false, error: msg };
+    return { ok: false, error: errorMessage };
   }
 }
 
@@ -133,8 +133,8 @@ async function processSubmission(subId) {
  */
 async function getRunGroupName(runId) {
   try {
-    const res = await getGroupNameForRun(runId);
-    return res.rows[0]?.name || null;
+    const groupResult = await getGroupNameForRun(runId);
+    return groupResult.rows[0]?.name || null;
   } catch (_) {
     return null;
   }
@@ -147,20 +147,20 @@ async function getRunGroupName(runId) {
  */
 async function maybeAutoApprove(submissionId, evaluation) {
   try {
-    const sub = await getSubmissionForAutoApprove(submissionId);
-    if (sub.rows.length === 0) return;
-    const submission = sub.rows[0];
+    const submissionResult = await getSubmissionForAutoApprove(submissionId);
+    if (submissionResult.rows.length === 0) return;
+    const submission = submissionResult.rows[0];
     if (submission.status !== "submitted") return; // never override existing decision
 
-    const run = await getRunForAutoApprove(submission.run_id);
-    if (run.rows.length === 0) return;
+    const runResult = await getRunForAutoApprove(submission.run_id);
+    if (runResult.rows.length === 0) return;
 
-    const form = await getFormForAutoApprove(run.rows[0].form_id);
-    if (form.rows.length === 0) return;
+    const formResult = await getFormForAutoApprove(runResult.rows[0].form_id);
+    if (formResult.rows.length === 0) return;
 
-    const auto = (form.rows[0].settings || {}).automation;
-    const cutoff = auto?.auto_approve_cutoff;
-    const autoApproveEnabled = auto?.auto_approve === true;
+    const automation = (formResult.rows[0].settings || {}).automation;
+    const cutoff = automation?.auto_approve_cutoff;
+    const autoApproveEnabled = automation?.auto_approve === true;
     if (!autoApproveEnabled || cutoff == null || isNaN(parseFloat(cutoff))) return;
 
     const score = parseFloat(evaluation?.overall_score);
@@ -174,8 +174,8 @@ async function maybeAutoApprove(submissionId, evaluation) {
     // resolved label-aware (EN/FR), never from placeholder values.
     let labels = {};
     try {
-      const fieldRes = await getFieldLabelsForDuplicateGuard(form.rows[0].id);
-      for (const frow of fieldRes.rows) labels[String(frow.id)] = frow.label;
+      const fieldLabelsResult = await getFieldLabelsForDuplicateGuard(formResult.rows[0].id);
+      for (const fieldRow of fieldLabelsResult.rows) labels[String(fieldRow.id)] = fieldRow.label;
     } catch (_) {}
     const { resolveSubmissionEmail } = await import("@/lib/email");
     const applicantEmail = resolveSubmissionEmail({
@@ -186,9 +186,9 @@ async function maybeAutoApprove(submissionId, evaluation) {
     if (applicantEmail) {
       try {
         const siblings = await findHigherScoredDuplicateSubmissions(submission.run_id, submissionId, applicantEmail);
-        const better = siblings.rows.find((r) => {
-          const s = parseFloat(r.overall_score);
-          return !isNaN(s) && s > score;
+        const better = siblings.rows.find((sibling) => {
+          const siblingScore = parseFloat(sibling.overall_score);
+          return !isNaN(siblingScore) && siblingScore > score;
         });
         if (better) {
           const { recordEmailStatus } = await import("@/lib/email");
@@ -226,8 +226,8 @@ async function maybeAutoApprove(submissionId, evaluation) {
       // email (label-aware, EN/FR) and the name resolution below.
       let labels = {};
       try {
-        const fieldRes = await getFieldLabelsForApprovalEmail(form.rows[0].id);
-        for (const frow of fieldRes.rows) labels[String(frow.id)] = frow.label;
+        const fieldLabelsResult = await getFieldLabelsForApprovalEmail(formResult.rows[0].id);
+        for (const fieldRow of fieldLabelsResult.rows) labels[String(fieldRow.id)] = fieldRow.label;
       } catch (_) {}
       const applicantEmail = resolveSubmissionEmail({
         submissionData: subData,
@@ -235,9 +235,9 @@ async function maybeAutoApprove(submissionId, evaluation) {
         contactEmail: updated.rows[0].submitter_id && updated.rows[0].submitter_id.includes("@") ? updated.rows[0].submitter_id : "",
       });
       if (applicantEmail) {
-        const decisionTemplate = getTemplate(form.rows[0].settings || {}, "approval", run.rows[0].settings || {});
-        const formName = form.rows[0].name || "";
-        const groupName = await getRunGroupName(run.rows[0].id);
+        const decisionTemplate = getTemplate(formResult.rows[0].settings || {}, "approval", runResult.rows[0].settings || {});
+        const formName = formResult.rows[0].name || "";
+        const groupName = await getRunGroupName(runResult.rows[0].id);
 
         // Approval email requires a group. With no group, the person stays in
         // the platform/CRM but no approval email is sent.
@@ -246,9 +246,9 @@ async function maybeAutoApprove(submissionId, evaluation) {
           // question labels; never "Unknown" when a real name exists.
           let applicantName = "";
           try {
-            const cRes = await getContactNameByCid(updated.rows[0].submitter_id);
+            const contactResult = await getContactNameByCid(updated.rows[0].submitter_id);
             applicantName = resolvePersonName({
-              contactName: cRes.rows[0]?.name || "",
+              contactName: contactResult.rows[0]?.name || "",
               submitterName: updated.rows[0].submitter_name || "",
               submissionData: subData,
               fieldLabels: labels,
@@ -288,8 +288,8 @@ async function maybeAutoApprove(submissionId, evaluation) {
           });
         }
       }
-    } catch (e) {
-      console.error("[Auto-Approve] Approval email error:", e.message);
+    } catch (error) {
+      console.error("[Auto-Approve] Approval email error:", error.message);
     }
 
     // Fire the same REVIEW_COMPLETED automation (group + emails)
@@ -297,15 +297,15 @@ async function maybeAutoApprove(submissionId, evaluation) {
       await onReview(
         { id: null, submission_id: submissionId, decision: "approved", comment, reviewer_name: "System Auto-Approval" },
         updated.rows[0],
-        run.rows[0],
+        runResult.rows[0],
         { cid: "system", role: "system" },
-        form.rows[0]
+        formResult.rows[0]
       );
-    } catch (e) {
-      console.error("[Auto-Approve] Automation error:", e.message);
+    } catch (error) {
+      console.error("[Auto-Approve] Automation error:", error.message);
     }
-  } catch (e) {
-    console.error("[Auto-Approve] Error:", e.message);
+  } catch (error) {
+    console.error("[Auto-Approve] Error:", error.message);
   }
 }
 
@@ -321,13 +321,13 @@ async function runBatch(formId, onlyFailed, batchSize) {
   const claimed = [];
   for (const row of candidates.rows) {
     try {
-      const claimRes = await claimEvaluationSubmission(row.id);
-      if (claimRes.rows.length > 0) claimed.push(row.id);
+      const claimResult = await claimEvaluationSubmission(row.id);
+      if (claimResult.rows.length > 0) claimed.push(row.id);
     } catch (_) {}
   }
 
-  let ok = 0;
-  let fail = 0;
+  let evaluatedCount = 0;
+  let failedCount = 0;
   // Evaluate claimed submissions with limited concurrency so a 10-submission
   // batch finishes well within the serverless function duration instead of
   // stacking 10 sequential AI calls in one request.
@@ -335,24 +335,24 @@ async function runBatch(formId, onlyFailed, batchSize) {
   let cursor = 0;
   const workers = Array.from({ length: Math.min(IN_FLIGHT, claimed.length) }, async () => {
     while (cursor < claimed.length) {
-      const i = cursor++;
-      const subId = claimed[i];
-      const res = await processSubmission(subId);
-      results[i] = res;
+      const index = cursor++;
+      const submissionId = claimed[index];
+      const outcome = await processSubmission(submissionId);
+      results[index] = outcome;
       // Release claim regardless of outcome
       try {
-        await releaseEvaluationClaim(subId);
+        await releaseEvaluationClaim(submissionId);
       } catch (_) {}
     }
   });
   await Promise.all(workers);
 
-  for (const res of results) {
-    if (res && res.ok) ok++;
-    else fail++;
+  for (const outcome of results) {
+    if (outcome && outcome.ok) evaluatedCount++;
+    else failedCount++;
   }
 
-  return { evaluated: ok, failed: fail, processed: claimed.length };
+  return { evaluated: evaluatedCount, failed: failedCount, processed: claimed.length };
 }
 
 export async function POST(req) {
@@ -412,15 +412,15 @@ export async function POST(req) {
       );
       const onlyFailed = body.action === "retry_failed";
 
-      const res = await runBatch(body.form_id, onlyFailed, batchSize);
+      const batchResult = await runBatch(body.form_id, onlyFailed, batchSize);
       const progress = await getProgress(body.form_id);
 
       return NextResponse.json({
         success: true,
         action: body.action,
-        evaluated: res.evaluated,
-        failed: res.failed,
-        processed: res.processed,
+        evaluated: batchResult.evaluated,
+        failed: batchResult.failed,
+        processed: batchResult.processed,
         progress,
       });
     }

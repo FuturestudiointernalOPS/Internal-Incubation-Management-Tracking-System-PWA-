@@ -25,14 +25,14 @@ export async function GET(req) {
     const program_id = searchParams.get("program_id");
     const include_archived = searchParams.get("include_archived");
 
-    const projectRes = await getAdminProjects(include_archived, program_id);
-    const projects = projectRes.rows;
+    const projectsResult = await getAdminProjects(include_archived, program_id);
+    const projects = projectsResult.rows;
 
     // Batched aggregation — 3 grouped queries over ALL project ids instead of
     // 3 queries PER project. Produces identical per-project numbers.
-    const projectIds = projects.map((p) => String(p.id));
+    const projectIds = projects.map((project) => String(project.id));
 
-    const taskStatsRes =
+    const taskStatsResult =
       projectIds.length === 0
         ? { rows: [] }
         : await getAdminTaskStatsByProjectIds(projectIds);
@@ -47,40 +47,40 @@ export async function GET(req) {
       } catch (_) {}
     }
 
-    const blockerStatsRes =
+    const blockerStatsResult =
       projectIds.length === 0
         ? { rows: [] }
         : await getAdminBlockerStatsByProjectIds(projectIds);
 
     // Index by project id for O(1) lookups.
     const taskMap = new Map();
-    for (const r of taskStatsRes.rows || []) taskMap.set(r.pid, r);
+    for (const row of taskStatsResult.rows || []) taskMap.set(row.pid, row);
     const blockerMap = new Map();
-    for (const r of blockerStatsRes.rows || []) blockerMap.set(r.pid, r);
+    for (const row of blockerStatsResult.rows || []) blockerMap.set(row.pid, row);
 
     const enriched = projects.map((project) => {
-      const pid = String(project.id);
-      const ts = taskMap.get(pid) || {};
-      const bs = blockerMap.get(pid) || {};
+      const projectId = String(project.id);
+      const taskStats = taskMap.get(projectId) || {};
+      const blockerStats = blockerMap.get(projectId) || {};
 
       const tasks = {
-        total: ts.total || 0,
-        completed: ts.completed || 0,
-        in_progress: ts.in_progress || 0,
-        blocked: ts.blocked || 0,
-        carried_over: ts.carried_over || 0,
-        pending: ts.pending || 0,
+        total: taskStats.total || 0,
+        completed: taskStats.completed || 0,
+        in_progress: taskStats.in_progress || 0,
+        blocked: taskStats.blocked || 0,
+        carried_over: taskStats.carried_over || 0,
+        pending: taskStats.pending || 0,
       };
       const blockers = {
-        total: bs.total || 0,
-        active: bs.active || 0,
+        total: blockerStats.total || 0,
+        active: blockerStats.active || 0,
       };
 
       // Timeline health — when the start_date/end_date columns are missing
       // the query errors and produces 0; the GROUP BY query reproduces that
       // safely because a missing column fails the whole statement (caught
       // below and replaced with empty maps → 0).
-      const datedCount = ts.dated || 0;
+      const datedCount = taskStats.dated || 0;
       const timelineHealth =
         tasks.total > 0 ? Math.round((datedCount / tasks.total) * 100) : 0;
 
@@ -98,12 +98,12 @@ export async function GET(req) {
 
     // Aggregate totals
     const totals = enriched.reduce(
-      (acc, p) => {
-        acc.totalTasks += p.taskStats.total;
-        acc.completedTasks += p.taskStats.completed;
-        acc.totalBlockers += p.blockerStats.total;
-        acc.activeBlockers += p.blockerStats.active;
-        return acc;
+      (accumulator, project) => {
+        accumulator.totalTasks += project.taskStats.total;
+        accumulator.completedTasks += project.taskStats.completed;
+        accumulator.totalBlockers += project.blockerStats.total;
+        accumulator.activeBlockers += project.blockerStats.active;
+        return accumulator;
       },
       { totalTasks: 0, completedTasks: 0, totalBlockers: 0, activeBlockers: 0 },
     );

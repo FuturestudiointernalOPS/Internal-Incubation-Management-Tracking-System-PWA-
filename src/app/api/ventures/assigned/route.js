@@ -42,7 +42,7 @@ export const GET = createHandler(
     }
     sql += " ORDER BY v.company_name NULLS LAST, v.name NULLS LAST, a.id DESC";
 
-    const r = await db.execute({ sql, args });
-    return NextResponse.json({ success: true, assignments: r.rows || [] });
+    const result = await db.execute({ sql, args });
+    return NextResponse.json({ success: true, assignments: result.rows || [] });
   },
 );

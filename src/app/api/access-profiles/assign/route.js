@@ -59,7 +59,7 @@ export async function PUT(req) {
       // person must never grant capabilities the person's identity is not
       // eligible for.
       const groups = (await getUserGroupNames(user_cid)).rows.map(
-        (r) => r.group_name,
+        (row) => row.group_name,
       );
       const { valid, violations } = await assertTemplateCapsEligible({
         role: user.rows[0].role,
@@ -117,10 +117,10 @@ export async function PUT(req) {
       message: "Profile override removed, falling back to role default",
       roleDefaultName: roleDefault.rows[0]?.name || null,
     });
-  } catch (err) {
-    console.error("[Assign Profile] error:", err);
+  } catch (error) {
+    console.error("[Assign Profile] error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }
@@ -155,12 +155,12 @@ export async function GET(req) {
       );
     }
 
-    const u = user.rows[0];
+    const userRow = user.rows[0];
 
     // Get explicitly assigned profile
     let assignedProfile = null;
-    if (u.access_profile_id) {
-      const profile = await getAccessProfileSummary(u.access_profile_id);
+    if (userRow.access_profile_id) {
+      const profile = await getAccessProfileSummary(userRow.access_profile_id);
       if (profile.rows.length > 0) {
         assignedProfile = { id: profile.rows[0].id, name: profile.rows[0].name };
       }
@@ -168,22 +168,25 @@ export async function GET(req) {
 
     // Get role default profile
     let roleDefault = null;
-    const roleDef = await getRoleDefaultAccessProfile(u.role);
-    if (roleDef.rows.length > 0) {
-      roleDefault = { id: roleDef.rows[0].id, name: roleDef.rows[0].name };
+    const roleDefaultResult = await getRoleDefaultAccessProfile(userRow.role);
+    if (roleDefaultResult.rows.length > 0) {
+      roleDefault = {
+        id: roleDefaultResult.rows[0].id,
+        name: roleDefaultResult.rows[0].name,
+      };
     }
 
     return NextResponse.json({
       success: true,
-      user: { cid: u.cid, name: u.name, role: u.role },
+      user: { cid: userRow.cid, name: userRow.name, role: userRow.role },
       assignedProfile,
       roleDefault,
       effectiveSource: assignedProfile ? "user" : roleDefault ? "role" : "legacy",
     });
-  } catch (err) {
-    console.error("[Assign Profile GET] error:", err);
+  } catch (error) {
+    console.error("[Assign Profile GET] error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

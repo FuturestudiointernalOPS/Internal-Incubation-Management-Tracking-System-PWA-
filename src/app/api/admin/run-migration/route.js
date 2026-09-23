@@ -102,8 +102,8 @@ export async function POST() {
       try {
         await executeMigrationStatement(sql);
         results.push({ sql: sql.substring(0, 80) + "...", status: "ok" });
-      } catch (e) {
-        errors.push({ sql: sql.substring(0, 80) + "...", error: e.message });
+      } catch (error) {
+        errors.push({ sql: sql.substring(0, 80) + "...", error: error.message });
       }
     }
 
@@ -115,9 +115,9 @@ export async function POST() {
       results,
       errors: errors.length > 0 ? errors : undefined,
     });
-  } catch (err) {
+  } catch (error) {
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

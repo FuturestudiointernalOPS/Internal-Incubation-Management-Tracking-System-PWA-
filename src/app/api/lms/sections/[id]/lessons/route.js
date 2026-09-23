@@ -20,7 +20,7 @@ export async function POST(req, { params }) {
     const body = await req.json();
     const lesson = await createLesson({ sectionId: id, ...body });
     return NextResponse.json({ success: true, lesson });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

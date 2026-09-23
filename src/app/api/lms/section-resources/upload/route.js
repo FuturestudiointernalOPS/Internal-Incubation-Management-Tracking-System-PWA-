@@ -43,8 +43,8 @@ export async function POST(request) {
     });
 
     return NextResponse.json({ success: true, ...uploaded });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }
 
@@ -72,7 +72,7 @@ export async function DELETE(request) {
 
     const removed = await removeSectionResourceFile(path);
     return NextResponse.json({ success: true, removed });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

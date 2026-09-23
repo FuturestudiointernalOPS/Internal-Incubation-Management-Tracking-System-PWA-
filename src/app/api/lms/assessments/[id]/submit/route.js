@@ -26,7 +26,7 @@ export async function POST(req, { params }) {
     const body = await req.json();
     const result = await submitAssessment(id, session.cid, body?.answers);
     return NextResponse.json({ success: true, ...result });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

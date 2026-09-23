@@ -21,7 +21,7 @@ export async function GET(req, { params }) {
     const { token } = await params;
     const certificate = await getCertificatePublic(token);
     return NextResponse.json({ success: true, certificate });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

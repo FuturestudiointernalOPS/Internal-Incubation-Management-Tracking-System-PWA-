@@ -37,8 +37,8 @@ export async function GET(req) {
       );
     }
 
-    const contactRes = await getContactByCid(cid);
-    const contact = contactRes.rows?.[0];
+    const contactResult = await getContactByCid(cid);
+    const contact = contactResult.rows?.[0];
     if (!contact) {
       return NextResponse.json(
         { success: false, error: "Contact not found" },
@@ -46,7 +46,7 @@ export async function GET(req) {
       );
     }
 
-    const ctx = await resolveAuthorizationContext({
+    const authorizationContext = await resolveAuthorizationContext({
       cid,
       role: contact.role || null,
       group_name: contact.group_name || null,
@@ -62,18 +62,18 @@ export async function GET(req) {
     return NextResponse.json({
       success: true,
       cid,
-      role: ctx.role,
-      isSuperAdmin: ctx.isSuperAdmin,
-      profile: ctx.profile,
-      groups: ctx.groups,
-      eligibility: ctx.eligibility,
+      role: authorizationContext.role,
+      isSuperAdmin: authorizationContext.isSuperAdmin,
+      profile: authorizationContext.profile,
+      groups: authorizationContext.groups,
+      eligibility: authorizationContext.eligibility,
       sources: {
-        profile: ctx.baseCaps,
-        groups: ctx.groupCaps,
-        grants: ctx.grants,
-        restrictions: restrictionsToJson(ctx.restrictions),
+        profile: authorizationContext.baseCaps,
+        groups: authorizationContext.groupCaps,
+        grants: authorizationContext.grants,
+        restrictions: restrictionsToJson(authorizationContext.restrictions),
       },
-      effective: ctx.effective,
+      effective: authorizationContext.effective,
       contexts: contextData.contexts,
       contextsUnavailable: contextData.unavailable,
       scope: {
@@ -81,10 +81,13 @@ export async function GET(req) {
         note: "venture_own · program_assigned · learning_own (team_own pending)",
       },
     });
-  } catch (e) {
-    console.error("GET /api/engineering/permissions/user-context error:", e.message);
+  } catch (error) {
+    console.error(
+      "GET /api/engineering/permissions/user-context error:",
+      error.message,
+    );
     return NextResponse.json(
-      { success: false, error: e.message || "errors.somethingWrong" },
+      { success: false, error: error.message || "errors.somethingWrong" },
       { status: 500 },
     );
   }

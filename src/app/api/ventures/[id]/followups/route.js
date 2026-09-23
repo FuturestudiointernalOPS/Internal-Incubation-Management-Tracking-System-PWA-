@@ -17,12 +17,12 @@ export async function GET(req, { params }) {
     if (access.error) return access.error;
     const { session } = access;
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    const vRes = await getVentureDbIdForFollowups(id);
-    const dbId = vRes.rows?.[0]?.id || id;
+    const ventureResult = await getVentureDbIdForFollowups(id);
+    const dbId = ventureResult.rows?.[0]?.id || id;
 
-    const r = await listVentureFollowups(dbId);
-    return NextResponse.json({ success: true, followups: r.rows || [] });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+    const followupsResult = await listVentureFollowups(dbId);
+    return NextResponse.json({ success: true, followups: followupsResult.rows || [] });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

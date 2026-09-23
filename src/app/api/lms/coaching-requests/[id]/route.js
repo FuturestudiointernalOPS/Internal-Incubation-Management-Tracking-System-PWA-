@@ -37,8 +37,8 @@ export async function PUT(req, { params }) {
       handledBy: session?.cid || null,
     });
     return NextResponse.json({ success: true, request });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }
 
@@ -52,7 +52,7 @@ export async function DELETE(req, { params }) {
     const { id } = await params;
     const request = await cancelCoachingRequest(id, session.cid);
     return NextResponse.json({ success: true, request });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

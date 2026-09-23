@@ -51,8 +51,8 @@ export async function POST(req) {
     // hold attendance.record, and may only write participants in their teams.
     let allowedParticipantIds = null; // null = no restriction
     if (session && !hasProgramManagementAccess(session.role)) {
-      const progId = records[0]?.program_id || null;
-      if (!progId) {
+      const programId = records[0]?.program_id || null;
+      if (!programId) {
         return NextResponse.json(
           { success: false, error: "errors.insufficientPermissions" },
           { status: 403 },
@@ -60,7 +60,7 @@ export async function POST(req) {
       }
       const facError = await requireAssignmentAccess({
         resource: "program",
-        contextId: progId,
+        contextId: programId,
         capability: "attendance.record",
         minLevel: 1,
       });
@@ -71,22 +71,23 @@ export async function POST(req) {
       // assigned program could therefore carry later rows for a different
       // program, writing attendance outside the scope that was just checked.
       // Every row must belong to the program that was authorized.
-      const foreignRow = records.find(
-        (r) => r?.program_id && String(r.program_id) !== String(progId),
+      const foreignRecord = records.find(
+        (record) =>
+          record?.program_id && String(record.program_id) !== String(programId),
       );
-      if (foreignRow) {
+      if (foreignRecord) {
         return NextResponse.json(
           { success: false, error: "errors.insufficientPermissions" },
           { status: 403 },
         );
       }
 
-      const scope = await getFacilitatorTeamScope(progId, session.cid);
+      const scope = await getFacilitatorTeamScope(programId, session.cid);
       if (scope.scope === "none") {
         allowedParticipantIds = new Set();
       } else if (scope.scope === "teams" && scope.teamIds.length > 0) {
-        const inScope = await getContactsInTeams(scope.teamIds);
-        allowedParticipantIds = new Set(inScope.rows.map((r) => r.cid));
+        const inScopeResult = await getContactsInTeams(scope.teamIds);
+        allowedParticipantIds = new Set(inScopeResult.rows.map((row) => row.cid));
       }
     }
 
@@ -94,7 +95,9 @@ export async function POST(req) {
     // silently drops any participant outside their assigned teams.
     const scoped = allowedParticipantIds
       ? records.filter(
-          (r) => r.participant_id && allowedParticipantIds.has(String(r.participant_id)),
+          (record) =>
+            record.participant_id &&
+            allowedParticipantIds.has(String(record.participant_id)),
         )
       : records;
 
@@ -109,13 +112,19 @@ export async function POST(req) {
     const todayStr = getLocalToday();
     const requestedDate = scoped[0].date || todayStr;
     const withinTodayWindow = (() => {
-      const base = new Date();
-      const ok = new Set();
+      const now = new Date();
+      const allowedDates = new Set();
       for (let i = -1; i <= 1; i++) {
-        const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
-        ok.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+        const candidateDate = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() + i,
+        );
+        allowedDates.add(
+          `${candidateDate.getFullYear()}-${String(candidateDate.getMonth() + 1).padStart(2, "0")}-${String(candidateDate.getDate()).padStart(2, "0")}`,
+        );
       }
-      return ok.has(requestedDate);
+      return allowedDates.has(requestedDate);
     })();
     if (session?.role !== "super_admin" && !withinTodayWindow) {
       return NextResponse.json(
@@ -135,16 +144,16 @@ export async function POST(req) {
     //   - empty status   → delete that participant's mark (explicit clear)
     //   - present/absent → delete then re-insert (idempotent upsert)
     let upserted = 0;
-    for (const r of scoped) {
-      if (!r.session_id || !r.participant_id) continue;
-      const recordDate = r.date || requestedDate;
-      await deleteAttendanceMark(r.session_id, recordDate, r.participant_id);
-      if (r.status) {
+    for (const record of scoped) {
+      if (!record.session_id || !record.participant_id) continue;
+      const recordDate = record.date || requestedDate;
+      await deleteAttendanceMark(record.session_id, recordDate, record.participant_id);
+      if (record.status) {
         await insertAttendanceMark({
-          session_id: r.session_id,
-          program_id: r.program_id,
-          participant_id: r.participant_id,
-          status: r.status,
+          session_id: record.session_id,
+          program_id: record.program_id,
+          participant_id: record.participant_id,
+          status: record.status,
           date: recordDate,
         });
         upserted++;
@@ -152,10 +161,10 @@ export async function POST(req) {
     }
 
     return NextResponse.json({ success: true, upserted });
-  } catch (e) {
-    console.error("Attendance error:", e);
+  } catch (error) {
+    console.error("Attendance error:", error);
     return NextResponse.json(
-      { success: false, error: e.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }
@@ -194,8 +203,8 @@ export async function GET(req) {
 
     // Facilitator scope: facilitators only see attendance for participants in
     // the v2_teams where they are the handler.
-    let facGroupFilter = null;
-    let facGroupArgs = [];
+    let facilitatorGroupFilter = null;
+    let facilitatorGroupArgs = [];
     if (session && programId && !hasProgramManagementAccess(session.role)) {
       const facError = await requireAssignmentAccess({
         resource: "program",
@@ -209,21 +218,25 @@ export async function GET(req) {
         if (scope.teamIds.length === 0) {
           return NextResponse.json({ success: true, attendance: [] });
         }
-        facGroupFilter =
+        facilitatorGroupFilter =
           "participant_id IN (SELECT c.cid FROM contacts c WHERE c.v2_team_id IN (" +
           scope.teamIds.map(() => "?").join(",") +
           "))";
-        facGroupArgs = scope.teamIds;
+        facilitatorGroupArgs = scope.teamIds;
       }
     }
 
     // ── Summary mode: return attendance rates per participant ──
     if (summary && programId) {
-      const summaryRes = await getAttendanceSummary(programId, facGroupFilter, facGroupArgs);
+      const summaryResult = await getAttendanceSummary(
+        programId,
+        facilitatorGroupFilter,
+        facilitatorGroupArgs,
+      );
 
       return NextResponse.json({
         success: true,
-        summary: summaryRes.rows,
+        summary: summaryResult.rows,
       });
     }
 
@@ -232,13 +245,13 @@ export async function GET(req) {
       dateStr,
       programId,
       participantId,
-      facGroupFilter,
-      facGroupArgs,
+      facGroupFilter: facilitatorGroupFilter,
+      facGroupArgs: facilitatorGroupArgs,
     });
     return NextResponse.json({ success: true, attendance: result.rows });
-  } catch (e) {
+  } catch (error) {
     return NextResponse.json(
-      { success: false, error: e.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

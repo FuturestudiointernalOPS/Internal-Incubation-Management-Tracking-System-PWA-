@@ -43,19 +43,19 @@ export async function GET(req) {
       return NextResponse.json({
         success: true,
         user_cid: userCid,
-        responsibilities: responsibilities.map((r) => ({
-          ...r,
-          allowed_roles: normalizeAllowedRoles(r.allowed_roles),
+        responsibilities: responsibilities.map((responsibility) => ({
+          ...responsibility,
+          allowed_roles: normalizeAllowedRoles(responsibility.allowed_roles),
         })),
       });
     }
 
-    const all = await getAllResponsibilities();
+    const allResponsibilities = await getAllResponsibilities();
     return NextResponse.json({
       success: true,
-      responsibilities: all.map((r) => ({
-        ...r,
-        allowed_roles: normalizeAllowedRoles(r.allowed_roles),
+      responsibilities: allResponsibilities.map((responsibility) => ({
+        ...responsibility,
+        allowed_roles: normalizeAllowedRoles(responsibility.allowed_roles),
       })),
     });
   } catch (err) {
@@ -180,14 +180,14 @@ export async function DELETE(req) {
     await initDb();
 
     // Check if any users have this responsibility assigned
-    const assigned = await countResponsibilityAssignments(id);
+    const assignments = await countResponsibilityAssignments(id);
 
     await deleteResponsibility(id);
 
     return NextResponse.json({
       success: true,
       message: "Responsibility deleted",
-      unassigned: assigned.rows[0]?.cnt || 0,
+      unassigned: assignments.rows[0]?.cnt || 0,
     });
   } catch (err) {
     console.error("[Responsibilities] DELETE error:", err);

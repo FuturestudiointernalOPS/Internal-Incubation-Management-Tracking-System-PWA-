@@ -44,9 +44,9 @@ export const POST = createHandler(
     // Notify participant if participant_id provided
     if (participant_id) {
       try {
-        const notifTitle = `Meeting Scheduled: ${title}`;
-        const notifMessage = `Your PM has scheduled a review meeting on ${new Date(start_time).toLocaleDateString()} at ${new Date(start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.${location ? ` Location: ${location}` : ""}`;
-        await insertEventNotification(participant_id, notifTitle, notifMessage);
+        const notificationTitle = `Meeting Scheduled: ${title}`;
+        const notificationMessage = `Your PM has scheduled a review meeting on ${new Date(start_time).toLocaleDateString()} at ${new Date(start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.${location ? ` Location: ${location}` : ""}`;
+        await insertEventNotification(participant_id, notificationTitle, notificationMessage);
       } catch (_) {}
     }
 

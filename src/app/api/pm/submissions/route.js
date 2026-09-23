@@ -44,21 +44,21 @@ export const GET = createHandler(
       );
     }
 
-    const progRes = await getProgramsByAssignedPm(assignedPmId);
-    const programs = progRes.rows || [];
-    const programIds = programs.map((p) => String(p.id));
+    const programsResult = await getProgramsByAssignedPm(assignedPmId);
+    const programs = programsResult.rows || [];
+    const programIds = programs.map((program) => String(program.id));
 
     if (programIds.length === 0) {
       return NextResponse.json({ success: true, submissions: [], programs });
     }
 
-    const subRes = await getSubmissionsByProgramIds(programIds);
+    const submissionsResult = await getSubmissionsByProgramIds(programIds);
 
-    const progMap = {};
-    for (const p of programs) progMap[p.id] = p.name;
-    const submissions = (subRes.rows || []).map((s) => ({
-      ...s,
-      program_name: progMap[s.program_id] || null,
+    const programNamesById = {};
+    for (const program of programs) programNamesById[program.id] = program.name;
+    const submissions = (submissionsResult.rows || []).map((submission) => ({
+      ...submission,
+      program_name: programNamesById[submission.program_id] || null,
     }));
 
     return NextResponse.json({ success: true, submissions, programs });

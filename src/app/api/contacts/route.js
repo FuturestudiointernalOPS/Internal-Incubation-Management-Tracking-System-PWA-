@@ -51,8 +51,8 @@ async function fireInvite(cid, name, email, role, _groupId) {
     // Send email synchronously so Vercel doesn't kill the worker
     const { sendInviteEmail } = await import("@/lib/email");
     await sendInviteEmail({ to: email, name, role, token });
-  } catch (e) {
-    console.error("Invite fire failed:", e.message || e);
+  } catch (error) {
+    console.error("Invite fire failed:", error.message || error);
   }
 }
 
@@ -80,7 +80,7 @@ export async function POST(req) {
     // internal member (auto-role staff). Only org_membership.manage holders
     // may do that — generic contacts.create must never grant it.
     const wantsInternal = contacts.some(
-      (c) => normalizeGroupName(c?.group_name) === INTERNAL_GROUP,
+      (contact) => normalizeGroupName(contact?.group_name) === INTERNAL_GROUP,
     );
     if (wantsInternal) {
       const protectError = await requireAuthorization("org_membership", "manage");
@@ -94,10 +94,10 @@ export async function POST(req) {
     const validContacts = [];
     const errors = [];
 
-    for (const c of contacts) {
+    for (const contact of contacts) {
       // Mapping for Public Application Form
-      const rawName = c.name || c.fullName || "Unknown Applicant";
-      const rawEmail = (c.email || "").toLowerCase().trim();
+      const rawName = contact.name || contact.fullName || "Unknown Applicant";
+      const rawEmail = (contact.email || "").toLowerCase().trim();
 
       if (!rawEmail) {
         errors.push({ name: rawName, error: "Email is required" });
@@ -115,16 +115,16 @@ export async function POST(req) {
       const hashedPassword = await bcrypt.hash(uuidv4(), 10);
 
       // Gated Status Logic (UPPERCASE NORMALIZATION)
-      const groupName = (c.group_name || "unassigned").toUpperCase();
+      const groupName = (contact.group_name || "unassigned").toUpperCase();
       const isInternal = groupName === "FUTURE STUDIO";
 
       // Use provided status, or default: approved for staff, pending for participants
       let initialStatus =
-        c.status ||
-        (isInternal || c.role === "participant" ? "pending" : "approved");
+        contact.status ||
+        (isInternal || contact.role === "participant" ? "pending" : "approved");
 
       // Strict Role Normalization
-      let finalRole = c.role;
+      let finalRole = contact.role;
       if (!finalRole || finalRole === "unassigned") {
         finalRole = isInternal ? "staff" : "unassigned";
       }
@@ -133,75 +133,88 @@ export async function POST(req) {
         cid,
         name: rawName.trim(),
         email: rawEmail,
-        phone: c.phone || null,
-        address: c.address || c.homeAddress || null,
-        dob: c.dob || null,
+        phone: contact.phone || null,
+        address: contact.address || contact.homeAddress || null,
+        dob: contact.dob || null,
         group_name: groupName,
         role: finalRole,
         password: hashedPassword,
-        program_id: c.program_id || null,
-        program_name: c.program_name || null,
-        image: c.image || null,
+        program_id: contact.program_id || null,
+        program_name: contact.program_name || null,
+        image: contact.image || null,
         status: initialStatus,
         deleted: 0,
-        gender: c.gender || null,
-        mother_name: c.mother_name || null,
+        gender: contact.gender || null,
+        mother_name: contact.mother_name || null,
       });
     }
 
     let inserted = 0;
-    for (const vc of validContacts) {
+    for (const validContact of validContacts) {
       try {
-        console.log(`Saving contact: ${vc.email} as ${vc.status}`);
+        console.log(`Saving contact: ${validContact.email} as ${validContact.status}`);
 
-        await upsertContact(vc);
+        await upsertContact(validContact);
 
-        if (vc.status === "pending") {
-          console.log("Triggering Admin Notification for:", vc.name);
-          await createAccessRequestNotification(vc.name);
+        if (validContact.status === "pending") {
+          console.log("Triggering Admin Notification for:", validContact.name);
+          await createAccessRequestNotification(validContact.name);
         }
 
         // Fire invite for ALL new contacts so they receive activation email
-        if (vc.email) {
-          await fireInvite(vc.cid, vc.name, vc.email, vc.role, vc.program_id);
+        if (validContact.email) {
+          await fireInvite(
+            validContact.cid,
+            validContact.name,
+            validContact.email,
+            validContact.role,
+            validContact.program_id,
+          );
         }
 
         // If program_ids or program_id provided, sync to participant_programs
         const programIdsToAssign =
-          vc.program_ids && Array.isArray(vc.program_ids)
-            ? vc.program_ids
-            : vc.program_id
-              ? [vc.program_id]
+          validContact.program_ids && Array.isArray(validContact.program_ids)
+            ? validContact.program_ids
+            : validContact.program_id
+              ? [validContact.program_id]
               : [];
 
-        for (const pid of programIdsToAssign) {
+        for (const programId of programIdsToAssign) {
           try {
             // Same-program conflict guard (Phase 2A): skip programs where the
             // person already holds a facilitator assignment.
             const conflictError = await assertNoParticipantFacilitatorConflict(
-              pid,
-              vc.cid,
-              vc.email,
+              programId,
+              validContact.cid,
+              validContact.email,
             );
             if (conflictError) {
-              errors.push({ email: vc.email, program_id: pid, error: "errors.roleConflictParticipantFacilitator" });
+              errors.push({
+                email: validContact.email,
+                program_id: programId,
+                error: "errors.roleConflictParticipantFacilitator",
+              });
               continue;
             }
-            await assignContactToProgram(vc.cid, pid);
+            await assignContactToProgram(validContact.cid, programId);
 
-            await createParticipantProgramAudit(vc.cid, pid, "system");
-          } catch (e) {
+            await createParticipantProgramAudit(validContact.cid, programId, "system");
+          } catch (error) {
             console.error(
-              `Failed to assign ${vc.cid} to program ${pid}:`,
-              e.message,
+              `Failed to assign ${validContact.cid} to program ${programId}:`,
+              error.message,
             );
           }
         }
 
         inserted++;
-      } catch (err) {
-        console.error(`SQL Save Error for ${vc.email}:`, err.message);
-        errors.push({ email: vc.email, error: err.message });
+      } catch (error) {
+        console.error(
+          `SQL Save Error for ${validContact.email}:`,
+          error.message,
+        );
+        errors.push({ email: validContact.email, error: error.message });
       }
     }
 
@@ -216,12 +229,16 @@ export async function POST(req) {
     // Fire duplicate detection for new contacts (non-blocking)
     if (inserted > 0) {
       Promise.resolve().then(async () => {
-        for (const vc of validContacts) {
-          if (!vc.phone) continue;
+        for (const validContact of validContacts) {
+          if (!validContact.phone) continue;
           try {
-            const existing = await findContactCidByPhone(vc.phone, vc.cid, vc.email);
+            const existing = await findContactCidByPhone(
+              validContact.phone,
+              validContact.cid,
+              validContact.email,
+            );
             if (existing.rows.length > 0) {
-              await createDuplicatePhoneFlag(vc.cid, existing.rows[0].cid);
+              await createDuplicatePhoneFlag(validContact.cid, existing.rows[0].cid);
             }
           } catch (_) {}
         }
@@ -285,22 +302,22 @@ export async function PUT(req) {
       "mother_name",
     ];
 
-    for (const col of updatableColumns) {
-      if (data[col] !== undefined) {
-        let val = data[col];
-        if (typeof val === "string") val = val.trim();
+    for (const column of updatableColumns) {
+      if (data[column] !== undefined) {
+        let value = data[column];
+        if (typeof value === "string") value = value.trim();
 
-        if (col === "email") {
-          fieldsToUpdate.push(`${col} = ?`);
-          args.push(val.toLowerCase());
-        } else if (col === "group_name") {
+        if (column === "email") {
+          fieldsToUpdate.push(`${column} = ?`);
+          args.push(value.toLowerCase());
+        } else if (column === "group_name") {
           // Normalize group names to UPPERCASE at write time (matches the
           // membership layer) so case variants can never be re-created.
           fieldsToUpdate.push("group_name = ?");
-          args.push(String(val || "").trim().toUpperCase());
+          args.push(String(value || "").trim().toUpperCase());
         } else {
-          fieldsToUpdate.push(`${col} = ?`);
-          args.push(col === "deleted" ? (val ? 1 : 0) : val);
+          fieldsToUpdate.push(`${column} = ?`);
+          args.push(column === "deleted" ? (value ? 1 : 0) : value);
         }
       }
     }
@@ -324,7 +341,7 @@ export async function PUT(req) {
 
     args.push(data.cid);
 
-    const match = await updateContactFields(fieldsToUpdate, args);
+    const updateResult = await updateContactFields(fieldsToUpdate, args);
 
     // Sync participant_programs if program_ids array is provided
     const NON_PARTICIPANT_ROLES = ["facilitator", "staff", "super_admin", "investor", "founder", "program_manager"];
@@ -337,13 +354,13 @@ export async function PUT(req) {
       await deleteContactPrograms(data.cid);
     } else if (Array.isArray(data.program_ids)) {
       // Verify all programs exist before assigning
-      for (const pid of data.program_ids) {
-        const check = await getProgramById(pid);
-        if (check.rows.length === 0) {
+      for (const programId of data.program_ids) {
+        const programResult = await getProgramById(programId);
+        if (programResult.rows.length === 0) {
           return NextResponse.json(
             {
               success: false,
-              error: `Program "${pid}" not found. Create it first before assigning.`,
+              error: `Program "${programId}" not found. Create it first before assigning.`,
             },
             { status: 404 },
           );
@@ -352,9 +369,9 @@ export async function PUT(req) {
 
       // Same-program conflict guard (Phase 2A): reject the update before any
       // membership mutation if the person is a facilitator in a target program.
-      for (const pid of data.program_ids) {
+      for (const programId of data.program_ids) {
         const conflictError = await assertNoParticipantFacilitatorConflict(
-          pid,
+          programId,
           data.cid,
           data.email || null,
         );
@@ -369,15 +386,19 @@ export async function PUT(req) {
       }
 
       // Add new assignments
-      for (const pid of data.program_ids) {
+      for (const programId of data.program_ids) {
         try {
-          await addContactProgramMembership(data.cid, pid);
+          await addContactProgramMembership(data.cid, programId);
 
-          await recordParticipantProgramAudit(data.cid, pid, data.assigned_by || "system");
-        } catch (e) {
+          await recordParticipantProgramAudit(
+            data.cid,
+            programId,
+            data.assigned_by || "system",
+          );
+        } catch (error) {
           console.error(
-            `PUT program sync error for ${data.cid}, program ${pid}:`,
-            e.message,
+            `PUT program sync error for ${data.cid}, program ${programId}:`,
+            error.message,
           );
         }
       }
@@ -392,39 +413,39 @@ export async function PUT(req) {
         );
         if (conflictError) return conflictError;
         await ensureContactProgramMembership(data.cid, data.program_id);
-      } catch (e) {
-        console.error(`PUT program sync error for ${data.cid}:`, e.message);
+      } catch (error) {
+        console.error(`PUT program sync error for ${data.cid}:`, error.message);
       }
     }
 
     // If status changed to active/approved, fire invite and clear notifications
     if (data.status === "active" || data.status === "approved") {
       try {
-        const userRes = await getContactIdentityByCid(data.cid);
-        if (userRes.rows.length > 0) {
-          const u = userRes.rows[0];
+        const identityResult = await getContactIdentityByCid(data.cid);
+        if (identityResult.rows.length > 0) {
+          const contactRow = identityResult.rows[0];
 
           // Fire invite for approved staff (participants already invited on registration)
           // Commented out — invite is now sent on registration, not on approval
-          // if (u.role !== "participant") {
-          //   fireInvite(data.cid, u.name, u.email, u.role, null).catch(() => {});
+          // if (contactRow.role !== "participant") {
+          //   fireInvite(data.cid, contactRow.name, contactRow.email, contactRow.role, null).catch(() => {});
           // }
 
           // Clear notifications
-          await markAdminNotificationsRead(u.name);
+          await markAdminNotificationsRead(contactRow.name);
         }
-      } catch (e) {
-        console.error("Auto-Purge Failure:", e);
+      } catch (error) {
+        console.error("Auto-Purge Failure:", error);
       }
     }
 
     return NextResponse.json({
       success: true,
-      rowsAffected: match.rowsAffected,
+      rowsAffected: updateResult.rowsAffected,
     });
-  } catch (err) {
+  } catch (error) {
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }
@@ -483,18 +504,23 @@ export async function GET(req) {
       result = await getContactsForStaff(session.role, groupFilter);
     }
     const rows = result.rows || [];
-    const cids = rows.map((r) => r.cid).filter(Boolean);
+    const contactCids = rows.map((row) => row.cid).filter(Boolean);
     let participantCids = new Set();
     let assignmentCids = new Set();
-    if (cids.length > 0) {
+    if (contactCids.length > 0) {
       // Best-effort: these tables may not exist in older schemas.
       try {
-        const ppRes = await getParticipantProgramCids(cids);
-        participantCids = new Set(ppRes.rows.map((r) => r.participant_id));
+        const participantProgramsResult = await getParticipantProgramCids(contactCids);
+        participantCids = new Set(
+          participantProgramsResult.rows.map((row) => row.participant_id),
+        );
       } catch (_) {}
       try {
-        const crRes = await getContactRoleAssignmentCids(cids);
-        assignmentCids = new Set(crRes.rows.map((r) => r.contact_cid));
+        const contactRoleAssignmentsResult =
+          await getContactRoleAssignmentCids(contactCids);
+        assignmentCids = new Set(
+          contactRoleAssignmentsResult.rows.map((row) => row.contact_cid),
+        );
       } catch (_) {}
     }
     const contacts = (await attachInvitationStatus(rows)).map(

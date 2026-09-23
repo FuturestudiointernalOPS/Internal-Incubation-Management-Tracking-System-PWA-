@@ -15,18 +15,18 @@ export const GET = createHandler(async (req, { params }) => {
   if (!(await isStaffActorForVenture(db, id, session))) {
     return NextResponse.json({ success: false, error: "This operation requires staff access to the Venture." }, { status: 403 });
   }
-  const s = new URL(req.url).searchParams;
-  const type = s.get("type") || "pipeline";
+  const searchParams = new URL(req.url).searchParams;
+  const type = searchParams.get("type") || "pipeline";
 
   if (type === "pipeline") {
-    const opportunities = await listOpportunities(id, s.get("stage"));
+    const opportunities = await listOpportunities(id, searchParams.get("stage"));
     return NextResponse.json({ success: true, opportunities });
   }
 
-  if (type === "detail" && s.get("opportunity_id")) {
-    const opp = await getOpportunity(parseInt(s.get("opportunity_id")));
-    if (!opp) return NextResponse.json({ success: false, error: "Opportunity not found." }, { status: 404 });
-    return NextResponse.json({ success: true, opportunity: opp });
+  if (type === "detail" && searchParams.get("opportunity_id")) {
+    const opportunity = await getOpportunity(parseInt(searchParams.get("opportunity_id")));
+    if (!opportunity) return NextResponse.json({ success: false, error: "Opportunity not found." }, { status: 404 });
+    return NextResponse.json({ success: true, opportunity });
   }
 
   if (type === "analytics") {
@@ -57,7 +57,7 @@ export const POST = createHandler(async (req, { params }) => {
         nextActionDate: body.next_action_date, createdBy: req.session?.cid,
       });
       return NextResponse.json({ success: true, opportunity_id: result.id });
-    } catch (e) { return NextResponse.json({ success: false, error: e.message }, { status: 400 }); }
+    } catch (error) { return NextResponse.json({ success: false, error: error.message }, { status: 400 }); }
   }
 
   if (body.action === "update") {

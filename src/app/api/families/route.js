@@ -29,11 +29,11 @@ export async function GET(req) {
   try {
     await initDb();
     const { searchParams } = new URL(req.url);
-    const regId = searchParams.get("registration_id");
+    const registrationId = searchParams.get("registration_id");
 
     // Lookup by registration_id is public (used by join page)
-    if (regId) {
-      const result = await getFamilyByRegistrationId(regId);
+    if (registrationId) {
+      const result = await getFamilyByRegistrationId(registrationId);
       return NextResponse.json({ success: true, families: result.rows });
     }
 
@@ -85,25 +85,25 @@ export async function POST(req) {
     // Auto-create a Platform form for this group
     let formId = null;
     try {
-      const formRes = await createFamilyRegistrationForm(name);
-      formId = formRes.rows[0]?.id;
+      const formResult = await createFamilyRegistrationForm(name);
+      formId = formResult.rows[0]?.id;
       if (formId) {
-        const secRes = await createFamilyFormSection(formId);
-        const sectionId = secRes.rows[0]?.id;
+        const sectionResult = await createFamilyFormSection(formId);
+        const sectionId = sectionResult.rows[0]?.id;
         if (sectionId) {
           const defaultFields = [
             { label: 'Full Name', field_type: 'text', required: true, sort_order: 0 },
             { label: 'Email Address', field_type: 'email', required: true, sort_order: 1 },
             { label: 'Phone Number', field_type: 'phone', required: false, sort_order: 2 },
           ];
-          for (const f of defaultFields) {
-            await createFamilyFormField(formId, sectionId, f);
+          for (const field of defaultFields) {
+            await createFamilyFormField(formId, sectionId, field);
           }
         }
       }
-    } catch (e) { console.warn("Auto-create form failed:", e.message); }
+    } catch (error) { console.warn("Auto-create form failed:", error.message); }
 
-    const res = await createFamily({
+    const familyResult = await createFamily({
       name,
       registration_id,
       program_id,
@@ -113,7 +113,7 @@ export async function POST(req) {
       default_role,
     });
 
-    const newId = res.lastInsertRowid;
+    const newId = familyResult.lastInsertRowid;
 
     return NextResponse.json({
       success: true, id: newId, form_id: formId,

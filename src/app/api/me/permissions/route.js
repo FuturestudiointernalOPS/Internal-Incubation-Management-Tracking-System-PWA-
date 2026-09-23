@@ -37,10 +37,10 @@ export async function GET() {
       await syncContextGrantsOnConnect(session.cid, {
         email: session.email || null,
       });
-    } catch (e) {
+    } catch (error) {
       // Never block the read: the grants already applied remain valid and the
       // scheduled sweep reconciles again.
-      console.warn("[me/permissions] context reconcile skipped:", e.message);
+      console.warn("[me/permissions] context reconcile skipped:", error.message);
     }
 
     const ctx = await getAuthorizationContext(session);
@@ -50,8 +50,8 @@ export async function GET() {
       isSuperAdmin: !!ctx?.isSuperAdmin,
       effective: effectivePermissionsFromContext(ctx),
     });
-  } catch (e) {
-    console.error("[me/permissions] error:", e.message);
+  } catch (error) {
+    console.error("[me/permissions] error:", error.message);
     return NextResponse.json(
       { success: false, error: "errors.authzSystemFailure" },
       { status: 500 },

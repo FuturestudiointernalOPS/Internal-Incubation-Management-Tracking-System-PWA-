@@ -106,15 +106,15 @@ export async function POST(req) {
 
     // Group names are normalized to UPPERCASE at write time so case
     // variants can never be re-created.
-    const normGroup = group_id ? String(group_id).trim().toUpperCase() : null;
+    const normalizedGroup = group_id ? String(group_id).trim().toUpperCase() : null;
 
     if (existingContact.rows.length > 0) {
       contactCid = existingContact.rows[0].cid;
       // Never blank an existing name when the inviter did not provide one.
       if ((name || "").trim()) {
-        await updateContactNameAndGroup(name.trim(), normGroup, contactCid);
+        await updateContactNameAndGroup(name.trim(), normalizedGroup, contactCid);
       } else if (group_id) {
-        await updateContactGroup(normGroup, contactCid);
+        await updateContactGroup(normalizedGroup, contactCid);
       }
     } else {
       contactCid = "USR_" + uuidv4().toUpperCase().replace(/-/g, "").substring(0, 12);
@@ -123,7 +123,7 @@ export async function POST(req) {
         displayName,
         cleanEmail,
         role || "member",
-        normGroup,
+        normalizedGroup,
       );
     }
 

@@ -39,11 +39,11 @@ export async function GET(req) {
     // is scoped to campaigns for ventures it is engaged with in the pipeline.
     let investorId = null;
     if (!management) {
-      const profile = await getInvestorProfileIdByUserIdForPipelineList(user.cid || user.id);
-      if (profile.rows.length === 0) {
+      const profileResult = await getInvestorProfileIdByUserIdForPipelineList(user.cid || user.id);
+      if (profileResult.rows.length === 0) {
         return NextResponse.json({ success: true, campaigns: [] });
       }
-      investorId = profile.rows[0].id;
+      investorId = profileResult.rows[0].id;
     }
 
     const result = await listFundraisingCampaigns({ ventureId, status, investorId });
@@ -111,10 +111,10 @@ export async function PUT(req) {
     // If updating current_raised, fetch old value first for milestone detection
     if (current_raised !== undefined) {
       try {
-        const old = await getCampaignFundingSnapshot(id);
-        if (old.rows.length > 0) {
-          oldRaised = parseFloat(old.rows[0].current_raised || 0);
-          oldTarget = parseFloat(old.rows[0].target_raise || 0);
+        const fundingSnapshot = await getCampaignFundingSnapshot(id);
+        if (fundingSnapshot.rows.length > 0) {
+          oldRaised = parseFloat(fundingSnapshot.rows[0].current_raised || 0);
+          oldTarget = parseFloat(fundingSnapshot.rows[0].target_raise || 0);
         }
       } catch (_) {}
     }
@@ -150,32 +150,32 @@ export async function PUT(req) {
         // Find investors whose preferences match this venture
         const investors = await listApprovedInvestorsWithPreferences();
 
-        for (const inv of investors.rows) {
+        for (const investor of investors.rows) {
           let matches = false;
-          const inds = inv.industries || [];
-          const cntrs = inv.countries || [];
-          const stages = inv.startup_stages || [];
+          const industries = investor.industries || [];
+          const countries = investor.countries || [];
+          const stages = investor.startup_stages || [];
 
-          if (inds.length > 0) {
-            matches = matches || inds.some(ind => (venture.industry || "").toLowerCase().includes(ind.toLowerCase()));
+          if (industries.length > 0) {
+            matches = matches || industries.some(industry => (venture.industry || "").toLowerCase().includes(industry.toLowerCase()));
           }
-          if (cntrs.length > 0) {
-            matches = matches || cntrs.some(c => (venture.country || "").toUpperCase() === c.toUpperCase());
+          if (countries.length > 0) {
+            matches = matches || countries.some(country => (venture.country || "").toUpperCase() === country.toUpperCase());
           }
           if (stages.length > 0) {
-            matches = matches || stages.some(s => (venture.business_stage || "").toLowerCase().includes(s.toLowerCase()));
+            matches = matches || stages.some(stage => (venture.business_stage || "").toLowerCase().includes(stage.toLowerCase()));
           }
 
           // Also notify all investors if preferences not set (fallback: notify all approved)
-          if (matches || (inds.length === 0 && cntrs.length === 0 && stages.length === 0)) {
+          if (matches || (industries.length === 0 && countries.length === 0 && stages.length === 0)) {
             await notifyInvestorOfNewCampaign(
-              inv.user_id,
+              investor.user_id,
               `New Investment Opportunity: ${venture.name}`,
               `${venture.name} (${venture.industry || "Unknown"}, ${venture.country || "N/A"}) has opened a fundraising campaign: ${campaign.name}. Target: $${Number(campaign.target_raise || 0).toLocaleString()}.`,
             );
           }
         }
-      } catch (e) { console.error("Campaign publish notify error:", e.message); }
+      } catch (error) { console.error("Campaign publish notify error:", error.message); }
     }
 
     // Smart alerts: notify watching investors when funding milestones are crossed
@@ -186,11 +186,11 @@ export async function PUT(req) {
         const milestones = [25, 50, 75, 100];
         let milestoneHit = 0;
 
-        for (const m of milestones) {
+        for (const milestone of milestones) {
           const oldPct = (oldRaised / oldTarget) * 100;
           const newPct = (newRaised / newTarget) * 100;
-          if (oldPct < m && newPct >= m) {
-            milestoneHit = m;
+          if (oldPct < milestone && newPct >= milestone) {
+            milestoneHit = milestone;
             break;
           }
         }
@@ -202,15 +202,15 @@ export async function PUT(req) {
           // Notify all investors watching this venture
           const watchers = await listInvestorsWatchingVenture(campaign.venture_id);
 
-          for (const w of watchers.rows) {
+          for (const watcher of watchers.rows) {
             await notifyInvestorOfFundingMilestone(
-              w.user_id,
+              watcher.user_id,
               `Funding Milestone: ${milestoneHit}% \u2014 ${ventureName}`,
               `${ventureName}'s fundraising campaign has reached ${milestoneHit}% of its $${newTarget.toLocaleString()} target ($${newRaised.toLocaleString()} raised).`,
             );
           }
         }
-      } catch (e) { console.error("Milestone notify error:", e.message); }
+      } catch (error) { console.error("Milestone notify error:", error.message); }
     }
 
     return NextResponse.json({ success: true, campaign });

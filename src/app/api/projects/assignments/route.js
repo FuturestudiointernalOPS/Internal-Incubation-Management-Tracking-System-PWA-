@@ -80,9 +80,9 @@ export const GET = createHandler(async (req) => {
 
   // Combine owned + collab into a single deduplicated myProjects list
   const seen = new Set();
-  const myProjects = [...owned, ...collab].filter((p) => {
-    if (seen.has(p.id)) return false;
-    seen.add(p.id);
+  const myProjects = [...owned, ...collab].filter((project) => {
+    if (seen.has(project.id)) return false;
+    seen.add(project.id);
     return true;
   });
 

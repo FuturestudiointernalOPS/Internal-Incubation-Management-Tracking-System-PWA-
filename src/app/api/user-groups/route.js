@@ -47,7 +47,7 @@ export async function GET(req) {
     let groups = [];
     try {
       const result = await getUserGroups(userCid);
-      groups = result.rows.map((r) => r.group_name);
+      groups = result.rows.map((row) => row.group_name);
     } catch {
       // user_groups table may not exist yet — fall through to legacy group_name
       groups = [];
@@ -56,9 +56,9 @@ export async function GET(req) {
     // Fallback to legacy group_name on contacts
     if (groups.length === 0) {
       try {
-        const userRes = await getContactLegacyGroup(userCid);
-        if (userRes.rows.length > 0 && userRes.rows[0].group_name) {
-          groups = [userRes.rows[0].group_name];
+        const contactResult = await getContactLegacyGroup(userCid);
+        if (contactResult.rows.length > 0 && contactResult.rows[0].group_name) {
+          groups = [contactResult.rows[0].group_name];
         }
       } catch (_) {}
     }

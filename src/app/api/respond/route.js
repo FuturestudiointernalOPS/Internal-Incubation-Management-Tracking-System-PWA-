@@ -26,9 +26,9 @@ export async function POST(req) {
 
     if (!resolvedGroupName) {
       try {
-        const formRes = await getLegacyFormGroupName(form_id);
-        if (formRes.rows.length > 0) {
-          resolvedGroupName = formRes.rows[0].group_name;
+        const formResult = await getLegacyFormGroupName(form_id);
+        if (formResult.rows.length > 0) {
+          resolvedGroupName = formResult.rows[0].group_name;
         }
       } catch {
         // forms schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 13
@@ -90,8 +90,8 @@ export async function POST(req) {
 
 
     if (resolvedCid) {
-      const hasYes = Object.values(answers || {}).some(v => v === 'Yes' || String(v).toLowerCase() === 'yes' || v === true);
-      const hasNo = Object.values(answers || {}).some(v => v === 'No' || String(v).toLowerCase() === 'no' || v === false);
+      const hasYes = Object.values(answers || {}).some(value => value === 'Yes' || String(value).toLowerCase() === 'yes' || value === true);
+      const hasNo = Object.values(answers || {}).some(value => value === 'No' || String(value).toLowerCase() === 'no' || value === false);
       let status = 'responded';
       if (hasYes) status = 'yes';
       else if (hasNo) status = 'no';

@@ -19,7 +19,7 @@ export async function POST(_req) {
       },
       { status: 410 },
     );
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

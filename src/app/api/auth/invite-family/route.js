@@ -79,8 +79,8 @@ export async function POST(req) {
 
     // Verify the program exists if programId is provided
     if (programId) {
-      const progCheck = await getProgramById(programId);
-      if (progCheck.rows.length === 0) {
+      const programCheck = await getProgramById(programId);
+      if (programCheck.rows.length === 0) {
         return NextResponse.json(
           {
             success: false,
@@ -135,7 +135,7 @@ export async function POST(req) {
           name: memberName,
           role: "participant",
           token,
-        }).catch((e) => console.error("Family invite email failed:", e));
+        }).catch((emailError) => console.error("Family invite email failed:", emailError));
 
         results.push({
           email: memberEmail,
@@ -143,18 +143,18 @@ export async function POST(req) {
           status: "invited",
           cid,
         });
-      } catch (e) {
+      } catch (error) {
         results.push({
           email: memberEmail,
           status: "failed",
-          error: e.message,
+          error: error.message,
         });
       }
     }
 
     return NextResponse.json({
       success: true,
-      message: `${results.filter((r) => r.status === "invited").length} invites sent`,
+      message: `${results.filter((inviteResult) => inviteResult.status === "invited").length} invites sent`,
       results,
     });
   } catch (error) {

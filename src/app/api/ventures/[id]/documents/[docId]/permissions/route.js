@@ -12,16 +12,16 @@ const ROLES = ["participant", "founder", "staff", "program_manager", "super_admi
 const PRIVILEGED = ["staff", "program_manager", "super_admin"];
 
 async function resolveVentureDbId(ventureId) {
-  const r = await getVentureIdByCodeForDocumentPermissions(ventureId);
-  return r.rows?.[0]?.id || null;
+  const ventureResult = await getVentureIdByCodeForDocumentPermissions(ventureId);
+  return ventureResult.rows?.[0]?.id || null;
 }
 
 // venture_members stores venture_id as the VNT code (TEXT) — resolve the code from a UUID if needed
 async function resolveVentureCode(idOrCode) {
   if (!idOrCode || (typeof idOrCode === "string" && !idOrCode.startsWith("VNT-") && idOrCode.includes("-"))) {
     try {
-      const r = await getVentureCodeByIdForDocumentPermissions(idOrCode);
-      return r.rows?.[0]?.venture_id || idOrCode;
+      const ventureResult = await getVentureCodeByIdForDocumentPermissions(idOrCode);
+      return ventureResult.rows?.[0]?.venture_id || idOrCode;
     } catch { return idOrCode; }
   }
   return idOrCode;
@@ -38,13 +38,13 @@ export async function GET(req, { params }) {
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const doc = await getDocumentForPermissions(docId, dbId);
-    if (!doc.rows?.length) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const document = await getDocumentForPermissions(docId, dbId);
+    if (!document.rows?.length) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
-    const r = await listDocumentPermissions(docId);
-    return NextResponse.json({ success: true, permissions: r.rows || [] });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+    const permissionsResult = await listDocumentPermissions(docId);
+    return NextResponse.json({ success: true, permissions: permissionsResult.rows || [] });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -59,8 +59,8 @@ export async function PATCH(req, { params }) {
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const doc = await getDocumentForPermissionsUpdate(docId, dbId);
-    if (!doc.rows?.length) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const document = await getDocumentForPermissionsUpdate(docId, dbId);
+    if (!document.rows?.length) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
     // Only founders (or privileged staff roles) may edit permissions.
     if (!PRIVILEGED.includes(session.role)) {
@@ -81,7 +81,7 @@ export async function PATCH(req, { params }) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

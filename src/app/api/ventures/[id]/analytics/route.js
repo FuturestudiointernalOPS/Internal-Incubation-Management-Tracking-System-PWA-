@@ -16,8 +16,8 @@ export const GET = createHandler(async (req, { params }) => {
   if (!(await isStaffActorForVenture(db, id, session))) {
     return NextResponse.json({ success: false, error: "This operation requires staff access to the Venture." }, { status: 403 });
   }
-  const s = new URL(req.url).searchParams;
-  const type = s.get("type") || "overview";
+  const searchParams = new URL(req.url).searchParams;
+  const type = searchParams.get("type") || "overview";
 
   if (type === "overview") {
     const analytics = await getInvestmentAnalytics(id);
@@ -35,13 +35,13 @@ export const GET = createHandler(async (req, { params }) => {
   }
 
   if (type === "export") {
-    const format = s.get("format") || "json";
+    const format = searchParams.get("format") || "json";
     const report = await getInvestmentReportSummary(id);
 
     if (format === "csv") {
       const rows = [["KPI", "Value"]];
-      for (const [k, v] of Object.entries(report.kpis)) rows.push([k, String(v)]);
-      const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+      for (const [kpiName, kpiValue] of Object.entries(report.kpis)) rows.push([kpiName, String(kpiValue)]);
+      const csv = rows.map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n");
       return new NextResponse(csv, {
         headers: { "Content-Type": "text/csv", "Content-Disposition": `attachment; filename="investment-analytics-${id}.csv"` },
       });

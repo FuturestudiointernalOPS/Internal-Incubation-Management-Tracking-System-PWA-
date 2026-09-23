@@ -32,9 +32,9 @@ const RUN_NAME = "Venture Application";
 
 function randomSlug() {
   const chars = "0123456789abcdef";
-  let s = "r";
-  for (let i = 0; i < 10; i++) s += chars[Math.floor(Math.random() * 16)];
-  return s;
+  let slug = "r";
+  for (let index = 0; index < 10; index++) slug += chars[Math.floor(Math.random() * 16)];
+  return slug;
 }
 
 export async function POST() {
@@ -44,8 +44,8 @@ export async function POST() {
 
   try {
     // ── 1. Find or create the Venture Application form ──
-    let formRes = await findVentureApplicationFormByName(FORM_NAME);
-    let form = formRes.rows[0];
+    let formResult = await findVentureApplicationFormByName(FORM_NAME);
+    let form = formResult.rows[0];
 
     // ── 1b. Single-active Venture intake guard ──
     // The seed may only act as the intake when no OTHER form holds the
@@ -148,23 +148,23 @@ export async function POST() {
       ];
 
       for (const section of sections) {
-        const secRes = await insertVentureApplicationSection(formId, section.title, section.sort);
-        const sectionId = secRes.rows[0].id;
-        for (const f of section.fields) {
-          await insertVentureApplicationField(formId, sectionId, f, section.sort);
+        const sectionResult = await insertVentureApplicationSection(formId, section.title, section.sort);
+        const sectionId = sectionResult.rows[0].id;
+        for (const field of section.fields) {
+          await insertVentureApplicationField(formId, sectionId, field, section.sort);
         }
       }
 
       // ── 3. Version snapshot ──
       await insertVentureApplicationSnapshot(formId, { name: FORM_NAME, version: 1 });
 
-      formRes = await getFormByIdForVentureSeed(formId);
-      form = formRes.rows[0];
+      formResult = await getFormByIdForVentureSeed(formId);
+      form = formResult.rows[0];
     }
 
     // ── 4. Find or create the active Venture Run ──
-    let runRes = await findActiveVentureRun(form.id);
-    let run = runRes.rows[0];
+    let runResult = await findActiveVentureRun(form.id);
+    let run = runResult.rows[0];
 
     if (!run) {
       const slug = randomSlug();
@@ -176,8 +176,8 @@ export async function POST() {
         slug
       );
       const runId = createdRun.rows[0].id;
-      runRes = await getVentureRunById(runId);
-      run = runRes.rows[0];
+      runResult = await getVentureRunById(runId);
+      run = runResult.rows[0];
     }
 
     // ── 5. Record the configured Venture Run ──

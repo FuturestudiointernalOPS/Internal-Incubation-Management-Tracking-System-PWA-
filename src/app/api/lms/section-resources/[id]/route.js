@@ -45,8 +45,8 @@ export async function PUT(req, { params }) {
       position: body.position,
     });
     return NextResponse.json({ success: true, resource });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }
 
@@ -59,7 +59,7 @@ export async function DELETE(req, { params }) {
     const { id } = await params;
     const result = await deleteSectionResource(id);
     return NextResponse.json(result);
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

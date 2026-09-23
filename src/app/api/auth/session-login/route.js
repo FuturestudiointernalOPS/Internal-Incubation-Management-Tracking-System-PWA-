@@ -182,8 +182,8 @@ export async function POST(req) {
     let ventureMemberships = [];
     if (!isTeamLogin && !isFamilyLogin && landingNeedsRelationships(finalRole)) {
       try {
-        const vm = await getVentureMembershipsForContact(userCid);
-        ventureMemberships = vm.rows || [];
+        const ventureMembershipsResult = await getVentureMembershipsForContact(userCid);
+        ventureMemberships = ventureMembershipsResult.rows || [];
       } catch (_) {}
     }
 
@@ -199,12 +199,12 @@ export async function POST(req) {
       let hasLms = false;
       if (!hasDirectProgram && userCid) {
         try {
-          const [ppRes, lmsRes] = await Promise.all([
+          const [participantProgramResult, lmsEnrollmentResult] = await Promise.all([
             getParticipantProgramRecordForSessionLogin(userCid),
             getLmsEnrollmentRecordForSessionLogin(userCid),
           ]);
-          hasParticipantPrograms = ppRes.rows.length > 0;
-          hasLms = lmsRes.rows.length > 0;
+          hasParticipantPrograms = participantProgramResult.rows.length > 0;
+          hasLms = lmsEnrollmentResult.rows.length > 0;
         } catch (_) {}
       }
       if (

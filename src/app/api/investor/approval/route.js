@@ -58,23 +58,23 @@ export async function POST(req) {
     }
 
     // Get investor with contact info for notification
-    const investor = await getInvestorWithContactByProfileId(profile_id);
+    const investorResult = await getInvestorWithContactByProfileId(profile_id);
 
-    const inv = investor.rows[0];
-    if (inv && inv.email) {
+    const investorRow = investorResult.rows[0];
+    if (investorRow && investorRow.email) {
       const statusLabels = { approved: "approved", rejected: "rejected", suspended: "suspended" };
       try {
         await sendEmail({
-          to: inv.email,
+          to: investorRow.email,
           subject: `Investor Account ${statusLabels[newStatus]}`,
-          body: `Hello ${inv.name || ""},\n\nYour investor account has been ${statusLabels[newStatus]}${reason ? `.\n\nReason: ${reason}` : "."}\n\n${newStatus === "approved" ? "You can now access Investor OS at " + (await import("@/lib/appUrl")).resolveAppUrl() + "/login" : "Please contact Future Studio for more information."}\n\n— Future Studio Team`,
+          body: `Hello ${investorRow.name || ""},\n\nYour investor account has been ${statusLabels[newStatus]}${reason ? `.\n\nReason: ${reason}` : "."}\n\n${newStatus === "approved" ? "You can now access Investor OS at " + (await import("@/lib/appUrl")).resolveAppUrl() + "/login" : "Please contact Future Studio for more information."}\n\n— Future Studio Team`,
         });
       } catch (_) {}
 
       // Create notification
       try {
         await notifyInvestorOfApprovalStatus(
-          inv.user_id,
+          investorRow.user_id,
           `Investor Account ${statusLabels[newStatus]}`,
           `Your investor account has been ${statusLabels[newStatus]}.${newStatus === "approved" ? " Welcome to Investor OS!" : ""}`,
         );

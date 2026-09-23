@@ -44,8 +44,8 @@ export async function GET(req) {
 
     const resources = await listSectionResources({ sectionId });
     return NextResponse.json({ success: true, resources });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }
 
@@ -73,7 +73,7 @@ export async function POST(req) {
       createdBy: session?.cid || null,
     });
     return NextResponse.json({ success: true, resource });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

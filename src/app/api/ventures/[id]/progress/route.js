@@ -20,8 +20,8 @@ import {
 const ROLES = ["participant","founder","staff","program_manager","super_admin"];
 
 async function resolveVentureDbId(ventureId) {
-  const r = await getVentureDbIdForProgress(ventureId);
-  return r.rows?.[0]?.id || null;
+  const ventureResult = await getVentureDbIdForProgress(ventureId);
+  return ventureResult.rows?.[0]?.id || null;
 }
 
 export async function GET(req, { params }) {
@@ -35,17 +35,17 @@ export async function GET(req, { params }) {
     // Completion is defined once in lib/ventureStatuses (canonical terminal
     // statuses: done | accepted | completed) — never hardcode here.
     const completedSet = TASK_COMPLETED_STATUSES.map(() => "?").join(", ");
-    const tasksRes = await db.execute({
+    const tasksResult = await db.execute({
       sql: `SELECT COUNT(*) as total, SUM(CASE WHEN status IN (${completedSet}) THEN 1 ELSE 0 END) as done FROM venture_tasks WHERE venture_id = ?`,
       args: [...TASK_COMPLETED_STATUSES, dbId],
     });
-    const total = parseInt(tasksRes.rows?.[0]?.total||0);
-    const done = parseInt(tasksRes.rows?.[0]?.done||0);
+    const total = parseInt(tasksResult.rows?.[0]?.total||0);
+    const done = parseInt(tasksResult.rows?.[0]?.done||0);
 
-    const milestonesRes = await getAverageVentureMilestoneProgress(dbId);
+    const milestonesResult = await getAverageVentureMilestoneProgress(dbId);
 
-    const standupsRes = await countVentureStandupsByVentureId(dbId);
-    const retrosRes = await countVentureRetrosByVentureId(dbId);
+    const standupsResult = await countVentureStandupsByVentureId(dbId);
+    const retrosResult = await countVentureRetrosByVentureId(dbId);
 
     // Profile completion calculation (UAT weighted)
     const [venture, founders, docs, businessModel, discovery, validations, pmf] = await Promise.all([
@@ -59,16 +59,16 @@ export async function GET(req, { params }) {
       countVenturePmfAssessments(dbId),
     ]);
 
-    const v = venture.rows?.[0] || {};
+    const ventureRow = venture.rows?.[0] || {};
     let profileScore = 0;
-    if (v.name) profileScore += 10;
-    if (v.description) profileScore += 10;
-    if (v.mission) profileScore += 5;
-    if (v.vision) profileScore += 5;
-    if (v.industry) profileScore += 10;
-    if (v.sector) profileScore += 5;
-    if (v.business_stage) profileScore += 5;
-    if (v.website) profileScore += 5;
+    if (ventureRow.name) profileScore += 10;
+    if (ventureRow.description) profileScore += 10;
+    if (ventureRow.mission) profileScore += 5;
+    if (ventureRow.vision) profileScore += 5;
+    if (ventureRow.industry) profileScore += 10;
+    if (ventureRow.sector) profileScore += 5;
+    if (ventureRow.business_stage) profileScore += 5;
+    if (ventureRow.website) profileScore += 5;
     // Founders: 15%
     const founderCount = parseInt(founders.rows?.[0]?.count||0);
     if (founderCount >= 2) profileScore += 15;
@@ -96,11 +96,11 @@ export async function GET(req, { params }) {
         task_completion: total > 0 ? Math.round((done/total)*100) : 0,
         total_tasks: total,
         completed_tasks: done,
-        avg_milestone_progress: Math.round(parseFloat(milestonesRes.rows?.[0]?.avg_progress||0)),
-        standups_count: parseInt(standupsRes.rows?.[0]?.count||0),
-        retros_count: parseInt(retrosRes.rows?.[0]?.count||0),
+        avg_milestone_progress: Math.round(parseFloat(milestonesResult.rows?.[0]?.avg_progress||0)),
+        standups_count: parseInt(standupsResult.rows?.[0]?.count||0),
+        retros_count: parseInt(retrosResult.rows?.[0]?.count||0),
         profile_completion: profileCompletion,
       }
     });
-  } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
+  } catch(error) { return NextResponse.json({ success: false, error: error.message }, { status: 500 }); }
 }

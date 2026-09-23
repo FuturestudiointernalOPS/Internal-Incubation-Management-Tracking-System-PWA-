@@ -74,28 +74,28 @@ export async function GET(req) {
       );
     }
 
-    const w = week_number ? parseInt(week_number) : null;
-    const y = year ? parseInt(year) : null;
+    const weekNumber = week_number ? parseInt(week_number) : null;
+    const yearNumber = year ? parseInt(year) : null;
 
     // ── 1. Fetch existing standup report ──
     let report = null;
-    if (w && y) {
-      const reportRes = await getStandupReportByWeek(
+    if (weekNumber && yearNumber) {
+      const reportResult = await getStandupReportByWeek(
         user_id,
-        w,
-        y,
+        weekNumber,
+        yearNumber,
         context_id,
         context_type,
       );
-      if (reportRes.rows.length > 0) report = reportRes.rows[0];
+      if (reportResult.rows.length > 0) report = reportResult.rows[0];
     }
 
     // ── 2. Fetch current-week tasks ──
     // These are tasks created in the target week (owned OR assigned to the user).
-    const weekTaskRes = await getStandupWeekTasks(
+    const weekTasksResult = await getStandupWeekTasks(
       user_id,
-      w,
-      y,
+      weekNumber,
+      yearNumber,
       context_type,
       context_id,
       showAll,
@@ -105,23 +105,23 @@ export async function GET(req) {
     // These are uncompleted tasks from earlier weeks that still need work.
     // If show_all is true, include ALL tasks. Otherwise only active ones.
     let carryoverTasks = [];
-    if (w && y) {
-      const carryRes = await getStandupCarryoverTasks(
+    if (weekNumber && yearNumber) {
+      const carryoverResult = await getStandupCarryoverTasks(
         user_id,
-        w,
-        y,
+        weekNumber,
+        yearNumber,
         context_type,
         context_id,
         showAll,
       );
-      carryoverTasks = carryRes.rows || [];
+      carryoverTasks = carryoverResult.rows || [];
     }
 
     // ── 4. Merge tasks and deduplicate by ID ──
     const seenIds = new Set();
     const allTasks = [];
 
-    for (const task of [...weekTaskRes.rows, ...carryoverTasks]) {
+    for (const task of [...weekTasksResult.rows, ...carryoverTasks]) {
       if (!seenIds.has(task.id)) {
         seenIds.add(task.id);
         allTasks.push(task);
@@ -129,17 +129,17 @@ export async function GET(req) {
     }
 
     // ── 5. Batch fetch blockers (1 query instead of N+1) ──
-    const taskIds = allTasks.map((t) => t.id);
+    const taskIds = allTasks.map((task) => task.id);
     let blockersByTask = {};
     if (taskIds.length > 0) {
-      const blockerRes = await getBlockersByTaskIds(taskIds);
-      for (const b of blockerRes.rows || []) {
-        if (!blockersByTask[b.task_id]) blockersByTask[b.task_id] = [];
-        blockersByTask[b.task_id].push({
-          id: b.id,
-          title: b.title,
-          status: b.status,
-          severity: b.severity,
+      const blockersResult = await getBlockersByTaskIds(taskIds);
+      for (const blocker of blockersResult.rows || []) {
+        if (!blockersByTask[blocker.task_id]) blockersByTask[blocker.task_id] = [];
+        blockersByTask[blocker.task_id].push({
+          id: blocker.id,
+          title: blocker.title,
+          status: blocker.status,
+          severity: blocker.severity,
         });
       }
     }
@@ -148,14 +148,14 @@ export async function GET(req) {
       ...task,
       blockers: blockersByTask[task.id] || [],
       is_carryover:
-        task.created_week !== w || task.created_year !== y,
+        task.created_week !== weekNumber || task.created_year !== yearNumber,
     }));
 
     return NextResponse.json({
       success: true,
       report,
       tasks: tasksWithBlockers,
-      weekTasks: weekTaskRes.rows.length,
+      weekTasks: weekTasksResult.rows.length,
       carryoverTasks: carryoverTasks.length,
       totalTasks: tasksWithBlockers.length,
       context: { context_type, context_id },

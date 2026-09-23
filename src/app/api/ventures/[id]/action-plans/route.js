@@ -10,8 +10,8 @@ import {
 
 
 async function resolveVentureDbId(ventureId) {
-  const r = await getVentureDbIdForActionPlans(ventureId);
-  return r.rows?.[0]?.id || null;
+  const ventureResult = await getVentureDbIdForActionPlans(ventureId);
+  return ventureResult.rows?.[0]?.id || null;
 }
 
 export async function GET(req, { params }) {
@@ -29,10 +29,10 @@ export async function GET(req, { params }) {
     const { searchParams } = new URL(req.url);
     const milestoneId = searchParams.get("milestone_id");
 
-    const r = await listVentureActionPlans(dbId, milestoneId);
-    return NextResponse.json({ success: true, action_plans: r.rows || [] });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+    const actionPlansResult = await listVentureActionPlans(dbId, milestoneId);
+    return NextResponse.json({ success: true, action_plans: actionPlansResult.rows || [] });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -53,8 +53,8 @@ export async function POST(req, { params }) {
 
     await insertVentureActionPlan({ venture_id: dbId, milestone_id, title, priority, deadline, owner_contact_id, created_by: session.cid });
     return NextResponse.json({ success: true });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -86,7 +86,7 @@ export async function PATCH(req, { params }) {
     args.push(plan_id, dbId);
     await updateVentureActionPlanFields(updates, args);
     return NextResponse.json({ success: true });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

@@ -45,10 +45,10 @@ export async function GET() {
         peopleAffected: readiness.summary.holders,
       },
     });
-  } catch (err) {
-    console.error("[Program Portfolio Default] read error:", err);
+  } catch (error) {
+    console.error("[Program Portfolio Default] read error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }
@@ -111,13 +111,15 @@ export async function PUT() {
       from: result.from || null,
       // What the repoint took away, so the response is a statement of effect
       // rather than of success.
-      removed: before.removals.map((r) => `${r.module}.${r.capability}`),
+      removed: before.removals.map(
+        (removal) => `${removal.module}.${removal.capability}`,
+      ),
       peopleAffected: before.summary.holders,
     });
-  } catch (err) {
-    console.error("[Program Portfolio Default] write error:", err);
+  } catch (error) {
+    console.error("[Program Portfolio Default] write error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

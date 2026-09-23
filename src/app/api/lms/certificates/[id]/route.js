@@ -22,7 +22,7 @@ export async function GET(req, { params }) {
     const { id } = await params;
     const certificate = await getLearnerCertificate(id, session.cid);
     return NextResponse.json({ success: true, certificate });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

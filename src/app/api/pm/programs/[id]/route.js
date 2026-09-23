@@ -37,19 +37,19 @@ export const GET = createHandler(
     // can render assigned facilitators and prevent duplicates client-side.
     let facilitators = [];
     try {
-      const facRes = await getFacilitatorsForProgram(id);
-      facilitators = facRes.rows.map((r) => {
-        let perms = r.permissions || {};
-        if (typeof perms === "string") {
-          try { perms = JSON.parse(perms); } catch { perms = {}; }
+      const facilitatorsResult = await getFacilitatorsForProgram(id);
+      facilitators = facilitatorsResult.rows.map((facilitator) => {
+        let permissions = facilitator.permissions || {};
+        if (typeof permissions === "string") {
+          try { permissions = JSON.parse(permissions); } catch { permissions = {}; }
         }
         return {
-          id: r.id,
-          cid: r.staff_id,
-          role: r.role || "facilitator",
-          permissions: perms,
-          name: r.name || r.email || r.staff_id,
-          email: r.email || r.staff_id,
+          id: facilitator.id,
+          cid: facilitator.staff_id,
+          role: facilitator.role || "facilitator",
+          permissions,
+          name: facilitator.name || facilitator.email || facilitator.staff_id,
+          email: facilitator.email || facilitator.staff_id,
         };
       });
     } catch (_) {}

@@ -45,8 +45,8 @@ export async function POST(req, { params }) {
     // Resolve the venture's VNT code (the members table keys on it)
     let ventureId = id;
     if (!/^VNT-/i.test(id)) {
-      const byId = await getLeadVentureCodeByUuid(id);
-      if (byId.rows.length > 0) ventureId = byId.rows[0].venture_id;
+      const ventureByUuid = await getLeadVentureCodeByUuid(id);
+      if (ventureByUuid.rows.length > 0) ventureId = ventureByUuid.rows[0].venture_id;
     }
 
     // ── Authorization: privileged roles OR the current lead founder ──

@@ -19,23 +19,28 @@ export async function GET(req) {
     if (capError) return capError;
 
     const { searchParams } = new URL(req.url);
-    const a = searchParams.get("a");
-    const b = searchParams.get("b");
-    if (!a || !b) return NextResponse.json({ success: false, error: "a and b required" }, { status: 400 });
+    const survivorCid = searchParams.get("a");
+    const duplicateCid = searchParams.get("b");
+    if (!survivorCid || !duplicateCid)
+      return NextResponse.json(
+        { success: false, error: "a and b required" },
+        { status: 400 },
+      );
 
     // Count what will be reassigned
-    const [ppCount, vmCount, tlCount] = await Promise.all([
-      countMergeParticipantPrograms(b),
-      countMergeVentureMemberships(b),
-      countMergeTimelineEvents(b),
-    ]);
+    const [participantProgramsCount, ventureMembershipsCount, timelineEventsCount] =
+      await Promise.all([
+        countMergeParticipantPrograms(duplicateCid),
+        countMergeVentureMemberships(duplicateCid),
+        countMergeTimelineEvents(duplicateCid),
+      ]);
 
     return NextResponse.json({
       success: true,
       summary: {
-        program_enrollments: ppCount.rows[0]?.c || 0,
-        venture_memberships: vmCount.rows[0]?.c || 0,
-        timeline_events: tlCount.rows[0]?.c || 0,
+        program_enrollments: participantProgramsCount.rows[0]?.c || 0,
+        venture_memberships: ventureMembershipsCount.rows[0]?.c || 0,
+        timeline_events: timelineEventsCount.rows[0]?.c || 0,
       },
     });
   } catch (error) {

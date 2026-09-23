@@ -43,10 +43,10 @@ export const POST = createHandler(
       const form_id = responseData.rows[0].form_id;
       const answers = JSON.parse(responseData.rows[0].answers || "{}");
       const hasYes = Object.values(answers).some(
-        (v) => v === "Yes" || String(v).toLowerCase() === "yes" || v === true,
+        (value) => value === "Yes" || String(value).toLowerCase() === "yes" || value === true,
       );
       const hasNo = Object.values(answers).some(
-        (v) => v === "No" || String(v).toLowerCase() === "no" || v === false,
+        (value) => value === "No" || String(value).toLowerCase() === "no" || value === false,
       );
       let status = "responded";
       if (hasYes) status = "yes";

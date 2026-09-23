@@ -70,8 +70,8 @@ export async function GET(req) {
 
     // If fetching a specific team, also include member details
     if (teamId && result.rows.length > 0) {
-      const memberRes = await getOrgTeamMembers(teamId);
-      result.rows[0].members = memberRes.rows;
+      const memberResult = await getOrgTeamMembers(teamId);
+      result.rows[0].members = memberResult.rows;
     }
 
     return NextResponse.json({ success: true, teams: result.rows });
@@ -130,8 +130,8 @@ export async function POST(req) {
     // 2. Link Members to Team if provided (supports both contacts CIDs and v2_participants UUIDs)
     if (member_ids && Array.isArray(member_ids) && member_ids.length > 0) {
       // Try finding matching contacts by participant ID (v2_participants.email → contacts.email)
-      const pRes = await getOrgTeamParticipantEmails(member_ids);
-      const emails = pRes.rows.map(r => r.email).filter(Boolean);
+      const participantsResult = await getOrgTeamParticipantEmails(member_ids);
+      const emails = participantsResult.rows.map(row => row.email).filter(Boolean);
 
       if (emails.length > 0) {
         await linkOrgTeamContactsByEmail(team.id, emails);

@@ -38,16 +38,16 @@ export async function POST(req, { params }) {
     const { id: intentId } = await params;
 
     // Fetch the intent
-    const intentRes = await getIntentForTaskCreation(intentId);
+    const intentResult = await getIntentForTaskCreation(intentId);
 
-    if (intentRes.rows.length === 0) {
+    if (intentResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Intent not found" },
         { status: 404 },
       );
     }
 
-    const intent = intentRes.rows[0];
+    const intent = intentResult.rows[0];
 
     // SECURITY: Only staff, SA, or the same-context users can add tasks to intent
     if (

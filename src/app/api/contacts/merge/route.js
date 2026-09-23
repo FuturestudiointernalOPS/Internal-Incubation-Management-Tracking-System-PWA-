@@ -30,12 +30,12 @@ export async function POST(req) {
     const counts = { programs: 0, ventures: 0, timeline: 0, flags: 0 };
 
     // Reassign participant_programs
-    const pp = await reassignContactPrograms(survivor_cid, duplicate_cid);
-    counts.programs = pp.rowsAffected || 0;
+    const programsResult = await reassignContactPrograms(survivor_cid, duplicate_cid);
+    counts.programs = programsResult.rowsAffected || 0;
 
     // Reassign venture_members
-    const vm = await reassignContactVentures(survivor_cid, duplicate_cid);
-    counts.ventures = vm.rowsAffected || 0;
+    const venturesResult = await reassignContactVentures(survivor_cid, duplicate_cid);
+    counts.ventures = venturesResult.rowsAffected || 0;
 
     // Phase 6: the survivor inherits the duplicate's venture relationships —
     // reconcile their context grants so a merged founder keeps working access.
@@ -45,8 +45,8 @@ export async function POST(req) {
     } catch (_) {}
 
     // Move timeline events
-    const tl = await reassignContactTimelineEvents(survivor_cid, duplicate_cid);
-    counts.timeline = tl.rowsAffected || 0;
+    const timelineResult = await reassignContactTimelineEvents(survivor_cid, duplicate_cid);
+    counts.timeline = timelineResult.rowsAffected || 0;
 
     // Write merge event to timeline
     await createContactMergeTimelineEvent(
@@ -62,12 +62,12 @@ export async function POST(req) {
     await softDeleteDuplicateContact(session.cid, duplicate_cid);
 
     // Mark duplicate flags as resolved
-    const flags = await resolveDuplicateFlagsForMerge(
+    const flagsResult = await resolveDuplicateFlagsForMerge(
       survivor_cid,
       duplicate_cid,
       session.cid,
     );
-    counts.flags = flags.rowsAffected || 0;
+    counts.flags = flagsResult.rowsAffected || 0;
 
     const summary = `${counts.programs} programs, ${counts.ventures} ventures, ${counts.timeline} events reassigned`;
     return NextResponse.json({ success: true, summary, counts });

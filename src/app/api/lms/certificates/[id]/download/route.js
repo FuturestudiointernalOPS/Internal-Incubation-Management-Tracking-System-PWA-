@@ -41,7 +41,7 @@ export async function GET(req, { params }) {
         "Content-Length": String(pdfBytes.byteLength),
       },
     });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

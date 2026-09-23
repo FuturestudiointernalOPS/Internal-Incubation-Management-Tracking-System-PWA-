@@ -41,10 +41,10 @@ export async function POST(request) {
       // check, and a founder and a team member look the same here (a
       // venture_members row). Resolved live, so a removed member loses it.
       const { contexts } = await getContactContexts(session.cid, { email: session.email });
-      const isVenturePerson = (contexts || []).some((c) => c.type === "venture");
+      const isVenturePerson = (contexts || []).some((context) => context.type === "venture");
       if (!isVenturePerson) {
-        const enr = await getActiveParticipantEnrollments(session.cid);
-        if (enr.rows.length === 0) {
+        const enrollments = await getActiveParticipantEnrollments(session.cid);
+        if (enrollments.rows.length === 0) {
           return NextResponse.json(
             { success: false, error: "errors.insufficientPermissions" },
             { status: 403 },

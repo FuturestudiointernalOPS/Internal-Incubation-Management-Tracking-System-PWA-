@@ -49,8 +49,8 @@ export async function GET(req, { params }) {
     }
 
     return NextResponse.json({ success: true, course, structure, enrollment });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }
 
@@ -104,7 +104,7 @@ export async function POST(req, { params }) {
       courseId: String(enrollment.course_id),
       alreadyEnrolled: existing != null,
     });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

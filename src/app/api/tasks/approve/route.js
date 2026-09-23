@@ -71,8 +71,8 @@ export async function POST(req) {
       // Update approval request
       try {
         await markApprovalRequestApproved(reviewer_id, task_id);
-      } catch (e) {
-        console.error("Failed to update project_approval_request (approve):", e.message);
+      } catch (error) {
+        console.error("Failed to update project_approval_request (approve):", error.message);
         return NextResponse.json(
           { success: false, error: "Approval workflow not available in this schema" },
           { status: 200 },
@@ -85,8 +85,8 @@ export async function POST(req) {
       // Update approval request
       try {
         await markApprovalRequestRejected(reviewer_id, reason || "No reason provided", task_id);
-      } catch (e) {
-        console.error("Failed to update project_approval_request (reject):", e.message);
+      } catch (error) {
+        console.error("Failed to update project_approval_request (reject):", error.message);
         return NextResponse.json(
           { success: false, error: "Approval workflow not available in this schema" },
           { status: 200 },

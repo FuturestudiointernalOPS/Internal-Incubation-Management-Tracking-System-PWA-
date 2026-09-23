@@ -34,10 +34,10 @@ export async function GET() {
 
     const result = await syncAllContextGrantsEverywhere();
     return NextResponse.json(result);
-  } catch (err) {
-    console.error("[Sync Context Grants] error:", err);
+  } catch (error) {
+    console.error("[Sync Context Grants] error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

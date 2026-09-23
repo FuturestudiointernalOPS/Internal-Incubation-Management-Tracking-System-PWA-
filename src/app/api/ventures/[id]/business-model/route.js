@@ -11,8 +11,8 @@ import {
 
 
 async function resolveVentureDbId(ventureId) {
-  const r = await getBusinessModelVentureId(ventureId);
-  return r.rows?.[0]?.id || null;
+  const ventureResult = await getBusinessModelVentureId(ventureId);
+  return ventureResult.rows?.[0]?.id || null;
 }
 
 export async function GET(req, { params }) {
@@ -25,10 +25,10 @@ export async function GET(req, { params }) {
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const r = await getVentureBusinessModel(dbId);
-    return NextResponse.json({ success: true, business_model: r.rows?.[0] || null });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+    const businessModelResult = await getVentureBusinessModel(dbId);
+    return NextResponse.json({ success: true, business_model: businessModelResult.rows?.[0] || null });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -52,32 +52,32 @@ export async function PUT(req, { params }) {
     if (existing.rows?.length > 0) {
       // UPDATE
       const setClauses = [];
-      const upArgs = [];
-      for (const f of fields) {
-        if (body[f] !== undefined) {
-          let val = body[f];
-          if (typeof val === "object") val = JSON.stringify(val);
-          setClauses.push(`${f} = ?`);
-          upArgs.push(val);
+      const updateArgs = [];
+      for (const field of fields) {
+        if (body[field] !== undefined) {
+          let fieldValue = body[field];
+          if (typeof fieldValue === "object") fieldValue = JSON.stringify(fieldValue);
+          setClauses.push(`${field} = ?`);
+          updateArgs.push(fieldValue);
         }
       }
       setClauses.push("updated_at = NOW()");
       setClauses.push("updated_by = ?");
-      upArgs.push(session.cid);
-      upArgs.push(dbId);
-      await updateVentureBusinessModel(setClauses, upArgs);
+      updateArgs.push(session.cid);
+      updateArgs.push(dbId);
+      await updateVentureBusinessModel(setClauses, updateArgs);
     } else {
       // INSERT
       const insertCols = ["venture_id"];
       const insertVals = ["?"];
       const insertArgs = [dbId];
-      for (const f of fields) {
-        if (body[f] !== undefined) {
-          let val = body[f];
-          if (typeof val === "object") val = JSON.stringify(val);
-          insertCols.push(f);
+      for (const field of fields) {
+        if (body[field] !== undefined) {
+          let fieldValue = body[field];
+          if (typeof fieldValue === "object") fieldValue = JSON.stringify(fieldValue);
+          insertCols.push(field);
           insertVals.push("?");
-          insertArgs.push(val);
+          insertArgs.push(fieldValue);
         }
       }
       insertCols.push("updated_by");
@@ -87,7 +87,7 @@ export async function PUT(req, { params }) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

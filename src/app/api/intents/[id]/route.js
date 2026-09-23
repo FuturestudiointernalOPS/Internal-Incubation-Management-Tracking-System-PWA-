@@ -33,16 +33,16 @@ export async function GET(req, { params }) {
     const { id } = await params;
 
     // Fetch intent
-    const intentRes = await getIntentById(id);
+    const intentResult = await getIntentById(id);
 
-    if (intentRes.rows.length === 0) {
+    if (intentResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Intent not found" },
         { status: 404 },
       );
     }
 
-    const intent = intentRes.rows[0];
+    const intent = intentResult.rows[0];
 
     // SECURITY: Only responsible person, SA, or same-context users can view
     if (
@@ -70,21 +70,21 @@ export async function GET(req, { params }) {
     }
 
     // Fetch tasks under this intent with blockers
-    const taskRes = await getTasksForIntent(id);
+    const taskResult = await getTasksForIntent(id);
 
     const tasks = await Promise.all(
-      taskRes.rows.map(async (task) => {
-        const blockerRes = await getBlockersForTask(task.id);
-        return { ...task, blockers: blockerRes.rows || [] };
+      taskResult.rows.map(async (task) => {
+        const blockerResult = await getBlockersForTask(task.id);
+        return { ...task, blockers: blockerResult.rows || [] };
       }),
     );
 
     // Progress summary
     const total = tasks.length;
-    const completed = tasks.filter((t) => t.status === "completed").length;
-    const blocked = tasks.filter((t) => t.status === "blocked").length;
-    const inProgress = tasks.filter((t) =>
-      ["in_progress", "carried_over"].includes(t.status),
+    const completed = tasks.filter((task) => task.status === "completed").length;
+    const blocked = tasks.filter((task) => task.status === "blocked").length;
+    const inProgress = tasks.filter((task) =>
+      ["in_progress", "carried_over"].includes(task.status),
     ).length;
 
     // Fetch blocker summary for the intent

@@ -14,8 +14,8 @@ const ROLES = ["participant","founder","staff","program_manager","super_admin"];
 const ALLOWED = ["participant","founder","staff","program_manager","super_admin"];
 
 async function resolveVentureDbId(ventureId) {
-  const r = await getVentureIdByCodeForCoaching(ventureId);
-  return r.rows?.[0]?.id || null;
+  const ventureResult = await getVentureIdByCodeForCoaching(ventureId);
+  return ventureResult.rows?.[0]?.id || null;
 }
 
 export async function GET(req, { params }) {
@@ -24,9 +24,9 @@ export async function GET(req, { params }) {
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
-    const r = await listCoachingSessions(dbId);
-    return NextResponse.json({ success: true, sessions: r.rows || [] });
-  } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
+    const sessionsResult = await listCoachingSessions(dbId);
+    return NextResponse.json({ success: true, sessions: sessionsResult.rows || [] });
+  } catch(error) { return NextResponse.json({ success: false, error: error.message }, { status: 500 }); }
 }
 
 export async function POST(req, { params }) {
@@ -44,7 +44,7 @@ export async function POST(req, { params }) {
     await insertCoachingSession({ venture_id: dbId, advisor_contact_id, session_date, start_time, location, meeting_link, notes, observations, recommendations, follow_up_date });
     notifyVentureFounders(dbId, 'Coaching Session Scheduled', `A coaching session has been scheduled${session_date ? ' for '+session_date : ''}.`);
     return NextResponse.json({ success: true });
-  } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
+  } catch(error) { return NextResponse.json({ success: false, error: error.message }, { status: 500 }); }
 }
 
 export async function PATCH(req, { params }) {
@@ -83,5 +83,5 @@ export async function PATCH(req, { params }) {
     args.push(coachingId);
     await updateCoachingSessionFields(updates, args);
     return NextResponse.json({ success: true });
-  } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
+  } catch(error) { return NextResponse.json({ success: false, error: error.message }, { status: 500 }); }
 }

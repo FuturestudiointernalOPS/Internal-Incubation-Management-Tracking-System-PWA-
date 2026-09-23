@@ -43,7 +43,7 @@ export async function POST(req, { params }) {
     } catch (_) {}
 
     return NextResponse.json({ success: true, task: result.task });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

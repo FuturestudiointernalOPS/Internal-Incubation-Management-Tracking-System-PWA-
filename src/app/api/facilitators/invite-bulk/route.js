@@ -39,8 +39,8 @@ async function analyzeEmail(email, programId) {
   const contactCid = row?.cid || "";
 
   if (contactCid) {
-    const dup = await isAlreadyFacilitatorInProgram(programId, contactCid);
-    if (dup.rows.length > 0) {
+    const existingFacilitatorResult = await isAlreadyFacilitatorInProgram(programId, contactCid);
+    if (existingFacilitatorResult.rows.length > 0) {
       return {
         email: clean,
         status: "already_facilitator",
@@ -104,20 +104,20 @@ export async function POST(req) {
     }
 
     const programId = String(program_id);
-    const progRes = await getProgramForFacilitatorInvite(programId);
-    const program = progRes.rows[0];
-    const progName = program_name || program?.name || programId;
+    const programResult = await getProgramForFacilitatorInvite(programId);
+    const program = programResult.rows[0];
+    const programName = program_name || program?.name || programId;
 
-    let defaultPerms = parsePermissions(program?.facilitator_default_permissions);
-    if (Object.keys(defaultPerms).length === 0) {
-      defaultPerms = buildFullFacilitatorPermissions();
+    let defaultPermissions = parsePermissions(program?.facilitator_default_permissions);
+    if (Object.keys(defaultPermissions).length === 0) {
+      defaultPermissions = buildFullFacilitatorPermissions();
     }
 
     const seen = new Set();
     const results = [];
 
-    for (const raw of emails) {
-      const analysis = await analyzeEmail(raw, programId);
+    for (const rawEmail of emails) {
+      const analysis = await analyzeEmail(rawEmail, programId);
       if (seen.has(analysis.email)) continue;
       seen.add(analysis.email);
 
@@ -139,7 +139,7 @@ export async function POST(req) {
       }
 
       // Facilitator relationship inherits the program default permissions.
-      await upsertFacilitatorProgramStaff(programId, contactCid, defaultPerms);
+      await upsertFacilitatorProgramStaff(programId, contactCid, defaultPermissions);
 
       // Link the contact to this program (fill-only) and record the contextual
       // facilitator role without overwriting the person's global role.
@@ -148,7 +148,7 @@ export async function POST(req) {
         await addFacilitatorContactRole(
           contactCid,
           programId,
-          defaultPerms,
+          defaultPermissions,
           session?.cid || "system",
         );
       } catch (_) {}
@@ -164,7 +164,7 @@ export async function POST(req) {
           to: analysis.email,
           name: analysis.name || "",
           role: "facilitator",
-          programName: progName,
+          programName: programName,
         });
       } else {
         await sendInviteEmail({
@@ -172,7 +172,7 @@ export async function POST(req) {
           name: analysis.name || "",
           role: "facilitator",
           token,
-          programName: progName,
+          programName: programName,
         });
       }
 
@@ -181,7 +181,7 @@ export async function POST(req) {
       try {
         await addFacilitatorAssignedTimelineEvent(
           contactCid,
-          progName,
+          programName,
           programId,
           actorId,
         );
@@ -189,7 +189,7 @@ export async function POST(req) {
       try {
         await addFacilitatorInvitedTimelineEvent(
           contactCid,
-          progName,
+          programName,
           programId,
           actorId,
         );

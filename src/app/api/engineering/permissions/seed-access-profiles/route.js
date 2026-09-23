@@ -15,10 +15,10 @@ export async function GET() {
 
     const result = await seedDefaultAccessProfiles();
     return NextResponse.json(result);
-  } catch (err) {
-    console.error("[Seed Access Profiles] error:", err);
+  } catch (error) {
+    console.error("[Seed Access Profiles] error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

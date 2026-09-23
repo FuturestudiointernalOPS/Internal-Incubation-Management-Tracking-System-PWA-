@@ -43,24 +43,24 @@ async function resolveGroupMemberIds(targetId) {
   const ids = new Set();
   try {
     if (String(targetId) === "__staff__") {
-      const res = await getStaffMemberCids();
-      res.rows.forEach((r) => r.cid && ids.add(String(r.cid)));
+      const staffResult = await getStaffMemberCids();
+      staffResult.rows.forEach((row) => row.cid && ids.add(String(row.cid)));
       return Array.from(ids);
     }
-    const fam = await findFamilyByIdText(targetId);
-    if (fam.rows.length === 0) return [];
-    const family = fam.rows[0];
+    const familyResult = await findFamilyByIdText(targetId);
+    if (familyResult.rows.length === 0) return [];
+    const family = familyResult.rows[0];
     if (family.name) {
       const members = await getContactsByFamilyGroupName(family.name);
-      members.rows.forEach((r) => r.cid && ids.add(String(r.cid)));
+      members.rows.forEach((row) => row.cid && ids.add(String(row.cid)));
       try {
-        const ug = await getUserGroupCidsByGroupName(family.name);
-        ug.rows.forEach((r) => r.user_cid && ids.add(String(r.user_cid)));
+        const userGroupResult = await getUserGroupCidsByGroupName(family.name);
+        userGroupResult.rows.forEach((row) => row.user_cid && ids.add(String(row.user_cid)));
       } catch (_) {}
     }
     if (family.program_id) {
-      (await resolveProgramMemberIds(family.program_id)).forEach((m) =>
-        ids.add(m),
+      (await resolveProgramMemberIds(family.program_id)).forEach((memberId) =>
+        ids.add(memberId),
       );
     }
   } catch (_) {}
@@ -95,30 +95,30 @@ async function recipientSharesProgram(recipientId, senderScope) {
 async function resolveProgramMemberIds(programId) {
   const ids = new Set();
   try {
-    const pp = await getParticipantIdsByProgramId(programId);
-    pp.rows.forEach((r) => r.participant_id && ids.add(String(r.participant_id)));
+    const participantsResult = await getParticipantIdsByProgramId(programId);
+    participantsResult.rows.forEach((row) => row.participant_id && ids.add(String(row.participant_id)));
   } catch (_) {}
   try {
-    const staff = await getProgramStaffIdsByProgramId(programId);
-    staff.rows.forEach((r) => r.staff_id && ids.add(String(r.staff_id)));
+    const staffResult = await getProgramStaffIdsByProgramId(programId);
+    staffResult.rows.forEach((row) => row.staff_id && ids.add(String(row.staff_id)));
   } catch (_) {}
   try {
-    const prog = await getProgramAssigneeIdsByProgramId(programId);
-    const p = prog.rows[0];
-    if (p) {
-      if (p.assigned_pm_id) ids.add(String(p.assigned_pm_id));
-      if (p.assigned_assistant_id) {
+    const assigneesResult = await getProgramAssigneeIdsByProgramId(programId);
+    const assigneeRow = assigneesResult.rows[0];
+    if (assigneeRow) {
+      if (assigneeRow.assigned_pm_id) ids.add(String(assigneeRow.assigned_pm_id));
+      if (assigneeRow.assigned_assistant_id) {
         try {
-          const arr = JSON.parse(p.assigned_assistant_id);
-          if (Array.isArray(arr))
-            arr.forEach((a) => a && ids.add(String(a)));
+          const assistantIds = JSON.parse(assigneeRow.assigned_assistant_id);
+          if (Array.isArray(assistantIds))
+            assistantIds.forEach((assistantId) => assistantId && ids.add(String(assistantId)));
         } catch (_) {}
       }
     }
   } catch (_) {}
   try {
-    const legacy = await getLegacyContactsByProgramId(programId);
-    legacy.rows.forEach((r) => r.cid && ids.add(String(r.cid)));
+    const legacyResult = await getLegacyContactsByProgramId(programId);
+    legacyResult.rows.forEach((row) => row.cid && ids.add(String(row.cid)));
   } catch (_) {}
   return Array.from(ids);
 }
@@ -142,7 +142,7 @@ async function resolveUserMessageScope(session) {
   // after another — five round trips (~700ms) before a single message could be
   // selected. allSettled keeps the original failure behaviour: a failing lookup
   // contributes nothing instead of breaking the inbox.
-  const [contactRes, userGroupsRes, assignedRes, staffRes, teamRes] =
+  const [contactSettled, userGroupsSettled, assignedSettled, staffSettled, teamSettled] =
     await Promise.allSettled([
       getContactMessageScopeById(cid),
       getUserGroupNamesByCid(cid),
@@ -152,13 +152,13 @@ async function resolveUserMessageScope(session) {
     ]);
 
   const contact =
-    contactRes.status === "fulfilled" ? contactRes.value.rows[0] || {} : {};
+    contactSettled.status === "fulfilled" ? contactSettled.value.rows[0] || {} : {};
 
   const groupNames = new Set();
   if (contact.group_name) groupNames.add(String(contact.group_name).trim());
-  if (userGroupsRes.status === "fulfilled") {
-    userGroupsRes.value.rows.forEach((r) => {
-      if (r.group_name) groupNames.add(String(r.group_name).trim());
+  if (userGroupsSettled.status === "fulfilled") {
+    userGroupsSettled.value.rows.forEach((row) => {
+      if (row.group_name) groupNames.add(String(row.group_name).trim());
     });
   }
 
@@ -169,17 +169,17 @@ async function resolveUserMessageScope(session) {
   // ── Wave 2: the two lookups that need wave 1 ──────────────────────────────
   // Families whose name matches one of the user's group names, and the
   // participant_programs membership (authoritative, with its legacy fallback).
-  const [famRes, participantProgramIds] = await Promise.all([
+  const [familiesResult, participantProgramIds] = await Promise.all([
     groupNames.size > 0
       ? findFamiliesByMatchingGroupNames(Array.from(groupNames)).catch(() => null)
       : Promise.resolve(null),
     getParticipantProgramIds({ cid, email, contact }).catch(() => null),
   ]);
 
-  if (famRes) {
-    famRes.rows.forEach((r) => {
-      scope.groupIds.add(String(r.id));
-      if (r.program_id) scope.programIds.add(String(r.program_id));
+  if (familiesResult) {
+    familiesResult.rows.forEach((row) => {
+      scope.groupIds.add(String(row.id));
+      if (row.program_id) scope.programIds.add(String(row.program_id));
     });
   }
 
@@ -194,23 +194,23 @@ async function resolveUserMessageScope(session) {
         if (id.trim()) scope.programIds.add(String(id.trim()));
       });
   }
-  if (assignedRes.status === "fulfilled") {
-    assignedRes.value.rows.forEach((r) => scope.programIds.add(String(r.id)));
+  if (assignedSettled.status === "fulfilled") {
+    assignedSettled.value.rows.forEach((row) => scope.programIds.add(String(row.id)));
   }
-  if (staffRes.status === "fulfilled") {
-    staffRes.value.rows.forEach((r) => scope.programIds.add(String(r.id)));
+  if (staffSettled.status === "fulfilled") {
+    staffSettled.value.rows.forEach((row) => scope.programIds.add(String(row.id)));
   }
-  if (teamRes.status === "fulfilled") {
-    teamRes.value.rows.forEach((r) => scope.programIds.add(String(r.id)));
+  if (teamSettled.status === "fulfilled") {
+    teamSettled.value.rows.forEach((row) => scope.programIds.add(String(row.id)));
   }
 
   // ── Wave 3: families linked to the programs resolved above ───────────────
   if (scope.programIds.size > 0) {
     try {
-      const famRes = await findFamilyIdsByProgramIds(
+      const programFamiliesResult = await findFamilyIdsByProgramIds(
         Array.from(scope.programIds),
       );
-      famRes.rows.forEach((r) => scope.groupIds.add(String(r.id)));
+      programFamiliesResult.rows.forEach((row) => scope.groupIds.add(String(row.id)));
     } catch (_) {}
   }
 
@@ -259,14 +259,14 @@ export async function GET(req) {
       scope = await resolveUserMessageScope(session);
     }
 
-    const res = await listMessagesForScope({
+    const messagesResult = await listMessagesForScope({
       isSuperAdmin: session.role === "super_admin",
       targetCid,
       groupIds: scope ? Array.from(scope.groupIds) : [],
       programIds: scope ? Array.from(scope.programIds) : [],
       isFutureStudioStaff: scope ? scope.isFutureStudioStaff : false,
     });
-    return NextResponse.json({ success: true, messages: res.rows });
+    return NextResponse.json({ success: true, messages: messagesResult.rows });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },
@@ -338,10 +338,10 @@ export async function POST(req) {
           );
         }
       } else if (target_type === "role" && target_id) {
-        const tid = String(target_id);
+        const normalizedTargetId = String(target_id);
         const inScope =
-          (tid === "__staff__" && scope.isFutureStudioStaff) ||
-          scope.groupIds.has(tid);
+          (normalizedTargetId === "__staff__" && scope.isFutureStudioStaff) ||
+          scope.groupIds.has(normalizedTargetId);
         if (!inScope) {
           return NextResponse.json(
             { success: false, error: "errors.insufficientPermissions" },
@@ -349,8 +349,8 @@ export async function POST(req) {
           );
         }
       } else if (recipient_id) {
-        const ok = await recipientSharesProgram(recipient_id, scope);
-        if (!ok) {
+        const sharesProgram = await recipientSharesProgram(recipient_id, scope);
+        if (!sharesProgram) {
           return NextResponse.json(
             { success: false, error: "errors.insufficientPermissions" },
             { status: 403 },
@@ -372,7 +372,7 @@ export async function POST(req) {
       await ensureMessagesAttachmentNameColumn();
     } catch (_) {}
 
-    const insertRes = await createMessage({
+    const insertResult = await createMessage({
       senderId: effectiveSenderId,
       recipientId: recipient_id,
       targetType: target_type,
@@ -383,34 +383,34 @@ export async function POST(req) {
       attachmentUrl: attachment_url,
       attachmentName: attachment_name,
     });
-    const newMessageId = insertRes.rows[0]?.id;
+    const newMessageId = insertResult.rows[0]?.id;
 
     // Get sender name for notification
     let senderName = effectiveSenderId;
     try {
-      const senderRes = await getSenderNameByCidOrId(effectiveSenderId);
-      if (senderRes.rows.length > 0) senderName = senderRes.rows[0].name;
+      const senderResult = await getSenderNameByCidOrId(effectiveSenderId);
+      if (senderResult.rows.length > 0) senderName = senderResult.rows[0].name;
     } catch (_) {}
 
     // Trigger Notifications on Message Transmission
-    const notifTitle = "New Message";
-    const notifMessage = `You have 1 new message from ${senderName}`;
+    const notificationTitle = "New Message";
+    const notificationMessage = `You have 1 new message from ${senderName}`;
 
     if (recipient_id) {
-      await insertDirectMessageNotification(recipient_id, notifTitle, notifMessage);
+      await insertDirectMessageNotification(recipient_id, notificationTitle, notificationMessage);
     } else if (target_type === "role" && target_id) {
       // Group message — notify every member of the group (family or staff)
       const memberIds = await resolveGroupMemberIds(target_id);
-      for (const m of memberIds) {
-        if (String(m) === String(effectiveSenderId)) continue;
-        await insertGroupMessageNotification(m, notifTitle, notifMessage);
+      for (const memberId of memberIds) {
+        if (String(memberId) === String(effectiveSenderId)) continue;
+        await insertGroupMessageNotification(memberId, notificationTitle, notificationMessage);
       }
     } else if (target_type === "program" && target_id) {
       // Program message — notify participants, staff, PM and assistants
       const memberIds = await resolveProgramMemberIds(target_id);
-      for (const m of memberIds) {
-        if (String(m) === String(effectiveSenderId)) continue;
-        await insertProgramMessageNotification(m, notifTitle, notifMessage);
+      for (const memberId of memberIds) {
+        if (String(memberId) === String(effectiveSenderId)) continue;
+        await insertProgramMessageNotification(memberId, notificationTitle, notificationMessage);
       }
     }
 

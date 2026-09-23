@@ -15,22 +15,22 @@ export const GET = createHandler(async (req, { params }) => {
   if (!(await isStaffActorForVenture(db, id, session))) {
     return NextResponse.json({ success: false, error: "This operation requires staff access to the Venture." }, { status: 403 });
   }
-  const s = new URL(req.url).searchParams;
-  const type = s.get("type") || "status";
+  const searchParams = new URL(req.url).searchParams;
+  const type = searchParams.get("type") || "status";
 
   if (type === "status") {
-    const data = await getInvestmentReadiness(id);
-    return NextResponse.json({ success: true, ...data });
+    const readiness = await getInvestmentReadiness(id);
+    return NextResponse.json({ success: true, ...readiness });
   }
 
   if (type === "recommendations") {
-    const recs = await getInvestmentRecommendations(id);
-    return NextResponse.json({ success: true, recommendations: recs });
+    const recommendations = await getInvestmentRecommendations(id);
+    return NextResponse.json({ success: true, recommendations });
   }
 
   if (type === "history") {
-    const data = await getInvestmentReadiness(id);
-    return NextResponse.json({ success: true, history: data.history });
+    const readiness = await getInvestmentReadiness(id);
+    return NextResponse.json({ success: true, history: readiness.history });
   }
 
   return NextResponse.json({ success: false, error: "Invalid type." }, { status: 400 });
@@ -47,7 +47,7 @@ export const POST = createHandler(async (req, { params }) => {
   try {
     const result = await evaluateInvestmentReadiness(id);
     return NextResponse.json({ success: true, ...result });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
   }
 });

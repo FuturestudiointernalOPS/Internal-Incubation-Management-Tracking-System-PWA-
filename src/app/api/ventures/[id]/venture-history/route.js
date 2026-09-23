@@ -27,14 +27,14 @@ export async function GET(req, { params }) {
     if (access.error) return access.error;
     const { session } = access;
 
-    const ventureRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] }).catch(() => ({ rows: [] }));
-    const dbId = ventureRes.rows?.[0]?.id || null;
+    const ventureResult = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] }).catch(() => ({ rows: [] }));
+    const dbId = ventureResult.rows?.[0]?.id || null;
     const owners = [id, dbId].filter(Boolean);
     const ownersSql = `IN (${owners.map(() => "?").join(", ")})`;
 
     const staff = await isStaffActorForVenture(db, id, session);
 
-    const [eventsRes, notesRes, reviewsRes, sessionNotesRes] = await Promise.all([
+    const [eventsResult, notesResult, reviewsResult, sessionNotesResult] = await Promise.all([
       db.execute({
         sql: `SELECT event_type, description, metadata, created_by, created_at
               FROM venture_history WHERE venture_id ${ownersSql}
@@ -73,21 +73,21 @@ export async function GET(req, { params }) {
     ]);
 
     // Reviewer identity is staff information; founders see decision + comment.
-    const reviewDecisions = (reviewsRes.rows || []).map((r) =>
-      staff ? r : { ...r, reviewed_by: null },
+    const reviewDecisions = (reviewsResult.rows || []).map((row) =>
+      staff ? row : { ...row, reviewed_by: null },
     );
 
     return NextResponse.json({
       success: true,
       staff,
       timeline: {
-        events: eventsRes.rows || [],
-        notes: notesRes.rows || [],
-        session_notes: sessionNotesRes.rows || [],
+        events: eventsResult.rows || [],
+        notes: notesResult.rows || [],
+        session_notes: sessionNotesResult.rows || [],
         review_decisions: reviewDecisions,
       },
     });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

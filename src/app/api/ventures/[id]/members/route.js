@@ -160,11 +160,11 @@ export async function POST(req, { params }) {
     // Never block the answer on the mailer: a failed send is logged and the
     // invitation stays pending, so the founder can send it again.
     try {
-      const ventureRes = await db.execute({
+      const ventureResult = await db.execute({
         sql: "SELECT COALESCE(NULLIF(name, ''), company_name) AS venture_name FROM ventures WHERE venture_id = ? LIMIT 1",
         args: [code],
       });
-      const ventureName = ventureRes.rows?.[0]?.venture_name || "the Venture";
+      const ventureName = ventureResult.rows?.[0]?.venture_name || "the Venture";
       const link = `${resolveAppUrl()}/venture-invite/${invitation.token}`;
       const seat = memberType === "founder" ? "a founder" : "a team member";
       await sendEmail({
@@ -177,8 +177,8 @@ export async function POST(req, { params }) {
           `The link expires on ${new Date(invitation.expires_at).toLocaleDateString()}.\n\n` +
           `— Future Studio`,
       });
-    } catch (e) {
-      console.error("Venture member invitation email failed:", e.message);
+    } catch (error) {
+      console.error("Venture member invitation email failed:", error.message);
     }
 
     return NextResponse.json({
@@ -238,16 +238,16 @@ export async function PATCH(req, { params }) {
     }
 
     if (action === "remove") {
-      const member = await db.execute({
+      const memberResult = await db.execute({
         sql: "SELECT member_type, contact_id, role FROM venture_members WHERE id = ? AND venture_id = ?",
         args: [member_id, id],
       });
 
-      if (!member.rows?.[0]) {
+      if (!memberResult.rows?.[0]) {
         return NextResponse.json({ success: false, error: "Member not found" }, { status: 404 });
       }
 
-      if (member.rows[0].member_type === "founder") {
+      if (memberResult.rows[0].member_type === "founder") {
         const founderCount = await getVentureFounderCount(db, id);
         if (founderCount <= 1) {
           return NextResponse.json(
@@ -265,10 +265,10 @@ export async function PATCH(req, { params }) {
       // Close the append-only membership history row (account/contact intact).
       try {
         const { syncVentureRoleHistory } = await import("@/lib/contactIdentity");
-        const removedRole = member.rows[0].member_type === "founder" ? "founder" : member.rows[0].role || "member";
-        if (member.rows[0].contact_id) {
+        const removedRole = memberResult.rows[0].member_type === "founder" ? "founder" : memberResult.rows[0].role || "member";
+        if (memberResult.rows[0].contact_id) {
           await syncVentureRoleHistory({
-            contactCid: member.rows[0].contact_id,
+            contactCid: memberResult.rows[0].contact_id,
             ventureId: id,
             role: removedRole,
             active: false,
@@ -280,27 +280,27 @@ export async function PATCH(req, { params }) {
 
       // Phase 6: reconcile grants — if this was the last founder relationship,
       // the capability we applied is withdrawn (manual grants are untouched).
-      await applyContextGrants(member.rows[0].contact_id);
+      await applyContextGrants(memberResult.rows[0].contact_id);
     } else {
       let memberContactId = null;
       try {
-        const m = await db.execute({
+        const memberContactResult = await db.execute({
           sql: "SELECT contact_id FROM venture_members WHERE id = ? AND venture_id = ?",
           args: [member_id, id],
         });
-        memberContactId = m.rows?.[0]?.contact_id || null;
+        memberContactId = memberContactResult.rows?.[0]?.contact_id || null;
       } catch (_) {}
       const updates = [];
-      const upArgs = [];
-      if (role !== undefined) { updates.push("role = ?"); upArgs.push(role); }
-      if (permissions !== undefined) { updates.push("permissions = ?"); upArgs.push(permissions); }
+      const updateArgs = [];
+      if (role !== undefined) { updates.push("role = ?"); updateArgs.push(role); }
+      if (permissions !== undefined) { updates.push("permissions = ?"); updateArgs.push(permissions); }
       if (updates.length === 0) {
         return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });
       }
-      upArgs.push(member_id, id);
+      updateArgs.push(member_id, id);
       await db.execute({
         sql: `UPDATE venture_members SET ${updates.join(", ")} WHERE id = ? AND venture_id = ?`,
-        args: upArgs,
+        args: updateArgs,
       });
       try {
         const { syncVentureRoleHistory } = await import("@/lib/contactIdentity");

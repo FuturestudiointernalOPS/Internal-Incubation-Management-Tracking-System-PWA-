@@ -61,9 +61,9 @@ export async function POST(req) {
 
       // Save preferences
       if (industries?.length || countries?.length || startup_stages?.length) {
-        const prof = await getExistingInvestorProfileId(user.cid);
+        const profileResult = await getExistingInvestorProfileId(user.cid);
         await upsertInvestorPreferences(
-          prof.rows[0]?.id,
+          profileResult.rows[0]?.id,
           industries || [],
           countries || [],
           startup_stages || [],
@@ -91,9 +91,9 @@ export async function POST(req) {
 
     // Save preferences
     if (industries?.length || countries?.length || startup_stages?.length) {
-      const profile = await getNewInvestorProfileId(cid);
+      const newProfileResult = await getNewInvestorProfileId(cid);
       await insertInvestorPreferences(
-        profile.rows[0].id,
+        newProfileResult.rows[0].id,
         industries || [],
         countries || [],
         startup_stages || [],
@@ -114,8 +114,8 @@ export async function POST(req) {
     // Notify admins
     try {
       const admins = await listAdminContactIdsForNotification();
-      for (const a of admins.rows) {
-        await notifyAdminsOfNewInvestor(a.cid, `New Investor: ${organization_name || name}`, `${name} completed the Investor Profile Wizard. Review their qualification.`);
+      for (const admin of admins.rows) {
+        await notifyAdminsOfNewInvestor(admin.cid, `New Investor: ${organization_name || name}`, `${name} completed the Investor Profile Wizard. Review their qualification.`);
       }
     } catch (_) {}
 

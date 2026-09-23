@@ -16,32 +16,32 @@ import {
  * Auto-categorize an error based on its properties.
  */
 function categorizeError({ message, status_code, endpoint }) {
-  const msg = (message || "").toLowerCase();
-  const ep = (endpoint || "").toLowerCase();
+  const normalizedMessage = (message || "").toLowerCase();
+  const normalizedEndpoint = (endpoint || "").toLowerCase();
 
   if (status_code >= 500) return "server_error";
   if (status_code === 404) return "not_found";
   if (status_code === 403 || status_code === 401) return "auth_error";
   if (status_code === 422 || status_code === 400) return "validation_error";
   if (
-    msg.includes("typeerror") ||
-    msg.includes("cannot read property") ||
-    msg.includes("undefined")
+    normalizedMessage.includes("typeerror") ||
+    normalizedMessage.includes("cannot read property") ||
+    normalizedMessage.includes("undefined")
   )
     return "runtime_error";
   if (
-    msg.includes("network") ||
-    msg.includes("failed to fetch") ||
-    msg.includes("econnrefused")
+    normalizedMessage.includes("network") ||
+    normalizedMessage.includes("failed to fetch") ||
+    normalizedMessage.includes("econnrefused")
   )
     return "network_error";
-  if (msg.includes("timeout") || msg.includes("timed out")) return "timeout";
-  if (msg.includes("database") || msg.includes("sql") || msg.includes("query"))
+  if (normalizedMessage.includes("timeout") || normalizedMessage.includes("timed out")) return "timeout";
+  if (normalizedMessage.includes("database") || normalizedMessage.includes("sql") || normalizedMessage.includes("query"))
     return "database_error";
-  if (msg.includes("chunkload") || msg.includes("loading chunk"))
+  if (normalizedMessage.includes("chunkload") || normalizedMessage.includes("loading chunk"))
     return "build_error";
-  if (ep.includes("/api/")) return "api_error";
-  if (msg.includes("permission") || msg.includes("unauthorized"))
+  if (normalizedEndpoint.includes("/api/")) return "api_error";
+  if (normalizedMessage.includes("permission") || normalizedMessage.includes("unauthorized"))
     return "auth_error";
 
   return "uncategorized";
@@ -99,13 +99,13 @@ export async function POST(request) {
 
     if (existing) {
       // Increment occurrence count
-      const err = existing;
-      const newCount = (parseInt(err.occurrence_count) || 1) + 1;
-      await incrementErrorOccurrence(err.id, newCount, body);
+      const existingError = existing;
+      const newCount = (parseInt(existingError.occurrence_count) || 1) + 1;
+      await incrementErrorOccurrence(existingError.id, newCount, body);
 
       return NextResponse.json({
         success: true,
-        id: err.id,
+        id: existingError.id,
         deduplicated: true,
         occurrence_count: newCount,
       });
@@ -121,8 +121,8 @@ export async function POST(request) {
       deduplicated: false,
       category,
     });
-  } catch (err) {
-    console.error("[API errors] POST failed:", err);
+  } catch (error) {
+    console.error("[API errors] POST failed:", error);
     return NextResponse.json(
       { success: false, error: "Internal server error" },
       { status: 500 },
@@ -149,8 +149,8 @@ export async function GET(request) {
     const result = await listErrorLogs({ severity, resolved, category, search });
 
     return NextResponse.json({ success: true, errors: result.rows });
-  } catch (err) {
-    console.error("[API errors] GET failed:", err);
+  } catch (error) {
+    console.error("[API errors] GET failed:", error);
     return NextResponse.json(
       { success: false, error: "Internal server error" },
       { status: 500 },
@@ -188,8 +188,8 @@ export async function PATCH(request) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("[API errors] PATCH failed:", err);
+  } catch (error) {
+    console.error("[API errors] PATCH failed:", error);
     return NextResponse.json(
       { success: false, error: "Internal server error" },
       { status: 500 },

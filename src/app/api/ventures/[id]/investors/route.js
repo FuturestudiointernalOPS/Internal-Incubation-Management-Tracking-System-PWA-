@@ -14,22 +14,22 @@ export const GET = createHandler(async (req, { params }) => {
   if (!(await isStaffActorForVenture(db, id, session))) {
     return NextResponse.json({ success: false, error: "This operation requires staff access to the Venture." }, { status: 403 });
   }
-  const s = new URL(req.url).searchParams;
-  const type = s.get("type") || "directory";
+  const searchParams = new URL(req.url).searchParams;
+  const type = searchParams.get("type") || "directory";
 
   if (type === "directory") {
-    const investors = await listInvestors({ search: s.get("search"), status: s.get("status") });
+    const investors = await listInvestors({ search: searchParams.get("search"), status: searchParams.get("status") });
     return NextResponse.json({ success: true, investors });
   }
 
-  if (type === "investor" && s.get("investor_id")) {
-    const inv = await getInvestor(parseInt(s.get("investor_id")));
-    if (!inv) return NextResponse.json({ success: false, error: "Investor not found." }, { status: 404 });
-    return NextResponse.json({ success: true, investor: inv });
+  if (type === "investor" && searchParams.get("investor_id")) {
+    const investor = await getInvestor(parseInt(searchParams.get("investor_id")));
+    if (!investor) return NextResponse.json({ success: false, error: "Investor not found." }, { status: 404 });
+    return NextResponse.json({ success: true, investor });
   }
 
   if (type === "matches") {
-    const matches = await getVentureMatches(id, parseInt(s.get("min_score")) || 0);
+    const matches = await getVentureMatches(id, parseInt(searchParams.get("min_score")) || 0);
     return NextResponse.json({ success: true, matches });
   }
 

@@ -42,8 +42,8 @@ export async function GET(req, { params }) {
     }
 
     return NextResponse.json({ success: true, invite: result.invitation });
-  } catch (e) {
-    console.error("GET /api/venture-member-invites/[token] error:", e);
+  } catch (error) {
+    console.error("GET /api/venture-member-invites/[token] error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to validate the invitation." },
       { status: 500 },
@@ -76,8 +76,8 @@ export async function POST(req, { params }) {
       already_member: !!result.already_member,
       member_type: result.member_type || null,
     });
-  } catch (e) {
-    console.error("POST /api/venture-member-invites/[token] error:", e);
+  } catch (error) {
+    console.error("POST /api/venture-member-invites/[token] error:", error);
     return NextResponse.json(
       { success: false, error: "We could not accept the invitation. Please try again." },
       { status: 500 },

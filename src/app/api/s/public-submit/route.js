@@ -31,8 +31,8 @@ async function ensurePublicSubmitSchema() {
       try {
         await ensurePublicSubmitInvitationColumn();
         await ensurePublicSubmitInvitationIndex();
-      } catch (e) {
-        console.warn("[Public Submit] schema ensure failed:", e.message);
+      } catch (error) {
+        console.warn("[Public Submit] schema ensure failed:", error.message);
       }
       try {
         await ensurePublicSubmitRateTable();
@@ -80,25 +80,25 @@ export async function POST(req) {
     // accepted on the public endpoint (prevents sequential-ID probing).
     let run_id = null;
     try {
-      const runBySlug = await getActiveRunIdByPublicSlug(slug);
-      if (runBySlug.rows.length > 0) {
-        run_id = runBySlug.rows[0].id;
+      const runBySlugResult = await getActiveRunIdByPublicSlug(slug);
+      if (runBySlugResult.rows.length > 0) {
+        run_id = runBySlugResult.rows[0].id;
       }
-    } catch (e) {
-      console.warn("[Public Submit] public_slug lookup failed:", e.message);
+    } catch (error) {
+      console.warn("[Public Submit] public_slug lookup failed:", error.message);
     }
     if (!run_id) {
       return NextResponse.json({ success: false, error: "Run not found or not active" }, { status: 404 });
     }
 
     // Verify run exists and is active
-    const run = await getActiveRunById(run_id);
-    if (run.rows.length === 0) {
+    const runResult = await getActiveRunById(run_id);
+    if (runResult.rows.length === 0) {
       return NextResponse.json({ success: false, error: "Run not found or not active" }, { status: 404 });
     }
 
     // Check deadline
-    if (run.rows[0].closes_at && new Date(run.rows[0].closes_at) < new Date()) {
+    if (runResult.rows[0].closes_at && new Date(runResult.rows[0].closes_at) < new Date()) {
       return NextResponse.json({ success: false, error: "Submission deadline has passed" }, { status: 400 });
     }
 
@@ -119,8 +119,8 @@ export async function POST(req) {
     // IP-based rate limiting: max 5 submissions per IP per run per hour
     // Gracefully skip if rate table doesn't exist yet
     try {
-      const rateCheck = await countRecentSubmissionsFromIp(run_id, ip);
-      if (parseInt(rateCheck.rows[0]?.c) >= 5) {
+      const rateCheckResult = await countRecentSubmissionsFromIp(run_id, ip);
+      if (parseInt(rateCheckResult.rows[0]?.c) >= 5) {
         return NextResponse.json({ success: false, error: "Too many submissions. Please try again later." }, { status: 429 });
       }
     } catch (_) { /* table may not exist yet */ }
@@ -131,47 +131,47 @@ export async function POST(req) {
     if (typeof data === "object" && run_id) {
       try {
         // Fetch form fields to map field IDs to labels
-        const runInfo = await getFormIdByRunId(run_id);
-        if (runInfo.rows.length > 0) {
-          const fieldsRes = await getFormFieldsByFormId(runInfo.rows[0].form_id);
+        const formIdResult = await getFormIdByRunId(run_id);
+        if (formIdResult.rows.length > 0) {
+          const fieldsResult = await getFormFieldsByFormId(formIdResult.rows[0].form_id);
           const fieldMap = {};
-          for (const f of fieldsRes.rows) {
-            fieldMap[String(f.id)] = { label: f.label, type: f.field_type };
+          for (const field of fieldsResult.rows) {
+            fieldMap[String(field.id)] = { label: field.label, type: field.field_type };
           }
           // Now find name/email by field label, not field ID.
           // Name resolution: an explicit "Full Name" field wins; otherwise
           // fall back to the first "Name" field.
-          let fullNameVal = "";
-          let plainNameVal = "";
+          let fullNameValue = "";
+          let plainNameValue = "";
           for (const [key, value] of Object.entries(data)) {
             const fieldInfo = fieldMap[String(key)];
             if (!fieldInfo) continue;
             const label = (fieldInfo.label || "").toLowerCase();
-            const v = typeof value === "string" && !value.startsWith("{") ? value.trim() : String(value).trim();
-            if (!v) continue;
+            const fieldValue = typeof value === "string" && !value.startsWith("{") ? value.trim() : String(value).trim();
+            if (!fieldValue) continue;
             const isFull = /full\s*name|fullname|nom\s+complet|pr[eé]nom\s*et\s*nom/.test(label);
-            if (isFull && !fullNameVal) fullNameVal = v.substring(0, 200);
-            else if (!isFull && (label.includes("name") || label.includes("nom")) && !plainNameVal) plainNameVal = v.substring(0, 200);
-            if (label.includes("email") && !submitterEmail && v.includes("@")) {
-              submitterEmail = v.substring(0, 200);
+            if (isFull && !fullNameValue) fullNameValue = fieldValue.substring(0, 200);
+            else if (!isFull && (label.includes("name") || label.includes("nom")) && !plainNameValue) plainNameValue = fieldValue.substring(0, 200);
+            if (label.includes("email") && !submitterEmail && fieldValue.includes("@")) {
+              submitterEmail = fieldValue.substring(0, 200);
             }
           }
-          if (fullNameVal || plainNameVal) submitterName = fullNameVal || plainNameVal;
+          if (fullNameValue || plainNameValue) submitterName = fullNameValue || plainNameValue;
         }
       } catch (_) {
         // Fallback: try matching by key (legacy approach), full name first
-        let kFullName = "";
-        let kPlainName = "";
+        let keyFullName = "";
+        let keyPlainName = "";
         for (const [key, value] of Object.entries(data)) {
-          const k = String(key).toLowerCase();
-          const v = typeof value === "string" && !value.startsWith("{") ? value.trim() : String(value).trim();
-          if (!v) continue;
-          const isFull = /full\s*name|fullname|nom\s+complet/.test(k);
-          if (isFull && !kFullName) kFullName = v.substring(0, 200);
-          else if (!isFull && k.includes("name") && !kPlainName) kPlainName = v.substring(0, 200);
-          if (k.includes("email") && !submitterEmail && v.includes("@")) submitterEmail = v.substring(0, 200);
+          const lowerKey = String(key).toLowerCase();
+          const fieldValue = typeof value === "string" && !value.startsWith("{") ? value.trim() : String(value).trim();
+          if (!fieldValue) continue;
+          const isFull = /full\s*name|fullname|nom\s+complet/.test(lowerKey);
+          if (isFull && !keyFullName) keyFullName = fieldValue.substring(0, 200);
+          else if (!isFull && lowerKey.includes("name") && !keyPlainName) keyPlainName = fieldValue.substring(0, 200);
+          if (lowerKey.includes("email") && !submitterEmail && fieldValue.includes("@")) submitterEmail = fieldValue.substring(0, 200);
         }
-        if (submitterName === "Anonymous" && (kFullName || kPlainName)) submitterName = kFullName || kPlainName;
+        if (submitterName === "Anonymous" && (keyFullName || keyPlainName)) submitterName = keyFullName || keyPlainName;
       }
     }
     const submitterId = submitterEmail || "public-" + Date.now();
@@ -200,10 +200,10 @@ export async function POST(req) {
     // Insert submission — or upgrade existing draft
     let submissionId;
     if (submitterEmail) {
-      const draftCheck = await getDraftSubmissionBySubmitter(run_id, submitterEmail);
-      if (draftCheck.rows.length > 0) {
-        await upgradeDraftToSubmitted(data, submitterName, invitationId, draftCheck.rows[0].id);
-        submissionId = draftCheck.rows[0].id;
+      const draftResult = await getDraftSubmissionBySubmitter(run_id, submitterEmail);
+      if (draftResult.rows.length > 0) {
+        await upgradeDraftToSubmitted(data, submitterName, invitationId, draftResult.rows[0].id);
+        submissionId = draftResult.rows[0].id;
       }
     }
 
@@ -215,13 +215,13 @@ export async function POST(req) {
     // Fetch form settings for success message configuration
     let successConfig = null;
     try {
-      const formQuery = await getFormSettingsByRunId(run_id);
-      if (formQuery.rows.length > 0 && formQuery.rows[0].settings) {
-        const settings = formQuery.rows[0].settings;
-        const auto = settings.automation || {};
+      const formSettingsResult = await getFormSettingsByRunId(run_id);
+      if (formSettingsResult.rows.length > 0 && formSettingsResult.rows[0].settings) {
+        const settings = formSettingsResult.rows[0].settings;
+        const automationSettings = settings.automation || {};
         successConfig = {
-          message: auto.success_message || null,
-          redirect_url: auto.redirect_after_submit || null,
+          message: automationSettings.success_message || null,
+          redirect_url: automationSettings.redirect_after_submit || null,
         };
       }
     } catch (_) {}
@@ -231,10 +231,10 @@ export async function POST(req) {
     // The submission is already saved — any automation failure is logged, not
     // surfaced to the participant.
     try {
-      const runForAuto = run.rows[0];
+      const runForAuto = runResult.rows[0];
       let formForAuto = null;
-      const fRes = await getFormById(runForAuto?.form_id);
-      formForAuto = fRes.rows[0] || null;
+      const formResult = await getFormById(runForAuto?.form_id);
+      formForAuto = formResult.rows[0] || null;
       after(() => {
         onSubmission(
           {

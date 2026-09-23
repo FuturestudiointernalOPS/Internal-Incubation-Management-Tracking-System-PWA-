@@ -8,8 +8,8 @@ import {
 export const GET = createHandler(
   { roles: ["super_admin"] },
   async (req) => {
-    const s = new URL(req.url).searchParams;
-    const type = s.get("type") || "settings";
+    const queryParams = new URL(req.url).searchParams;
+    const type = queryParams.get("type") || "settings";
 
     if (type === "settings") {
       const settings = await getSystemSettings();
@@ -32,7 +32,7 @@ export const GET = createHandler(
     }
 
     if (type === "logs") {
-      const logs = await getAdminActivityLogs(parseInt(s.get("limit")) || 50);
+      const logs = await getAdminActivityLogs(parseInt(queryParams.get("limit")) || 50);
       return NextResponse.json({ success: true, logs });
     }
 

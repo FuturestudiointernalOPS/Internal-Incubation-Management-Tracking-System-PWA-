@@ -20,8 +20,8 @@ export async function PUT(req, { params }) {
     const body = await req.json();
     const assessment = await updateAssessment(id, body);
     return NextResponse.json({ success: true, assessment });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }
 
@@ -38,7 +38,7 @@ export async function DELETE(req, { params }) {
     const { id } = await params;
     const result = await deleteAssessment(id);
     return NextResponse.json({ success: true, ...result });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

@@ -36,8 +36,8 @@ export const GET = createHandler(async (req) => {
     if (!participantId && !teamId) participantId = session.cid;
   }
 
-  const res = await getSubmissionsByParticipantOrTeam(teamId, participantId, programId);
-  return NextResponse.json({ success: true, submissions: res.rows });
+  const result = await getSubmissionsByParticipantOrTeam(teamId, participantId, programId);
+  return NextResponse.json({ success: true, submissions: result.rows });
 });
 
 export const POST = createHandler(async (req) => {
@@ -73,9 +73,9 @@ export const POST = createHandler(async (req) => {
   // super_admin manage regardless of program status.
   if (program_id && !privileged.includes(session.role)) {
     try {
-      const pCheck = await getSubmissionProgramCompletionStatus(session.cid, program_id);
-      const st = String(pCheck.rows[0]?.status || "").toLowerCase();
-      if (st === "completed") {
+      const completionCheck = await getSubmissionProgramCompletionStatus(session.cid, program_id);
+      const programStatus = String(completionCheck.rows[0]?.status || "").toLowerCase();
+      if (programStatus === "completed") {
         return NextResponse.json(
           { success: false, error: "errors.programCompletedViewOnly" },
           { status: 403 },

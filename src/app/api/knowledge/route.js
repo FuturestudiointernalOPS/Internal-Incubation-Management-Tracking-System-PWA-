@@ -35,14 +35,14 @@ export async function POST(req) {
     });
 
     // 1. Insert Metadata
-    const res = await createKnowledgeNote({
+    const noteResult = await createKnowledgeNote({
       title,
       description,
       url: "[]",
     });
 
     // Extract ID safely for BigInt compatibility
-    const noteId = res.rows[0]?.id;
+    const noteId = noteResult.rows[0]?.id;
     if (!noteId)
       throw new Error("Failed to retrieve generated ID from Supabase");
 
@@ -76,21 +76,21 @@ export async function GET() {
     const capError = await requireAuthorization("knowledge", "view");
     if (capError) return capError;
     // Use BigInt safe query
-    const notesRes = await listKnowledgeNotes();
-    const filesRes = await listKnowledgeAttachments();
+    const notesResult = await listKnowledgeNotes();
+    const filesResult = await listKnowledgeAttachments();
 
-    const notes = notesRes.rows;
-    const files = filesRes.rows;
+    const notes = notesResult.rows;
+    const files = filesResult.rows;
 
-    const processed = notes.map((n) => ({
-      ...n,
+    const processed = notes.map((note) => ({
+      ...note,
       // Ensure BigInt comparison is string-safe
       files: files
-        .filter((f) => String(f.note_id) === String(n.id))
-        .map((f) => ({
-          id: f.id,
-          name: f.name,
-          url: f.url,
+        .filter((file) => String(file.note_id) === String(note.id))
+        .map((file) => ({
+          id: file.id,
+          name: file.name,
+          url: file.url,
         })),
     }));
 

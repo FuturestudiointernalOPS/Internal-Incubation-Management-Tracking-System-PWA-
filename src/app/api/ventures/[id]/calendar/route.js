@@ -11,8 +11,8 @@ import {
 } from "@/models/ventureWorkspace";
 
 async function resolveVentureDbId(ventureId) {
-  const r = await getVentureDbIdForCalendar(ventureId);
-  return r.rows?.[0]?.id || null;
+  const ventureResult = await getVentureDbIdForCalendar(ventureId);
+  return ventureResult.rows?.[0]?.id || null;
 }
 
 
@@ -48,14 +48,14 @@ export async function GET(req, { params }) {
         ORDER BY start_time`, args: [id, dbId] }).catch(() => ({ rows: [] }));
 
     const events = [
-      ...(tasks.rows||[]).map(t => ({ type: "task", id: t.id, title: t.title, date: t.date, status: t.status, priority: t.priority })),
-      ...(milestones.rows||[]).map(m => ({ type: "milestone", id: m.id, title: m.title, date: m.date, status: m.status })),
-      ...(actions.rows||[]).map(a => ({ type: "action", id: a.id, title: a.title, date: a.date, status: a.status, priority: a.priority })),
-      ...(coachings.rows||[]).map(c => ({ type: "coaching", id: c.id, title: c.title, date: c.date, status: "scheduled", advisor: c.advisor_name, location: c.location, meeting_link: c.meeting_link, start_time: c.start_time })),
-      ...(followups.rows||[]).map(f => ({ type: "followup", id: f.id, title: f.title, date: f.date, status: "scheduled" })),
-      ...(sessions.rows||[]).map(x => ({ type: "session", id: x.id, title: x.title, date: x.date, status: x.status || "scheduled", start_time: x.start_time, advisor: x.coach_name, location: x.location, meeting_link: x.meeting_link, preparation: x.preparation_notes, milestone_ref: x.milestone_ref, journey_stage_id: x.journey_stage_id })),
+      ...(tasks.rows||[]).map(task => ({ type: "task", id: task.id, title: task.title, date: task.date, status: task.status, priority: task.priority })),
+      ...(milestones.rows||[]).map(milestone => ({ type: "milestone", id: milestone.id, title: milestone.title, date: milestone.date, status: milestone.status })),
+      ...(actions.rows||[]).map(action => ({ type: "action", id: action.id, title: action.title, date: action.date, status: action.status, priority: action.priority })),
+      ...(coachings.rows||[]).map(coaching => ({ type: "coaching", id: coaching.id, title: coaching.title, date: coaching.date, status: "scheduled", advisor: coaching.advisor_name, location: coaching.location, meeting_link: coaching.meeting_link, start_time: coaching.start_time })),
+      ...(followups.rows||[]).map(followup => ({ type: "followup", id: followup.id, title: followup.title, date: followup.date, status: "scheduled" })),
+      ...(sessions.rows||[]).map(sessionRow => ({ type: "session", id: sessionRow.id, title: sessionRow.title, date: sessionRow.date, status: sessionRow.status || "scheduled", start_time: sessionRow.start_time, advisor: sessionRow.coach_name, location: sessionRow.location, meeting_link: sessionRow.meeting_link, preparation: sessionRow.preparation_notes, milestone_ref: sessionRow.milestone_ref, journey_stage_id: sessionRow.journey_stage_id })),
     ];
 
     return NextResponse.json({ success: true, events });
-  } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
+  } catch(error) { return NextResponse.json({ success: false, error: error.message }, { status: 500 }); }
 }

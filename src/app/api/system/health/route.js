@@ -11,8 +11,8 @@ export const GET = createHandler(async (req) => {
   const capError = await requireAuthorization("settings", "view");
   if (capError) return capError;
 
-  const s = new URL(req.url).searchParams;
-    const type = s.get("type");
+  const searchParams = new URL(req.url).searchParams;
+    const type = searchParams.get("type");
 
     if (type === "latest") {
       const results = await getLatestHealthChecks();
@@ -20,7 +20,7 @@ export const GET = createHandler(async (req) => {
     }
 
     if (type === "history") {
-      const component = s.get("component") || undefined;
+      const component = searchParams.get("component") || undefined;
       const results = await getHealthCheckHistory(component);
       return NextResponse.json({ success: true, results });
     }

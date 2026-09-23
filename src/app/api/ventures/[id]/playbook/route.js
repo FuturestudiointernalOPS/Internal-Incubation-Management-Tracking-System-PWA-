@@ -134,8 +134,8 @@ const PLAYBOOK_STAGES = [
 ];
 
 async function resolveVentureDbId(ventureId) {
-  const r = await getPlaybookVentureId(ventureId);
-  return r.rows?.[0]?.id || null;
+  const ventureResult = await getPlaybookVentureId(ventureId);
+  return ventureResult.rows?.[0]?.id || null;
 }
 
 export async function GET(req, { params }) {
@@ -154,17 +154,17 @@ export async function GET(req, { params }) {
     await ensurePlaybookTable();
 
     // Seed if empty
-    const existing = await countPlaybookEntries(dbId);
-    if (parseInt(existing.rows?.[0]?.c || 0) === 0) {
-      for (const s of PLAYBOOK_STAGES) {
-        await insertPlaybookStage(dbId, s);
+    const countResult = await countPlaybookEntries(dbId);
+    if (parseInt(countResult.rows?.[0]?.c || 0) === 0) {
+      for (const stage of PLAYBOOK_STAGES) {
+        await insertPlaybookStage(dbId, stage);
       }
     }
 
-    const entries = await getPlaybookEntries(dbId);
+    const entriesResult = await getPlaybookEntries(dbId);
 
-    return NextResponse.json({ success: true, playbook: entries.rows || [] });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+    return NextResponse.json({ success: true, playbook: entriesResult.rows || [] });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

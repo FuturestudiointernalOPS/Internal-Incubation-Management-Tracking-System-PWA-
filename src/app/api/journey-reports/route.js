@@ -36,7 +36,7 @@ export async function GET(req) {
     ]);
 
     return NextResponse.json({ success: true, reports, journeys_missing_report: missing });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

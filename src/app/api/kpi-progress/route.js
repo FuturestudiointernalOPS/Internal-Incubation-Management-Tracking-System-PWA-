@@ -30,8 +30,8 @@ export const GET = createHandler(
     // Read from persisted kpi_progress table
     let progressEntries;
     try {
-      const progressRes = await getKpiProgressByProgramId(programId);
-      progressEntries = progressRes.rows || [];
+      const progressResult = await getKpiProgressByProgramId(programId);
+      progressEntries = progressResult.rows || [];
     } catch {
       // kpi_progress schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 11
       return NextResponse.json({
@@ -46,8 +46,8 @@ export const GET = createHandler(
     if (progressEntries.length === 0) {
       try {
         progressEntries = await recalculateKpiProgress(programId);
-      } catch (e) {
-        console.warn("KPI auto-recalculate failed, returning empty:", e);
+      } catch (error) {
+        console.warn("KPI auto-recalculate failed, returning empty:", error);
       }
     }
 
@@ -56,7 +56,7 @@ export const GET = createHandler(
       progressEntries.length > 0
         ? Math.round(
             progressEntries.reduce(
-              (sum, e) => sum + (parseFloat(e.completion_rate) || 0),
+              (sum, entry) => sum + (parseFloat(entry.completion_rate) || 0),
               0,
             ) / progressEntries.length,
           )

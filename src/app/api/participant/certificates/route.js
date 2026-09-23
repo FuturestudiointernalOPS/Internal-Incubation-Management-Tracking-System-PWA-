@@ -25,9 +25,9 @@ export async function GET() {
       );
     }
 
-    const res = await getParticipantCertificates(session.cid);
+    const result = await getParticipantCertificates(session.cid);
 
-    return NextResponse.json({ success: true, certificates: res.rows });
+    return NextResponse.json({ success: true, certificates: result.rows });
   } catch (error) {
     console.error("[participant certificates] error:", error.message);
     return NextResponse.json(

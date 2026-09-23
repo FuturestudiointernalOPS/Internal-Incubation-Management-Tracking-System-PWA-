@@ -50,34 +50,34 @@ export async function GET(req) {
     const results = await getProgramFullStateData(id);
 
     const [
-      progRes,
-      participantsRes,
-      teamRes,
-      sesRes,
-      staffRes,
-      eventRes,
-      kpiRes,
-      docRes,
-      folRes,
-      assignedStaffRes,
-      subRes,
-      repRes,
-      famRes,
-      delRes,
+      programResult,
+      participantsResult,
+      teamsResult,
+      sessionsResult,
+      staffResult,
+      eventsResult,
+      kpisResult,
+      documentsResult,
+      followupsResult,
+      assignedStaffResult,
+      submissionsResult,
+      reportsResult,
+      familiesResult,
+      deliverablesResult,
     ] = results;
 
-    const program = progRes.rows[0];
+    const program = programResult.rows[0];
     if (program) {
       try {
         // Defensive: materials may be double-stringified from older saves
         if (typeof program.materials === "string") {
           let parsed = program.materials;
           // Try to parse up to 4 levels of nesting
-          for (let i = 0; i < 4; i++) {
+          for (let attempt = 0; attempt < 4; attempt++) {
             try {
-              const p = JSON.parse(parsed);
-              if (Array.isArray(p)) { parsed = p; break; }
-              parsed = p;
+              const parsedValue = JSON.parse(parsed);
+              if (Array.isArray(parsedValue)) { parsed = parsedValue; break; }
+              parsed = parsedValue;
             } catch { break; }
           }
           program.materials = Array.isArray(parsed) ? parsed : [];
@@ -94,7 +94,7 @@ export async function GET(req) {
           } catch {
             let value = program.note_files;
             let parsed = false;
-            for (let i = 0; i < 3; i++) {
+            for (let attempt = 0; attempt < 3; attempt++) {
               try {
                 value = JSON.parse(value);
                 parsed = true;
@@ -108,37 +108,37 @@ export async function GET(req) {
           program.note_files = program.note_files || [];
         }
         if (Array.isArray(program.note_files)) {
-          program.note_files = program.note_files.map((f) => {
-            if (typeof f === "object" && f !== null) {
+          program.note_files = program.note_files.map((noteFile) => {
+            if (typeof noteFile === "object" && noteFile !== null) {
               return {
-                name: f.name || f.NAME || f.title || f.TITLE || "",
-                url: f.url || f.URL || f.path || "",
-                ...f,
+                name: noteFile.name || noteFile.NAME || noteFile.title || noteFile.TITLE || "",
+                url: noteFile.url || noteFile.URL || noteFile.path || "",
+                ...noteFile,
               };
             }
-            if (typeof f === "string") return { name: f, url: f };
-            return f;
+            if (typeof noteFile === "string") return { name: noteFile, url: noteFile };
+            return noteFile;
           });
         }
 
         if (program.note_id) {
-          const kbAttachmentsRes = await getProgramNoteAttachments(program.note_id);
-          program.knowledge_assets = kbAttachmentsRes.rows;
+          const attachmentsResult = await getProgramNoteAttachments(program.note_id);
+          program.knowledge_assets = attachmentsResult.rows;
         } else {
           program.knowledge_assets = [];
         }
 
-        const sessions = sesRes.rows || [];
-        const documents = docRes.rows || [];
-        const reports = repRes.rows || [];
+        const sessions = sessionsResult.rows || [];
+        const documents = documentsResult.rows || [];
+        const reports = reportsResult.rows || [];
 
         const totalSessions = sessions.length;
         const completedSessions = sessions.filter(
-          (s) => s.status === "completed",
+          (session) => session.status === "completed",
         ).length;
         const totalDocs = documents.length;
-        const completedDocs = documents.filter((d) => d.is_completed).length;
-        const uniqueReportWeeks = new Set(reports.map((r) => r.week_number))
+        const completedDocs = documents.filter((documentRow) => documentRow.is_completed).length;
+        const uniqueReportWeeks = new Set(reports.map((report) => report.week_number))
           .size;
 
         const totalPoints =
@@ -159,15 +159,15 @@ export async function GET(req) {
       }
     }
 
-    let assignedStaff = assignedStaffRes.rows;
+    let assignedStaff = assignedStaffResult.rows;
     // Dedupe (cid+email OR-match can produce duplicates)
     assignedStaff = Array.from(
-      new Map((assignedStaff || []).map((r) => [r.id ?? r.cid ?? r.staff_id, r])).values(),
+      new Map((assignedStaff || []).map((staffMember) => [staffMember.id ?? staffMember.cid ?? staffMember.staff_id, staffMember])).values(),
     );
     // Never show a bare id where a name is expected — fall back to email
-    assignedStaff = (assignedStaff || []).map((r) => ({
-      ...r,
-      name: r.name || r.email || r.staff_id,
+    assignedStaff = (assignedStaff || []).map((staffMember) => ({
+      ...staffMember,
+      name: staffMember.name || staffMember.email || staffMember.staff_id,
     }));
     let programFacilitators = [];
 
@@ -175,10 +175,10 @@ export async function GET(req) {
     // keep them out of staffList so they never appear in staff workflows.
     if (Array.isArray(assignedStaff)) {
       programFacilitators = assignedStaff.filter(
-        (r) => String(r.role || "").toLowerCase() === "facilitator",
+        (staffMember) => String(staffMember.role || "").toLowerCase() === "facilitator",
       );
       assignedStaff = assignedStaff.filter(
-        (r) => String(r.role || "").toLowerCase() !== "facilitator",
+        (staffMember) => String(staffMember.role || "").toLowerCase() !== "facilitator",
       );
     }
 
@@ -186,8 +186,8 @@ export async function GET(req) {
       try {
         const assistantIds = JSON.parse(program.assigned_assistant_id);
         if (Array.isArray(assistantIds) && assistantIds.length > 0) {
-          const assistantsRes = await getAssistantContactsByCids(assistantIds);
-          const merged = [...assignedStaff, ...assistantsRes.rows];
+          const assistantsResult = await getAssistantContactsByCids(assistantIds);
+          const merged = [...assignedStaff, ...assistantsResult.rows];
           assignedStaff = Array.from(
             new Map(merged.map((item) => [item.cid, item])).values(),
           );
@@ -198,18 +198,18 @@ export async function GET(req) {
     // --- MERGE PARTICIPANTS (always) ---
     // Single source: participant_programs (real membership) + active account
     // + not facilitator + not deleted/archived. Dedupe by lowercase email.
-    const allParticipantRows = participantsRes.rows;
+    const allParticipantRows = participantsResult.rows;
     const mergedParticipants = Array.from(
       new Map(
         allParticipantRows
-          .filter((p) => p.email)
-          .filter((p) => String(p.status || "").toLowerCase() === "active")
-          .map((p) => [p.email.toLowerCase(), p]),
+          .filter((participant) => participant.email)
+          .filter((participant) => String(participant.status || "").toLowerCase() === "active")
+          .map((participant) => [participant.email.toLowerCase(), participant]),
       ).values(),
     );
 
     // --- OPTIONAL METRICS (only when ?metrics=true) ---
-    let kpisWithProgress = kpiRes.rows || [];
+    let kpisWithProgress = kpisResult.rows || [];
     let uniqueParticipants = mergedParticipants;
     let operationalProgress = program?.completion_index || 0;
     let submissionRate = 0,
@@ -221,16 +221,16 @@ export async function GET(req) {
       overallHealth = 0;
 
     if (includeMetrics) {
-      const kpiList = kpiRes.rows || [];
-      const subList = subRes.rows || [];
+      const kpiList = kpisResult.rows || [];
+      const subList = submissionsResult.rows || [];
 
       // ─── KPI PROGRESS ───
       // Single source of truth: the approved-submission calculation cached in
       // kpi_progress. There is no per-screen provisional formula — when the
       // cache is empty the canonical recalculation runs and its result is used
       // immediately, so the first paint already matches the persisted numbers.
-      const sessionList = sesRes.rows || [];
-      const docList = docRes.rows || [];
+      const sessionList = sessionsResult.rows || [];
+      const docList = documentsResult.rows || [];
       const kpiWeight = (kpi) =>
         parseFloat(kpi.weight) ||
         (kpiList.length > 0 ? Math.round(100 / kpiList.length) : 0);
@@ -240,40 +240,40 @@ export async function GET(req) {
         progressEntries = (await getPersistedKpiProgress(id)).rows || [];
         if (progressEntries.length === 0) {
           const fresh = await recalculateKpiProgress(id);
-          progressEntries = (fresh || []).map((r) => ({
-            kpi_id: r.kpi_id,
-            completion_rate: r.completion_rate,
+          progressEntries = (fresh || []).map((progressRow) => ({
+            kpi_id: progressRow.kpi_id,
+            completion_rate: progressRow.completion_rate,
           }));
         }
-      } catch (e) {
+      } catch (error) {
         console.warn(
           "kpi_progress unavailable, reporting no KPI progress:",
-          e.message,
+          error.message,
         );
       }
 
       kpisWithProgress = kpiList.map((kpi) => {
         const kpiId = String(kpi.id);
         const persisted = progressEntries.find(
-          (pp) => String(pp.kpi_id) === kpiId,
+          (progressRow) => String(progressRow.kpi_id) === kpiId,
         );
-        const linkedSessions = sessionList.filter((s) => {
+        const linkedSessions = sessionList.filter((session) => {
           try {
             const ids =
-              typeof s.kpi_ids === "string"
-                ? JSON.parse(s.kpi_ids)
-                : s.kpi_ids || [];
+              typeof session.kpi_ids === "string"
+                ? JSON.parse(session.kpi_ids)
+                : session.kpi_ids || [];
             return ids.map(String).includes(kpiId);
           } catch {
             return false;
           }
         });
-        const linkedDocs = docList.filter((d) => {
+        const linkedDocs = docList.filter((documentRow) => {
           try {
             const ids =
-              typeof d.kpi_ids === "string"
-                ? JSON.parse(d.kpi_ids)
-                : d.kpi_ids || [];
+              typeof documentRow.kpi_ids === "string"
+                ? JSON.parse(documentRow.kpi_ids)
+                : documentRow.kpi_ids || [];
             return ids.map(String).includes(kpiId);
           } catch {
             return false;
@@ -287,10 +287,10 @@ export async function GET(req) {
           weight: kpiWeight(kpi),
           linkedSessions: linkedSessions.length,
           completedSessions: linkedSessions.filter(
-            (s) => s.status === "completed",
+            (session) => session.status === "completed",
           ).length,
           linkedDocs: linkedDocs.length,
-          completedDocs: linkedDocs.filter((d) => d.is_completed).length,
+          completedDocs: linkedDocs.filter((documentRow) => documentRow.is_completed).length,
         };
       });
 
@@ -303,7 +303,7 @@ export async function GET(req) {
       expectedSubmissions = totalParticipants * docList.length;
       actualSubmissions = subList.length;
       approvedSubmissions = subList.filter(
-        (s) => s.status === "approved",
+        (submission) => submission.status === "approved",
       ).length;
       submissionRate =
         expectedSubmissions > 0
@@ -333,39 +333,39 @@ export async function GET(req) {
       asDay(program, "start_date");
       asDay(program, "end_date");
     }
-    (sesRes.rows || []).forEach((s) => {
-      asDay(s, "scheduled_date");
-      asDay(s, "end_date");
+    (sessionsResult.rows || []).forEach((session) => {
+      asDay(session, "scheduled_date");
+      asDay(session, "end_date");
     });
-    (delRes.rows || []).forEach((d) => asDay(d, "due_date"));
-    (uniqueParticipants || []).forEach((p) => asDay(p, "enrolled_at"));
+    (deliverablesResult.rows || []).forEach((deliverable) => asDay(deliverable, "due_date"));
+    (uniqueParticipants || []).forEach((participant) => asDay(participant, "enrolled_at"));
 
     return NextResponse.json({
       success: true,
       program,
       participants: uniqueParticipants,
-      teams: teamRes.rows,
-      sessions: sesRes.rows,
-      staffList: staffRes.rows,
-      events: eventRes.rows,
+      teams: teamsResult.rows,
+      sessions: sessionsResult.rows,
+      staffList: staffResult.rows,
+      events: eventsResult.rows,
       kpis: kpisWithProgress,
-      documents: docRes.rows,
-      followups: folRes.rows,
+      documents: documentsResult.rows,
+      followups: followupsResult.rows,
       assignedStaff,
       facilitators: programFacilitators,
-      submissions: subRes.rows,
-      reports: repRes.rows,
-      families: famRes.rows,
-      deliverables: delRes.rows,
+      submissions: submissionsResult.rows,
+      reports: reportsResult.rows,
+      families: familiesResult.rows,
+      deliverables: deliverablesResult.rows,
       metrics: includeMetrics
         ? {
             operational: {
               progress: operationalProgress,
-              kpis: kpisWithProgress.map((k) => ({
-                id: k.id,
-                title: k.title,
-                progress: k.progress,
-                weight: k.weight,
+              kpis: kpisWithProgress.map((kpi) => ({
+                id: kpi.id,
+                title: kpi.title,
+                progress: kpi.progress,
+                weight: kpi.weight,
               })),
             },
             student: {

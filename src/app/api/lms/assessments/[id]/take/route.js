@@ -22,7 +22,7 @@ export async function GET(req, { params }) {
     const { id } = await params;
     const data = await getAssessmentForTake(id, session.cid);
     return NextResponse.json({ success: true, ...data });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

@@ -12,10 +12,10 @@ export async function GET() {
 
     const result = await seedDefaultRoleCapabilities();
     return NextResponse.json(result);
-  } catch (err) {
-    console.error("[Permissions] Seed error:", err);
+  } catch (error) {
+    console.error("[Permissions] Seed error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }
@@ -34,10 +34,10 @@ export async function POST() {
 
     const result = await seedDefaultRoleCapabilities();
     return NextResponse.json(result);
-  } catch (err) {
-    console.error("[Permissions] Seed error:", err);
+  } catch (error) {
+    console.error("[Permissions] Seed error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

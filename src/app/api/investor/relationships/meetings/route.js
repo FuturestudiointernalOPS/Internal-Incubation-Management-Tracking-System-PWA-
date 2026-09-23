@@ -72,8 +72,8 @@ export async function POST(req) {
     const meeting = result.rows[0];
 
     // Get workspace info for timeline
-    const ws = await getVentureIdByWorkspaceId(workspace_id);
-    await getVentureNameForScheduledMeeting(ws.rows[0]?.venture_id);
+    const workspace = await getVentureIdByWorkspaceId(workspace_id);
+    await getVentureNameForScheduledMeeting(workspace.rows[0]?.venture_id);
 
     // Timeline entry
     await insertMeetingScheduledTimeline(workspace_id, `${meeting_type.replace(/_/g, " ")} meeting scheduled${scheduled_date ? " for " + scheduled_date : ""}`, session.cid || session.id);
@@ -122,17 +122,17 @@ export async function PUT(req) {
     // Timeline entry
     if (status === "completed") {
       // Get workspace id for timeline
-      const ws = await getWorkspaceForMeetingCompletion(id);
-      if (ws.rows.length > 0) {
-        const vName = (await getVentureNameForCompletedMeeting(ws.rows[0].venture_id)).rows[0]?.name || "Venture";
+      const workspace = await getWorkspaceForMeetingCompletion(id);
+      if (workspace.rows.length > 0) {
+        const ventureName = (await getVentureNameForCompletedMeeting(workspace.rows[0].venture_id)).rows[0]?.name || "Venture";
 
-        await insertMeetingCompletedTimeline(ws.rows[0].id, `Meeting completed${outcome ? ": " + outcome : ""} for ${vName}`, session.cid || session.id);
+        await insertMeetingCompletedTimeline(workspace.rows[0].id, `Meeting completed${outcome ? ": " + outcome : ""} for ${ventureName}`, session.cid || session.id);
 
         // Update workspace next_action if action_items provided
         if (action_items) {
           const items = typeof action_items === "string" ? JSON.parse(action_items) : action_items;
           if (Array.isArray(items) && items.length > 0) {
-            await setWorkspaceNextAction(items[0], ws.rows[0].id);
+            await setWorkspaceNextAction(items[0], workspace.rows[0].id);
           }
         }
       }

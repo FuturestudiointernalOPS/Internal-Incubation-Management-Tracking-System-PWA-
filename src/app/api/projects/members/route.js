@@ -77,8 +77,8 @@ export async function POST(req) {
     const inviterName = session?.name || "Unknown";
 
     // Get project name
-    const projRes = await getProjectName(project_id);
-    const projectName = projRes.rows[0]?.name || "Unknown Project";
+    const projectResult = await getProjectName(project_id);
+    const projectName = projectResult.rows[0]?.name || "Unknown Project";
 
     // Cancel any existing pending invitation for this project+user
     await declinePendingProjectInvitation(project_id, user_cid);

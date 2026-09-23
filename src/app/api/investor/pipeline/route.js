@@ -41,12 +41,12 @@ export async function POST(req) {
     }
 
     // Get investor profile
-    const profile = await getInvestorProfileIdByUserId(user.cid || user.id);
-    if (profile.rows.length === 0) {
+    const profileResult = await getInvestorProfileIdByUserId(user.cid || user.id);
+    if (profileResult.rows.length === 0) {
       return NextResponse.json({ success: false, error: "Investor profile not found" }, { status: 404 });
     }
 
-    const investorId = profile.rows[0].id;
+    const investorId = profileResult.rows[0].id;
     const validStages = ["interested", "watching", "meeting_requested", "due_diligence", "negotiation", "invested", "declined"];
     const newStage = stage || "interested";
 
@@ -61,17 +61,17 @@ export async function POST(req) {
     if (newStage === "meeting_requested") {
       try {
         // Get investor and venture names
-        const info = await getMeetingRequestInfo({ venture_id, investor_id: investorId });
-        const inv = info.rows[0] || {};
+        const meetingRequestInfo = await getMeetingRequestInfo({ venture_id, investor_id: investorId });
+        const investorInfo = meetingRequestInfo.rows[0] || {};
 
         // Notify super admins
         const admins = await listSuperAdminCids();
-        for (const a of admins.rows) {
+        for (const admin of admins.rows) {
           await insertInvestorMeetingRequestNotification({
-            recipient_id: a.cid,
-            investor_name: inv.investor_name,
-            organization_name: inv.organization_name,
-            venture_name: inv.venture_name,
+            recipient_id: admin.cid,
+            investor_name: investorInfo.investor_name,
+            organization_name: investorInfo.organization_name,
+            venture_name: investorInfo.venture_name,
             notes,
             link: "/admin/investors/overview",
           });
@@ -82,9 +82,9 @@ export async function POST(req) {
         nextWeek.setDate(nextWeek.getDate() + 7);
         await insertInvestorMeetingPlaceholderEvent({
           program_id: venture_id,
-          venture_name: inv.venture_name,
-          investor_name: inv.investor_name,
-          organization_name: inv.organization_name,
+          venture_name: investorInfo.venture_name,
+          investor_name: investorInfo.investor_name,
+          organization_name: investorInfo.organization_name,
           start_time: nextWeek.toISOString(),
           end_time: nextWeek.toISOString(),
           created_by: user.cid || user.id,
@@ -108,52 +108,52 @@ export async function POST(req) {
 
       // Timeline entry in relationship workspace
       try {
-        const relWs = await getRelationshipWorkspaceIdForInvestment(pipelineId);
-        if (relWs.rows.length > 0) {
-          await insertInvestmentCommittedTimeline({ workspace_id: relWs.rows[0].id, investment_amount: investedAmount });
+        const relationshipWorkspaceResult = await getRelationshipWorkspaceIdForInvestment(pipelineId);
+        if (relationshipWorkspaceResult.rows.length > 0) {
+          await insertInvestmentCommittedTimeline({ workspace_id: relationshipWorkspaceResult.rows[0].id, investment_amount: investedAmount });
           // Update workspace stage
-          await markRelationshipWorkspaceActiveInvestment(relWs.rows[0].id);
+          await markRelationshipWorkspaceActiveInvestment(relationshipWorkspaceResult.rows[0].id);
         }
       } catch (_) {}
 
       // Notify everyone
       try {
-        const info = await getInvestmentNotificationInfo({ venture_id, investor_id: investorId });
-        const inv = info.rows[0] || {};
+        const investmentNotificationInfo = await getInvestmentNotificationInfo({ venture_id, investor_id: investorId });
+        const investorInfo = investmentNotificationInfo.rows[0] || {};
 
         // Notify admins
         const admins = await listAdminAndStaffCids();
-        for (const a of admins.rows) {
+        for (const admin of admins.rows) {
           await insertInvestmentConfirmedAdminNotification({
-            recipient_id: a.cid,
-            investor_name: inv.investor_name,
-            organization_name: inv.organization_name,
-            venture_name: inv.venture_name,
+            recipient_id: admin.cid,
+            investor_name: investorInfo.investor_name,
+            organization_name: investorInfo.organization_name,
+            venture_name: investorInfo.venture_name,
             investment_amount: investedAmount,
             link: "/admin/investors/overview",
           });
         }
 
         // Notify investor
-        if (inv.user_id) {
+        if (investorInfo.user_id) {
           await insertInvestmentConfirmedInvestorNotification({
-            recipient_id: inv.user_id,
-            venture_name: inv.venture_name,
+            recipient_id: investorInfo.user_id,
+            venture_name: investorInfo.venture_name,
             investment_amount: investedAmount,
             link: "/investor/portfolio",
           });
         }
 
         // Notify RM and IM
-        const relWs = await getRelationshipWorkspaceAssigneesForInvestment(pipelineId);
-        if (relWs.rows.length > 0) {
-          const rw = relWs.rows[0];
-          for (const cid of [rw.relationship_manager_id, rw.investment_manager_id]) {
+        const relationshipWorkspaceResult = await getRelationshipWorkspaceAssigneesForInvestment(pipelineId);
+        if (relationshipWorkspaceResult.rows.length > 0) {
+          const relationshipWorkspace = relationshipWorkspaceResult.rows[0];
+          for (const cid of [relationshipWorkspace.relationship_manager_id, relationshipWorkspace.investment_manager_id]) {
             if (cid) {
               await insertInvestmentConfirmedStaffNotification({
                 recipient_id: cid,
-                investor_name: inv.investor_name,
-                venture_name: inv.venture_name,
+                investor_name: investorInfo.investor_name,
+                venture_name: investorInfo.venture_name,
                 investment_amount: investedAmount,
                 link: "/admin/investors/relationships",
               });
@@ -191,17 +191,17 @@ export async function GET(req) {
     // management-only. Management keeps its historical branches.
     let investorId = null;
     if (!management) {
-      const profile = await getInvestorProfileIdByUserIdForPipelineList(user.cid || user.id);
-      if (profile.rows.length === 0) {
+      const profileResult = await getInvestorProfileIdByUserIdForPipelineList(user.cid || user.id);
+      if (profileResult.rows.length === 0) {
         return NextResponse.json({ success: true, pipeline: [] });
       }
-      investorId = profile.rows[0].id;
+      investorId = profileResult.rows[0].id;
     } else if (!ventureId && !(stage && (user.role === "super_admin" || user.role === "staff"))) {
-      const profile = await getInvestorProfileIdByUserIdForPipelineList(user.cid || user.id);
-      if (profile.rows.length === 0) {
+      const profileResult = await getInvestorProfileIdByUserIdForPipelineList(user.cid || user.id);
+      if (profileResult.rows.length === 0) {
         return NextResponse.json({ success: true, pipeline: [] });
       }
-      investorId = profile.rows[0].id;
+      investorId = profileResult.rows[0].id;
     }
 
     const result = await listInvestmentPipeline({ ventureId, stage, role: user.role, investorId });

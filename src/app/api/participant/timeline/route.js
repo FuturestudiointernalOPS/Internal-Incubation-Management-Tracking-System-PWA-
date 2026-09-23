@@ -32,9 +32,9 @@ export async function GET(req) {
       200,
     );
 
-    const res = await getParticipantTimeline(session.cid, limit);
+    const result = await getParticipantTimeline(session.cid, limit);
 
-    return NextResponse.json({ success: true, events: res.rows });
+    return NextResponse.json({ success: true, events: result.rows });
   } catch (error) {
     console.error("[participant timeline] error:", error.message);
     return NextResponse.json(

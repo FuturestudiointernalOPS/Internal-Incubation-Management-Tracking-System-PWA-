@@ -48,9 +48,9 @@ export const GET = createHandler(async (req) => {
       { status: 401 },
     );
   }
-  const taskRes = await getTaskAccessById(task_id);
-  const t = taskRes.rows[0];
-  if (!t) {
+  const taskResult = await getTaskAccessById(task_id);
+  const task = taskResult.rows[0];
+  if (!task) {
     return NextResponse.json(
       { success: false, error: "Task not found" },
       { status: 404 },
@@ -63,9 +63,9 @@ export const GET = createHandler(async (req) => {
   ];
   if (
     !staffSide.includes(session.role) &&
-    String(t.user_id) !== String(session.cid) &&
-    String(t.assigned_to || "") !== String(session.cid) &&
-    String(t.supervisor_id || "") !== String(session.cid)
+    String(task.user_id) !== String(session.cid) &&
+    String(task.assigned_to || "") !== String(session.cid) &&
+    String(task.supervisor_id || "") !== String(session.cid)
   ) {
     return NextResponse.json(
       { success: false, error: "You do not have access to this task." },
@@ -109,9 +109,9 @@ export const POST = createHandler(async (req) => {
       { status: 401 },
     );
   }
-  const taskRes = await getTaskAccessForCreate(task_id);
-  const t = taskRes.rows[0];
-  if (!t) {
+  const taskResult = await getTaskAccessForCreate(task_id);
+  const task = taskResult.rows[0];
+  if (!task) {
     return NextResponse.json(
       { success: false, error: "Task not found" },
       { status: 404 },
@@ -124,9 +124,9 @@ export const POST = createHandler(async (req) => {
   ];
   if (
     !staffSide.includes(session.role) &&
-    String(t.user_id) !== String(session.cid) &&
-    String(t.assigned_to || "") !== String(session.cid) &&
-    String(t.supervisor_id || "") !== String(session.cid)
+    String(task.user_id) !== String(session.cid) &&
+    String(task.assigned_to || "") !== String(session.cid) &&
+    String(task.supervisor_id || "") !== String(session.cid)
   ) {
     return NextResponse.json(
       { success: false, error: "You do not have access to this task." },
@@ -148,24 +148,24 @@ export const POST = createHandler(async (req) => {
 
   // Notify the task owner / assignee if someone else commented
   try {
-    const taskRes = await getTaskNotifyFieldsById(task_id);
-    const task = taskRes.rows[0];
+    const notifyFieldsResult = await getTaskNotifyFieldsById(task_id);
+    const taskToNotify = notifyFieldsResult.rows[0];
     const alreadyNotified = new Set();
 
-    const insertNotif = async (recipientId, title, message, type) => {
+    const insertNotification = async (recipientId, title, message, type) => {
       await createNotification(recipientId, title, message, type);
     };
 
-    if (task) {
+    if (taskToNotify) {
       const recipients = new Set(
-        [task.user_id, task.assigned_to].filter((r) => r && r !== sender_id),
+        [taskToNotify.user_id, taskToNotify.assigned_to].filter((recipient) => recipient && recipient !== sender_id),
       );
       for (const recipientId of recipients) {
         alreadyNotified.add(recipientId);
-        await insertNotif(
+        await insertNotification(
           recipientId,
           "New Comment",
-          `${sender_name || "Someone"} commented on "${task.title}"`,
+          `${sender_name || "Someone"} commented on "${taskToNotify.title}"`,
           "comment",
         );
       }
@@ -180,15 +180,15 @@ export const POST = createHandler(async (req) => {
 
     if (mentionedNames.size > 0) {
       const namesArray = [...mentionedNames];
-      const mentionRes = await getContactsByNames(namesArray);
+      const mentionResult = await getContactsByNames(namesArray);
 
-      for (const mentioned of mentionRes.rows) {
+      for (const mentioned of mentionResult.rows) {
         if (alreadyNotified.has(mentioned.cid)) continue;
         if (mentioned.cid === sender_id) continue;
-        await insertNotif(
+        await insertNotification(
           mentioned.cid,
           "Mention in Comment",
-          `${sender_name || "Someone"} mentioned you in a comment on "${task?.title || "a task"}"`,
+          `${sender_name || "Someone"} mentioned you in a comment on "${taskToNotify?.title || "a task"}"`,
           "mention",
         );
       }
@@ -220,10 +220,10 @@ export const DELETE = createHandler(async (req) => {
     );
   }
 
-  const commentRes = await getCommentSenderById(id);
+  const commentResult = await getCommentSenderById(id);
 
-  if (commentRes.rows.length > 0) {
-    const comment = commentRes.rows[0];
+  if (commentResult.rows.length > 0) {
+    const comment = commentResult.rows[0];
     if (
       String(comment.sender_id) !== String(session.cid) &&
       session.role !== "super_admin"
@@ -260,16 +260,16 @@ export const PUT = createHandler(async (req) => {
     );
   }
 
-  const commentRes = await getCommentSenderForEdit(id);
+  const commentResult = await getCommentSenderForEdit(id);
 
-  if (commentRes.rows.length === 0) {
+  if (commentResult.rows.length === 0) {
     return NextResponse.json(
       { success: false, error: "Comment not found" },
       { status: 404 },
     );
   }
 
-  if (String(commentRes.rows[0].sender_id) !== String(session.cid) &&
+  if (String(commentResult.rows[0].sender_id) !== String(session.cid) &&
       session.role !== "super_admin") {
     return NextResponse.json(
       { success: false, error: "Only the author can edit this comment." },

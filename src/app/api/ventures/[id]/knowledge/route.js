@@ -13,42 +13,42 @@ export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
   const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
   if (access.error) return access.error;
-  const s = new URL(req.url).searchParams;
-  const type = s.get("type") || "resources";
+  const searchParams = new URL(req.url).searchParams;
+  const type = searchParams.get("type") || "resources";
 
   if (type === "categories") {
-    const cats = await listCategories();
-    return NextResponse.json({ success: true, categories: cats });
+    const categories = await listCategories();
+    return NextResponse.json({ success: true, categories });
   }
 
   if (type === "bookmarks") {
-    const bookmarks = await getUserBookmarks(s.get("user_cid") || "sa");
+    const bookmarks = await getUserBookmarks(searchParams.get("user_cid") || "sa");
     return NextResponse.json({ success: true, bookmarks });
   }
 
   if (type === "recommended") {
-    const recs = await getRecommendedResources(id);
-    return NextResponse.json({ success: true, resources: recs });
+    const recommendedResources = await getRecommendedResources(id);
+    return NextResponse.json({ success: true, resources: recommendedResources });
   }
 
-  if (type === "resource" && s.get("resource_id")) {
-    const resource = await getResource(parseInt(s.get("resource_id")), s.get("user_cid") || "sa");
+  if (type === "resource" && searchParams.get("resource_id")) {
+    const resource = await getResource(parseInt(searchParams.get("resource_id")), searchParams.get("user_cid") || "sa");
     if (!resource) return NextResponse.json({ success: false, error: "Resource not found." }, { status: 404 });
     return NextResponse.json({ success: true, resource });
   }
 
   if (type === "learning_progress") {
-    const progress = await getLearningProgress(id, s.get("user_cid") || "sa");
+    const progress = await getLearningProgress(id, searchParams.get("user_cid") || "sa");
     return NextResponse.json({ success: true, ...progress });
   }
 
   if (type === "recommendations") {
-    const recs = await getPersonalizedRecommendations(id, s.get("user_cid") || "sa");
-    return NextResponse.json({ success: true, resources: recs });
+    const recommendedResources = await getPersonalizedRecommendations(id, searchParams.get("user_cid") || "sa");
+    return NextResponse.json({ success: true, resources: recommendedResources });
   }
 
   if (type === "learning_history") {
-    const history = await getLearningHistory(s.get("user_cid") || "sa");
+    const history = await getLearningHistory(searchParams.get("user_cid") || "sa");
     return NextResponse.json({ success: true, history });
   }
 
@@ -58,15 +58,15 @@ export const GET = createHandler(async (req, { params }) => {
   }
 
   if (type === "available_paths") {
-    const paths = await listLearningPaths(s.get("level"));
+    const paths = await listLearningPaths(searchParams.get("level"));
     return NextResponse.json({ success: true, paths });
   }
 
   // Default: list resources
   const resources = await listResources({
-    category: s.get("category"), type: s.get("resource_type"),
-    search: s.get("search"), featured: s.get("featured"),
-    limit: parseInt(s.get("limit")) || 50,
+    category: searchParams.get("category"), type: searchParams.get("resource_type"),
+    search: searchParams.get("search"), featured: searchParams.get("featured"),
+    limit: parseInt(searchParams.get("limit")) || 50,
   });
   return NextResponse.json({ success: true, resources });
 });
@@ -88,7 +88,7 @@ export const POST = createHandler(async (req, { params }) => {
         authorCid: req.session?.cid, tags: body.tags, isFeatured: body.is_featured,
       });
       return NextResponse.json({ success: true, resource_id: result.id });
-    } catch (e) { return NextResponse.json({ success: false, error: e.message }, { status: 400 }); }
+    } catch (error) { return NextResponse.json({ success: false, error: error.message }, { status: 400 }); }
   }
 
   if (action === "update") {

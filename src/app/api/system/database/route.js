@@ -12,8 +12,8 @@ export const GET = createHandler(async () => {
   const capError = await requireAuthorization("settings", "view");
   if (capError) return capError;
 
-  const db = await getDatabaseInfo();
-    return NextResponse.json({ success: true, ...db });
+  const dbInfo = await getDatabaseInfo();
+    return NextResponse.json({ success: true, ...dbInfo });
   }
 );
 
@@ -37,18 +37,18 @@ export async function POST(_req) {
         await runPlatformMigrationStep(step.sql);
         results.push({ step: step.name, status: "ok" });
         console.log(`[DB Migration] ✓ ${step.name}`);
-      } catch (e) {
-        const msg = e.message || "";
+      } catch (error) {
+        const errorMessage = error.message || "";
         const status =
-          msg.includes("already exists") || msg.includes("duplicate")
+          errorMessage.includes("already exists") || errorMessage.includes("duplicate")
             ? "already exists"
-            : `ERROR: ${msg.substring(0, 120)}`;
+            : `ERROR: ${errorMessage.substring(0, 120)}`;
         results.push({ step: step.name, status });
         console.warn(`[DB Migration] ${step.name}: ${status}`);
       }
     }
 
-    const errors = results.filter((r) => r.status.startsWith("ERROR"));
+    const errors = results.filter((result) => result.status.startsWith("ERROR"));
     return NextResponse.json({
       success: errors.length === 0,
       message:

@@ -28,17 +28,17 @@ export async function POST(_req) {
     // Split by semicolons and execute each statement
     const statements = sql
       .split(";")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0 && !s.startsWith("--"));
+      .map((statement) => statement.trim())
+      .filter((statement) => statement.length > 0 && !statement.startsWith("--"));
 
     const results = [];
-    for (const stmt of statements) {
+    for (const statement of statements) {
       // Skip DO blocks that are already complete (they contain their own semicolons)
       // Handle DO $$ ... $$ blocks specially
-      const isDoBlock = stmt.includes("DO $$");
+      const isDoBlock = statement.includes("DO $$");
       const fullStmt = isDoBlock
-        ? sql.substring(sql.indexOf(stmt), sql.indexOf("END $$", sql.indexOf(stmt)) + 7)
-        : stmt;
+        ? sql.substring(sql.indexOf(statement), sql.indexOf("END $$", sql.indexOf(statement)) + 7)
+        : statement;
 
       try {
         await runPhase1MigrationStatement(fullStmt);
@@ -68,7 +68,7 @@ export async function POST(_req) {
       }
     }
 
-    const failures = results.filter((r) => !r.success);
+    const failures = results.filter((result) => !result.success);
     return NextResponse.json({
       success: failures.length === 0,
       executed: results.length,
@@ -105,8 +105,8 @@ export async function GET(_req) {
 
     const statements = sql
       .split(";")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0 && !s.startsWith("--"));
+      .map((statement) => statement.trim())
+      .filter((statement) => statement.length > 0 && !statement.startsWith("--"));
 
     return NextResponse.json({
       success: true,

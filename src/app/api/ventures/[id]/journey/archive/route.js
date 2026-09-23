@@ -36,7 +36,7 @@ export async function POST(req, { params }) {
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     const body = await req.json();
-    const ids = Array.isArray(body?.ids) ? body.ids.map((x) => String(x)).filter(Boolean) : [];
+    const ids = Array.isArray(body?.ids) ? body.ids.map((stageId) => String(stageId)).filter(Boolean) : [];
     const action = body?.action === "restore" ? "restore" : "archive";
     if (ids.length === 0) return NextResponse.json({ success: false, error: "No journeys selected." }, { status: 400 });
 
@@ -47,7 +47,7 @@ export async function POST(req, { params }) {
 
     const stages = await listJourneyStages(db, dbId, { includeArchived: true });
     return NextResponse.json({ success: true, ...summary, stages });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

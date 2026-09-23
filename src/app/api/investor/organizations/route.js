@@ -37,13 +37,13 @@ export async function GET(req) {
     }
 
     // List orgs the current investor belongs to
-    const profile = await getInvestorProfileIdForOrgList(user.cid || user.id);
+    const profileResult = await getInvestorProfileIdForOrgList(user.cid || user.id);
 
-    if (profile.rows.length === 0) {
+    if (profileResult.rows.length === 0) {
       return NextResponse.json({ success: true, organizations: [] });
     }
 
-    const result = await listInvestorOrganizationsByMember(profile.rows[0].id);
+    const result = await listInvestorOrganizationsByMember(profileResult.rows[0].id);
 
     return NextResponse.json({ success: true, organizations: result.rows });
   } catch (error) {
@@ -66,17 +66,17 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Organization name required" }, { status: 400 });
     }
 
-    const profile = await getInvestorProfileIdForOrgCreate(user.cid || user.id);
-    if (profile.rows.length === 0) {
+    const profileResult = await getInvestorProfileIdForOrgCreate(user.cid || user.id);
+    if (profileResult.rows.length === 0) {
       return NextResponse.json({ success: false, error: "Investor profile not found" }, { status: 404 });
     }
 
-    const investorId = profile.rows[0].id;
+    const investorId = profileResult.rows[0].id;
 
     // Create org
-    const orgRes = await insertOrganization(name, description || null, website || null, logo_url || null);
+    const organizationResult = await insertOrganization(name, description || null, website || null, logo_url || null);
 
-    const org = orgRes.rows[0];
+    const org = organizationResult.rows[0];
 
     // Add creator as admin
     await addOrganizationAdmin(org.id, investorId);

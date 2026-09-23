@@ -8,23 +8,23 @@ import {
 export const GET = createHandler(
   { roles: ["super_admin", "security_officer", "program_manager"] },
   async (req) => {
-    const s = new URL(req.url).searchParams;
-    const type = s.get("type") || "list";
+    const searchParams = new URL(req.url).searchParams;
+    const type = searchParams.get("type") || "list";
 
     if (type === "stats") {
-      const hours = parseInt(s.get("hours")) || 24;
+      const hours = parseInt(searchParams.get("hours")) || 24;
       const stats = await getLoginStats(hours);
       return NextResponse.json({ success: true, ...stats });
     }
 
     const filters = {
-      userCid: s.get("user_cid") || undefined,
-      action: s.get("action") || undefined,
-      isSuccess: s.has("is_success") ? s.get("is_success") === "true" : undefined,
-      limit: parseInt(s.get("limit")) || 50,
-      offset: parseInt(s.get("offset")) || 0,
-      fromDate: s.get("from") || undefined,
-      toDate: s.get("to") || undefined,
+      userCid: searchParams.get("user_cid") || undefined,
+      action: searchParams.get("action") || undefined,
+      isSuccess: searchParams.has("is_success") ? searchParams.get("is_success") === "true" : undefined,
+      limit: parseInt(searchParams.get("limit")) || 50,
+      offset: parseInt(searchParams.get("offset")) || 0,
+      fromDate: searchParams.get("from") || undefined,
+      toDate: searchParams.get("to") || undefined,
     };
 
     const history = await queryLoginHistory(filters);

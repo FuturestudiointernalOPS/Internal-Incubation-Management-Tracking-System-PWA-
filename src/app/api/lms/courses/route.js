@@ -23,8 +23,8 @@ export async function GET(req) {
       status: searchParams.get("status") || undefined,
     });
     return NextResponse.json({ success: true, courses });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }
 
@@ -43,7 +43,7 @@ export async function POST(req) {
     const body = await req.json();
     const course = await createCourse({ ...body, createdBy: session?.cid });
     return NextResponse.json({ success: true, course });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

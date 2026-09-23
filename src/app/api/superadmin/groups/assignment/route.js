@@ -20,8 +20,8 @@ export const POST = createHandler({ roles: ["super_admin"] }, async (req) => {
   }
 
   // Verify the program exists in v2_programs before assigning
-  const progCheck = await getV2ProgramById(program_id);
-  if (progCheck.rows.length === 0) {
+  const programCheck = await getV2ProgramById(program_id);
+  if (programCheck.rows.length === 0) {
     return NextResponse.json(
       {
         success: false,
@@ -36,9 +36,9 @@ export const POST = createHandler({ roles: ["super_admin"] }, async (req) => {
   await updateContactsProgramAssignment(program_id, program_name, group_name);
 
   // Also update v2_participants if they exist for these contacts
-  const contactsRes = await getAssignmentContactsByGroupName(group_name);
+  const contactsResult = await getAssignmentContactsByGroupName(group_name);
 
-  for (const contact of contactsRes.rows) {
+  for (const contact of contactsResult.rows) {
     await upsertV2ParticipantActiveWithFallback(
       program_id,
       contact.name,
@@ -65,6 +65,6 @@ export const POST = createHandler({ roles: ["super_admin"] }, async (req) => {
 
   return NextResponse.json({
     success: true,
-    message: `Assigned ${contactsRes.rows.length} contacts to program.`,
+    message: `Assigned ${contactsResult.rows.length} contacts to program.`,
   });
 });

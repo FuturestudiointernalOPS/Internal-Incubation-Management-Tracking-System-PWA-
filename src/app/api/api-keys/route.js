@@ -7,13 +7,13 @@ export const GET = createHandler(async (req) => {
   const capError = await requireAuthorization("settings", "view");
   if (capError) return capError;
 
-  const s = new URL(req.url).searchParams;
-    const limit = s.get("limit") ? parseInt(s.get("limit")) : undefined;
-    const offset = s.get("offset") ? parseInt(s.get("offset")) : undefined;
+  const queryParams = new URL(req.url).searchParams;
+    const limit = queryParams.get("limit") ? parseInt(queryParams.get("limit")) : undefined;
+    const offset = queryParams.get("offset") ? parseInt(queryParams.get("offset")) : undefined;
 
     const keys = await getApiKeys({
-      createdBy: s.get("created_by"),
-      isActive: s.has("is_active") ? s.get("is_active") === "true" : undefined,
+      createdBy: queryParams.get("created_by"),
+      isActive: queryParams.has("is_active") ? queryParams.get("is_active") === "true" : undefined,
       limit,
       offset,
     });

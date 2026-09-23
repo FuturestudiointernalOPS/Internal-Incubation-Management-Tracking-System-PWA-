@@ -78,29 +78,29 @@ export async function POST(req) {
     // ─── 2. Fetch the team ───
     let team;
     if (team_id) {
-      const teamRes = await getTeamByTextId(team_id);
-      if (teamRes.rows.length === 0) {
+      const teamResult = await getTeamByTextId(team_id);
+      if (teamResult.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Team not found." },
           { status: 404 },
         );
       }
-      team = teamRes.rows[0];
+      team = teamResult.rows[0];
     } else if (program_id) {
       // Find the first venture-ready team in this program
-      const teamRes = await getVentureReadyTeamByProgram(program_id);
-      if (teamRes.rows.length === 0) {
+      const teamResult = await getVentureReadyTeamByProgram(program_id);
+      if (teamResult.rows.length === 0) {
         // Fallback: any team in the program
-        const fallbackRes = await getFirstTeamByProgram(program_id);
-        if (fallbackRes.rows.length === 0) {
+        const fallbackResult = await getFirstTeamByProgram(program_id);
+        if (fallbackResult.rows.length === 0) {
           return NextResponse.json(
             { success: false, error: "No teams found in this program. Create a team first." },
             { status: 404 },
           );
         }
-        team = fallbackRes.rows[0];
+        team = fallbackResult.rows[0];
       } else {
-        team = teamRes.rows[0];
+        team = teamResult.rows[0];
       }
     }
 
@@ -121,14 +121,14 @@ export async function POST(req) {
     }
 
     // ─── 5. Verify program exists ───
-    const progRes = await getProgramByTextId(team.program_id);
-    if (progRes.rows.length === 0) {
+    const programResult = await getProgramByTextId(team.program_id);
+    if (programResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Program not found." },
         { status: 404 },
       );
     }
-    const program = progRes.rows[0];
+    const program = programResult.rows[0];
 
     // Verify PM is assigned to this program (unless super_admin)
     if (
@@ -162,8 +162,8 @@ export async function POST(req) {
         { status: 400 },
       );
     }
-    const leadRes = await getLeadContactById(String(leadCid));
-    const lead = leadRes.rows[0];
+    const leadResult = await getLeadContactById(String(leadCid));
+    const lead = leadResult.rows[0];
     if (!lead) {
       return NextResponse.json(
         { success: false, error: "Team lead contact not found." },
@@ -184,8 +184,8 @@ export async function POST(req) {
     const finalDescription = description?.trim() || `Promoted from program: ${program.name}`;
     const finalWebsite = website?.trim() || null;
 
-    const dupCheck = await findVentureByCompanyName(finalCompanyName);
-    if (dupCheck.rows.length > 0) {
+    const duplicateCheck = await findVentureByCompanyName(finalCompanyName);
+    if (duplicateCheck.rows.length > 0) {
       return NextResponse.json(
         { success: false, error: "A company with this name already exists in Venture OS." },
         { status: 409 },
@@ -208,10 +208,10 @@ export async function POST(req) {
     };
     const payload = { ...literalData };
     try {
-      const fieldRes = await getFormFieldsByFormId(run.form_id);
+      const fieldsResult = await getFormFieldsByFormId(run.form_id);
       const fieldByKey = {};
-      for (const f of fieldRes.rows || []) {
-        if (f.settings?.key) fieldByKey[f.settings.key] = String(f.id);
+      for (const field of fieldsResult.rows || []) {
+        if (field.settings?.key) fieldByKey[field.settings.key] = String(field.id);
       }
       for (const [key, value] of Object.entries(literalData)) {
         if (value === null || value === undefined || value === "") continue;
@@ -234,14 +234,14 @@ export async function POST(req) {
     });
 
     // ─── 11. Create the intake submission (submitted — awaiting review) ───
-    const subRes = await createPromotionSubmission(
+    const submissionResult = await createPromotionSubmission(
       run.id,
       lead.cid,
       lead.name || team.name,
       JSON.stringify(payload),
       invitation.id,
     );
-    const submissionId = subRes.rows[0]?.id;
+    const submissionId = submissionResult.rows[0]?.id;
     if (!submissionId) {
       return NextResponse.json(
         { success: false, error: "Failed to create the promotion submission." },

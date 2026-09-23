@@ -25,8 +25,8 @@ export async function GET() {
       pendingUsers,
       grouped,
     });
-  } catch (e) {
-    console.error("API Error:", e.message);
+  } catch (error) {
+    console.error("API Error:", error.message);
     return NextResponse.json(
       { success: false, error: "errors.somethingWrong" },
       { status: 500 },

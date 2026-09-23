@@ -16,8 +16,8 @@ export async function GET(req, { params }) {
     const includeRemoved = new URL(req.url).searchParams.get("include_removed") === "1";
     const assignments = await listAssignments(db, id, { includeRemoved });
     return NextResponse.json({ success: true, assignments });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -45,13 +45,13 @@ export async function POST(req, { params }) {
 
     const scopeType = scope_type || "venture_wide";
     // Prevent exact duplicate rows (same person, responsibility and scope).
-    const dup = await db.execute({
+    const duplicate = await db.execute({
       sql: `SELECT 1 FROM venture_staff_assignments
             WHERE venture_id = ? AND staff_contact_id = ? AND responsibility_code = ?
               AND scope_type = ? AND COALESCE(scope_ref_id,'') = COALESCE(?, '') AND status = 'active'`,
       args: [id, staff_contact_id, responsibility_code, scopeType, scope_ref_id || ""],
     });
-    if (dup.rows?.length) {
+    if (duplicate.rows?.length) {
       return NextResponse.json({ success: false, error: "This staff member already has this assignment." }, { status: 409 });
     }
 
@@ -68,8 +68,8 @@ export async function POST(req, { params }) {
     if (result.error) return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     const assignments = await listAssignments(db, id);
     return NextResponse.json({ success: true, assignments });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -86,7 +86,7 @@ export async function PATCH(req, { params }) {
     await removeAssignment(db, { id: assignment_id });
     const assignments = await listAssignments(db, id);
     return NextResponse.json({ success: true, assignments });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

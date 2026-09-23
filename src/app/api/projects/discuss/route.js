@@ -68,15 +68,15 @@ export const POST = createHandler(async (req) => {
 
   // Notify all project members (except sender)
   try {
-    const membersRes = await getProjectMemberCids(project_id);
+    const membersResult = await getProjectMemberCids(project_id);
 
     // Also get project owner
-    const projectRes = await getProjectOwnerAndName(project_id);
+    const projectResult = await getProjectOwnerAndName(project_id);
 
-    const projectName = projectRes.rows[0]?.name || "a project";
+    const projectName = projectResult.rows[0]?.name || "a project";
     const notified = new Set();
 
-    const insertNotif = async (recipientId, title, message, type) => {
+    const insertNotification = async (recipientId, title, message, type) => {
       await createProjectDiscussionNotification(
         recipientId,
         title,
@@ -86,10 +86,10 @@ export const POST = createHandler(async (req) => {
     };
 
     // Notify project owner
-    const ownerId = projectRes.rows[0]?.owner_id;
+    const ownerId = projectResult.rows[0]?.owner_id;
     if (ownerId && ownerId !== sender_id) {
       notified.add(ownerId);
-      await insertNotif(
+      await insertNotification(
         ownerId,
         "New Discussion Message",
         `${sender_name || "Someone"} posted in "${projectName}"`,
@@ -98,11 +98,11 @@ export const POST = createHandler(async (req) => {
     }
 
     // Notify all members
-    for (const member of membersRes.rows) {
+    for (const member of membersResult.rows) {
       if (member.user_cid === sender_id) continue;
       if (notified.has(member.user_cid)) continue;
       notified.add(member.user_cid);
-      await insertNotif(
+      await insertNotification(
         member.user_cid,
         "New Discussion Message",
         `${sender_name || "Someone"} posted in "${projectName}"`,
@@ -120,12 +120,12 @@ export const POST = createHandler(async (req) => {
 
     if (mentionedNames.size > 0) {
       const namesArray = [...mentionedNames];
-      const mentionRes = await findContactsByNames(namesArray);
+      const mentionResult = await findContactsByNames(namesArray);
 
-      for (const mentioned of mentionRes.rows) {
+      for (const mentioned of mentionResult.rows) {
         if (notified.has(mentioned.cid)) continue;
         if (mentioned.cid === sender_id) continue;
-        await insertNotif(
+        await insertNotification(
           mentioned.cid,
           "Mention in Discussion",
           `${sender_name || "Someone"} mentioned you in "${projectName}"`,

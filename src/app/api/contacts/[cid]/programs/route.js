@@ -27,8 +27,8 @@ export async function GET(req, { params }) {
       );
     }
 
-    const contactRes = await getContactEmailForProgramHistory(cid);
-    const email = contactRes.rows[0]?.email || "";
+    const contactResult = await getContactEmailForProgramHistory(cid);
+    const email = contactResult.rows[0]?.email || "";
 
     const history = await getProgramHistory({ cid, email });
 

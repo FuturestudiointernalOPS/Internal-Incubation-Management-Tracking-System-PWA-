@@ -15,8 +15,8 @@ const PRIVILEGED = ["staff", "program_manager", "super_admin"];
 async function resolveVentureCode(idOrCode) {
   if (!idOrCode || (typeof idOrCode === "string" && !idOrCode.startsWith("VNT-") && idOrCode.includes("-"))) {
     try {
-      const r = await getVentureCodeByIdForTransition(idOrCode);
-      return r.rows?.[0]?.venture_id || idOrCode;
+      const ventureResult = await getVentureCodeByIdForTransition(idOrCode);
+      return ventureResult.rows?.[0]?.venture_id || idOrCode;
     } catch { return idOrCode; }
   }
   return idOrCode;
@@ -34,8 +34,8 @@ export async function PATCH(req, { params }) {
     const dbId = (await getVentureIdByCodeForTransitionStatus(id)).rows?.[0]?.id;
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const doc = await getDocumentForTransition(docId, dbId);
-    if (!doc.rows?.length) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const document = await getDocumentForTransition(docId, dbId);
+    if (!document.rows?.length) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
     // Founders/privileged only — not advisors, not team members.
     if (!PRIVILEGED.includes(session.role)) {
@@ -52,7 +52,7 @@ export async function PATCH(req, { params }) {
     await updateDocumentStatusForTransition(approval_status, docId, dbId);
 
     return NextResponse.json({ success: true });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

@@ -29,20 +29,20 @@ export async function GET() {
   if (authError) return authError;
 
   try {
-    const tpls = await listActivePlaybookTemplates();
+    const templatesResult = await listActivePlaybookTemplates();
     const templates = [];
-    for (const t of tpls.rows || []) {
-      const stages = await getPlaybookTemplateStages(t.id);
-      const stageIds = (stages.rows || []).map((s) => s.id);
+    for (const template of templatesResult.rows || []) {
+      const stages = await getPlaybookTemplateStages(template.id);
+      const stageIds = (stages.rows || []).map((stage) => stage.id);
       let milestones = [];
       if (stageIds.length > 0) {
         milestones = (await getPlaybookStageMilestones(stageIds)).rows || [];
       }
-      templates.push({ ...t, stages: stages.rows || [], milestones });
+      templates.push({ ...template, stages: stages.rows || [], milestones });
     }
     return NextResponse.json({ success: true, templates });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -77,7 +77,7 @@ export async function POST(req) {
       createdBy: session.cid,
     });
     return NextResponse.json(result);
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

@@ -17,10 +17,10 @@ export async function GET(_req) {
     await initDb();
     const authError = await requireAuth(READ_ROLES);
     if (authError) return authError;
-    const r = await listActiveVentureKpiDefinitions();
-    return NextResponse.json({ success: true, kpi_definitions: r.rows || [] });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+    const result = await listActiveVentureKpiDefinitions();
+    return NextResponse.json({ success: true, kpi_definitions: result.rows || [] });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -34,8 +34,8 @@ export async function POST(req) {
     if (!name) return NextResponse.json({ success: false, error: "name required" }, { status: 400 });
     await createVentureKpiDefinition(name, description, unit, auto_calc_source, formula, frequency, measurement_method, default_target, session?.cid);
     return NextResponse.json({ success: true });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -61,7 +61,7 @@ export async function PATCH(req) {
     args.push(id);
     await updateVentureKpiDefinition(updates, args);
     return NextResponse.json({ success: true });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

@@ -139,15 +139,15 @@ export async function POST(req) {
         expiresAt,
         emailSent: emailResult.success,
       });
-    } catch (e) {
-      console.error("Audit log error (non-critical):", e.message);
+    } catch (error) {
+      console.error("Audit log error (non-critical):", error.message);
     }
 
     // 6. Clear related notifications
     try {
       await markApprovalUserNotificationsRead(user.name);
-    } catch (e) {
-      console.error("Notification clear error (non-critical):", e.message);
+    } catch (error) {
+      console.error("Notification clear error (non-critical):", error.message);
     }
 
     return NextResponse.json({

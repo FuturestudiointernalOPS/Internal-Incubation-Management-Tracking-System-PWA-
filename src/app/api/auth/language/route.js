@@ -24,7 +24,7 @@ export async function PUT(req) {
       );
     await initDb();
     const { language } = await req.json();
-    const user_id = session.cid;
+    const userCid = session.cid;
 
     if (!language || !["en", "fr"].includes(language)) {
       return NextResponse.json(
@@ -35,7 +35,7 @@ export async function PUT(req) {
 
     // Update language in contacts table
     // Try cid first, then id
-    const result = await updateContactLanguage(language, user_id);
+    const result = await updateContactLanguage(language, userCid);
 
     if (result.rowsAffected === 0) {
       // User might be a team account — teams table doesn't have language column

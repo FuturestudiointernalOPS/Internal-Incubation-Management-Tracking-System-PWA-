@@ -57,17 +57,17 @@ export async function POST(req) {
         );
       }
 
-      const src = await getProgramSourceById(program_id);
-      if (src.rows.length === 0) {
+      const sourceResult = await getProgramSourceById(program_id);
+      if (sourceResult.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Program not found" },
           { status: 404 },
         );
       }
-      const p = src.rows[0];
+      const sourceProgram = sourceResult.rows[0];
 
       const templateId = uuidv4();
-      await saveProgramAsTemplate(templateId, template_name, p);
+      await saveProgramAsTemplate(templateId, template_name, sourceProgram);
 
       return NextResponse.json({ success: true, template_id: templateId });
     }
@@ -82,14 +82,14 @@ export async function POST(req) {
         );
       }
 
-      const tmpl = await getProgramTemplateById(template_id);
-      if (tmpl.rows.length === 0) {
+      const templateResult = await getProgramTemplateById(template_id);
+      if (templateResult.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Template not found" },
           { status: 404 },
         );
       }
-      const t = tmpl.rows[0];
+      const templateRow = templateResult.rows[0];
 
       // Prevent start date in the past
       if (start_date) {
@@ -110,7 +110,7 @@ export async function POST(req) {
         start_date,
         end_date,
         assigned_pm_id,
-        t,
+        templateRow,
       );
 
       // Auto-create the system-defined Facilitators group for this program

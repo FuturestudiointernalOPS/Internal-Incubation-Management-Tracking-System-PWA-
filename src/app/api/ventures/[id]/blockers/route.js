@@ -14,8 +14,8 @@ import {
 } from "@/models/ventureWorkspace";
 
 async function resolveVentureDbId(ventureId) {
-  const r = await getVentureDbIdForBlockers(ventureId);
-  return r.rows?.[0]?.id || null;
+  const ventureResult = await getVentureDbIdForBlockers(ventureId);
+  return ventureResult.rows?.[0]?.id || null;
 }
 
 
@@ -25,9 +25,9 @@ export async function GET(req, { params }) {
     const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
     if (access.error) return access.error;
     const dbId = await resolveVentureDbId(id); if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
-    const r = await listVentureBlockersWithCreators(dbId);
-    return NextResponse.json({ success: true, blockers: r.rows || [] });
-  } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
+    const blockersResult = await listVentureBlockersWithCreators(dbId);
+    return NextResponse.json({ success: true, blockers: blockersResult.rows || [] });
+  } catch(error) { return NextResponse.json({ success: false, error: error.message }, { status: 500 }); }
 }
 
 export async function POST(req, { params }) {
@@ -52,7 +52,7 @@ export async function POST(req, { params }) {
     try { await addSupportingUrlColumnToBlockers(); } catch {}
     await insertVentureBlocker({ task_id, title, description, venture_id: dbId, venture_retro_id, user_id: session.cid, user_name: contact.rows?.[0]?.name, supporting_url });
     return NextResponse.json({ success: true });
-  } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
+  } catch(error) { return NextResponse.json({ success: false, error: error.message }, { status: 500 }); }
 }
 
 export async function PATCH(req, { params }) {
@@ -64,13 +64,13 @@ export async function PATCH(req, { params }) {
     const dbId = await resolveVentureDbId(id); if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { blocker_id, action } = await req.json();
     if (action === "resolve") {
-      const b = await getVentureBlockerCreator(blocker_id, dbId);
-      if (!b.rows?.[0]) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-      if (b.rows[0].user_id !== session.cid && !["staff","super_admin","program_manager"].includes(session.role)) {
+      const blockerCreator = await getVentureBlockerCreator(blocker_id, dbId);
+      if (!blockerCreator.rows?.[0]) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+      if (blockerCreator.rows[0].user_id !== session.cid && !["staff","super_admin","program_manager"].includes(session.role)) {
         return NextResponse.json({ success: false, error: "Only the creator can resolve" }, { status: 403 });
       }
       await resolveVentureBlocker(blocker_id, session.cid);
     }
     return NextResponse.json({ success: true });
-  } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
+  } catch(error) { return NextResponse.json({ success: false, error: error.message }, { status: 500 }); }
 }

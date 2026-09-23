@@ -15,8 +15,8 @@ import {
 } from "@/models/ventureWorkspace";
 
 async function resolveVentureDbId(ventureId) {
-  const r = await getVentureDbIdForTasks(ventureId);
-  return r.rows?.[0]?.id || null;
+  const ventureResult = await getVentureDbIdForTasks(ventureId);
+  return ventureResult.rows?.[0]?.id || null;
 }
 
 /**
@@ -31,19 +31,19 @@ export const GET = createHandler(async (req, { params }) => {
   if (access.error) return access.error;
   const dbId = await resolveVentureDbId(id);
   if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
-  const s = new URL(req.url).searchParams;
-  const tasks = await listTasks(dbId, s.get("milestone_id"), s.get("status"), s.get("assigned_cid"));
+  const searchParams = new URL(req.url).searchParams;
+  const tasks = await listTasks(dbId, searchParams.get("milestone_id"), searchParams.get("status"), searchParams.get("assigned_cid"));
 
   // Archived (soft-deleted) tasks stay in the database (history is kept) but
   // are hidden from default lists. Row-level filter: environments whose
   // schema predates the is_archived column keep working (field is undefined).
-  const includeArchived = s.get("include_archived") === "1";
-  const visibleTasks = tasks.filter((t) => includeArchived || t.is_archived !== true);
+  const includeArchived = searchParams.get("include_archived") === "1";
+  const visibleTasks = tasks.filter((task) => includeArchived || task.is_archived !== true);
 
   // Group by status for Kanban (column vocabulary from lib/ventureStatuses)
   const byStatus = {};
   for (const status of TASK_BOARD_COLUMNS) {
-    byStatus[status] = visibleTasks.filter((t) => t.status === status);
+    byStatus[status] = visibleTasks.filter((task) => task.status === status);
   }
 
   return NextResponse.json({ success: true, tasks: visibleTasks, by_status: byStatus });
@@ -74,9 +74,9 @@ export const PATCH = createHandler(async (req, { params }) => {
   const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
   if (access.error) return access.error;
   const { session } = access;
-  const s = new URL(req.url).searchParams;
-  const taskId = s.get("id");
-  const action = s.get("action");
+  const searchParams = new URL(req.url).searchParams;
+  const taskId = searchParams.get("id");
+  const action = searchParams.get("action");
   const body = await req.json();
 
   if (!taskId) return NextResponse.json({ success: false, error: "Task ID required." }, { status: 400 });
@@ -133,11 +133,11 @@ export const PATCH = createHandler(async (req, { params }) => {
   const existingTask = await getTask(parseInt(taskId));
   if (!existingTask) return NextResponse.json({ success: false, error: "Task not found." }, { status: 404 });
   if (body.status && TASK_REVIEW_GATED_COMPLETION_STATUSES.includes(body.status) && existingTask.review_required) {
-    const subRes = await db.execute({
+    const submissionResult = await db.execute({
       sql: "SELECT 1 FROM venture_task_submissions WHERE task_id = ? AND review_decision = 'approved' ORDER BY version DESC LIMIT 1",
       args: [parseInt(taskId)],
     }).catch(() => ({ rows: [] }));
-    if (!(subRes.rows || []).length) {
+    if (!(submissionResult.rows || []).length) {
       return NextResponse.json({ success: false, error: "This task requires an approved submission before it can be completed." }, { status: 403 });
     }
   }
@@ -156,9 +156,9 @@ export const DELETE = createHandler(async (req, { params }) => {
 
   // Soft delete (archive): a task that already has filed work (submissions or
   // reviews) is part of the Venture's record and can never be removed.
-  const out = await archiveTask(db, { taskId, actorCid: session.cid || null });
-  if (out?.error) {
-    return NextResponse.json({ success: false, error: out.error }, { status: 409 });
+  const archiveResult = await archiveTask(db, { taskId, actorCid: session.cid || null });
+  if (archiveResult?.error) {
+    return NextResponse.json({ success: false, error: archiveResult.error }, { status: 409 });
   }
   return NextResponse.json({ success: true, archived: true });
 });

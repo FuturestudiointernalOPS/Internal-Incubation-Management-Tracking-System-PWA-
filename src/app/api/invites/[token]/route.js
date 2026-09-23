@@ -49,8 +49,8 @@ export async function GET(req, { params }) {
         expires_at: row.expires_at,
       },
     });
-  } catch (e) {
-    console.error("Invite GET error:", e);
+  } catch (error) {
+    console.error("Invite GET error:", error);
     return NextResponse.json({ error: "Failed to validate invite." }, { status: 500 });
   }
 }
@@ -83,8 +83,8 @@ export async function POST(req, { params }) {
     }
 
     // Look up contact details from contacts table
-    const contactRes = await getContactProfileByCid(contactCid);
-    const contact = contactRes.rows[0] || {};
+    const contactResult = await getContactProfileByCid(contactCid);
+    const contact = contactResult.rows[0] || {};
     const contactEmail = (email || contact.email || "").trim().toLowerCase();
     const contactName = (name || contact.name || "").trim();
     const contactRole = contact.role || "participant";
@@ -93,9 +93,9 @@ export async function POST(req, { params }) {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // Check if contact already exists
-    const existCheck = await findContactByEmail(contactEmail);
+    const existingContactResult = await findContactByEmail(contactEmail);
 
-    if (existCheck.rows.length > 0) {
+    if (existingContactResult.rows.length > 0) {
       // Update existing contact with password + program_id
       await activateContactWithPassword(hashedPassword, contactName, contactEmail);
     } else {
@@ -126,8 +126,8 @@ export async function POST(req, { params }) {
         );
         if (conflictError) return conflictError;
         await addActiveProgramEnrollment(contactCid, contact.program_id);
-      } catch (e) {
-        console.warn("Failed to add participant to program:", e.message);
+      } catch (error) {
+        console.warn("Failed to add participant to program:", error.message);
       }
     }
 
@@ -136,8 +136,8 @@ export async function POST(req, { params }) {
       message: "Registration complete. You can now login.",
       user: { cid: contactCid, name: contactName, email: contactEmail, role: contactRole },
     });
-  } catch (e) {
-    console.error("Invite POST error:", e);
-    return NextResponse.json({ error: "Registration failed. " + (e.message || "") }, { status: 500 });
+  } catch (error) {
+    console.error("Invite POST error:", error);
+    return NextResponse.json({ error: "Registration failed. " + (error.message || "") }, { status: 500 });
   }
 }

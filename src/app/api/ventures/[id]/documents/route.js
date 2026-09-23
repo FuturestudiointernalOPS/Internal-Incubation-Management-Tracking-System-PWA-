@@ -17,16 +17,16 @@ const ALLOWED = ["participant","founder","staff","program_manager","super_admin"
 const PRIVILEGED = ["staff","program_manager","super_admin"];
 
 async function resolveVentureDbId(ventureId) {
-  const r = await getVentureIdByCode(ventureId);
-  return r.rows?.[0]?.id || null;
+  const ventureResult = await getVentureIdByCode(ventureId);
+  return ventureResult.rows?.[0]?.id || null;
 }
 
 // venture_members stores venture_id as the VNT code (TEXT) — resolve the code from a UUID if needed
 async function resolveVentureCode(idOrCode) {
   if (!idOrCode || (typeof idOrCode === "string" && !idOrCode.startsWith("VNT-") && idOrCode.includes("-"))) {
     try {
-      const r = await getVentureCodeById(idOrCode);
-      return r.rows?.[0]?.venture_id || idOrCode;
+      const ventureResult = await getVentureCodeById(idOrCode);
+      return ventureResult.rows?.[0]?.venture_id || idOrCode;
     } catch { return idOrCode; }
   }
   return idOrCode;
@@ -54,35 +54,35 @@ export async function GET(req, { params }) {
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
-    const s = new URL(req.url).searchParams;
-    const type = s.get("type") || "list";
+    const searchParams = new URL(req.url).searchParams;
+    const type = searchParams.get("type") || "list";
     const visibility = await getVisibilityStatuses(dbId, session);
     if (type === "list") {
-      const docs = await listDocuments(dbId, {
-        category: s.get("category"), isPitchDeck: s.get("pitch_deck") === "true" ? true : s.get("pitch_deck") === "false" ? false : undefined,
-        search: s.get("search"), visibility,
+      const documentList = await listDocuments(dbId, {
+        category: searchParams.get("category"), isPitchDeck: searchParams.get("pitch_deck") === "true" ? true : searchParams.get("pitch_deck") === "false" ? false : undefined,
+        search: searchParams.get("search"), visibility,
       });
-      return NextResponse.json({ success: true, documents: docs });
+      return NextResponse.json({ success: true, documents: documentList });
     }
-    if (type === "detail" && s.get("document_id")) {
-      const doc = await getDocument(s.get("document_id"));
-      if (!doc) return NextResponse.json({ success: false, error: "Document not found." }, { status: 404 });
+    if (type === "detail" && searchParams.get("document_id")) {
+      const document = await getDocument(searchParams.get("document_id"));
+      if (!document) return NextResponse.json({ success: false, error: "Document not found." }, { status: 404 });
       // Block access to private docs for non-privileged users
-      if (visibility !== null && !visibility.includes(doc.approval_status)) {
+      if (visibility !== null && !visibility.includes(document.approval_status)) {
         return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
       }
-      return NextResponse.json({ success: true, document: doc });
+      return NextResponse.json({ success: true, document });
     }
-    if (type === "shares" && s.get("document_id")) {
-      const shares = await getDocumentShares(s.get("document_id"));
+    if (type === "shares" && searchParams.get("document_id")) {
+      const shares = await getDocumentShares(searchParams.get("document_id"));
       return NextResponse.json({ success: true, shares });
     }
-    if (type === "access_logs" && s.get("document_id")) {
-      const logs = await getAccessLogs(s.get("document_id"));
+    if (type === "access_logs" && searchParams.get("document_id")) {
+      const logs = await getAccessLogs(searchParams.get("document_id"));
       return NextResponse.json({ success: true, logs });
     }
     return NextResponse.json({ success: false, error: "Invalid type." }, { status: 400 });
-  } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
+  } catch(error) { return NextResponse.json({ success: false, error: error.message }, { status: 500 }); }
 }
 
 export async function POST(req, { params }) {
@@ -141,5 +141,5 @@ export async function POST(req, { params }) {
       return NextResponse.json({ success: true });
     }
     return NextResponse.json({ success: false, error: "Invalid action." }, { status: 400 });
-  } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
+  } catch(error) { return NextResponse.json({ success: false, error: error.message }, { status: 500 }); }
 }

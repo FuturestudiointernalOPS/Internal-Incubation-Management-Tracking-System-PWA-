@@ -63,20 +63,20 @@ export async function POST(req, { params }) {
     } catch (_) {}
 
     return NextResponse.json({ success: true, ...result });
-  } catch (e) {
-    const msg = String((e && e.message) || e || "Unknown error");
+  } catch (error) {
+    const errorMessage = String((error && error.message) || error || "Unknown error");
     // Environments whose Venture schema was never migrated return raw Postgres
     // "relation/column does not exist" text — surface a short, actionable
     // message instead of the raw engine error.
-    const missingSchema = /does not exist|undefined column|relation .* does not exist/i.test(msg);
+    const missingSchema = /does not exist|undefined column|relation .* does not exist/i.test(errorMessage);
     return NextResponse.json(
       {
         success: false,
         error: missingSchema
           ? "Journey data is not fully set up in this database yet — retry once (the app self-heals the schema) and contact an admin if it persists."
-          : msg.length > 240
-            ? `${msg.slice(0, 240)}…`
-            : msg,
+          : errorMessage.length > 240
+            ? `${errorMessage.slice(0, 240)}…`
+            : errorMessage,
       },
       { status: 500 },
     );

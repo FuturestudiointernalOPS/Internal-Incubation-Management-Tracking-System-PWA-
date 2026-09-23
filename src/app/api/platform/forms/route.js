@@ -132,12 +132,12 @@ export async function POST(req) {
         return NextResponse.json({ success: false, error: "Form not found" }, { status: 404 });
       }
 
-      const f = form.rows[0];
-      const newVersion = (f.version || 1) + 1;
+      const currentForm = form.rows[0];
+      const newVersion = (currentForm.version || 1) + 1;
       const snapshot = {
         fields: body.fields,
         sections: body.sections,
-        settings: f.settings,
+        settings: currentForm.settings,
         publishedAt: new Date().toISOString(),
         evaluation_framework: body.evaluation_framework || null,
       };

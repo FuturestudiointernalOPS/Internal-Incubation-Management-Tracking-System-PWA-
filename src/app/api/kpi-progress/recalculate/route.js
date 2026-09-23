@@ -15,7 +15,7 @@ export const POST = createHandler(
     const overallProgress =
       entries.length > 0
         ? Math.round(
-            entries.reduce((sum, e) => sum + (e.progress || 0), 0) /
+            entries.reduce((sum, entry) => sum + (entry.progress || 0), 0) /
               entries.length,
           )
         : 0;

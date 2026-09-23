@@ -81,14 +81,14 @@ export const PATCH = createHandler(async (req, { params }) => {
     // Phase 5c — capability is not enough: the venture must be THEIRS.
     {
       const session = await getSession();
-      const ctx = await getAuthorizationContext(session);
-      if (!ctx?.isSuperAdmin) {
+      const authzContext = await getAuthorizationContext(session);
+      if (!authzContext?.isSuperAdmin) {
         const scopeId = await resolveVentureScopeId(id);
         const within =
           Boolean(scopeId) &&
           (await isWithinScope("venture_own", session?.cid, scopeId));
         if (!within) {
-          const res = NextResponse.json(
+          const response = NextResponse.json(
             {
               success: false,
               error: "errors.insufficientPermissions",
@@ -96,8 +96,8 @@ export const PATCH = createHandler(async (req, { params }) => {
             },
             { status: 403 },
           );
-          res.headers.set("X-Authz-Decision", "out-of-scope");
-          return res;
+          response.headers.set("X-Authz-Decision", "out-of-scope");
+          return response;
         }
       }
     }
@@ -141,7 +141,7 @@ export const PATCH = createHandler(async (req, { params }) => {
 
     // Log activity
     const changedFields = Object.keys(body).filter(
-      (k) => body[k] !== undefined && k !== "session",
+      (field) => body[field] !== undefined && field !== "session",
     );
     if (changedFields.length > 0) {
       await logVentureActivity({

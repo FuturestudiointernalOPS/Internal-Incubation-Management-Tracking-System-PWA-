@@ -11,8 +11,8 @@ const ROLES = ["participant","founder","staff","program_manager","super_admin"];
 const ALLOWED = ["participant","founder","staff","program_manager","super_admin"];
 
 async function resolveVentureDbId(ventureId) {
-  const r = await getVentureIdByCodeForAdvisors(ventureId);
-  return r.rows?.[0]?.id || null;
+  const ventureResult = await getVentureIdByCodeForAdvisors(ventureId);
+  return ventureResult.rows?.[0]?.id || null;
 }
 
 export async function GET(req, { params }) {
@@ -21,9 +21,9 @@ export async function GET(req, { params }) {
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
-    const r = await listVentureAdvisors(dbId);
-    return NextResponse.json({ success: true, advisors: r.rows || [] });
-  } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
+    const advisorsResult = await listVentureAdvisors(dbId);
+    return NextResponse.json({ success: true, advisors: advisorsResult.rows || [] });
+  } catch(error) { return NextResponse.json({ success: false, error: error.message }, { status: 500 }); }
 }
 
 export async function POST(req, { params }) {
@@ -36,7 +36,7 @@ export async function POST(req, { params }) {
     if (!advisor_contact_id) return NextResponse.json({ success: false, error: "advisor_contact_id required" }, { status: 400 });
     await upsertVentureAdvisor({ venture_id: dbId, advisor_contact_id, is_primary, assigned_by: session.cid });
     return NextResponse.json({ success: true });
-  } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
+  } catch(error) { return NextResponse.json({ success: false, error: error.message }, { status: 500 }); }
 }
 
 export async function PATCH(req, { params }) {
@@ -54,5 +54,5 @@ export async function PATCH(req, { params }) {
       await setVenturePrimaryAdvisor(advisor_id, dbId);
     }
     return NextResponse.json({ success: true });
-  } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
+  } catch(error) { return NextResponse.json({ success: false, error: error.message }, { status: 500 }); }
 }

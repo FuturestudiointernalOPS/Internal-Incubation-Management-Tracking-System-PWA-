@@ -10,8 +10,8 @@ import {
 
 
 async function resolveVentureDbId(ventureId) {
-  const r = await getValidationsVentureId(ventureId);
-  return r.rows?.[0]?.id || null;
+  const ventureResult = await getValidationsVentureId(ventureId);
+  return ventureResult.rows?.[0]?.id || null;
 }
 
 export async function GET(req, { params }) {
@@ -26,10 +26,10 @@ export async function GET(req, { params }) {
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const r = await getVentureValidations(dbId);
-    return NextResponse.json({ success: true, validations: r.rows || [] });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+    const validationsResult = await getVentureValidations(dbId);
+    return NextResponse.json({ success: true, validations: validationsResult.rows || [] });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -54,8 +54,8 @@ export async function POST(req, { params }) {
     }
     await createVentureValidation(dbId, validation_type, status || "in_progress", notes || null, session.cid);
     return NextResponse.json({ success: true });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
@@ -86,7 +86,7 @@ export async function PATCH(req, { params }) {
     args.push(validation_id, dbId);
     await updateVentureValidationFields(updates, args);
     return NextResponse.json({ success: true });
-  } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

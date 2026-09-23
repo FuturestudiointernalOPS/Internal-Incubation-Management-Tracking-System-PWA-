@@ -53,8 +53,8 @@ export const GET = createHandler(async (req, { params }) => {
     return NextResponse.json({ success: false, error: "This operation requires staff access to the Venture." }, { status: 403 });
   }
 
-  const ventureRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
-  const dbId = ventureRes.rows?.[0]?.id;
+  const ventureResult = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+  const dbId = ventureResult.rows?.[0]?.id;
   if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
   // Scope the queue to the actor's assignment scopes. scopedTaskIds === null
@@ -67,20 +67,20 @@ export const GET = createHandler(async (req, { params }) => {
       const contexts = await listTaskScopeContexts(db, { ventureDbId: dbId });
       if (contexts) {
         scopedTaskIds = contexts
-          .filter((t) => isTaskInScope(scopes, t))
-          .map((t) => String(t.id));
+          .filter((task) => isTaskInScope(scopes, task))
+          .map((task) => String(task.id));
       }
       // contexts === null (read error) → keep the full queue (reads allow).
     }
   }
 
   const restricted = scopedTaskIds !== null;
-  const r = await db.execute({
+  const queueResult = await db.execute({
     sql: restricted ? QUEUE_SQL_NO_LIMIT : FULL_QUEUE_SQL,
     args: [dbId],
   }).catch(() => ({ rows: [] }));
 
-  let items = r.rows || [];
+  let items = queueResult.rows || [];
   if (restricted) {
     items = items
       .filter((row) => scopedTaskIds.includes(String(row.task_id)))

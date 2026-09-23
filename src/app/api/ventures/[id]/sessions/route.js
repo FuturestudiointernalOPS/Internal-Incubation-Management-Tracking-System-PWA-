@@ -19,32 +19,32 @@ import { signSessionMaterials } from "@/lib/ventureEvidence";
 // Venture-facing session changes notify founders (in-app + email). Sessions
 // created before the venture_facing flag existed (NULL) are treated as
 // internal and never email founders.
-async function emailVentureAboutSession(ventureParam, sess, { inAppTitle, inAppMsg, subject, lines, templateKey = null, params = null, dedupeKey = null }) {
+async function emailVentureAboutSession(ventureParam, sessionRecord, { inAppTitle, inAppMsg, subject, lines, templateKey = null, params = null, dedupeKey = null }) {
   try {
-    if (!sess || sess.venture_facing !== true) return;
+    if (!sessionRecord || sessionRecord.venture_facing !== true) return;
     const { notifyAndEmailVentureFounders } = await import("@/lib/ventureNotify");
-    const dbIdRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureParam] });
-    const dbId = dbIdRes.rows?.[0]?.id;
+    const ventureDbIdResult = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureParam] });
+    const dbId = ventureDbIdResult.rows?.[0]?.id;
     if (!dbId) return;
     await notifyAndEmailVentureFounders(db, {
       dbId, title: inAppTitle, message: inAppMsg, emailSubject: subject, emailLines: lines,
       context: {
-        journey_stage_id: sess.journey_stage_id || null,
-        milestone_id: sess.milestone_ref || null,
-        session_id: sess.id || null,
+        journey_stage_id: sessionRecord.journey_stage_id || null,
+        milestone_id: sessionRecord.milestone_ref || null,
+        session_id: sessionRecord.id || null,
       },
       templateKey, params, dedupeKey,
     });
     // Coach delivery (Phase 1): the platform user attached as coach gets the
     // same event in-app + by email (Future Studio staff or invited external).
-    if (sess.coach_contact_id) {
+    if (sessionRecord.coach_contact_id) {
       await notifyVentureCoach(db, {
-        dbId, coachContactId: sess.coach_contact_id,
+        dbId, coachContactId: sessionRecord.coach_contact_id,
         title: inAppTitle, message: inAppMsg, emailSubject: subject, emailLines: lines,
         context: {
-          journey_stage_id: sess.journey_stage_id || null,
-          milestone_id: sess.milestone_ref || null,
-          session_id: sess.id || null,
+          journey_stage_id: sessionRecord.journey_stage_id || null,
+          milestone_id: sessionRecord.milestone_ref || null,
+          session_id: sessionRecord.id || null,
         },
         templateKey, params, dedupeKey: dedupeKey ? `${dedupeKey}:coach` : null,
       });
@@ -60,10 +60,10 @@ export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
   const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
   if (access.error) return access.error;
-  const s = new URL(req.url).searchParams;
+  const searchParams = new URL(req.url).searchParams;
   const sessions = await listSessions(id, {
-    startDate: s.get("start_date"), endDate: s.get("end_date"),
-    status: s.get("status"), coachId: s.get("coach_id"), limit: s.get("limit"),
+    startDate: searchParams.get("start_date"), endDate: searchParams.get("end_date"),
+    status: searchParams.get("status"), coachId: searchParams.get("coach_id"), limit: searchParams.get("limit"),
   });
   // Session materials are private: the row stores storage paths and a viewer who
   // already passed this gate gets short-lived signed URLs — the same rule as
@@ -179,10 +179,10 @@ export const POST = createHandler(async (req, { params }) => {
       if (denied) return denied;
 
       if (!staffActor) {
-        const vRow = await db
+        const ventureLookup = await db
           .execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] })
           .catch(() => ({ rows: [] }));
-        const ventureDbId = vRow.rows?.[0]?.id || null;
+        const ventureDbId = ventureLookup.rows?.[0]?.id || null;
         const bookable = ventureDbId
           ? await assertBookableMilestone(db, { dbId: ventureDbId, milestoneId: milestoneRef })
           : { ok: false, reason: "This Venture could not be resolved, so the session was not booked." };
@@ -193,8 +193,8 @@ export const POST = createHandler(async (req, { params }) => {
       // Optional: attach the session to one of the milestone's deliverables.
       let deliverableId = body.deliverable_id ? String(body.deliverable_id) : null;
       if (deliverableId) {
-        const dv = await getDeliverable(deliverableId).catch(() => null);
-        if (!dv || String(dv.milestone_id) !== milestoneRef) {
+        const deliverable = await getDeliverable(deliverableId).catch(() => null);
+        if (!deliverable || String(deliverable.milestone_id) !== milestoneRef) {
           return NextResponse.json({ success: false, error: "Unknown deliverable for this milestone." }, { status: 400 });
         }
       }
@@ -206,7 +206,7 @@ export const POST = createHandler(async (req, { params }) => {
         resolvedCoach = await resolveCoachContact(db, { coachId: parseInt(body.coach_id) });
         if (resolvedCoach) coachContactId = resolvedCoach.cid;
       }
-      const r = await createSession({
+      const createdSession = await createSession({
         ventureId: id, title: body.title, description: sessionNote,
         sessionType: body.session_type, coachId: body.coach_id, coachName: body.coach_name || resolvedCoach?.name || null,
         founderCid: body.founder_cid, founderName: body.founder_name,
@@ -234,8 +234,8 @@ export const POST = createHandler(async (req, { params }) => {
       // platform tells them (in-app + email), regardless of venture_facing.
       if (coachContactId) {
         try {
-          const dbIdRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] });
-          const dbId = dbIdRes.rows?.[0]?.id;
+          const ventureDbIdResult = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] });
+          const dbId = ventureDbIdResult.rows?.[0]?.id;
           if (dbId) {
             const when = body.start_time ? new Date(body.start_time).toLocaleString() : "";
             await notifyVentureCoach(db, {
@@ -254,11 +254,11 @@ export const POST = createHandler(async (req, { params }) => {
               context: {
                 journey_stage_id: body.journey_stage_id || null,
                 milestone_id: body.milestone_ref ? String(body.milestone_ref) : null,
-                session_id: r.id || null,
+                session_id: createdSession.id || null,
               },
               templateKey: "venture.notif.sessionScheduled",
               params: { title: body.title, when: when ? ` for ${when}` : "", memo: sessionNote },
-              dedupeKey: `session-scheduled:${r.id || ""}:coach`,
+              dedupeKey: `session-scheduled:${createdSession.id || ""}:coach`,
             });
           }
         } catch (_) {}
@@ -267,8 +267,8 @@ export const POST = createHandler(async (req, { params }) => {
       if (body.venture_facing === true) {
         try {
           const { notifyAndEmailVentureFounders } = await import("@/lib/ventureNotify");
-          const dbIdRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
-          const dbId = dbIdRes.rows?.[0]?.id;
+          const ventureDbIdResult = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+          const dbId = ventureDbIdResult.rows?.[0]?.id;
           if (dbId) {
             const when = body.start_time ? new Date(body.start_time).toLocaleString() : "";
             await notifyAndEmailVentureFounders(db, {
@@ -287,11 +287,11 @@ export const POST = createHandler(async (req, { params }) => {
               context: {
                 journey_stage_id: body.journey_stage_id || null,
                 milestone_id: body.milestone_ref ? String(body.milestone_ref) : null,
-                session_id: r.id || null,
+                session_id: createdSession.id || null,
               },
               templateKey: "venture.notif.sessionScheduled",
               params: { title: body.title, when: when ? ` for ${when}` : "", memo: sessionNote },
-              dedupeKey: `session-scheduled:${r.id || ""}`,
+              dedupeKey: `session-scheduled:${createdSession.id || ""}`,
             });
           }
         } catch (_) {}
@@ -301,9 +301,9 @@ export const POST = createHandler(async (req, { params }) => {
       // venture_facing. The creator and an LM who is also the coach are left
       // out (they got the coach wording above).
       try {
-        const lmV = await db.execute({ sql: "SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] });
-        const dbId = lmV.rows?.[0]?.id;
-        const ventureCode = lmV.rows?.[0]?.venture_id || id;
+        const leadManagerVenture = await db.execute({ sql: "SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] });
+        const dbId = leadManagerVenture.rows?.[0]?.id;
+        const ventureCode = leadManagerVenture.rows?.[0]?.venture_id || id;
         if (dbId) {
           const when = body.start_time ? new Date(body.start_time).toLocaleString() : "";
           await notifyVentureLeadManagers(db, {
@@ -321,17 +321,17 @@ export const POST = createHandler(async (req, { params }) => {
             context: {
               journey_stage_id: body.journey_stage_id || null,
               milestone_id: body.milestone_ref ? String(body.milestone_ref) : null,
-              session_id: r.id || null,
+              session_id: createdSession.id || null,
             },
             templateKey: "venture.notif.sessionScheduled",
             params: { title: body.title, when: when ? ` for ${when}` : "", memo: sessionNote },
-            dedupeKey: `session-scheduled:${r.id}`,
+            dedupeKey: `session-scheduled:${createdSession.id}`,
             excludeCids: [req.session?.cid, coachContactId].filter(Boolean),
           });
         }
       } catch (_) {}
-      return NextResponse.json({ success: true, session_id: r.id });
-    } catch (e) { return NextResponse.json({ success: false, error: e.message }, { status: 400 }); }
+      return NextResponse.json({ success: true, session_id: createdSession.id });
+    } catch (error) { return NextResponse.json({ success: false, error: error.message }, { status: 400 }); }
   }
 
   if (action === "update_session") {
@@ -340,28 +340,28 @@ export const POST = createHandler(async (req, { params }) => {
     try {
       const before = await getSession(parseInt(body.session_id));
       await updateSession(parseInt(body.session_id), body.updates);
-      const sess = await getSession(parseInt(body.session_id));
-      if (before && sess) {
-        const changed = (["start_time", "end_time", "meeting_link", "location"]).some((k) => body.updates && body.updates[k] !== undefined && String(body.updates[k]) !== String(before[k]));
+      const session = await getSession(parseInt(body.session_id));
+      if (before && session) {
+        const changed = (["start_time", "end_time", "meeting_link", "location"]).some((field) => body.updates && body.updates[field] !== undefined && String(body.updates[field]) !== String(before[field]));
         if (changed) {
-          await emailVentureAboutSession(id, sess, {
+          await emailVentureAboutSession(id, session, {
             inAppTitle: "Session updated",
-            inAppMsg: `Session "${sess.title}" has been updated.`,
+            inAppMsg: `Session "${session.title}" has been updated.`,
             subject: "Your Venture session was updated",
             lines: [
-              `Session "${sess.title}" has been updated.`,
-              sess.start_time ? `New time: ${fmtWhen(sess.start_time)}` : "",
-              sess.meeting_link ? `Meeting link: ${sess.meeting_link}` : "",
+              `Session "${session.title}" has been updated.`,
+              session.start_time ? `New time: ${fmtWhen(session.start_time)}` : "",
+              session.meeting_link ? `Meeting link: ${session.meeting_link}` : "",
               "Log in to ImpactOS to see the details.",
             ].filter(Boolean),
             templateKey: "venture.notif.sessionUpdated",
-            params: { title: sess.title },
-            dedupeKey: `session-updated:${sess.id}`,
+            params: { title: session.title },
+            dedupeKey: `session-updated:${session.id}`,
           });
         }
       }
-      return NextResponse.json({ success: true, session: sess });
-    } catch (e) { return NextResponse.json({ success: false, error: e.message }, { status: 400 }); }
+      return NextResponse.json({ success: true, session });
+    } catch (error) { return NextResponse.json({ success: false, error: error.message }, { status: 400 }); }
   }
 
   // ── The memo, edited in place ────────────────────────────────────────────
@@ -379,8 +379,8 @@ export const POST = createHandler(async (req, { params }) => {
     if (!note) {
       return NextResponse.json({ success: false, error: "A memo is required." }, { status: 400 });
     }
-    const sess = await getSession(sessionId);
-    if (!sess) return NextResponse.json({ success: false, error: "Session not found." }, { status: 404 });
+    const session = await getSession(sessionId);
+    if (!session) return NextResponse.json({ success: false, error: "Session not found." }, { status: 404 });
     await updateSession(sessionId, { description: note });
     return NextResponse.json({ success: true });
   }
@@ -388,48 +388,48 @@ export const POST = createHandler(async (req, { params }) => {
   if (action === "cancel_session") {
     const denied = await deniedSessionManagement();
     if (denied) return denied;
-    const sess = await getSession(parseInt(body.session_id));
+    const session = await getSession(parseInt(body.session_id));
     await cancelSession(parseInt(body.session_id));
-    if (sess) {
-      await emailVentureAboutSession(id, sess, {
+    if (session) {
+      await emailVentureAboutSession(id, session, {
         inAppTitle: "Session cancelled",
-        inAppMsg: `Session "${sess.title}" has been cancelled.`,
+        inAppMsg: `Session "${session.title}" has been cancelled.`,
         subject: "Your Venture session was cancelled",
         lines: [
-          `Session "${sess.title}" has been cancelled.`,
-          sess.start_time ? `Was scheduled for: ${fmtWhen(sess.start_time)}` : "",
+          `Session "${session.title}" has been cancelled.`,
+          session.start_time ? `Was scheduled for: ${fmtWhen(session.start_time)}` : "",
           "Log in to ImpactOS to see your updated calendar.",
         ].filter(Boolean),
         templateKey: "venture.notif.sessionCancelled",
-        params: { title: sess.title },
-        dedupeKey: `session-cancelled:${sess.id}`,
+        params: { title: session.title },
+        dedupeKey: `session-cancelled:${session.id}`,
       });
       // Lead Manager delivery (A8): same event for the Venture's active Lead
       // Managers (in-app + email), minus the actor and the session coach.
       try {
-        const lmV = await db.execute({ sql: "SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] });
-        const dbId = lmV.rows?.[0]?.id;
-        const ventureCode = lmV.rows?.[0]?.venture_id || id;
+        const leadManagerVenture = await db.execute({ sql: "SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] });
+        const dbId = leadManagerVenture.rows?.[0]?.id;
+        const ventureCode = leadManagerVenture.rows?.[0]?.venture_id || id;
         if (dbId) {
           await notifyVentureLeadManagers(db, {
             dbId, ventureCode,
             title: "Session cancelled",
-            message: `Venture session "${sess.title}" has been cancelled${sess.start_time ? ` (was ${fmtWhen(sess.start_time)})` : ""}.`,
+            message: `Venture session "${session.title}" has been cancelled${session.start_time ? ` (was ${fmtWhen(session.start_time)})` : ""}.`,
             emailSubject: "Your Venture session was cancelled",
             emailLines: [
-              `Session "${sess.title}" has been cancelled.`,
-              sess.start_time ? `Was scheduled for: ${fmtWhen(sess.start_time)}` : "",
+              `Session "${session.title}" has been cancelled.`,
+              session.start_time ? `Was scheduled for: ${fmtWhen(session.start_time)}` : "",
               "Log in to ImpactOS to see your updated calendar.",
             ].filter(Boolean),
             context: {
-              journey_stage_id: sess.journey_stage_id || null,
-              milestone_id: sess.milestone_ref || null,
-              session_id: sess.id || null,
+              journey_stage_id: session.journey_stage_id || null,
+              milestone_id: session.milestone_ref || null,
+              session_id: session.id || null,
             },
             templateKey: "venture.notif.sessionCancelled",
-            params: { title: sess.title },
-            dedupeKey: `session-cancelled:${sess.id}`,
-            excludeCids: [req.session?.cid, sess.coach_contact_id].filter(Boolean),
+            params: { title: session.title },
+            dedupeKey: `session-cancelled:${session.id}`,
+            excludeCids: [req.session?.cid, session.coach_contact_id].filter(Boolean),
           });
         }
       } catch (_) {}
@@ -442,55 +442,55 @@ export const POST = createHandler(async (req, { params }) => {
     if (denied) return denied;
     try {
       await rescheduleSession(parseInt(body.session_id), body.start_time, body.end_time);
-      const sess = await getSession(parseInt(body.session_id));
-      if (sess) {
-        await emailVentureAboutSession(id, sess, {
+      const session = await getSession(parseInt(body.session_id));
+      if (session) {
+        await emailVentureAboutSession(id, session, {
           inAppTitle: "Session rescheduled",
-          inAppMsg: `Session "${sess.title}" has been rescheduled${sess.start_time ? ` to ${fmtWhen(sess.start_time)}` : ""}.`,
+          inAppMsg: `Session "${session.title}" has been rescheduled${session.start_time ? ` to ${fmtWhen(session.start_time)}` : ""}.`,
           subject: "Your Venture session was rescheduled",
           lines: [
-            `Session "${sess.title}" has been rescheduled.`,
-            sess.start_time ? `New time: ${fmtWhen(sess.start_time)}` : "",
-            sess.meeting_link ? `Meeting link: ${sess.meeting_link}` : "",
+            `Session "${session.title}" has been rescheduled.`,
+            session.start_time ? `New time: ${fmtWhen(session.start_time)}` : "",
+            session.meeting_link ? `Meeting link: ${session.meeting_link}` : "",
             "Log in to ImpactOS to see the details.",
           ].filter(Boolean),
           templateKey: "venture.notif.sessionRescheduled",
-          params: { title: sess.title },
-          dedupeKey: `session-rescheduled:${sess.id}`,
+          params: { title: session.title },
+          dedupeKey: `session-rescheduled:${session.id}`,
         });
         // Lead Manager delivery (A8): same event for the Venture's active Lead
         // Managers (in-app + email), minus the actor and the session coach.
         try {
-          const lmV = await db.execute({ sql: "SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] });
-          const dbId = lmV.rows?.[0]?.id;
-          const ventureCode = lmV.rows?.[0]?.venture_id || id;
+          const leadManagerVenture = await db.execute({ sql: "SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] });
+          const dbId = leadManagerVenture.rows?.[0]?.id;
+          const ventureCode = leadManagerVenture.rows?.[0]?.venture_id || id;
           if (dbId) {
             await notifyVentureLeadManagers(db, {
               dbId, ventureCode,
               title: "Session rescheduled",
-              message: `Venture session "${sess.title}" has been rescheduled${sess.start_time ? ` to ${fmtWhen(sess.start_time)}` : ""}.`,
+              message: `Venture session "${session.title}" has been rescheduled${session.start_time ? ` to ${fmtWhen(session.start_time)}` : ""}.`,
               emailSubject: "Your Venture session was rescheduled",
               emailLines: [
-                `Session "${sess.title}" has been rescheduled.`,
-                sess.start_time ? `New time: ${fmtWhen(sess.start_time)}` : "",
-                sess.meeting_link ? `Meeting link: ${sess.meeting_link}` : "",
+                `Session "${session.title}" has been rescheduled.`,
+                session.start_time ? `New time: ${fmtWhen(session.start_time)}` : "",
+                session.meeting_link ? `Meeting link: ${session.meeting_link}` : "",
                 "Log in to ImpactOS to see the details.",
               ].filter(Boolean),
               context: {
-                journey_stage_id: sess.journey_stage_id || null,
-                milestone_id: sess.milestone_ref || null,
-                session_id: sess.id || null,
+                journey_stage_id: session.journey_stage_id || null,
+                milestone_id: session.milestone_ref || null,
+                session_id: session.id || null,
               },
               templateKey: "venture.notif.sessionRescheduled",
-              params: { title: sess.title },
-              dedupeKey: `session-rescheduled:${sess.id}`,
-              excludeCids: [req.session?.cid, sess.coach_contact_id].filter(Boolean),
+              params: { title: session.title },
+              dedupeKey: `session-rescheduled:${session.id}`,
+              excludeCids: [req.session?.cid, session.coach_contact_id].filter(Boolean),
             });
           }
         } catch (_) {}
       }
       return NextResponse.json({ success: true });
-    } catch (e) { return NextResponse.json({ success: false, error: e.message }, { status: 400 }); }
+    } catch (error) { return NextResponse.json({ success: false, error: error.message }, { status: 400 }); }
   }
 
   if (action === "delete_session") {
@@ -501,14 +501,14 @@ export const POST = createHandler(async (req, { params }) => {
   }
 
   if (action === "get_session") {
-    const sess = await getSession(parseInt(body.session_id));
-    if (!sess) return NextResponse.json({ success: false, error: "Session not found." }, { status: 404 });
-    return NextResponse.json({ success: true, session: sess });
+    const session = await getSession(parseInt(body.session_id));
+    if (!session) return NextResponse.json({ success: false, error: "Session not found." }, { status: 404 });
+    return NextResponse.json({ success: true, session });
   }
 
   if (action === "add_note") {
-    const r = await addSessionNote({ sessionId: parseInt(body.session_id), noteType: body.note_type, content: body.content, authorCid: req.session?.cid, authorName: req.session?.name });
-    return NextResponse.json({ success: true, note_id: r.id });
+    const noteResult = await addSessionNote({ sessionId: parseInt(body.session_id), noteType: body.note_type, content: body.content, authorCid: req.session?.cid, authorName: req.session?.name });
+    return NextResponse.json({ success: true, note_id: noteResult.id });
   }
 
   if (action === "record_attendance") {
@@ -517,8 +517,8 @@ export const POST = createHandler(async (req, { params }) => {
   }
 
   if (action === "create_action_item") {
-    const r = await createActionItem({ sessionId: parseInt(body.session_id), title: body.title, description: body.description, ownerCid: body.owner_cid, ownerName: body.owner_name, priority: body.priority, dueDate: body.due_date });
-    return NextResponse.json({ success: true, action_item_id: r.id });
+    const actionItemResult = await createActionItem({ sessionId: parseInt(body.session_id), title: body.title, description: body.description, ownerCid: body.owner_cid, ownerName: body.owner_name, priority: body.priority, dueDate: body.due_date });
+    return NextResponse.json({ success: true, action_item_id: actionItemResult.id });
   }
 
   if (action === "update_action_item") {

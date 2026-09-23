@@ -20,16 +20,16 @@ export const GET = createHandler({ roles: ["staff", "super_admin"] }, async (req
   }
 
   // 1. Fetch total deliverables
-  const delResult = await countDeliverablesForProgram(program_id);
-  const totalDeliverables = delResult.rows[0].count || 0;
+  const deliverablesResult = await countDeliverablesForProgram(program_id);
+  const totalDeliverables = deliverablesResult.rows[0].count || 0;
 
   // 2. Fetch approved submissions
-  const subResult = await countApprovedSubmissions(
+  const submissionsResult = await countApprovedSubmissions(
     program_id,
     group_id,
     participant_id,
   );
-  const approvedCount = subResult.rows[0].count || 0;
+  const approvedCount = submissionsResult.rows[0].count || 0;
 
   // 3. Current week (simplified: max week of approved + 1)
   const weekResult = await getMaxApprovedWeek(program_id, group_id, participant_id);

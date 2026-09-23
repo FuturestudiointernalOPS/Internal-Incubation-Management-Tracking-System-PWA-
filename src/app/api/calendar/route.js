@@ -34,7 +34,7 @@ export async function GET(req) {
     const authError = await requireAuth();
     if (authError) return authError;
     const session = await getSession();
-    const cid = session?.cid || null;
+    const sessionCid = session?.cid || null;
 
     // Program scope is derived from RELATIONSHIPS, not from the platform role
     // label. The identity correction stopped mutating `contacts.role` when
@@ -55,17 +55,19 @@ export async function GET(req) {
       "team",
     ];
     let scopedProgramIds = null; // null = no restriction
-    if (cid && !PROGRAM_UNSCOPED_ROLES.includes(session?.role)) {
-      const [facPids, partPids] = await Promise.all([
-        getFacilitatorProgramScopePids(cid),
-        getParticipantProgramScopePids(cid),
+    if (sessionCid && !PROGRAM_UNSCOPED_ROLES.includes(session?.role)) {
+      const [facilitatorPids, participantPids] = await Promise.all([
+        getFacilitatorProgramScopePids(sessionCid),
+        getParticipantProgramScopePids(sessionCid),
       ]);
-      const ids = new Set([
-        ...facPids.rows.map((r) => String(r.pid)),
-        ...partPids.rows.map((r) => String(r.pid)),
+      const programIdSet = new Set([
+        ...facilitatorPids.rows.map((row) => String(row.pid)),
+        ...participantPids.rows.map((row) => String(row.pid)),
       ]);
       // Fail closed: no relationship at all means NO program-scoped events.
-      scopedProgramIds = ids.size ? [...ids] : ["__no_program_scope__"];
+      scopedProgramIds = programIdSet.size
+        ? [...programIdSet]
+        : ["__no_program_scope__"];
     }
 
     const scopePlaceholders = scopedProgramIds && scopedProgramIds.length
@@ -90,38 +92,38 @@ export async function GET(req) {
     try {
       // Filter by user if provided
       const tasks = await getCalendarTasksWithDates(user_id);
-      for (const t of tasks.rows) {
-        if (t.start_date) {
+      for (const task of tasks.rows) {
+        if (task.start_date) {
           events.push({
-            id: `task-${t.id}-start`,
-            title: t.title,
-            date: t.start_date,
+            id: `task-${task.id}-start`,
+            title: task.title,
+            date: task.start_date,
             type: "task_start",
             source: "task",
-            status: t.status,
+            status: task.status,
             description: null,
-            related_id: t.id,
-            project_id: t.project_id,
-            user_id: t.user_id,
+            related_id: task.id,
+            project_id: task.project_id,
+            user_id: task.user_id,
           });
         }
-        if (t.end_date) {
+        if (task.end_date) {
           events.push({
-            id: `task-${t.id}-end`,
-            title: `${t.title} (due)`,
-            date: t.end_date,
+            id: `task-${task.id}-end`,
+            title: `${task.title} (due)`,
+            date: task.end_date,
             type: "task_due",
             source: "task",
-            status: t.status,
+            status: task.status,
             description: null,
-            related_id: t.id,
-            project_id: t.project_id,
-            user_id: t.user_id,
+            related_id: task.id,
+            project_id: task.project_id,
+            user_id: task.user_id,
           });
         }
       }
-    } catch (e) {
-      console.error("Calendar: tasks error:", e.message);
+    } catch (error) {
+      console.error("Calendar: tasks error:", error.message);
     }
 
     // 2. Programs (v2_programs)
@@ -130,38 +132,38 @@ export async function GET(req) {
         programTableScopeSql,
         programScopeArgs,
       );
-      for (const p of programs.rows) {
-        if (p.start_date) {
+      for (const program of programs.rows) {
+        if (program.start_date) {
           events.push({
-            id: `program-${p.id}-start`,
-            title: `${p.name} starts`,
-            date: p.start_date,
+            id: `program-${program.id}-start`,
+            title: `${program.name} starts`,
+            date: program.start_date,
             type: "program_start",
             source: "program",
             status: "active",
             description: null,
-            related_id: p.id,
+            related_id: program.id,
             project_id: null,
-            user_id: p.assigned_pm_id,
+            user_id: program.assigned_pm_id,
           });
         }
-        if (p.end_date) {
+        if (program.end_date) {
           events.push({
-            id: `program-${p.id}-end`,
-            title: `${p.name} ends`,
-            date: p.end_date,
+            id: `program-${program.id}-end`,
+            title: `${program.name} ends`,
+            date: program.end_date,
             type: "program_end",
             source: "program",
             status: "active",
             description: null,
-            related_id: p.id,
+            related_id: program.id,
             project_id: null,
-            user_id: p.assigned_pm_id,
+            user_id: program.assigned_pm_id,
           });
         }
       }
-    } catch (e) {
-      console.error("Calendar: programs error:", e.message);
+    } catch (error) {
+      console.error("Calendar: programs error:", error.message);
     }
 
     // 3. Sessions (v2_sessions)
@@ -170,24 +172,24 @@ export async function GET(req) {
         programScopeSql,
         programScopeArgs,
       );
-      for (const s of sessions.rows) {
+      for (const sessionRow of sessions.rows) {
         events.push({
-          id: `session-${s.id}`,
-          title: s.title,
-          date: s.start_at,
+          id: `session-${sessionRow.id}`,
+          title: sessionRow.title,
+          date: sessionRow.start_at,
           type: "session",
           source: "session",
           status: "scheduled",
-          description: s.program_name
-            ? `${s.type} — ${s.program_name}`
-            : s.type,
-          related_id: s.id,
-          project_id: s.program_id,
-          user_id: s.teacher_id,
+          description: sessionRow.program_name
+            ? `${sessionRow.type} — ${sessionRow.program_name}`
+            : sessionRow.type,
+          related_id: sessionRow.id,
+          project_id: sessionRow.program_id,
+          user_id: sessionRow.teacher_id,
         });
       }
-    } catch (e) {
-      console.error("Calendar: sessions error:", e.message);
+    } catch (error) {
+      console.error("Calendar: sessions error:", error.message);
     }
 
     // 4. Deliverables (v2_deliverables)
@@ -196,22 +198,22 @@ export async function GET(req) {
         programScopeSql,
         programScopeArgs,
       );
-      for (const d of deliverables.rows) {
+      for (const deliverable of deliverables.rows) {
         events.push({
-          id: `deliverable-${d.id}`,
-          title: `${d.title} due`,
-          date: d.due_date,
+          id: `deliverable-${deliverable.id}`,
+          title: `${deliverable.title} due`,
+          date: deliverable.due_date,
           type: "deliverable_due",
           source: "deliverable",
           status: "pending",
-          description: d.program_name || null,
-          related_id: d.id,
-          project_id: d.program_id,
+          description: deliverable.program_name || null,
+          related_id: deliverable.id,
+          project_id: deliverable.program_id,
           user_id: null,
         });
       }
-    } catch (e) {
-      console.error("Calendar: deliverables error:", e.message);
+    } catch (error) {
+      console.error("Calendar: deliverables error:", error.message);
     }
 
     // 5. Follow-ups (v2_followups with scheduled_at)
@@ -221,12 +223,12 @@ export async function GET(req) {
       // everyone else sees follow-ups they assigned (legacy NULL rows remain visible).
       let followupVisibilitySql = "";
       const followupVisibilityArgs = [];
-      if (session?.role === "participant" && cid) {
+      if (session?.role === "participant" && sessionCid) {
         followupVisibilitySql = " AND f.participant_id = ?";
-        followupVisibilityArgs.push(cid);
-      } else if (session?.role !== "super_admin" && cid) {
+        followupVisibilityArgs.push(sessionCid);
+      } else if (session?.role !== "super_admin" && sessionCid) {
         followupVisibilitySql = " AND (f.created_by IS NULL OR f.created_by = ?)";
-        followupVisibilityArgs.push(cid);
+        followupVisibilityArgs.push(sessionCid);
       }
 
       const followups = await getCalendarFollowups(
@@ -235,24 +237,26 @@ export async function GET(req) {
         followupVisibilitySql,
         followupVisibilityArgs,
       );
-      for (const f of followups.rows) {
+      for (const followup of followups.rows) {
         events.push({
-          id: `followup-${f.id}`,
-          title: f.team_name
-            ? `Coaching: ${f.team_name}`
-            : `Follow-up: ${f.program_name || ""}`,
-          date: f.scheduled_at,
+          id: `followup-${followup.id}`,
+          title: followup.team_name
+            ? `Coaching: ${followup.team_name}`
+            : `Follow-up: ${followup.program_name || ""}`,
+          date: followup.scheduled_at,
           type: "follow_up",
           source: "followup",
           status: "scheduled",
-          description: f.comment ? f.comment.substring(0, 80) : null,
-          related_id: f.id,
-          project_id: f.program_id,
+          description: followup.comment
+            ? followup.comment.substring(0, 80)
+            : null,
+          related_id: followup.id,
+          project_id: followup.program_id,
           user_id: null,
         });
       }
-    } catch (e) {
-      console.error("Calendar: followups error:", e.message);
+    } catch (error) {
+      console.error("Calendar: followups error:", error.message);
     }
 
     // 6. Venture sources (Vinance 3 Phase 1 — the platform calendar aggregates
@@ -268,24 +272,31 @@ export async function GET(req) {
       // Ventures they are assigned to / coach sessions they are attached to.
       const seesAllVentures = privilegedVentureRoles.includes(session?.role) && !personalMode;
       let ventureScope = null; // null = no restriction
-      if ((!seesAllVentures || personalMode) && cid) {
-        const vRes = await db.execute({
+      if ((!seesAllVentures || personalMode) && sessionCid) {
+        const ventureScopeResult = await db.execute({
           sql: `SELECT venture_id FROM venture_members
                 WHERE (contact_id = ? OR user_cid = ?) AND removed_at IS NULL
                 UNION
                 SELECT venture_id FROM venture_staff_assignments
                 WHERE staff_contact_id = ? AND status = 'active'`,
-          args: [cid, cid, cid],
+          args: [sessionCid, sessionCid, sessionCid],
         }).catch(() => ({ rows: [] }));
-        let scopeList = (vRes.rows || []).map((r) => r.venture_id).filter(Boolean);
+        let scopeList = (ventureScopeResult.rows || [])
+          .map((row) => row.venture_id)
+          .filter(Boolean);
         // A coach's own sessions count even when stored under a UUID key or
         // when the coach holds no assignment row yet.
         if (personalMode) {
-          const coachRes = await db.execute({
+          const coachSessionsResult = await db.execute({
             sql: "SELECT DISTINCT venture_id FROM venture_sessions WHERE coach_contact_id = ?",
-            args: [cid],
+            args: [sessionCid],
           }).catch(() => ({ rows: [] }));
-          scopeList = [...scopeList, ...(coachRes.rows || []).map((r) => r.venture_id).filter(Boolean)];
+          scopeList = [
+            ...scopeList,
+            ...(coachSessionsResult.rows || [])
+              .map((row) => row.venture_id)
+              .filter(Boolean),
+          ];
         }
         ventureScope = [...new Set(scopeList)];
       }
@@ -298,13 +309,19 @@ export async function GET(req) {
         let scopeIds = null;
         let scopeArgs = [];
         if (!seesAllVentures) {
-          const idRes = await db.execute({
+          const ventureIdResult = await db.execute({
             sql: `SELECT id, venture_id FROM ventures WHERE venture_id IN (${ventureScope.map(() => "?").join(",")})`,
             args: ventureScope,
           }).catch(() => ({ rows: [] }));
-          const resolvedCodes = new Set((idRes.rows || []).map((r) => r.venture_id));
-          const mappedIds = (idRes.rows || []).map((r) => r.id).filter(Boolean);
-          const leftoverIds = ventureScope.filter((v) => !resolvedCodes.has(v));
+          const resolvedCodes = new Set(
+            (ventureIdResult.rows || []).map((row) => row.venture_id),
+          );
+          const mappedIds = (ventureIdResult.rows || [])
+            .map((row) => row.id)
+            .filter(Boolean);
+          const leftoverIds = ventureScope.filter(
+            (scopeKey) => !resolvedCodes.has(scopeKey),
+          );
           scopeIds = [...new Set([...mappedIds, ...leftoverIds])];
           scopeArgs = [...ventureScope, ...scopeIds];
         }
@@ -314,68 +331,75 @@ export async function GET(req) {
         const scopeQueryArgs = seesAllVentures ? [] : scopeArgs;
         // Personal coach filter: coaches always see their own sessions even
         // when not marked venture-facing.
-        const sessPersonalSql = personalMode && cid ? " AND (coach_contact_id = ? OR venture_facing = TRUE)" : "";
-        const sessPersonalArgs = personalMode && cid ? [cid] : [];
+        const sessionsPersonalSql =
+          personalMode && sessionCid
+            ? " AND (coach_contact_id = ? OR venture_facing = TRUE)"
+            : "";
+        const sessionsPersonalArgs = personalMode && sessionCid ? [sessionCid] : [];
 
         // 6a. Venture sessions (founder-facing, plus the coach's own)
-        const sessBaseWhere = personalMode ? "start_time IS NOT NULL" : "venture_facing = TRUE AND start_time IS NOT NULL";
-        const sessRes = await db.execute({
+        const sessionsBaseWhere = personalMode
+          ? "start_time IS NOT NULL"
+          : "venture_facing = TRUE AND start_time IS NOT NULL";
+        const ventureSessionsResult = await db.execute({
           sql: `SELECT id, title, start_time, coach_name, coach_contact_id, status FROM venture_sessions
-                WHERE ${sessBaseWhere}${scopeSql}${sessPersonalSql}`,
-          args: [...scopeQueryArgs, ...sessPersonalArgs],
+                WHERE ${sessionsBaseWhere}${scopeSql}${sessionsPersonalSql}`,
+          args: [...scopeQueryArgs, ...sessionsPersonalArgs],
         }).catch(() => ({ rows: [] }));
-        for (const s of sessRes.rows || []) {
+        for (const sessionRow of ventureSessionsResult.rows || []) {
           events.push({
-            id: `vsess-${s.id}`,
-            title: s.title || "Venture session",
-            date: s.start_time,
+            id: `vsess-${sessionRow.id}`,
+            title: sessionRow.title || "Venture session",
+            date: sessionRow.start_time,
             type: "venture_session",
             source: "venture_session",
-            status: s.status || "scheduled",
-            description: s.coach_name ? `Coach: ${s.coach_name}` : null,
-            related_id: s.id,
+            status: sessionRow.status || "scheduled",
+            description: sessionRow.coach_name
+              ? `Coach: ${sessionRow.coach_name}`
+              : null,
+            related_id: sessionRow.id,
             project_id: null,
             user_id: null,
           });
         }
 
         // 6b. Venture task deadlines
-        const vTaskRes = await db.execute({
+        const ventureTasksResult = await db.execute({
           sql: `SELECT id, title, due_date, status FROM venture_tasks
                 WHERE due_date IS NOT NULL${scopeSql}`,
           args: scopeQueryArgs,
         }).catch(() => ({ rows: [] }));
-        for (const t of vTaskRes.rows || []) {
+        for (const ventureTask of ventureTasksResult.rows || []) {
           events.push({
-            id: `vtask-${t.id}`,
-            title: `${t.title} (due)`,
-            date: t.due_date,
+            id: `vtask-${ventureTask.id}`,
+            title: `${ventureTask.title} (due)`,
+            date: ventureTask.due_date,
             type: "venture_task_due",
             source: "venture_task",
-            status: t.status || "backlog",
+            status: ventureTask.status || "backlog",
             description: null,
-            related_id: t.id,
+            related_id: ventureTask.id,
             project_id: null,
             user_id: null,
           });
         }
 
         // 6c. Venture milestone target dates
-        const msRes = await db.execute({
+        const ventureMilestonesResult = await db.execute({
           sql: `SELECT id, title, target_date, status FROM venture_milestones
                 WHERE target_date IS NOT NULL${scopeSql}`,
           args: scopeQueryArgs,
         }).catch(() => ({ rows: [] }));
-        for (const m of msRes.rows || []) {
+        for (const milestone of ventureMilestonesResult.rows || []) {
           events.push({
-            id: `vms-${m.id}`,
-            title: `${m.title} (milestone)`,
-            date: m.target_date,
+            id: `vms-${milestone.id}`,
+            title: `${milestone.title} (milestone)`,
+            date: milestone.target_date,
             type: "venture_milestone",
             source: "venture_milestone",
-            status: m.status || "not_started",
+            status: milestone.status || "not_started",
             description: null,
-            related_id: m.id,
+            related_id: milestone.id,
             project_id: null,
             user_id: null,
           });
@@ -383,7 +407,7 @@ export async function GET(req) {
 
         // 6d. Journey stage targets (journey stages are UUID-keyed only)
         if (seesAllVentures || (scopeIds && scopeIds.length > 0)) {
-          const stageRes = await db.execute({
+          const journeyStagesResult = await db.execute({
             sql: seesAllVentures
               ? `SELECT id, name, target_date, status FROM venture_journey_stages
                  WHERE target_date IS NOT NULL`
@@ -391,29 +415,29 @@ export async function GET(req) {
                  WHERE target_date IS NOT NULL AND venture_id IN (${scopeIds.map(() => "?").join(",")})`,
             args: seesAllVentures ? [] : scopeIds,
           }).catch(() => ({ rows: [] }));
-          for (const st of stageRes.rows || []) {
+          for (const stage of journeyStagesResult.rows || []) {
             events.push({
-              id: `vstage-${st.id}`,
-              title: st.name || "Journey stage",
-              date: st.target_date,
+              id: `vstage-${stage.id}`,
+              title: stage.name || "Journey stage",
+              date: stage.target_date,
               type: "venture_journey_target",
               source: "venture_journey",
-              status: st.status || "locked",
+              status: stage.status || "locked",
               description: null,
-              related_id: st.id,
+              related_id: stage.id,
               project_id: null,
               user_id: null,
             });
           }
         }
       }
-    } catch (e) {
-      console.error("Calendar: venture sources error:", e.message);
+    } catch (error) {
+      console.error("Calendar: venture sources error:", error.message);
     }
 
     // Normalize dates to YYYY-MM-DD format
-    const normalized = events.map((e) => {
-      let dateStr = e.date;
+    const normalized = events.map((event) => {
+      let dateStr = event.date;
       if (dateStr && typeof dateStr === "string") {
         // Handle ISO strings like "2026-06-15T09:00:00.000Z"
         dateStr = dateStr.split("T")[0];
@@ -424,15 +448,15 @@ export async function GET(req) {
           dateStr = String(dateStr);
         }
       }
-      return { ...e, date: dateStr };
+      return { ...event, date: dateStr };
     });
 
     // Filter to requested month/year
     const monthStr = String(month).padStart(2, "0");
-    const filtered = normalized.filter((e) => {
-      if (!e.date) return false;
+    const filtered = normalized.filter((event) => {
+      if (!event.date) return false;
       // Check if event falls within the requested month
-      return e.date.startsWith(`${year}-${monthStr}`);
+      return event.date.startsWith(`${year}-${monthStr}`);
     });
 
     return NextResponse.json({

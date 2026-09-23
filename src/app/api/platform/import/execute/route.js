@@ -68,7 +68,7 @@ function resolveRowEmail(row, mapping, fieldLabels) {
       rowData[String(fieldId)] = row[csvCol];
     }
   }
-  const emailKey = Object.keys(mapping).find((k) => mapping[k] === "_email");
+  const emailKey = Object.keys(mapping).find((key) => mapping[key] === "_email");
   const explicitEmail = emailKey && row[emailKey] != null ? String(row[emailKey]) : "";
   return resolveSubmissionEmail({
     submissionData: rowData,
@@ -79,14 +79,14 @@ function resolveRowEmail(row, mapping, fieldLabels) {
 
 async function resolveContact(dbClient, row, mapping, email) {
   // 1. CRM ID (degrade gracefully if column missing)
-  const crmIdField = Object.keys(mapping).find((k) => mapping[k] === "_crm_id");
+  const crmIdField = Object.keys(mapping).find((key) => mapping[key] === "_crm_id");
   if (crmIdField && row[crmIdField]) {
     try {
-      const res = await dbClient.execute({
+      const contactResult = await dbClient.execute({
         sql: "SELECT * FROM contacts WHERE cid = ? LIMIT 1",
         args: [String(row[crmIdField])],
       });
-      if (res.rows.length > 0) return { contact: res.rows[0], method: "crm_id", uncertain: false };
+      if (contactResult.rows.length > 0) return { contact: contactResult.rows[0], method: "crm_id", uncertain: false };
     } catch (_) {}
   }
 
@@ -94,39 +94,39 @@ async function resolveContact(dbClient, row, mapping, email) {
   // placeholder-safe logic as the Run view, so it matches whether the column
   // was mapped to _email or to the form's email question.
   if (email) {
-    const res = await dbClient.execute({
+    const contactResult = await dbClient.execute({
       sql: "SELECT * FROM contacts WHERE LOWER(email) = ? LIMIT 1",
       args: [String(email).toLowerCase().trim()],
     });
-    if (res.rows.length > 0) return { contact: res.rows[0], method: "email", uncertain: false };
+    if (contactResult.rows.length > 0) return { contact: contactResult.rows[0], method: "email", uncertain: false };
   }
 
   // 3. Phone (normalized)
   const phoneField = Object.keys(mapping).find(
-    (k) =>
-      mapping[k] === "_phone" ||
-      (typeof mapping[k] === "string" &&
-        (mapping[k].toLowerCase().includes("phone") ||
-          mapping[k].toLowerCase().includes("telephone")))
+    (key) =>
+      mapping[key] === "_phone" ||
+      (typeof mapping[key] === "string" &&
+        (mapping[key].toLowerCase().includes("phone") ||
+          mapping[key].toLowerCase().includes("telephone")))
   );
   if (phoneField && row[phoneField]) {
     const phone = String(row[phoneField]).replace(/[^\d+]/g, "");
     if (phone.length >= 7) {
-      const res = await dbClient.execute({
+      const contactResult = await dbClient.execute({
         sql: "SELECT * FROM contacts WHERE phone = ? LIMIT 1",
         args: [phone],
       });
-      if (res.rows.length > 0) return { contact: res.rows[0], method: "phone", uncertain: false };
+      if (contactResult.rows.length > 0) return { contact: contactResult.rows[0], method: "phone", uncertain: false };
     }
   }
 
   // 4. Name matching — ALWAYS uncertain (never silently merge by name alone)
   const nameField = Object.keys(mapping).find(
-    (k) =>
-      mapping[k] === "_name" ||
-      (typeof mapping[k] === "string" &&
-        (mapping[k].toLowerCase().includes("name") ||
-          mapping[k].toLowerCase().includes("full")))
+    (key) =>
+      mapping[key] === "_name" ||
+      (typeof mapping[key] === "string" &&
+        (mapping[key].toLowerCase().includes("name") ||
+          mapping[key].toLowerCase().includes("full")))
   );
   if (nameField && row[nameField]) {
     const sorted = sortNameTokens(row[nameField]);
@@ -137,18 +137,18 @@ async function resolveContact(dbClient, row, mapping, email) {
       } catch (_) {
         allContacts = { rows: [] };
       }
-      for (const c of allContacts.rows) {
-        if (sortNameTokens(c.name) === sorted) {
-          return { contact: c, method: "name", uncertain: true };
+      for (const contactRow of allContacts.rows) {
+        if (sortNameTokens(contactRow.name) === sorted) {
+          return { contact: contactRow, method: "name", uncertain: true };
         }
       }
       const tokens = sorted.split(" ");
       if (tokens.length >= 2) {
-        for (const c of allContacts.rows) {
-          const cTokens = sortNameTokens(c.name).split(" ");
-          const overlap = tokens.filter((t) => cTokens.includes(t)).length;
+        for (const contactRow of allContacts.rows) {
+          const cTokens = sortNameTokens(contactRow.name).split(" ");
+          const overlap = tokens.filter((token) => cTokens.includes(token)).length;
           if (overlap >= 2) {
-            return { contact: c, method: "name_partial", uncertain: true };
+            return { contact: contactRow, method: "name_partial", uncertain: true };
           }
         }
       }
@@ -177,11 +177,11 @@ export async function POST(req) {
     // cause data to be imported against the wrong form.
     let effectiveFormId = form_id != null ? parseInt(form_id) : null;
     if (run_id) {
-      const runRes = await getFormRunByIdForImport(run_id);
-      if (runRes.rows.length === 0) {
+      const runResult = await getFormRunByIdForImport(run_id);
+      if (runResult.rows.length === 0) {
         return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
       }
-      effectiveFormId = runRes.rows[0].form_id;
+      effectiveFormId = runResult.rows[0].form_id;
     }
     if (effectiveFormId == null) {
       return NextResponse.json(
@@ -195,16 +195,16 @@ export async function POST(req) {
     // CSV/XLSX column was mapped to _email or to the form's email question.
     let fieldLabels = {};
     try {
-      const labelsRes = await getFormFieldLabels(effectiveFormId);
-      for (const f of labelsRes.rows) fieldLabels[String(f.id)] = f.label;
+      const labelsResult = await getFormFieldLabels(effectiveFormId);
+      for (const field of labelsResult.rows) fieldLabels[String(field.id)] = field.label;
     } catch (_) {}
 
     // Self-heal: ensure import batch + review flag tables exist (additive, idempotent)
     try {
       await ensureImportBatchesTable();
       await ensureImportReviewFlagsTable();
-    } catch (e) {
-      console.warn("[Import] Could not ensure batch tables:", e.message);
+    } catch (error) {
+      console.warn("[Import] Could not ensure batch tables:", error.message);
     }
 
     // Chunked imports send a client-computed hash of the FULL file so every
@@ -218,10 +218,10 @@ export async function POST(req) {
     // Detect previous import of the same file (only when starting a fresh batch)
     if (!activeBatchId) {
       try {
-        const prev = await findPreviousImportBatch(run_id, hash);
-        if (prev.rows.length > 0) {
+        const previousBatchResult = await findPreviousImportBatch(run_id, hash);
+        if (previousBatchResult.rows.length > 0) {
           duplicateBatch = true;
-          previousBatch = prev.rows[0];
+          previousBatch = previousBatchResult.rows[0];
         }
       } catch (_) {}
     }
@@ -229,10 +229,10 @@ export async function POST(req) {
     // Create the batch row upfront so review flags can reference it
     if (!activeBatchId) {
       try {
-        const batchRes = await createImportBatch(effectiveFormId, run_id, hash);
-        activeBatchId = batchRes.rows[0]?.id || null;
-      } catch (e) {
-        console.warn("[Import] Batch row creation failed:", e.message);
+        const batchResult = await createImportBatch(effectiveFormId, run_id, hash);
+        activeBatchId = batchResult.rows[0]?.id || null;
+      } catch (error) {
+        console.warn("[Import] Batch row creation failed:", error.message);
       }
     }
 
@@ -242,11 +242,11 @@ export async function POST(req) {
     const errors = [];
     const reviewRows = [];
 
-    for (let i = 0; i < csv_rows.length; i++) {
-      const row = csv_rows[i];
+    for (let rowIndex = 0; rowIndex < csv_rows.length; rowIndex++) {
+      const row = csv_rows[rowIndex];
       try {
         const hasData = Object.values(row).some(
-          (v) => v !== undefined && v !== null && String(v).trim() !== ""
+          (value) => value !== undefined && value !== null && String(value).trim() !== ""
         );
         if (!hasData) {
           skipped++;
@@ -264,21 +264,21 @@ export async function POST(req) {
 
         let name = "Unknown";
         const nameKey = Object.keys(mapping).find(
-          (k) =>
-            mapping[k] === "_name" ||
-            (typeof mapping[k] === "string" &&
-              (mapping[k].toLowerCase().includes("name") ||
-                mapping[k].toLowerCase().includes("full")))
+          (key) =>
+            mapping[key] === "_name" ||
+            (typeof mapping[key] === "string" &&
+              (mapping[key].toLowerCase().includes("name") ||
+                mapping[key].toLowerCase().includes("full")))
         );
         if (nameKey && row[nameKey]) name = String(row[nameKey]).trim();
 
         let phone = null;
         const phoneKey = Object.keys(mapping).find(
-          (k) =>
-            mapping[k] === "_phone" ||
-            (typeof mapping[k] === "string" &&
-              (mapping[k].toLowerCase().includes("phone") ||
-                mapping[k].toLowerCase().includes("telephone")))
+          (key) =>
+            mapping[key] === "_phone" ||
+            (typeof mapping[key] === "string" &&
+              (mapping[key].toLowerCase().includes("phone") ||
+                mapping[key].toLowerCase().includes("telephone")))
         );
         if (phoneKey && row[phoneKey]) {
           phone = String(row[phoneKey]).replace(/[^\d+]/g, "");
@@ -292,18 +292,18 @@ export async function POST(req) {
 
           const contactEmail = email || `import-${cid.toLowerCase()}@placeholder.impactos.local`;
 
-          const insertRes = await upsertImportedContact(cid, name, contactEmail, phone);
-          if (insertRes.rows.length > 0) contact = insertRes.rows[0];
+          const insertResult = await upsertImportedContact(cid, name, contactEmail, phone);
+          if (insertResult.rows.length > 0) contact = insertResult.rows[0];
         }
 
         if (!contact) {
-          errors.push({ row: i + 1, error: "Could not resolve or create contact" });
+          errors.push({ row: rowIndex + 1, error: "Could not resolve or create contact" });
           skipped++;
           continue;
         }
 
-        const existingSub = await findSubmissionByRunAndSubmitter(run_id, contact.cid);
-        if (existingSub.rows.length > 0) {
+        const existingSubmission = await findSubmissionByRunAndSubmitter(run_id, contact.cid);
+        if (existingSubmission.rows.length > 0) {
           skipped++;
           continue;
         }
@@ -324,7 +324,7 @@ export async function POST(req) {
             ? "Partial name match — possible duplicate, verify identity"
             : "Name-only match with different email/phone — verify identity";
           reviewRows.push({
-            row: i + 1,
+            row: rowIndex + 1,
             name,
             email: email || null,
             matched_cid: contact.cid,
@@ -338,7 +338,7 @@ export async function POST(req) {
               activeBatchId,
               effectiveFormId,
               run_id,
-              i + 1,
+              rowIndex + 1,
               name,
               email,
               contact.cid,
@@ -350,8 +350,8 @@ export async function POST(req) {
         }
 
         imported++;
-      } catch (rowErr) {
-        errors.push({ row: i + 1, error: rowErr.message });
+      } catch (rowError) {
+        errors.push({ row: rowIndex + 1, error: rowError.message });
         skipped++;
       }
     }
@@ -360,8 +360,8 @@ export async function POST(req) {
     let batchId = activeBatchId;
     try {
       await accumulateImportBatchCounts(csv_rows.length, imported, skipped, needsReview, batchId);
-    } catch (e) {
-      console.warn("[Import] Batch record failed:", e.message);
+    } catch (error) {
+      console.warn("[Import] Batch record failed:", error.message);
     }
 
     return NextResponse.json({

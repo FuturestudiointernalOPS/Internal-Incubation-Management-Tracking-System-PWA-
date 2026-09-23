@@ -42,13 +42,13 @@ export async function GET(req) {
       await ensureAnnouncementsTable();
     } catch (_) {}
 
-    const res = await listAnnouncements({
+    const result = await listAnnouncements({
       showAll,
       isSuperAdmin: session.role === "super_admin",
       targetType,
       targetId,
     });
-    return NextResponse.json({ success: true, announcements: res.rows });
+    return NextResponse.json({ success: true, announcements: result.rows });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },
@@ -107,7 +107,7 @@ export async function POST(req) {
     const effectiveAuthorName =
       session.name || session.email || effectiveAuthorId;
 
-    const insertRes = await createAnnouncement({
+    const insertResult = await createAnnouncement({
       title,
       body,
       authorId: effectiveAuthorId,
@@ -117,20 +117,20 @@ export async function POST(req) {
       isPinned: is_pinned,
     });
 
-    const newId = insertRes.rows[0]?.id;
+    const newId = insertResult.rows[0]?.id;
 
     // Send notifications to targeted users
     try {
-      const notifTitle = `New Announcement: ${title}`;
-      const notifBody =
+      const notificationTitle = `New Announcement: ${title}`;
+      const notificationBody =
         body.length > 200 ? body.substring(0, 197) + "..." : body;
 
       if (target_type === "all" || !target_type || !target_id) {
         // Organization-wide: notify all users
-        await notifyAllActiveUsersOfAnnouncement(notifTitle, notifBody);
+        await notifyAllActiveUsersOfAnnouncement(notificationTitle, notificationBody);
       } else if (target_type === "group") {
         // Target by group: notify all users in that group
-        await notifyAnnouncementGroupMembers(notifTitle, notifBody, target_id);
+        await notifyAnnouncementGroupMembers(notificationTitle, notificationBody, target_id);
       }
     } catch (_) {
       // Notifications are non-blocking

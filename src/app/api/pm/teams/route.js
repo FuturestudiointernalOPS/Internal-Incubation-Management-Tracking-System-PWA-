@@ -144,13 +144,13 @@ export async function POST(req) {
         const allMembers = [];
 
         if (uuidIds.length > 0) {
-          const res = await getNewTeamParticipantMembers(uuidIds);
-          allMembers.push(...res.rows);
+          const participantMembersResult = await getNewTeamParticipantMembers(uuidIds);
+          allMembers.push(...participantMembersResult.rows);
         }
 
         if (contactIds.length > 0) {
-          const res = await getNewTeamContactMembers(contactIds);
-          allMembers.push(...res.rows);
+          const contactMembersResult = await getNewTeamContactMembers(contactIds);
+          allMembers.push(...contactMembersResult.rows);
         }
 
         // Management groups (facilitator cohort groups) do NOT send shared
@@ -176,8 +176,8 @@ export async function POST(req) {
               `,
                 isHtml: true,
               });
-            } catch (e) {
-              console.error(`Email delivery failed for ${member.email}:`, e);
+            } catch (error) {
+              console.error(`Email delivery failed for ${member.email}:`, error);
             }
           }
         }
@@ -259,12 +259,12 @@ export async function PATCH(req) {
     // Send Emails (Copied Logic from POST)
     const allMembers = [];
     if (uuidIds.length > 0) {
-      const res = await getTeamParticipantMembers(uuidIds);
-      allMembers.push(...res.rows);
+      const participantMembersResult = await getTeamParticipantMembers(uuidIds);
+      allMembers.push(...participantMembersResult.rows);
     }
     if (contactIds.length > 0) {
-      const res = await getTeamContactMembers(contactIds);
-      allMembers.push(...res.rows);
+      const contactMembersResult = await getTeamContactMembers(contactIds);
+      allMembers.push(...contactMembersResult.rows);
     }
 
     if (!is_management_group) {

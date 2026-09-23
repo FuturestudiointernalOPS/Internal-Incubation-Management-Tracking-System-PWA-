@@ -29,26 +29,26 @@ export async function GET(req, { params }) {
     if (authError) return authError;
 
     // Get Campaign Info
-    const campaignRes = await getCampaignWithCounts(id);
+    const campaignResult = await getCampaignWithCounts(id);
 
-    if (!campaignRes.rows[0])
+    if (!campaignResult.rows[0])
       return NextResponse.json(
         { success: false, error: "errors.notFound" },
         { status: 404 },
       );
-    const campaign = campaignRes.rows[0];
+    const campaign = campaignResult.rows[0];
 
     // 1. Get individual Step Logic
-    const stepsRes = await getCampaignSteps(id);
+    const stepsResult = await getCampaignSteps(id);
 
     // 2. Get Step-by-Step Delivery Counts
-    const contactsRes = await getCampaignContacts(id);
+    const contactsResult = await getCampaignContacts(id);
 
-    const nonPendingCount = contactsRes.rows.filter(
-      (c) => c.status !== "pending",
+    const nonPendingCount = contactsResult.rows.filter(
+      (contact) => contact.status !== "pending",
     ).length;
 
-    const stepsWithCounts = stepsRes.rows.map((step) => {
+    const stepsWithCounts = stepsResult.rows.map((step) => {
       return { ...step, delivered_count: nonPendingCount };
     });
 
@@ -57,12 +57,12 @@ export async function GET(req, { params }) {
       campaign: {
         ...campaign,
         steps: stepsWithCounts,
-        contacts: contactsRes.rows,
+        contacts: contactsResult.rows,
       },
     });
-  } catch (err) {
+  } catch (error) {
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }
@@ -83,14 +83,16 @@ export async function PUT(req, { params }) {
     // Update steps
     if (data.steps) {
       await deleteCampaignSteps(id);
-      const stepQueries = data.steps.map((s, idx) => {
+      const stepQueries = data.steps.map((step, stepOrder) => {
         const delay_hours =
-          (s.wait_type === "days" ? (s.delay_days || 0) * 24 : 0) +
-          (s.wait_type === "hours" ? s.delay_hours || 0 : 0) +
-          Math.round((s.wait_type === "minutes" ? s.delay_minutes || 0 : 0) / 60);
+          (step.wait_type === "days" ? (step.delay_days || 0) * 24 : 0) +
+          (step.wait_type === "hours" ? step.delay_hours || 0 : 0) +
+          Math.round(
+            (step.wait_type === "minutes" ? step.delay_minutes || 0 : 0) / 60,
+          );
         return {
           sql: "INSERT INTO campaign_steps (campaign_id, step_order, subject, body, delay_hours) VALUES (?, ?, ?, ?, ?)",
-          args: [id, idx, s.subject, s.body, delay_hours],
+          args: [id, stepOrder, step.subject, step.body, delay_hours],
         };
       });
       await db.batch(stepQueries);
@@ -100,30 +102,34 @@ export async function PUT(req, { params }) {
     if (data.cids) {
       // For simplicity, we'll keep existing sent records and only sync pending/new ones
       // 1. Get existing contact IDs
-      const existingRes = await getCampaignContactCids(id);
-      const existingCids = existingRes.rows.map((r) => r.contact_cid);
+      const existingCidsResult = await getCampaignContactCids(id);
+      const existingCids = existingCidsResult.rows.map((row) => row.contact_cid);
 
       // 2. Identities to add
-      const toAdd = data.cids.filter((cid) => !existingCids.includes(cid));
+      const toAdd = data.cids.filter(
+        (contactCid) => !existingCids.includes(contactCid),
+      );
       if (toAdd.length > 0) {
-        const addQueries = toAdd.map((cid) => ({
+        const addQueries = toAdd.map((contactCid) => ({
           sql: "INSERT INTO campaign_contacts (campaign_id, contact_cid, status) VALUES (?, ?, 'pending')",
-          args: [id, cid],
+          args: [id, contactCid],
         }));
         await db.batch(addQueries);
       }
 
       // 3. Identities to remove (only if they aren't 'sent' yet)
-      const toRemove = existingCids.filter((cid) => !data.cids.includes(cid));
+      const toRemove = existingCids.filter(
+        (contactCid) => !data.cids.includes(contactCid),
+      );
       if (toRemove.length > 0) {
         await deleteCampaignContacts(id, toRemove);
       }
     }
 
     return NextResponse.json({ success: true });
-  } catch (err) {
+  } catch (error) {
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }
@@ -147,9 +153,9 @@ export async function DELETE(req, { params }) {
     ]);
 
     return NextResponse.json({ success: true });
-  } catch (err) {
+  } catch (error) {
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

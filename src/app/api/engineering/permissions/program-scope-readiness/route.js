@@ -34,10 +34,10 @@ export async function GET() {
 
     const report = await buildProgramScopeReadiness();
     return NextResponse.json(report);
-  } catch (err) {
-    console.error("[Program Scope Readiness] error:", err);
+  } catch (error) {
+    console.error("[Program Scope Readiness] error:", error);
     return NextResponse.json(
-      { success: false, error: err.message },
+      { success: false, error: error.message },
       { status: 500 },
     );
   }

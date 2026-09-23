@@ -63,11 +63,11 @@ const ENFORCED_MATRIX_CELLS = ["calendar.schedule", "milestones.edit"];
 
 /** Resolve the canonical code, or null when no such Venture exists. */
 async function findVentureCode(id) {
-  const r = await db.execute({
+  const ventureResult = await db.execute({
     sql: "SELECT venture_id FROM ventures WHERE venture_id = ? OR id::text = ? LIMIT 1",
     args: [id, id],
   });
-  return r.rows?.[0]?.venture_id || null;
+  return ventureResult.rows?.[0]?.venture_id || null;
 }
 
 export async function GET(req, { params }) {
@@ -137,7 +137,7 @@ export async function GET(req, { params }) {
     // empty for them rather than pretending otherwise.
     let assignments = [];
     if (session.cid) {
-      const r = await db
+      const assignmentsResult = await db
         .execute({
           sql: `SELECT responsibility_code, scope_type, scope_ref_type, scope_ref_id
                 FROM venture_staff_assignments
@@ -145,7 +145,7 @@ export async function GET(req, { params }) {
           args: [code, session.cid],
         })
         .catch(() => ({ rows: [] }));
-      assignments = r.rows || [];
+      assignments = assignmentsResult.rows || [];
     }
 
     return NextResponse.json({
@@ -160,8 +160,8 @@ export async function GET(req, { params }) {
       // Which cells above are backed by a real gate, and which are not.
       matrix_enforced: ENFORCED_MATRIX_CELLS,
     });
-  } catch (e) {
-    console.error("[ventures/my-access] error:", e?.message);
+  } catch (error) {
+    console.error("[ventures/my-access] error:", error?.message);
     return NextResponse.json(
       { success: false, error: "errors.somethingWrong" },
       { status: 500 },

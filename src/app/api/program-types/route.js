@@ -19,7 +19,7 @@ export async function GET() {
     await initDb();
     await ensureProgramTypeOptionsTable();
     const result = await listProgramTypeKeys();
-    return NextResponse.json({ types: result.rows.map((r) => r.type_key) });
+    return NextResponse.json({ types: result.rows.map((row) => row.type_key) });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

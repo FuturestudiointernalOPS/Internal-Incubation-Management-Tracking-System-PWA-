@@ -8,26 +8,26 @@ import {
 export const GET = createHandler(
   { roles: ["super_admin", "security_officer"] },
   async (req) => {
-    const s = new URL(req.url).searchParams;
-    const type = s.get("type") || "list";
+    const queryParams = new URL(req.url).searchParams;
+    const type = queryParams.get("type") || "list";
 
     if (type === "stats") {
-      const hours = parseInt(s.get("hours")) || 24;
+      const hours = parseInt(queryParams.get("hours")) || 24;
       const stats = await getAuditLogStats(hours);
       return NextResponse.json({ success: true, ...stats });
     }
 
     const filters = {
-      eventType: s.get("event_type") || undefined,
-      actorCid: s.get("actor_cid") || undefined,
-      ventureId: s.get("venture_id") || undefined,
-      entityType: s.get("entity_type") || undefined,
-      entityId: s.get("entity_id") || undefined,
-      severity: s.get("severity") || undefined,
-      limit: parseInt(s.get("limit")) || 50,
-      offset: parseInt(s.get("offset")) || 0,
-      fromDate: s.get("from") || undefined,
-      toDate: s.get("to") || undefined,
+      eventType: queryParams.get("event_type") || undefined,
+      actorCid: queryParams.get("actor_cid") || undefined,
+      ventureId: queryParams.get("venture_id") || undefined,
+      entityType: queryParams.get("entity_type") || undefined,
+      entityId: queryParams.get("entity_id") || undefined,
+      severity: queryParams.get("severity") || undefined,
+      limit: parseInt(queryParams.get("limit")) || 50,
+      offset: parseInt(queryParams.get("offset")) || 0,
+      fromDate: queryParams.get("from") || undefined,
+      toDate: queryParams.get("to") || undefined,
     };
 
     const logs = await queryAuditLogs(filters);

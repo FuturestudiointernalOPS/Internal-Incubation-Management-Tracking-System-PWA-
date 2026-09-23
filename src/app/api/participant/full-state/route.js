@@ -46,19 +46,19 @@ export async function GET(req) {
       });
 
     // 1. Get Participant CID
-    const userRes = await getFullStateContactCidByEmail(email);
-    const cid = userRes.rows.length > 0 ? userRes.rows[0].cid : email;
+    const contactResult = await getFullStateContactCidByEmail(email);
+    const cid = contactResult.rows.length > 0 ? contactResult.rows[0].cid : email;
 
     // Parallel Cluster Fetch
     const [
-      progRes,
-      subRes,
-      sesRes,
-      notRes,
-      kpiRes,
-      docRes,
-      folRes,
-      teamRes,
+      programResult,
+      submissionsResult,
+      sessionsResult,
+      notificationsResult,
+      kpisResult,
+      documentsResult,
+      followupsResult,
+      teamResult,
     ] = await Promise.all([
       getFullStateProgramByName(groupName),
       getFullStateSubmissionsByParticipant(cid),
@@ -72,24 +72,24 @@ export async function GET(req) {
     ]);
 
     // Aggregate Grading
-    const submissions = subRes.rows;
+    const submissions = submissionsResult.rows;
     let individualScore = 0;
-    submissions.forEach((s) => {
-      individualScore += parseInt(s.score || s.grade) || 0;
+    submissions.forEach((submission) => {
+      individualScore += parseInt(submission.score || submission.grade) || 0;
     });
     const groupScore = 0; // group_score column not yet available on families
     const finalGrade = individualScore + groupScore;
 
     return NextResponse.json({
       success: true,
-      program: progRes.rows[0],
+      program: programResult.rows[0],
       submissions: submissions,
-      sessions: sesRes.rows,
-      notifications: notRes.rows,
-      kpis: kpiRes.rows,
-      documents: docRes.rows,
-      followups: folRes.rows,
-      team: teamRes.rows[0],
+      sessions: sessionsResult.rows,
+      notifications: notificationsResult.rows,
+      kpis: kpisResult.rows,
+      documents: documentsResult.rows,
+      followups: followupsResult.rows,
+      team: teamResult.rows[0],
       grades: { individualScore, groupScore, finalGrade },
     });
   } catch (error) {

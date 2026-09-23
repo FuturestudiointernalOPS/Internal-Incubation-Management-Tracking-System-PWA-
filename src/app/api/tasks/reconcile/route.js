@@ -76,13 +76,13 @@ export async function POST(req) {
 
       // Non-staff-side users may only reconcile their own tasks
       if (!staffSide.includes(session.role)) {
-        const taskRes = await getTaskAccessForReconcile(id);
-        const t = taskRes.rows[0];
+        const taskResult = await getTaskAccessForReconcile(id);
+        const task = taskResult.rows[0];
         if (
-          !t ||
-          (String(t.user_id) !== String(session.cid) &&
-            String(t.assigned_to || "") !== String(session.cid) &&
-            String(t.supervisor_id || "") !== String(session.cid))
+          !task ||
+          (String(task.user_id) !== String(session.cid) &&
+            String(task.assigned_to || "") !== String(session.cid) &&
+            String(task.supervisor_id || "") !== String(session.cid))
         ) {
           results.push({ id, success: false, error: "Not your task" });
           continue;
@@ -121,8 +121,8 @@ export async function POST(req) {
         });
 
         results.push({ id, success: true, status });
-      } catch (e) {
-        results.push({ id, success: false, error: e.message });
+      } catch (error) {
+        results.push({ id, success: false, error: error.message });
       }
     }
 

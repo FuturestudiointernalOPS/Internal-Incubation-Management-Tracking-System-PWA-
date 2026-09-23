@@ -22,13 +22,13 @@ export async function GET(req, { params }) {
     const session = await getSession();
     const { id } = await params;
 
-    const ventureRes = await getVentureForHistory(id);
+    const ventureResult = await getVentureForHistory(id);
 
-    if (!ventureRes.rows?.[0]) {
+    if (!ventureResult.rows?.[0]) {
       return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     }
 
-    const venture = ventureRes.rows[0];
+    const venture = ventureResult.rows[0];
 
     if (session && !["super_admin"].includes(session.role)) {
       const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
@@ -45,15 +45,15 @@ export async function GET(req, { params }) {
     // Previous program info
     let program = null;
     if (venture.program_id) {
-      const progRes = await getProgramById(venture.program_id);
-      if (progRes.rows?.[0]) {
-        const p = progRes.rows[0];
-        let deliverables = p.deliverables;
+      const programResult = await getProgramById(venture.program_id);
+      if (programResult.rows?.[0]) {
+        const programRow = programResult.rows[0];
+        let deliverables = programRow.deliverables;
         if (typeof deliverables === "string") {
           try { deliverables = JSON.parse(deliverables); } catch {}
         }
         program = {
-          id: p.id, name: p.name, start_date: p.start_date, end_date: p.end_date,
+          id: programRow.id, name: programRow.name, start_date: programRow.start_date, end_date: programRow.end_date,
           deliverables: deliverables || [],
         };
       }
@@ -61,17 +61,17 @@ export async function GET(req, { params }) {
 
     // Founder program history (all founders including removed)
     // venture_members stores venture_id as the VNT code (TEXT)
-    const foundersRes = await getVentureFounderHistory(id);
+    const foundersResult = await getVentureFounderHistory(id);
 
     const founderHistory = [];
-    for (const founder of (foundersRes.rows || [])) {
-      let ppRows = [];
+    for (const founder of (foundersResult.rows || [])) {
+      let programHistoryRows = [];
       if (venture.program_id) {
         try {
-          const ppRes = await getFounderProgramHistory(founder.contact_id, venture.program_id);
-          ppRows = ppRes.rows || [];
-        } catch (e) {
-          console.error("Founder program history query error:", e.message);
+          const programHistoryResult = await getFounderProgramHistory(founder.contact_id, venture.program_id);
+          programHistoryRows = programHistoryResult.rows || [];
+        } catch (error) {
+          console.error("Founder program history query error:", error.message);
         }
       }
       founderHistory.push({
@@ -80,7 +80,7 @@ export async function GET(req, { params }) {
         role: founder.role,
         joined_at: founder.joined_at,
         removed_at: founder.removed_at,
-        programs: ppRows,
+        programs: programHistoryRows,
       });
     }
 

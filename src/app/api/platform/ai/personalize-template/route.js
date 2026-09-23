@@ -118,7 +118,7 @@ export async function POST(req) {
     const allowedNames = new Set([
       ...placeholdersOf(draftSubject),
       ...placeholdersOf(draftBody),
-      ...spec.placeholders.map((p) => p.replace(/[{}]/g, "").toLowerCase()),
+      ...spec.placeholders.map((placeholder) => placeholder.replace(/[{}]/g, "").toLowerCase()),
     ]);
 
     // LANGUAGE LOCK: personalization must NEVER translate the template.
@@ -177,8 +177,8 @@ Return ONLY valid JSON with exactly two keys:
           tier1Subject = subjectCheck.ok ? candidateSubject : draftSubject;
         }
       }
-    } catch (e) {
-      console.warn("[AI Personalize] Tier 1 failed:", e.message);
+    } catch (error) {
+      console.warn("[AI Personalize] Tier 1 failed:", error.message);
     }
 
     // ── TIER 2 — deterministic segment splice (structure guaranteed) ──
@@ -187,8 +187,8 @@ Return ONLY valid JSON with exactly two keys:
       try {
         const parts = splitHtmlParts(draftBody);
         const segments = parts
-          .filter((p) => p.type === "text" && p.value.trim().length > 0)
-          .map((p) => p.value);
+          .filter((part) => part.type === "text" && part.value.trim().length > 0)
+          .map((part) => part.value);
 
         if (segments.length > 0) {
           const segmentPrompt = `Personalize each text segment of an email individually.
@@ -203,24 +203,24 @@ Rules for every segment:
 - ${tone}
 
 Segments (${segments.length}):
-${segments.map((s, i) => `[${i + 1}] ${s}`).join("\n")}`;
+${segments.map((segment, index) => `[${index + 1}] ${segment}`).join("\n")}`;
 
           const raw = await deepseekIntelligence.chat(segmentPrompt, undefined, 4096);
           const parsed = parseJsonObject(raw);
           const candidates = parsed && Array.isArray(parsed.segments) ? parsed.segments : null;
           if (candidates && candidates.length === segments.length) {
-            const cleaned = segments.map((original, i) => {
-              let out = stripUnknownPlaceholders(
-                ensureSegmentPlaceholders(original, candidates[i]),
+            const cleaned = segments.map((original, index) => {
+              const personalized = stripUnknownPlaceholders(
+                ensureSegmentPlaceholders(original, candidates[index]),
                 allowedNames
               );
-              return out == null ? original : String(out);
+              return personalized == null ? original : String(personalized);
             });
             finalBody = splicePersonalizedSegments(parts, cleaned);
           }
         }
-      } catch (e) {
-        console.warn("[AI Personalize] Tier 2 failed:", e.message);
+      } catch (error) {
+        console.warn("[AI Personalize] Tier 2 failed:", error.message);
       }
     }
 

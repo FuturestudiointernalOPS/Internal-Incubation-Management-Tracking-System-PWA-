@@ -31,7 +31,7 @@ export const POST = createHandler(async (req, { params }) => {
   }
 
   const body = await req.json();
-  const ids = Array.isArray(body?.ids) ? body.ids.map((x) => String(x)).filter(Boolean) : [];
+  const ids = Array.isArray(body?.ids) ? body.ids.map((milestoneId) => String(milestoneId)).filter(Boolean) : [];
   const action = body?.action === "restore" ? "restore" : "archive";
   if (ids.length === 0) return NextResponse.json({ success: false, error: "No milestones selected." }, { status: 400 });
 
@@ -40,7 +40,7 @@ export const POST = createHandler(async (req, { params }) => {
   // sides matches either type: joining on v.id alone raised "operator does not
   // exist: uuid = text" on staging and "integer = text" on production, and the
   // catch below turned that into a silent "archived 0 of N".
-  const rowsRes = await db.execute({
+  const rowsResult = await db.execute({
     sql: `SELECT m.id, m.title, m.journey_stage_id, v.id AS venture_db_id FROM venture_milestones m
           JOIN ventures v ON (m.venture_id::text = v.id::text OR m.venture_id::text = v.venture_id)
           WHERE (v.venture_id = ? OR v.id::text = ?)
@@ -52,7 +52,7 @@ export const POST = createHandler(async (req, { params }) => {
   });
 
   const summary = await applyBulk(db, {
-    rows: rowsRes.rows || [],
+    rows: rowsResult.rows || [],
     actorCid: session.cid || null,
     action,
     kind: "milestone",
@@ -61,8 +61,8 @@ export const POST = createHandler(async (req, { params }) => {
   // Archiving a milestone can leave a journey with every remaining milestone
   // completed — the journey then closes automatically.
   if (action === "archive") {
-    const dbId = (rowsRes.rows || [])[0]?.venture_db_id || null;
-    const stageIds = [...new Set((rowsRes.rows || []).map((r) => r.journey_stage_id).filter(Boolean))];
+    const dbId = (rowsResult.rows || [])[0]?.venture_db_id || null;
+    const stageIds = [...new Set((rowsResult.rows || []).map((row) => row.journey_stage_id).filter(Boolean))];
     if (dbId) {
       for (const stageId of stageIds) {
         await completeStageIfAllMilestonesDone(db, { dbId, stageId, cid: session.cid });

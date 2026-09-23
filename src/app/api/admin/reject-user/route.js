@@ -52,23 +52,23 @@ export async function POST(req) {
         userName: user.name,
         userEmail: user.email,
       });
-    } catch (e) {
-      console.error("Audit log error (non-critical):", e.message);
+    } catch (error) {
+      console.error("Audit log error (non-critical):", error.message);
     }
 
     // Clear notifications
     try {
       await markRejectionUserNotificationsRead(user.name);
-    } catch (e) {
-      console.error("Notification clear error:", e.message);
+    } catch (error) {
+      console.error("Notification clear error:", error.message);
     }
 
     return NextResponse.json({
       success: true,
       message: `User '${user.name}' has been rejected.`,
     });
-  } catch (e) {
-    console.error("API Error:", e.message);
+  } catch (error) {
+    console.error("API Error:", error.message);
     return NextResponse.json(
       { success: false, error: "errors.somethingWrong" },
       { status: 500 },

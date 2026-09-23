@@ -34,43 +34,43 @@ export async function GET(req, { params }) {
     // 1. Project details with owner and program name
     // NOTE: v2_projects.program_id is INTEGER, v2_programs.id is UUID
     // Cast both to text for compatibility
-    const projectRes = await getAdminProjectDetails(id);
+    const projectResult = await getAdminProjectDetails(id);
 
-    if (projectRes.rows.length === 0) {
+    if (projectResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Project not found" },
         { status: 404 },
       );
     }
 
-    const project = projectRes.rows[0];
+    const project = projectResult.rows[0];
 
     // 2. Task stats
     const taskStats = await getTaskStatsForProject(id);
 
     // 3. All tasks for this project with assignee info
-    const tasksRes = await getTasksForProject(id);
+    const tasksResult = await getTasksForProject(id);
 
     // Resources/attachments — single batched query for all tasks (Ticket 1.8)
     let resourcesByTask = {};
-    const allTaskIds = (tasksRes.rows || []).map((t) => t.id);
+    const allTaskIds = (tasksResult.rows || []).map((task) => task.id);
     if (allTaskIds.length > 0) {
       try {
-        const resourceRes = await getResourcesByTaskIds(allTaskIds);
-        for (const r of resourceRes.rows || []) {
-          if (!resourcesByTask[r.task_id]) resourcesByTask[r.task_id] = [];
-          resourcesByTask[r.task_id].push({
-            id: r.id,
-            name: r.name,
-            url: r.url,
-            type: r.type,
-            file_name: r.file_name,
-            file_size: r.file_size,
-            uploaded_by: r.uploaded_by,
+        const resourceResult = await getResourcesByTaskIds(allTaskIds);
+        for (const row of resourceResult.rows || []) {
+          if (!resourcesByTask[row.task_id]) resourcesByTask[row.task_id] = [];
+          resourcesByTask[row.task_id].push({
+            id: row.id,
+            name: row.name,
+            url: row.url,
+            type: row.type,
+            file_name: row.file_name,
+            file_size: row.file_size,
+            uploaded_by: row.uploaded_by,
           });
         }
-      } catch (e) {
-        console.error("Failed to fetch task_resources:", e.message);
+      } catch (error) {
+        console.error("Failed to fetch task_resources:", error.message);
       }
     }
 
@@ -81,25 +81,25 @@ export async function GET(req, { params }) {
     let blockersByTask = {};
     let subtasksByTask = {};
     if (allTaskIds.length > 0) {
-      const [blockerRes, subtaskRes] = await Promise.all([
+      const [blockerResult, subtaskResult] = await Promise.all([
         getBlockersByTaskIds(allTaskIds),
         getSubtasksByParentTaskIds(allTaskIds),
       ]);
-      for (const r of blockerRes.rows || []) {
-        const id = String(r.task_id);
+      for (const row of blockerResult.rows || []) {
+        const id = String(row.task_id);
         if (!blockersByTask[id]) blockersByTask[id] = [];
-        const { task_id: _task_id, ...rest } = r;
+        const { task_id: _task_id, ...rest } = row;
         blockersByTask[id].push(rest);
       }
-      for (const r of subtaskRes.rows || []) {
-        const id = String(r.task_id);
+      for (const row of subtaskResult.rows || []) {
+        const id = String(row.task_id);
         if (!subtasksByTask[id]) subtasksByTask[id] = [];
-        const { task_id: _task_id, ...rest } = r;
+        const { task_id: _task_id, ...rest } = row;
         subtasksByTask[id].push(rest);
       }
     }
 
-    const tasksWithBlockers = (tasksRes.rows || []).map((task) => {
+    const tasksWithBlockers = (tasksResult.rows || []).map((task) => {
       return {
         ...task,
         blockers: blockersByTask[String(task.id)] || [],
@@ -109,13 +109,13 @@ export async function GET(req, { params }) {
     });
 
     // 4. All blockers for this project
-    const blockersRes = await getProjectBlockers(id);
+    const blockersResult = await getProjectBlockers(id);
 
     // 5. Team members — union of project_members, v2_project_staff, and task assignees
-    const membersRes = await getProjectMembersUnion(id);
+    const membersResult = await getProjectMembersUnion(id);
 
     // 6. Activity timeline
-    const timelineRes = await getProjectTimeline(id);
+    const timelineResult = await getProjectTimeline(id);
 
     // 7. Count dated tasks for timeline health
     let datedCount = 0;
@@ -147,9 +147,9 @@ export async function GET(req, { params }) {
         ...project,
         taskStats: taskStatsRow,
         tasks: tasksWithBlockers,
-        blockers: blockersRes.rows || [],
-        members: membersRes.rows || [],
-        timeline: timelineRes.rows || [],
+        blockers: blockersResult.rows || [],
+        members: membersResult.rows || [],
+        timeline: timelineResult.rows || [],
         completionRate,
         timelineHealth,
       },

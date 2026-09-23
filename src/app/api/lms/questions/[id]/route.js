@@ -25,8 +25,8 @@ export async function PUT(req, { params }) {
     }
     const question = await updateQuestion(id, body);
     return NextResponse.json({ success: true, question });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }
 
@@ -42,7 +42,7 @@ export async function DELETE(req, { params }) {
     const { id } = await params;
     const result = await deleteQuestion(id);
     return NextResponse.json({ success: true, ...result });
-  } catch (e) {
-    return lmsErrorResponse(e);
+  } catch (error) {
+    return lmsErrorResponse(error);
   }
 }

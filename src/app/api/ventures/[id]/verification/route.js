@@ -40,20 +40,20 @@ export const GET = createHandler(
       }
     }
 
-    const data = await getOrCreateVerification(id);
+    const verificationResult = await getOrCreateVerification(id);
 
     // Documents are PRIVATE: the stored file_url is a storage path and gets a
     // short-lived signed URL minted per read for viewers who already passed
     // the gate above. `file_url` stays exactly as stored (nothing renamed) and
     // the signed value is additive; external links and failures stay null.
     const documents = await Promise.all(
-      (data.documents || []).map(async (doc) => ({
-        ...doc,
-        file_url_signed: await signEvidencePath(doc.file_url),
+      (verificationResult.documents || []).map(async (document) => ({
+        ...document,
+        file_url_signed: await signEvidencePath(document.file_url),
       })),
     );
 
-    return NextResponse.json({ success: true, ...data, documents });
+    return NextResponse.json({ success: true, ...verificationResult, documents });
   },
 );
 
@@ -79,8 +79,8 @@ export const POST = createHandler(
       try {
         const result = await submitVerification({ ventureId: id, submittedBy: session });
         return NextResponse.json({ success: true, ...result });
-      } catch (e) {
-        return NextResponse.json({ success: false, error: e.message }, { status: 400 });
+      } catch (error) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 400 });
       }
     }
 
@@ -91,8 +91,8 @@ export const POST = createHandler(
       try {
         const result = await resubmitVerification({ ventureId: id, submittedBy: session });
         return NextResponse.json({ success: true, ...result });
-      } catch (e) {
-        return NextResponse.json({ success: false, error: e.message }, { status: 400 });
+      } catch (error) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 400 });
       }
     }
 
@@ -101,9 +101,9 @@ export const POST = createHandler(
       if (!canSubmit) return NextResponse.json({ success: false, error: "Only founders can upload documents." }, { status: 403 });
 
       try {
-        const data = await getOrCreateVerification(id);
+        const verificationResult = await getOrCreateVerification(id);
         const result = await uploadVerificationDocument({
-          verificationId: data.verification.id,
+          verificationId: verificationResult.verification.id,
           category: body.category,
           documentType: body.document_type,
           fileName: body.file_name,
@@ -113,8 +113,8 @@ export const POST = createHandler(
           uploadedBy: session.cid || "system",
         });
         return NextResponse.json({ success: true, ...result });
-      } catch (e) {
-        return NextResponse.json({ success: false, error: e.message }, { status: 400 });
+      } catch (error) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 400 });
       }
     }
 
@@ -124,9 +124,9 @@ export const POST = createHandler(
     }
 
     if (action === "add_comment") {
-      const data = await getOrCreateVerification(id);
+      const verificationResult = await getOrCreateVerification(id);
       await addVerificationComment({
-        verificationId: data.verification.id,
+        verificationId: verificationResult.verification.id,
         authorType: body.author_type || "founder",
         authorCid: session.cid || "system",
         authorName: session.name || "System",
