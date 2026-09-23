@@ -1,4 +1,5 @@
 import { BookOpen } from "lucide-react";
+import AppImage from "@/components/ui/AppImage";
 
 /**
  * Course thumbnail — renders the author-provided image wherever a course is
@@ -35,8 +36,7 @@ export default function CourseThumb({
   // plain image deliberately, the same call already made in the other course
   // and lesson screens.
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+    <AppImage
       src={src}
       alt={alt}
       referrerPolicy="no-referrer"

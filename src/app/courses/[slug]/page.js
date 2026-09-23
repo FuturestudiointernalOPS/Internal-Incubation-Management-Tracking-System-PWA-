@@ -16,6 +16,7 @@ import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import RichTextContent from "@/components/ui/RichTextContent";
+import AppImage from "@/components/ui/AppImage";
 
 /**
  * PUBLIC COURSE DETAIL (Phase 7)
@@ -138,8 +139,7 @@ export default function PublicCourseDetailPage({ params }) {
             style={{ background: "var(--surface-3)" }}
           >
             {course.thumbnail_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={course.thumbnail_url} alt={course.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+              <AppImage src={course.thumbnail_url} alt={course.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
             ) : (
               <GraduationCap className="w-14 h-14" style={{ color: "var(--text-tertiary)" }} />
             )}

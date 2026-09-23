@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { resourcePreviewKind } from "@/lib/lms/constants";
+import AppImage from "@/components/ui/AppImage";
 
 /**
  * INLINE RESOURCE PREVIEW (learner surface)
@@ -37,8 +38,7 @@ export default function ResourcePreview({ resource }) {
         className="block mt-2 w-fit"
         title={t("lms.sessionResources.openFullImage")}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <AppImage
           src={resource.url}
           alt={resource.title || ""}
           loading="lazy"

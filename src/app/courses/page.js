@@ -5,6 +5,7 @@ import { GraduationCap, Clock, Layers, PlaySquare, ArrowRight, Loader2 } from "l
 import NextLink from "next/link";
 import { useI18n } from "@/lib/i18n";
 import RichTextContent from "@/components/ui/RichTextContent";
+import AppImage from "@/components/ui/AppImage";
 
 /**
  * PUBLIC COURSE CATALOGUE (Phase 7)
@@ -82,8 +83,7 @@ export default function PublicCoursesPage() {
                   style={{ background: "var(--surface-3)" }}
                 >
                   {course.thumbnail_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <AppImage
                       src={course.thumbnail_url}
                       alt={course.title}
                       referrerPolicy="no-referrer"

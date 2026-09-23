@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PlayCircle, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { isValidYouTubeVideoId, buildYouTubeEmbedUrl } from "@/lib/lms/youtube";
+import AppImage from "@/components/ui/AppImage";
 
 /**
  * THE EMBEDDED VIDEO BOX — the single place the LMS plays a YouTube video.
@@ -71,8 +72,7 @@ export default function EmbeddedVideo({ videoId, title, playLabel, className = "
           title={playLabel}
           className="absolute inset-0 w-full h-full flex items-center justify-center group"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <AppImage
             src={`https://img.youtube.com/vi/${reference}/hqdefault.jpg`}
             alt=""
             aria-hidden="true"

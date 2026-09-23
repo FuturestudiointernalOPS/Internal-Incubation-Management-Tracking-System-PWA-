@@ -152,6 +152,7 @@ import AppStatusBadge from "@/components/ui/AppStatusBadge";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import AppPagination from "@/components/ui/AppPagination";
 import AppPdfPreview from "@/components/ui/AppPdfPreview";
+import AppImage from "@/components/ui/AppImage";     // EVERY image — the one place a plain <img> is allowed
 
 // Feedback
 import GlobalToast from "@/components/ui/GlobalToast";      // the toast host, mounted by the section layouts
@@ -326,6 +327,7 @@ src/
 │       ├── AppButton.js
 │       ├── AppCard.js
 │       ├── AppEmptyState.js     ← Empty/placeholder state (sm/md/lg)
+│       ├── AppImage.js          ← Image wrapper; plain <img> for arbitrary hosts, next/image for allowed ones
 │       ├── AppInput.js
 │       ├── AppModal.js
 │       ├── AppMenu.js           ← Row-action menu (⋯) — grouped items, danger items

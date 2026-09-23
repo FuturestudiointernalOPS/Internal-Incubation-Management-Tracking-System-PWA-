@@ -26,6 +26,7 @@ import {
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import SearchableSelect from "@/components/ui/SearchableSelect";
+import AppImage from "@/components/ui/AppImage";
 import { getCountries, getLanguages, resolveCountryCode } from "@/lib/profile-options";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
@@ -509,8 +510,7 @@ export default function ProfileView() {
             <div className="relative w-24 h-24 mx-auto mb-4">
               <div className="w-24 h-24 rounded-2xl bg-[var(--brand-orange)]/10 border-2 border-[var(--brand-orange)]/20 flex items-center justify-center overflow-hidden">
                 {contact.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <AppImage
                     src={contact.image}
                     alt={contact.name}
                     className="w-full h-full object-cover"
