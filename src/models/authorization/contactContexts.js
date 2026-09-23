@@ -34,8 +34,10 @@ const placeholders = (count) => new Array(count).fill("?").join(",");
 
 async function ventureLabels(ids) {
   const result = await db.execute({
+    // company_name is the canonical label; the legacy `name` column is only a
+    // fallback (it can still hold an intake Run's name).
     sql: `SELECT CAST(venture_id AS TEXT) AS id,
-                 COALESCE(NULLIF(name, ''), company_name, CAST(venture_id AS TEXT)) AS label
+                 COALESCE(NULLIF(company_name, ''), name, CAST(venture_id AS TEXT)) AS label
           FROM ventures
           WHERE CAST(venture_id AS TEXT) IN (${placeholders(ids.length)})`,
     args: ids,

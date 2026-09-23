@@ -275,7 +275,9 @@ export async function describeVentureMemberInvitation(token) {
 
   const invitation = result.invitation;
   const venture = await safe(
-    "SELECT COALESCE(NULLIF(name, ''), company_name) AS venture_name, company_name FROM ventures WHERE venture_id = ? LIMIT 1",
+    // company_name is the canonical label; `name` is the legacy column and can
+    // still hold the intake Run's name.
+    "SELECT COALESCE(NULLIF(company_name, ''), name) AS venture_name, company_name FROM ventures WHERE venture_id = ? LIMIT 1",
     [invitation.venture_id],
   );
   const contact = await findContactByEmail(invitation.email);

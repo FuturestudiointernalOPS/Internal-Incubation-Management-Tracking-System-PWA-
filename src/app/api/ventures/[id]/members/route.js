@@ -167,7 +167,9 @@ export async function POST(req, { params }) {
     let ventureName = "the Venture";
     try {
       const ventureResult = await db.execute({
-        sql: "SELECT COALESCE(NULLIF(name, ''), company_name) AS venture_name FROM ventures WHERE venture_id = ? LIMIT 1",
+        // company_name is the canonical label; the legacy `name` column can
+        // still hold the intake Run's name.
+        sql: "SELECT COALESCE(NULLIF(company_name, ''), name) AS venture_name FROM ventures WHERE venture_id = ? LIMIT 1",
         args: [code],
       });
       ventureName = ventureResult.rows?.[0]?.venture_name || ventureName;
