@@ -73,12 +73,26 @@ describe("result email copy — Founder Fit Score scope", () => {
     // while the "how to reach the document" lines stay the application's — so a
     // designed message can never promise an attachment the transport could not
     // carry, nor point at a document that is not there.
-    expect(EMAIL).toContain("designedSubject ? applyTemplate(designedSubject, tv) : copy.subject;");
-    expect(EMAIL).toContain("designedBody ? applyTemplate(designedBody, tv) : copy.greetingHtml + copy.openingHtml");
+    expect(EMAIL).toContain('designedSubject ? applyTemplate(designedSubject, tv) : copy.subject;');
+    expect(EMAIL).toContain(': copy.greetingHtml + copy.openingHtml');
     expect(EMAIL).toContain('designedBody ? "" : copy.closingHtml');
     // Resolved WITHOUT the platform default, because the default here depends on
     // the kind of run.
     expect(ROUTE).toContain('getDesignedTemplate(settingsRow?.settings || {}, "result", settingsRow?.run_settings || {})');
+  });
+
+  test("a designed text chooses where the document line goes, and gets it appended otherwise", () => {
+    // The recipient must always learn how to reach the document, and only the
+    // platform knows whether it went out as an attachment or as a link.
+    expect(EMAIL).toContain('templateVariableNames(designedBody).includes("document_access")');
+    expect(EMAIL).toContain('{ ...tv, document_access: copy.accessHtml(hosted, url) }');
+    expect(EMAIL).toContain('(designedBody && designedAccessSlot ? "" : copy.accessHtml(hosted, url))');
+  });
+
+  test("the result message speaks in the platform's own voice", () => {
+    // Its built-in copies say "Future Studio" and close with the Future Studio
+    // team, so the {{organization}} variable must not resolve to something else.
+    expect(EMAIL).toContain('organization: "Future Studio"');
   });
 
   test("the score and the project name are resolved where the answers are", () => {
