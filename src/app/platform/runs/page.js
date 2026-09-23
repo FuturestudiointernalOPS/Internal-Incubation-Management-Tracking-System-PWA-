@@ -4497,6 +4497,14 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     vars={TEMPLATE_VARIABLES.rejection}
                     current={runTemplates.rejection || {}}
                   />
+                  <RunTemplateEditor
+                    tKey="result"
+                    label={t("platformMisc.forms.templateResultLabel")}
+                    icon={FileText}
+                    desc={t("platformMisc.runs.runTemplateResultDesc")}
+                    vars={TEMPLATE_VARIABLES.result}
+                    current={runTemplates.result || {}}
+                  />
                 </div>
               </div>
             );

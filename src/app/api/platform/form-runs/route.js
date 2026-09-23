@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
-import { sendDecisionEmail, getTemplate, resolvePersonName, resolveSubmissionEmail, resolveProjectName, recordEmailStatus, isGenericName, isPlaceholderEmail, hasSentEmailToRecipientInRun, detectLanguage, getEmailLogRow } from "@/lib/email";
+import { sendDecisionEmail, getTemplate, getDesignedTemplate, resolvePersonName, resolveSubmissionEmail, resolveProjectName, recordEmailStatus, isGenericName, isPlaceholderEmail, hasSentEmailToRecipientInRun, detectLanguage, getEmailLogRow } from "@/lib/email";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded, sendAcknowledgementForSubmission } from "@/lib/platform/automation";
 import { resolveAutomationFlag } from "@/lib/platform/automationSettings";
 import { syncApprovedSubmissionToProgramGroup } from "@/lib/contact-group-sync";
@@ -1261,6 +1261,19 @@ async function sendResultEmailForSubmission({ submission_id }) {
       return { status: "skipped", error: "Duplicate recipient — already emailed in this run", to: applicantEmail };
     }
 
+    // The result text DESIGNED for this run (or its form) takes over the built-in
+    // wording. Read without the platform default, because the built-in wording
+    // depends on the kind of run — see getDesignedTemplate. A read failure simply
+    // leaves the built-in copy in place; it never blocks the send.
+    let designedTemplate = { subject: "", body: "" };
+    try {
+      const settingsResult = await getRunTemplateSettingsForDecisionById(row.run_id);
+      const settingsRow = settingsResult.rows[0] || null;
+      designedTemplate = getDesignedTemplate(settingsRow?.settings || {}, "result", settingsRow?.run_settings || {});
+    } catch (error) {
+      console.warn("[form-runs] Result template settings unreadable:", error.message);
+    }
+
     const { sendResultEmail, sendTrackedEmail } = await import("@/lib/email");
     const tracked = await sendTrackedEmail({
       submission_id: parseInt(submission_id),
@@ -1279,6 +1292,7 @@ async function sendResultEmailForSubmission({ submission_id }) {
           score,
           projectName,
           template,
+          designed: designedTemplate,
         }),
     });
     if (tracked.success) {

@@ -62,6 +62,10 @@ const TEMPLATE_SPECS = {
     label: "polite rejection notification",
     placeholders: ["{{name}}", "{{form_name}}", "{{organization}}"],
   },
+  result: {
+    label: "result notification that accompanies a personalised report (sent as a PDF attachment or a download link, added by the platform)",
+    placeholders: ["{{name}}", "{{organization}}", "{{score}}", "{{project_name}}"],
+  },
   manual: {
     label: "manual ad-hoc message to selected participants",
     placeholders: ["{{name}}", "{{group_name}}", "{{organization}}"],

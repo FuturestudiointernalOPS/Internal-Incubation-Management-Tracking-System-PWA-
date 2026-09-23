@@ -1609,6 +1609,16 @@ export default function PlatformForms() {
                   onPersonalize={personalize}
                   personalizingKey={personalizing}
                 />
+                <TemplateEditor
+                  label={t("platformMisc.forms.templateResultLabel")} icon={FileText}
+                  tKey="result"
+                  desc={t("platformMisc.forms.templateResultDesc")}
+                  defaultSubject={t("platformMisc.forms.templateResultSubject")}
+                  defaultBody={t("platformMisc.forms.templateResultBody")}
+                  vars={TEMPLATE_VARIABLES.result}
+                  onPersonalize={personalize}
+                  personalizingKey={personalizing}
+                />
               </div>
             );
           })()}

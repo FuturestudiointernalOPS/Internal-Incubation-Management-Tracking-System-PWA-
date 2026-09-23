@@ -194,6 +194,13 @@ const DEFAULT_TEMPLATES = {
     subject: "Welcome back to {{organization}} — Log In",
     body: `<p>Hello {{name}},</p><p>You already have an account with us. You can access the platform using your existing login credentials.</p>`,
   },
+  result: {
+    // The NEUTRAL result wording. A Founder Fit Score run still gets its own
+    // built-in message INSTEAD of this one (see sendResultEmail), so this default
+    // is what every other run falls back to — and the base the AI personalizes.
+    subject: "Your submission result",
+    body: `<p>Hello {{name}},</p><p>The result of your submission is ready. The document contains your responses, the evaluation of your submission and your final score.</p><p>Thank you for participating.</p>`,
+  },
 };
 
 /**
@@ -244,6 +251,24 @@ export function getTemplate(formSettings, templateKey, runSettings) {
 export function getDefaultTemplate(templateKey) {
   const def = DEFAULT_TEMPLATES[templateKey];
   return { subject: def?.subject || "", body: def?.body || "" };
+}
+
+/**
+ * Resolve ONLY the DESIGNED levels of a template — run, then form — without the
+ * platform default.
+ *
+ * The result message needs this: its built-in wording depends on the kind of
+ * run (a Founder Fit Score run has its own message), so the platform default
+ * must not be reached before that choice is made — otherwise adding a default
+ * would silently replace every run's specific message. Blank values fall
+ * through exactly like getTemplate.
+ */
+export function getDesignedTemplate(formSettings, templateKey, runSettings) {
+  const custom = formSettings?.automation?.templates?.[templateKey] || {};
+  const runCustom = runSettings?.templates?.[templateKey] || {};
+  const text = (value) => (typeof value === "string" ? value.trim() : value);
+  const pick = (runVal, formVal) => text(runVal) || text(formVal) || "";
+  return { subject: pick(runCustom.subject, custom.subject), body: pick(runCustom.body, custom.body) };
 }
 
 /**
@@ -1851,13 +1876,19 @@ function founderFitResultCopy({ isFr, greeting, frGreeting, scoreText, project }
  * them: without a score its score sentence is dropped, and without a project
  * name its recommendation refers to "your project".
  *
+ * A text DESIGNED in the UI (run → form — see getDesignedTemplate) takes over
+ * the message. The built-in copy then only supplies what the author left blank,
+ * and the "how to reach the document" lines stay application-owned: a designed
+ * text can never point the recipient at a document that is not there, nor
+ * promise an attachment that the transport could not carry.
+ *
  * Delivery:
  *  - Gmail transport attaches the PDF natively when Google Workspace
  *    credentials are configured.
  *  - Otherwise the PDF is hosted in Supabase storage and delivered as a
  *    download button through Resend (never silently dropped).
  */
-export async function sendResultEmail({ to, applicantName, pdfBuffer, lang = "en", runId, submissionId, score, projectName, template }) {
+export async function sendResultEmail({ to, applicantName, pdfBuffer, lang = "en", runId, submissionId, score, projectName, template, designed }) {
   const isFr = (lang || "en").toLowerCase().startsWith("fr");
   const greetingName = resolveGreetingName(applicantName);
   const greeting = greetingName ? `Hello ${greetingName},` : "Hello,";
@@ -1877,7 +1908,19 @@ export async function sendResultEmail({ to, applicantName, pdfBuffer, lang = "en
   const copy = template === "founder_fit"
     ? founderFitResultCopy({ isFr, greeting, frGreeting, scoreText, project })
     : genericResultCopy({ isFr, greeting, frGreeting });
-  const subject = copy.subject;
+
+  // What a designed text may use. Every name here is one THIS sender fills in,
+  // so the list the editors show and the values substituted cannot drift.
+  const tv = {
+    name: greetingName || "there",
+    organization: "ImpactOS",
+    score: scoreText,
+    project_name: project,
+  };
+
+  const designedSubject = typeof designed?.subject === "string" ? designed.subject.trim() : "";
+  const designedBody = typeof designed?.body === "string" ? designed.body.trim() : "";
+  const subject = designedSubject ? applyTemplate(designedSubject, tv) : copy.subject;
 
   if (isPlaceholderEmail(to)) {
     console.warn("[Email] REFUSING to send to placeholder address:", to);
@@ -1907,8 +1950,14 @@ export async function sendResultEmail({ to, applicantName, pdfBuffer, lang = "en
 
   // One body for both transports — the copy is identical, only the way the
   // report is reached differs (attached, or a download button on the fallback).
+  // A designed text replaces the editorial part; the access lines below it are
+  // always the application's, so they always match the real delivery.
   const compose = (hosted, url = "") =>
-    shell(copy.greetingHtml + copy.openingHtml + copy.accessHtml(hosted, url) + copy.closingHtml);
+    shell(
+      (designedBody ? applyTemplate(designedBody, tv) : copy.greetingHtml + copy.openingHtml) +
+        copy.accessHtml(hosted, url) +
+        (designedBody ? "" : copy.closingHtml),
+    );
 
   // Preferred path: native PDF attachment through the Gmail API transport.
   if (gmailCredentialsAvailable()) {
