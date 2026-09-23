@@ -132,6 +132,15 @@ describe("applyTemplate — no placeholder ever ships raw", () => {
     expect(applyTemplate("Bonjour{{name}} !", { name: "" })).toBe("Bonjour !");
     expect(applyTemplate("Vraiment{{name}} ?", { name: "" })).toBe("Vraiment ?");
   });
+
+  test("a value that LED the text leaves no stranded punctuation behind", () => {
+    // A subject built on the recipient's name must still read correctly when no
+    // name is known at all.
+    expect(applyTemplate("{{name}}, your result is ready", { name: "" })).toBe("your result is ready");
+    expect(applyTemplate("{{name}}, votre résultat est prêt", { name: "Nathan" })).toBe("Nathan, votre résultat est prêt");
+    // A leading full stop followed by a letter is a different thing and stays.
+    expect(applyTemplate(".NET developer", { name: "" })).toBe(".NET developer");
+  });
 });
 
 describe("template variable inspection (shared with the editors)", () => {

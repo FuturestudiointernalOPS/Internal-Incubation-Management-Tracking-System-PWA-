@@ -101,6 +101,16 @@ describe("result email copy — Founder Fit Score scope", () => {
     expect(EMAIL).toContain('name: greetingName || (isFr ? "" : "there"),');
   });
 
+  test("a sentence that hangs on the project name is never left incomplete", () => {
+    // With no project name found, "la différenciation de {{project_name}}" must
+    // read "la différenciation de votre projet" — never "la différenciation de .".
+    expect(EMAIL).toContain('project_name: project || (isFr ? "votre projet" : "your project"),');
+  });
+
+  test("the subject is built on the recipient's name", () => {
+    expect(EMAIL).toContain('subject: "{{name}}, your result is ready",');
+  });
+
   test("the score and the project name are resolved where the answers are", () => {
     expect(ROUTE).toMatch(/resolveProjectName\(\{ submissionData: subData, fieldLabels: labels \}\)/);
     expect(ROUTE).toMatch(/score: finalScore != null \? Math\.round\(Number\(finalScore\)\) : null/);
