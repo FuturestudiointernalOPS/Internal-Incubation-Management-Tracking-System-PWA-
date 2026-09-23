@@ -42,9 +42,11 @@ export default function VentureMemberInvitePage({ params }) {
       : '';
   const error = submitError || linkError;
 
-  // A person the platform has never seen needs a password to be able to sign in
-  // afterwards; someone who already has an account does not.
+  // A person the platform has never seen needs a name and a password to be able
+  // to sign in afterwards; someone who already has an account only accepts —
+  // nothing about their identity or credentials changes.
   const needsPassword = !invite?.has_account;
+  const alreadyOnPlatform = invite?.has_account === true;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -151,29 +153,37 @@ export default function VentureMemberInvitePage({ params }) {
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-slate-400 outline-none"
             />
           </div>
-          <input
-            required
-            type="text"
-            placeholder={t("rootMisc.ventureMemberInvite.fullName")}
-            value={form.name}
-            onChange={(event) => setForm({ ...form, name: event.target.value })}
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all"
-          />
-          <div>
-            <input
-              required={needsPassword}
-              type="password"
-              placeholder={t("rootMisc.ventureMemberInvite.createPassword")}
-              value={form.password}
-              onChange={(event) => setForm({ ...form, password: event.target.value })}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all"
-            />
-            <p className="text-[10px] text-slate-500 mt-1.5">
-              {needsPassword
-                ? t("rootMisc.ventureMemberInvite.passwordHint")
-                : t("rootMisc.ventureMemberInvite.passwordOptionalHint")}
+          {alreadyOnPlatform ? (
+            <p className="text-xs text-slate-400 leading-relaxed">
+              {t("rootMisc.ventureMemberInvite.alreadyRegistered")}
             </p>
-          </div>
+          ) : (
+            <>
+              <input
+                required
+                type="text"
+                placeholder={t("rootMisc.ventureMemberInvite.fullName")}
+                value={form.name}
+                onChange={(event) => setForm({ ...form, name: event.target.value })}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all"
+              />
+              <div>
+                <input
+                  required={needsPassword}
+                  type="password"
+                  placeholder={t("rootMisc.ventureMemberInvite.createPassword")}
+                  value={form.password}
+                  onChange={(event) => setForm({ ...form, password: event.target.value })}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all"
+                />
+                <p className="text-[10px] text-slate-500 mt-1.5">
+                  {needsPassword
+                    ? t("rootMisc.ventureMemberInvite.passwordHint")
+                    : t("rootMisc.ventureMemberInvite.passwordOptionalHint")}
+                </p>
+              </div>
+            </>
+          )}
 
           {error && <p className="text-rose-500 text-xs font-bold">{error}</p>}
 

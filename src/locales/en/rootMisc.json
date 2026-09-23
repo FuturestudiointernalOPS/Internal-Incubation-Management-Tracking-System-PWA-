@@ -178,6 +178,7 @@
       "passwordRequired": "Password must be at least 6 characters.",
       "passwordHint": "Choose a password to access the platform.",
       "passwordOptionalHint": "You already have an account — leave this empty to keep your current password.",
+      "alreadyRegistered": "You already have an ImpactOS account. Accept the invitation to join — nothing to create.",
       "acceptInvitation": "Accept invitation",
       "acceptFailed": "Could not accept the invitation.",
       "accepted": "Invitation accepted",
