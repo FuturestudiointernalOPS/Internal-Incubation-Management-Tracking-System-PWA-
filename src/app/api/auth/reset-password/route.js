@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import {
   getContactByEmailForPasswordReset,
   updateContactPasswordByEmail,
+  deleteUserSessions,
 } from '@/models/authFlows';
 
 export async function POST(req) {
@@ -49,6 +50,10 @@ export async function POST(req) {
     }
 
     await updateContactPasswordByEmail(hashedNewPassword, cleanEmail);
+
+    // Invalidate every session that predates this credential change: a stolen
+    // session must die with the old password.
+    if (user.cid) await deleteUserSessions(user.cid).catch(() => {});
 
     return NextResponse.json({
       success: true,

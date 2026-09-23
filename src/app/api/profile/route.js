@@ -2,6 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import bcrypt from "bcryptjs";
+import { hashToken } from "@/lib/token-hashing";
 import {
   getContactProfileFields,
   getContactSecondaryFields,
@@ -9,6 +10,7 @@ import {
   updateContactCoreFields,
   updateContactSecondaryFields,
 } from "@/models/workspace";
+import { deleteUserSessionsExcept } from "@/models/authFlows";
 
 /**
  * PROFILE COMPLETION API
@@ -203,6 +205,11 @@ export async function PUT(req) {
 
     if (updates.length > 0) {
       await updateContactCoreFields(session.cid, updates, args);
+      // Changing the password signs out every OTHER session; the one making the
+      // change stays, so the user is not thrown out mid-action.
+      if (password !== undefined) {
+        await deleteUserSessionsExcept(session.cid, hashToken(session.token)).catch(() => {});
+      }
     }
 
     if (extUpdates.length > 0) {

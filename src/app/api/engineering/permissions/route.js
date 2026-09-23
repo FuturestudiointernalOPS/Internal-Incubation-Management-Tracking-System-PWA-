@@ -327,6 +327,19 @@ export async function PUT(req) {
       );
     }
 
+    // Promoting to Super Admin (or demoting) is a ROLE change, not a capability
+    // grant: a delegated "permission manager" holding assign_capabilities must
+    // not be able to mint one for themselves or anyone else.
+    if (
+      (action === "promote_super_admin" || action === "remove_super_admin") &&
+      session.role !== "super_admin"
+    ) {
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
+    }
+
     await initDb();
     await ensurePermissionsSchema();
 

@@ -72,13 +72,19 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const group_id = searchParams.get("group_id");
 
-    let query = supabase
-      .from("v2_group_members")
-      .select("*, v2_participants(*)");
-
-    if (group_id) {
-      query = query.eq("group_id", group_id);
+    // Require a group: an unscoped read dumped EVERY membership, with the full
+    // participant row attached.
+    if (!group_id) {
+      return NextResponse.json(
+        { success: false, error: "group_id is required" },
+        { status: 400 },
+      );
     }
+
+    const query = supabase
+      .from("v2_group_members")
+      .select("*, v2_participants(*)")
+      .eq("group_id", group_id);
 
     const { data, error } = await query;
 

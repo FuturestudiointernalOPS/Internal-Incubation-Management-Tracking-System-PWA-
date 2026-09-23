@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
+import { createSession, setSessionCookieOnResponse, requireAuth } from "@/lib/auth";
 import { resolveLanding, landingNeedsRelationships } from "@/lib/platform/roles";
 import { getVentureMembershipsForContact } from "@/models/contacts";
 import {
@@ -38,6 +38,12 @@ export async function POST(req) {
     console.log("[impersonate:POST] BLOCKED - production environment");
     return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   }
+
+  // Impersonation mints a real session for ANY user, including super_admin: the
+  // env flag alone (and its client-visible NEXT_PUBLIC_ twin) is not an
+  // authorization decision. Require a live Super Admin session on top.
+  const authError = await requireAuth(["super_admin"]);
+  if (authError) return authError;
 
   try {
     await initDb();
@@ -187,6 +193,10 @@ export async function GET() {
     console.log("[impersonate:GET] BLOCKED - production environment");
     return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   }
+
+  // Listing every active contact is itself sensitive — Super Admin only.
+  const authError = await requireAuth(["super_admin"]);
+  if (authError) return authError;
 
   try {
     await initDb();

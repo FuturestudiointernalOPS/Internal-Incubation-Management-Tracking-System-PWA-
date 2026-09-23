@@ -104,6 +104,16 @@ export async function POST(req, { params }) {
 
     const approvalRequest = requestResult.rows[0];
 
+    // Object-level authorization: the request id comes from the body, so it must
+    // belong to the project in the URL — otherwise a member of one project could
+    // approve or reject another project's contribution by supplying its id.
+    if (String(approvalRequest.project_id) !== String(id)) {
+      return NextResponse.json(
+        { success: false, error: "errors.notFound" },
+        { status: 404 },
+      );
+    }
+
     // Update the request status
     try {
       await updateProjectApprovalRequestStatus(

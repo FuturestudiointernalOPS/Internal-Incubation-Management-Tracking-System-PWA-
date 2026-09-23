@@ -1,5 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import {
@@ -28,6 +29,11 @@ export async function POST(req) {
     console.log("[quick-login] BLOCKED - production environment");
     return NextResponse.json({ error: "errors.notFound" }, { status: 404 });
   }
+
+  // Env flag is not an authorization decision: this mints a real session for any
+  // user, so require a live Super Admin session.
+  const authError = await requireAuth(["super_admin"]);
+  if (authError) return authError;
 
   try {
     await initDb();

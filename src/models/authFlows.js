@@ -587,6 +587,18 @@ export async function deleteUserSessions(cid) {
   });
 }
 
+/**
+ * Delete every session for a user EXCEPT the one identified by `keepTokenHash`.
+ * Used when a user changes their own password: the credential change must kill
+ * older sessions, but the session performing the change stays alive.
+ */
+export async function deleteUserSessionsExcept(cid, keepTokenHash) {
+  return db.execute({
+    sql: "DELETE FROM user_sessions WHERE user_cid = ? AND (token_hash IS NULL OR token_hash <> ?)",
+    args: [cid, keepTokenHash],
+  });
+}
+
 // The V2 invite helpers that used to end this file (create/list/validate the
 // legacy invitation row, and the contact + v2_participants writes performed while
 // accepting one) were removed together with their only callers, the two routes

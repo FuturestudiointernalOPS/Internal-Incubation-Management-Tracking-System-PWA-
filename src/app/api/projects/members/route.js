@@ -76,6 +76,13 @@ export async function POST(req) {
     const session = await getSession();
     const inviterName = session?.name || "Unknown";
 
+    // Object-level authorization: `projects.edit` alone is a global capability.
+    // A non-staff holder may only invite into a project they own or belong to.
+    if (!["super_admin", "staff", "program_manager"].includes(session?.role)) {
+      const accessError = await requireProjectAccess(project_id);
+      if (accessError) return accessError;
+    }
+
     // Get project name
     const projectResult = await getProjectName(project_id);
     const projectName = projectResult.rows[0]?.name || "Unknown Project";
@@ -123,6 +130,14 @@ export async function DELETE(req) {
         { success: false, error: "project_id and user_cid are required" },
         { status: 400 },
       );
+    }
+
+    // Object-level authorization: only a member/owner of the project (or staff)
+    // may remove a member — otherwise `projects.edit` removes anyone anywhere.
+    const session = await getSession();
+    if (!["super_admin", "staff", "program_manager"].includes(session?.role)) {
+      const accessError = await requireProjectAccess(projectId);
+      if (accessError) return accessError;
     }
 
     await deleteProjectMember(projectId, userCid);

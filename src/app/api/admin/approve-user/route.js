@@ -1,5 +1,6 @@
 import { initDb } from "@/lib/db";
 import { requireAuthorization } from "@/lib/authorization";
+import { getSession } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { sendStandaloneEmail } from "@/lib/email";
@@ -32,7 +33,8 @@ export async function POST(req) {
     await ensureTokenHashColumns();
     const capError = await requireAuthorization("permissions", "assign_capabilities");
     if (capError) return capError;
-    const { user_cid, admin_name, role } = await req.json();
+    const session = await getSession();
+    const { user_cid, role } = await req.json();
 
     if (!user_cid) {
       return NextResponse.json(
@@ -64,8 +66,20 @@ export async function POST(req) {
       );
     }
 
+    // The role written at approval is a ROLE decision: only a Super Admin may
+    // pick an arbitrary one; anyone else is limited to a non-privileged set, so
+    // this endpoint cannot become a Super Admin mint.
+    const APPROVABLE_ROLES = ["participant", "member", "applicant", "staff", "program_manager", "founder", "investor", "facilitator"];
+    const requestedRole = typeof role === "string" ? role.trim().toLowerCase() : "";
+    const nextRole =
+      session?.role === "super_admin"
+        ? requestedRole || user.role || "participant"
+        : APPROVABLE_ROLES.includes(requestedRole)
+          ? requestedRole
+          : user.role || "participant";
+
     // 2. Change status to 'approved' and set role
-    await approveContact(role, user_cid);
+    await approveContact(nextRole, user_cid);
 
     // 3. Generate password setup token (24h expiry)
     const token = uuidv4();
@@ -134,7 +148,8 @@ export async function POST(req) {
     // 5. Log to audit_log
     try {
       await insertApprovalAuditLog({
-        adminName: admin_name,
+        // The actor is the SESSION, never a name carried in the body.
+        adminName: session?.name || session?.cid || "system",
         userCid: user_cid,
         userName: user.name,
         userEmail: user.email,
@@ -160,7 +175,6 @@ export async function POST(req) {
         ? `User '${user.name}' approved successfully. Setup email sent to ${user.email}.`
         : `User '${user.name}' approved successfully, but the setup email could not be sent to ${user.email}.`,
       emailSent: emailResult.success,
-      setupUrl,
     });
   } catch (error) {
     console.error("User approval error:", error);

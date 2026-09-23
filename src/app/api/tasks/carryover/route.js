@@ -55,7 +55,16 @@ export const GET = createHandler(async (req) => {
 // Clones a task, migrates blockers/comments/resources/subtasks, marks old as carried_over
 export const POST = createHandler(async (req) => {
   const body = await req.json();
-  const { task_id, target_week, target_year, user_id, user_name } = body;
+  const { task_id, target_week, target_year } = body;
+
+  const { getSession } = await import("@/lib/auth");
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json(
+      { success: false, error: "Authentication required." },
+      { status: 401 },
+    );
+  }
 
   if (!task_id || !target_week || !target_year) {
     return NextResponse.json(
@@ -78,6 +87,22 @@ export const POST = createHandler(async (req) => {
     );
   }
   const originalTask = originalResult.rows[0];
+
+  // Object-level authorization: only the task's owner, assignee, supervisor —
+  // or staff — may carry it over. Previously any authenticated user could flip
+  // anyone's task by id.
+  if (!["super_admin", "staff", "program_manager"].includes(session.role)) {
+    const owns =
+      String(originalTask.user_id) === String(session.cid) ||
+      String(originalTask.assigned_to || "") === String(session.cid) ||
+      String(originalTask.supervisor_id || "") === String(session.cid);
+    if (!owns) {
+      return NextResponse.json(
+        { success: false, error: "You can only carry over your own tasks." },
+        { status: 403 },
+      );
+    }
+  }
 
   // 2. Follow chain forward to find the LATEST clone (not the original)
   // This prevents repeatedly cloning the same original task each week.
@@ -124,8 +149,9 @@ export const POST = createHandler(async (req) => {
 
   // 3. Clone the LATEST task in the chain — preserve ALL fields including context
   const cloneResult = await createCarriedOverClone({
-    user_id,
-    user_name,
+    // The clone belongs to the task's owner; the ACTOR comes from the session.
+    user_id: originalTask.user_id,
+    user_name: session.name || session.cid,
     target_week,
     target_year,
     sourceId,

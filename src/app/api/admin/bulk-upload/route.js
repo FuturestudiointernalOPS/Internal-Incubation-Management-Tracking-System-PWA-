@@ -13,6 +13,9 @@ import {
   updateContactByEmail,
 } from "@/models/adminOps";
 
+/** Roles a CSV import may assign without the role-assignment capability. */
+const IMPORTABLE_ROLES = new Set(["participant", "member", "applicant", "unassigned"]);
+
 /**
  * BULK USER UPLOAD — with rollback + phone support
  * POST /api/admin/bulk-upload
@@ -43,6 +46,11 @@ export async function POST(req) {
       const crmCapError = await requireAuthorization("contacts", "create");
       if (crmCapError) return crmCapError;
     }
+
+    // Role assignment is a separate authority — an importer holding only CRM
+    // create must not be able to mint privileged identities via the CSV.
+    const assignRoleError = await requireAuthorization("permissions", "assign_capabilities");
+    const canAssignRole = !assignRoleError;
 
     const formData = await req.formData();
     const file = formData.get("file");
@@ -121,7 +129,12 @@ export async function POST(req) {
       const groupName =
         (row.group_name || row.group || "").trim().toUpperCase() ||
         "UNASSIGNED";
-      const role = (row.role || "participant").trim().toLowerCase();
+      const requestedRole = (row.role || "participant").trim().toLowerCase();
+      // Role is a server-controlled boundary: an importer who cannot assign
+      // roles may only import self-service ones, never staff/super_admin.
+      const role = canAssignRole || IMPORTABLE_ROLES.has(requestedRole)
+        ? requestedRole
+        : "participant";
 
       // 7.5: Missing mandatory fields
       if (!name || !email) {

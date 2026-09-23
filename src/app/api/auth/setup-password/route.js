@@ -9,6 +9,7 @@ import {
   setContactPasswordAndStatusActive,
   markPasswordSetupTokenUsed,
   logPasswordSetupAudit,
+  deleteUserSessions,
 } from "@/models/authFlows";
 
 /**
@@ -76,6 +77,9 @@ export async function POST(req) {
 
     // 3. Update user - set password and status to active
     await setContactPasswordAndStatusActive(hashedPassword, setupRecord.contact_cid);
+
+    // A credential (re)set must not leave previously-issued sessions alive.
+    await deleteUserSessions(setupRecord.contact_cid).catch(() => {});
 
     // 4. Mark token as used
     await markPasswordSetupTokenUsed(setupRecord.id);

@@ -20,9 +20,19 @@ export const POST = createHandler(async (req) => {
     );
   }
 
+  // Own-scope: a participant writes only their OWN weekly feedback. Only
+  // management may record feedback on behalf of someone else.
+  const { getSession } = await import("@/lib/auth");
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+  }
+  const staffSide = ["super_admin", "staff", "program_manager"];
+  const effectiveParticipantId = staffSide.includes(session.role) ? participant_id : session.cid;
+
   const result = await createFeedback({
     program_id,
-    participant_id,
+    participant_id: effectiveParticipantId,
     week_number,
     learnings,
     accomplishments,
@@ -38,6 +48,17 @@ export const POST = createHandler(async (req) => {
 export const GET = createHandler(async (req) => {
   const { searchParams } = new URL(req.url);
   const program_id = searchParams.get("program_id");
+
+  // The feedback list is a management view: a participant must not be able to
+  // read every program's weekly reflections by changing the query.
+  const { getSession } = await import("@/lib/auth");
+  const session = await getSession();
+  if (!["super_admin", "staff", "program_manager"].includes(session?.role)) {
+    return NextResponse.json(
+      { success: false, error: "errors.insufficientPermissions" },
+      { status: 403 },
+    );
+  }
 
   const { rows } = await listFeedback(program_id);
   const feedback = rows.map((row) => ({

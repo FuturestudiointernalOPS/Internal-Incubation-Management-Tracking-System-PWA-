@@ -364,6 +364,14 @@ export async function DELETE(req) {
       );
     }
 
+    // Object-level authorization: `projects.delete` is a global capability, so a
+    // non-staff holder must own or belong to the project before destroying it.
+    const session = await getSession();
+    if (!["super_admin", "staff", "program_manager"].includes(session?.role)) {
+      const accessError = await requireProjectAccess(id);
+      if (accessError) return accessError;
+    }
+
     // Remove project members first
     await deleteProjectMembersByProjectId(id);
 
