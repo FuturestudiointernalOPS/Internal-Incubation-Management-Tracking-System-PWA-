@@ -198,7 +198,9 @@ const DEFAULT_TEMPLATES = {
     // The NEUTRAL result wording. A Founder Fit Score run still gets its own
     // built-in message INSTEAD of this one (see sendResultEmail), so this default
     // is what every other run falls back to — and the base the AI personalizes.
-    subject: "Your submission result",
+    // The subject is built on the recipient's name, which is why it still reads
+    // correctly when no name is known (the leading comma is tidied away).
+    subject: "{{name}}, your result is ready",
     body: `<p>Hello {{name}},</p><p>The result of your submission is ready. The document contains your responses, the evaluation of your submission and your final score.</p><p>Thank you for participating.</p>`,
   },
 };
@@ -222,11 +224,14 @@ export function applyTemplate(text, vars = {}) {
     result = result.replace(new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, "g"), val != null ? String(val) : "");
   }
   const swept = result.replace(TEMPLATE_VARIABLE_PATTERN, "");
-  // An empty value must not strand the punctuation that followed it: with no
-  // known name, "Bonjour {{name}}," would read "Bonjour ," — never "Bonjour".
+  // An empty value must not strand the punctuation around it: "Bonjour {{name}},"
+  // with no known name would read "Bonjour ," — and a SUBJECT built on the name
+  // ("{{name}}, your result is ready") would read ", your result is ready".
+  //
   // Only the comma and the full stop are tidied, because in French typography a
-  // space before ! ? ; or : is correct and must be left alone.
-  return swept.replace(/\s+([,.])/g, "$1");
+  // space before ! ? ; or : is correct; and the leading rule demands a space
+  // AFTER the mark, so ".NET" is never touched.
+  return swept.replace(/\s+([,.])/g, "$1").replace(/^\s*[,.]\s+/, "");
 }
 
 /**
@@ -1926,7 +1931,10 @@ export async function sendResultEmail({ to, applicantName, pdfBuffer, lang = "en
     // say "Future Studio" and close with the Future Studio team).
     organization: "Future Studio",
     score: scoreText,
-    project_name: project,
+    // A sentence that hangs on the project name must never be left incomplete:
+    // with no name found, it says "votre projet" / "your project" instead of
+    // printing a gap ("la différenciation de .").
+    project_name: project || (isFr ? "votre projet" : "your project"),
   };
 
   const designedSubject = typeof designed?.subject === "string" ? designed.subject.trim() : "";

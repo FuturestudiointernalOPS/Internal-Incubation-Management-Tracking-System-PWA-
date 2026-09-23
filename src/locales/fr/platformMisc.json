@@ -375,7 +375,7 @@
       "templateResultBody": "<p>Bonjour {{name}},</p><p>Le résultat de votre soumission est prêt. Le document contient vos réponses, l'évaluation de votre soumission et votre score final.</p><p>Merci pour votre participation.</p>",
       "templateResultDesc": "Envoyé avec le document de résultat du candidat (PDF). Le contenu du document est défini par les instructions de sortie et le document de référence de l'exécution. La phrase qui indique au candidat comment obtenir le document est insérée là où vous placez {{document_access}} — sans cette variable, elle est ajoutée à la fin. Vous n'avez jamais à joindre le document vous-même : la plateforme joint le rapport généré pour chaque candidat au moment où vous envoyez son résultat.",
       "templateResultLabel": "Rapport de résultat",
-      "templateResultSubject": "Résultat de votre soumission",
+      "templateResultSubject": "{{name}}, votre résultat est prêt",
       "templateSubject": "Objet",
       "templateSubmissionBody": "<p>Bonjour {{name}},</p><p>Nous avons reçu votre soumission pour <strong>{{form_name}}</strong>.</p><p>Notre équipe l'examinera bientôt.</p>",
       "templateSubmissionDesc": "Envoyé immédiatement après la soumission du formulaire par le candidat.",
