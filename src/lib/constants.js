@@ -304,7 +304,7 @@ export const TEMPLATE_VARIABLES = {
   rejection: ["name", "form_name", "score", "group_name", "organization", "decision", "comment"],
   activation: ["name", "role", "organization", "activation_link", "programName", "form_name", "group_name"],
   existing_user: ["name", "role", "organization", "login_url", "programName", "form_name", "group_name"],
-  result: ["name", "organization", "score", "project_name"],
+  result: ["name", "organization", "score", "project_name", "document_access"],
 };
 
 // ─── NUMBER UTILITIES ──────────────────────────────────────────────────

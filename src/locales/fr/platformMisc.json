@@ -373,7 +373,7 @@
       "templateRejectionLabel": "Message de rejet",
       "templateRejectionSubject": "Mise à jour sur votre candidature {{form_name}}",
       "templateResultBody": "<p>Bonjour {{name}},</p><p>Le résultat de votre soumission est prêt. Le document contient vos réponses, l'évaluation de votre soumission et votre score final.</p><p>Merci pour votre participation.</p>",
-      "templateResultDesc": "Envoyé avec le document de résultat du candidat (PDF). Le contenu du document est défini par les instructions de sortie et le document de référence de l'exécution, pas par ce texte.",
+      "templateResultDesc": "Envoyé avec le document de résultat du candidat (PDF). Le contenu du document est défini par les instructions de sortie et le document de référence de l'exécution. La phrase qui indique au candidat comment obtenir le document est insérée là où vous placez {{document_access}} — sans cette variable, elle est ajoutée à la fin.",
       "templateResultLabel": "Rapport de résultat",
       "templateResultSubject": "Résultat de votre soumission",
       "templateSubject": "Objet",

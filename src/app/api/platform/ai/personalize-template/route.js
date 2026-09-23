@@ -63,8 +63,8 @@ const TEMPLATE_SPECS = {
     placeholders: ["{{name}}", "{{form_name}}", "{{organization}}"],
   },
   result: {
-    label: "result notification that accompanies a personalised report (sent as a PDF attachment or a download link, added by the platform)",
-    placeholders: ["{{name}}", "{{organization}}", "{{score}}", "{{project_name}}"],
+    label: "result notification that accompanies a personalised report",
+    placeholders: ["{{name}}", "{{organization}}", "{{score}}", "{{project_name}}", "{{document_access}}"],
   },
   manual: {
     label: "manual ad-hoc message to selected participants",

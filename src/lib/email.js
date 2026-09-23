@@ -7,7 +7,7 @@
 
 import { normalizeToHtml } from "@/lib/platform/ai/email-personalize";
 import { resolveAppUrl } from "@/lib/appUrl";
-import { TEMPLATE_VARIABLE_PATTERN } from "@/lib/constants";
+import { TEMPLATE_VARIABLE_PATTERN, templateVariableNames } from "@/lib/constants";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "noreply@impactos.futurestudio.bj";
@@ -1333,7 +1333,7 @@ export function resolvePersonName({ contactName, contactFirstName, contactLastNa
 // Name"; other venture forms use Project / Nom du projet. Kept apart from the
 // person-name hints on purpose — a company name is never the applicant's name.
 const PROJECT_NAME_HINTS =
-  /^(startup|project|company|venture|business)\s*(name)?$|^nom\s+(du\s+|de\s+la\s+|de\s+l['’]?)?(projet|startup|entreprise|soci[eé]t[eé])$|^(nom|name)\s+(du\s+|of\s+(the\s+)?)?(projet|project)$/i;
+  /^(startup|project|company|venture|business)\s*(name)?$|^nom\s+(du\s+|de\s+la\s+|de\s+l['’]?)?(projet|startup|entreprise|soci[eé]t[eé]|structure|organisation|organization)$|^(raison|d[ée]nomination)\s+sociale$|^(nom|name)\s+(du\s+|of\s+(the\s+)?)?(projet|project)$/i;
 
 /**
  * Resolve the applicant's project / venture name from the submission, using the
@@ -1355,7 +1355,7 @@ export function resolveProjectName({ submissionData, fieldLabels }) {
     if (PROJECT_NAME_HINTS.test(label)) return value;
     // Softer net, never enough on its own: a label that merely mentions the
     // venture ("Startup Industry") must not match, hence the name/nom word.
-    if (!loose && /(startup|projet|project|venture)/i.test(label) && /(name|nom)/i.test(label)) {
+    if (!loose && /(startup|projet|project|venture|entreprise|company|structure|soci[eé]t[eé])/i.test(label) && /(name|nom)/i.test(label)) {
       loose = value;
     }
   }
@@ -1913,7 +1913,9 @@ export async function sendResultEmail({ to, applicantName, pdfBuffer, lang = "en
   // so the list the editors show and the values substituted cannot drift.
   const tv = {
     name: greetingName || "there",
-    organization: "ImpactOS",
+    // The result message speaks in the platform's own voice (its built-in copies
+    // say "Future Studio" and close with the Future Studio team).
+    organization: "Future Studio",
     score: scoreText,
     project_name: project,
   };
@@ -1950,12 +1952,19 @@ export async function sendResultEmail({ to, applicantName, pdfBuffer, lang = "en
 
   // One body for both transports — the copy is identical, only the way the
   // report is reached differs (attached, or a download button on the fallback).
-  // A designed text replaces the editorial part; the access lines below it are
-  // always the application's, so they always match the real delivery.
+  // A designed text replaces the editorial part; the lines that tell the
+  // recipient how to REACH the document stay the application's. A designed text
+  // places them where it wants with {{document_access}}; when it does not use
+  // that variable at all they are appended instead. Either way the recipient
+  // always gets a way to the document, and a designed text can never promise an
+  // attachment that the transport could not carry.
+  const designedAccessSlot = templateVariableNames(designedBody).includes("document_access");
   const compose = (hosted, url = "") =>
     shell(
-      (designedBody ? applyTemplate(designedBody, tv) : copy.greetingHtml + copy.openingHtml) +
-        copy.accessHtml(hosted, url) +
+      (designedBody
+        ? applyTemplate(designedBody, { ...tv, document_access: copy.accessHtml(hosted, url) })
+        : copy.greetingHtml + copy.openingHtml) +
+        (designedBody && designedAccessSlot ? "" : copy.accessHtml(hosted, url)) +
         (designedBody ? "" : copy.closingHtml),
     );
 
