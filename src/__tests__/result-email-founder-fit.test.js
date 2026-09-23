@@ -95,6 +95,12 @@ describe("result email copy — Founder Fit Score scope", () => {
     expect(EMAIL).toContain('organization: "Future Studio"');
   });
 
+  test("a missing name reads as a greeting, never as an English filler word", () => {
+    // "Bonjour {{name}}," with no known name must read "Bonjour," — not
+    // "Bonjour there,". English keeps its idiomatic "Hello there,".
+    expect(EMAIL).toContain('name: greetingName || (isFr ? "" : "there"),');
+  });
+
   test("the score and the project name are resolved where the answers are", () => {
     expect(ROUTE).toMatch(/resolveProjectName\(\{ submissionData: subData, fieldLabels: labels \}\)/);
     expect(ROUTE).toMatch(/score: finalScore != null \? Math\.round\(Number\(finalScore\)\) : null/);

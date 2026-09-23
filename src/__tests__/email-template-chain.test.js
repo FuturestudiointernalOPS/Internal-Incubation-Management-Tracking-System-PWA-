@@ -119,6 +119,19 @@ describe("applyTemplate — no placeholder ever ships raw", () => {
   test("text without placeholders is untouched", () => {
     expect(applyTemplate("Plain text, no braces.", { name: "Ada" })).toBe("Plain text, no braces.");
   });
+
+  test("an empty value does not strand the punctuation that followed it", () => {
+    // "Bonjour {{name}}," with no known name must read "Bonjour," — the
+    // difference between a greeting and "Bonjour there,".
+    expect(applyTemplate("Bonjour {{name}},", { name: "" })).toBe("Bonjour,");
+    expect(applyTemplate("Hello {{name}}, welcome.", { name: "" })).toBe("Hello, welcome.");
+  });
+
+  test("French spacing before ! ? ; : is left alone", () => {
+    // A space before these is CORRECT in French typography and must survive.
+    expect(applyTemplate("Bonjour{{name}} !", { name: "" })).toBe("Bonjour !");
+    expect(applyTemplate("Vraiment{{name}} ?", { name: "" })).toBe("Vraiment ?");
+  });
 });
 
 describe("template variable inspection (shared with the editors)", () => {
