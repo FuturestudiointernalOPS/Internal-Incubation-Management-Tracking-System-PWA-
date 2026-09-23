@@ -83,7 +83,7 @@ function encodeMailHeader(value) {
 
 /** Build a raw MIME message for the Gmail API. Supports optional file
  * attachments (multipart/mixed) — used for PDF result documents. */
-function buildGmailRawMessage({ to, subject, html, attachments }) {
+function buildGmailRawMessage({ to, subject, html, attachments, fromName }) {
   const plainText = (html || "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")
     .replace(/<[^>]+>/g, " ")
@@ -93,7 +93,7 @@ function buildGmailRawMessage({ to, subject, html, attachments }) {
     .substring(0, 4000);
   const altBoundary = `futurestudio_alt_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   const outerHeaders = [
-    `From: ${GMAIL_SENDER_NAME} <${GMAIL_SENDER_EMAIL}>`,
+    `From: ${fromName || GMAIL_SENDER_NAME} <${GMAIL_SENDER_EMAIL}>`,
     `Reply-To: ${GMAIL_SENDER_EMAIL}`,
     `To: ${to}`,
     `Subject: ${encodeMailHeader(subject)}`,
@@ -145,7 +145,7 @@ function buildGmailRawMessage({ to, subject, html, attachments }) {
 }
 
 /** Send one email through the Google Workspace (Gmail API) transport. */
-async function sendViaGmail({ to, subject, html, attachments }) {
+async function sendViaGmail({ to, subject, html, attachments, fromName }) {
   if (!gmailCredentialsAvailable()) {
     console.warn("[Gmail] Credentials not configured — skipping Gmail send to:", to);
     return { success: false, provider: "gmail", note: "Gmail credentials not configured" };
@@ -161,7 +161,7 @@ async function sendViaGmail({ to, subject, html, attachments }) {
     auth.setCredentials({ refresh_token: GMAIL_REFRESH_TOKEN });
 
     const gmail = google.gmail({ version: "v1", auth });
-    const raw = buildGmailRawMessage({ to, subject, html, attachments });
+    const raw = buildGmailRawMessage({ to, subject, html, attachments, fromName });
     const sendRes = await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
 
     return { success: true, provider: "gmail", data: { id: sendRes.data?.id || null } };
@@ -667,9 +667,89 @@ export async function sendVentureInvitationEmail({ to, name, runUrl, runName }) 
 }
 
 /**
+ * Venture MEMBER invitation — a founder adding a teammate to an existing
+ * Venture. Rides the SAME transport as every other Venture email (Google
+ * Workspace first, Resend fallback), so it is no longer a separate weaker
+ * sender that silently no-ops when one provider is unavailable.
+ *
+ * Returns the transport result unchanged: `success: false` means the email did
+ * NOT leave the system and the caller must tell the founder.
+ */
+export async function sendVentureMemberInvitationEmail({
+  to,
+  ventureName,
+  inviterName,
+  memberType,
+  inviteUrl,
+  expiresAt,
+}) {
+  const ctaUrl = inviteUrl || `${APP_URL}/login`;
+  const venue = ventureName || "the Venture";
+  const seat = memberType === "founder" ? "a founder" : "a team member";
+  const inviter = inviterName ? `<strong style="color: #f8fafc;">${inviterName}</strong>` : "A founder";
+  const expiryLine = expiresAt
+    ? `<p style="color: #64748b; font-size: 12px; margin: 0 0 24px;">This invitation link expires on ${new Date(expiresAt).toLocaleDateString("en-GB")}.</p>`
+    : "";
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #020617; color: #f8fafc; margin: 0; padding: 0;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background: #020617;">
+        <tr><td align="center" style="padding: 40px 20px;">
+          <table width="480" cellpadding="0" cellspacing="0" style="background: #0f172a; border-radius: 16px; border: 1px solid #334155;">
+            <tr><td style="padding: 40px;">
+              <h1 style="margin: 0 0 8px; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">
+                <span style="color: #ff6600;">Impact</span><span style="color: #f8fafc;">OS</span>
+              </h1>
+              <p style="color: #64748b; font-size: 13px; margin: 0 0 24px;">Future Studio Platform</p>
+
+              <h2 style="color: #f8fafc; font-size: 18px; margin: 0 0 8px;">You're invited to join ${venue} 🤝</h2>
+              <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
+                ${inviter} invited you to join <strong style="color: #f8fafc;">${venue}</strong> as ${seat}.
+                Accept the invitation below to join the team.
+              </p>
+
+              <table cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
+                <tr>
+                  <td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;">
+                    <a href="${ctaUrl}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">
+                      ACCEPT INVITATION
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              ${expiryLine}
+
+              <p style="color: #64748b; font-size: 12px; line-height: 1.5; margin: 0 0 4px;">
+                If the button doesn't work, copy and paste this URL into your browser:
+              </p>
+              <p style="color: #ff6600; font-size: 11px; word-break: break-all; margin: 0 0 24px;">
+                ${ctaUrl}
+              </p>
+
+              <hr style="border: none; border-top: 1px solid #1e293b; margin: 24px 0;" />
+              <p style="color: #475569; font-size: 11px; line-height: 1.5; margin: 0;">
+                If you have any questions, please contact your administrator.
+              </p>
+              ${FUTURE_STUDIO_FOOTER}
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({ to, subject: `You're invited to join ${venue}`, html });
+}
+
+/**
  * Internal: sends email via Resend
  */
-async function sendViaResend({ to, subject, html }) {
+async function sendViaResend({ to, subject, html, fromName }) {
   if (!RESEND_API_KEY) {
     console.warn("Resend not configured — skipping email to:", to, "subject:", subject);
     return { success: false, provider: "resend", note: "Resend API key not configured" };
@@ -680,7 +760,7 @@ async function sendViaResend({ to, subject, html }) {
     const resend = new Resend(RESEND_API_KEY);
 
     const { data, error } = await resend.emails.send({
-      from: FROM_EMAIL,
+      from: fromName ? `${fromName} <${FROM_EMAIL}>` : FROM_EMAIL,
       to,
       subject,
       html,
@@ -709,7 +789,7 @@ async function sendViaResend({ to, subject, html }) {
  * and fall back to Resend on transport failure so the applicant still
  * receives the notification — it remains a single tracked attempt.
  */
-export async function sendEmail({ to, subject, html, provider, attachments }) {
+export async function sendEmail({ to, subject, html, provider, attachments, fromName }) {
   // HARD GUARD: an internal placeholder address (import-…@placeholder…,
   // .local, example.com…) must NEVER leave the system, no matter which
   // code path built the recipient. This is the final safety net before any
@@ -723,8 +803,8 @@ export async function sendEmail({ to, subject, html, provider, attachments }) {
   const fallback = chosen === "gmail" ? "resend" : "gmail";
   const sendWith = (providerName) =>
     providerName === "gmail"
-      ? sendViaGmail({ to, subject, html, attachments })
-      : sendViaResend({ to, subject, html }); // Resend transport has no attachment support
+      ? sendViaGmail({ to, subject, html, attachments, fromName })
+      : sendViaResend({ to, subject, html, fromName }); // Resend transport has no attachment support
 
   const primary = await sendWith(chosen);
   if (primary.success) return primary;
