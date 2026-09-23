@@ -139,7 +139,8 @@ export const POST = createHandler(async (req) => {
   const result = await createComment(
     task_id,
     sender_id,
-    sender_name,
+    // The display name is the session's, never a client-supplied one.
+    session.name || sender_name || session.cid,
     commentBody,
     parent_id,
   );

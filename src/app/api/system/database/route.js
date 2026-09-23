@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getDatabaseInfo } from "@/lib/ventures";
 import { initDb } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import {
   platformMigrationSteps,
@@ -25,8 +26,10 @@ export const GET = createHandler(async () => {
 export async function POST(_req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("settings", "edit");
-    if (capError) return capError;
+    // Running platform migrations is a Super Admin action: `settings.edit` is a
+    // delegated capability and must not be able to write the schema.
+    const authError = await requireAuth(["super_admin"]);
+    if (authError) return authError;
 
     const results = [];
 

@@ -4,7 +4,6 @@ import { requireAuth } from "@/lib/auth";
 import {
   createProgramTypeOption,
   createProgramTypeOptionsTable,
-  ensureProgramTypeOptionsTable,
   listProgramTypeKeys,
 } from "@/models/programs";
 
@@ -17,7 +16,8 @@ export async function GET() {
   if (authError) return authError;
   try {
     await initDb();
-    await ensureProgramTypeOptionsTable();
+    // Read-only: creating the table is a WRITE and belongs to POST (and to
+    // initDb). A GET must not run DDL.
     const result = await listProgramTypeKeys();
     return NextResponse.json({ types: result.rows.map((row) => row.type_key) });
   } catch (error) {

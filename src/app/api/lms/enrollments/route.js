@@ -21,7 +21,15 @@ export async function POST(req) {
     if (capError) return capError;
 
     const body = await req.json();
-    const result = await enrollLearner(body);
+    if (!body.courseId || (!body.userCid && !body.userEmail)) {
+      return NextResponse.json(
+        { success: false, error: "courseId and a user (userCid or userEmail) are required." },
+        { status: 400 },
+      );
+    }
+    // The enrollment source is server-controlled: a client must not be able to
+    // label its own enrollment as a purchase.
+    const result = await enrollLearner({ ...body, source: "admin" });
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
     return lmsErrorResponse(error);

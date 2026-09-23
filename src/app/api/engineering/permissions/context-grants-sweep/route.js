@@ -35,7 +35,9 @@ const SWEEP_SECRET = process.env.CONTEXT_GRANTS_SECRET_KEY;
 export async function POST(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const key = searchParams.get("key");
+    // The secret travels in a header so it stops landing in access logs; the
+    // query parameter is still accepted for existing schedulers (deprecated).
+    const key = req.headers.get("x-cron-secret") || searchParams.get("key");
 
     if (!SWEEP_SECRET) {
       return NextResponse.json(

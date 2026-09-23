@@ -32,7 +32,7 @@ export async function POST(request) {
     const { table, data: recordData } = body;
     const db = getDb();
 
-    if (!db[table]) {
+    if (!Object.prototype.hasOwnProperty.call(db, table) || !Array.isArray(db[table])) {
       return Response.json({ error: "Invalid table" }, { status: 400 });
     }
 

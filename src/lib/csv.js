@@ -66,11 +66,21 @@ export function parseCSVRows(text) {
  * Cells containing commas, quotes or newlines are quoted.
  */
 export function rowsToCsv(rows) {
+  // A cell beginning with = + @ (or a control char) is interpreted as a FORMULA
+  // by spreadsheet software — a CSV export is then an injection vector. Such a
+  // cell is prefixed with an apostrophe so it is read as text. A plain negative
+  // number (-12, -3.5, -1e-3) is left alone.
+  const RISKY_START = /^[=+@\t\r]/;
+  const CLEAN_NUMBER = /^-?\d+(\.\d+)?([eE][+-]?\d+)?$/;
+
   return (rows || [])
     .map((cells) =>
       (cells || [])
         .map((cell) => {
-          const cellText = cell == null ? "" : String(cell);
+          let cellText = cell == null ? "" : String(cell);
+          if (RISKY_START.test(cellText) || (cellText.startsWith("-") && !CLEAN_NUMBER.test(cellText))) {
+            cellText = "'" + cellText;
+          }
           if (/[",\r\n]/.test(cellText)) return '"' + cellText.replace(/"/g, '""') + '"';
           return cellText;
         })

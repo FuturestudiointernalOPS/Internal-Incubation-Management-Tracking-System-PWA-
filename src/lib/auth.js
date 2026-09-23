@@ -99,16 +99,12 @@ export async function createSession(userCid, userRole, rememberMe = false, isImp
 
   // Create new session
   const tokenHash = hashToken(token);
+  await ensureSessionColumns();
   await db.execute({
-    sql: `INSERT INTO user_sessions (token, token_hash, user_cid, role, expires_at)
-          VALUES (?, ?, ?, ?, ?)`,
-    args: [token, tokenHash, userCid, userRole, expiresAtStr],
+    sql: `INSERT INTO user_sessions (token, token_hash, user_cid, role, expires_at, is_impersonation)
+          VALUES (?, ?, ?, ?, ?, ?)`,
+    args: [token, tokenHash, userCid, userRole, expiresAtStr, isImpersonation === true],
   });
-
-  console.log(
-    "[session] Session stored — token:",
-    token.substring(0, 8) + "...",
-  );
 
   return { token, maxAge: rememberMe ? REMEMBER_ME_DURATION_HOURS * 60 * 60 : SESSION_DURATION_HOURS * 60 * 60, isImpersonation };
 }
@@ -142,11 +138,6 @@ export async function getSession() {
     if (cached && cached.expires > Date.now()) {
       return cached.session;
     }
-
-    console.log(
-      "[session] getSession — token from cookie:",
-      token.substring(0, 8) + "...",
-    );
 
     // Share one read between callers that arrive before it resolves.
     const inflight = _sessionInflight.get(cacheKey);
@@ -218,10 +209,7 @@ async function readSessionFromToken(token) {
   }
 
   if (result.rows.length === 0) {
-    console.log(
-      "[session] Token not in DB or expired — cookie token:",
-      token.substring(0, 8) + "...",
-    );
+    console.log("[session] Token not in DB or expired");
     return null;
   }
 
@@ -264,7 +252,27 @@ async function readSessionFromToken(token) {
     role: session.role,
     group_name: session.group_name,
     token: session.token,
+    is_impersonation: session.is_impersonation === true,
   };
+}
+
+/**
+ * Idempotent self-heal for the session columns this module writes, so an
+ * environment whose schema predates them does not fail the login path.
+ */
+let ensureSessionColumnsPromise = null;
+function ensureSessionColumns() {
+  if (!ensureSessionColumnsPromise) {
+    ensureSessionColumnsPromise = db
+      .execute(
+        "ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS is_impersonation BOOLEAN DEFAULT FALSE",
+      )
+      .catch((error) => {
+        console.warn("[session] ensureSessionColumns skipped:", error.message);
+        ensureSessionColumnsPromise = null;
+      });
+  }
+  return ensureSessionColumnsPromise;
 }
 
 /**

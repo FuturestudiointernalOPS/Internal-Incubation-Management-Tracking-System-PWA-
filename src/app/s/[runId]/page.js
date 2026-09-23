@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Image from "next/image";
 import { Loader2, Send, CheckCircle2, AlertTriangle, Clock, Globe, Mail } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { sanitizeRichText } from "@/lib/lms/richText";
 import AppPhoneInput from "@/components/ui/AppPhoneInput";
 import { useApi } from "@/lib/hooks/useApi";
 
@@ -390,7 +391,7 @@ export default function PublicSubmitPage() {
 
             {successMessage ? (
               <div className="p-6 rounded-2xl bg-slate-800 border border-slate-700">
-                <div className="text-slate-300 text-sm space-y-3 leading-relaxed" dangerouslySetInnerHTML={{ __html: successMessage.replace(/\n/g, "<br/>") }} />
+                <div className="text-slate-300 text-sm space-y-3 leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeRichText(successMessage.replace(/\n/g, "<br/>")) }} />
               </div>
             ) : null}
 

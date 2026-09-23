@@ -3,7 +3,7 @@
 **Date** : 2026-09-23
 **Branch audited** : `A`
 **Method** : read-only static review of every `src/app/api/**/route.js` (403 route files) and the modules they call (`src/lib/**`, `src/models/**`), grouped by domain; the most severe findings were re-verified line by line. No live exploitation, no production data touched.
-**Companion** : technical-debt and M1 findings remain in `docs/SECURITY_AUDIT_M1.md` and `docs/ARCHITECTURE_TECH_DEBT.md`.
+**Companion** : the earlier M1 findings remain in `docs/SECURITY_AUDIT_M1.md`.
 
 > This is the living register. Every finding has a **status**. "OPEN" means the risk is still present in the code today.
 
@@ -33,6 +33,7 @@
 | **FIXED — Lot 3** | Corrected with the admin/auth/session/scope batch. |
 | **FIXED — Lot 4** | Corrected with the forms/LMS/upload batch. |
 | **FIXED — Lot 5** | Corrected with the P2 hardening batch. |
+| **FIXED — Lot 6** | Corrected with the P3 hardening batch. |
 | **OPEN** | Still present. Fix order in §4. |
 
 ---
@@ -125,6 +126,25 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | IMPL-1 | `lib/api/createHandler.js`, `lib/auth.js` | Never attached `req.session`. Now the wrapper resolves the session ONCE, hands it to `requireAuth(roles, session)` (new optional param) and attaches it — same number of reads as before, so no route changes behaviour. | **FIXED — Lot 5** |
 | — | Tests | `src/__tests__/security-lot5-hardening.test.js` (+ 2 suites adjusted for the new guard signature) | 9 regression tests. | **FIXED — Lot 5** |
 
+### 2.8 Lot 6 — P3 hardening
+
+| ID | Location | Was | Status |
+|---|---|---|---|
+| LOG-1 | `src/lib/auth.js` | Session logs printed a token prefix (cookie and stored token). The lines now carry no token material. | **FIXED — Lot 6** |
+| IMP-1 | `src/lib/auth.js` | `is_impersonation` was never written on `user_sessions`, so an impersonated session was indistinguishable. Now persisted (with an idempotent column self-heal) and returned on the session. | **FIXED — Lot 6** |
+| CSV-1 | `src/lib/csv.js` | `rowsToCsv` emitted `=…`/`+…`/`@…` cells verbatim, so an export opened in a spreadsheet executed the formula. Formula-leading cells are now prefixed with `'` (plain negative numbers are left alone). | **FIXED — Lot 6** |
+| XSS-1 | `src/app/s/[runId]/page.js` | The public success message was injected with `dangerouslySetInnerHTML`. Now rendered through `sanitizeRichText`. | **FIXED — Lot 6** |
+| AUD-1 | `admin/reject-user`, `tasks/comments` | The audit actor name came from the request body. Both now take it from the session. | **FIXED — Lot 6** |
+| SECRET-2 | `notifications/{due-reminders,overdue}`, `engineering/permissions/context-grants-sweep` | The cron secret travelled in the URL (`?key=`), so it landed in logs and referrers. Read from `x-cron-secret` first, `?key=` kept only as a fallback for existing schedulers. | **FIXED — Lot 6 (header preferred; URL fallback retained)** |
+| SYS-1 | `POST /api/system/database` | The comment said super_admin but the gate was `settings.edit`. Now `requireAuth(["super_admin"])`. | **FIXED — Lot 6** |
+| SYS-2 | `GET /api/program-types` | The GET ran DDL (`ensureProgramTypeOptionsTable`) on every read. The read no longer creates tables. | **FIXED — Lot 6** |
+| LOGIC-1 | `projects/invitations/respond` | The cancel path compared `session.name` to `inviter_id`. Now compares a cid. | **FIXED — Lot 6** |
+| LOGIC-2 | `ventures/[id]/timeline`, `ventures/[id]/milestones`, `lib/ventureInput` | Dependency `source/target` types and ids were unvalidated (`parseInt` could be `NaN`); milestone `owner_cid` was stored as-is. Types are allow-listed (`milestone`/`task`), ids must be positive integers, and the owner must be a bounded string (`cidOrNull`/`isValidCid`). | **FIXED — Lot 6** |
+| DATA-3 | `data/route.js` | The JSON store keyed off caller input without an own-property / array guard (prototype-pollution shape). Now `hasOwnProperty` + `Array.isArray`. | **FIXED — Lot 6** |
+| LMS-3 | `lms/enrollments` | A client-supplied `source` and an unvalidated target user were accepted. `source` is forced to `"admin"` and the target is validated. | **FIXED — Lot 6** |
+| WHO-1 | `webhooks/resend` | Svix signatures were compared with `Array.includes` (not constant time) and accepted at any age. Now `crypto.timingSafeEqual` on every candidate plus a 5-minute freshness window. | **FIXED — Lot 6** |
+| — | Tests | `src/__tests__/security-lot6-hardening.test.js` | 22 source-level invariant tests. | **FIXED — Lot 6** |
+
 ---
 
 ## 3. OPEN — residual register
@@ -184,26 +204,26 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | SECRET-3 | Passwords | `teams`, `pm/teams` | Team passwords generated with `Math.random()` and stored in clear. | **OPEN — Lot 5** |
 | AUTHZ-GLOBAL-1 | Scope | `ventures/[id]/knowledge` (resource update/delete), `ventures/[id]/coaches` (PATCH/DELETE coach) | Global catalogs mutated by any venture editor; no venture dimension exists. | **OPEN — needs a platform-capability decision** |
 | PUB-2 | Business logic | `s/public-draft` | Draft answers read/overwritten by slug+email, no token. | **OPEN — Lot 4 remainder** |
-| WHO-1 | Webhook | `webhooks/resend` | Non-constant-time signature compare; no timestamp/replay window. | **OPEN — Lot 6** |
+| WHO-1 | Webhook | `webhooks/resend` | ✅ fixed in Lot 6 (constant-time compare + 5-minute freshness window). | **FIXED** |
 
 ### 3.4 P3
 
 | ID | Category | Location | Status |
 |---|---|---|---|
-| LOG-1 | Logging | `src/lib/auth.js` logs a session-token prefix. | **OPEN — Lot 6** |
-| CSV-1 | Formula injection | `ventures/[id]/reports`, `analytics` exports. | **OPEN — Lot 6** |
-| IMP-1 | Impersonation | `is_impersonation` never persisted on `user_sessions`. | **OPEN — Lot 6** |
-| XSS-1 | Stored (low) | `src/app/s/[runId]/page.js` renders `successMessage` via `dangerouslySetInnerHTML` (form-author content; submitted values are escaped). | **OPEN — Lot 6** |
-| AUD-1 | Audit integrity | `admin/approve-user`, `admin/reject-user`, `tasks/comments` accept the actor name from the body. | **OPEN — Lot 6** |
-| SECRET-2 | Secrets in URL | `notifications/{due-reminders,overdue}`, `context-grants-sweep` pass `?key=`. | **OPEN — Lot 6** |
-| SYS-1 | Config | `system/database` comment says super_admin but the gate is `settings.edit`. | **OPEN — Lot 6** |
+| LOG-1 | Logging | `src/lib/auth.js` logs a session-token prefix. | ✅ fixed in Lot 6. | **FIXED** |
+| CSV-1 | Formula injection | `ventures/[id]/reports`, `analytics` exports. | ✅ fixed in Lot 6 (`rowsToCsv` prefixes formula cells). | **FIXED** |
+| IMP-1 | Impersonation | `is_impersonation` never persisted on `user_sessions`. | ✅ fixed in Lot 6. | **FIXED** |
+| XSS-1 | Stored (low) | `src/app/s/[runId]/page.js` renders `successMessage` via `dangerouslySetInnerHTML` (form-author content; submitted values are escaped). | ✅ fixed in Lot 6 (`sanitizeRichText`). | **FIXED** |
+| AUD-1 | Audit integrity | `admin/approve-user`, `admin/reject-user`, `tasks/comments` accept the actor name from the body. | ✅ fixed in Lot 6. | **FIXED** |
+| SECRET-2 | Secrets in URL | `notifications/{due-reminders,overdue}`, `context-grants-sweep` pass `?key=`. | ✅ header `x-cron-secret` preferred in Lot 6; `?key=` kept as fallback for existing schedulers. | **FIXED (part)** |
+| SYS-1 | Config | `system/database` comment says super_admin but the gate is `settings.edit`. | ✅ fixed in Lot 6 (`requireAuth(["super_admin"])`). | **FIXED** |
 | DATA-1 | Exposure | `families` / `v2_teams` / `contacts` / `dd_documents` `SELECT *` shapes. | partially addressed (Lot 0/2) |
 | MVC-1 | Layering | SQL inside routes (`investor/executive-dashboard`, `venture-permissions/*`, milestone/session lookups). | **OPEN — ongoing** |
-| SYS-2 | Config | `program-types` GET runs DDL (`ensureProgramTypeOptionsTable`). | **OPEN — Lot 6** |
-| LOGIC-1 | Correctness | `projects/invitations/respond` compares `session.name` to `inviter_id`. | **OPEN — Lot 6** |
-| LOGIC-2 | Validation | `timeline add_dependency` source/target ids unvalidated; `milestones` `owner_cid` unvalidated. | **OPEN — Lot 6** |
-| DATA-3 | Exposure | `data/route.js` keys off caller input (super_admin only). | **OPEN — Lot 6** |
-| LMS-3 | Validation | `lms/enrollments` accepts a client `source` and an unvalidated target user. | **OPEN — Lot 6** |
+| SYS-2 | Config | `program-types` GET runs DDL (`ensureProgramTypeOptionsTable`). | ✅ fixed in Lot 6. | **FIXED** |
+| LOGIC-1 | Correctness | `projects/invitations/respond` compares `session.name` to `inviter_id`. | ✅ fixed in Lot 6 (cid compare). | **FIXED** |
+| LOGIC-2 | Validation | `timeline add_dependency` source/target ids unvalidated; `milestones` `owner_cid` unvalidated. | ✅ fixed in Lot 6 (type allow-list, positive ints, `cidOrNull`). | **FIXED** |
+| DATA-3 | Exposure | `data/route.js` keys off caller input (super_admin only). | ✅ fixed in Lot 6 (`hasOwnProperty` + `Array.isArray`). | **FIXED** |
+| LMS-3 | Validation | `lms/enrollments` accepts a client `source` and an unvalidated target user. | ✅ fixed in Lot 6 (source forced to admin). | **FIXED** |
 
 ---
 
@@ -217,7 +237,7 @@ Lot 2  (P1 investor) ✅ done — own-scope every investor route
 Lot 3  (P1 admin/authz) ✅ mostly done — impersonation, role escalation, session purge, project BOLA, task carryover; remainder: `pm/*` + `teams` + `lms/coaching-requests` program scope, `access-profiles`/`responsibilities` self-assignment, `facilitators/invite-bulk`, `admin/projects/[id]/reports/generate`, `notifications`/`contact-emails`/`team-tasks`
 Lot 4  (P1 forms/LMS/upload) ✅ mostly done — arbitrary SQL removed, certificate token-only, upload validation, coach-invite/members privilege allow-lists, LMS answer key, LMS program scope; remainder: public buckets, run/submission scope (`run-export`, `form-runs submission_id`, `report-file`, `evaluation-scores`, `submissions`), `respond` identity, `s/public-draft`, `program-requirements/[id]`, `pm/*` + `teams` program scope, `access-profiles`/`responsibilities` self-assignment
 Lot 5  (P2 hardening) ✅ mostly done — headers, credential rate limits, token-probe limits, IMPL-1 (`req.session`); remainder: ERR-1 (error-message leakage), CSRF-1 (state-changing GETs), AUTH-4 (enumeration, UX decision), SECRET-1/3 (clear-text passwords), DEP-1 (`tar`)
-Lot 6  (P3 hardening) ← next
+Lot 6  (P3 hardening) ✅ done — LOG-1 token logs, CSV-1 formula injection, IMP-1 impersonation flag, XSS-1 `sanitizeRichText`, AUD-1 session actor, SECRET-2 header secret, SYS-1/2 config, LOGIC-1/2 validation, DATA-3 prototype guard, LMS-3 source, WHO-1 constant-time webhook; remainder: MVC-1 (SQL-in-routes, ongoing)
 ```
 
 Each lot: `npx eslint .` · `npm test` · `npm run build`, plus a security regression test per finding.
@@ -285,9 +305,17 @@ Everything below is **still present in the code today**. Grouped by the lot that
 
 - **HDR-1** headers (+ report-only CSP) · **RATE-1** credential rate limits · **AUTH-5** token-probe limits · **IMPL-1** `createHandler` attaches `req.session` (one read, shared with the guard).
 
-### Lot 6 — P3
+### Lot 6 — P3 ✅
 
-- LOG-1, CSV-1, IMP-1, XSS-1, AUD-1, SECRET-2, SYS-1, SYS-2, LOGIC-1, LOGIC-2, DATA-3, LMS-3, MVC-1.
+- **LOG-1** token material removed from logs · **CSV-1** formula-cell prefixing · **IMP-1** `is_impersonation` persisted · **XSS-1** `sanitizeRichText` on the public success message · **AUD-1** audit actor from the session · **SECRET-2** `x-cron-secret` header preferred (URL fallback kept) · **SYS-1** database route gated to `super_admin` · **SYS-2** `program-types` GET no longer runs DDL · **LOGIC-1** invitation cancel compares a cid · **LOGIC-2** dependency type/id + milestone owner validation · **DATA-3** prototype-key guard · **LMS-3** enrollment source forced · **WHO-1** constant-time webhook signature + freshness window.
+
+### Remaining after Lot 6
+
+- **MVC-1** (ongoing) — SQL still inline in a few routes.
+- **Lot 5 remainder** — RATE-2, ERR-1, CSRF-1, AUTH-4, SECRET-1/3, DEP-1, shared rate-limit store.
+- **Lot 3 remainder** (P1) — see above.
+- **Lot 4 remainder** (P1) — see above.
+- **SECRET-2 fallback** — remove the `?key=` path once every scheduler sends `x-cron-secret`.
 
 ### Product decisions required (not code fixes)
 

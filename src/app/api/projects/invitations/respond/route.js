@@ -53,8 +53,16 @@ export async function POST(req) {
     }
 
     if (action === "cancel") {
-      // Only inviter can cancel
-      if (session.name !== invitation.inviter_id && session.role !== "super_admin") {
+      // Only the inviter can cancel. `inviter_id` stores a NAME, so comparing it
+      // to the session NAME let a namesake cancel somebody else's invitation —
+      // resolve the inviter's actual cid and compare that.
+      let inviterCid = null;
+      try {
+        const inviterResult = await getContactCidByName(invitation.inviter_id);
+        inviterCid = inviterResult.rows?.[0]?.cid || null;
+      } catch (_) {}
+      const isInviter = Boolean(inviterCid) && String(session.cid) === String(inviterCid);
+      if (!isInviter && session.role !== "super_admin") {
         return NextResponse.json(
           { success: false, error: "Only the inviter can cancel" },
           { status: 403 },

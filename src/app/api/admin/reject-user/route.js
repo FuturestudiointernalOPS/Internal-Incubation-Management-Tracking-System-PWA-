@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
+import { getSession } from "@/lib/auth";
 import {
   getUserForRejection,
   insertRejectionAuditLog,
@@ -22,7 +23,8 @@ export async function POST(req) {
     if (capError) return capError;
 
     await initDb();
-    const { user_cid, admin_name } = await req.json();
+    const { user_cid } = await req.json();
+    const session = await getSession();
 
     if (!user_cid) {
       return NextResponse.json(
@@ -47,7 +49,8 @@ export async function POST(req) {
     // Log to audit_log
     try {
       await insertRejectionAuditLog({
-        adminName: admin_name,
+        // The actor is the SESSION, never a name carried in the body.
+        adminName: session?.name || session?.cid || "system",
         userCid: user_cid,
         userName: user.name,
         userEmail: user.email,

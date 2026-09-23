@@ -22,10 +22,29 @@ export function textOrNull(value) {
   return raw === "" ? null : raw;
 }
 
+/**
+ * A person reference (cid) is a bounded string. Anything else — an object, an
+ * array, an empty string, an over-long blob — is not a usable owner, so it
+ * becomes null instead of being coerced with `String(value)` (which would store
+ * "[object Object]" and make the owner unresolvable).
+ */
+export function cidOrNull(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") return null;
+  const raw = value.trim();
+  if (!raw || raw.length > 64) return null;
+  return raw;
+}
+
+/** True when the value is a usable person reference, or absent (null/undefined). */
+export function isValidCid(value) {
+  return value === null || value === undefined || cidOrNull(value) !== null;
+}
+
 /** True when an error looks like a missing column (schema drift on old DBs). */
 export function isUnknownColumnError(error) {
   const message = String(error?.message || "");
   return /column .* does not exist/i.test(message);
 }
 
-export default { dateOrNull, textOrNull, isUnknownColumnError };
+export default { dateOrNull, textOrNull, cidOrNull, isValidCid, isUnknownColumnError };

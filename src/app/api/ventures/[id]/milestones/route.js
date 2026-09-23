@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { computeInitialMilestoneStatus, completeMilestoneAndUnlockNext, isMilestoneLeadAuthority, canManageMilestones, completeStageIfAllMilestonesDone } from "@/lib/ventureMilestoneEngine";
-import { dateOrNull, isUnknownColumnError } from "@/lib/ventureInput";
+import { dateOrNull, cidOrNull, isValidCid, isUnknownColumnError } from "@/lib/ventureInput";
 import { roleIsPrivileged } from "@/lib/ventureAuth";
 import { projectMilestonesForVenture } from "@/lib/ventureVisibility";
 import { notifyVentureFounders } from "@/lib/ventures";
@@ -51,6 +51,11 @@ export const POST = createHandler(async (req, { params }) => {
   const body = await req.json();
   const { title, description, target_date } = body;
   if (!title?.trim()) return NextResponse.json({ success: false, error: "Milestone title is required." }, { status: 400 });
+  // The owner is a person reference: reject anything that is not a bounded
+  // string (an object/array would otherwise be stored as "[object Object]").
+  if (!isValidCid(body.owner_cid)) {
+    return NextResponse.json({ success: false, error: "Invalid milestone owner." }, { status: 400 });
+  }
 
   const ventureResult = await getVentureDbIdForMilestoneCreate(id);
   const ventureDbId = ventureResult.rows?.[0]?.id;
@@ -88,7 +93,7 @@ export const POST = createHandler(async (req, { params }) => {
 
   await db.execute({
     sql: `INSERT INTO venture_milestones (id, venture_id, title, description, target_date, status, progress, created_by, journey_stage_id, objective, start_date, priority, owner_cid, display_order) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)`,
-    args: [randomUUID, ventureDbId, title, description || null, target_date || null, initialStatus, req.session?.cid || null, journey_stage_id || null, body.objective || null, body.start_date || null, body.priority || null, body.owner_cid || null, body.display_order ?? null],
+    args: [randomUUID, ventureDbId, title, description || null, target_date || null, initialStatus, req.session?.cid || null, journey_stage_id || null, body.objective || null, body.start_date || null, body.priority || null, cidOrNull(body.owner_cid), body.display_order ?? null],
   });
   // milestone_id is returned so callers can attach deliverables in the same
   // flow (the journey panel creates the milestone and its deliverables at once).
@@ -144,7 +149,12 @@ export const PATCH = createHandler(async (req, { params }) => {
   if (body.objective !== undefined) { updates.push("objective = ?"); args.push(body.objective); }
   if (body.start_date !== undefined) { updates.push("start_date = ?"); args.push(dateOrNull(body.start_date)); }
   if (body.priority !== undefined) { updates.push("priority = ?"); args.push(body.priority); }
-  if (body.owner_cid !== undefined) { updates.push("owner_cid = ?"); args.push(body.owner_cid); }
+  if (body.owner_cid !== undefined) {
+    if (!isValidCid(body.owner_cid)) {
+      return NextResponse.json({ success: false, error: "Invalid milestone owner." }, { status: 400 });
+    }
+    updates.push("owner_cid = ?"); args.push(cidOrNull(body.owner_cid));
+  }
   if (body.display_order !== undefined) { updates.push("display_order = ?"); args.push(body.display_order); }
   if (body.journey_stage_id !== undefined) {
     // Allow clearing the binding with null, or moving to another stage.

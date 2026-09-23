@@ -16,6 +16,36 @@ const EVENT_STATUS = {
   "email.complained": "complained",
 };
 
+// A signature is only honoured while it is fresh, so a captured delivery cannot
+// be replayed later to fake a new lifecycle event (Svix recommends 5 minutes).
+const MAX_SIGNATURE_AGE_SECONDS = 300;
+
+/**
+ * Verify a Svix-signed payload. The header carries one or more space-separated
+ * `version,signature` candidates (multiple during secret rotation); ANY match
+ * is a valid signature. Each comparison is constant-time so a timing side
+ * channel cannot be used to forge a signature byte by byte.
+ */
+function verifySvixSignature({ secret, svixId, svixTs, svixSig, raw }) {
+  const secretKey = secret.startsWith("whsec_") ? secret.slice(6) : secret;
+  const expected = crypto
+    .createHmac("sha256", Buffer.from(secretKey, "base64"))
+    .update(`${svixId}.${svixTs}.${raw}`)
+    .digest("base64");
+  const expectedBuffer = Buffer.from(expected);
+  return svixSig
+    .split(" ")
+    .map((part) => part.split(",")[1])
+    .filter(Boolean)
+    .some((candidate) => {
+      const candidateBuffer = Buffer.from(candidate);
+      return (
+        candidateBuffer.length === expectedBuffer.length &&
+        crypto.timingSafeEqual(candidateBuffer, expectedBuffer)
+      );
+    });
+}
+
 /**
  * POST /api/webhooks/resend
  *
@@ -40,15 +70,16 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Missing signature headers" }, { status: 401 });
     }
 
-    const secretKey = secret.startsWith("whsec_") ? secret.slice(6) : secret;
-    const signedContent = `${svixId}.${svixTs}.${raw}`;
-    const expected = crypto
-      .createHmac("sha256", Buffer.from(secretKey, "base64"))
-      .update(signedContent)
-      .digest("base64");
-    const signatures = svixSig.split(" ").map((signaturePart) => signaturePart.split(",")[1]).filter(Boolean);
-    if (!signatures.includes(expected)) {
+    if (!verifySvixSignature({ secret, svixId, svixTs, svixSig, raw })) {
       return NextResponse.json({ success: false, error: "Invalid signature" }, { status: 401 });
+    }
+
+    const timestampSeconds = Number.parseInt(svixTs, 10);
+    if (
+      !Number.isFinite(timestampSeconds) ||
+      Math.abs(Date.now() / 1000 - timestampSeconds) > MAX_SIGNATURE_AGE_SECONDS
+    ) {
+      return NextResponse.json({ success: false, error: "Stale signature" }, { status: 401 });
     }
 
     const payload = JSON.parse(raw);
