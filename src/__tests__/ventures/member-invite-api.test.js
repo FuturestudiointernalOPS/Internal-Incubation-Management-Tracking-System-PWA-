@@ -4,6 +4,10 @@
  * The behaviour under test is the product decision: adding a member INVITES
  * them. The route must create a pending invitation and email the link, and must
  * never write a membership row itself.
+ *
+ * It also reports the DELIVERY outcome: the invitation is saved either way, but
+ * the founder must be told when the email did not actually go out, and that
+ * outcome is recorded on the invitation for the pending list.
  */
 
 jest.mock("@/lib/db", () => ({
@@ -17,8 +21,10 @@ jest.mock("@/lib/auth", () => ({
   getSession: jest.fn(),
 }));
 
-jest.mock("@/lib/mailer", () => ({
-  sendEmail: jest.fn().mockResolvedValue({ success: true }),
+jest.mock("@/lib/email", () => ({
+  // Member invitations ride the shared transport (Google Workspace first,
+  // Resend fallback), not a separate sender.
+  sendVentureMemberInvitationEmail: jest.fn().mockResolvedValue({ success: true }),
 }));
 
 jest.mock("@/lib/appUrl", () => ({
@@ -31,6 +37,7 @@ jest.mock("@/lib/ventureAuth", () => ({
 
 jest.mock("@/models/ventureMemberInvitations", () => ({
   createVentureMemberInvitation: jest.fn(),
+  recordVentureMemberInvitationDelivery: jest.fn().mockResolvedValue({ ok: true }),
 }));
 
 jest.mock("@/models/ventureMemberAccess", () => ({
@@ -42,8 +49,11 @@ jest.mock("@/models/ventureMemberAccess", () => ({
 
 const db = require("@/lib/db").default;
 const { getSession } = require("@/lib/auth");
-const { sendEmail } = require("@/lib/mailer");
-const { createVentureMemberInvitation } = require("@/models/ventureMemberInvitations");
+const { sendVentureMemberInvitationEmail } = require("@/lib/email");
+const {
+  createVentureMemberInvitation,
+  recordVentureMemberInvitationDelivery,
+} = require("@/models/ventureMemberInvitations");
 const {
   checkVentureMemberViewAccess,
   checkVentureMemberMutateAccess,
@@ -76,6 +86,8 @@ beforeEach(() => {
     expires_at: new Date(Date.now() + 3600e3).toISOString(),
     resent: false,
   });
+  sendVentureMemberInvitationEmail.mockResolvedValue({ success: true });
+  recordVentureMemberInvitationDelivery.mockResolvedValue({ ok: true });
   primeDatabase();
 });
 
@@ -97,10 +109,11 @@ describe("POST /api/ventures/[id]/members", () => {
       }),
     );
 
-    expect(sendEmail).toHaveBeenCalledTimes(1);
-    const mail = sendEmail.mock.calls[0][0];
+    expect(sendVentureMemberInvitationEmail).toHaveBeenCalledTimes(1);
+    const mail = sendVentureMemberInvitationEmail.mock.calls[0][0];
     expect(mail.to).toBe("guest@outside.io");
-    expect(mail.body).toContain("https://app.example/venture-invite/linktoken");
+    expect(mail.inviteUrl).toBe("https://app.example/venture-invite/linktoken");
+    expect(mail.ventureName).toBe("ABC Ventures");
   });
 
   it("never writes the membership itself — joining is the acceptance", async () => {
@@ -116,7 +129,7 @@ describe("POST /api/ventures/[id]/members", () => {
 
     expect(res.status).toBe(409);
     expect(createVentureMemberInvitation).not.toHaveBeenCalled();
-    expect(sendEmail).not.toHaveBeenCalled();
+    expect(sendVentureMemberInvitationEmail).not.toHaveBeenCalled();
   });
 
   it("requires a valid email address", async () => {
@@ -144,12 +157,42 @@ describe("POST /api/ventures/[id]/members", () => {
     expect(createVentureMemberInvitation).not.toHaveBeenCalled();
   });
 
-  it("still succeeds when the mailer fails, leaving the invitation pending", async () => {
-    sendEmail.mockRejectedValueOnce(new Error("resend down"));
+  it("still succeeds when the transport rejects, recording the invitation as not delivered", async () => {
+    sendVentureMemberInvitationEmail.mockRejectedValueOnce(new Error("transport down"));
 
     const res = await POST(jsonReq({ email: "guest@outside.io" }), ctx);
 
     expect(res.status).toBe(200);
-    expect((await readJson(res)).success).toBe(true);
+    const body = await readJson(res);
+    expect(body.success).toBe(true);
+    // The invitation is saved, but the founder must be told no email went out.
+    expect(body.email_sent).toBe(false);
+    expect(recordVentureMemberInvitationDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 5, sent: false }),
+    );
+  });
+
+  it("reports a transport refusal as not delivered", async () => {
+    sendVentureMemberInvitationEmail.mockResolvedValueOnce({ success: false, error: "no provider configured" });
+
+    const res = await POST(jsonReq({ email: "guest@outside.io" }), ctx);
+
+    const body = await readJson(res);
+    expect(body.success).toBe(true);
+    expect(body.email_sent).toBe(false);
+    expect(recordVentureMemberInvitationDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 5, sent: false, error: "no provider configured" }),
+    );
+  });
+
+  it("reports a real send as delivered", async () => {
+    const res = await POST(jsonReq({ email: "guest@outside.io" }), ctx);
+
+    const body = await readJson(res);
+    expect(body.success).toBe(true);
+    expect(body.email_sent).toBe(true);
+    expect(recordVentureMemberInvitationDelivery).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 5, sent: true }),
+    );
   });
 });

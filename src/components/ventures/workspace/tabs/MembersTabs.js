@@ -155,6 +155,11 @@ export function TeamTab() {
                     {invitation.email} • {invitation.member_type === "founder" ? t("venture.founders") : t("venture.teamMembers")}
                     {invitation.is_expired ? ` • ${t("venture.invitationExpired")}` : ""}
                   </p>
+                  {invitation.email_status === "failed" && (
+                    <p className="text-xs mt-1" style={{ color: "#ef4444" }}>
+                      {t("venture.invitationEmailNotSent")}
+                    </p>
+                  )}
                 </div>
                 <button onClick={() => handleRevokeInvitation(invitation.id)}
                   className="text-xs px-3 py-1 rounded-lg transition-colors"

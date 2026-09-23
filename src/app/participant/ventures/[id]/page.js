@@ -520,7 +520,13 @@ export default function VentureDetail() {
       if (data.success) {
         setShowAddMember(false);
         setInviteEmail("");
-        notifyMsg(t("venture.invitationSent"));
+        // The invitation is saved either way; a delivery failure must not read
+        // as "sent". Tell the founder the email did not go out so they can retry.
+        if (data.email_sent === false) {
+          notifyMsg(t("venture.invitationSavedEmailFailed"), "error");
+        } else {
+          notifyMsg(t("venture.invitationSent"));
+        }
         await loadInvitations();
       } else {
         notifyMsg(t(data.error || "") || data.error || t("venture.inviteFailed"));

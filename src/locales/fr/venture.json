@@ -94,6 +94,8 @@
     "sendInvitation": "Envoyer l'invitation",
     "sendingInvitation": "Envoi...",
     "invitationSent": "Invitation envoyée. La personne rejoindra l'entreprise dès qu'elle l'aura acceptée.",
+    "invitationSavedEmailFailed": "Invitation enregistrée, mais l'email n'a pas pu être envoyé. Vous pouvez réessayer plus tard.",
+    "invitationEmailNotSent": "Email non envoyé — l'invitation est enregistrée mais le message n'est jamais parti. Renvoyez-le plus tard.",
     "inviteEmailInvalid": "Saisissez une adresse email valide.",
     "inviteFailed": "Impossible d'envoyer l'invitation.",
     "pendingInvitations": "Invitations en attente",

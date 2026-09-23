@@ -66,9 +66,16 @@ export function ensureVentureMemberInvitationSchema() {
            expires_at TIMESTAMPTZ,
            accepted_at TIMESTAMPTZ,
            responded_at TIMESTAMPTZ,
+           email_status TEXT,
+           email_error TEXT,
+           email_sent_at TIMESTAMPTZ,
            created_at TIMESTAMPTZ DEFAULT NOW()
          )`,
       );
+      // Existing installs predate the delivery-tracking columns.
+      await safe("ALTER TABLE venture_member_invitations ADD COLUMN IF NOT EXISTS email_status TEXT");
+      await safe("ALTER TABLE venture_member_invitations ADD COLUMN IF NOT EXISTS email_error TEXT");
+      await safe("ALTER TABLE venture_member_invitations ADD COLUMN IF NOT EXISTS email_sent_at TIMESTAMPTZ");
       await safe(
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_vmi_token_hash ON venture_member_invitations(token_hash) WHERE token_hash IS NOT NULL",
       );
@@ -165,6 +172,7 @@ export async function createVentureMemberInvitation({
       sql: `UPDATE venture_member_invitations
             SET email = ?, name = ?, member_type = ?, role = ?, contact_id = ?,
                 invited_by = ?, token = ?, token_hash = ?, expires_at = ?,
+                email_status = NULL, email_error = NULL, email_sent_at = NULL,
                 created_at = NOW(), responded_at = NULL
             WHERE id = ?`,
       args: [
@@ -217,6 +225,7 @@ export async function listVentureMemberInvitations(ventureId) {
   const result = await safe(
     `SELECT i.id, i.venture_id, i.email, i.name, i.member_type, i.role,
             i.status, i.expires_at, i.created_at,
+            i.email_status, i.email_error,
             COALESCE(i.name, c.name) AS display_name
      FROM venture_member_invitations i
      LEFT JOIN contacts c ON LOWER(c.email) = LOWER(i.email) AND c.deleted = 0
@@ -397,6 +406,28 @@ async function markAccepted(invitationId, contactCid) {
   );
 }
 
+/**
+ * Record the outcome of the invitation email attempt on the invitation itself.
+ * The pending list reads this back, so a failed delivery is visible after the
+ * fact — not only in the moment of sending. Best-effort: never throws.
+ */
+export async function recordVentureMemberInvitationDelivery({ id, sent, error = null } = {}) {
+  if (!id) return { ok: false };
+  await ensureVentureMemberInvitationSchema();
+  await safe(
+    `UPDATE venture_member_invitations
+     SET email_status = ?, email_error = ?, email_sent_at = ?
+     WHERE id = ?`,
+    [
+      sent ? "sent" : "failed",
+      sent ? null : String(error || "").substring(0, 500) || null,
+      sent ? new Date().toISOString() : null,
+      id,
+    ],
+  );
+  return { ok: true };
+}
+
 /** Withdraw a pending invitation. Only a still-pending row can be revoked. */
 export async function revokeVentureMemberInvitation({ id, ventureId }) {
   await ensureVentureMemberInvitationSchema();
@@ -412,6 +443,7 @@ export async function revokeVentureMemberInvitation({ id, ventureId }) {
 export default {
   ensureVentureMemberInvitationSchema,
   createVentureMemberInvitation,
+  recordVentureMemberInvitationDelivery,
   listVentureMemberInvitations,
   getVentureMemberInvitationByToken,
   describeVentureMemberInvitation,

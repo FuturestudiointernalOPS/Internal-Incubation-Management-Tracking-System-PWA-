@@ -2,9 +2,12 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { invalidateVentureAccess } from "@/lib/ventureAccessFacts";
-import { sendEmail } from "@/lib/mailer";
+import { sendVentureMemberInvitationEmail } from "@/lib/email";
 import { resolveAppUrl } from "@/lib/appUrl";
-import { createVentureMemberInvitation } from "@/models/ventureMemberInvitations";
+import {
+  createVentureMemberInvitation,
+  recordVentureMemberInvitationDelivery,
+} from "@/models/ventureMemberInvitations";
 import {
   resolveVentureCode,
   getVentureFounderCount,
@@ -171,20 +174,17 @@ export async function POST(req, { params }) {
       });
       const ventureName = ventureResult.rows?.[0]?.venture_name || "the Venture";
       const link = `${resolveAppUrl()}/venture-invite/${invitation.token}`;
-      const seat = memberType === "founder" ? "a founder" : "a team member";
-      const mailResult = await sendEmail({
+      // Same transport as every other Venture email (Google Workspace first,
+      // Resend fallback) — not a separate weaker sender.
+      const mailResult = await sendVentureMemberInvitationEmail({
         to: invitation.email,
-        subject: `You are invited to join ${ventureName} on Impact OS`,
-        body:
-          `Hello,\n\n` +
-          `${session?.name || "A founder of the Venture"} invited you to join ${ventureName} as ${seat}.\n\n` +
-          `Open this link to accept the invitation:\n${link}\n\n` +
-          `The link expires on ${new Date(invitation.expires_at).toLocaleDateString()}.\n\n` +
-          `— Future Studio`,
+        ventureName,
+        inviterName: session?.name || null,
+        memberType,
+        inviteUrl: link,
+        expiresAt: invitation.expires_at,
       });
-      // The mailer reports a *simulated* success when no provider is configured
-      // (mock). That is not a delivery, so the founder must still be warned.
-      if (mailResult?.success && !mailResult?.mock) {
+      if (mailResult?.success) {
         emailSent = true;
       } else {
         emailError = mailResult?.error || mailResult?.note || "The email provider is not configured.";
@@ -194,6 +194,14 @@ export async function POST(req, { params }) {
       emailError = error.message;
       console.error("Venture member invitation email failed:", error.message);
     }
+
+    // Persist the delivery outcome on the invitation so the pending list can
+    // warn about it later, not only in the moment. Never blocks the answer.
+    await recordVentureMemberInvitationDelivery({
+      id: invitation.id,
+      sent: emailSent,
+      error: emailError,
+    });
 
     return NextResponse.json({
       success: true,

@@ -24,8 +24,17 @@ CREATE TABLE IF NOT EXISTS venture_member_invitations (
   expires_at TIMESTAMPTZ,
   accepted_at TIMESTAMPTZ,
   responded_at TIMESTAMPTZ,
+  email_status TEXT,
+  email_error TEXT,
+  email_sent_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Delivery tracking (added after the table first shipped; idempotent for
+-- installs that already have the table).
+ALTER TABLE venture_member_invitations ADD COLUMN IF NOT EXISTS email_status TEXT;
+ALTER TABLE venture_member_invitations ADD COLUMN IF NOT EXISTS email_error TEXT;
+ALTER TABLE venture_member_invitations ADD COLUMN IF NOT EXISTS email_sent_at TIMESTAMPTZ;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_vmi_token_hash
   ON venture_member_invitations(token_hash) WHERE token_hash IS NOT NULL;

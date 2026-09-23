@@ -94,6 +94,8 @@
     "sendInvitation": "Send invitation",
     "sendingInvitation": "Sending...",
     "invitationSent": "Invitation sent. They join once they accept it.",
+    "invitationSavedEmailFailed": "Invitation saved, but the email could not be sent. You can try sending it again later.",
+    "invitationEmailNotSent": "Email not sent — the invitation is saved but the message never left. Send it again later.",
     "inviteEmailInvalid": "Enter a valid email address.",
     "inviteFailed": "Could not send the invitation.",
     "pendingInvitations": "Pending invitations",
