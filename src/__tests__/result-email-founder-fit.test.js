@@ -68,6 +68,19 @@ describe("result email copy — Founder Fit Score scope", () => {
     expect(ROUTE).toMatch(/^\s+template,$/m);
   });
 
+  test("a text designed in the UI takes over the built-in copy", () => {
+    // The built-in wording is only a fallback now. A designed text must win,
+    // while the "how to reach the document" lines stay the application's — so a
+    // designed message can never promise an attachment the transport could not
+    // carry, nor point at a document that is not there.
+    expect(EMAIL).toContain("designedSubject ? applyTemplate(designedSubject, tv) : copy.subject;");
+    expect(EMAIL).toContain("designedBody ? applyTemplate(designedBody, tv) : copy.greetingHtml + copy.openingHtml");
+    expect(EMAIL).toContain('designedBody ? "" : copy.closingHtml');
+    // Resolved WITHOUT the platform default, because the default here depends on
+    // the kind of run.
+    expect(ROUTE).toContain('getDesignedTemplate(settingsRow?.settings || {}, "result", settingsRow?.run_settings || {})');
+  });
+
   test("the score and the project name are resolved where the answers are", () => {
     expect(ROUTE).toMatch(/resolveProjectName\(\{ submissionData: subData, fieldLabels: labels \}\)/);
     expect(ROUTE).toMatch(/score: finalScore != null \? Math\.round\(Number\(finalScore\)\) : null/);

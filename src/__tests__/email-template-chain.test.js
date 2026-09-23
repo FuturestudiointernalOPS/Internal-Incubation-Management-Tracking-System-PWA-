@@ -8,7 +8,7 @@
  * ("acknowledgement") key that now travels the same chain as the decision and
  * activation emails.
  */
-const { getTemplate, applyTemplate, getDefaultTemplate } = require("@/lib/email");
+const { getTemplate, getDesignedTemplate, applyTemplate, getDefaultTemplate } = require("@/lib/email");
 const { templateVariableNames, findUnknownTemplateVariables } = require("@/lib/constants");
 
 const formWith = (key, subject, body) => ({ automation: { templates: { [key]: { subject, body } } } });
@@ -59,6 +59,37 @@ describe("getTemplate — run → form → platform default", () => {
 
   test("an unknown key resolves to empty strings, never undefined", () => {
     expect(getTemplate({}, "not_a_template_key", {})).toEqual({ subject: "", body: "" });
+  });
+});
+
+describe("getDesignedTemplate — the designed levels only", () => {
+  test("the run override wins over the form on both fields", () => {
+    const out = getDesignedTemplate(formWith(KEY, "Form subject", "Form body"), KEY, runWith(KEY, "Run subject", "Run body"));
+    expect(out).toEqual({ subject: "Run subject", body: "Run body" });
+  });
+
+  test("a blank run value falls through to the form value", () => {
+    const out = getDesignedTemplate(formWith(KEY, "Form subject", ""), KEY, runWith(KEY, "   ", ""));
+    expect(out).toEqual({ subject: "Form subject", body: "" });
+  });
+
+  test("with nothing designed it returns blanks, NOT the platform default", () => {
+    // This is the whole point of the separate resolver: the result message's
+    // built-in wording depends on the kind of run, so the platform default must
+    // never be reached before that choice is made.
+    expect(getDesignedTemplate({}, KEY, {})).toEqual({ subject: "", body: "" });
+    expect(getTemplate({}, KEY, {})).not.toEqual({ subject: "", body: "" });
+  });
+
+  test("missing settings objects never throw", () => {
+    expect(() => getDesignedTemplate(undefined, KEY, undefined)).not.toThrow();
+    expect(getDesignedTemplate(null, KEY, null)).toEqual({ subject: "", body: "" });
+  });
+
+  test("the result key has a platform default (the base the AI personalizes)", () => {
+    const fallback = getDefaultTemplate("result");
+    expect(fallback.subject).not.toBe("");
+    expect(fallback.body).not.toBe("");
   });
 });
 
