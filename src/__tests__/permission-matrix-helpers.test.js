@@ -43,14 +43,14 @@ const CATALOG = {
 describe("buildFeatureRows", () => {
   test("groups modules under their feature and keeps canonical feature order", () => {
     const rows = buildFeatureRows(FEATURES, MODULE_TO_FEATURE, CATALOG);
-    expect(rows.map((r) => r.feature)).toEqual(["crm", "ventures"]);
-    expect(rows[0].modules.map((m) => m.module)).toEqual(["contacts", "duplicates"]);
+    expect(rows.map((row) => row.feature)).toEqual(["crm", "ventures"]);
+    expect(rows[0].modules.map((module) => module.module)).toEqual(["contacts", "duplicates"]);
     expect(rows[1].modules[0].module).toBe("journey");
   });
 
   test("surfaces locked modules without hiding them", () => {
     const rows = buildFeatureRows(FEATURES, MODULE_TO_FEATURE, CATALOG);
-    const dups = rows[0].modules.find((m) => m.module === "duplicates");
+    const dups = rows[0].modules.find((module) => module.module === "duplicates");
     expect(dups.locked).toBe(true);
     expect(dups.caps).toEqual(["resolve", "view"]);
   });
@@ -79,7 +79,7 @@ describe("groupModulesByFeature (feature sections of the Defaults Matrix)", () =
 
   test("orders capabilities with the CRUD base first, extras alphabetically", () => {
     const sections = groupModulesByFeature(MODULES, MAP, ["crm"]);
-    expect(sections.map((s) => s.feature)).toEqual(["crm", "org_membership"]);
+    expect(sections.map((section) => section.feature)).toEqual(["crm", "org_membership"]);
     expect(sections[0].modules).toEqual(["contacts", "duplicates"]);
     expect(sections[0].capabilities).toEqual([
       "view",
@@ -94,7 +94,7 @@ describe("groupModulesByFeature (feature sections of the Defaults Matrix)", () =
 
   test("modules without a feature mapping stay visible as their own section", () => {
     const sections = groupModulesByFeature(MODULES, MAP, ["crm"]);
-    const orphan = sections.find((s) => s.feature === "org_membership");
+    const orphan = sections.find((section) => section.feature === "org_membership");
     expect(orphan.unmapped).toBe(true);
     expect(orphan.modules).toEqual(["org_membership"]);
     expect(orphan.capabilities).toEqual(["view", "manage"]);
@@ -102,7 +102,7 @@ describe("groupModulesByFeature (feature sections of the Defaults Matrix)", () =
 
   test("falls back to the module→feature map when no feature order is given", () => {
     const sections = groupModulesByFeature(MODULES, MAP, []);
-    expect(sections.map((s) => s.feature)).toEqual(["crm", "org_membership"]);
+    expect(sections.map((section) => section.feature)).toEqual(["crm", "org_membership"]);
   });
 
   test("skips a feature that owns no module", () => {
@@ -111,7 +111,7 @@ describe("groupModulesByFeature (feature sections of the Defaults Matrix)", () =
       { contacts: "crm" },
       ["crm", "finance"],
     );
-    expect(sections.map((s) => s.feature)).toEqual(["crm"]);
+    expect(sections.map((section) => section.feature)).toEqual(["crm"]);
   });
 });
 
@@ -144,29 +144,29 @@ describe("deriveUserCapState (mixed sources, restriction wins)", () => {
   };
 
   test("profile + restriction keeps BOTH visible and effective=false with reason", () => {
-    const s = deriveUserCapState(sources, "contacts", "edit");
-    expect(s.profile).toBe(true);
-    expect(s.restricted).toBe(true);
-    expect(s.effective).toBe(false);
-    expect(s.reason).toBe("restriction");
+    const capState = deriveUserCapState(sources, "contacts", "edit");
+    expect(capState.profile).toBe(true);
+    expect(capState.restricted).toBe(true);
+    expect(capState.effective).toBe(false);
+    expect(capState.reason).toBe("restriction");
   });
 
   test("grant-only capability is effective", () => {
-    const s = deriveUserCapState(sources, "contacts", "delete");
-    expect(s.grant).toBe(true);
-    expect(s.effective).toBe(true);
+    const capState = deriveUserCapState(sources, "contacts", "delete");
+    expect(capState.grant).toBe(true);
+    expect(capState.effective).toBe(true);
   });
 
   test("plain profile capability is effective without restriction", () => {
-    const s = deriveUserCapState(sources, "contacts", "view");
-    expect(s.profile).toBe(true);
-    expect(s.effective).toBe(true);
-    expect(s.reason).toBeNull();
+    const capState = deriveUserCapState(sources, "contacts", "view");
+    expect(capState.profile).toBe(true);
+    expect(capState.effective).toBe(true);
+    expect(capState.reason).toBeNull();
   });
 
   test("unknown capability is empty across all sources", () => {
-    const s = deriveUserCapState(sources, "journey", "publish");
-    expect(s).toEqual({
+    const capState = deriveUserCapState(sources, "journey", "publish");
+    expect(capState).toEqual({
       profile: false,
       group: false,
       grant: false,
@@ -180,17 +180,17 @@ describe("deriveUserCapState (mixed sources, restriction wins)", () => {
   // Eligibility is the OUTER gate (mirrors authorize()): a held capability is
   // still not effective for a feature the person is not eligible for.
   test("an ineligible feature makes a held capability ineffective", () => {
-    const s = deriveUserCapState(sources, "contacts", "view", false);
-    expect(s.profile).toBe(true); // the right is still HELD...
-    expect(s.eligible).toBe(false);
-    expect(s.effective).toBe(false); // ...but not effective
-    expect(deriveDenialReason(s)).toBe("not-eligible");
+    const capState = deriveUserCapState(sources, "contacts", "view", false);
+    expect(capState.profile).toBe(true); // the right is still HELD...
+    expect(capState.eligible).toBe(false);
+    expect(capState.effective).toBe(false); // ...but not effective
+    expect(deriveDenialReason(capState)).toBe("not-eligible");
   });
 
   test("an explicit restriction does not hide ineligibility (outer gate first)", () => {
-    const s = deriveUserCapState(sources, "contacts", "edit", false);
-    expect(s.restricted).toBe(true);
-    expect(deriveDenialReason(s)).toBe("not-eligible");
+    const capState = deriveUserCapState(sources, "contacts", "edit", false);
+    expect(capState.restricted).toBe(true);
+    expect(deriveDenialReason(capState)).toBe("not-eligible");
   });
 
   test("an eligible caller keeps the previous semantics (Super Admin path)", () => {
@@ -272,34 +272,34 @@ describe("eligibleFeaturesForPerson (person editor ceiling)", () => {
   const MAP = { contacts: "crm", journey: "ventures", lms: "lms" };
 
   test("keeps the eligible features (boolean and {eligible} shapes)", () => {
-    const set = eligibleFeaturesForPerson(
+    const eligibleFeatures = eligibleFeaturesForPerson(
       { crm: true, ventures: { eligible: false }, lms: { eligible: true } },
       MAP,
       [],
     );
-    expect([...set].sort()).toEqual(["crm", "lms"]);
+    expect([...eligibleFeatures].sort()).toEqual(["crm", "lms"]);
   });
 
   test("retains the feature of a module holding a personal exception", () => {
-    const set = eligibleFeaturesForPerson({ crm: true, ventures: false }, MAP, [
+    const eligibleFeatures = eligibleFeaturesForPerson({ crm: true, ventures: false }, MAP, [
       "journey",
     ]);
-    expect(set.has("ventures")).toBe(true);
-    expect(set.has("crm")).toBe(true);
+    expect(eligibleFeatures.has("ventures")).toBe(true);
+    expect(eligibleFeatures.has("crm")).toBe(true);
   });
 
   test("accepts the Super Admin shape", () => {
-    const set = eligibleFeaturesForPerson(
+    const eligibleFeatures = eligibleFeaturesForPerson(
       { crm: { eligible: true, source: "super_admin bypass" } },
       MAP,
       [],
     );
-    expect([...set]).toEqual(["crm"]);
+    expect([...eligibleFeatures]).toEqual(["crm"]);
   });
 
   test("a module with no feature never widens the set", () => {
-    const set = eligibleFeaturesForPerson({ crm: true }, MAP, ["org_membership"]);
-    expect([...set]).toEqual(["crm"]);
+    const eligibleFeatures = eligibleFeaturesForPerson({ crm: true }, MAP, ["org_membership"]);
+    expect([...eligibleFeatures]).toEqual(["crm"]);
   });
 
   test("an unknown map hides nothing (returns undefined)", () => {
@@ -341,7 +341,7 @@ describe("buildSectionColumns (CRUD ladder only)", () => {
   };
 
   test("renders exactly View · Edit · Create · Delete · Full", () => {
-    expect(buildSectionColumns().map((c) => c.key)).toEqual([
+    expect(buildSectionColumns().map((column) => column.key)).toEqual([
       "view",
       "edit",
       "create",
@@ -354,14 +354,14 @@ describe("buildSectionColumns (CRUD ladder only)", () => {
     const columns = buildSectionColumns({
       capabilities: ["view", "delete", "grant", "view_matrix", "send"],
     });
-    expect(columns.map((c) => c.key)).toEqual([
+    expect(columns.map((column) => column.key)).toEqual([
       "view",
       "edit",
       "create",
       "delete",
       "full",
     ]);
-    expect(columns.find((c) => c.key === "full").kind).toBe("full");
+    expect(columns.find((column) => column.key === "full").kind).toBe("full");
   });
 
   test("extraCapabilities keeps only non-CRUD capabilities", () => {
@@ -471,12 +471,12 @@ describe("filterSectionsByRoleEligibility (strict role-driven display)", () => {
 
   test("a feature shows only when one of the assigned roles is eligible for it", () => {
     const out = filterSectionsByRoleEligibility(SECTIONS, ["staff"], eligible);
-    expect(out.map((s) => s.feature)).toEqual(["communication", "org_membership"]);
+    expect(out.map((section) => section.feature)).toEqual(["communication", "org_membership"]);
   });
 
   test("the union across roles is used (not the intersection)", () => {
     const out = filterSectionsByRoleEligibility(SECTIONS, ["staff", "founder"], eligible);
-    expect(out.map((s) => s.feature)).toEqual([
+    expect(out.map((section) => section.feature)).toEqual([
       "communication",
       "ventures",
       "org_membership",
@@ -486,7 +486,7 @@ describe("filterSectionsByRoleEligibility (strict role-driven display)", () => {
   test("a role with no eligibility hides every feature", () => {
     const out = filterSectionsByRoleEligibility(SECTIONS, ["mentor"], eligible);
     // only the unmapped module survives (it carries no feature ceiling)
-    expect(out.map((s) => s.feature)).toEqual(["org_membership"]);
+    expect(out.map((section) => section.feature)).toEqual(["org_membership"]);
   });
 });
 
@@ -502,19 +502,19 @@ describe("capability families — catalog metadata contract", () => {
   } = require("@/lib/authorization/capability-catalog");
 
   test("every parent resolves to a capability of the SAME module", () => {
-    for (const def of Object.values(CAPABILITY_CATALOG)) {
-      for (const meta of Object.values(def.capabilities || {})) {
+    for (const featureDef of Object.values(CAPABILITY_CATALOG)) {
+      for (const meta of Object.values(featureDef.capabilities || {})) {
         if (!meta.parent) continue;
-        expect(def.capabilities[meta.parent]).toBeDefined();
+        expect(featureDef.capabilities[meta.parent]).toBeDefined();
       }
     }
   });
 
   test("families are one level deep (a parent is never itself a child)", () => {
-    for (const def of Object.values(CAPABILITY_CATALOG)) {
-      for (const meta of Object.values(def.capabilities || {})) {
+    for (const featureDef of Object.values(CAPABILITY_CATALOG)) {
+      for (const meta of Object.values(featureDef.capabilities || {})) {
         if (!meta.parent) continue;
-        expect(def.capabilities[meta.parent].parent).toBeUndefined();
+        expect(featureDef.capabilities[meta.parent].parent).toBeUndefined();
       }
     }
   });
@@ -557,7 +557,7 @@ describe("crudCapabilities / hasCrudCapabilities / filterSectionsToCrudModules",
       { feature: "crm", modules: ["bulk_upload"], capabilities: [] },
     ];
     const out = filterSectionsToCrudModules(sections, modules);
-    expect(out.map((s) => s.feature)).toEqual(["user_management"]);
+    expect(out.map((section) => section.feature)).toEqual(["user_management"]);
     expect(out[0].modules).toEqual(["users"]);
   });
 

@@ -81,15 +81,15 @@ describe("resolveAutomationFlag", () => {
 
 describe("effectiveAutomation / hasRunAutomationOverride", () => {
   test("every flag is reported once, all ON by default", () => {
-    const eff = effectiveAutomation({}, {});
-    expect(Object.keys(eff).sort()).toEqual([...AUTOMATION_FLAG_PATHS].sort());
-    expect(Object.values(eff).every((v) => v === true)).toBe(true);
+    const effective = effectiveAutomation({}, {});
+    expect(Object.keys(effective).sort()).toEqual([...AUTOMATION_FLAG_PATHS].sort());
+    expect(Object.values(effective).every((flag) => flag === true)).toBe(true);
   });
 
   test("the run's overrides show through, the rest inherit", () => {
-    const eff = effectiveAutomation(formOff, { automation: { on_approve: { send_approval_email: true } } });
-    expect(eff["on_approve.send_approval_email"]).toBe(true);
-    expect(eff["on_approve.send_activation_email"]).toBe(true);
+    const effective = effectiveAutomation(formOff, { automation: { on_approve: { send_approval_email: true } } });
+    expect(effective["on_approve.send_approval_email"]).toBe(true);
+    expect(effective["on_approve.send_activation_email"]).toBe(true);
   });
 
   test("hasRunAutomationOverride ignores an empty or absent block", () => {

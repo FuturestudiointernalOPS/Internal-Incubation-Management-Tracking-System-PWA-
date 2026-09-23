@@ -81,7 +81,7 @@ describe("Venture Progress Reports", () => {
     expect(data.success).toBe(true);
     expect(data.id).toBe(1);
 
-    const insert = executed.find((q) => q.sql.includes("INSERT INTO venture_reports"));
+    const insert = executed.find((query) => query.sql.includes("INSERT INTO venture_reports"));
     expect(insert).toBeDefined();
     expect(insert.args[0]).toBe("VNT-TEST");
     expect(JSON.parse(insert.args[6])).toEqual(["Pitch Deck", "Business Plan"]);
@@ -94,7 +94,7 @@ describe("Venture Progress Reports", () => {
   test("Manager submits the report (submitted_at stamped)", async () => {
     const res = await PATCH(new Request("http://localhost/x", { method: "PATCH", body: JSON.stringify({ id: 1, status: "submitted" }) }), ctx);
     expect(res.status).toBe(200);
-    const update = executed.find((q) => q.sql.includes("UPDATE venture_reports SET"));
+    const update = executed.find((query) => query.sql.includes("UPDATE venture_reports SET"));
     expect(update.sql).toContain("submitted_at = COALESCE(submitted_at, NOW())");
   });
 

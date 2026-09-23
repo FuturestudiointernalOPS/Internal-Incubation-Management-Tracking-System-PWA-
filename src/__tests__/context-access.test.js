@@ -23,44 +23,44 @@ jest.mock("@/lib/db", () => ({
   __esModule: true,
   default: {
     execute: jest.fn(async ({ sql, args = [] }) => {
-      const s = String(sql);
-      if (s.includes("FROM v2_program_staff")) {
+      const statement = String(sql);
+      if (statement.includes("FROM v2_program_staff")) {
         const [programId, staffId] = args;
         return {
           rows: mockDbRows.v2ProgramStaff.filter(
-            (r) => String(r.program_id) === String(programId) && String(r.staff_id) === String(staffId),
+            (row) => String(row.program_id) === String(programId) && String(row.staff_id) === String(staffId),
           ),
         };
       }
-      if (s.includes("FROM contact_roles")) {
+      if (statement.includes("FROM contact_roles")) {
         const [contextId, userCid] = args;
         return {
           rows: mockDbRows.contactRoles
             .filter(
-              (r) =>
-                String(r.context_id) === String(contextId) &&
-                String(r.contact_cid) === String(userCid) &&
-                r.is_current === true,
+              (row) =>
+                String(row.context_id) === String(contextId) &&
+                String(row.contact_cid) === String(userCid) &&
+                row.is_current === true,
             )
-            .sort((a, b) => new Date(b.started_at || 0) - new Date(a.started_at || 0)),
+            .sort((left, right) => new Date(right.started_at || 0) - new Date(left.started_at || 0)),
         };
       }
-      if (s.includes("FROM project_members")) {
+      if (statement.includes("FROM project_members")) {
         const [projectId, userCid] = args;
         return {
           rows: mockDbRows.projectMembers.filter(
-            (r) => String(r.project_id) === String(projectId) && String(r.user_cid) === String(userCid),
+            (row) => String(row.project_id) === String(projectId) && String(row.user_cid) === String(userCid),
           ),
         };
       }
-      if (s.includes("FROM venture_members")) {
+      if (statement.includes("FROM venture_members")) {
         const [ventureId, userCid, contactId] = args;
         return {
           rows: mockDbRows.ventureMembers.filter(
-            (r) =>
-              String(r.venture_id) === String(ventureId) &&
-              (String(r.user_cid) === String(userCid) || String(r.contact_id) === String(contactId)) &&
-              r.removed_at == null,
+            (row) =>
+              String(row.venture_id) === String(ventureId) &&
+              (String(row.user_cid) === String(userCid) || String(row.contact_id) === String(contactId)) &&
+              row.removed_at == null,
           ),
         };
       }
@@ -161,8 +161,8 @@ describe("E/F — external facilitator vs Future Studio staff + facilitator", ()
     const resolved = await resolveContextAssignment({ resource: "program", contextId: "P1", userCid: "USR_X" });
     expect(resolved.source).toBe("v2_program_staff");
     // The context layer has no notion of FUTURE STUDIO — membership stays separate.
-    const dbSql = require("@/lib/db").default.execute;
-    expect(dbSql.mock.calls.some(([c]) => String(c.sql || "").includes("group_memberships"))).toBe(false);
+    const executeMock = require("@/lib/db").default.execute;
+    expect(executeMock.mock.calls.some(([query]) => String(query.sql || "").includes("group_memberships"))).toBe(false);
   });
 });
 
@@ -174,7 +174,7 @@ describe("G — participant → facilitator transition", () => {
     ];
     const resolved = await resolveContextAssignment({ resource: "program", contextId: "P1", userCid: "USR_X" });
     expect(resolved.assignment.role).toBe("facilitator");
-    expect(mockDbRows.contactRoles.filter((r) => r.role === "participant").length).toBe(1); // history intact
+    expect(mockDbRows.contactRoles.filter((row) => row.role === "participant").length).toBe(1); // history intact
   });
 });
 

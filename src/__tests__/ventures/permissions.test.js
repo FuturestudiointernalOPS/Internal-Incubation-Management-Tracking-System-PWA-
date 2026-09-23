@@ -95,17 +95,17 @@ describe("hasVentureCapability (runtime scope resolution)", () => {
   }
 
   it("denies scoped access when no scope reference is supplied", async () => {
-    const ok = await hasVentureCapability(scopedDb(), {
+    const allowed = await hasVentureCapability(scopedDb(), {
       ventureId: "VNT-A",
       contactId: "staff-1",
       area: "internal_notes",
       action: "view",
     });
-    expect(ok).toBe(false);
+    expect(allowed).toBe(false);
   });
 
   it("grants the capability when the object is inside the assignment scope", async () => {
-    const ok = await hasVentureCapability(scopedDb(), {
+    const allowed = await hasVentureCapability(scopedDb(), {
       ventureId: "VNT-A",
       contactId: "staff-1",
       area: "internal_notes",
@@ -113,11 +113,11 @@ describe("hasVentureCapability (runtime scope resolution)", () => {
       scopeRefType: "milestone",
       scopeRefId: "42",
     });
-    expect(ok).toBe(true);
+    expect(allowed).toBe(true);
   });
 
   it("denies capabilities the matrix does not grant (edit)", async () => {
-    const ok = await hasVentureCapability(scopedDb(), {
+    const allowed = await hasVentureCapability(scopedDb(), {
       ventureId: "VNT-A",
       contactId: "staff-1",
       area: "internal_notes",
@@ -125,7 +125,7 @@ describe("hasVentureCapability (runtime scope resolution)", () => {
       scopeRefType: "milestone",
       scopeRefId: "42",
     });
-    expect(ok).toBe(false);
+    expect(allowed).toBe(false);
   });
 
   it("denies when the user has no assignment at all", async () => {
@@ -133,7 +133,7 @@ describe("hasVentureCapability (runtime scope resolution)", () => {
       execute: async ({ sql }) =>
         sql.includes("venture_staff_assignments") ? { rows: [] } : { rows: [] },
     };
-    const ok = await hasVentureCapability(noAssignmentDb, {
+    const allowed = await hasVentureCapability(noAssignmentDb, {
       ventureId: "VNT-A",
       contactId: "nobody",
       area: "internal_notes",
@@ -141,6 +141,6 @@ describe("hasVentureCapability (runtime scope resolution)", () => {
       scopeRefType: "milestone",
       scopeRefId: "42",
     });
-    expect(ok).toBe(false);
+    expect(allowed).toBe(false);
   });
 });

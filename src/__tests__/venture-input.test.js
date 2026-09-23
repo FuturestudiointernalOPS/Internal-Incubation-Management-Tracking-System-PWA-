@@ -8,7 +8,7 @@ const fs = require("fs");
 const path = require("path");
 const { dateOrNull, textOrNull, isUnknownColumnError } = require("@/lib/ventureInput");
 
-const read = (p) => fs.readFileSync(path.join(process.cwd(), p), "utf8");
+const read = (relativePath) => fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
 
 describe("dateOrNull", () => {
   test("a cleared field becomes NULL, never an empty string", () => {

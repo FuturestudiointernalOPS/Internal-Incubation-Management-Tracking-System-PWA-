@@ -36,8 +36,8 @@ describe("roleIsPrivileged", () => {
 describe("resolveVentureLifecycle", () => {
   it("resolves by venture_id code", async () => {
     const db = { execute: jest.fn().mockResolvedValue({ rows: [{ status: "active", is_archived: 0 }] }) };
-    const lc = await resolveVentureLifecycle("VNT-ABC", db);
-    expect(lc.status).toBe("active");
+    const lifecycle = await resolveVentureLifecycle("VNT-ABC", db);
+    expect(lifecycle.status).toBe("active");
     expect(db.execute.mock.calls[0][0].sql).toContain("WHERE venture_id = ?");
   });
 
@@ -45,8 +45,8 @@ describe("resolveVentureLifecycle", () => {
     const db = {
       execute: jest.fn().mockResolvedValueOnce({ rows: [{ status: "archived", is_archived: 1 }] }),
     };
-    const lc = await resolveVentureLifecycle("11111111-2222-3333-4444-555555555555", db);
-    expect(lc.status).toBe("archived");
+    const lifecycle = await resolveVentureLifecycle("11111111-2222-3333-4444-555555555555", db);
+    expect(lifecycle.status).toBe("archived");
   });
 
   it("returns null when not found", async () => {

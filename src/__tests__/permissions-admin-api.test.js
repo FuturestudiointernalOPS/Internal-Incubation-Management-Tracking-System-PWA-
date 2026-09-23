@@ -133,7 +133,7 @@ describe("PUT /api/engineering/permissions/eligibility — write", () => {
       jsonReq({ changes: [{ feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 1 }] }),
     );
     expect(res.status).toBe(403);
-    expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO feature_eligibility"))).toBe(false);
+    expect(mockExecutedQueries.some((query) => query.includes("INSERT INTO feature_eligibility"))).toBe(false);
   });
 
   test("valid change upserts the row, audits, and invalidates the cache", async () => {
@@ -141,7 +141,7 @@ describe("PUT /api/engineering/permissions/eligibility — write", () => {
       jsonReq({ changes: [{ feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 1 }] }),
     );
     expect(res.status).toBe(200);
-    expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO feature_eligibility"))).toBe(true);
+    expect(mockExecutedQueries.some((query) => query.includes("INSERT INTO feature_eligibility"))).toBe(true);
     expect(invalidateAllAuthorizationContexts).toHaveBeenCalled();
   });
 
@@ -150,7 +150,7 @@ describe("PUT /api/engineering/permissions/eligibility — write", () => {
       jsonReq({ changes: [{ feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: null }] }),
     );
     expect(res.status).toBe(200);
-    expect(mockExecutedQueries.some((q) => q.includes("DELETE FROM feature_eligibility"))).toBe(true);
+    expect(mockExecutedQueries.some((query) => query.includes("DELETE FROM feature_eligibility"))).toBe(true);
   });
 
   test("invalid changes → 400 (unknown feature / bad value / bad type / empty)", async () => {
@@ -180,17 +180,17 @@ describe("PUT eligibility — C2 template impact confirmation", () => {
       jsonReq({ changes: [{ feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 0 }] }),
     );
     expect(res.status).toBe(409);
-    const d = await res.json();
-    expect(d.requiresConfirmation).toBe(true);
-    expect(d.impacts).toEqual([
+    const payload = await res.json();
+    expect(payload.requiresConfirmation).toBe(true);
+    expect(payload.impacts).toEqual([
       {
         role: "staff",
         feature: "finance",
         templates: [{ id: 7, name: "Staff default", capabilities: ["finance.view"] }],
       },
     ]);
-    expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO feature_eligibility"))).toBe(false);
-    expect(mockExecutedQueries.some((q) => q.includes("DELETE FROM feature_eligibility"))).toBe(false);
+    expect(mockExecutedQueries.some((query) => query.includes("INSERT INTO feature_eligibility"))).toBe(false);
+    expect(mockExecutedQueries.some((query) => query.includes("DELETE FROM feature_eligibility"))).toBe(false);
   });
 
   test("unset (eligible=null) is also a downgrade and asks first", async () => {
@@ -210,7 +210,7 @@ describe("PUT eligibility — C2 template impact confirmation", () => {
       }),
     );
     expect(res.status).toBe(200);
-    expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO feature_eligibility"))).toBe(true);
+    expect(mockExecutedQueries.some((query) => query.includes("INSERT INTO feature_eligibility"))).toBe(true);
   });
 
   test("an upgrade (eligible=1) never asks for confirmation", async () => {
@@ -251,7 +251,7 @@ describe("PUT /api/access-profiles/role-defaults — eligibility boundary", () =
     });
     const res = await roleDefaultsRoute.PUT(jsonReq({ role_name: "mentor", profile_id: 99 }));
     expect([400, 403]).toContain(res.status);
-    expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO role_access_profile_defaults"))).toBe(false);
+    expect(mockExecutedQueries.some((query) => query.includes("INSERT INTO role_access_profile_defaults"))).toBe(false);
   });
 });
 
@@ -261,8 +261,8 @@ describe("DELETE /api/access-profiles/role-defaults — remove a role default", 
       method: "DELETE",
     });
   const deleteSql = () =>
-    mockExecutedQueries.find((q) =>
-      q.includes("DELETE FROM role_access_profile_defaults"),
+    mockExecutedQueries.find((query) =>
+      query.includes("DELETE FROM role_access_profile_defaults"),
     );
 
   test("requires permissions.assign_capabilities (no removal when unauthorized)", async () => {
@@ -329,7 +329,7 @@ describe("PUT /api/engineering/permissions — individual grants respect eligibi
       }),
     );
     expect(res.status).toBe(403);
-    expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO user_capabilities"))).toBe(false);
+    expect(mockExecutedQueries.some((query) => query.includes("INSERT INTO user_capabilities"))).toBe(false);
   });
 
   test("grant to an eligible target writes the capability", async () => {
@@ -344,7 +344,7 @@ describe("PUT /api/engineering/permissions — individual grants respect eligibi
       }),
     );
     expect(res.status).toBe(200);
-    expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO user_capabilities"))).toBe(true);
+    expect(mockExecutedQueries.some((query) => query.includes("INSERT INTO user_capabilities"))).toBe(true);
   });
 });
 
@@ -436,7 +436,7 @@ describe("PUT /api/engineering/permissions — audit trail records the change", 
       }),
     );
     expect(res.status).toBe(200);
-    expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO group_capabilities"))).toBe(true);
+    expect(mockExecutedQueries.some((query) => query.includes("INSERT INTO group_capabilities"))).toBe(true);
     expect(logPermissionAudit).toHaveBeenLastCalledWith(
       expect.objectContaining({
         action: "group_changed",

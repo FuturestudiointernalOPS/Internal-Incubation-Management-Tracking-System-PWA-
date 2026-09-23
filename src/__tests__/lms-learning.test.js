@@ -129,29 +129,29 @@ function seedEnrollment(userCid = "U-LEARNER") {
 
 describe("computeCourseProgress (ticket §15)", () => {
   test("empty course → 0%, not started, not complete", () => {
-    const p = computeCourseProgress([], {});
-    expect(p).toMatchObject({ percent: 0, status: "not_started", complete: false });
+    const progress = computeCourseProgress([], {});
+    expect(progress).toMatchObject({ percent: 0, status: "not_started", complete: false });
   });
 
   test("required-based percentage with rounding", () => {
-    const p = computeCourseProgress(
+    const progress = computeCourseProgress(
       [{ lessons: [LESSON_1, LESSON_2, LESSON_OPTIONAL] }],
       { "L-1": "completed" },
     );
-    expect(p.percent).toBe(50); // 1 of 2 required
-    expect(p.status).toBe("in_progress");
-    expect(p.completedLessons).toBe(1);
-    expect(p.totalLessons).toBe(3);
+    expect(progress.percent).toBe(50); // 1 of 2 required
+    expect(progress.status).toBe("in_progress");
+    expect(progress.completedLessons).toBe(1);
+    expect(progress.totalLessons).toBe(3);
   });
 
   test("optional lessons never block completion", () => {
-    const p = computeCourseProgress(
+    const progress = computeCourseProgress(
       [{ lessons: [LESSON_1, LESSON_2, LESSON_OPTIONAL] }],
       { "L-1": "completed", "L-2": "completed" },
     );
-    expect(p.complete).toBe(true);
-    expect(p.percent).toBe(100);
-    expect(p.status).toBe("completed");
+    expect(progress.complete).toBe(true);
+    expect(progress.percent).toBe(100);
+    expect(progress.status).toBe("completed");
   });
 
   test("all-optional course completes only when every lesson is done", () => {
@@ -163,12 +163,12 @@ describe("computeCourseProgress (ticket §15)", () => {
   });
 
   test("percentage rounds deterministically", () => {
-    const p = computeCourseProgress(
+    const progress = computeCourseProgress(
       [{ lessons: [LESSON_1, LESSON_2, LESSON_3, LESSON_OPTIONAL] }],
       { "L-1": "completed" },
     );
     // 1 of 3 required = 33.33 → 33
-    expect(p.percent).toBe(33);
+    expect(progress.percent).toBe(33);
   });
 });
 
@@ -267,7 +267,7 @@ describe("getLearnerCourse (course access, ticket §25)", () => {
     expect(course.sections).toHaveLength(2);
     expect(course.sections[0].lessons).toHaveLength(2);
     // Ordering preserved (position order).
-    expect(course.sections[0].lessons.map((l) => l.id)).toEqual(["L-1", "L-2"]);
+    expect(course.sections[0].lessons.map((lesson) => lesson.id)).toEqual(["L-1", "L-2"]);
     // Lesson states: completed / current (resume) / not started.
     expect(course.sections[0].lessons[0].state).toBe("completed");
     expect(course.sections[0].lessons[1].state).toBe("current");
@@ -315,7 +315,7 @@ describe("completeLesson", () => {
     await completeLesson("L-1", "U-LEARNER");
     await completeLesson("L-1", "U-LEARNER");
     const rows = mockFake.state.lms_lesson_progress.filter(
-      (p) => String(p.enrollment_id) === "E-1" && String(p.lesson_id) === "L-1",
+      (progress) => String(progress.enrollment_id) === "E-1" && String(progress.lesson_id) === "L-1",
     );
     expect(rows).toHaveLength(1);
     expect(rows[0].status).toBe("completed");
@@ -356,7 +356,7 @@ describe("enrollLearner / listEnrollments", () => {
     await enrollLearner({ courseId: "C-1", userCid: "U-ALICE", source: "admin" });
     await enrollLearner({ courseId: "C-1", userEmail: "alice@future.studio", source: "admin" });
 
-    const rows = mockFake.state.lms_enrollments.filter((e) => String(e.course_id) === "C-1");
+    const rows = mockFake.state.lms_enrollments.filter((enrollment) => String(enrollment.course_id) === "C-1");
     expect(rows).toHaveLength(1); // ON CONFLICT DO NOTHING
   });
 
@@ -445,12 +445,12 @@ describe("Learner API routes", () => {
   test("double completion through the API keeps a single progress row", async () => {
     seedPublishedCourse();
     seedEnrollment();
-    const first = await completePOST(jsonReq({}), { params: { id: "L-1" } });
-    expect(first.status).toBe(200);
-    const second = await completePOST(jsonReq({}), { params: { id: "L-1" } });
-    expect(second.status).toBe(200);
+    const firstResponse = await completePOST(jsonReq({}), { params: { id: "L-1" } });
+    expect(firstResponse.status).toBe(200);
+    const secondResponse = await completePOST(jsonReq({}), { params: { id: "L-1" } });
+    expect(secondResponse.status).toBe(200);
     const rows = mockFake.state.lms_lesson_progress.filter(
-      (p) => String(p.enrollment_id) === "E-1" && String(p.lesson_id) === "L-1",
+      (row) => String(row.enrollment_id) === "E-1" && String(row.lesson_id) === "L-1",
     );
     expect(rows).toHaveLength(1);
   });

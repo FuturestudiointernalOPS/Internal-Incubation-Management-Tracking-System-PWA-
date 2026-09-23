@@ -19,25 +19,25 @@ const { resolveEffectiveRole, INTERNAL_GROUP } = require("@/lib/platform/roles")
 
 const API_ROOT = join(__dirname, "..", "app", "api");
 const walk = (dir) => {
-  let out = [];
+  let routeFiles = [];
   for (const entry of readdirSync(dir)) {
-    const p = join(dir, entry);
-    if (statSync(p).isDirectory()) out = out.concat(walk(p));
-    else if (entry === "route.js") out.push(p);
+    const fullPath = join(dir, entry);
+    if (statSync(fullPath).isDirectory()) routeFiles = routeFiles.concat(walk(fullPath));
+    else if (entry === "route.js") routeFiles.push(fullPath);
   }
-  return out;
+  return routeFiles;
 };
 
 /** Every role literal referenced by role-list gates across the API surface. */
 function gateRoles() {
   const roles = new Set();
-  for (const f of walk(API_ROOT)) {
-    const src = readFileSync(f, "utf-8");
-    for (const m of src.matchAll(/roles:\s*\[([^\]]*)\]/g)) {
-      for (const r of m[1].split(",").map((x) => x.trim().replace(/["']/g, "")).filter(Boolean)) roles.add(r);
+  for (const file of walk(API_ROOT)) {
+    const src = readFileSync(file, "utf-8");
+    for (const match of src.matchAll(/roles:\s*\[([^\]]*)\]/g)) {
+      for (const role of match[1].split(",").map((part) => part.trim().replace(/["']/g, "")).filter(Boolean)) roles.add(role);
     }
-    for (const m of src.matchAll(/requireAuth\(\s*\[([^\]]*)\]/g)) {
-      for (const r of m[1].split(",").map((x) => x.trim().replace(/["']/g, "")).filter(Boolean)) roles.add(r);
+    for (const match of src.matchAll(/requireAuth\(\s*\[([^\]]*)\]/g)) {
+      for (const role of match[1].split(",").map((part) => part.trim().replace(/["']/g, "")).filter(Boolean)) roles.add(role);
     }
   }
   return roles;
@@ -45,13 +45,13 @@ function gateRoles() {
 
 describe("Phase 9 — model consistency", () => {
   test("every role used in API route gates exists in ROLE_CATALOG", () => {
-    const uncataloged = [...gateRoles()].filter((r) => !ROLE_CATALOG.includes(r));
+    const uncataloged = [...gateRoles()].filter((role) => !ROLE_CATALOG.includes(role));
     expect(uncataloged).toEqual([]);
   });
 
   test("every role in the eligibility defaults exists in ROLE_CATALOG", () => {
     const defaults = new Set(Object.values(FEATURE_ELIGIBILITY_DEFAULTS).flat());
-    const missing = [...defaults].filter((r) => !ROLE_CATALOG.includes(r));
+    const missing = [...defaults].filter((role) => !ROLE_CATALOG.includes(role));
     expect(missing).toEqual([]);
   });
 

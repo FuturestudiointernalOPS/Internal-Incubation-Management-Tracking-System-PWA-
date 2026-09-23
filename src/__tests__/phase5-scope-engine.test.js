@@ -124,16 +124,16 @@ describe("Phase 5 — data-layer predicates", () => {
     mockRows = [{ id: "V1" }, { id: "V2" }];
     const ids = await resolveScopeIds("venture_own", "C1");
     expect(ids).toEqual(["V1", "V2"]);
-    const q = mockExecuted[0];
-    expect(q.sql).toContain("FROM venture_members");
-    expect(q.sql).toContain("removed_at IS NULL");
-    expect(q.sql).toContain("user_cid = ?");
-    expect(q.sql).toContain("contact_id = ?");
+    const query = mockExecuted[0];
+    expect(query.sql).toContain("FROM venture_members");
+    expect(query.sql).toContain("removed_at IS NULL");
+    expect(query.sql).toContain("user_cid = ?");
+    expect(query.sql).toContain("contact_id = ?");
     // Delegated staff parity with requireVentureAccess (Phase 5b predicate fix):
     // an active venture_staff_assignments row is within scope too.
-    expect(q.sql).toContain("FROM venture_staff_assignments");
-    expect(q.sql).toContain("status = 'active'");
-    expect(q.args).toEqual(["C1", "C1", "C1"]);
+    expect(query.sql).toContain("FROM venture_staff_assignments");
+    expect(query.sql).toContain("status = 'active'");
+    expect(query.args).toEqual(["C1", "C1", "C1"]);
   });
 
   test("resolveVentureScopeId normalizes UUID → VNT code (fail-soft, never false-allow)", async () => {
@@ -162,20 +162,20 @@ describe("Phase 5 — data-layer predicates", () => {
       email: "ada@example.com",
     });
     expect(ids).toEqual(["P1"]);
-    const q = mockExecuted[0];
-    expect(q.sql).toContain("v2_program_staff");
-    expect(q.sql).toContain("LOWER(TRIM(staff_id))");
-    expect(q.sql).toContain("participant_programs");
-    expect(q.args).toEqual(["C1", "ada@example.com", "C1"]);
+    const query = mockExecuted[0];
+    expect(query.sql).toContain("v2_program_staff");
+    expect(query.sql).toContain("LOWER(TRIM(staff_id))");
+    expect(query.sql).toContain("participant_programs");
+    expect(query.args).toEqual(["C1", "ada@example.com", "C1"]);
   });
 
   test("learning_own reads only own, non-suspended enrollments", async () => {
     mockRows = [{ id: "K1" }];
     await resolveScopeIds("learning_own", "C1");
-    const q = mockExecuted[0];
-    expect(q.sql).toContain("FROM lms_enrollments");
-    expect(q.sql).toContain("status <> 'suspended'");
-    expect(q.args).toEqual(["C1"]);
+    const query = mockExecuted[0];
+    expect(query.sql).toContain("FROM lms_enrollments");
+    expect(query.sql).toContain("status <> 'suspended'");
+    expect(query.args).toEqual(["C1"]);
   });
 
   test("isWithinScope: member yes, non-member no", async () => {
@@ -239,11 +239,11 @@ describe("GET /api/engineering/permissions/scope-check", () => {
     expect(data.within_scope).toBe(true);
     expect(data.resolved_count).toBe(2);
 
-    const res2 = await route.GET(
+    const secondResponse = await route.GET(
       getReq("policy=venture_own&cid=David&resource_id=FinTechCo"),
     );
-    const data2 = await res2.json();
-    expect(data2.within_scope).toBe(false);
+    const secondPayload = await secondResponse.json();
+    expect(secondPayload.within_scope).toBe(false);
   });
 
   test("unimplemented policy reports the honest state (no silent allow)", async () => {

@@ -222,7 +222,7 @@ describe("getLearnerJourney (CRM trace mapping)", () => {
       status: "valid",
     });
     expect(
-      mockFake.executed.some((q) => /insert into lms_certificates/i.test(q.sql)),
+      mockFake.executed.some((entry) => /insert into lms_certificates/i.test(entry.sql)),
     ).toBe(true);
   });
 });

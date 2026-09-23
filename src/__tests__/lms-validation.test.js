@@ -41,13 +41,13 @@ describe("validateCourseForPublish", () => {
   test("fails when the course has no title", () => {
     const result = validateCourseForPublish({ ...validCourse, title: "" }, validStructure);
     expect(result.valid).toBe(false);
-    expect(result.errors.map((e) => e.key)).toContain("lms.errors.courseTitleRequired");
+    expect(result.errors.map((error) => error.key)).toContain("lms.errors.courseTitleRequired");
   });
 
   test("fails when there are no sections", () => {
     const result = validateCourseForPublish(validCourse, { sections: [], courseAssessments: [] });
     expect(result.valid).toBe(false);
-    expect(result.errors.map((e) => e.key)).toContain("lms.errors.noSections");
+    expect(result.errors.map((error) => error.key)).toContain("lms.errors.noSections");
   });
 
   test("fails when there are no lessons", () => {
@@ -56,7 +56,7 @@ describe("validateCourseForPublish", () => {
       courseAssessments: [],
     });
     expect(result.valid).toBe(false);
-    expect(result.errors.map((e) => e.key)).toContain("lms.errors.noLessons");
+    expect(result.errors.map((error) => error.key)).toContain("lms.errors.noLessons");
   });
 
   test("fails when a section has no title", () => {
@@ -65,7 +65,7 @@ describe("validateCourseForPublish", () => {
       courseAssessments: [],
     });
     expect(result.valid).toBe(false);
-    expect(result.errors.map((e) => e.key)).toContain("lms.errors.sectionTitleRequired");
+    expect(result.errors.map((error) => error.key)).toContain("lms.errors.sectionTitleRequired");
   });
 
   test("fails when a lesson has no title", () => {
@@ -79,7 +79,7 @@ describe("validateCourseForPublish", () => {
       courseAssessments: [],
     });
     expect(result.valid).toBe(false);
-    expect(result.errors.map((e) => e.key)).toContain("lms.errors.lessonTitleRequired");
+    expect(result.errors.map((error) => error.key)).toContain("lms.errors.lessonTitleRequired");
   });
 
   test("fails when a video lesson has no valid YouTube reference", () => {
@@ -95,7 +95,7 @@ describe("validateCourseForPublish", () => {
       courseAssessments: [],
     });
     expect(result.valid).toBe(false);
-    expect(result.errors.map((e) => e.key)).toContain("lms.errors.lessonVideoRequired");
+    expect(result.errors.map((error) => error.key)).toContain("lms.errors.lessonVideoRequired");
   });
 
   test("a course without assessments still validates", () => {
@@ -114,7 +114,7 @@ describe("validateCourseForPublish", () => {
       courseAssessments: [],
     });
     expect(result.valid).toBe(false);
-    expect(result.errors.map((e) => e.key)).toContain("lms.errors.assessmentQuestionsRequired");
+    expect(result.errors.map((error) => error.key)).toContain("lms.errors.assessmentQuestionsRequired");
   });
 
   test("fails when a multiple-choice question has fewer than two options", () => {
@@ -140,7 +140,7 @@ describe("validateCourseForPublish", () => {
       courseAssessments: [],
     });
     expect(result.valid).toBe(false);
-    expect(result.errors.map((e) => e.key)).toContain("lms.errors.mcOptionsRequired");
+    expect(result.errors.map((error) => error.key)).toContain("lms.errors.mcOptionsRequired");
   });
 
   test("fails when a multiple-choice question has no correct answer", () => {
@@ -169,7 +169,7 @@ describe("validateCourseForPublish", () => {
       courseAssessments: [],
     });
     expect(result.valid).toBe(false);
-    expect(result.errors.map((e) => e.key)).toContain("lms.errors.correctAnswerRequired");
+    expect(result.errors.map((error) => error.key)).toContain("lms.errors.correctAnswerRequired");
   });
 
   test("fails when a true/false question has no correct answer", () => {
@@ -194,7 +194,7 @@ describe("validateCourseForPublish", () => {
       courseAssessments: [],
     });
     expect(result.valid).toBe(false);
-    expect(result.errors.map((e) => e.key)).toContain("lms.errors.correctAnswerRequired");
+    expect(result.errors.map((error) => error.key)).toContain("lms.errors.correctAnswerRequired");
   });
 
   test("validates course-level assessments too", () => {
@@ -216,7 +216,7 @@ describe("validateCourseForPublish", () => {
       ],
     });
     expect(result.valid).toBe(false);
-    expect(result.errors.map((e) => e.key)).toContain("lms.errors.assessmentTitleRequired");
+    expect(result.errors.map((error) => error.key)).toContain("lms.errors.assessmentTitleRequired");
   });
 
   test("fails when pass mark is out of range", () => {
@@ -246,6 +246,6 @@ describe("validateCourseForPublish", () => {
       courseAssessments: [],
     });
     expect(result.valid).toBe(false);
-    expect(result.errors.map((e) => e.key)).toContain("lms.errors.invalidPassMark");
+    expect(result.errors.map((error) => error.key)).toContain("lms.errors.invalidPassMark");
   });
 });

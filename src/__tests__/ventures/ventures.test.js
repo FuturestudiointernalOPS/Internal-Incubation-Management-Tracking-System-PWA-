@@ -30,9 +30,9 @@ jest.mock("@/lib/db", () => ({
 // NOTE: keep the variation inside the first 8 characters after "VNT-" —
 // generateVentureId() only reads the first 8 chars of the stripped uuid.
 jest.mock("uuid", () => {
-  let seq = 0;
+  let counter = 0;
   return {
-    v4: () => `${String(seq++).padStart(4, "0")}-mock-uuid-1234567890`,
+    v4: () => `${String(counter++).padStart(4, "0")}-mock-uuid-1234567890`,
   };
 });
 
@@ -64,9 +64,9 @@ describe("Venture OS — Workflow B", () => {
     });
 
     it("should generate a unique ID each time", () => {
-      const id1 = generateVentureId();
-      const id2 = generateVentureId();
-      expect(id1).not.toBe(id2);
+      const firstId = generateVentureId();
+      const secondId = generateVentureId();
+      expect(firstId).not.toBe(secondId);
     });
 
     it("should generate an ID with 8 characters after prefix", () => {

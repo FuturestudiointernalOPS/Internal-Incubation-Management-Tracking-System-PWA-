@@ -44,7 +44,7 @@ const mockDb = {
     if (/FROM platform_submission_reports/.test(text)) {
       // Keyed exactly, like the real query: a stored report is only returned when
       // the CURRENT key matches it.
-      return { rows: storedReports.filter((r) => r.instruction_hash === args[1]) };
+      return { rows: storedReports.filter((report) => report.instruction_hash === args[1]) };
     }
     if (/INSERT INTO platform_submission_reports/.test(text)) {
       insertedReports.push({ text, args });
@@ -53,7 +53,7 @@ const mockDb = {
 
     if (/INSERT INTO platform_run_report_files/.test(text)) {
       const [runId, fileName, mimeType, fileSize, storagePath, extractedText, status, error, uploadedBy] = args;
-      const existing = storedFiles.find((f) => Number(f.run_id) === Number(runId));
+      const existing = storedFiles.find((file) => Number(file.run_id) === Number(runId));
       const row = {
         id: existing?.id ?? storedFiles.length + 1,
         run_id: Number(runId),
@@ -73,13 +73,13 @@ const mockDb = {
       return { rows: [row] };
     }
     if (/DELETE FROM platform_run_report_files/.test(text)) {
-      const index = storedFiles.findIndex((f) => Number(f.run_id) === Number(args[0]));
+      const index = storedFiles.findIndex((file) => Number(file.run_id) === Number(args[0]));
       if (index === -1) return { rows: [] };
       const [removed] = storedFiles.splice(index, 1);
       return { rows: [{ storage_path: removed.storage_path }] };
     }
     if (/FROM platform_run_report_files/.test(text)) {
-      const row = storedFiles.find((f) => Number(f.run_id) === Number(args[0]));
+      const row = storedFiles.find((file) => Number(file.run_id) === Number(args[0]));
       return { rows: row ? [row] : [] };
     }
     return { rows: [] };
@@ -155,9 +155,9 @@ const docxFile = (documentXml, name = "rubric.docx") =>
 /** Bytes of a real PDF with a text layer, from the project's own PDF writer. */
 const pdfBytes = (lines = ["ImpactOS evaluation rubric"]) => {
   const { jsPDF } = require("jspdf");
-  const doc = new jsPDF();
-  lines.forEach((line, i) => doc.text(line, 10, 20 + i * 10));
-  return Buffer.from(doc.output("arraybuffer"));
+  const pdfDocument = new jsPDF();
+  lines.forEach((line, lineIndex) => pdfDocument.text(line, 10, 20 + lineIndex * 10));
+  return Buffer.from(pdfDocument.output("arraybuffer"));
 };
 
 const pdfFile = (lines, name = "rubric.pdf") => fileLike(name, "application/pdf", pdfBytes(lines));
@@ -328,7 +328,7 @@ describe("one document per run, replaced in place", () => {
     expect(storedFiles[0].storage_path).toBe("runs/12/2-second.txt");
     // The replacement is expressed in SQL too, so a concurrent upload cannot
     // create a second row.
-    const upsert = executed.find((q) => /INSERT INTO platform_run_report_files/.test(q.text));
+    const upsert = executed.find((query) => /INSERT INTO platform_run_report_files/.test(query.text));
     expect(upsert.text).toMatch(/ON CONFLICT \(run_id\) DO UPDATE/);
   });
 
@@ -464,7 +464,7 @@ describe("the document takes part in composing the report", () => {
     expect(result.reused).toBe(false);
     expect(mockChat).toHaveBeenCalledTimes(1);
 
-    const lookup = executed.find((q) => /FROM platform_submission_reports/.test(q.text));
+    const lookup = executed.find((query) => /FROM platform_submission_reports/.test(query.text));
     expect(lookup.args[1]).toBe(hashInstruction(reportSourceKey(INSTRUCTION, "A DIFFERENT rubric")));
     expect(lookup.args[1]).not.toBe(hashInstruction(reportSourceKey(INSTRUCTION, REFERENCE)));
   });
@@ -482,7 +482,7 @@ describe("the document takes part in composing the report", () => {
 
     expect(result.reused).toBe(true);
     expect(mockChat).not.toHaveBeenCalled();
-    const lookup = executed.find((q) => /FROM platform_submission_reports/.test(q.text));
+    const lookup = executed.find((query) => /FROM platform_submission_reports/.test(query.text));
     // Without the document in the key, this stored report would have been the one
     // served — which is exactly the trap.
     expect(lookup.args[1]).not.toBe(hashInstruction(INSTRUCTION));

@@ -69,7 +69,7 @@ const uploaded = (overrides = {}) => ({
 
 const learnerById = async (id) => {
   const byCourse = await learnerSectionResourcesByCourse(COURSE);
-  return [...byCourse.values()].flat().find((r) => r.id === id);
+  return [...byCourse.values()].flat().find((resource) => resource.id === id);
 };
 
 beforeEach(() => {
@@ -160,8 +160,8 @@ test("grouping by section still separates material per section", async () => {
   const bySection = await learnerSectionResourcesByCourse(COURSE);
 
   expect([...bySection.keys()].sort()).toEqual(["S-1", "S-2"]);
-  expect(bySection.get("S-1").map((r) => r.id)).toEqual(["R-1"]);
-  expect(bySection.get("S-2").map((r) => r.id)).toEqual(["R-2"]);
+  expect(bySection.get("S-1").map((resource) => resource.id)).toEqual(["R-1"]);
+  expect(bySection.get("S-2").map((resource) => resource.id)).toEqual(["R-2"]);
 });
 
 test("the learner course payload reads material through the learner view", () => {

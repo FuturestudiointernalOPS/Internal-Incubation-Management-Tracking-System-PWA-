@@ -20,8 +20,8 @@ jest.mock("@/lib/ventureAuth", () => ({
 
 jest.mock("@/lib/api/createHandler", () => ({
   __esModule: true,
-  default: (fn) => fn,
-  createHandler: (fn) => fn,
+  default: (handler) => handler,
+  createHandler: (handler) => handler,
 }));
 
 const db = require("@/lib/db").default;
@@ -100,10 +100,10 @@ describe("POST submit", () => {
     expect(data.success).toBe(true);
     expect(data.submission_id).toBe(9);
 
-    const executed = db.execute.mock.calls.map((c) => c[0].sql);
-    const insert = executed.find((s) => s.includes("INSERT INTO venture_task_submissions"));
+    const executed = db.execute.mock.calls.map((call) => call[0].sql);
+    const insert = executed.find((statement) => statement.includes("INSERT INTO venture_task_submissions"));
     expect(insert).toContain("version");
-    expect(executed.some((s) => s.includes("UPDATE venture_tasks SET status = 'in_progress'"))).toBe(true);
+    expect(executed.some((statement) => statement.includes("UPDATE venture_tasks SET status = 'in_progress'"))).toBe(true);
   });
 
   it("rejects submissions with neither a file nor notes", async () => {
@@ -158,9 +158,9 @@ describe("POST review", () => {
       { params: { id: VENTURE_PARAM, taskId: "42" } },
     );
     expect(res.status).toBe(200);
-    const executed = db.execute.mock.calls.map((c) => c[0]);
-    expect(executed.some((s) => s.sql.includes("SET review_decision = ?"))).toBe(true);
-    const taskUpdate = executed.find((s) => s.sql.includes("UPDATE venture_tasks SET status = ?"));
+    const executed = db.execute.mock.calls.map((call) => call[0]);
+    expect(executed.some((statement) => statement.sql.includes("SET review_decision = ?"))).toBe(true);
+    const taskUpdate = executed.find((statement) => statement.sql.includes("UPDATE venture_tasks SET status = ?"));
     expect(taskUpdate).toBeTruthy();
     expect(taskUpdate.args[0]).toBe("accepted");
   });

@@ -99,25 +99,25 @@ describe("lms program requirements — service", () => {
   test("attach reuses the existing course (no duplicate course row)", async () => {
     seedCourse();
     seedProgram();
-    const req = await attachCourseToProgram({
+    const requirement = await attachCourseToProgram({
       programId: "P-2026-001",
       courseId: "crs-1",
       weekNumber: 2,
       isRequired: true,
     });
-    expect(req.course_id).toBe("crs-1");
-    expect(req.week_number).toBe(2);
-    expect(req.is_required).toBe(true);
+    expect(requirement.course_id).toBe("crs-1");
+    expect(requirement.week_number).toBe(2);
+    expect(requirement.is_required).toBe(true);
     // Course table still has exactly one course — the course is an LMS entity,
     // never copied per program.
     expect(mockFake.state.lms_courses.length).toBe(1);
     // The same course can be attached to a second program.
     seedProgram("P-2026-002");
-    const req2 = await attachCourseToProgram({
+    const secondRequirement = await attachCourseToProgram({
       programId: "P-2026-002",
       courseId: "crs-1",
     });
-    expect(req2.course_id).toBe("crs-1");
+    expect(secondRequirement.course_id).toBe("crs-1");
     expect(mockFake.state.lms_courses.length).toBe(1);
   });
 
@@ -136,40 +136,40 @@ describe("lms program requirements — service", () => {
     seedProgram();
     await attachCourseToProgram({ programId: "P-2026-001", courseId: "crs-1", weekNumber: 2 });
     await attachCourseToProgram({ programId: "P-2026-001", courseId: "crs-2", weekNumber: 3 });
-    const reqs = await getProgramRequirements("P-2026-001");
-    expect(reqs.map((r) => r.course.title)).toEqual([
+    const requirements = await getProgramRequirements("P-2026-001");
+    expect(requirements.map((requirement) => requirement.course.title)).toEqual([
       "Customer Discovery",
       "Market Validation",
     ]);
     // Week filter
     const week2 = await getProgramRequirements("P-2026-001", { weekNumber: 2 });
-    expect(week2.map((r) => r.course.title)).toEqual(["Customer Discovery"]);
+    expect(week2.map((requirement) => requirement.course.title)).toEqual(["Customer Discovery"]);
   });
 
   test("update toggles required/optional", async () => {
     seedCourse();
     seedProgram();
-    const req = await attachCourseToProgram({
+    const requirement = await attachCourseToProgram({
       programId: "P-2026-001",
       courseId: "crs-1",
       isRequired: true,
     });
-    const updated = await updateProgramRequirement(req.id, { is_required: false });
+    const updated = await updateProgramRequirement(requirement.id, { is_required: false });
     expect(updated.is_required).toBe(false);
-    expect(updated.title).toBe(req.title);
+    expect(updated.title).toBe(requirement.title);
   });
 
   test("detach removes the requirement but keeps enrollments", async () => {
     seedCourse();
     seedProgram();
     seedParticipant("U-P1");
-    const req = await attachCourseToProgram({
+    const requirement = await attachCourseToProgram({
       programId: "P-2026-001",
       courseId: "crs-1",
     });
     await ensureProgramEnrollments("P-2026-001", ["U-P1"]);
     expect(mockFake.state.lms_enrollments.length).toBe(1);
-    await detachCourseFromProgram(req.id);
+    await detachCourseFromProgram(requirement.id);
     expect(mockFake.state.lms_program_requirements.length).toBe(0);
     // Existing learner access is NOT silently revoked.
     expect(mockFake.state.lms_enrollments.length).toBe(1);
@@ -186,8 +186,8 @@ describe("lms program requirements — auto enrollment", () => {
     const res = await ensureProgramEnrollments("P-2026-001", ["U-P1", "U-P2"]);
     expect(res.enrolled).toBeGreaterThan(0);
     const enrolled = mockFake.state.lms_enrollments;
-    expect(enrolled.filter((e) => String(e.course_id) === "crs-draft").length).toBe(0);
-    expect(enrolled.filter((e) => String(e.course_id) === "crs-pub").length).toBe(2);
+    expect(enrolled.filter((enrollment) => String(enrollment.course_id) === "crs-draft").length).toBe(0);
+    expect(enrolled.filter((enrollment) => String(enrollment.course_id) === "crs-pub").length).toBe(2);
     // source + program_id recorded
     expect(enrolled[0].source).toBe("program");
     expect(enrolled[0].program_id).toBe("P-2026-001");
@@ -213,15 +213,15 @@ describe("lms program requirements — auto enrollment is grouped, not one row a
     await attachCourseToProgram({ programId: "P-2026-001", courseId: "crs-a" });
     await attachCourseToProgram({ programId: "P-2026-001", courseId: "crs-b" });
 
-    const cids = Array.from({ length: 65 }, (_, i) => `U-${i + 1}`);
+    const participantCids = Array.from({ length: 65 }, (_, i) => `U-${i + 1}`);
     mockFake.executed.length = 0;
-    const res = await ensureProgramEnrollments("P-2026-001", cids);
+    const res = await ensureProgramEnrollments("P-2026-001", participantCids);
 
-    const inserts = mockFake.executed.filter((c) =>
-      /insert into lms_enrollments/i.test(c.sql),
+    const inserts = mockFake.executed.filter((entry) =>
+      /insert into lms_enrollments/i.test(entry.sql),
     );
     console.log(
-      `enrollment: ${cids.length} participants x 2 courses -> ${inserts.length} statement(s)`,
+      `enrollment: ${participantCids.length} participants x 2 courses -> ${inserts.length} statement(s)`,
     );
 
     // 65 people is 30 + 30 + 5, so three statements per course and six in all,
@@ -235,7 +235,7 @@ describe("lms program requirements — auto enrollment is grouped, not one row a
     const enrolled = mockFake.state.lms_enrollments;
     expect(enrolled).toHaveLength(130);
     expect(
-      new Set(enrolled.map((e) => `${e.course_id}|${e.user_cid}`)).size,
+      new Set(enrolled.map((enrollment) => `${enrollment.course_id}|${enrollment.user_cid}`)).size,
     ).toBe(130);
   });
 });
@@ -256,20 +256,20 @@ describe("lms program requirements — participant learning view", () => {
     await attachCourseToProgram({ programId: "P-2026-001", courseId: "crs-1", weekNumber: 1 });
     await ensureProgramEnrollments("P-2026-001", ["U-P1"]);
 
-    const before = await getProgramLearningForParticipant("P-2026-001", "U-P1");
-    expect(before[0].progress.percent).toBe(0);
-    expect(before[0].progress.status).toBe("not_started");
-    expect(before[0].progress.continueLesson.lessonId).toBe("les-1");
+    const beforeCompletion = await getProgramLearningForParticipant("P-2026-001", "U-P1");
+    expect(beforeCompletion[0].progress.percent).toBe(0);
+    expect(beforeCompletion[0].progress.status).toBe("not_started");
+    expect(beforeCompletion[0].progress.continueLesson.lessonId).toBe("les-1");
 
     // Mark the lesson complete through the REAL completion path — the Program
     // view must reflect the LMS state.
     const { completeLesson } = require("@/lib/lms/learning");
     await completeLesson("les-1", "U-P1");
 
-    const after = await getProgramLearningForParticipant("P-2026-001", "U-P1");
-    expect(after[0].progress.percent).toBe(100);
-    expect(after[0].progress.status).toBe("completed");
-    expect(after[0].progress.continueLesson).toBeNull();
+    const afterCompletion = await getProgramLearningForParticipant("P-2026-001", "U-P1");
+    expect(afterCompletion[0].progress.percent).toBe(100);
+    expect(afterCompletion[0].progress.status).toBe("completed");
+    expect(afterCompletion[0].progress.continueLesson).toBeNull();
   });
 
   test("unpublished courses are reported as unavailable", async () => {
@@ -292,10 +292,10 @@ describe("lms program requirements — participant learning view", () => {
     const { completeLesson } = require("@/lib/lms/learning");
     await completeLesson("les-1", "U-P1");
 
-    const p1 = await getProgramLearningForParticipant("P-2026-001", "U-P1");
-    const p2 = await getProgramLearningForParticipant("P-2026-001", "U-P2");
-    expect(p1[0].progress.percent).toBe(100);
-    expect(p2[0].progress.percent).toBe(0);
+    const firstLearner = await getProgramLearningForParticipant("P-2026-001", "U-P1");
+    const secondLearner = await getProgramLearningForParticipant("P-2026-001", "U-P2");
+    expect(firstLearner[0].progress.percent).toBe(100);
+    expect(secondLearner[0].progress.percent).toBe(0);
   });
 
   test("PM summary counts enrolled + completed per course (from LMS only)", async () => {
@@ -364,7 +364,7 @@ describe("lms program requirements — routes", () => {
   test("PUT updates + DELETE detaches", async () => {
     seedCourse();
     seedProgram();
-    const req = await attachCourseToProgram({ programId: "P-2026-001", courseId: "crs-1" });
+    const requirement = await attachCourseToProgram({ programId: "P-2026-001", courseId: "crs-1" });
 
     const putRes = await PUT(
       new Request("http://localhost/api/lms/program-requirements/1", {
@@ -372,7 +372,7 @@ describe("lms program requirements — routes", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ is_required: false }),
       }),
-      { params: { id: req.id } },
+      { params: { id: requirement.id } },
     );
     const putData = await readJson(putRes);
     expect(putData.success).toBe(true);
@@ -380,7 +380,7 @@ describe("lms program requirements — routes", () => {
 
     const delRes = await DELETE(
       new Request("http://localhost/api/lms/program-requirements/1", { method: "DELETE" }),
-      { params: { id: req.id } },
+      { params: { id: requirement.id } },
     );
     const delData = await readJson(delRes);
     expect(delData.success).toBe(true);

@@ -250,7 +250,7 @@ describe("Startup Profile Wizard — Business Logic", () => {
         ],
       });
       expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.toLowerCase().includes("duplicate"))).toBe(true);
+      expect(result.errors.some((error) => error.toLowerCase().includes("duplicate"))).toBe(true);
     });
 
     it("should validate LinkedIn URL in step 3", () => {

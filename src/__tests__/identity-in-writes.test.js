@@ -74,9 +74,9 @@ describe("POST /api/announcements", () => {
     const data = await res.json();
 
     expect(data).toEqual({ success: true, id: 7 });
-    const arg = createAnnouncement.mock.calls[0][0];
-    expect(arg.authorId).toBe("C-REAL");
-    expect(arg.authorName).toBe("Real Person");
+    const announcementArgs = createAnnouncement.mock.calls[0][0];
+    expect(announcementArgs.authorId).toBe("C-REAL");
+    expect(announcementArgs.authorName).toBe("Real Person");
   });
 
   test("falls back to the session's email, then cid, for the display name", async () => {

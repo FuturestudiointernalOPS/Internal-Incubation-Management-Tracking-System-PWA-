@@ -116,7 +116,7 @@ describe("Phase 4 — seed catalogue integrity", () => {
   });
 
   test("(context, role_key) pairs are unique", () => {
-    const seen = new Set(CONTEXT_ROLE_SEED.map((r) => `${r.context}:${r.role_key}`));
+    const seen = new Set(CONTEXT_ROLE_SEED.map((row) => `${row.context}:${row.role_key}`));
     expect(seen.size).toBe(CONTEXT_ROLE_SEED.length);
   });
 
@@ -129,17 +129,17 @@ describe("Phase 4 — seed catalogue integrity", () => {
   });
 
   test("unmapped contextual roles stay visible as documented gaps", () => {
-    const gaps = CONTEXT_ROLE_SEED.filter((r) => r.profile_name === null);
+    const gaps = CONTEXT_ROLE_SEED.filter((row) => row.profile_name === null);
     // Facilitator and learner still have no seeded profile; each gap must carry
     // an explanatory note instead of being hidden.
     expect(gaps.length).toBeGreaterThan(0);
     for (const gap of gaps) expect(String(gap.notes).length).toBeGreaterThan(10);
-    expect(gaps.some((g) => g.context === "venture" && g.role_key === "founder")).toBe(false);
+    expect(gaps.some((gap) => gap.context === "venture" && gap.role_key === "founder")).toBe(false);
   });
 
   test("the founder gap is filled (Phase 5b) with the scope-aware Founder profile", () => {
     const founder = CONTEXT_ROLE_SEED.find(
-      (r) => r.context === "venture" && r.role_key === "founder",
+      (row) => row.context === "venture" && row.role_key === "founder",
     );
     expect(founder.profile_name).toBe("Founder");
   });
@@ -176,7 +176,7 @@ describe("GET /api/engineering/permissions/context-roles", () => {
     expect(data.roles).toHaveLength(1);
     expect(data.roles[0].holders).toBe(4);
     expect(data.profiles.length).toBeGreaterThan(0);
-    const all = executed.map((e) => e.sql).join("\n");
+    const all = executed.map((entry) => entry.sql).join("\n");
     expect(all).toContain("LEFT JOIN access_profiles");
     expect(all).toContain("ON CONFLICT (context, role_key) DO NOTHING");
   });
@@ -210,7 +210,7 @@ describe("PUT /api/engineering/permissions/context-roles", () => {
       putReq({ context: "venture", role_key: "founder", profile_id: 999 }),
     );
     expect(res.status).toBe(400);
-    expect(executed.some((e) => e.sql.includes("INSERT INTO context_role_profiles"))).toBe(false);
+    expect(executed.some((entry) => entry.sql.includes("INSERT INTO context_role_profiles"))).toBe(false);
   });
 
   test("saves the mapping (upsert) and audits it with the optional reason", async () => {
@@ -229,8 +229,8 @@ describe("PUT /api/engineering/permissions/context-roles", () => {
     expect(data.success).toBe(true);
     expect(data.mapping.profile_name).toBe("Mentor");
 
-    const upsert = executed.find((e) =>
-      e.sql.includes("INSERT INTO context_role_profiles"),
+    const upsert = executed.find((entry) =>
+      entry.sql.includes("INSERT INTO context_role_profiles"),
     );
     expect(upsert).toBeTruthy();
     expect(upsert.sql).toContain("ON CONFLICT (context, role_key) DO UPDATE");
@@ -270,16 +270,16 @@ describe("Phase 6 — NULL mapping repair (profile added after the seed)", () =>
     const result = await backfillContextRoleProfileMappings();
 
     expect(result.success).toBe(true);
-    const updates = executed.filter((q) => q.sql.includes("UPDATE context_role_profiles"));
+    const updates = executed.filter((entry) => entry.sql.includes("UPDATE context_role_profiles"));
     expect(updates.length).toBeGreaterThan(0);
     // The repair is strictly additive: only rows still NULL are eligible.
-    for (const u of updates) expect(u.sql).toContain("profile_id IS NULL");
+    for (const update of updates) expect(update.sql).toContain("profile_id IS NULL");
 
-    const founderUpdate = updates.find((u) => u.args[1] === "venture" && u.args[2] === "founder");
+    const founderUpdate = updates.find((update) => update.args[1] === "venture" && update.args[2] === "founder");
     expect(founderUpdate).toBeTruthy();
     expect(founderUpdate.args[0]).toBe(7); // the profile id resolved by name
     expect(
-      result.updated.find((u) => u.context === "venture" && u.role_key === "founder").profile,
+      result.updated.find((update) => update.context === "venture" && update.role_key === "founder").profile,
     ).toBe("Founder");
   });
 });

@@ -35,14 +35,14 @@ function collectRouteUsages() {
   })(API_ROOT);
   for (const file of files) {
     const src = fs.readFileSync(file, "utf8");
-    for (const m of src.matchAll(/requireAuthorization\(\s*"([a-z_]+)"\s*,\s*"([a-z_.]+)"/g)) {
-      usages.add(`${m[1]}.${m[2]}`);
+    for (const match of src.matchAll(/requireAuthorization\(\s*"([a-z_]+)"\s*,\s*"([a-z_.]+)"/g)) {
+      usages.add(`${match[1]}.${match[2]}`);
     }
     // Phase 2: the investor self-service seam wraps requireAuthorization("investor", …)
     // behind a context-aware admission check — its call sites still enforce the
     // catalog capability, so count them as literal usages of investor.<cap>.
-    for (const m of src.matchAll(/requireInvestorSelfServiceAuthorization\(\s*"([a-z_.]+)"/g)) {
-      usages.add(`investor.${m[1]}`);
+    for (const match of src.matchAll(/requireInvestorSelfServiceAuthorization\(\s*"([a-z_.]+)"/g)) {
+      usages.add(`investor.${match[1]}`);
     }
   }
   return { usages, fileCount: files.length };
@@ -122,12 +122,12 @@ test("every literal requireAuthorization usage resolves in the catalog", () => {
   const { usages, fileCount } = collectRouteUsages();
   expect(fileCount).toBeGreaterThan(50); // sanity: the walk really ran
   const missing = [];
-  for (const u of [...usages].sort()) {
-    const dot = u.lastIndexOf(".");
-    const mod = u.slice(0, dot);
-    const cap = u.slice(dot + 1);
-    if (!CAPABILITY_CATALOG[mod] || !CAPABILITY_CATALOG[mod].capabilities[cap]) {
-      missing.push(u);
+  for (const usage of [...usages].sort()) {
+    const dot = usage.lastIndexOf(".");
+    const moduleName = usage.slice(0, dot);
+    const capability = usage.slice(dot + 1);
+    if (!CAPABILITY_CATALOG[moduleName] || !CAPABILITY_CATALOG[moduleName].capabilities[capability]) {
+      missing.push(usage);
     }
   }
   expect(missing).toEqual([]);
@@ -136,10 +136,10 @@ test("every literal requireAuthorization usage resolves in the catalog", () => {
 test("every catalog capability is enforced by a route or documented", () => {
   const { usages } = collectRouteUsages();
   const unenforced = [];
-  for (const [mod, def] of Object.entries(CAPABILITY_CATALOG)) {
-    for (const cap of Object.keys(def.capabilities || {})) {
-      if (!usages.has(`${mod}.${cap}`) && !ALLOWED_UNROUTED.has(`${mod}.${cap}`)) {
-        unenforced.push(`${mod}.${cap}`);
+  for (const [moduleName, featureDef] of Object.entries(CAPABILITY_CATALOG)) {
+    for (const capability of Object.keys(featureDef.capabilities || {})) {
+      if (!usages.has(`${moduleName}.${capability}`) && !ALLOWED_UNROUTED.has(`${moduleName}.${capability}`)) {
+        unenforced.push(`${moduleName}.${capability}`);
       }
     }
   }

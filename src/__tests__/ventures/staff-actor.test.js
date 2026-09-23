@@ -36,8 +36,8 @@ function makeDb({ assigned = false, rowsFor = () => null } = {}) {
 describe("isStaffActorForVenture", () => {
   it("grants global Venture authority without any DB lookup", async () => {
     const db = makeDb();
-    const ok = await isStaffActorForVenture(db, "VNT-ABC", { role: "super_admin", cid: "sa" });
-    expect(ok).toBe(true);
+    const allowed = await isStaffActorForVenture(db, "VNT-ABC", { role: "super_admin", cid: "sa" });
+    expect(allowed).toBe(true);
     expect(db.execute).not.toHaveBeenCalled();
   });
 
@@ -49,26 +49,26 @@ describe("isStaffActorForVenture", () => {
 
   it("denies a member (founder) with no assignment", async () => {
     const db = makeDb({ assigned: false });
-    const ok = await isStaffActorForVenture(db, "VNT-ABC", { role: "founder", cid: "F-1" });
-    expect(ok).toBe(false);
+    const allowed = await isStaffActorForVenture(db, "VNT-ABC", { role: "founder", cid: "F-1" });
+    expect(allowed).toBe(false);
   });
 
   it("denies plain staff WITHOUT an assignment", async () => {
     const db = makeDb({ assigned: false });
-    const ok = await isStaffActorForVenture(db, "VNT-ABC", { role: "staff", cid: "S-1" });
-    expect(ok).toBe(false);
+    const allowed = await isStaffActorForVenture(db, "VNT-ABC", { role: "staff", cid: "S-1" });
+    expect(allowed).toBe(false);
   });
 
   it("grants delegated staff WITH an active assignment", async () => {
     const db = makeDb({ assigned: true });
-    const ok = await isStaffActorForVenture(db, "VNT-ABC", { role: "staff", cid: "S-1" });
-    expect(ok).toBe(true);
+    const allowed = await isStaffActorForVenture(db, "VNT-ABC", { role: "staff", cid: "S-1" });
+    expect(allowed).toBe(true);
   });
 
   it("resolves an internal UUID before checking the assignment", async () => {
     const db = makeDb({ assigned: true });
-    const ok = await isStaffActorForVenture(db, "11111111-1111-1111-1111-111111111111", { role: "staff", cid: "S-1" });
-    expect(ok).toBe(true);
+    const allowed = await isStaffActorForVenture(db, "11111111-1111-1111-1111-111111111111", { role: "staff", cid: "S-1" });
+    expect(allowed).toBe(true);
     expect(db.calls[0].args[0]).toBe("11111111-1111-1111-1111-111111111111");
     // Second call is the assignment lookup against the resolved VNT code.
     expect(db.calls[1].sql).toContain("venture_staff_assignments");

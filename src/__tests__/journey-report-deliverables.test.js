@@ -29,7 +29,7 @@ const mockDb = {
     if (sql.includes("FROM venture_deliverables")) {
       // Mirror the SQL filter so the assertion compares like for like.
       const onlySubmitted = sql.includes("status = 'submitted'");
-      return { rows: onlySubmitted ? mockDeliverables.filter((d) => d.status === "submitted") : mockDeliverables };
+      return { rows: onlySubmitted ? mockDeliverables.filter((deliverable) => deliverable.status === "submitted") : mockDeliverables };
     }
     return { rows: [] };
   }),
@@ -56,7 +56,7 @@ const fetchReport = async () => {
   return (await res.json()).journey_report;
 };
 
-const deliverablesQuery = () => executed.find((e) => e.sql.includes("FROM venture_deliverables"));
+const deliverablesQuery = () => executed.find((query) => query.sql.includes("FROM venture_deliverables"));
 
 beforeEach(() => {
   executed.length = 0;
@@ -71,18 +71,18 @@ beforeEach(() => {
 describe("GET /api/ventures/[id]/journey-report — deliverables awaiting review", () => {
   test("counts exactly the 'submitted' deliverables returned by the query", async () => {
     const report = await fetchReport();
-    const fromQuery = mockDeliverables.filter((d) => d.status === "submitted").length;
+    const fromQuery = mockDeliverables.filter((deliverable) => deliverable.status === "submitted").length;
     expect(report.deliverables_awaiting_review).toBe(fromQuery);
     expect(report.deliverables_awaiting_review).toBe(2);
   });
 
   test("scopes the deliverables query to the Venture owners list (code + UUID)", async () => {
     await fetchReport();
-    const q = deliverablesQuery();
-    expect(q).toBeDefined();
-    expect(q.sql).toContain("WHERE venture_id IN (?, ?)");
-    expect(q.sql).toContain("status = 'submitted'");
-    expect(q.args).toEqual([mockVentureId, mockDbId]);
+    const query = deliverablesQuery();
+    expect(query).toBeDefined();
+    expect(query.sql).toContain("WHERE venture_id IN (?, ?)");
+    expect(query.sql).toContain("status = 'submitted'");
+    expect(query.args).toEqual([mockVentureId, mockDbId]);
   });
 
   test("is additive — the pre-existing report fields are unchanged", async () => {

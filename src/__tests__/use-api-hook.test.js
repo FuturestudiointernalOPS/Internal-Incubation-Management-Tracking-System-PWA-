@@ -118,7 +118,7 @@ describe("useApi — the status of the last response", () => {
 });
 
 describe("how many times it reads", () => {
-  const listTransform = (d) => (d?.success ? d.things || [] : []);
+  const listTransform = (payload) => (payload?.success ? payload.things || [] : []);
 
   // Both of these are the natural thing to write, and both of them gave the
   // default a new identity on every render. While that identity was a dependency
@@ -185,7 +185,7 @@ describe("how many times it reads", () => {
         // A fresh function identity on every render, which is what a caller gets
         // by writing the transform at the call site. This is the third way to put
         // the read back on the wire once per render.
-        transform: (d) => (d?.success ? d.things || [] : []),
+        transform: (payload) => (payload?.success ? payload.things || [] : []),
       }),
     );
 
@@ -199,7 +199,7 @@ describe("how many times it reads", () => {
 });
 
 describe("the caller's deps", () => {
-  const pickThings = (d) => (d?.success ? d.things || [] : []);
+  const pickThings = (payload) => (payload?.success ? payload.things || [] : []);
 
   // `deps` is spread into the read's dependency list, so the read is re-issued
   // exactly when one of the values changes. Both halves of that contract matter:

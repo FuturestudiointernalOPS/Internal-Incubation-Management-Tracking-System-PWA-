@@ -39,15 +39,15 @@ const routeFileFor = (navItem) => {
 
 describe("UI-5 — navigation model", () => {
   test("keys and hrefs are unique and live under the Permission Center base", () => {
-    const keys = PERMISSION_NAV.map((n) => n.key);
-    const hrefs = PERMISSION_NAV.map((n) => n.href);
+    const keys = PERMISSION_NAV.map((navItem) => navItem.key);
+    const hrefs = PERMISSION_NAV.map((navItem) => navItem.href);
     expect(new Set(keys).size).toBe(keys.length);
     expect(new Set(hrefs).size).toBe(hrefs.length);
     for (const href of hrefs) expect(href.startsWith(PERMISSION_BASE)).toBe(true);
   });
 
   test("the places, in the order an admin asks", () => {
-    expect(PERMISSION_NAV.map((n) => n.key)).toEqual([
+    expect(PERMISSION_NAV.map((navItem) => navItem.key)).toEqual([
       "people",
       "templates",
       "rules",
@@ -64,7 +64,7 @@ describe("UI-5 — navigation model", () => {
   test("sub-tabs are unique per item and defaultSub points at a real tab", () => {
     for (const item of PERMISSION_NAV) {
       if (!item.tabs) continue;
-      const tabKeys = item.tabs.map((tb) => tb.key);
+      const tabKeys = item.tabs.map((tab) => tab.key);
       expect(new Set(tabKeys).size).toBe(tabKeys.length);
       expect(tabKeys).toContain(item.defaultSub);
     }
@@ -118,7 +118,7 @@ describe("UI-5 — navigation model", () => {
 
   test("the retired catalog link forwards out of Templates", () => {
     const src = read("src/app/admin/security/permissions/profiles/page.js");
-    expect(src).toContain('sub === "catalog"');
+    expect(src).toContain('subTab === "catalog"');
     expect(src).toContain("/eligibility?sub=ceilings");
   });
 
@@ -132,16 +132,16 @@ describe("UI-5 — navigation model", () => {
 describe("UI-1 — shell translations (en + fr parity)", () => {
   const allLabelKeys = PERMISSION_NAV.flatMap((item) => [
     item.labelKey,
-    ...(item.tabs || []).map((tb) => tb.labelKey),
+    ...(item.tabs || []).map((tab) => tab.labelKey),
   ]);
 
   test.each(allLabelKeys)("%s resolves in English and French", (key) => {
-    const en = resolveKey(EN, key);
-    const fr = resolveKey(FR, key);
-    expect(typeof en).toBe("string");
-    expect(typeof fr).toBe("string");
-    expect(en.length).toBeGreaterThan(0);
-    expect(fr.length).toBeGreaterThan(0);
+    const english = resolveKey(EN, key);
+    const french = resolveKey(FR, key);
+    expect(typeof english).toBe("string");
+    expect(typeof french).toBe("string");
+    expect(english.length).toBeGreaterThan(0);
+    expect(french.length).toBeGreaterThan(0);
   });
 });
 

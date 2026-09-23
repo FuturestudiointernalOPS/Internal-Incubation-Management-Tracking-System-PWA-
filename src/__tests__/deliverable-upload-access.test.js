@@ -13,7 +13,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const read = (p) => fs.readFileSync(path.join(process.cwd(), p), "utf8");
+const read = (relativePath) => fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
 
 describe("deliverable evidence upload access", () => {
   const UPLOAD = "src/app/api/ventures/[id]/deliverables/upload/route.js";

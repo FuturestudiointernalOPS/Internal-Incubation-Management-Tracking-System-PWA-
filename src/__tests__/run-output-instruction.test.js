@@ -132,7 +132,7 @@ describe("the report store is created on demand", () => {
       payload: PAYLOAD,
     });
 
-    const ddl = mockQueries.map((q) => q.text).join("\n");
+    const ddl = mockQueries.map((query) => query.text).join("\n");
     expect(ddl).toContain("CREATE TABLE IF NOT EXISTS platform_submission_reports");
     expect(ddl).toContain("CREATE INDEX IF NOT EXISTS idx_submission_reports_lookup");
   });
@@ -157,10 +157,10 @@ describe("markdown is stripped before it can be printed literally", () => {
 
 describe("the model's answer is untrusted input", () => {
   test("a well-formed answer is normalized into typed blocks", () => {
-    const doc = parseReportDocument(GOOD_ANSWER);
-    expect(doc.title).toBe("Executive Summary");
-    expect(doc.sections).toHaveLength(1);
-    expect(doc.sections[0].blocks).toEqual([
+    const parsedDocument = parseReportDocument(GOOD_ANSWER);
+    expect(parsedDocument.title).toBe("Executive Summary");
+    expect(parsedDocument.sections).toHaveLength(1);
+    expect(parsedDocument.sections[0].blocks).toEqual([
       { type: "paragraph", text: "You show clear traction." },
       { type: "bullet", text: "Next: validate pricing." },
     ]);
@@ -175,10 +175,10 @@ describe("the model's answer is untrusted input", () => {
   });
 
   test("unknown block types become paragraphs, list types become bullets", () => {
-    const doc = parseReportDocument(
+    const parsedDocument = parseReportDocument(
       JSON.stringify({ sections: [{ heading: "H", blocks: [{ type: "list-item", text: "x" }, { type: "whatever", text: "y" }] }] }),
     );
-    expect(doc.sections[0].blocks.map((b) => b.type)).toEqual(["bullet", "paragraph"]);
+    expect(parsedDocument.sections[0].blocks.map((block) => block.type)).toEqual(["bullet", "paragraph"]);
   });
 });
 
@@ -253,7 +253,7 @@ describe("with an instruction the document is composed once and reused", () => {
   test("the lookup is keyed exactly, so changed state is never served stale", async () => {
     mockStoredRows = [{ document: COMPOSED, generated_at: "2026-09-17T00:00:00Z" }];
     await compose();
-    const select = mockQueries.find((q) => q.text.includes("FROM platform_submission_reports"));
+    const select = mockQueries.find((query) => query.text.includes("FROM platform_submission_reports"));
     // submission, instruction hash, evaluation, decision, language
     expect(select.text).toMatch(/submission_id = \?/);
     expect(select.text).toMatch(/instruction_hash = \?/);

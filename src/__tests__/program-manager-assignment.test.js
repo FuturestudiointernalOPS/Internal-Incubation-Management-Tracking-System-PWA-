@@ -148,7 +148,7 @@ describe("recording the relationship", () => {
     const res = await PUT(req({ manager_cid: "USR_NEW" }), ctx());
     const body = await res.json();
 
-    const cids = syncContextGrantsForUser.mock.calls.map((c) => c[0]);
+    const cids = syncContextGrantsForUser.mock.calls.map((call) => call[0]);
     expect(cids).toEqual(["USR_NEW", "USR_OLD"]);
     expect(body.previous).toEqual({ cid: "USR_OLD" });
     expect(body.reconciled[1]).toEqual({

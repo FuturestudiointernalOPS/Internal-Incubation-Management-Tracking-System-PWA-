@@ -38,15 +38,15 @@ const formReq = (body) =>
   });
 
 function pngRequest(overrides = {}) {
-  const fd = new FormData();
+  const formData = new FormData();
   const bytes = overrides.bytes || Buffer.from("fake-png-bytes");
-  fd.append(
+  formData.append(
     "file",
     new File([bytes], overrides.name || "thumbnail.png", {
       type: overrides.type || "image/png",
     }),
   );
-  return formReq(fd);
+  return formReq(formData);
 }
 
 beforeEach(() => {
@@ -111,10 +111,10 @@ describe("POST /api/lms/courses/thumbnail", () => {
 
     expect(upload).toHaveBeenCalledTimes(1);
     expect(from).toHaveBeenCalledWith("course-thumbnails");
-    const [fileName, buffer, opts] = upload.mock.calls[0];
+    const [fileName, buffer, options] = upload.mock.calls[0];
     expect(fileName).toMatch(/^course-thumbnails\/\d+-thumbnail\.png$/);
     expect(Buffer.isBuffer(buffer)).toBe(true);
-    expect(opts).toMatchObject({ contentType: "image/png", upsert: true });
+    expect(options).toMatchObject({ contentType: "image/png", upsert: true });
     expect(createBucket).not.toHaveBeenCalled();
   });
 

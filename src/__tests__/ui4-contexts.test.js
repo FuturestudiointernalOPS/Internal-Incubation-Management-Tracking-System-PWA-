@@ -35,28 +35,28 @@ jest.mock("@/lib/db", () => ({
   default: {
     execute: jest.fn(async (queryObj) => {
       const sql = typeof queryObj === "string" ? queryObj : queryObj?.sql || "";
-      const s = String(sql);
-      if (mockState.throwOn && s.includes(mockState.throwOn)) {
+      const sqlText = String(sql);
+      if (mockState.throwOn && sqlText.includes(mockState.throwOn)) {
         throw new Error("lookup failed");
       }
-      if (s.includes("CAST(venture_id AS TEXT) AS id") && s.includes("UNION")) {
+      if (sqlText.includes("CAST(venture_id AS TEXT) AS id") && sqlText.includes("UNION")) {
         return { rows: mockState.ventureScope };
       }
-      if (s.includes("CAST(program_id AS TEXT) AS id") && s.includes("UNION")) {
+      if (sqlText.includes("CAST(program_id AS TEXT) AS id") && sqlText.includes("UNION")) {
         return { rows: mockState.programScope };
       }
-      if (s.includes("CAST(course_id AS TEXT) AS id")) {
+      if (sqlText.includes("CAST(course_id AS TEXT) AS id")) {
         return { rows: mockState.courseScope };
       }
-      if (s.includes("FROM ventures")) return { rows: mockState.ventureRows };
-      if (s.includes("FROM v2_programs")) return { rows: mockState.programRows };
-      if (s.includes("FROM lms_courses")) return { rows: mockState.courseRows };
-      if (s.includes("member_type")) return { rows: mockState.ventureMemberRows };
-      if (s.includes("FROM venture_staff_assignments")) return { rows: mockState.ventureStaffRows };
-      if (s.includes("SELECT CAST(program_id AS TEXT) AS id, role")) {
+      if (sqlText.includes("FROM ventures")) return { rows: mockState.ventureRows };
+      if (sqlText.includes("FROM v2_programs")) return { rows: mockState.programRows };
+      if (sqlText.includes("FROM lms_courses")) return { rows: mockState.courseRows };
+      if (sqlText.includes("member_type")) return { rows: mockState.ventureMemberRows };
+      if (sqlText.includes("FROM venture_staff_assignments")) return { rows: mockState.ventureStaffRows };
+      if (sqlText.includes("SELECT CAST(program_id AS TEXT) AS id, role")) {
         return { rows: mockState.programStaffRows };
       }
-      if (s.includes("FROM participant_programs")) return { rows: mockState.participantRows };
+      if (sqlText.includes("FROM participant_programs")) return { rows: mockState.participantRows };
       return { rows: [] };
     }),
   },
@@ -76,7 +76,7 @@ const {
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
 
-const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+const read = (relativePath) => fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
 const resolveKey = (bundle, dotted) =>
   dotted.split(".").reduce((acc, part) => (acc == null ? undefined : acc[part]), bundle);
 
@@ -146,7 +146,7 @@ describe("UI-4c — getContactContexts", () => {
     const { contexts, unavailable } = await getContactContexts("USR-1");
 
     expect(unavailable).toEqual(["venture"]);
-    expect(contexts.map((c) => c.type)).toEqual(["program"]);
+    expect(contexts.map((context) => context.type)).toEqual(["program"]);
   });
 
   test("a person with no relationships gets an empty list, not an error", async () => {
@@ -219,7 +219,7 @@ describe("UI-4c — the screens use them", () => {
     const center = read("src/components/permissions/PermissionCenter.js");
     // Matrix rows exclude context roles...
     expect(center).toContain("matrixRoles");
-    expect(center).toContain("!contextRoles.has(r)");
+    expect(center).toContain("!contextRoles.has(role)");
     // ...which stay selectable in the identity editor, tagged as context roles.
     expect(center).toContain("contextRoleTag");
   });

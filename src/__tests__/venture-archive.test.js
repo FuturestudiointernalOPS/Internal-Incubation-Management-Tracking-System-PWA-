@@ -20,22 +20,22 @@ function fakeDb({ submissions = [], reviews = [], deliverables = [], tasks = [] 
     async execute({ sql, args }) {
       calls.push({ sql, args });
       if (sql.includes("FROM venture_task_submissions") && sql.includes("WHERE task_id")) {
-        return { rows: submissions.filter((s) => String(s.task_id) === String(args[0])) };
+        return { rows: submissions.filter((submission) => String(submission.task_id) === String(args[0])) };
       }
       if (sql.includes("FROM venture_task_reviews") && sql.includes("WHERE task_id")) {
-        return { rows: reviews.filter((r) => String(r.task_id) === String(args[0])) };
+        return { rows: reviews.filter((review) => String(review.task_id) === String(args[0])) };
       }
       if (sql.includes("FROM venture_deliverables") && sql.includes("WHERE milestone_id")) {
-        return { rows: deliverables.filter((d) => String(d.milestone_id) === String(args[0])) };
+        return { rows: deliverables.filter((deliverable) => String(deliverable.milestone_id) === String(args[0])) };
       }
       if (sql.includes("FROM venture_task_submissions s")) {
-        return { rows: submissions.filter((s) => String(s.milestone_id) === String(args[0])) };
+        return { rows: submissions.filter((submission) => String(submission.milestone_id) === String(args[0])) };
       }
       if (sql.includes("FROM venture_task_reviews vr")) {
-        return { rows: reviews.filter((r) => String(r.milestone_id) === String(args[0])) };
+        return { rows: reviews.filter((review) => String(review.milestone_id) === String(args[0])) };
       }
       if (sql.includes("SELECT id FROM venture_tasks WHERE milestone_id")) {
-        return { rows: tasks.filter((t) => String(t.milestone_id) === String(args[0])) };
+        return { rows: tasks.filter((task) => String(task.milestone_id) === String(args[0])) };
       }
       return { rows: [] };
     },
@@ -88,7 +88,7 @@ describe("archiveTask", () => {
     const db = fakeDb();
     const out = await archiveTask(db, { taskId: 7, actorCid: "USR-1" });
     expect(out.archived).toBe(true);
-    const update = db.calls.find((c) => c.sql.includes("UPDATE venture_tasks SET is_archived"));
+    const update = db.calls.find((call) => call.sql.includes("UPDATE venture_tasks SET is_archived"));
     expect(update).toBeTruthy();
     expect(update.args[0]).toBe("USR-1");
     expect(update.args[1]).toBe("7");
@@ -106,10 +106,10 @@ describe("archiveMilestone", () => {
     const db = fakeDb({ tasks: [{ id: 11, milestone_id: "m1" }, { id: 12, milestone_id: "m1" }] });
     const out = await archiveMilestone(db, { milestoneId: "m1", actorCid: "USR-1" });
     expect(out.archived).toBe(true);
-    const msUpdate = db.calls.find((c) => c.sql.includes("UPDATE venture_milestones SET is_archived"));
+    const msUpdate = db.calls.find((call) => call.sql.includes("UPDATE venture_milestones SET is_archived"));
     expect(msUpdate).toBeTruthy();
     // Cascade: both bound tasks got an archive UPDATE.
-    const taskUpdates = db.calls.filter((c) => c.sql.includes("UPDATE venture_tasks SET is_archived") && !c.sql.includes("UPDATE venture_milestones"));
+    const taskUpdates = db.calls.filter((call) => call.sql.includes("UPDATE venture_tasks SET is_archived") && !call.sql.includes("UPDATE venture_milestones"));
     expect(taskUpdates.length).toBe(2);
   });
 });
@@ -118,15 +118,15 @@ describe("restore + bulk", () => {
   test("restoreTask clears the archive flags", async () => {
     const db = fakeDb();
     await restoreTask(db, { taskId: 7 });
-    const u = db.calls.find((c) => c.sql.includes("is_archived = FALSE"));
-    expect(u).toBeTruthy();
+    const restoreCall = db.calls.find((call) => call.sql.includes("is_archived = FALSE"));
+    expect(restoreCall).toBeTruthy();
   });
 
   test("restoreMilestone clears the milestone and its tasks", async () => {
     const db = fakeDb();
     await restoreMilestone(db, { milestoneId: "m1" });
-    expect(db.calls.some((c) => c.sql.includes("UPDATE venture_milestones SET is_archived = FALSE"))).toBe(true);
-    expect(db.calls.some((c) => c.sql.includes("UPDATE venture_tasks SET is_archived = FALSE"))).toBe(true);
+    expect(db.calls.some((call) => call.sql.includes("UPDATE venture_milestones SET is_archived = FALSE"))).toBe(true);
+    expect(db.calls.some((call) => call.sql.includes("UPDATE venture_tasks SET is_archived = FALSE"))).toBe(true);
   });
 
   test("applyBulk reports archived vs blocked per row", async () => {

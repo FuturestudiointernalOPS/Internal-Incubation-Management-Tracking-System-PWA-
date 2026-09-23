@@ -46,9 +46,9 @@ const SENTINEL = "__no_venture_scope__";
 
 const { getCalendarVentureSessions } = require("@/models/workspace");
 
-const scopeQuery = () => executed.find((q) => q.sql.includes("FROM venture_members"));
-const expansionQuery = () => executed.find((q) => q.sql.includes("FROM ventures WHERE venture_id IN"));
-const sessionsQuery = () => executed.find((q) => q.sql.includes("FROM venture_sessions"));
+const scopeQuery = () => executed.find((query) => query.sql.includes("FROM venture_members"));
+const expansionQuery = () => executed.find((query) => query.sql.includes("FROM ventures WHERE venture_id IN"));
+const sessionsQuery = () => executed.find((query) => query.sql.includes("FROM venture_sessions"));
 const placeholders = (sql) => (sql.match(/\?/g) || []).length;
 const flatten = (sql) => sql.replace(/\s+/g, " ").trim();
 

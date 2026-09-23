@@ -106,7 +106,7 @@ describe("POST /api/ventures/[id]/members", () => {
   it("never writes the membership itself — joining is the acceptance", async () => {
     await POST(jsonReq({ email: "guest@outside.io", member_type: "founder" }), ctx);
 
-    expect(db.execute.mock.calls.some(([c]) => /INSERT INTO venture_members/.test(String(c.sql)))).toBe(false);
+    expect(db.execute.mock.calls.some(([call]) => /INSERT INTO venture_members/.test(String(call.sql)))).toBe(false);
   });
 
   it("refuses someone who is already on the roster", async () => {

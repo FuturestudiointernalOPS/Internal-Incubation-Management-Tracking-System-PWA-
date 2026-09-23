@@ -48,8 +48,8 @@ describe("ventureStatuses — milestones", () => {
 
   test("only completed is terminal; locked is the unreleased state", () => {
     expect(isMilestoneComplete("completed")).toBe(true);
-    for (const s of ["not_started", "in_progress", "under_review", "changes_requested", "locked"]) {
-      expect(isMilestoneComplete(s)).toBe(false);
+    for (const status of ["not_started", "in_progress", "under_review", "changes_requested", "locked"]) {
+      expect(isMilestoneComplete(status)).toBe(false);
     }
   });
 });
@@ -84,8 +84,8 @@ describe("ventureStatuses — tasks", () => {
     expect(isTaskComplete("done")).toBe(true);
     expect(isTaskComplete("accepted")).toBe(true);
     expect(isTaskComplete("completed")).toBe(true);
-    for (const s of ["backlog", "todo", "in_progress", "review", "blocked", "cancelled", "rejected", "revision_requested"]) {
-      expect(isTaskComplete(s)).toBe(false);
+    for (const status of ["backlog", "todo", "in_progress", "review", "blocked", "cancelled", "rejected", "revision_requested"]) {
+      expect(isTaskComplete(status)).toBe(false);
     }
   });
 });

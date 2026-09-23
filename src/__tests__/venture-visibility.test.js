@@ -93,7 +93,7 @@ describe("projectMilestoneForVenture", () => {
 
   test("the list form maps every row", () => {
     const rows = projectMilestonesForVenture([openMilestone(), lockedMilestone()]);
-    expect(rows.map((r) => r.sealed)).toEqual([false, true]);
+    expect(rows.map((row) => row.sealed)).toEqual([false, true]);
   });
 });
 
@@ -113,7 +113,7 @@ describe("projectJourneyStageForVenture", () => {
     expect(projected.milestone_counts).toEqual({ total: 2, completed: 0 });
     expect(projected.sealed).toBe(false);
     expect(projected.description).toBe("Find the first ten customers");
-    expect(projected.milestones.map((m) => m.sealed)).toEqual([false, true]);
+    expect(projected.milestones.map((milestone) => milestone.sealed)).toEqual([false, true]);
   });
 
   test("a completed milestone is counted as completed", () => {
@@ -142,7 +142,7 @@ describe("projectJourneyStageForVenture", () => {
     const projected = projectJourneyStageForVenture(stage(), { unsealed: true });
     expect(projected.sealed).toBe(false);
     expect(projected.description).toBe("Find the first ten customers");
-    expect(projected.milestones.map((m) => m.sealed)).toEqual([false, false]);
+    expect(projected.milestones.map((milestone) => milestone.sealed)).toEqual([false, false]);
     expect(projected.milestones[1].description).toBe("Build the model");
   });
 
@@ -154,6 +154,6 @@ describe("projectJourneyStageForVenture", () => {
 
   test("the stages form maps every stage", () => {
     const rows = projectJourneyStagesForVenture([stage(), { id: "s3", status: "locked", milestones: [] }]);
-    expect(rows.map((s) => s.sealed)).toEqual([false, true]);
+    expect(rows.map((stageRow) => stageRow.sealed)).toEqual([false, true]);
   });
 });

@@ -339,7 +339,7 @@ describe("capability projection — buildAccessNav contract", () => {
     });
     return out;
   };
-  const ids = (items) => collect(items).map((i) => i.id);
+  const ids = (items) => collect(items).map((item) => item.id);
 
   test("every requirement resolves to a real catalog capability", () => {
     for (const [, req] of Object.entries(NAV_CAPABILITY_REQUIREMENTS)) {
@@ -359,16 +359,16 @@ describe("capability projection — buildAccessNav contract", () => {
 
   test("a granted section is added with only its reachable children", () => {
     const nav = buildAccessNav("staff", { contacts: { view: 1 } });
-    const crm = nav.find((i) => i.id === "crm");
+    const crm = nav.find((item) => item.id === "crm");
     expect(crm).toBeDefined();
     // Only the CRM children that have a non-admin route AND pass their own
     // capability requirement survive (membership needs org_membership.view).
-    expect(crm.subItems.map((s) => s.id)).toEqual([
+    expect(crm.subItems.map((subItem) => subItem.id)).toEqual([
       "crm_dashboard",
       "all_contacts",
       "crm_timeline",
     ]);
-    expect(crm.subItems.map((s) => s.href)).toEqual([
+    expect(crm.subItems.map((subItem) => subItem.href)).toEqual([
       "/crm",
       "/crm/contacts",
       "/crm/timeline",
@@ -383,22 +383,22 @@ describe("capability projection — buildAccessNav contract", () => {
       contacts: { view: 1 },
       org_membership: { view: 1 },
     });
-    const crm = withMembership.find((i) => i.id === "crm");
-    const membership = crm.subItems.find((s) => s.id === "crm_membership");
+    const crm = withMembership.find((item) => item.id === "crm");
+    const membership = crm.subItems.find((subItem) => subItem.id === "crm_membership");
     expect(membership).toBeDefined();
     expect(membership.href).toBe("/crm/membership");
   });
 
   test("a granted leaf (finance) is added through its non-admin fallback", () => {
     const nav = buildAccessNav("staff", { finance: { view: 1 } });
-    const finance = nav.find((i) => i.id === "finance");
+    const finance = nav.find((item) => item.id === "finance");
     expect(finance).toBeDefined();
     expect(finance.href).toBe("/finance");
   });
 
   test("a role's own doors keep their hrefs (no /admin surgery on the base)", () => {
     const nav = buildAccessNav("unknown_role", null);
-    expect(nav.map((i) => i.href)).toEqual(["/admin", "/admin/projects", "/admin/reports"]);
+    expect(nav.map((item) => item.href)).toEqual(["/admin", "/admin/projects", "/admin/reports"]);
   });
 
   test("role-only sections (rituals) are never granted by a capability", () => {
@@ -420,11 +420,11 @@ describe("capability projection — buildAccessNav contract", () => {
       ]),
     );
     // Admin-capable role → keeps the admin landing.
-    const saLms = buildAccessNav("super_admin", everything).find((i) => i.id === "lms");
+    const saLms = buildAccessNav("super_admin", everything).find((item) => item.id === "lms");
     expect(saLms).toBeDefined();
     expect(saLms.subItems[0].href).toBe("/admin/lms/courses");
     // Program manager → the non-admin landing (never an /admin link).
-    const pmLms = buildAccessNav("program_manager", everything).find((i) => i.id === "lms");
+    const pmLms = buildAccessNav("program_manager", everything).find((item) => item.id === "lms");
     expect(pmLms).toBeDefined();
     expect(pmLms.subItems[0].href).toBe("/pm/lms/courses");
   });

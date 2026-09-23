@@ -40,7 +40,7 @@ const FR = require("@/locales/fr/engineering.json");
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const resolveKey = (bundle, dotted) =>
   dotted.split(".").reduce((acc, part) => (acc == null ? undefined : acc[part]), bundle);
-const keys = (origins) => origins.map((o) => o.key);
+const keys = (origins) => origins.map((origin) => origin.key);
 
 const sources = (over = {}) => ({
   profile: {},
@@ -71,11 +71,11 @@ describe("UI-7 — one person's answer never lands on another", () => {
   test("A → B → A: the first A answer is still stale", () => {
     const guard = createLatestGuard();
     const firstA = guard.begin();
-    const b = guard.begin();
+    const readB = guard.begin();
     const secondA = guard.begin();
 
     expect(guard.isCurrent(firstA)).toBe(false);
-    expect(guard.isCurrent(b)).toBe(false);
+    expect(guard.isCurrent(readB)).toBe(false);
     expect(guard.isCurrent(secondA)).toBe(true);
   });
 
@@ -291,10 +291,10 @@ describe("UI-7 — the report reads, the editors write", () => {
     const src = read(REPORT);
     expect(src).toContain("peopleMatrixReportHint");
     expect(src).toContain("describeCapOrigins");
-    expect(src).toContain("originText(s)");
+    expect(src).toContain("originText(state)");
     // The report lists what the catalogue holds for each context module,
     // editable or not: it never narrows itself to what can be changed.
-    expect(src).toContain("capsFor(m)");
+    expect(src).toContain("capsFor(module)");
     expect(src).not.toContain("crudCapabilities");
   });
 

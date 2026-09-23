@@ -24,7 +24,7 @@ function resolveCtx({ role = "staff", eligibility = {}, profileCaps = {}, grants
 
 // Staff is eligible for every module-mapped feature (approved matrix).
 const STAFF_ELIG = Object.fromEntries(
-  Object.keys(MODULE_TO_FEATURE).map((m) => [MODULE_TO_FEATURE[m], true]),
+  Object.keys(MODULE_TO_FEATURE).map((module) => [MODULE_TO_FEATURE[module], true]),
 );
 
 // The NEW Staff Default profile rows (post Phase 3 configuration).

@@ -63,29 +63,29 @@ describe("deliverable review authority", () => {
   });
 
   test("a venture-wide assignment may review", async () => {
-    const d = db({ assignments: [{ scope_type: "venture_wide", scope_ref_id: null }] });
-    expect(await canReviewDeliverable(d, { id: VENTURE, cid: "s1", role: "staff", milestoneId: MILESTONE })).toBe(true);
+    const testDb = db({ assignments: [{ scope_type: "venture_wide", scope_ref_id: null }] });
+    expect(await canReviewDeliverable(testDb, { id: VENTURE, cid: "s1", role: "staff", milestoneId: MILESTONE })).toBe(true);
   });
 
   test("a lead_manager assignment may review regardless of scope column", async () => {
-    const d = db({ assignments: [{ scope_type: "milestone", scope_ref_id: "MS-OTHER", responsibility_code: "lead_manager" }] });
-    expect(await canReviewDeliverable(d, { id: VENTURE, cid: "lm-1", role: "staff", milestoneId: MILESTONE })).toBe(true);
+    const testDb = db({ assignments: [{ scope_type: "milestone", scope_ref_id: "MS-OTHER", responsibility_code: "lead_manager" }] });
+    expect(await canReviewDeliverable(testDb, { id: VENTURE, cid: "lm-1", role: "staff", milestoneId: MILESTONE })).toBe(true);
   });
 
   test("a coach scoped to THIS milestone may review", async () => {
-    const d = db({ assignments: [{ scope_type: "milestone", scope_ref_id: MILESTONE }] });
-    expect(await canReviewDeliverable(d, { id: VENTURE, cid: "coach-1", role: "staff", milestoneId: MILESTONE })).toBe(true);
+    const testDb = db({ assignments: [{ scope_type: "milestone", scope_ref_id: MILESTONE }] });
+    expect(await canReviewDeliverable(testDb, { id: VENTURE, cid: "coach-1", role: "staff", milestoneId: MILESTONE })).toBe(true);
   });
 
   test("a coach scoped to a DIFFERENT milestone may not review", async () => {
-    const d = db({ assignments: [{ scope_type: "milestone", scope_ref_id: "MS-2" }] });
-    expect(await canReviewDeliverable(d, { id: VENTURE, cid: "coach-1", role: "staff", milestoneId: MILESTONE })).toBe(false);
+    const testDb = db({ assignments: [{ scope_type: "milestone", scope_ref_id: "MS-2" }] });
+    expect(await canReviewDeliverable(testDb, { id: VENTURE, cid: "coach-1", role: "staff", milestoneId: MILESTONE })).toBe(false);
   });
 
   test("a coach scoped to the milestone's journey stage may review", async () => {
-    const d = db({ assignments: [{ scope_type: "journey_stage", scope_ref_id: STAGE }] });
+    const testDb = db({ assignments: [{ scope_type: "journey_stage", scope_ref_id: STAGE }] });
     expect(
-      await canReviewDeliverable(d, { id: VENTURE, cid: "coach-1", role: "staff", milestoneId: MILESTONE, journeyStageId: STAGE }),
+      await canReviewDeliverable(testDb, { id: VENTURE, cid: "coach-1", role: "staff", milestoneId: MILESTONE, journeyStageId: STAGE }),
     ).toBe(true);
   });
 
@@ -98,7 +98,7 @@ describe("deliverable review authority", () => {
   });
 
   test("an unresolvable scope lookup fails closed", async () => {
-    const d = db({ failAssignments: true });
-    expect(await canReviewDeliverable(d, { id: VENTURE, cid: "s1", role: "staff", milestoneId: MILESTONE })).toBe(false);
+    const testDb = db({ failAssignments: true });
+    expect(await canReviewDeliverable(testDb, { id: VENTURE, cid: "s1", role: "staff", milestoneId: MILESTONE })).toBe(false);
   });
 });

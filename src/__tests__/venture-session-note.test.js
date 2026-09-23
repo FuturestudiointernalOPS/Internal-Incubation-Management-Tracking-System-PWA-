@@ -50,7 +50,7 @@ jest.mock("@/lib/auth", () => ({
 
 // The handler wrapper only adds auth/initDb in production; here it is a pass-through.
 jest.mock("@/lib/api/createHandler", () => ({
-  createHandler: (fn) => fn,
+  createHandler: (handler) => handler,
 }));
 
 // The real guard returns { session, path } on allow — path is how a caller knows
@@ -161,7 +161,7 @@ describe("POST /api/ventures/[id]/sessions — compulsory session note", () => {
 
     // The memo stays on the SESSION: it is the brief the Venture is told about,
     // and nothing is copied onto the milestone.
-    expect(executed.find((e) => e.sql && e.sql.includes("INSERT INTO venture_notes"))).toBeUndefined();
+    expect(executed.find((entry) => entry.sql && entry.sql.includes("INSERT INTO venture_notes"))).toBeUndefined();
   });
 
   test("a session without a milestone is refused", async () => {
@@ -179,7 +179,7 @@ describe("POST /api/ventures/[id]/sessions — compulsory session note", () => {
     expect(res.status).toBe(400);
     expect(data.error).toBe("A session must belong to a milestone.");
     expect(mockCreateSession).not.toHaveBeenCalled();
-    expect(executed.find((e) => e.sql && e.sql.includes("INSERT INTO venture_notes"))).toBeUndefined();
+    expect(executed.find((entry) => entry.sql && entry.sql.includes("INSERT INTO venture_notes"))).toBeUndefined();
   });
 
   test("a session without a date and time is refused", async () => {
@@ -236,7 +236,7 @@ describe("POST /api/ventures/[id]/sessions — compulsory session note", () => {
     expect(res.status).toBe(400);
     expect(data.error).toBe("Unknown deliverable for this milestone.");
     expect(mockCreateSession).not.toHaveBeenCalled();
-    expect(executed.find((e) => e.sql && e.sql.includes("INSERT INTO venture_notes"))).toBeUndefined();
+    expect(executed.find((entry) => entry.sql && entry.sql.includes("INSERT INTO venture_notes"))).toBeUndefined();
   });
 
   test("an unknown deliverable is refused", async () => {
@@ -282,7 +282,7 @@ describe("POST /api/ventures/[id]/sessions — compulsory session note", () => {
     expect(mockCreateSession.mock.calls[0][0].deliverableId).toBe("dv1");
 
     // ONE memo per session, and it is not copied anywhere else.
-    expect(executed.find((e) => e.sql && e.sql.includes("INSERT INTO venture_notes"))).toBeUndefined();
+    expect(executed.find((entry) => entry.sql && entry.sql.includes("INSERT INTO venture_notes"))).toBeUndefined();
   });
 });
 
@@ -316,7 +316,7 @@ describe("POST /api/ventures/[id]/sessions — one editable memo, never filed el
     expect(mockUpdateSession).toHaveBeenCalledWith(7, { description: "Sharper agenda." });
     // Nothing is copied onto the milestone: the record there is the manager's
     // own writing, never a reflection of a Venture-facing brief.
-    expect(executed.find((e) => e.sql && e.sql.includes("venture_notes"))).toBeUndefined();
+    expect(executed.find((entry) => entry.sql && entry.sql.includes("venture_notes"))).toBeUndefined();
   });
 
   test("the generic update path changes the session, never a milestone note", async () => {
@@ -326,7 +326,7 @@ describe("POST /api/ventures/[id]/sessions — one editable memo, never filed el
     );
     expect(res.status).toBe(200);
     expect(mockUpdateSession).toHaveBeenCalledWith(7, { description: "Changed through the generic path." });
-    expect(executed.find((e) => e.sql && e.sql.includes("venture_notes"))).toBeUndefined();
+    expect(executed.find((entry) => entry.sql && entry.sql.includes("venture_notes"))).toBeUndefined();
   });
 
   test("a generic update that does not touch the memo changes nothing else", async () => {
@@ -335,6 +335,6 @@ describe("POST /api/ventures/[id]/sessions — one editable memo, never filed el
       ctx,
     );
     expect(res.status).toBe(200);
-    expect(executed.find((e) => e.sql && e.sql.includes("venture_notes"))).toBeUndefined();
+    expect(executed.find((entry) => entry.sql && entry.sql.includes("venture_notes"))).toBeUndefined();
   });
 });

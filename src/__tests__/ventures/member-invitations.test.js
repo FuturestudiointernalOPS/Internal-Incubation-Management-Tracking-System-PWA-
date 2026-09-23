@@ -18,7 +18,7 @@ jest.mock("bcryptjs", () => ({
 }));
 
 jest.mock("@/models/contactIdentity", () => ({
-  normalizeEmail: (e) => String(e || "").trim().toLowerCase(),
+  normalizeEmail: (email) => String(email || "").trim().toLowerCase(),
   resolvePersonIdentity: jest.fn(),
   resolveOrCreateContactIdentity: jest.fn(),
   syncVentureRoleHistory: jest.fn().mockResolvedValue(undefined),
@@ -77,7 +77,7 @@ const pendingRow = (overrides = {}) => ({
   ...overrides,
 });
 
-const callWith = (pattern) => db.execute.mock.calls.find(([c]) => pattern.test(String(c.sql)));
+const callWith = (pattern) => db.execute.mock.calls.find(([call]) => pattern.test(String(call.sql)));
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -190,7 +190,7 @@ describe("listVentureMemberInvitations", () => {
     ]);
 
     const rows = await listVentureMemberInvitations("VNT-1");
-    expect(rows.map((r) => r.is_expired)).toEqual([true, false]);
+    expect(rows.map((row) => row.is_expired)).toEqual([true, false]);
   });
 });
 

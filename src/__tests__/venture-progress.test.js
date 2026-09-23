@@ -85,7 +85,7 @@ describe("GET /api/ventures/[id]/progress — completion vocabulary", () => {
 
   test("completion derives from the canonical status set, not 'done' alone", async () => {
     await GET(new Request("http://localhost/api/ventures/VNT-TEST/progress"), { params: { id: "VNT-TEST" } });
-    const taskQuery = executed.find((q) => q.sql.includes("SELECT COUNT(*) as total") && q.sql.includes("FROM venture_tasks WHERE venture_id = ?"));
+    const taskQuery = executed.find((query) => query.sql.includes("SELECT COUNT(*) as total") && query.sql.includes("FROM venture_tasks WHERE venture_id = ?"));
     expect(taskQuery).toBeDefined();
     expect(taskQuery.sql).toContain("status IN (?, ?, ?)");
     expect(taskQuery.args).toEqual(["done", "accepted", "completed", VENTURE_DB_ID]);

@@ -35,12 +35,12 @@ async function freshDb(env = {}) {
   delete process.env.SKIP_RUNTIME_SCHEMA_MAINTENANCE;
   Object.assign(process.env, env);
   process.env.DATABASE_URL = "postgres://user:pass@localhost:5432/test";
-  const mod = await import("@/lib/db");
-  return { db: mod.default, ...mod };
+  const dbModule = await import("@/lib/db");
+  return { db: dbModule.default, ...dbModule };
 }
 
 const sent = (pattern) =>
-  mockQuery.mock.calls.filter((c) => pattern.test(String(c[0])));
+  mockQuery.mock.calls.filter((call) => pattern.test(String(call[0])));
 
 describe("idempotent DDL runs once per process", () => {
   test("a repeated CREATE TABLE IF NOT EXISTS is sent once", async () => {
@@ -139,10 +139,10 @@ describe("failures and the deploy switch", () => {
 
   test("SKIP_RUNTIME_SCHEMA_MAINTENANCE sends no maintenance statement at all", async () => {
     const { db } = await freshDb({ SKIP_RUNTIME_SCHEMA_MAINTENANCE: "true" });
-    const ddl = "CREATE TABLE IF NOT EXISTS demo_skipped (id INT)";
+    const maintenanceSql = "CREATE TABLE IF NOT EXISTS demo_skipped (id INT)";
     const data = "SELECT 1";
 
-    const result = await db.execute({ sql: ddl, args: [] });
+    const result = await db.execute({ sql: maintenanceSql, args: [] });
     await db.execute({ sql: data, args: [] });
 
     expect(sent(/CREATE TABLE IF NOT EXISTS demo_skipped/)).toHaveLength(0);

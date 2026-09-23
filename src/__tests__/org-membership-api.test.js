@@ -74,7 +74,7 @@ describe("PUT /api/org-membership — authorization gate", () => {
     });
     const res = await PUT(jsonReq({ user_cid: "U1", group_name: "FUTURE STUDIO", action: "joined" }));
     expect(res.status).toBe(403);
-    expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO group_memberships"))).toBe(false);
+    expect(mockExecutedQueries.some((sqlText) => sqlText.includes("INSERT INTO group_memberships"))).toBe(false);
   });
 
   test("unauthorized end/renew are equally rejected (C, D)", async () => {
@@ -143,9 +143,9 @@ describe("PUT /api/org-membership — lifecycle (A, F, G, O)", () => {
     expect(res.status).toBe(200);
     const data = await readJson(res);
     expect(data.success).toBe(true);
-    expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO group_memberships"))).toBe(true);
-    expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO group_membership_events"))).toBe(true);
-    expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO user_groups"))).toBe(true);
+    expect(mockExecutedQueries.some((sqlText) => sqlText.includes("INSERT INTO group_memberships"))).toBe(true);
+    expect(mockExecutedQueries.some((sqlText) => sqlText.includes("INSERT INTO group_membership_events"))).toBe(true);
+    expect(mockExecutedQueries.some((sqlText) => sqlText.includes("INSERT INTO user_groups"))).toBe(true);
     expect(invalidateAllAuthorizationContexts).toHaveBeenCalled();
   });
 
@@ -157,9 +157,9 @@ describe("PUT /api/org-membership — lifecycle (A, F, G, O)", () => {
       jsonReq({ user_cid: "U1", group_name: "FUTURE STUDIO", action: "renewed", expires_at: "2027-01-31" }),
     );
     expect(res.status).toBe(200);
-    expect(mockExecutedQueries.some((q) => q.includes("UPDATE group_memberships"))).toBe(true);
-    expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO group_memberships"))).toBe(false);
-    expect(mockExecutedQueries.some((q) => q.includes("INSERT INTO group_membership_events"))).toBe(true);
+    expect(mockExecutedQueries.some((sqlText) => sqlText.includes("UPDATE group_memberships"))).toBe(true);
+    expect(mockExecutedQueries.some((sqlText) => sqlText.includes("INSERT INTO group_memberships"))).toBe(false);
+    expect(mockExecutedQueries.some((sqlText) => sqlText.includes("INSERT INTO group_membership_events"))).toBe(true);
   });
 
   test("ending a membership never deletes the row or the person (O)", async () => {
@@ -168,8 +168,8 @@ describe("PUT /api/org-membership — lifecycle (A, F, G, O)", () => {
       .mockResolvedValueOnce({ user_cid: "U1", group_name: "FUTURE STUDIO", started_at: "2026-01-01T00:00:00Z", expires_at: null, status: "ended" });
     const res = await PUT(jsonReq({ user_cid: "U1", group_name: "FUTURE STUDIO", action: "ended" }));
     expect(res.status).toBe(200);
-    expect(mockExecutedQueries.some((q) => q.includes("DELETE FROM group_memberships"))).toBe(false);
-    expect(mockExecutedQueries.some((q) => q.includes("DELETE FROM contacts"))).toBe(false);
-    expect(mockExecutedQueries.some((q) => q.includes("UPDATE group_memberships"))).toBe(true);
+    expect(mockExecutedQueries.some((sqlText) => sqlText.includes("DELETE FROM group_memberships"))).toBe(false);
+    expect(mockExecutedQueries.some((sqlText) => sqlText.includes("DELETE FROM contacts"))).toBe(false);
+    expect(mockExecutedQueries.some((sqlText) => sqlText.includes("UPDATE group_memberships"))).toBe(true);
   });
 });

@@ -37,40 +37,40 @@ const DB = {
 
 function installMock() {
   db.execute.mockImplementation(async ({ sql }) => {
-    const s = sql || "";
+    const statement = sql || "";
     if (
-      s.includes("CREATE TABLE") || s.includes("CREATE UNIQUE INDEX") ||
-      s.includes("CREATE INDEX") || s.includes("ALTER TABLE") ||
-      s.includes("UPDATE contacts") ||
-      s.includes("INSERT INTO contact_roles") || s.includes("UPDATE contact_roles")
+      statement.includes("CREATE TABLE") || statement.includes("CREATE UNIQUE INDEX") ||
+      statement.includes("CREATE INDEX") || statement.includes("ALTER TABLE") ||
+      statement.includes("UPDATE contacts") ||
+      statement.includes("INSERT INTO contact_roles") || statement.includes("UPDATE contact_roles")
     ) {
       return { rows: [] };
     }
-    if (s.includes("INSERT INTO contact_duplicate_flags")) {
+    if (statement.includes("INSERT INTO contact_duplicate_flags")) {
       return { rows: DB.insertIds.length ? [{ id: DB.insertIds.shift() }] : [] };
     }
-    if (s.includes("SELECT cid, deleted FROM contacts WHERE LOWER(email)")) {
+    if (statement.includes("SELECT cid, deleted FROM contacts WHERE LOWER(email)")) {
       return { rows: DB.primary };
     }
-    if (s.includes("ce.contact_cid <> ?")) {
+    if (statement.includes("ce.contact_cid <> ?")) {
       return { rows: DB.takenElsewhere };
     }
-    if (s.includes("FROM contact_emails ce")) {
+    if (statement.includes("FROM contact_emails ce")) {
       return { rows: DB.alt };
     }
-    if (s.includes("phone_norm = ?")) {
+    if (statement.includes("phone_norm = ?")) {
       return { rows: DB.phone };
     }
-    if (s.includes("SELECT email FROM contacts WHERE cid = ?")) {
+    if (statement.includes("SELECT email FROM contacts WHERE cid = ?")) {
       return { rows: DB.primaryRow };
     }
-    if (s.includes("ce.contact_cid <> ?")) {
+    if (statement.includes("ce.contact_cid <> ?")) {
       return { rows: DB.takenElsewhere };
     }
-    if (s.includes("SELECT cid FROM contacts WHERE LOWER(email)")) {
+    if (statement.includes("SELECT cid FROM contacts WHERE LOWER(email)")) {
       return { rows: DB.existingByEmail };
     }
-    if (s.includes("RETURNING id")) {
+    if (statement.includes("RETURNING id")) {
       return { rows: DB.insertIds.length ? [{ id: DB.insertIds.shift() }] : [] };
     }
     return { rows: [] };
@@ -79,7 +79,7 @@ function installMock() {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  Object.keys(DB).forEach((k) => { DB[k] = []; });
+  Object.keys(DB).forEach((key) => { DB[key] = []; });
   installMock();
 });
 
@@ -123,7 +123,7 @@ describe("resolvePersonIdentity", () => {
     expect(result.status).toBe("conflict");
     expect(result.matches.length).toBe(2);
     expect(result.flagged).toBe(true);
-    const dupCall = db.execute.mock.calls.find(([c]) => c.sql.includes("contact_duplicate_flags"));
+    const dupCall = db.execute.mock.calls.find(([call]) => call.sql.includes("contact_duplicate_flags"));
     expect(dupCall).toBeDefined();
   });
 
@@ -161,7 +161,7 @@ describe("resolveOrCreateContactIdentity", () => {
   it("creates a pending contact when the person is new", async () => {
     const cid = await resolveOrCreateContactIdentity({ email: "mary@new.com", name: "Mary" });
     expect(cid).toMatch(/^USR_/);
-    const insertCall = db.execute.mock.calls.find(([c]) => c.sql.includes("INSERT INTO contacts"));
+    const insertCall = db.execute.mock.calls.find(([call]) => call.sql.includes("INSERT INTO contacts"));
     expect(insertCall).toBeDefined();
     expect(insertCall[0].args[4]).toBe("pending");
   });

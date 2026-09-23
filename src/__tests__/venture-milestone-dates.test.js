@@ -52,7 +52,7 @@ describe("dateOnly", () => {
 describe("journeyTimeline", () => {
   test("flattens stages then milestones, skipping archived journeys", () => {
     const timeline = journeyTimeline([...STAGES, { id: "s3", is_archived: true, milestones: [{ id: "m9" }] }]);
-    expect(timeline.map((m) => m.id)).toEqual(["m1", "m2", "m3", "m4"]);
+    expect(timeline.map((milestone) => milestone.id)).toEqual(["m1", "m2", "m3", "m4"]);
     expect(timeline[2].stageId).toBe("s2");
     expect(timeline[1].target_date).toBe(null);
   });

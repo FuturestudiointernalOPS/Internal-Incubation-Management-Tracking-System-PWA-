@@ -59,8 +59,8 @@ export function createSequencer({ rows = [], rowsFor = null } = {}) {
   return {
     execute,
     /** Replace the answers given to subsequent statements. */
-    setRowsFor(fn) {
-      respond = fn;
+    setRowsFor(rowsResponder) {
+      respond = rowsResponder;
     },
     reset() {
       calls.length = 0;
@@ -68,9 +68,9 @@ export function createSequencer({ rows = [], rowsFor = null } = {}) {
       maxInFlight = 0;
     },
     report() {
-      const data = calls.filter((c) => !c.schema);
-      const dataWaves = new Set(data.map((c) => c.wave)).size
-        ? new Set(data.map((c) => c.wave))
+      const data = calls.filter((call) => !call.schema);
+      const dataWaves = new Set(data.map((call) => call.wave)).size
+        ? new Set(data.map((call) => call.wave))
         : new Set();
       return {
         /** Statements the request issues, schema maintenance excluded. */
@@ -80,9 +80,9 @@ export function createSequencer({ rows = [], rowsFor = null } = {}) {
         /** Widest parallel burst (compare with the pool size, max 10). */
         maxInFlight,
         schemaStatements: calls.length - data.length,
-        calls: data.map((c) => c.sql.replace(/\s+/g, " ").trim().slice(0, 70)),
+        calls: data.map((call) => call.sql.replace(/\s+/g, " ").trim().slice(0, 70)),
         /** The full records, for a test that needs the arguments too. */
-        records: data.map((c) => ({ ...c })),
+        records: data.map((call) => ({ ...call })),
       };
     },
   };

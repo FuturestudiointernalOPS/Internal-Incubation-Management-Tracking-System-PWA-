@@ -210,17 +210,17 @@ describe("issueCertificate (server-side, idempotent)", () => {
       { id: "E-2", course_id: "C-1", user_cid: "U-OTHER", source: "admin", status: "completed" },
     ]);
     seedContact();
-    const a = await issueCertificate({
+    const firstCertificate = await issueCertificate({
       enrollment: { id: "E-1", user_cid: "U-LEARNER", status: "completed" },
       course: PUBLISHED,
       learnerName: "Jane Learner",
     });
-    const b = await issueCertificate({
+    const secondCertificate = await issueCertificate({
       enrollment: { id: "E-2", user_cid: "U-OTHER", status: "completed" },
       course: PUBLISHED,
       learnerName: "Other Learner",
     });
-    expect(a.certificate.certificate_number).not.toBe(b.certificate.certificate_number);
+    expect(firstCertificate.certificate.certificate_number).not.toBe(secondCertificate.certificate.certificate_number);
   });
 });
 
@@ -612,6 +612,6 @@ describe("LMS certificates migration (schema drift guard)", () => {
 
   test("domain constant matches the CHECK values", () => {
     const { LMS_CERTIFICATE_STATUSES } = require("@/lib/lms");
-    for (const v of LMS_CERTIFICATE_STATUSES) expect(MIGRATION).toContain(`'${v}'`);
+    for (const status of LMS_CERTIFICATE_STATUSES) expect(MIGRATION).toContain(`'${status}'`);
   });
 });

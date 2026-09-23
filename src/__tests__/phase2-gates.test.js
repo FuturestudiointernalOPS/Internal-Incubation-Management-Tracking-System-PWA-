@@ -22,7 +22,7 @@ function ctx({ role = "staff", eligibility = {}, profileCaps = {}, grants = {}, 
 }
 
 const STAFF_ELIG = Object.fromEntries(
-  Object.keys(MODULE_TO_FEATURE).map((m) => [MODULE_TO_FEATURE[m], true]),
+  Object.keys(MODULE_TO_FEATURE).map((module) => [MODULE_TO_FEATURE[module], true]),
 );
 
 // New Staff Default (post Phase 3): NO programs caps.
@@ -47,9 +47,9 @@ describe("Phase 2 — program write gates (no staff bypass)", () => {
   });
 
   test("staff with Program Manager profile: create + edit ALLOWED", () => {
-    const pm = ctx({ eligibility: STAFF_ELIG, profileCaps: PM_PROFILE });
-    expect(authorize(pm, "programs", "create")).toBe(true);
-    expect(authorize(pm, "programs", "edit")).toBe(true);
+    const programManager = ctx({ eligibility: STAFF_ELIG, profileCaps: PM_PROFILE });
+    expect(authorize(programManager, "programs", "create")).toBe(true);
+    expect(authorize(programManager, "programs", "edit")).toBe(true);
   });
 
   test("staff with individual programs.edit grant: edit ALLOWED, create still denied", () => {
@@ -64,8 +64,8 @@ describe("Phase 2 — program write gates (no staff bypass)", () => {
   });
 
   test("super admin bypass preserved for program writes", () => {
-    const sa = { cid: "sa", role: "super_admin", isSuperAdmin: true, eligibility: {}, effective: {}, grants: {}, restrictions: {} };
-    expect(authorize(sa, "programs", "create")).toBe(true);
-    expect(authorize(sa, "programs", "edit")).toBe(true);
+    const superAdmin = { cid: "sa", role: "super_admin", isSuperAdmin: true, eligibility: {}, effective: {}, grants: {}, restrictions: {} };
+    expect(authorize(superAdmin, "programs", "create")).toBe(true);
+    expect(authorize(superAdmin, "programs", "edit")).toBe(true);
   });
 });

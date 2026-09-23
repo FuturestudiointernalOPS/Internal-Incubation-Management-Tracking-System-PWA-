@@ -27,18 +27,18 @@ function fakeDb() {
     }
     if (sql.includes("FROM venture_milestones WHERE venture_id = ? AND journey_stage_id = ?")) {
       const stageId = args[1];
-      const map = { s1: [{ id: "m1" }], s2: [{ id: "m2" }] };
-      return { rows: map[stageId] || [] };
+      const milestonesByStage = { s1: [{ id: "m1" }], s2: [{ id: "m2" }] };
+      return { rows: milestonesByStage[stageId] || [] };
     }
     if (sql.includes("FROM venture_deliverables WHERE milestone_id")) return { rows: [] };
     if (sql.includes("FROM venture_task_submissions s") && sql.includes("t.milestone_id")) {
-      const mid = args[0];
-      return { rows: mid === "m2" ? [{ task_id: 2, milestone_id: "m2" }] : [] };
+      const milestoneId = args[0];
+      return { rows: milestoneId === "m2" ? [{ task_id: 2, milestone_id: "m2" }] : [] };
     }
     if (sql.includes("FROM venture_task_reviews vr")) return { rows: [] };
     if (sql.includes("FROM venture_tasks WHERE milestone_id")) {
-      const mid = args[0];
-      return { rows: mid === "m1" ? [{ id: 1 }] : [{ id: 2 }] };
+      const milestoneId = args[0];
+      return { rows: milestoneId === "m1" ? [{ id: 1 }] : [{ id: 2 }] };
     }
     if (sql.includes("SELECT id FROM venture_journey_stages WHERE venture_id = ? ORDER BY stage_order")) {
       return { rows: [{ id: "s1" }, { id: "s2" }] };
@@ -50,8 +50,8 @@ function fakeDb() {
     async execute({ sql, args = [] }) {
       return handler(sql, args);
     },
-    async transaction(cb) {
-      return cb((sql, args = []) => handler(sql, args));
+    async transaction(runInTransaction) {
+      return runInTransaction((sql, args = []) => handler(sql, args));
     },
   };
   return db;
@@ -75,7 +75,7 @@ describe("archiveJourneyStages / restoreJourneyStages", () => {
     const out = await archiveJourneyStages(db, { dbId: "v1", stageIds: ["s2"], actorCid: "USR-1" });
     expect(out.archived.length).toBe(1);
     expect(out.archived[0].id).toBe("s2");
-    const update = db.calls.find((c) => c.sql.includes("SET is_archived = TRUE"));
+    const update = db.calls.find((call) => call.sql.includes("SET is_archived = TRUE"));
     expect(update).toBeTruthy();
     expect(update.args[0]).toBe("USR-1");
   });
@@ -91,7 +91,7 @@ describe("archiveJourneyStages / restoreJourneyStages", () => {
     const db = fakeDb();
     const out = await restoreJourneyStages(db, { dbId: "v1", stageIds: ["s1"] });
     expect(out.restored.length).toBe(1);
-    expect(db.calls.some((c) => c.sql.includes("SET is_archived = FALSE"))).toBe(true);
+    expect(db.calls.some((call) => call.sql.includes("SET is_archived = FALSE"))).toBe(true);
   });
 });
 
@@ -109,16 +109,16 @@ describe("deleteJourneyStages", () => {
     const out = await deleteJourneyStages(db, { dbId: "v1", stageIds: ["s1"] });
     expect(out.deleted.length).toBe(1);
     expect(out.blocked.length).toBe(0);
-    const sqls = db.calls.map((c) => c.sql);
-    expect(sqls.some((s) => s.includes("DELETE FROM venture_tasks WHERE milestone_id"))).toBe(true);
-    expect(sqls.some((s) => s.includes("DELETE FROM venture_milestones WHERE id"))).toBe(true);
-    expect(sqls.some((s) => s.includes("DELETE FROM venture_journey_stages WHERE id"))).toBe(true);
+    const sqls = db.calls.map((call) => call.sql);
+    expect(sqls.some((statement) => statement.includes("DELETE FROM venture_tasks WHERE milestone_id"))).toBe(true);
+    expect(sqls.some((statement) => statement.includes("DELETE FROM venture_milestones WHERE id"))).toBe(true);
+    expect(sqls.some((statement) => statement.includes("DELETE FROM venture_journey_stages WHERE id"))).toBe(true);
   });
 
   test("deletes clean journeys and keeps filed ones (mixed selection)", async () => {
     const db = fakeDb();
     const out = await deleteJourneyStages(db, { dbId: "v1", stageIds: ["s1", "s2"] });
-    expect(out.deleted.map((d) => d.id)).toEqual(["s1"]);
-    expect(out.blocked.map((b) => b.id)).toEqual(["s2"]);
+    expect(out.deleted.map((deletion) => deletion.id)).toEqual(["s1"]);
+    expect(out.blocked.map((blockedStage) => blockedStage.id)).toEqual(["s2"]);
   });
 });

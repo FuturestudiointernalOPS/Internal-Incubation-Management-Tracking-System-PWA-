@@ -59,7 +59,7 @@ describe("sortGroups", () => {
       { name: "FUTURE STUDIO", isProtected: true },
       { name: "ALUMNI", isProtected: false },
     ]);
-    expect(sorted.map((g) => g.name)).toEqual(["FUTURE STUDIO", "ALUMNI", "BOOTCAMP"]);
+    expect(sorted.map((group) => group.name)).toEqual(["FUTURE STUDIO", "ALUMNI", "BOOTCAMP"]);
   });
 });
 
@@ -71,6 +71,6 @@ describe("dedupeMemberships", () => {
       { user_cid: "U2", group_name: "FUTURE STUDIO", status: "active" },
     ]);
     expect(rows).toHaveLength(2);
-    expect(rows.find((r) => r.user_cid === "U1").status).toBe("ended");
+    expect(rows.find((row) => row.user_cid === "U1").status).toBe("ended");
   });
 });

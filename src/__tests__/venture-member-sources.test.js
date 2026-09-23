@@ -31,7 +31,7 @@ jest.mock("@/lib/ventures", () => ({
 const fs = require("fs");
 const path = require("path");
 
-const read = (p) => fs.readFileSync(path.join(process.cwd(), p), "utf8");
+const read = (relativePath) => fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
 
 const db = require("@/lib/db").default;
 const { createVentureFromSubmission } = require("@/lib/venturePipeline");
@@ -151,9 +151,9 @@ describe("counts read the membership list, never the founder ledger", () => {
 
   test("the widget and the detail page read that payload, not a founder list", () => {
     const widget = read(DASHBOARD_UI);
-    expect(widget).toContain("d.team?.active");
-    expect(widget).not.toContain("d.founders?");
-    expect(widget).toContain("d.team?.founders");
+    expect(widget).toContain("dashboardData.team?.active");
+    expect(widget).not.toContain("dashboardData.founders?");
+    expect(widget).toContain("dashboardData.team?.founders");
 
     const page = read(DETAIL_PAGE);
     expect(page).toContain("member_summary");
@@ -172,12 +172,12 @@ describe("counts read the membership list, never the founder ledger", () => {
   });
 
   test("the founder screen says it lists founder records, not members", () => {
-    const en = require("@/locales/en/vadmin.json").vadmin.founders;
-    const fr = require("@/locales/fr/vadmin.json").vadmin.founders;
-    expect(en.memberCount).toBe("{count} founders");
-    expect(fr.memberCount).toBe("{count} fondateurs");
-    expect(en.ledgerHint).toBeTruthy();
-    expect(fr.ledgerHint).toBeTruthy();
+    const english = require("@/locales/en/vadmin.json").vadmin.founders;
+    const french = require("@/locales/fr/vadmin.json").vadmin.founders;
+    expect(english.memberCount).toBe("{count} founders");
+    expect(french.memberCount).toBe("{count} fondateurs");
+    expect(english.ledgerHint).toBeTruthy();
+    expect(french.ledgerHint).toBeTruthy();
   });
 });
 

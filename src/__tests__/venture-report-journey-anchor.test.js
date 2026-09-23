@@ -78,7 +78,7 @@ const postReq = (body) =>
 const getReq = (qs = "") =>
   new Request(`http://localhost/api/ventures/VNT-TEST/progress-reports${qs}`);
 
-const insertOf = () => executed.find((q) => q.sql.includes("INSERT INTO venture_reports"));
+const insertOf = () => executed.find((query) => query.sql.includes("INSERT INTO venture_reports"));
 
 beforeEach(() => {
   executed.length = 0;
@@ -113,7 +113,7 @@ describe("reading reports by journey", () => {
   test("the journey filter reaches the query", async () => {
     const res = await GET(getReq(`?journey_stage_id=${JOURNEY_ID}`), ctx);
     expect(res.status).toBe(200);
-    const list = executed.find((q) => q.sql.includes("FROM venture_reports WHERE venture_id = ?"));
+    const list = executed.find((query) => query.sql.includes("FROM venture_reports WHERE venture_id = ?"));
     expect(list.sql).toContain("journey_stage_id = ?");
     expect(list.args).toContain(JOURNEY_ID);
   });
@@ -121,7 +121,7 @@ describe("reading reports by journey", () => {
   test("without a filter, every report is listed as before", async () => {
     const res = await GET(getReq(), ctx);
     expect(res.status).toBe(200);
-    const list = executed.find((q) => q.sql.includes("FROM venture_reports WHERE venture_id = ?"));
+    const list = executed.find((query) => query.sql.includes("FROM venture_reports WHERE venture_id = ?"));
     expect(list.sql).not.toContain("journey_stage_id = ?");
   });
 });
@@ -137,13 +137,13 @@ describe("the gap view — closed journeys without their closing report", () => 
 
   test("it asks the database the right question: completed AND no closing report", async () => {
     await GET(getReq("?missing_reports=1"), ctx);
-    const q = executed.find((x) => x.sql.includes("FROM venture_journey_stages s"));
-    expect(q).toBeDefined();
-    expect(q.sql).toContain("s.status = 'completed'");
-    expect(q.sql).toContain("NOT EXISTS");
-    expect(q.sql).toContain("report_kind = 'closing'");
+    const stageQuery = executed.find((query) => query.sql.includes("FROM venture_journey_stages s"));
+    expect(stageQuery).toBeDefined();
+    expect(stageQuery.sql).toContain("s.status = 'completed'");
+    expect(stageQuery.sql).toContain("NOT EXISTS");
+    expect(stageQuery.sql).toContain("report_kind = 'closing'");
     // Scoped by the Venture's INTERNAL id, which is what the journey table uses.
-    expect(q.args).toEqual([VENTURE_DB_ID]);
+    expect(stageQuery.args).toEqual([VENTURE_DB_ID]);
   });
 
   test("a Venture that cannot be resolved returns an empty list, never an error", async () => {

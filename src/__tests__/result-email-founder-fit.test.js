@@ -64,7 +64,7 @@ describe("result email copy — Founder Fit Score scope", () => {
   });
 
   test("the sender forwards the flag it was handed", () => {
-    expect(ROUTE).toMatch(/projectName, template \} = doc;/);
+    expect(ROUTE).toMatch(/projectName, template \} = resultDocument;/);
     expect(ROUTE).toMatch(/^\s+template,$/m);
   });
 

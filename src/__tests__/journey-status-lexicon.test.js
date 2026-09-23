@@ -32,9 +32,9 @@ const {
   statusDotClass,
 } = require("@/lib/ventureStatuses");
 
-const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
-const en = require("@/locales/en/status.json").status;
-const fr = require("@/locales/fr/status.json").status;
+const read = (relativePath) => fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
+const englishStatus = require("@/locales/en/status.json").status;
+const frenchStatus = require("@/locales/fr/status.json").status;
 
 const FOUNDER = "src/components/ventures/workspace/tabs/JourneyPlaybookTabs.js";
 const MANAGER = "src/components/ventures/JourneyManagerPanel.js";
@@ -59,21 +59,21 @@ describe("the vocabulary — every word exists in both languages", () => {
     for (const id of STATUS_WORD_IDS) {
       const key = STATUS_WORDS[id].key;
       const short = key.replace("status.", "");
-      expect(en[short]).toBeTruthy();
-      expect(fr[short]).toBeTruthy();
+      expect(englishStatus[short]).toBeTruthy();
+      expect(frenchStatus[short]).toBeTruthy();
       // French must not silently fall back to English.
-      expect(fr[short]).not.toBe(en[short]);
+      expect(frenchStatus[short]).not.toBe(englishStatus[short]);
     }
   });
 
   test("the agreed words are exactly these", () => {
-    expect(en.notStarted).toBe("Not Started");
-    expect(en.inProgress).toBe("In Progress");
-    expect(en.awaitingReview).toBe("Awaiting Review");
-    expect(en.changesRequested).toBe("Changes Requested");
-    expect(en.completed).toBe("Completed");
-    expect(en.approved).toBe("Approved");
-    expect(en.locked).toBe("Locked");
+    expect(englishStatus.notStarted).toBe("Not Started");
+    expect(englishStatus.inProgress).toBe("In Progress");
+    expect(englishStatus.awaitingReview).toBe("Awaiting Review");
+    expect(englishStatus.changesRequested).toBe("Changes Requested");
+    expect(englishStatus.completed).toBe("Completed");
+    expect(englishStatus.approved).toBe("Approved");
+    expect(englishStatus.locked).toBe("Locked");
   });
 
   test("the retired duplicates are gone from the journey ladder", () => {
@@ -89,8 +89,8 @@ describe("one word per state", () => {
   test("a deliverable waiting to start and a milestone waiting to start agree", () => {
     expect(deliverableStatusWord({ status: "pending" }).id).toBe("not_started");
     expect(milestoneStatusWord("not_started").id).toBe("not_started");
-    expect(statusLabel(deliverableStatusWord({ status: "pending" }), (k) => en[k.replace("status.", "")]))
-      .toBe(statusLabel(milestoneStatusWord("not_started"), (k) => en[k.replace("status.", "")]));
+    expect(statusLabel(deliverableStatusWord({ status: "pending" }), (key) => englishStatus[key.replace("status.", "")]))
+      .toBe(statusLabel(milestoneStatusWord("not_started"), (key) => englishStatus[key.replace("status.", "")]));
   });
 
   test("a handed-in deliverable reads Awaiting Review, not Submitted", () => {
@@ -146,7 +146,7 @@ describe("unknown states are surfaced, never renamed", () => {
   test("the label helper shows the raw value instead of a wrong word or a bare key", () => {
     const word = milestoneStatusWord("escalated_to_board");
     // A translator that misses returns the key itself — must not leak to the UI.
-    expect(statusLabel(word, (k) => k)).toBe("escalated_to_board");
+    expect(statusLabel(word, (key) => key)).toBe("escalated_to_board");
   });
 
   test("a missing word returns a dash rather than blank", () => {

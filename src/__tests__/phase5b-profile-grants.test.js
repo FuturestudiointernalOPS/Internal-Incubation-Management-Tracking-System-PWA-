@@ -57,10 +57,10 @@ describe("Phase 5b — ventures capability grants", () => {
     const res = await seedDefaultAccessProfiles();
     expect(res.success).toBe(true);
 
-    const ventureCaps = mockCapabilityInserts.filter((c) => c.module === "ventures");
+    const ventureCaps = mockCapabilityInserts.filter((grant) => grant.module === "ventures");
     const viewHolders = ventureCaps
-      .filter((c) => c.capability === "view")
-      .map((c) => c.profileId);
+      .filter((grant) => grant.capability === "view")
+      .map((grant) => grant.profileId);
 
     expect(viewHolders).toContain(mockProfileIds["Staff Default"]);
     expect(viewHolders).toContain(mockProfileIds["Program Manager"]);
@@ -71,9 +71,9 @@ describe("Phase 5b — ventures capability grants", () => {
   test("ventures.edit reaches only the scoped writers (SA, Staff, PM, Founder)", async () => {
     await seedDefaultAccessProfiles();
     const editHolders = mockCapabilityInserts
-      .filter((c) => c.module === "ventures" && c.capability === "edit")
-      .map((c) => c.profileId)
-      .sort((a, b) => a - b);
+      .filter((grant) => grant.module === "ventures" && grant.capability === "edit")
+      .map((grant) => grant.profileId)
+      .sort((left, right) => left - right);
     // Phase 5c: writes are scoped (venture_own) on every venture route, so the
     // writers below can only ever edit the ventures they belong to.
     expect(editHolders).toEqual(
@@ -82,14 +82,14 @@ describe("Phase 5b — ventures capability grants", () => {
         mockProfileIds["Staff Default"],
         mockProfileIds["Program Manager"],
         mockProfileIds["Founder"],
-      ].sort((a, b) => a - b),
+      ].sort((left, right) => left - right),
     );
   });
 
   test("the Founder profile carries view + edit (scoped to its own ventures)", async () => {
     await seedDefaultAccessProfiles();
     const founderCaps = mockCapabilityInserts.filter(
-      (c) => c.profileId === mockProfileIds["Founder"],
+      (grant) => grant.profileId === mockProfileIds["Founder"],
     );
     expect(founderCaps).toEqual([
       { profileId: mockProfileIds["Founder"], module: "ventures", capability: "view", level: 1 },
@@ -101,13 +101,13 @@ describe("Phase 5b — ventures capability grants", () => {
     await seedDefaultAccessProfiles();
     const holders = new Set(
       mockCapabilityInserts
-        .filter((c) => c.module === "ventures" && c.capability === "edit")
-        .map((c) => c.profileId),
+        .filter((grant) => grant.module === "ventures" && grant.capability === "edit")
+        .map((grant) => grant.profileId),
     );
     const viewHolders = new Set(
       mockCapabilityInserts
-        .filter((c) => c.module === "ventures" && c.capability === "view")
-        .map((c) => c.profileId),
+        .filter((grant) => grant.module === "ventures" && grant.capability === "view")
+        .map((grant) => grant.profileId),
     );
     for (const holder of holders) expect(viewHolders.has(holder)).toBe(true);
   });
@@ -115,7 +115,7 @@ describe("Phase 5b — ventures capability grants", () => {
   test("Venture Member holds view ONLY — team members read, scope picks the venture", async () => {
     await seedDefaultAccessProfiles();
     const teamCaps = mockCapabilityInserts.filter(
-      (c) => c.profileId === mockProfileIds["Venture Member"],
+      (grant) => grant.profileId === mockProfileIds["Venture Member"],
     );
     // A team member is a member first (venture_members row), so they get the
     // read side of their own venture and nothing more — never edit.
