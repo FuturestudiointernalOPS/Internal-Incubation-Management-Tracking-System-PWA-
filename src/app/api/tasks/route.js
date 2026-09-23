@@ -76,6 +76,14 @@ import {
  *   All lifecycle events are logged.
  */
 
+/**
+ * Roles that may set the MANAGEMENT fields of a task. `supervisor_id` grants
+ * read/edit access to a task, so setting it is a management action: a
+ * participant must not be able to grant supervision, to themselves or to
+ * anyone else.
+ */
+const STAFF_SIDE_ROLES = ["super_admin", "staff", "program_manager"];
+
 function getWeekNumber(date) {
   const targetDate = new Date(
     Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
@@ -551,7 +559,9 @@ export async function POST(req) {
       priority: finalPriority,
       context_type,
       context_id,
-      supervisor_id,
+      // Management field: only a staff-side caller may set a supervisor (it
+      // grants access to the task). A participant's value is ignored.
+      supervisor_id: STAFF_SIDE_ROLES.includes(session.role) ? supervisor_id || null : null,
       intent_id,
     });
 
@@ -961,7 +971,11 @@ export async function PUT(req) {
       updateArgs.push(context_id || null);
       changes.push(`context_id changed`);
     }
-    if (supervisor_id !== undefined && String(supervisor_id) !== String(task.supervisor_id || "")) {
+    if (
+      STAFF_SIDE_ROLES.includes(session.role) &&
+      supervisor_id !== undefined &&
+      String(supervisor_id) !== String(task.supervisor_id || "")
+    ) {
       updateFields.push("supervisor_id = ?");
       updateArgs.push(supervisor_id || null);
       changes.push(`supervisor updated`);

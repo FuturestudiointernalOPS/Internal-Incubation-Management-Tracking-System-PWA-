@@ -222,6 +222,11 @@ export async function getTasksByFilters({
       // Non-SA requesting by assigned_to: only own assignments (controller enforces equality)
       sql += " AND assigned_to = ?";
       args.push(assignedTo);
+    } else {
+      // FAIL CLOSED. A non-super-admin whose scope was not recognised (or was
+      // not supplied) must never fall through to an unfiltered list of every
+      // task in the platform — the one outcome worse than refusing is leaking.
+      sql += " AND 1 = 0";
     }
   } else {
     // Super admin: apply filters as requested

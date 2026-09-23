@@ -187,8 +187,11 @@ export async function POST(req) {
         group_name: groupName,
         role: finalRole,
         password: hashedPassword,
-        program_id: contact.program_id || null,
-        program_name: contact.program_name || null,
+        // Program enrollment is NOT a self-service field: an anonymous public
+        // submission must not be able to drop its new contact into any program.
+        // Only an authenticated caller may name a program here.
+        program_id: session ? contact.program_id || null : null,
+        program_name: session ? contact.program_name || null : null,
         image: contact.image || null,
         status: initialStatus,
         deleted: 0,

@@ -37,6 +37,7 @@
 | **FIXED — Lot 7** | Corrected with the program-scope batch (team/group management). |
 | **FIXED — Lot 8** | Corrected with the curriculum/reports/export scope + separation-of-duties batch. |
 | **FIXED — Lot 9** | Corrected with the remaining admin/staffing scope batch. |
+| **FIXED — Lot 10** | Corrected with the task-scope fail-closed / supervisor / anonymous-contact batch. |
 | **OPEN** | Still present. Fix order in §4. |
 
 ---
@@ -171,6 +172,14 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | AUTHZ-ADM-4 | `programs` PUT, `facilitators/invite-bulk`, `admin/projects/[id]/reports/generate` | `programs` PUT let any staff edit ANY program; `facilitators/invite-bulk` let a `program_manager` skip the assignment check entirely; the report-generate route wrote a weekly report onto any project id. Now: `requireProgramScope({ wave: "content" })` on the program update, `requireProgramScope({ wave: "enrollment" })` for EVERY invite-bulk caller (staff keep the stricter assigned-PM check on top), and `requireProjectAccess(id)` on the report (matching its sibling admin project surfaces). | **FIXED — Lot 9** |
 | — | Tests | `src/__tests__/security-lot9-admin-scope.test.js` (8 behavioural tests) + `program-scope-coverage.test.js` (2 census entries) | The old `program_manager` bypass is now refused; the staff-not-PM path stays refused; scoped writes still work; project membership governs the report. | **FIXED — Lot 9** |
 
+### 2.12 Lot 10 — task scope, supervisor grant, anonymous contact enrollment
+
+| ID | Location | Was | Status |
+|---|---|---|---|
+| IDOR-TASK-2 | `models/tasks.js` (`getTasksByFilters`), `tasks` route | A non-super-admin whose scope was not recognised (or absent) fell through to an UNFILTERED list of every task — a latent fail-open. `supervisor_id` (which grants read/edit access to a task) could be set by any caller. Now the filter FAILS CLOSED (`AND 1 = 0`) and only a staff-side role may set/change the supervisor. (The controller's own `user_id` scoping was re-verified as already correct.) | **FIXED — Lot 10** |
+| PUB-CONTACTS-1 | `contacts` POST | An anonymous public submission could name any `program_id` and enroll its new contact into that program. `program_id`/`program_name` are now honoured only for an authenticated caller (role/status were already clamped). | **FIXED — Lot 10** |
+| — | Tests | `src/__tests__/security-lot10-tasks-contacts.test.js` (6 tests) | Fail-closed filter (real model), supervisor gating, anonymous `program_id` dropped. | **FIXED — Lot 10** |
+
 ---
 
 ## 3. OPEN — residual register
@@ -196,7 +205,7 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | XPROG-1 | Scope | `pm/{teams,curriculum,reports,export}`, `teams`, `lms/coaching-requests` | Global capability without program scope. ✅ fully fixed (Lots 4/7/8). **Still OPEN: `SELECT *` team credentials** in the team reads — a data-exposure item needing a decision on who may see them. | **OPEN — `SELECT *` team credentials only** |
 | BOLA-CRM-1 | BOLA | `group-members` POST | ✅ fixed in Lot 7 (program scope on the membership insert; unscoped read fixed in Lot 3). | **FIXED** |
 | IDOR-TASK-1 | BOLA | `tasks/carryover` | ✅ fixed in Lot 3. | **FIXED** |
-| IDOR-TASK-2 | BOLA | `tasks` | Staff/PM may list any `user_id`'s tasks; authz compares the client-supplied `user_id`; `supervisor_id` self-grant. | **OPEN — Lot 3** |
+| IDOR-TASK-2 | BOLA | `tasks` | ✅ fixed in Lot 10 (listing fails closed; `supervisor_id` reserved to staff-side roles). | **FIXED** |
 | BOLA-FORM-2 | BOLA | `submissions` | Team sessions read other teams' submissions; score writes without program scope. | **OPEN — Lot 4 remainder** |
 | PUB-3 | Business logic | `respond` | Writes responses attributed to a caller-supplied `cid`, with no anchoring. | **OPEN — Lot 4 remainder** |
 | AUTHZ-VEN-1 | Privilege grant | `ventures/[id]/coach-invite` | ✅ fixed in Lot 4. | **FIXED** |
@@ -223,7 +232,7 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | AUTHZ-ADM-4 | Scope | `facilitators/invite-bulk`, `programs`, `admin/projects/[id]/reports/generate` | ✅ fixed in Lot 9 (program scope on all three; report scoped by project membership). | **FIXED** |
 | AUTHZ-ADM-5 | Self-assignment | `access-profiles/assign`, `responsibilities/assign` | ✅ self-assignment guard added in Lot 8. `allowed_roles` left advisory BY DESIGN (see §6). | **FIXED (self-guard)** |
 | AUTHZ-CRM-1 | Scope | `notifications` (create), `contact-emails`, `team-tasks` | Forged notices to any recipient; staff manage any contact's emails; team tasks with no team scope. | **OPEN — Lot 3** |
-| PUB-CONTACTS-1 | Mass assignment | `contacts` POST | Anonymous caller may still supply `program_id`/other fields (role/status now clamped). | **OPEN — Lot 3** |
+| PUB-CONTACTS-1 | Mass assignment | `contacts` POST | ✅ fixed in Lot 10 (anonymous callers can no longer set `program_id`/`program_name`; role/status were clamped earlier). | **FIXED** |
 | DATA-2 | Exposure | `lms/courses/[id]` | ✅ fixed in Lot 4 (answer key stripped). | **FIXED** |
 | SCOPE-LMS-1 | Scope | `lms/program-requirements` | ✅ fixed in Lot 4. | **FIXED** |
 | MASS-VEN-1 | Mass assignment | `ventures/[id]/members` | ✅ fixed in Lot 4. | **FIXED** |
@@ -267,6 +276,7 @@ Lot 6  (P3 hardening) ✅ done — LOG-1 token logs, CSV-1 formula injection, IM
 Lot 7  (P1 scope) ✅ partial — program scope on `pm/teams`, `teams`, `group-members`; remainder below
 Lot 8  (P1 scope) ✅ done — `pm/curriculum`/`pm/reports`/`pm/export` program scope (resolved from the record) + self-assignment guard
 Lot 9  (P1 scope) ✅ done — `programs` PUT, `facilitators/invite-bulk`, project report generation
+Lot 10 (P1/P2) ✅ done — task listing fails closed, supervisor reserved to staff, anonymous contact enrollment closed
 ```
 
 Each lot: `npx eslint .` · `npm test` · `npm run build`, plus a security regression test per finding.
@@ -303,10 +313,8 @@ Everything below is **still present in the code today**. Grouped by the lot that
 
 - `SELECT *` team credentials returned by the team reads — needs a decision on who may see them (§3.2 XPROG-1). ✅ `group-members` POST program scope done (Lot 7).
 - `notifications` (create), `contact-emails`, `team-tasks` — scope (§3.3 AUTHZ-CRM-1). `notifications` create needs a product decision on recipient scope (see §6); `contact-emails`/`team-tasks` are scoping work.
-- `tasks` listing — `user_id` scope, authz on the client-supplied `user_id`, `supervisor_id` self-grant (§3.2 IDOR-TASK-2).
-- `contacts` POST — anonymous `program_id` / other fields (§3.3 PUB-CONTACTS-1).
 
-✅ Done in Lot 7: `pm/teams`, `teams` (program scope), `group-members` POST. ✅ Done in Lot 8: `pm/curriculum`, `pm/reports`, `pm/export` (program scope), `access-profiles/assign` + `responsibilities/assign` (self-assignment guard); `allowed_roles` left advisory (§6). ✅ Done in Lot 9: `programs` PUT, `facilitators/invite-bulk`, project report generation (AUTHZ-ADM-4).
+✅ Done in Lot 7: `pm/teams`, `teams` (program scope), `group-members` POST. ✅ Done in Lot 8: `pm/curriculum`, `pm/reports`, `pm/export` (program scope), `access-profiles/assign` + `responsibilities/assign` (self-assignment guard); `allowed_roles` left advisory (§6). ✅ Done in Lot 9: `programs` PUT, `facilitators/invite-bulk`, project report generation (AUTHZ-ADM-4). ✅ Done in Lot 10: task listing fail-closed + supervisor gating (IDOR-TASK-2); anonymous contact enrollment closed (PUB-CONTACTS-1).
 
 ### Lot 4 — remainder (P1)
 
@@ -350,9 +358,14 @@ Everything below is **still present in the code today**. Grouped by the lot that
 
 - **AUTHZ-ADM-4** — `requireProgramScope({ wave: "content" })` on `programs` PUT; `requireProgramScope({ wave: "enrollment" })` on `facilitators/invite-bulk` for every caller (the `program_manager` bypass removed); `requireProjectAccess(id)` on the project report generator. Census extended (2 entries); 8 behavioural tests.
 
-### Remaining after Lot 9
+### Lot 10 — P1/P2 ✅
 
-- **Lot 3 remainder** — `SELECT *` team credentials; `notifications` create (product decision), `contact-emails`, `team-tasks`; `tasks` listing; `contacts` POST.
+- **IDOR-TASK-2** — `getTasksByFilters` fails closed (`AND 1 = 0`) when a non-super-admin's scope is unrecognised; `supervisor_id` (access-granting) is now settable only by a staff-side role on create and update. **PUB-CONTACTS-1** — anonymous submissions can no longer name a `program_id`. 6 tests.
+
+### Remaining after Lot 10
+
+- **AUTHZ-CRM-1** — `team-tasks` (team scope); `contact-emails` (scope or decision); `notifications` create (product decision).
+- **`SELECT *` team credentials** returned by the team reads (data-exposure decision).
 - **Lot 4 remainder** (P1) — public buckets, run/submission scope, `respond` identity, `s/public-draft`, `program-requirements/[id]`.
 - **Lot 5 remainder** (P2) — RATE-2, ERR-1, CSRF-1, AUTH-4, SECRET-1/3, DEP-1, shared rate-limit store.
 - **Product decisions** — `allowed_roles` enforcement (§6); `SELECT *` team credentials visibility; notification-recipient scope.
