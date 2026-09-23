@@ -18,7 +18,14 @@ import { NextResponse } from "next/server";
  *   - /venture-invite/* (a member invitation link: the token is the credential)
  *   - /register-participant
  *   - /register-staff
+ *   - /register/* (a group/family registration link)
+ *   - /join/* (a public group join link)
+ *   - /verify/* (public certificate verification)
  *   - /api/contacts (POST - registration)
+ *   - /api/public/* (group lookup + registration + public course catalogue)
+ *   - /api/families (the ?registration_id= lookup is the public join path;
+ *      every other branch requires a capability in-route)
+ *   - /api/verify/* (public certificate verification)
  *   - /api/venture-member-invites/* (validate/accept an invitation)
  *   - /_next/*
  *   - /brand/*
@@ -35,6 +42,9 @@ const publicPaths = [
   "/register-participant",
   "/register-staff",
   "/register-venture",
+  "/register",
+  "/join",
+  "/verify",
   "/investor/wizard",
   "/investor/setup-password",
   "/s",
@@ -54,6 +64,9 @@ const publicApiPaths = [
   "/api/auth/invite-family",
   "/api/contacts",
   "/api/invites",
+  "/api/public",
+  "/api/families",
+  "/api/verify",
   "/api/venture-invites",
   "/api/venture-member-invites",
   "/api/migrate",
