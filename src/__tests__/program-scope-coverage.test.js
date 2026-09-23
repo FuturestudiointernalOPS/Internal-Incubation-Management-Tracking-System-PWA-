@@ -36,11 +36,13 @@ const COVERAGE = {
     "src/app/api/pm/curriculum/route.js",
     "src/app/api/pm/reports/route.js",
     "src/app/api/pm/export/route.js",
+    "src/app/api/programs/route.js",
   ],
   enrollment: [
     "src/app/api/participant-programs/route.js",
     "src/app/api/participant-programs/bulk/route.js",
     "src/app/api/invites/route.js",
+    "src/app/api/facilitators/invite-bulk/route.js",
   ],
   groups: [
     "src/app/api/groups/route.js",

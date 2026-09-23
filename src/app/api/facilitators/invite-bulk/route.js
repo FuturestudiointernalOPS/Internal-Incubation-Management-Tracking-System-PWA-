@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession, isAssignedPmForProgram } from "@/lib/auth";
+import { requireProgramScope } from "@/lib/programScopedAccess";
 import { v4 as uuidv4 } from "uuid";
 import { sendInviteEmail, sendLoginEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
@@ -84,8 +85,22 @@ export async function POST(req) {
     const body = await req.json();
     const { program_id, program_name, emails, preview } = body;
 
+    if (!program_id || !Array.isArray(emails) || emails.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "program_id and emails are required" },
+        { status: 400 },
+      );
+    }
+
+    // Record scope for EVERY caller. `program_manager` used to skip the check
+    // entirely, so a delegated PM could bulk-invite facilitators into a program
+    // they are not staffed on. Only Super Admin is exempt (guard semantics).
+    const scopeError = await requireProgramScope({ programId: program_id, wave: "enrollment" });
+    if (scopeError) return scopeError;
+
     // Staff may only bulk-invite facilitators for programs they are the
-    // assigned PM of (PM is a function layered on Staff).
+    // assigned PM of (PM is a function layered on Staff). This is STRICTER than
+    // staffing, so it is applied on top of the scope rule above.
     if (session?.role === "staff") {
       const isPm = await isAssignedPmForProgram(program_id, session.cid);
       if (!isPm) {
@@ -94,13 +109,6 @@ export async function POST(req) {
           { status: 403 },
         );
       }
-    }
-
-    if (!program_id || !Array.isArray(emails) || emails.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "program_id and emails are required" },
-        { status: 400 },
-      );
     }
 
     const programId = String(program_id);

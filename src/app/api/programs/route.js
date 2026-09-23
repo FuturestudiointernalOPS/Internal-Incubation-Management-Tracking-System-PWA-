@@ -9,6 +9,7 @@ import {
   assertNoParticipantFacilitatorConflict,
 } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import { requireProgramScope } from "@/lib/programScopedAccess";
 import {
   addParticipantProgramMembership,
   assignFamilyToProgram,
@@ -154,6 +155,11 @@ export async function PUT(req) {
         { status: 400 },
       );
     }
+
+    // Record scope: `staff` authorisation here only says WHICH roles may edit at
+    // all — a delegated editor must still be staffed on the program being edited.
+    const scopeError = await requireProgramScope({ programId: data.id, wave: "content" });
+    if (scopeError) return scopeError;
 
     // Verify the program exists before updating or assigning
     const progExists = await getProgramExists(data.id);

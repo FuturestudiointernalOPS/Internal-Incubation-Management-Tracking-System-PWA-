@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireProjectAccess } from "@/lib/auth";
 import {
   getProjectReportTaskStats,
   getRecentTasksForReport,
@@ -23,6 +23,12 @@ export async function POST(req, { params }) {
     const authError = await requireAuth(["super_admin", "staff", "program_manager"]);
     if (authError) return authError;
     const { id } = await params;
+
+    // Object-level scope: the project id comes from the URL, and the sibling
+    // admin project surfaces all require membership. Without this, any staff or
+    // PM could write a weekly report onto a project they do not belong to.
+    const accessError = await requireProjectAccess(id);
+    if (accessError) return accessError;
 
     const now = new Date();
     const weekNumber = getWeekNumber(now);

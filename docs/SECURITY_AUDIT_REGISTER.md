@@ -36,6 +36,7 @@
 | **FIXED — Lot 6** | Corrected with the P3 hardening batch. |
 | **FIXED — Lot 7** | Corrected with the program-scope batch (team/group management). |
 | **FIXED — Lot 8** | Corrected with the curriculum/reports/export scope + separation-of-duties batch. |
+| **FIXED — Lot 9** | Corrected with the remaining admin/staffing scope batch. |
 | **OPEN** | Still present. Fix order in §4. |
 
 ---
@@ -163,6 +164,13 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | AUTHZ-ADM-5 (part) | `access-profiles/assign`, `responsibilities/assign` | Nothing stopped an actor from granting capabilities to THEMSELVES. Both PUTs now refuse a self-target (403) — separation of duties, applied to every role including Super Admin. | **FIXED — Lot 8** |
 | — | Tests | `src/__tests__/security-lot8-scope-selfassign.test.js` (16 behavioural tests) + `program-scope-coverage.test.js` (3 census entries) | Forged-body-program refusal, record-resolution proof, self-assignment refusal, Super Admin bypass of scope (but not of the self-guard). | **FIXED — Lot 8** |
 
+### 2.11 Lot 9 — scope on the remaining admin/staffing surfaces
+
+| ID | Location | Was | Status |
+|---|---|---|---|
+| AUTHZ-ADM-4 | `programs` PUT, `facilitators/invite-bulk`, `admin/projects/[id]/reports/generate` | `programs` PUT let any staff edit ANY program; `facilitators/invite-bulk` let a `program_manager` skip the assignment check entirely; the report-generate route wrote a weekly report onto any project id. Now: `requireProgramScope({ wave: "content" })` on the program update, `requireProgramScope({ wave: "enrollment" })` for EVERY invite-bulk caller (staff keep the stricter assigned-PM check on top), and `requireProjectAccess(id)` on the report (matching its sibling admin project surfaces). | **FIXED — Lot 9** |
+| — | Tests | `src/__tests__/security-lot9-admin-scope.test.js` (8 behavioural tests) + `program-scope-coverage.test.js` (2 census entries) | The old `program_manager` bypass is now refused; the staff-not-PM path stays refused; scoped writes still work; project membership governs the report. | **FIXED — Lot 9** |
+
 ---
 
 ## 3. OPEN — residual register
@@ -212,7 +220,7 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | IMPL-1 | Correctness | `src/lib/api/createHandler.js` | ✅ fixed in Lot 5. | **FIXED** |
 | AUTH-5 | Enumeration | `auth/setup-password/validate` (GET), `auth/activate` (GET) | ✅ fixed in Lot 5. | **FIXED** |
 | AUTHZ-ADM-3 | Token / mass assignment | `admin/approve-user` | ✅ fixed in Lot 3. | **FIXED** |
-| AUTHZ-ADM-4 | Scope | `facilitators/invite-bulk`, `programs`, `admin/projects/[id]/reports/generate` | `program_manager` skips the assignment check; staff edit any program; unscoped report write. | **OPEN — Lot 3** |
+| AUTHZ-ADM-4 | Scope | `facilitators/invite-bulk`, `programs`, `admin/projects/[id]/reports/generate` | ✅ fixed in Lot 9 (program scope on all three; report scoped by project membership). | **FIXED** |
 | AUTHZ-ADM-5 | Self-assignment | `access-profiles/assign`, `responsibilities/assign` | ✅ self-assignment guard added in Lot 8. `allowed_roles` left advisory BY DESIGN (see §6). | **FIXED (self-guard)** |
 | AUTHZ-CRM-1 | Scope | `notifications` (create), `contact-emails`, `team-tasks` | Forged notices to any recipient; staff manage any contact's emails; team tasks with no team scope. | **OPEN — Lot 3** |
 | PUB-CONTACTS-1 | Mass assignment | `contacts` POST | Anonymous caller may still supply `program_id`/other fields (role/status now clamped). | **OPEN — Lot 3** |
@@ -258,6 +266,7 @@ Lot 5  (P2 hardening) ✅ mostly done — headers, credential rate limits, token
 Lot 6  (P3 hardening) ✅ done — LOG-1 token logs, CSV-1 formula injection, IMP-1 impersonation flag, XSS-1 `sanitizeRichText`, AUD-1 session actor, SECRET-2 header secret, SYS-1/2 config, LOGIC-1/2 validation, DATA-3 prototype guard, LMS-3 source, WHO-1 constant-time webhook; remainder: MVC-1 (SQL-in-routes, ongoing)
 Lot 7  (P1 scope) ✅ partial — program scope on `pm/teams`, `teams`, `group-members`; remainder below
 Lot 8  (P1 scope) ✅ done — `pm/curriculum`/`pm/reports`/`pm/export` program scope (resolved from the record) + self-assignment guard
+Lot 9  (P1 scope) ✅ done — `programs` PUT, `facilitators/invite-bulk`, project report generation
 ```
 
 Each lot: `npx eslint .` · `npm test` · `npm run build`, plus a security regression test per finding.
@@ -293,12 +302,11 @@ Everything below is **still present in the code today**. Grouped by the lot that
 ### Lot 3 — remainder (P1)
 
 - `SELECT *` team credentials returned by the team reads — needs a decision on who may see them (§3.2 XPROG-1). ✅ `group-members` POST program scope done (Lot 7).
-- `facilitators/invite-bulk`, `programs`, `admin/projects/[id]/reports/generate` — program scope (§3.3 AUTHZ-ADM-4).
-- `notifications` (create), `contact-emails`, `team-tasks` — scope (§3.3 AUTHZ-CRM-1).
+- `notifications` (create), `contact-emails`, `team-tasks` — scope (§3.3 AUTHZ-CRM-1). `notifications` create needs a product decision on recipient scope (see §6); `contact-emails`/`team-tasks` are scoping work.
 - `tasks` listing — `user_id` scope, authz on the client-supplied `user_id`, `supervisor_id` self-grant (§3.2 IDOR-TASK-2).
 - `contacts` POST — anonymous `program_id` / other fields (§3.3 PUB-CONTACTS-1).
 
-✅ Done in Lot 7: `pm/teams`, `teams` (program scope), `group-members` POST. ✅ Done in Lot 8: `pm/curriculum`, `pm/reports`, `pm/export` (program scope, resolved from the record), `access-profiles/assign` + `responsibilities/assign` (self-assignment guard); `allowed_roles` enforcement left as a product decision (§6).
+✅ Done in Lot 7: `pm/teams`, `teams` (program scope), `group-members` POST. ✅ Done in Lot 8: `pm/curriculum`, `pm/reports`, `pm/export` (program scope), `access-profiles/assign` + `responsibilities/assign` (self-assignment guard); `allowed_roles` left advisory (§6). ✅ Done in Lot 9: `programs` PUT, `facilitators/invite-bulk`, project report generation (AUTHZ-ADM-4).
 
 ### Lot 4 — remainder (P1)
 
@@ -338,12 +346,16 @@ Everything below is **still present in the code today**. Grouped by the lot that
 
 - **XPROG-1 (part)** — program scope on `pm/curriculum`, `pm/reports`, `pm/export`, with the program resolved from the RECORD (never the body). **AUTHZ-ADM-5 (part)** — self-assignment refused on `access-profiles/assign` and `responsibilities/assign`. Census extended (3 entries); 16 behavioural tests.
 
-### Remaining after Lot 8
+### Lot 9 — P1 scope ✅
 
-- **Lot 3 remainder** — `SELECT *` team credentials; `facilitators/invite-bulk`, `programs`, `admin/projects/[id]/reports/generate`; `notifications`/`contact-emails`/`team-tasks`; `tasks` listing; `contacts` POST.
+- **AUTHZ-ADM-4** — `requireProgramScope({ wave: "content" })` on `programs` PUT; `requireProgramScope({ wave: "enrollment" })` on `facilitators/invite-bulk` for every caller (the `program_manager` bypass removed); `requireProjectAccess(id)` on the project report generator. Census extended (2 entries); 8 behavioural tests.
+
+### Remaining after Lot 9
+
+- **Lot 3 remainder** — `SELECT *` team credentials; `notifications` create (product decision), `contact-emails`, `team-tasks`; `tasks` listing; `contacts` POST.
 - **Lot 4 remainder** (P1) — public buckets, run/submission scope, `respond` identity, `s/public-draft`, `program-requirements/[id]`.
 - **Lot 5 remainder** (P2) — RATE-2, ERR-1, CSRF-1, AUTH-4, SECRET-1/3, DEP-1, shared rate-limit store.
-- **Product decisions** — `allowed_roles` enforcement (§6); `SELECT *` team credentials visibility.
+- **Product decisions** — `allowed_roles` enforcement (§6); `SELECT *` team credentials visibility; notification-recipient scope.
 - **MVC-1** (ongoing) — SQL still inline in a few routes.
 
 ### Product decisions required (not code fixes)
