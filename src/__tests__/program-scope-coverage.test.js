@@ -50,6 +50,7 @@ const COVERAGE = {
     "src/app/api/pm/teams/route.js",
     "src/app/api/teams/route.js",
     "src/app/api/group-members/route.js",
+    "src/app/api/team-tasks/route.js",
   ],
 };
 

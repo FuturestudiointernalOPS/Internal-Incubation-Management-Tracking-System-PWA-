@@ -13,6 +13,7 @@ import {
   authorize,
 } from "@/lib/authorization";
 import { requireProgramScope } from "@/lib/programScopedAccess";
+import { stripTeamCredentials } from "@/lib/teamCredentials";
 import {
   createTeam,
   deleteTeam,
@@ -64,7 +65,15 @@ export async function GET(req) {
     }
 
     const result = await getTeams(programId);
-    return NextResponse.json({ success: true, teams: result.rows });
+
+    // Shared team credentials are management data: only management roles receive
+    // them. A delegated reader gets the roster without username/password.
+    const canSeeCredentials = hasProgramManagementAccess(session?.role);
+    const teams = canSeeCredentials
+      ? result.rows
+      : (result.rows || []).map(stripTeamCredentials);
+
+    return NextResponse.json({ success: true, teams });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },

@@ -38,6 +38,7 @@
 | **FIXED — Lot 8** | Corrected with the curriculum/reports/export scope + separation-of-duties batch. |
 | **FIXED — Lot 9** | Corrected with the remaining admin/staffing scope batch. |
 | **FIXED — Lot 10** | Corrected with the task-scope fail-closed / supervisor / anonymous-contact batch. |
+| **FIXED — Lot 11** | Corrected with the team-board scope + team-credential exposure batch. |
 | **OPEN** | Still present. Fix order in §4. |
 
 ---
@@ -180,6 +181,14 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | PUB-CONTACTS-1 | `contacts` POST | An anonymous public submission could name any `program_id` and enroll its new contact into that program. `program_id`/`program_name` are now honoured only for an authenticated caller (role/status were already clamped). | **FIXED — Lot 10** |
 | — | Tests | `src/__tests__/security-lot10-tasks-contacts.test.js` (6 tests) | Fail-closed filter (real model), supervisor gating, anonymous `program_id` dropped. | **FIXED — Lot 10** |
 
+### 2.13 Lot 11 — team board scope + team credential exposure
+
+| ID | Location | Was | Status |
+|---|---|---|---|
+| AUTHZ-CRM-1 (part) | `team-tasks` | The board had no team scope: any holder of the global `tasks.*` capability could read and mutate ANY team's tasks. A new guard resolves the team's program and enforces `requireProgramScope({ wave: "groups" })` for delegated callers, management is unscoped, a team-entity session may only touch its OWN board, and a task mutation resolves the task's team first. | **FIXED — Lot 11 (part — `contact-emails`/`notifications` below)** |
+| XPROG-1 (remainder) | `teams` GET, `pm/teams` GET + `models/{teams,groups}` (`SELECT *`) | The team reads returned the shared team username/password to every authorized reader. Non-management callers now receive the roster through `stripTeamCredentials` (shared `src/lib/teamCredentials.js`); management keeps them. | **FIXED — Lot 11** |
+| — | Tests | `src/__tests__/security-lot11-team-scope.test.js` (10 tests) + `program-scope-coverage.test.js` (1 census entry) | Foreign-board refusal, team own-board binding, own-program works, management bypass, credential stripping both ways. | **FIXED — Lot 11** |
+
 ---
 
 ## 3. OPEN — residual register
@@ -202,7 +211,7 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | AUTHZ-ADM-2 | Mass assignment | `admin/bulk-upload`, `contacts` PUT | ✅ fixed in Lot 3. | **FIXED** |
 | AUTH-2 | Auth | `auth/impersonate`, `auth/quick-login` | ✅ fixed in Lot 3. | **FIXED** |
 | AUTH-3 | Session | password change/reset paths | ✅ fixed in Lot 3. | **FIXED** |
-| XPROG-1 | Scope | `pm/{teams,curriculum,reports,export}`, `teams`, `lms/coaching-requests` | Global capability without program scope. ✅ fully fixed (Lots 4/7/8). **Still OPEN: `SELECT *` team credentials** in the team reads — a data-exposure item needing a decision on who may see them. | **OPEN — `SELECT *` team credentials only** |
+| XPROG-1 | Scope | `pm/{teams,curriculum,reports,export}`, `teams`, `lms/coaching-requests` | ✅ fully fixed (Lots 4/7/8) — program scope everywhere, and the `SELECT *` team credentials are now management-only (Lot 11). | **FIXED** |
 | BOLA-CRM-1 | BOLA | `group-members` POST | ✅ fixed in Lot 7 (program scope on the membership insert; unscoped read fixed in Lot 3). | **FIXED** |
 | IDOR-TASK-1 | BOLA | `tasks/carryover` | ✅ fixed in Lot 3. | **FIXED** |
 | IDOR-TASK-2 | BOLA | `tasks` | ✅ fixed in Lot 10 (listing fails closed; `supervisor_id` reserved to staff-side roles). | **FIXED** |
@@ -231,7 +240,7 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | AUTHZ-ADM-3 | Token / mass assignment | `admin/approve-user` | ✅ fixed in Lot 3. | **FIXED** |
 | AUTHZ-ADM-4 | Scope | `facilitators/invite-bulk`, `programs`, `admin/projects/[id]/reports/generate` | ✅ fixed in Lot 9 (program scope on all three; report scoped by project membership). | **FIXED** |
 | AUTHZ-ADM-5 | Self-assignment | `access-profiles/assign`, `responsibilities/assign` | ✅ self-assignment guard added in Lot 8. `allowed_roles` left advisory BY DESIGN (see §6). | **FIXED (self-guard)** |
-| AUTHZ-CRM-1 | Scope | `notifications` (create), `contact-emails`, `team-tasks` | Forged notices to any recipient; staff manage any contact's emails; team tasks with no team scope. | **OPEN — Lot 3** |
+| AUTHZ-CRM-1 | Scope | `notifications` (create), `contact-emails`, `team-tasks` | ✅ `team-tasks` team-scoped in Lot 11. **Still OPEN: `contact-emails` (scope needs a contact→program rule) and `notifications` create (recipient scope is a product decision).** | **OPEN — parts** |
 | PUB-CONTACTS-1 | Mass assignment | `contacts` POST | ✅ fixed in Lot 10 (anonymous callers can no longer set `program_id`/`program_name`; role/status were clamped earlier). | **FIXED** |
 | DATA-2 | Exposure | `lms/courses/[id]` | ✅ fixed in Lot 4 (answer key stripped). | **FIXED** |
 | SCOPE-LMS-1 | Scope | `lms/program-requirements` | ✅ fixed in Lot 4. | **FIXED** |
@@ -277,6 +286,7 @@ Lot 7  (P1 scope) ✅ partial — program scope on `pm/teams`, `teams`, `group-m
 Lot 8  (P1 scope) ✅ done — `pm/curriculum`/`pm/reports`/`pm/export` program scope (resolved from the record) + self-assignment guard
 Lot 9  (P1 scope) ✅ done — `programs` PUT, `facilitators/invite-bulk`, project report generation
 Lot 10 (P1/P2) ✅ done — task listing fails closed, supervisor reserved to staff, anonymous contact enrollment closed
+Lot 11 (P1/P2) ✅ done — team board scoped to its team/program; shared team credentials are management-only
 ```
 
 Each lot: `npx eslint .` · `npm test` · `npm run build`, plus a security regression test per finding.
@@ -311,10 +321,9 @@ Everything below is **still present in the code today**. Grouped by the lot that
 
 ### Lot 3 — remainder (P1)
 
-- `SELECT *` team credentials returned by the team reads — needs a decision on who may see them (§3.2 XPROG-1). ✅ `group-members` POST program scope done (Lot 7).
-- `notifications` (create), `contact-emails`, `team-tasks` — scope (§3.3 AUTHZ-CRM-1). `notifications` create needs a product decision on recipient scope (see §6); `contact-emails`/`team-tasks` are scoping work.
+- `notifications` (create), `contact-emails` — scope (§3.3 AUTHZ-CRM-1). `notifications` create needs a product decision on recipient scope (see §6); `contact-emails` needs a contact→program rule.
 
-✅ Done in Lot 7: `pm/teams`, `teams` (program scope), `group-members` POST. ✅ Done in Lot 8: `pm/curriculum`, `pm/reports`, `pm/export` (program scope), `access-profiles/assign` + `responsibilities/assign` (self-assignment guard); `allowed_roles` left advisory (§6). ✅ Done in Lot 9: `programs` PUT, `facilitators/invite-bulk`, project report generation (AUTHZ-ADM-4). ✅ Done in Lot 10: task listing fail-closed + supervisor gating (IDOR-TASK-2); anonymous contact enrollment closed (PUB-CONTACTS-1).
+✅ Done in Lot 7: `pm/teams`, `teams` (program scope), `group-members` POST. ✅ Done in Lot 8: `pm/curriculum`, `pm/reports`, `pm/export` (program scope), `access-profiles/assign` + `responsibilities/assign` (self-assignment guard); `allowed_roles` left advisory (§6). ✅ Done in Lot 9: `programs` PUT, `facilitators/invite-bulk`, project report generation (AUTHZ-ADM-4). ✅ Done in Lot 10: task listing fail-closed + supervisor gating (IDOR-TASK-2); anonymous contact enrollment closed (PUB-CONTACTS-1). ✅ Done in Lot 11: `team-tasks` team scope; `SELECT *` team credentials are management-only (XPROG-1).
 
 ### Lot 4 — remainder (P1)
 
@@ -362,13 +371,16 @@ Everything below is **still present in the code today**. Grouped by the lot that
 
 - **IDOR-TASK-2** — `getTasksByFilters` fails closed (`AND 1 = 0`) when a non-super-admin's scope is unrecognised; `supervisor_id` (access-granting) is now settable only by a staff-side role on create and update. **PUB-CONTACTS-1** — anonymous submissions can no longer name a `program_id`. 6 tests.
 
-### Remaining after Lot 10
+### Lot 11 — P1/P2 ✅
 
-- **AUTHZ-CRM-1** — `team-tasks` (team scope); `contact-emails` (scope or decision); `notifications` create (product decision).
-- **`SELECT *` team credentials** returned by the team reads (data-exposure decision).
+- **AUTHZ-CRM-1 (part)** — the team task board is now team-scoped (program-scoped for delegated callers, own-board for a team session; task mutations resolve the task's team). **XPROG-1 remainder** — shared team credentials are stripped for non-management readers. New helper `src/lib/teamCredentials.js`. Census extended (1 entry); 10 tests.
+
+### Remaining after Lot 11
+
+- **AUTHZ-CRM-1 remainder** — `contact-emails` (contact→program rule); `notifications` create (product decision).
 - **Lot 4 remainder** (P1) — public buckets, run/submission scope, `respond` identity, `s/public-draft`, `program-requirements/[id]`.
 - **Lot 5 remainder** (P2) — RATE-2, ERR-1, CSRF-1, AUTH-4, SECRET-1/3, DEP-1, shared rate-limit store.
-- **Product decisions** — `allowed_roles` enforcement (§6); `SELECT *` team credentials visibility; notification-recipient scope.
+- **Product decisions** — `allowed_roles` enforcement (§6); notification-recipient scope.
 - **MVC-1** (ongoing) — SQL still inline in a few routes.
 
 ### Product decisions required (not code fixes)

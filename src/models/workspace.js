@@ -681,6 +681,14 @@ export async function getTeamTasks(teamId) {
   });
 }
 
+/** The team a task belongs to — used to scope task mutations to their team. */
+export async function getTeamTaskTeamId(taskId) {
+  return db.execute({
+    sql: "SELECT team_id FROM team_tasks WHERE id = ?",
+    args: [taskId],
+  });
+}
+
 /** Create a team task, returning the inserted row. */
 export async function createTeamTask(teamId, title, description, status, priority, assignedTo, createdBy) {
   return db.execute({
