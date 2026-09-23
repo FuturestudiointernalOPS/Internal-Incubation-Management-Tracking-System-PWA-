@@ -37,6 +37,16 @@ import {
 export const dynamic = "force-dynamic";
 
 /**
+ * Self-service roles: the only roles a caller WITHOUT the role-assignment
+ * capability may request. Login derives the session role from contacts.role,
+ * so anything beyond this list is a privilege boundary.
+ */
+const SELF_SERVICE_ROLES = new Set(["participant", "member", "applicant", "unassigned"]);
+
+/** Statuses a self-service submission may legitimately produce. */
+const SAFE_STATUSES = ["pending", "approved", "active"];
+
+/**
  * Generates an invite token and sends activation email. Non-blocking.
  */
 async function fireInvite(cid, name, email, role, _groupId) {
@@ -72,6 +82,17 @@ export async function POST(req) {
       const capError = await requireAuthorization("contacts", "create");
       if (capError) return capError;
     }
+
+    // Role and status are server-controlled boundaries: login derives the
+    // session's role from contacts.role, so a caller who can set it can mint an
+    // elevated identity. Only a caller holding the role-assignment capability
+    // (typically super_admin) may choose them; an unauthenticated self-service
+    // submission (public application / group link) never can.
+    const assignRoleError = await requireAuthorization(
+      "permissions",
+      "assign_capabilities",
+    );
+    const canAssignRole = Boolean(session) && !assignRoleError;
 
     const body = await req.json();
     const contacts = Array.isArray(body) ? body : [body];
@@ -118,15 +139,42 @@ export async function POST(req) {
       const groupName = (contact.group_name || "unassigned").toUpperCase();
       const isInternal = groupName === "FUTURE STUDIO";
 
-      // Use provided status, or default: approved for staff, pending for participants
-      let initialStatus =
-        contact.status ||
-        (isInternal || contact.role === "participant" ? "pending" : "approved");
+      // Strict Role Normalization. Privileged callers keep the original
+      // behaviour; everyone else may only request a self-service role, so a
+      // public submission can never grant an elevated identity. `isInternal`
+      // is reachable only after the FUTURE STUDIO org-membership gate above.
+      const requestedRole =
+        typeof contact.role === "string" ? contact.role.trim() : "";
+      let finalRole;
+      if (canAssignRole) {
+        finalRole = requestedRole;
+        if (!finalRole || finalRole === "unassigned") {
+          finalRole = isInternal ? "staff" : "unassigned";
+        }
+      } else {
+        finalRole = SELF_SERVICE_ROLES.has(requestedRole)
+          ? requestedRole
+          : isInternal
+            ? "staff"
+            : "unassigned";
+      }
 
-      // Strict Role Normalization
-      let finalRole = contact.role;
-      if (!finalRole || finalRole === "unassigned") {
-        finalRole = isInternal ? "staff" : "unassigned";
+      // Use provided status, or default: approved for staff, pending for
+      // participants. Non-privileged callers are limited to the safe set, and a
+      // public (unauthenticated) registration is always gated behind approval.
+      let initialStatus;
+      if (canAssignRole) {
+        initialStatus =
+          contact.status ||
+          (isInternal || finalRole === "participant" ? "pending" : "approved");
+      } else if (!session) {
+        initialStatus = "pending";
+      } else {
+        initialStatus = SAFE_STATUSES.includes(contact.status)
+          ? contact.status
+          : isInternal || finalRole === "participant"
+            ? "pending"
+            : "approved";
       }
 
       validContacts.push({
@@ -285,6 +333,11 @@ export async function PUT(req) {
     // `archived: true|false` (handled below) and the server writes both, so a
     // caller holding `contacts.edit` cannot attribute an archive to somebody else
     // or date it themselves.
+    // `role` is a server-controlled boundary: login derives the session role
+    // from contacts.role, so only a caller who may assign roles can change it.
+    const assignRoleError = await requireAuthorization("permissions", "assign_capabilities");
+    const canAssignRole = !assignRoleError;
+
     const updatableColumns = [
       "name",
       "email",
@@ -292,7 +345,7 @@ export async function PUT(req) {
       "address",
       "dob",
       "group_name",
-      "role",
+      ...(canAssignRole ? ["role"] : []),
       "program_id",
       "program_name",
       "image",

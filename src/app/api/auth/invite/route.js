@@ -94,7 +94,6 @@ export async function POST(req) {
         success: true,
         message: "Invitation resent",
         email: contact.email,
-        token,
         action: "resent",
         email_sent: !!sendResult?.success,
         ...(sendResult?.success ? {} : { email_error: sendResult?.error || "Send failed" }),
@@ -146,11 +145,18 @@ export async function POST(req) {
       });
     }
 
-    await expirePasswordSetupTokensForNewInvite(contactCid);
-
-    const token = uuidv4();
-    const tokenHash = hashToken(token);
-    await createStaffInviteSetupTokenForNewInvite(token, tokenHash, contactCid);
+    // A password-setup token is minted ONLY for a not-yet-activated account:
+    // the token is the credential that sets a first password, so issuing one for
+    // an account that already has one would be a reset-by-another-user path.
+    // It is delivered through the email only — never echoed in the response,
+    // which would let any inviter take over the account they invited.
+    let token = null;
+    if (!accountActivated) {
+      await expirePasswordSetupTokensForNewInvite(contactCid);
+      token = uuidv4();
+      const tokenHash = hashToken(token);
+      await createStaffInviteSetupTokenForNewInvite(token, tokenHash, contactCid);
+    }
 
     // CRM history: invitation sent (context = the program, when provided).
     try {
@@ -173,7 +179,6 @@ export async function POST(req) {
       message: "Invitation sent",
       cid: contactCid,
       email: cleanEmail,
-      token,
       action: existingContact.rows.length > 0 ? "reused_contact" : "new_contact",
       account_activated: accountActivated,
       email_sent: !!sendResult?.success,

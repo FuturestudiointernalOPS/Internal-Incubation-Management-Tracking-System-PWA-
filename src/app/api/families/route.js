@@ -25,6 +25,21 @@ import {
   deleteFamily,
 } from "@/models/contacts";
 
+/**
+ * Columns that must never leave this API. A family/group row also carries the
+ * shared login credentials (`shared_password_edit` / `shared_password_read`)
+ * used by the family login; returning the whole row would disclose them to any
+ * caller who knows a registration id (or any programs.view holder).
+ */
+const FAMILY_SECRET_COLUMNS = ["shared_password_edit", "shared_password_read"];
+
+function withoutFamilySecrets(row) {
+  if (!row || typeof row !== "object") return row;
+  const safe = { ...row };
+  for (const column of FAMILY_SECRET_COLUMNS) delete safe[column];
+  return safe;
+}
+
 export async function GET(req) {
   try {
     await initDb();
@@ -34,7 +49,7 @@ export async function GET(req) {
     // Lookup by registration_id is public (used by join page)
     if (registrationId) {
       const result = await getFamilyByRegistrationId(registrationId);
-      return NextResponse.json({ success: true, families: result.rows });
+      return NextResponse.json({ success: true, families: result.rows.map(withoutFamilySecrets) });
     }
 
     // All other queries require auth
@@ -58,7 +73,7 @@ export async function GET(req) {
     }
 
     const result = await getAllFamilies();
-    return NextResponse.json({ success: true, families: result.rows });
+    return NextResponse.json({ success: true, families: result.rows.map(withoutFamilySecrets) });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

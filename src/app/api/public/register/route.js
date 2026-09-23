@@ -10,7 +10,6 @@ import {
   insertContactForRegistration,
   insertParticipantForRegistration,
   insertParticipantProgramMembership,
-  updateContactForRegistration,
 } from "@/models/platformConfig";
 
 /**
@@ -48,13 +47,12 @@ export async function POST(req) {
     const existingContact = await findContactCidByEmail(normalizedEmail);
 
     const cid = "USR-" + uuidv4().split("-")[0].toUpperCase();
-    const hashedPassword = await bcrypt.hash(password, 12);
 
-    if (existingContact.rows.length > 0) {
-      // Update existing contact
-      await updateContactForRegistration(hashedPassword, name, group, normalizedEmail);
-    } else {
-      // Create new contact
+    // An existing email is NOT proof of ownership: never rewrite an account's
+    // password, name or group from an anonymous form. The submission is still
+    // accepted (and reviewed); the existing account keeps its own credentials.
+    if (existingContact.rows.length === 0) {
+      const hashedPassword = await bcrypt.hash(password, 12);
       await insertContactForRegistration(cid, name, normalizedEmail, phone, hashedPassword, group.name);
     }
 

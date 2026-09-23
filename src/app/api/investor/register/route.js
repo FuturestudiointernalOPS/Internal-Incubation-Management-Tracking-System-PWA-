@@ -1,18 +1,15 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { sendStandaloneEmail } from "@/lib/email";
 import {
   findContactByEmail,
-  getExistingInvestorProfileId,
   getNewInvestorProfileId,
   insertContactForRegistration,
   insertInvestorPreferences,
   insertInvestorProfileForRegistration,
   listAdminContactIdsForNotification,
   notifyAdminsOfNewInvestor,
-  setContactRoleToInvestor,
-  upsertInvestorPreferences,
-  upsertInvestorProfileForRegistration,
 } from "@/models/investorRelations";
 
 /**
@@ -38,47 +35,28 @@ export async function POST(req) {
     const existing = await findContactByEmail(email);
 
     if (existing.rows.length > 0) {
-      // User exists — if already investor, tell them
-      const user = existing.rows[0];
-      if (user.role === "investor") {
+      // A known email is NOT proof of ownership. Never mutate an existing
+      // account (role, name or profile) from this anonymous form: doing so let
+      // an anonymous caller flip any account to the investor role. The
+      // submission is acknowledged and reviewed by the team instead.
+      if (existing.rows[0].role === "investor") {
         return NextResponse.json({
           success: false,
           error: "An investor account with this email already exists. Please log in.",
         }, { status: 409 });
       }
-      // Update role to investor and create profile
-      await setContactRoleToInvestor(name, user.cid);
-
-      // Create or update investor profile
-      await upsertInvestorProfileForRegistration(
-        user.cid,
-        organization_name || null,
-        biography || null,
-        website || null,
-        linkedin || null,
-        investment_experience || null,
-      );
-
-      // Save preferences
-      if (industries?.length || countries?.length || startup_stages?.length) {
-        const profileResult = await getExistingInvestorProfileId(user.cid);
-        await upsertInvestorPreferences(
-          profileResult.rows[0]?.id,
-          industries || [],
-          countries || [],
-          startup_stages || [],
-          ticket_size_min || null,
-          ticket_size_max || null,
-        );
-      }
-
-      return NextResponse.json({ success: true, message: "Investor registration submitted for review." });
+      return NextResponse.json({
+        success: true,
+        message: "Registration submitted for review. You'll be notified once approved.",
+      });
     }
 
-    // New user — create contact + profile
+    // New user — create contact + profile. The password is hashed before it is
+    // stored; it must never be written in clear text.
     const cid = `USR-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    const hashedPassword = await bcrypt.hash(password, 12);
 
-    await insertContactForRegistration(cid, name, email, password);
+    await insertContactForRegistration(cid, name, email, hashedPassword);
 
     await insertInvestorProfileForRegistration(
       cid,
