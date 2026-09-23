@@ -27,7 +27,7 @@ const asCode = (ventureId) => String(ventureId || "");
  * because both generations of rows exist in the table.
  */
 export async function listVentureMembers(db, ventureId, { includeRemoved = false } = {}) {
-  const res = await db.execute({
+  const result = await db.execute({
     sql: `SELECT vm.id, vm.contact_id, vm.user_cid, vm.member_type, vm.role,
                  vm.permissions, vm.joined_at, vm.lead_founder, vm.is_owner,
                  vm.suspended_at, vm.removed_at,
@@ -41,7 +41,7 @@ export async function listVentureMembers(db, ventureId, { includeRemoved = false
     args: [asCode(ventureId)],
   });
 
-  return rowsOf(res).map(normalizeMember);
+  return rowsOf(result).map(normalizeMember);
 }
 
 /** One row → the shape the screens render (no SQL naming leaks out). */
@@ -83,12 +83,12 @@ export function summarizeVentureMembers(members = []) {
   const list = members || [];
   return {
     total: list.length,
-    active: list.filter((m) => m.status === "active").length,
-    founders: list.filter((m) => m.is_founder).length,
-    team: list.filter((m) => !m.is_founder).length,
-    suspended: list.filter((m) => m.status === "suspended").length,
-    removed: list.filter((m) => m.status === "removed").length,
-    owner: list.find((m) => m.is_owner) || null,
+    active: list.filter((member) => member.status === "active").length,
+    founders: list.filter((member) => member.is_founder).length,
+    team: list.filter((member) => !member.is_founder).length,
+    suspended: list.filter((member) => member.status === "suspended").length,
+    removed: list.filter((member) => member.status === "removed").length,
+    owner: list.find((member) => member.is_owner) || null,
     members: list,
   };
 }

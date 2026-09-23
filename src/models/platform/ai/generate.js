@@ -96,8 +96,8 @@ export async function generateForm(documentText) {
     }
 
     return parsed;
-  } catch (e) {
-    console.error("[AI Generator] Form generation failed:", e.message);
+  } catch (error) {
+    console.error("[AI Generator] Form generation failed:", error.message);
     return null;
   }
 }

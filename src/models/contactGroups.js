@@ -28,17 +28,17 @@ export async function areUsersInSameGroup(userCidA, userCidB) {
 
   // Try user_groups (modern)
   try {
-    const res = await db.execute({
+    const userGroupResult = await db.execute({
       sql: `SELECT ug1.group_name
             FROM user_groups ug1
             JOIN user_groups ug2 ON ug1.group_name = ug2.group_name
             WHERE ug1.user_cid = ? AND ug2.user_cid = ?`,
       args: [userCidA, userCidB],
     });
-    if (res.rows.length > 0) {
+    if (userGroupResult.rows.length > 0) {
       return {
         allowed: true,
-        sharedGroups: res.rows.map((r) => r.group_name),
+        sharedGroups: userGroupResult.rows.map((row) => row.group_name),
       };
     }
   } catch (_) {
@@ -47,17 +47,17 @@ export async function areUsersInSameGroup(userCidA, userCidB) {
 
   // Fallback: legacy contacts.group_name
   try {
-    const res = await db.execute({
+    const legacyResult = await db.execute({
       sql: `SELECT c1.group_name
             FROM contacts c1
             JOIN contacts c2 ON c1.group_name = c2.group_name
             WHERE c1.cid = ? AND c2.cid = ? AND c1.group_name IS NOT NULL AND c1.group_name != ''`,
       args: [userCidA, userCidB],
     });
-    if (res.rows.length > 0) {
+    if (legacyResult.rows.length > 0) {
       return {
         allowed: true,
-        sharedGroups: res.rows.map((r) => r.group_name),
+        sharedGroups: legacyResult.rows.map((row) => row.group_name),
       };
     }
   } catch (_) {
@@ -80,7 +80,7 @@ export async function areUsersInSameVenture(userCidA, userCidB, ventureId) {
   }
 
   try {
-    const res = await db.execute({
+    const membershipResult = await db.execute({
       sql: `SELECT 1 FROM venture_members vm1
             JOIN venture_members vm2 ON vm1.venture_id = vm2.venture_id
             WHERE vm1.contact_id = ? AND vm2.contact_id = ?
@@ -88,7 +88,7 @@ export async function areUsersInSameVenture(userCidA, userCidB, ventureId) {
             LIMIT 1`,
       args: [userCidA, userCidB, ventureId],
     });
-    if (res.rows.length > 0) {
+    if (membershipResult.rows.length > 0) {
       return { allowed: true, ventureId };
     }
     return {

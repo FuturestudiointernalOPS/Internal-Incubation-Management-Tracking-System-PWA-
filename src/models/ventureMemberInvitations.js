@@ -79,8 +79,8 @@ export function ensureVentureMemberInvitationSchema() {
         "CREATE INDEX IF NOT EXISTS idx_vmi_email ON venture_member_invitations(LOWER(email))",
       );
       return true;
-    })().catch((e) => {
-      console.warn("[VentureMemberInvitations] schema ensure failed:", e.message);
+    })().catch((error) => {
+      console.warn("[VentureMemberInvitations] schema ensure failed:", error.message);
       schemaPromise = null; // allow retry on the next call
       return false;
     });
@@ -109,11 +109,11 @@ function defaultRoleFor(memberType, role) {
 
 /** A person already recorded under this email, if any (display + linking only). */
 async function findContactByEmail(email) {
-  const res = await safe(
+  const result = await safe(
     "SELECT cid, name, (password IS NOT NULL AND password <> '') AS has_account FROM contacts WHERE LOWER(email) = ? AND deleted = 0 LIMIT 1",
     [email],
   );
-  return res.rows?.[0] || null;
+  return result.rows?.[0] || null;
 }
 
 function isExpired(row) {
@@ -214,7 +214,7 @@ export async function createVentureMemberInvitation({
 /** Pending invitations for a Venture, newest first, with a display name. */
 export async function listVentureMemberInvitations(ventureId) {
   await ensureVentureMemberInvitationSchema();
-  const res = await safe(
+  const result = await safe(
     `SELECT i.id, i.venture_id, i.email, i.name, i.member_type, i.role,
             i.status, i.expires_at, i.created_at,
             COALESCE(i.name, c.name) AS display_name
@@ -224,7 +224,7 @@ export async function listVentureMemberInvitations(ventureId) {
      ORDER BY i.created_at DESC, i.id DESC`,
     [ventureId],
   );
-  return (res.rows || []).map((row) => ({ ...row, is_expired: isExpired(row) }));
+  return (result.rows || []).map((row) => ({ ...row, is_expired: isExpired(row) }));
 }
 
 /**
@@ -235,11 +235,11 @@ export async function getVentureMemberInvitationByToken(token) {
   await ensureVentureMemberInvitationSchema();
   if (!token) return { error: "invalid" };
 
-  const res = await safe(
+  const result = await safe(
     "SELECT * FROM venture_member_invitations WHERE (token_hash = ? OR token = ?) LIMIT 1",
     [hashToken(token), token],
   );
-  const invitation = res.rows?.[0];
+  const invitation = result.rows?.[0];
   if (!invitation) return { error: "invalid" };
   if (invitation.status === "accepted") return { error: "already", invitation };
   if (invitation.status !== "pending") return { error: "revoked", invitation };
@@ -252,12 +252,12 @@ export async function describeVentureMemberInvitation(token) {
   const result = await getVentureMemberInvitationByToken(token);
   if (result.error) return { error: result.error };
 
-  const inv = result.invitation;
+  const invitation = result.invitation;
   const venture = await safe(
     "SELECT COALESCE(NULLIF(name, ''), company_name) AS venture_name, company_name FROM ventures WHERE venture_id = ? LIMIT 1",
-    [inv.venture_id],
+    [invitation.venture_id],
   );
-  const contact = await findContactByEmail(inv.email);
+  const contact = await findContactByEmail(invitation.email);
 
   return {
     invitation: {
@@ -265,10 +265,10 @@ export async function describeVentureMemberInvitation(token) {
         venture.rows?.[0]?.venture_name ||
         venture.rows?.[0]?.company_name ||
         "the Venture",
-      email: inv.email,
-      name: inv.name || contact?.name || "",
-      member_type: inv.member_type,
-      role: inv.role,
+      email: invitation.email,
+      name: invitation.name || contact?.name || "",
+      member_type: invitation.member_type,
+      role: invitation.role,
       has_account: !!contact?.has_account,
     },
   };
@@ -292,24 +292,24 @@ export async function completeVentureMemberInvitation({
 
   const result = await getVentureMemberInvitationByToken(token);
   if (result.error) return { ok: false, error: result.error };
-  const inv = result.invitation;
+  const invitation = result.invitation;
 
   if (password && String(password).length < 6) {
     return { ok: false, error: "weak_password" };
   }
 
   // ── Identity: resolve, never guess ────────────────────────────────────────
-  let contactCid = inv.contact_id || null;
-  const identity = await resolvePersonIdentity({ email: inv.email, phone: null });
+  let contactCid = invitation.contact_id || null;
+  const identity = await resolvePersonIdentity({ email: invitation.email, phone: null });
   if (identity.status === "matched") {
     contactCid = identity.contact_cid;
   } else if (identity.status === "conflict") {
     return { ok: false, error: "identity_conflict" };
   } else if (!contactCid) {
     contactCid = await resolveOrCreateContactIdentity({
-      email: inv.email,
-      name: name || inv.name,
-      role: inv.member_type === "founder" ? "founder" : "member",
+      email: invitation.email,
+      name: name || invitation.name,
+      role: invitation.member_type === "founder" ? "founder" : "member",
     });
   }
   if (!contactCid) return { ok: false, error: "identity_unresolved" };
@@ -330,14 +330,14 @@ export async function completeVentureMemberInvitation({
     `SELECT id, removed_at FROM venture_members
      WHERE venture_id = ? AND (contact_id = ? OR user_cid = ?)
      ORDER BY (removed_at IS NULL) DESC, id DESC LIMIT 1`,
-    [inv.venture_id, contactCid, contactCid],
+    [invitation.venture_id, contactCid, contactCid],
   );
-  const role = defaultRoleFor(inv.member_type, inv.role);
+  const role = defaultRoleFor(invitation.member_type, invitation.role);
 
   if (existing.rows?.length && !existing.rows[0].removed_at) {
     // Already an active member — accepting again must not duplicate the row.
-    await markAccepted(inv.id, contactCid);
-    return { ok: true, already_member: true, venture_id: inv.venture_id, contact_cid: contactCid };
+    await markAccepted(invitation.id, contactCid);
+    return { ok: true, already_member: true, venture_id: invitation.venture_id, contact_cid: contactCid };
   }
 
   if (existing.rows?.length) {
@@ -346,7 +346,7 @@ export async function completeVentureMemberInvitation({
             SET removed_at = NULL, member_type = ?, role = ?, permissions = 'edit',
                 joined_at = NOW(), invited_by = ?
             WHERE id = ?`,
-      args: [inv.member_type, role, inv.invited_by || null, existing.rows[0].id],
+      args: [invitation.member_type, role, invitation.invited_by || null, existing.rows[0].id],
     });
   } else {
     await db.execute({
@@ -354,12 +354,12 @@ export async function completeVentureMemberInvitation({
               (venture_id, contact_id, user_cid, member_type, role, permissions, invited_by, joined_at)
             VALUES (?, ?, ?, ?, ?, 'edit', ?, NOW())`,
       args: [
-        inv.venture_id,
+        invitation.venture_id,
         contactCid,
         contactCid,
-        inv.member_type,
+        invitation.member_type,
         role,
-        inv.invited_by || null,
+        invitation.invited_by || null,
       ],
     });
   }
@@ -367,23 +367,23 @@ export async function completeVentureMemberInvitation({
   // Append-only membership history (account/contact untouched).
   await syncVentureRoleHistory({
     contactCid,
-    ventureId: inv.venture_id,
+    ventureId: invitation.venture_id,
     role,
     active: true,
-    actorCid: actorCid || inv.invited_by || null,
+    actorCid: actorCid || invitation.invited_by || null,
     notes: "member joined via invitation",
   }).catch(() => null);
 
   // A founder relationship grants the mapped profile's capabilities.
-  if (inv.member_type === "founder") await applyVentureContextGrants(contactCid);
+  if (invitation.member_type === "founder") await applyVentureContextGrants(contactCid);
 
-  await markAccepted(inv.id, contactCid);
+  await markAccepted(invitation.id, contactCid);
 
   return {
     ok: true,
-    venture_id: inv.venture_id,
+    venture_id: invitation.venture_id,
     contact_cid: contactCid,
-    member_type: inv.member_type,
+    member_type: invitation.member_type,
   };
 }
 
@@ -400,13 +400,13 @@ async function markAccepted(invitationId, contactCid) {
 /** Withdraw a pending invitation. Only a still-pending row can be revoked. */
 export async function revokeVentureMemberInvitation({ id, ventureId }) {
   await ensureVentureMemberInvitationSchema();
-  const res = await db.execute({
+  const result = await db.execute({
     sql: `UPDATE venture_member_invitations
           SET status = 'revoked', responded_at = NOW()
           WHERE id = ? AND venture_id = ? AND status = 'pending'`,
     args: [id, ventureId],
   });
-  return { ok: (res.rowsAffected || 0) > 0 };
+  return { ok: (result.rowsAffected || 0) > 0 };
 }
 
 export default {

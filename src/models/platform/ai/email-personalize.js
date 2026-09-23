@@ -31,12 +31,12 @@ export function normalizeToHtml(body) {
   if (/<[a-zA-Z][^>]*>/.test(text)) {
     // Already HTML — convert Markdown emphasis inside text nodes only.
     return splitHtmlParts(text)
-      .map((p) => (p.type === "text" ? markdownInlineToHtml(p.value) : p.value))
+      .map((part) => (part.type === "text" ? markdownInlineToHtml(part.value) : part.value))
       .join("");
   }
 
-  const escape = (s) =>
-    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const escape = (value) =>
+    value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
   // Escape first so raw user HTML stays text; Markdown conversion then
   // inserts REAL tags after escaping, so they survive it.
@@ -45,13 +45,13 @@ export function normalizeToHtml(body) {
 
   const paragraphs = withInline
     .split(/\n\s*\n/)
-    .map((p) => p.trim())
+    .map((part) => part.trim())
     .filter(Boolean);
 
   return paragraphs
-    .map((p) => {
-      if (p.startsWith("<ul>")) return p; // real list block — keep as-is
-      return `<p>${p.replace(/\n/g, "<br>")}</p>`;
+    .map((part) => {
+      if (part.startsWith("<ul>")) return part; // real list block — keep as-is
+      return `<p>${part.replace(/\n/g, "<br>")}</p>`;
     })
     .join("\n");
 }
@@ -77,34 +77,34 @@ export function markdownInlineToHtml(text) {
  */
 export function markdownListsToHtml(text) {
   const lines = String(text || "").split("\n");
-  const out = [];
+  const output = [];
   let inList = false;
   for (const line of lines) {
-    const m = line.match(/^\s*[*+-]\s+(.+)$/);
-    if (m) {
+    const match = line.match(/^\s*[*+-]\s+(.+)$/);
+    if (match) {
       if (!inList) {
-        out.push("<ul>");
+        output.push("<ul>");
         inList = true;
       }
-      out.push(`<li>${m[1]}</li>`);
+      output.push(`<li>${match[1]}</li>`);
     } else {
       if (inList) {
-        out.push("</ul>");
+        output.push("</ul>");
         inList = false;
       }
-      out.push(line);
+      output.push(line);
     }
   }
-  if (inList) out.push("</ul>");
-  return out.join("\n");
+  if (inList) output.push("</ul>");
+  return output.join("\n");
 }
 
 /** Extract lowercased placeholder names from text ({{name}} → "name"). */
 export function placeholdersOf(text) {
   const set = new Set();
-  const re = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
-  let m;
-  while ((m = re.exec(text || "")) !== null) set.add(m[1].toLowerCase());
+  const placeholderPattern = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
+  let match;
+  while ((match = placeholderPattern.exec(text || "")) !== null) set.add(match[1].toLowerCase());
   return set;
 }
 
@@ -118,17 +118,17 @@ const TAG_RE = /<\/?([a-zA-Z][a-zA-Z0-9]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/g;
 export function tagSkeleton(html) {
   const tokens = [];
   TAG_RE.lastIndex = 0;
-  let m;
-  while ((m = TAG_RE.exec(html || "")) !== null) {
-    const name = m[1].toLowerCase();
-    const attrs = m[2] || "";
+  let match;
+  while ((match = TAG_RE.exec(html || "")) !== null) {
+    const name = match[1].toLowerCase();
+    const attrs = match[2] || "";
     if (name === "a") {
       const href = (attrs.match(/href\s*=\s*["']([^"']*)["']/i) || [])[1] || "";
       tokens.push(`a:href=${href}`);
     } else if (name === "br") {
       tokens.push("br");
     } else {
-      tokens.push(m[0].startsWith("</") ? `/${name}` : name);
+      tokens.push(match[0].startsWith("</") ? `/${name}` : name);
     }
   }
   return tokens.join("\u0001");
@@ -143,10 +143,10 @@ export function splitHtmlParts(html) {
   const parts = [];
   TAG_RE.lastIndex = 0;
   let last = 0;
-  let m;
-  while ((m = TAG_RE.exec(html || "")) !== null) {
-    if (m.index > last) parts.push({ type: "text", value: html.slice(last, m.index) });
-    parts.push({ type: "tag", value: m[0] });
+  let match;
+  while ((match = TAG_RE.exec(html || "")) !== null) {
+    if (match.index > last) parts.push({ type: "text", value: html.slice(last, match.index) });
+    parts.push({ type: "tag", value: match[0] });
     last = TAG_RE.lastIndex;
   }
   if (last < (html || "").length) parts.push({ type: "text", value: html.slice(last) });
@@ -160,13 +160,13 @@ export function splitHtmlParts(html) {
  * By construction the resulting skeleton always equals the original.
  */
 export function splicePersonalizedSegments(parts, segments) {
-  let segIdx = 0;
+  let segmentIndex = 0;
   return parts
-    .map((p) => {
-      if (p.type !== "text") return p.value;
-      if (p.value.trim().length === 0) return p.value; // keep whitespace/newlines
-      const candidate = segments[segIdx] !== undefined ? segments[segIdx] : p.value;
-      segIdx++;
+    .map((part) => {
+      if (part.type !== "text") return part.value;
+      if (part.value.trim().length === 0) return part.value; // keep whitespace/newlines
+      const candidate = segments[segmentIndex] !== undefined ? segments[segmentIndex] : part.value;
+      segmentIndex++;
       return candidate;
     })
     .join("");
@@ -174,7 +174,7 @@ export function splicePersonalizedSegments(parts, segments) {
 
 /** Count the personalized (non-whitespace) text segments in a part list. */
 export function countTextSegments(parts) {
-  return parts.filter((p) => p.type === "text" && p.value.trim().length > 0).length;
+  return parts.filter((part) => part.type === "text" && part.value.trim().length > 0).length;
 }
 
 /**
@@ -183,10 +183,10 @@ export function countTextSegments(parts) {
  */
 export function ensureSegmentPlaceholders(original, candidate) {
   let out = candidate == null ? original : String(candidate);
-  const re = /\{\{\s*[a-zA-Z0-9_]+\s*\}\}/g;
-  let m;
-  while ((m = re.exec(original || "")) !== null) {
-    if (!out.includes(m[0])) out = out.trimEnd() + " " + m[0];
+  const placeholderPattern = /\{\{\s*[a-zA-Z0-9_]+\s*\}\}/g;
+  let match;
+  while ((match = placeholderPattern.exec(original || "")) !== null) {
+    if (!out.includes(match[0])) out = out.trimEnd() + " " + match[0];
   }
   return out;
 }

@@ -29,43 +29,43 @@ export async function syncRunDeadlines(runId) {
     });
     if (run.rows.length === 0) return { skipped: true, reason: "Run not found" };
 
-    const r = run.rows[0];
+    const runRow = run.rows[0];
     const provider = await getCalendarProvider();
     const results = [];
 
     // Sync "Opens" deadline
-    if (r.opens_at && !r.external_calendar_id) {
+    if (runRow.opens_at && !runRow.external_calendar_id) {
       const result = await provider.createEvent({
-        title: `[Opens] ${r.name}`,
-        description: r.description || `Form run opens for submissions.`,
-        startTime: r.opens_at,
-        endTime: r.opens_at,
-        location: `/platform/runs/submit/${r.id}`,
+        title: `[Opens] ${runRow.name}`,
+        description: runRow.description || `Form run opens for submissions.`,
+        startTime: runRow.opens_at,
+        endTime: runRow.opens_at,
+        location: `/platform/runs/submit/${runRow.id}`,
       });
 
       if (result.externalId) {
         await db.execute({
           sql: "UPDATE platform_form_runs SET external_calendar_id = ?, external_calendar_url = ? WHERE id = ?",
-          args: [result.externalId, result.url || null, r.id],
+          args: [result.externalId, result.url || null, runRow.id],
         });
       }
       results.push({ type: "opens", ...result });
     }
 
     // Sync "Closes" deadline
-    if (r.closes_at) {
+    if (runRow.closes_at) {
       const closesResult = await provider.createEvent({
-        title: `[Closes] ${r.name}`,
-        description: r.description || `Form run submission deadline.`,
-        startTime: r.closes_at,
-        endTime: r.closes_at,
-        location: `/platform/runs?id=${r.id}`,
+        title: `[Closes] ${runRow.name}`,
+        description: runRow.description || `Form run submission deadline.`,
+        startTime: runRow.closes_at,
+        endTime: runRow.closes_at,
+        location: `/platform/runs?id=${runRow.id}`,
       });
 
       if (closesResult.externalId) {
         await db.execute({
           sql: "UPDATE platform_form_runs SET external_calendar_url = COALESCE(external_calendar_url, ?) WHERE id = ?",
-          args: [closesResult.url || null, r.id],
+          args: [closesResult.url || null, runRow.id],
         });
       }
       results.push({ type: "closes", ...closesResult });
@@ -141,12 +141,12 @@ export async function checkCalendarHealth() {
       provider: process.env.CALENDAR_PROVIDER || "microsoft",
       ...health,
     };
-  } catch (e) {
+  } catch (error) {
     return {
       configured: false,
       provider: process.env.CALENDAR_PROVIDER || "microsoft",
       healthy: false,
-      error: e.message,
+      error: error.message,
     };
   }
 }

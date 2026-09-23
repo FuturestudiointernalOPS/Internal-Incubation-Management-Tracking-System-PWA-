@@ -22,8 +22,8 @@ export async function requireInvestorSelfServiceAuthorization(capability) {
     const session = await getSession();
     if (!session) return capError;
     const { getInvestorProfileIdByUserId } = await import("@/models/investor");
-    const prof = await getInvestorProfileIdByUserId(session.cid);
-    if (prof.rows.length > 0) return null;
+    const profileResult = await getInvestorProfileIdByUserId(session.cid);
+    if (profileResult.rows.length > 0) return null;
   } catch (_) {
     // Fall through to the capability denial on any lookup failure.
   }

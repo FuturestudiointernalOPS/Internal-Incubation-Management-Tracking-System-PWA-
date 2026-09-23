@@ -48,8 +48,8 @@ export async function addContactToGroup({ contactCid, familyId, source = "invita
     });
   } catch (_) {}
 
-  const ok = await ensureMembershipTable();
-  if (!ok) return;
+  const tableReady = await ensureMembershipTable();
+  if (!tableReady) return;
 
   await db.execute({
     sql: `INSERT INTO contact_group_members (contact_cid, family_id, source, added_by)
@@ -62,8 +62,8 @@ export async function addContactToGroup({ contactCid, familyId, source = "invita
 export async function removeContactFromGroup(contactCid, familyId) {
   if (!contactCid || !familyId) return;
   await initDb();
-  const ok = await ensureMembershipTable();
-  if (!ok) return;
+  const tableReady = await ensureMembershipTable();
+  if (!tableReady) return;
   await db.execute({
     sql: "DELETE FROM contact_group_members WHERE contact_cid = ? AND family_id = ?",
     args: [contactCid, familyId],
@@ -73,11 +73,11 @@ export async function removeContactFromGroup(contactCid, familyId) {
 export async function listContactGroups(contactCid) {
   if (!contactCid) return [];
   await initDb();
-  const ok = await ensureMembershipTable();
-  if (!ok) return [];
-  const res = await db.execute({
+  const tableReady = await ensureMembershipTable();
+  if (!tableReady) return [];
+  const result = await db.execute({
     sql: "SELECT family_id FROM contact_group_members WHERE contact_cid = ? ORDER BY added_at ASC",
     args: [contactCid],
   });
-  return res.rows.map((r) => r.family_id);
+  return result.rows.map((row) => row.family_id);
 }

@@ -180,7 +180,7 @@ export async function listSectionResourcesByCourse(courseId) {
     sql: "SELECT id FROM lms_course_sections WHERE course_id = ?",
     args: [String(courseId)],
   });
-  const sectionIds = sectionsRes.rows.map((s) => String(s.id));
+  const sectionIds = sectionsRes.rows.map((section) => String(section.id));
   if (sectionIds.length === 0) return new Map();
 
   const res = await db.execute({

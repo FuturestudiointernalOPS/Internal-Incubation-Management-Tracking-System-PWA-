@@ -21,18 +21,18 @@ import { resolveAppUrl } from "@/lib/appUrl";
  */
 async function readSystemSetting(key) {
   try {
-    const r = await db.execute({
+    const canonicalResult = await db.execute({
       sql: "SELECT setting_value FROM system_settings WHERE setting_key = ?",
       args: [key],
     });
-    if (r.rows[0]?.setting_value) return r.rows[0].setting_value;
+    if (canonicalResult.rows[0]?.setting_value) return canonicalResult.rows[0].setting_value;
   } catch (_) {}
   try {
-    const r = await db.execute({
+    const legacyResult = await db.execute({
       sql: "SELECT value FROM system_settings WHERE key = ?",
       args: [key],
     });
-    if (r.rows[0]?.value) return r.rows[0].value;
+    if (legacyResult.rows[0]?.value) return legacyResult.rows[0].value;
   } catch (_) {}
   return null;
 }
@@ -44,11 +44,11 @@ export async function resolveVentureRun() {
   const runId = await readSystemSetting("venture_run_id");
   if (runId) {
     try {
-      const r = await db.execute({
+      const runResult = await db.execute({
         sql: "SELECT * FROM platform_form_runs WHERE id = ?",
         args: [runId],
       });
-      if (r.rows.length > 0 && r.rows[0].public_slug) return r.rows[0];
+      if (runResult.rows.length > 0 && runResult.rows[0].public_slug) return runResult.rows[0];
     } catch (_) {}
   }
 
@@ -56,7 +56,7 @@ export async function resolveVentureRun() {
   //    Single-active enforcement (src/lib/ventureIntake.js) guarantees at
   //    most one flagged form, so this fallback is deterministic.
   try {
-    const fb = await db.execute({
+    const fallbackResult = await db.execute({
       sql: `SELECT r.* FROM platform_form_runs r
             JOIN platform_forms f ON f.id = r.form_id
             WHERE r.status = 'active' AND r.public_slug IS NOT NULL
@@ -64,7 +64,7 @@ export async function resolveVentureRun() {
             ORDER BY r.created_at DESC LIMIT 1`,
       args: [],
     });
-    return fb.rows[0] || null;
+    return fallbackResult.rows[0] || null;
   } catch (_) {
     return null;
   }
@@ -93,7 +93,7 @@ export async function createVentureInvitation({
   }
   const token = uuidv4().replace(/-/g, "");
   const expiresAt = new Date(Date.now() + expiresInHours * 3600 * 1000).toISOString();
-  const res = await db.execute({
+  const result = await db.execute({
     sql: `INSERT INTO platform_form_run_invitations
             (run_id, contact_cid, email, source_type, program_id, cohort_id, team_id, invited_by_cid, token, token_hash, expires_at, status, created_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sent', NOW())
@@ -112,17 +112,17 @@ export async function createVentureInvitation({
       expiresAt,
     ],
   });
-  return { id: res.rows[0]?.id, token, email: emailNorm, expires_at: expiresAt };
+  return { id: result.rows[0]?.id, token, email: emailNorm, expires_at: expiresAt };
 }
 
 export async function getVentureInvitationByToken(token) {
   await initDb();
   if (!token) return { error: "invalid" };
-  const res = await db.execute({
+  const result = await db.execute({
     sql: "SELECT * FROM platform_form_run_invitations WHERE token_hash = ? OR token = ?",
     args: [hashToken(token), token],
   });
-  const invitation = res.rows?.[0];
+  const invitation = result.rows?.[0];
   if (!invitation) return { error: "invalid" };
 
   // Lazily backfill the hash for legacy rows stored before hashing was added.
@@ -145,11 +145,11 @@ export async function getVentureInvitationByToken(token) {
 export async function getVentureInvitationById(id) {
   await initDb();
   if (!id) return null;
-  const res = await db.execute({
+  const result = await db.execute({
     sql: "SELECT * FROM platform_form_run_invitations WHERE id = ?",
     args: [id],
   });
-  return res.rows[0] || null;
+  return result.rows[0] || null;
 }
 
 export async function markVentureInvitationStatus(id, status) {

@@ -24,8 +24,8 @@ function ensureMigrationsSchema() {
         applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       )`);
       return true;
-    })().catch((e) => {
-      console.warn("[Authz] ensureMigrationsSchema failed:", e.message);
+    })().catch((error) => {
+      console.warn("[Authz] ensureMigrationsSchema failed:", error.message);
       schemaPromise = null;
       return false;
     });
@@ -64,10 +64,10 @@ async function readLedger() {
 
 function appliedNames() {
   if (!ledgerPromise) {
-    ledgerPromise = readLedger().catch((e) => {
+    ledgerPromise = readLedger().catch((error) => {
       console.warn(
         "[Authz] could not read the migration ledger, asking per name instead:",
-        e.message,
+        error.message,
       );
       ledgerPromise = null;
       return null;
@@ -77,15 +77,15 @@ function appliedNames() {
 }
 
 /**
- * Run `fn` exactly once per database. Subsequent boots (or other server
+ * Run `migrationFn` exactly once per database. Subsequent boots (or other server
  * instances) skip it — an administrator's eligibility configuration is
  * never silently overwritten by a re-run.
  *
  * @param {string} name  unique migration id (e.g. "eligibility-policy-3")
- * @param {Function} fn  async function performing the one-time work
+ * @param {Function} migrationFn  async function performing the one-time work
  * @returns {Promise<{applied: boolean}>}
  */
-export async function runAuthzMigration(name, fn) {
+export async function runAuthzMigration(name, migrationFn) {
   await ensureMigrationsSchema();
   const applied = await appliedNames();
 
@@ -100,7 +100,7 @@ export async function runAuthzMigration(name, fn) {
     return { applied: false };
   }
 
-  await fn();
+  await migrationFn();
   await db.execute({
     sql: "INSERT INTO authz_migrations (name) VALUES (?) ON CONFLICT (name) DO NOTHING",
     args: [name],

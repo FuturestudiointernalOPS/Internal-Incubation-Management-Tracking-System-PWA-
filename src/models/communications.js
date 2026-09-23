@@ -109,7 +109,7 @@ export async function findFamiliesByMatchingGroupNames(groupNames) {
   const placeholders = groupNames.map(() => "?").join(",");
   return db.execute({
     sql: `SELECT id, program_id FROM families WHERE UPPER(TRIM(name)) IN (${placeholders})`,
-    args: groupNames.map((g) => String(g).toUpperCase()),
+    args: groupNames.map((groupName) => String(groupName).toUpperCase()),
   });
 }
 

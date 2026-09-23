@@ -59,7 +59,7 @@ export async function getCourseStructure(courseId) {
     args: [courseId],
   });
   const sections = sectionsRes.rows;
-  const sectionIds = sections.map((s) => s.id);
+  const sectionIds = sections.map((section) => section.id);
 
   let lessons = [];
   if (sectionIds.length > 0) {
@@ -79,7 +79,7 @@ export async function getCourseStructure(courseId) {
       args: [courseId],
     })
   ).rows;
-  const assessmentIds = assessments.map((a) => a.id);
+  const assessmentIds = assessments.map((assessment) => assessment.id);
 
   let questions = [];
   if (assessmentIds.length > 0) {
@@ -101,22 +101,22 @@ export async function getCourseStructure(courseId) {
 
   const sectionAssessments = new Map();
   const courseAssessments = [];
-  for (const a of assessments) {
+  for (const assessment of assessments) {
     const withQuestions = {
-      ...a,
-      questions: questionsByAssessment.get(String(a.id)) || [],
+      ...assessment,
+      questions: questionsByAssessment.get(String(assessment.id)) || [],
     };
-    if (a.section_id) sectionAssessments.set(String(a.section_id), withQuestions);
+    if (assessment.section_id) sectionAssessments.set(String(assessment.section_id), withQuestions);
     else courseAssessments.push(withQuestions);
   }
 
   return {
     ...course,
-    sections: sections.map((s) => ({
-      ...s,
-      lessons: lessonsBySection.get(String(s.id)) || [],
-      resources: resourcesBySection.get(String(s.id)) || [],
-      assessment: sectionAssessments.get(String(s.id)) || null,
+    sections: sections.map((section) => ({
+      ...section,
+      lessons: lessonsBySection.get(String(section.id)) || [],
+      resources: resourcesBySection.get(String(section.id)) || [],
+      assessment: sectionAssessments.get(String(section.id)) || null,
     })),
     courseAssessments,
   };
@@ -193,12 +193,12 @@ export async function updateCourse(courseId, fields = {}) {
       sets.push("price = ?");
       args.push(null);
     } else {
-      const p = fields.price == null || fields.price === "" ? null : Number(fields.price);
-      if (p != null && (Number.isNaN(p) || p < 0)) {
+      const priceValue = fields.price == null || fields.price === "" ? null : Number(fields.price);
+      if (priceValue != null && (Number.isNaN(priceValue) || priceValue < 0)) {
         throw new LmsError("lms.errors.invalidPrice", 400);
       }
       sets.push("price = ?");
-      args.push(p);
+      args.push(priceValue);
     }
   }
 

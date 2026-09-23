@@ -102,13 +102,13 @@ export function getRegisteredModules(role, hasCapability = null) {
   // yet must never be shown the full module list (that flashed every module for
   // a moment before the real role arrived).
   if (!role) return [];
-  return REGISTERED_MODULES.filter((m) => {
-    if (!m.enabled) return false;
-    if (m.capability && typeof hasCapability === "function") {
-      return hasCapability(m.capability);
+  return REGISTERED_MODULES.filter((module) => {
+    if (!module.enabled) return false;
+    if (module.capability && typeof hasCapability === "function") {
+      return hasCapability(module.capability);
     }
-    if (!m.permissions || m.permissions.length === 0) return true;
-    return m.permissions.includes(role);
+    if (!module.permissions || module.permissions.length === 0) return true;
+    return module.permissions.includes(role);
   });
 }
 
@@ -116,7 +116,7 @@ export function getRegisteredModules(role, hasCapability = null) {
  * Returns a single module by ID.
  */
 export function getModuleById(moduleId) {
-  return REGISTERED_MODULES.find((m) => m.id === moduleId) || null;
+  return REGISTERED_MODULES.find((module) => module.id === moduleId) || null;
 }
 
 /**
@@ -124,7 +124,7 @@ export function getModuleById(moduleId) {
  */
 export function getActiveModules(role, hasCapability = null) {
   return getRegisteredModules(role, hasCapability).filter(
-    (m) => m.visible && !m.future,
+    (module) => module.visible && !module.future,
   );
 }
 

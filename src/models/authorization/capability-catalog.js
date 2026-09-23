@@ -300,8 +300,8 @@ export function capabilityParent(module, capability) {
 
 /** Child capabilities attached to a parent, in catalog order. */
 export function capabilityChildren(module, parentCapability) {
-  const caps = CAPABILITY_CATALOG[module]?.capabilities || {};
-  return Object.keys(caps).filter((cap) => caps[cap]?.parent === parentCapability);
+  const capabilities = CAPABILITY_CATALOG[module]?.capabilities || {};
+  return Object.keys(capabilities).filter((capability) => capabilities[capability]?.parent === parentCapability);
 }
 
 /**
@@ -309,10 +309,10 @@ export function capabilityChildren(module, parentCapability) {
  * has no families). This is the shape matrixHelpers.toggleCapability consumes.
  */
 export function moduleCapabilityParents(module) {
-  const caps = CAPABILITY_CATALOG[module]?.capabilities || {};
+  const capabilities = CAPABILITY_CATALOG[module]?.capabilities || {};
   const parents = {};
-  for (const [cap, def] of Object.entries(caps)) {
-    if (def?.parent) parents[cap] = def.parent;
+  for (const [capability, definition] of Object.entries(capabilities)) {
+    if (definition?.parent) parents[capability] = definition.parent;
   }
   return parents;
 }

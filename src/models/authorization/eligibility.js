@@ -87,8 +87,8 @@ export function ensureEligibilitySchema() {
          ON feature_eligibility(feature_key, identity_type, identity_value)`,
       );
       return true;
-    })().catch((e) => {
-      console.warn("[Authz] ensureEligibilitySchema failed:", e.message);
+    })().catch((error) => {
+      console.warn("[Authz] ensureEligibilitySchema failed:", error.message);
       eligibilitySchemaPromise = null; // allow retry on the next call
       return false;
     });
@@ -114,8 +114,8 @@ async function seedFeatureRows(featureKey, roles) {
       });
     }
     return { success: true };
-  } catch (e) {
-    return { success: false, error: e.message };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 }
 

@@ -29,11 +29,11 @@ export function isPrivilegedRole(role) {
  * program/group must never elevate someone to staff.
  */
 export function resolveDefaultRole(explicitRole) {
-  const r = String(explicitRole || "").trim().toLowerCase();
+  const normalizedRole = String(explicitRole || "").trim().toLowerCase();
   // The neutral "member" state means "person exists, no role/assignment yet".
   // It is preserved as-is and must never be upgraded to participant.
-  if (r === "member") return r;
-  return isPrivilegedRole(r) ? r : DEFAULT_ROLE;
+  if (normalizedRole === "member") return normalizedRole;
+  return isPrivilegedRole(normalizedRole) ? normalizedRole : DEFAULT_ROLE;
 }
 
 /**
@@ -77,19 +77,19 @@ export function resolveEffectiveRole({
   isFamily = false,
   legacySa = false,
 } = {}) {
-  const r = String(role || "").trim().toLowerCase();
+  const normalizedRole = String(role || "").trim().toLowerCase();
 
   if (isTeam) return "team";
   if (isFamily) return "participant"; // family entity acts as participant
 
-  if (r === "super_admin" || legacySa) return "super_admin";
-  if (r === "investor") return "investor";
-  if (r === "founder") return "founder";
+  if (normalizedRole === "super_admin" || legacySa) return "super_admin";
+  if (normalizedRole === "investor") return "investor";
+  if (normalizedRole === "founder") return "founder";
 
   // Staff-family identities normalize to staff. Program Manager is a function
   // layered on Staff (not a separate global identity) — a PM contact must
   // resolve to staff at login, never fall through to participant.
-  if (r === "staff" || r === "program_manager" || r === "project_manager") return "staff";
+  if (normalizedRole === "staff" || normalizedRole === "program_manager" || normalizedRole === "project_manager") return "staff";
 
   // THE RULE — active FUTURE STUDIO membership = internal staff membership.
   // `group_name` is accepted as a compatibility fallback for callers that
@@ -97,12 +97,12 @@ export function resolveEffectiveRole({
   const memberGroups = Array.isArray(groups) ? groups : [];
   if (group_name) memberGroups.push(group_name);
   const isInternal = memberGroups.some(
-    (g) => String(g || "").trim().toUpperCase() === INTERNAL_GROUP,
+    (group) => String(group || "").trim().toUpperCase() === INTERNAL_GROUP,
   );
   if (isInternal) return "staff";
 
   // Explicit identities are preserved outside the group.
-  if (["participant", "member", "facilitator"].includes(r)) return r;
+  if (["participant", "member", "facilitator"].includes(normalizedRole)) return normalizedRole;
   return DEFAULT_ROLE; // unknown / no role → participant (legacy default)
 }
 
@@ -157,12 +157,12 @@ const isActiveVenture = (row) =>
  * for such a person would be wasted work.
  */
 export function landingNeedsRelationships(role) {
-  const r = String(role || "").trim().toLowerCase();
-  if (r === "team") return false; // an entity account, not a person
-  const home = roleHomeHref(r);
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  if (normalizedRole === "team") return false; // an entity account, not a person
+  const home = roleHomeHref(normalizedRole);
   // The personal identities share the Participant surface, and an identity the
   // map does not know has no section of its own to claim.
-  return !home || r === "member" || r === "participant";
+  return !home || normalizedRole === "member" || normalizedRole === "participant";
 }
 
 /**
@@ -184,16 +184,16 @@ export function landingNeedsRelationships(role) {
  * can strand someone.
  */
 export function resolveLanding({ role, teamId = null, ventures = [] } = {}) {
-  const r = String(role || "").trim().toLowerCase();
+  const normalizedRole = String(role || "").trim().toLowerCase();
 
   // An entity login IS the account (a team, a family), not a person whose
   // relationships would be read — it keeps its own space.
-  if (r === "team") return teamId ? `/team/${teamId}` : "/team";
+  if (normalizedRole === "team") return teamId ? `/team/${teamId}` : "/team";
 
-  const home = roleHomeHref(r);
-  if (!landingNeedsRelationships(r)) return home;
+  const home = roleHomeHref(normalizedRole);
+  if (!landingNeedsRelationships(normalizedRole)) return home;
 
-  const owned = (ventures || []).filter((v) => isActiveVenture(v) && isFounderMembership(v));
+  const owned = (ventures || []).filter((venture) => isActiveVenture(venture) && isFounderMembership(venture));
   if (owned.length === 1 && owned[0].venture_id) {
     return `/participant/ventures/${owned[0].venture_id}`;
   }

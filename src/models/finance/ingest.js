@@ -56,15 +56,15 @@ function parseBudgetLines(rows, programMap) {
  */
 function parseTransactions(rows, programMap) {
   const transactions = [];
-  for (const r of rows) {
-    const dateRaw = r["TRIBU FUTURE STUDIO"] || r.__EMPTY || "";
+  for (const row of rows) {
+    const dateRaw = row["TRIBU FUTURE STUDIO"] || row.__EMPTY || "";
     const date = excelDateToISO(dateRaw);
-    const supplier = r.__EMPTY || "";
-    const description = r.__EMPTY_1 || "";
-    const category = r.__EMPTY_2 || "";
-    const amountSpent = parseFloat(r.__EMPTY_3) || 0;
-    const amountReceived = parseFloat(r.__EMPTY_4) || 0;
-    const code = r.__EMPTY_6 || "";
+    const supplier = row.__EMPTY || "";
+    const description = row.__EMPTY_1 || "";
+    const category = row.__EMPTY_2 || "";
+    const amountSpent = parseFloat(row.__EMPTY_3) || 0;
+    const amountReceived = parseFloat(row.__EMPTY_4) || 0;
+    const code = row.__EMPTY_6 || "";
 
     if (!date && !supplier && !description) continue;
 
@@ -123,14 +123,14 @@ function parseProjectSheet(rows, sheetName, programMap) {
   }
 
   const transactions = [];
-  for (const r of rows) {
-    const dateRaw = r["TRIBU FUTURE STUDIO"] || r.__EMPTY || "";
+  for (const row of rows) {
+    const dateRaw = row["TRIBU FUTURE STUDIO"] || row.__EMPTY || "";
     const date = excelDateToISO(dateRaw);
-    const supplier = r.__EMPTY || "";
-    const description = r.__EMPTY_1 || "";
-    const category = r.__EMPTY_2 || "";
-    const amountSpent = parseFloat(r.__EMPTY_3) || 0;
-    const amountReceived = parseFloat(r.__EMPTY_4) || 0;
+    const supplier = row.__EMPTY || "";
+    const description = row.__EMPTY_1 || "";
+    const category = row.__EMPTY_2 || "";
+    const amountSpent = parseFloat(row.__EMPTY_3) || 0;
+    const amountReceived = parseFloat(row.__EMPTY_4) || 0;
 
     if (!date && !supplier && !description) continue;
 
@@ -190,18 +190,18 @@ async function buildProgramMap() {
  */
 export async function ingestFromSheet(dataSourceId) {
   // 1. Fetch data source config
-  const dsResult = await db.execute(
+  const dataSourceResult = await db.execute(
     "SELECT source_url, fiscal_year FROM data_sources WHERE id = ?",
     [dataSourceId],
   );
-  if (dsResult.rows.length === 0) {
+  if (dataSourceResult.rows.length === 0) {
     throw new Error(`Data source not found: ${dataSourceId}`);
   }
-  const ds = dsResult.rows[0];
+  const dataSource = dataSourceResult.rows[0];
 
   // 2. Fetch the workbook
-  await fetchWorkbook(ds.source_url);
-  const fiscalYear = ds.fiscal_year || "2025-2026";
+  await fetchWorkbook(dataSource.source_url);
+  const fiscalYear = dataSource.fiscal_year || "2025-2026";
 
   // 3. Build program lookup
   const programMap = await buildProgramMap();

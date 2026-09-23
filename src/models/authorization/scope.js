@@ -52,7 +52,7 @@ export async function resolveScopeIds(policyKey, userCid, { email = null } = {})
         // (founders/team — the venture is theirs) OR an active delegated staff
         // assignment (venture_staff_assignments). Global-role bypass stays in
         // the resolver (Super Admin) and in the transitional legacy path.
-        const r = await db.execute({
+        const result = await db.execute({
           sql: `SELECT DISTINCT CAST(venture_id AS TEXT) AS id
                 FROM venture_members
                 WHERE (user_cid = ? OR contact_id = ?) AND removed_at IS NULL
@@ -62,13 +62,13 @@ export async function resolveScopeIds(policyKey, userCid, { email = null } = {})
                 WHERE staff_contact_id = ? AND status = 'active'`,
           args: [userCid, userCid, userCid],
         });
-        return r.rows.map((x) => String(x.id));
+        return result.rows.map((row) => String(row.id));
       }
       case "program_assigned": {
         // Assignment (program staff — staff_id may hold a cid OR an email)
         // UNION enrollment (participant_programs). Both are authoritative
         // context data; organizational membership is deliberately NOT used.
-        const r = await db.execute({
+        const result = await db.execute({
           sql: `SELECT DISTINCT CAST(program_id AS TEXT) AS id
                 FROM v2_program_staff
                 WHERE staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(?)
@@ -78,13 +78,13 @@ export async function resolveScopeIds(policyKey, userCid, { email = null } = {})
                 WHERE participant_id = ?`,
           args: [userCid, email || userCid, userCid],
         });
-        return r.rows.map((x) => String(x.id));
+        return result.rows.map((row) => String(row.id));
       }
       case "program_staffed": {
         // The WRITE side of the same question: staffing only. Enrollment is
         // deliberately absent — a learner is attached to their program, and
         // being attached must never authorise changing it.
-        const r = await db.execute({
+        const result = await db.execute({
           sql: `SELECT DISTINCT CAST(program_id AS TEXT) AS id
                 FROM v2_program_staff
                 WHERE staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(?)
@@ -94,22 +94,22 @@ export async function resolveScopeIds(policyKey, userCid, { email = null } = {})
                 WHERE CAST(assigned_pm_id AS TEXT) = ?`,
           args: [userCid, email || userCid, userCid],
         });
-        return r.rows.map((x) => String(x.id));
+        return result.rows.map((row) => String(row.id));
       }
       case "learning_own": {
-        const r = await db.execute({
+        const result = await db.execute({
           sql: `SELECT DISTINCT CAST(course_id AS TEXT) AS id
                 FROM lms_enrollments
                 WHERE user_cid = ? AND status <> 'suspended'`,
           args: [userCid],
         });
-        return r.rows.map((x) => String(x.id));
+        return result.rows.map((row) => String(row.id));
       }
       default:
         return null;
     }
-  } catch (e) {
-    console.warn(`[Scope] resolveScopeIds(${policyKey}) failed:`, e.message);
+  } catch (error) {
+    console.warn(`[Scope] resolveScopeIds(${policyKey}) failed:`, error.message);
     return null; // fail closed — an unresolvable scope is a denial
   }
 }
@@ -127,17 +127,17 @@ export async function resolveVentureScopeId(ventureId) {
   if (ventureId === null || ventureId === undefined || ventureId === "") {
     return null;
   }
-  const val = String(ventureId);
-  if (val.startsWith("VNT-")) return val;
+  const value = String(ventureId);
+  if (value.startsWith("VNT-")) return value;
   try {
-    const r = await db.execute({
+    const result = await db.execute({
       sql: "SELECT venture_id FROM ventures WHERE id::text = ?",
-      args: [val],
+      args: [value],
     });
-    return r.rows?.[0]?.venture_id || val;
-  } catch (e) {
-    console.warn("[Scope] resolveVentureScopeId failed:", e.message);
-    return val;
+    return result.rows?.[0]?.venture_id || value;
+  } catch (error) {
+    console.warn("[Scope] resolveVentureScopeId failed:", error.message);
+    return value;
   }
 }
 
@@ -145,11 +145,11 @@ export async function resolveVentureScopeId(ventureId) {
  * The authoritative scope predicate: is THIS record within the person's scope?
  * Fail closed on every uncertainty (null/empty ids, unsupported policy, error).
  */
-export async function isWithinScope(policyKey, userCid, resourceId, opts = {}) {
+export async function isWithinScope(policyKey, userCid, resourceId, options = {}) {
   if (resourceId === null || resourceId === undefined || resourceId === "") {
     return false;
   }
-  const ids = await resolveScopeIds(policyKey, userCid, opts);
+  const ids = await resolveScopeIds(policyKey, userCid, options);
   if (!ids) return false;
   return ids.includes(String(resourceId));
 }

@@ -14,7 +14,7 @@ import db from "@/lib/db";
 
 /** Every (person, venture) relationship the scope policy considers. */
 export async function listVentureRelationships() {
-  const r = await db.execute({
+  const result = await db.execute({
     sql: `SELECT DISTINCT CAST(venture_id AS TEXT) AS venture_id,
                  COALESCE(NULLIF(contact_id, ''), user_cid) AS cid
           FROM venture_members
@@ -27,19 +27,19 @@ export async function listVentureRelationships() {
           WHERE status = 'active' AND staff_contact_id IS NOT NULL`,
     args: [],
   });
-  return r.rows.filter((row) => row.cid && row.venture_id);
+  return result.rows.filter((row) => row.cid && row.venture_id);
 }
 
 /** Contact rows for the given cids (name/role/email for the report). */
 export async function listAuditContacts(cids) {
-  const ids = [...new Set((cids || []).map((c) => String(c)).filter(Boolean))];
+  const ids = [...new Set((cids || []).map((cid) => String(cid)).filter(Boolean))];
   if (ids.length === 0) return [];
-  const r = await db.execute({
+  const result = await db.execute({
     sql: `SELECT cid, name, email, role FROM contacts
           WHERE cid IN (${ids.map(() => "?").join(",")})`,
     args: ids,
   });
-  return r.rows;
+  return result.rows;
 }
 
 /**
@@ -50,24 +50,24 @@ export async function listAuditContacts(cids) {
  *                scopeCount: number}>} people
  */
 export function summarizeVentureStrictAudit(people = []) {
-  const rows = (people || []).map((p) => ({
-    cid: p.cid,
-    name: p.name || null,
-    role: p.role || null,
-    ventures: (p.ventures || []).length,
-    scopeCount: Number(p.scopeCount || 0),
-    viewAllowed: Boolean(p.viewAllowed),
-    editAllowed: Boolean(p.editAllowed),
+  const rows = (people || []).map((person) => ({
+    cid: person.cid,
+    name: person.name || null,
+    role: person.role || null,
+    ventures: (person.ventures || []).length,
+    scopeCount: Number(person.scopeCount || 0),
+    viewAllowed: Boolean(person.viewAllowed),
+    editAllowed: Boolean(person.editAllowed),
     // A person attached to ventures who cannot read them is the signal that a
     // grant (or an assignment) is missing.
-    missing: !p.viewAllowed
+    missing: !person.viewAllowed
       ? ["ventures.view"]
-      : !p.editAllowed
+      : !person.editAllowed
         ? ["ventures.edit"]
         : [],
   }));
-  const viewMissing = rows.filter((r) => !r.viewAllowed);
-  const editMissing = rows.filter((r) => r.viewAllowed && !r.editAllowed);
+  const viewMissing = rows.filter((row) => !row.viewAllowed);
+  const editMissing = rows.filter((row) => row.viewAllowed && !row.editAllowed);
   return {
     total: rows.length,
     viewAllowed: rows.length - viewMissing.length,

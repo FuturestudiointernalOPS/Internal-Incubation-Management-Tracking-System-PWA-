@@ -142,9 +142,9 @@ export function capReference(reference) {
  */
 export function reportSourceKey(instruction, reference) {
   const base = nonEmptyString(instruction);
-  const ref = capReference(reference);
-  if (!ref) return base;
-  return `${base}\n\n[reference document]\n${ref}`;
+  const referenceText = capReference(reference);
+  if (!referenceText) return base;
+  return `${base}\n\n[reference document]\n${referenceText}`;
 }
 
 /**
@@ -205,7 +205,7 @@ export function parseReportDocument(raw) {
       : Array.isArray(section.content)
         ? section.content
         : Array.isArray(section.paragraphs)
-          ? section.paragraphs.map((p) => (typeof p === "string" ? p : p?.text))
+          ? section.paragraphs.map((paragraph) => (typeof paragraph === "string" ? paragraph : paragraph?.text))
           : [];
 
     const blocks = [];
@@ -252,12 +252,12 @@ export function buildReportPrompt({ instruction, reference, referenceName, lang,
     ranking: payload.ranking || null,
     decision: payload.outcome?.decision || null,
     reviewer_comment: payload.outcome?.comment || null,
-    criteria: (payload.dimensions || []).map((d) => ({
-      name: d.name || null,
-      score: d.score ?? null,
-      feedback: d.feedback || null,
-      strengths: d.strengths || [],
-      improvements: d.improvements || [],
+    criteria: (payload.dimensions || []).map((dimension) => ({
+      name: dimension.name || null,
+      score: dimension.score ?? null,
+      feedback: dimension.feedback || null,
+      strengths: dimension.strengths || [],
+      improvements: dimension.improvements || [],
     })),
     answers: (payload.sections || []).flatMap((section) =>
       (section?.items || []).map((item) => ({
@@ -482,9 +482,9 @@ export async function getOrCreateSubmissionReport({
       document,
     });
     return { report: document, reused: false, generated: true, generatedAt: row?.generated_at ?? null };
-  } catch (e) {
-    console.error("[Report] Composition failed:", e?.message || e);
-    return { report: null, reused: false, generated: false, error: e?.message || "report composition failed" };
+  } catch (error) {
+    console.error("[Report] Composition failed:", error?.message || error);
+    return { report: null, reused: false, generated: false, error: error?.message || "report composition failed" };
   }
 }
 

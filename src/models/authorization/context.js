@@ -77,7 +77,7 @@ async function resolveProgramAssignment(contextId, userCid, userEmail) {
   ).rows;
   if (rows.length > 0) return { source: "v2_program_staff", assignment: rows[0] };
 
-  const cr = (
+  const contactRoleRows = (
     await db.execute({
       sql: `SELECT * FROM contact_roles
             WHERE context_type = 'program' AND CAST(context_id AS TEXT) = ?
@@ -86,7 +86,7 @@ async function resolveProgramAssignment(contextId, userCid, userEmail) {
       args: [String(contextId), userCid],
     })
   ).rows;
-  if (cr.length > 0) return { source: "contact_roles", assignment: cr[0] };
+  if (contactRoleRows.length > 0) return { source: "contact_roles", assignment: contactRoleRows[0] };
   return null;
 }
 
@@ -136,8 +136,8 @@ export async function requireScopedAccess({ resource, contextId, module, capabil
     }
 
     // Super Admin bypass — existing resolver semantics.
-    const ctx = await getAuthorizationContext(session);
-    if (ctx?.isSuperAdmin) return null;
+    const authorizationContext = await getAuthorizationContext(session);
+    if (authorizationContext?.isSuperAdmin) return null;
 
     // CAPABILITY — the resolver decides (eligibility, default/individual
     // access, restrictions). Never bypassed by an assignment.
@@ -158,8 +158,8 @@ export async function requireScopedAccess({ resource, contextId, module, capabil
       );
     }
     return null;
-  } catch (e) {
-    console.error("[requireScopedAccess] error:", e?.message);
+  } catch (error) {
+    console.error("[requireScopedAccess] error:", error?.message);
     return NextResponse.json(
       { success: false, error: "errors.authzSystemFailure" },
       { status: 500 },

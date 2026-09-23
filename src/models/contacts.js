@@ -42,7 +42,7 @@ export async function markContactInvited(cid) {
 // ── POST /api/contacts ───────────────────────────────────────────────────────
 
 /** Insert a contact, or resurrect/refresh it when the email already exists. */
-export async function upsertContact(vc) {
+export async function upsertContact(contact) {
   return db.execute({
     sql: `INSERT INTO contacts (
                   cid, name, email, phone, address, dob, group_name,
@@ -61,22 +61,22 @@ export async function upsertContact(vc) {
                   archived_at = NULL,
                   archived_by = NULL`,
     args: [
-      vc.cid,
-      vc.name,
-      vc.email,
-      vc.phone,
-      vc.address,
-      vc.dob,
-      vc.group_name,
-      vc.role,
-      vc.password,
-      vc.program_id,
-      vc.program_name,
-      vc.image,
-      vc.status,
-      vc.deleted,
-      vc.gender,
-      vc.mother_name,
+      contact.cid,
+      contact.name,
+      contact.email,
+      contact.phone,
+      contact.address,
+      contact.dob,
+      contact.group_name,
+      contact.role,
+      contact.password,
+      contact.program_id,
+      contact.program_name,
+      contact.image,
+      contact.status,
+      contact.deleted,
+      contact.gender,
+      contact.mother_name,
     ],
   });
 }
@@ -278,18 +278,18 @@ export async function getContactsForStaff(role, groupFilter) {
 
 /** Distinct program-enrolled participant cids from a cid pool. */
 export async function getParticipantProgramCids(cids) {
-  const ph = cids.map(() => "?").join(",");
+  const placeholders = cids.map(() => "?").join(",");
   return db.execute({
-    sql: `SELECT DISTINCT participant_id FROM participant_programs WHERE participant_id IN (${ph})`,
+    sql: `SELECT DISTINCT participant_id FROM participant_programs WHERE participant_id IN (${placeholders})`,
     args: cids,
   });
 }
 
 /** Distinct cids holding a current role assignment, from a cid pool. */
 export async function getContactRoleAssignmentCids(cids) {
-  const ph = cids.map(() => "?").join(",");
+  const placeholders = cids.map(() => "?").join(",");
   return db.execute({
-    sql: `SELECT DISTINCT contact_cid FROM contact_roles WHERE contact_cid IN (${ph}) AND is_current = true`,
+    sql: `SELECT DISTINCT contact_cid FROM contact_roles WHERE contact_cid IN (${placeholders}) AND is_current = true`,
     args: cids,
   });
 }
@@ -608,8 +608,8 @@ export async function getContactTimelineEvents(
 
   if (pmProgramIds) {
     if (pmProgramIds.length > 0) {
-      const ph = pmProgramIds.map(() => "?").join(",");
-      sql += ` AND (context_module != 'programs' OR context_id IN (${ph}))`;
+      const placeholders = pmProgramIds.map(() => "?").join(",");
+      sql += ` AND (context_module != 'programs' OR context_id IN (${placeholders}))`;
       args.push(...pmProgramIds);
     } else {
       sql += " AND context_module != 'programs'";

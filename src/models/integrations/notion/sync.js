@@ -31,8 +31,8 @@ import {
  *   - Submitted (date) → submitted_at date
  */
 function submissionToProperties(submission, run, form) {
-  const subData = submission.data || {};
-  const scores = subData._scores;
+  const data = submission.data || {};
+  const scores = data._scores;
 
   const props = {
     Title: {
@@ -81,13 +81,13 @@ export async function syncSubmission(submissionId) {
     return { skipped: true, reason: "NOTION_TASKS_DATABASE_ID not set" };
   }
 
-  const sub = await db.execute({
+  const submissionResult = await db.execute({
     sql: "SELECT * FROM platform_form_submissions WHERE id = ?",
     args: [submissionId],
   });
-  if (sub.rows.length === 0) return { skipped: true, reason: "Submission not found" };
+  if (submissionResult.rows.length === 0) return { skipped: true, reason: "Submission not found" };
 
-  const submission = sub.rows[0];
+  const submission = submissionResult.rows[0];
 
   // Get run and form context
   const runRes = await db.execute({
@@ -134,7 +134,7 @@ export async function syncSubmission(submissionId) {
 export async function syncAllSubmissions() {
   if (!isConfigured()) return { skipped: true };
 
-  const subs = await db.execute({
+  const submissionsResult = await db.execute({
     sql: `SELECT id FROM platform_form_submissions
           WHERE notion_page_id IS NULL
             AND status = 'submitted'
@@ -143,9 +143,9 @@ export async function syncAllSubmissions() {
   });
 
   const results = [];
-  for (const sub of subs.rows) {
-    const result = await syncSubmission(sub.id);
-    results.push({ submissionId: sub.id, ...result });
+  for (const submission of submissionsResult.rows) {
+    const result = await syncSubmission(submission.id);
+    results.push({ submissionId: submission.id, ...result });
   }
 
   return { synced: results.length, results };

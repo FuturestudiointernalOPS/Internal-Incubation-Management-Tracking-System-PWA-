@@ -84,8 +84,8 @@ export function ensureMembershipSchema() {
       await db.execute(`CREATE INDEX IF NOT EXISTS idx_membership_events_lookup
         ON group_membership_events(user_cid, group_name)`);
       return true;
-    })().catch((e) => {
-      console.warn("[Membership] ensureMembershipSchema failed:", e.message);
+    })().catch((error) => {
+      console.warn("[Membership] ensureMembershipSchema failed:", error.message);
       membershipSchemaPromise = null; // allow retry
       return false;
     });
@@ -127,19 +127,19 @@ export function selectEffectiveGroups(membershipRows = [], legacyRows = [], now 
   // Any group with a membership record is governed by that record — a stale
   // legacy edge must never resurrect an expired/ended membership.
   const hasMembershipRecord = new Set(
-    (membershipRows || []).map((r) => r.group_name),
+    (membershipRows || []).map((row) => row.group_name),
   );
-  for (const r of membershipRows || []) {
-    if (isEffectiveMembership(r.status, r.expires_at, now) && !seen.has(r.group_name)) {
-      seen.add(r.group_name);
-      effective.push(r.group_name);
+  for (const row of membershipRows || []) {
+    if (isEffectiveMembership(row.status, row.expires_at, now) && !seen.has(row.group_name)) {
+      seen.add(row.group_name);
+      effective.push(row.group_name);
     }
   }
-  for (const r of legacyRows || []) {
-    if (hasMembershipRecord.has(r.group_name)) continue;
-    if (!seen.has(r.group_name)) {
-      seen.add(r.group_name);
-      effective.push(r.group_name);
+  for (const row of legacyRows || []) {
+    if (hasMembershipRecord.has(row.group_name)) continue;
+    if (!seen.has(row.group_name)) {
+      seen.add(row.group_name);
+      effective.push(row.group_name);
     }
   }
   return effective;
@@ -152,28 +152,28 @@ export function selectEffectiveGroups(membershipRows = [], legacyRows = [], now 
  *
  * @param {{user_cid, group_name, started_at, expires_at, status}} current
  * @param {string} action  one of MEMBERSHIP_ACTIONS
- * @param {{actor?: string, note?: string, expires_at?: string|null}} opts
- *   opts.expires_at applies to joined/activated/renewed (null = no expiry).
+ * @param {{actor?: string, note?: string, expires_at?: string|null}} options
+ *   options.expires_at applies to joined/activated/renewed (null = no expiry).
  * @param {Date} [now]
  * @returns {{row: {status, started_at, expires_at}, event: {action, actor_cid, note}}}
  */
-export function applyMembershipAction(current, action, opts = {}, now = new Date()) {
-  const a = String(action || "").toLowerCase();
-  if (!MEMBERSHIP_ACTIONS.includes(a)) {
+export function applyMembershipAction(current, action, options = {}, now = new Date()) {
+  const normalizedAction = String(action || "").toLowerCase();
+  if (!MEMBERSHIP_ACTIONS.includes(normalizedAction)) {
     throw new Error(`Unknown membership action: ${action}`);
   }
   const event = {
-    action: a,
-    actor_cid: opts.actor || null,
-    note: opts.note || null,
+    action: normalizedAction,
+    actor_cid: options.actor || null,
+    note: options.note || null,
   };
-  switch (a) {
+  switch (normalizedAction) {
     case "joined":
       return {
         row: {
           status: "active",
           started_at: current.started_at || now,
-          expires_at: opts.expires_at !== undefined ? opts.expires_at : current.expires_at ?? null,
+          expires_at: options.expires_at !== undefined ? options.expires_at : current.expires_at ?? null,
         },
         event,
       };
@@ -182,7 +182,7 @@ export function applyMembershipAction(current, action, opts = {}, now = new Date
         row: {
           status: "active",
           started_at: current.started_at || now,
-          expires_at: opts.expires_at !== undefined ? opts.expires_at : current.expires_at ?? null,
+          expires_at: options.expires_at !== undefined ? options.expires_at : current.expires_at ?? null,
         },
         event,
       };
@@ -192,7 +192,7 @@ export function applyMembershipAction(current, action, opts = {}, now = new Date
           status: "active",
           started_at: current.started_at || now,
           // Renewal keeps the original start and sets a new expiry (null = no expiry).
-          expires_at: opts.expires_at !== undefined ? opts.expires_at : null,
+          expires_at: options.expires_at !== undefined ? options.expires_at : null,
         },
         event,
       };
@@ -211,32 +211,32 @@ export function applyMembershipAction(current, action, opts = {}, now = new Date
 
 /** True when the user has any participant_programs row (transitional legacy-role derivation, I2). */
 export async function hasActiveParticipantProgram(cid) {
-  const r = await db.execute({
+  const result = await db.execute({
     sql: "SELECT 1 FROM participant_programs WHERE participant_id = ? LIMIT 1",
     args: [cid],
   });
-  return r.rows.length > 0;
+  return result.rows.length > 0;
 }
 
 /** True when the user is an active venture owner/founder (transitional derivation, I2). */
 export async function isActiveVentureOwner(cid) {
-  const r = await db.execute({
+  const result = await db.execute({
     sql: `SELECT 1 FROM venture_members
           WHERE (user_cid = ? OR contact_id = ?) AND is_owner = TRUE AND removed_at IS NULL LIMIT 1`,
     args: [cid, cid],
   });
-  return r.rows.length > 0;
+  return result.rows.length > 0;
 }
 
 /** Is this group protected (only Super Admin / org_membership.manage)? */
 export async function isGroupProtected(groupName) {
   await ensureMembershipSchema();
   const name = normalizeGroupName(groupName);
-  const r = await db.execute({
+  const result = await db.execute({
     sql: "SELECT is_protected FROM groups WHERE name = ?",
     args: [name],
   });
-  return r.rows.length > 0 && Number(r.rows[0].is_protected) === 1;
+  return result.rows.length > 0 && Number(result.rows[0].is_protected) === 1;
 }
 
 /**
@@ -253,7 +253,7 @@ export async function isGroupProtected(groupName) {
  */
 export async function getEffectiveGroupsAndHistory(cid) {
   await ensureMembershipSchema();
-  const r = await db.execute({
+  const result = await db.execute({
     sql: `SELECT gm.group_name AS group_name, 'membership' AS source,
                  gm.status AS status, gm.started_at AS started_at, gm.expires_at AS expires_at
           FROM group_memberships gm
@@ -267,15 +267,15 @@ export async function getEffectiveGroupsAndHistory(cid) {
     args: [cid, cid],
   });
 
-  const membershipRows = r.rows.filter((x) => x.source === "membership");
-  const legacyRows = r.rows.filter((x) => x.source === "legacy");
+  const membershipRows = result.rows.filter((row) => row.source === "membership");
+  const legacyRows = result.rows.filter((row) => row.source === "legacy");
 
   // The ended memberships, newest first. Two details are carried over from the
   // query this replaces rather than re-decided here: a NULL status was EXCLUDED
   // by `status != 'active'` in SQL, so it is excluded here too; and Postgres puts
   // NULLs FIRST on a descending order, so an absent start date sorts to the top
   // rather than the bottom.
-  const startedAt = (v) => (v == null ? Infinity : new Date(v).getTime());
+  const startedAt = (value) => (value == null ? Infinity : new Date(value).getTime());
   const history = membershipRows
     .filter((row) => row.status != null && row.status !== "active")
     .map((row) => ({
@@ -284,7 +284,7 @@ export async function getEffectiveGroupsAndHistory(cid) {
       started_at: row.started_at,
       expires_at: row.expires_at,
     }))
-    .sort((a, b) => startedAt(b.started_at) - startedAt(a.started_at));
+    .sort((first, second) => startedAt(second.started_at) - startedAt(first.started_at));
 
   return {
     groups: selectEffectiveGroups(membershipRows, legacyRows),
@@ -304,12 +304,12 @@ export async function getEffectiveGroupsForUser(cid) {
 /** Current membership row for a user+group (or null). */
 export async function getMembership(userCid, groupName) {
   await ensureMembershipSchema();
-  const r = await db.execute({
+  const result = await db.execute({
     sql: `SELECT user_cid, group_name, started_at, expires_at, status
           FROM group_memberships WHERE user_cid = ? AND group_name = ?`,
     args: [userCid, normalizeGroupName(groupName)],
   });
-  return r.rows[0] || null;
+  return result.rows[0] || null;
 }
 
 // ─── One-time bootstrap (idempotent; wired into backfill.js) ─────────────────
@@ -325,7 +325,7 @@ export async function ensureMembershipBootstrap() {
   await ensureMembershipSchema();
 
   // 1. Distinct group names from user_groups + contacts.group_name.
-  const [ug, cc] = await Promise.all([
+  const [userGroupsResult, contactsResult] = await Promise.all([
     db.execute({
       sql: "SELECT DISTINCT group_name FROM user_groups WHERE group_name IS NOT NULL AND group_name != ''",
       args: [],
@@ -338,14 +338,14 @@ export async function ensureMembershipBootstrap() {
     }),
   ]);
   const groupNames = [
-    ...new Set([...ug.rows, ...cc.rows].map((r) => r.group_name)),
+    ...new Set([...userGroupsResult.rows, ...contactsResult.rows].map((row) => row.group_name)),
   ];
 
   // 2. groups metadata (INSERT-only; never overwrites admin metadata).
   //    Names are normalized to UPPERCASE so one group can never exist as
   //    multiple case variants in the metadata table.
-  for (const raw of groupNames) {
-    const name = normalizeGroupName(raw);
+  for (const rawGroupName of groupNames) {
+    const name = normalizeGroupName(rawGroupName);
     await db.execute({
       sql: `INSERT INTO groups (name, description, is_protected, is_active)
             VALUES (?, '', CASE WHEN UPPER(?) = ? THEN 1 ELSE 0 END, 1)
@@ -361,7 +361,7 @@ export async function ensureMembershipBootstrap() {
   });
 
   // 3. Active memberships for every existing edge (user_groups + contacts).
-  const [ugEdges, ccEdges] = await Promise.all([
+  const [userGroupEdges, contactEdges] = await Promise.all([
     db.execute({
       sql: "SELECT user_cid, group_name FROM user_groups WHERE group_name IS NOT NULL AND group_name != ''",
       args: [],
@@ -374,11 +374,11 @@ export async function ensureMembershipBootstrap() {
     }),
   ]);
   const seen = new Set();
-  for (const edge of [...ugEdges.rows, ...ccEdges.rows]) {
+  for (const edge of [...userGroupEdges.rows, ...contactEdges.rows]) {
     const key = `${edge.user_cid}|${normalizeGroupName(edge.group_name)}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    const ins = await db.execute({
+    const insertResult = await db.execute({
       sql: `INSERT INTO group_memberships
               (user_cid, group_name, started_at, expires_at, status, created_by)
             VALUES (?, ?, NOW(), NULL, 'active', 'system')
@@ -396,7 +396,7 @@ export async function ensureMembershipBootstrap() {
       args: [edge.user_cid, normalizeGroupName(edge.group_name)],
     });
     // Event only when the membership was actually inserted (idempotent retry).
-    if (ins.rowsAffected > 0) {
+    if (insertResult.rowsAffected > 0) {
       await db.execute({
         sql: `INSERT INTO group_membership_events
                 (user_cid, group_name, action, actor_cid, note)

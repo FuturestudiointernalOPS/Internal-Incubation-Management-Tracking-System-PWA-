@@ -30,7 +30,7 @@ export function isContactActivated(contact) {
 export function deriveInvitationStatus(contact, tokens = []) {
   if (isContactActivated(contact)) return "activated";
   if (!tokens || tokens.length === 0) return "not_invited";
-  return tokens.some((t) => !isInvitationExpired(t.expires_at))
+  return tokens.some((token) => !isInvitationExpired(token.expires_at))
     ? "sent"
     : "expired";
 }
@@ -42,20 +42,20 @@ export function deriveInvitationStatus(contact, tokens = []) {
 export async function attachInvitationStatus(contacts) {
   if (!contacts || contacts.length === 0) return contacts;
 
-  const cids = [...new Set(contacts.map((c) => c.cid).filter(Boolean))];
+  const cids = [...new Set(contacts.map((contact) => contact.cid).filter(Boolean))];
   if (cids.length === 0) return contacts;
 
   const placeholders = cids.map(() => "?").join(",");
   let rows = [];
   try {
-    const res = await db.execute({
+    const result = await db.execute({
       sql: `SELECT contact_cid, used, expires_at, created_at
             FROM password_setup_tokens
             WHERE used = 0 AND contact_cid IN (${placeholders})
             ORDER BY created_at DESC`,
       args: cids,
     });
-    rows = res.rows || [];
+    rows = result.rows || [];
   } catch (_) {
     rows = [];
   }
@@ -66,12 +66,12 @@ export async function attachInvitationStatus(contacts) {
     byCid[row.contact_cid].push(row);
   }
 
-  return contacts.map((c) => {
-    const tokens = byCid[c.cid] || [];
+  return contacts.map((contact) => {
+    const tokens = byCid[contact.cid] || [];
     const latest = tokens[0];
     return {
-      ...c,
-      invitation_status: deriveInvitationStatus(c, tokens),
+      ...contact,
+      invitation_status: deriveInvitationStatus(contact, tokens),
       invitation_expires_at: latest?.expires_at || null,
     };
   });

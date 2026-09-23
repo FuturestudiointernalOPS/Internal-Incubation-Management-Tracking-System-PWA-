@@ -131,11 +131,11 @@ export async function getProgramFullStateData(id) {
   ];
 
   return Promise.all(
-    queries.map(async (q) => {
+    queries.map(async (query) => {
       try {
-        return await db.execute({ sql: q.sql, args: q.args });
-      } catch (e) {
-        console.error(` forensic | Query [${q.name}] failed:`, e.message);
+        return await db.execute({ sql: query.sql, args: query.args });
+      } catch (error) {
+        console.error(` forensic | Query [${query.name}] failed:`, error.message);
         return { rows: [] };
       }
     }),

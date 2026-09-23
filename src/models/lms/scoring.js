@@ -42,20 +42,20 @@ export const DEFAULT_PASS_MARK = 70;
  * }}
  */
 export function analyzePassMark(passMark, questions = []) {
-  const qs = Array.isArray(questions) ? questions : [];
+  const questionList = Array.isArray(questions) ? questions : [];
   const usesDefault = passMark == null || passMark === "";
   const threshold = usesDefault ? DEFAULT_PASS_MARK : Number(passMark);
-  const count = qs.length;
-  const totalPoints = qs.reduce(
-    (sum, q) => sum + Math.max(1, Math.floor(Number(q?.points) || 1)),
+  const count = questionList.length;
+  const totalPoints = questionList.reduce(
+    (sum, question) => sum + Math.max(1, Math.floor(Number(question?.points) || 1)),
     0,
   );
 
   let minCorrect = null;
   if (count > 0 && Number.isFinite(threshold)) {
-    for (let k = 0; k <= count; k++) {
-      if (Math.round((k / count) * 100) >= threshold) {
-        minCorrect = k;
+    for (let correctCount = 0; correctCount <= count; correctCount++) {
+      if (Math.round((correctCount / count) * 100) >= threshold) {
+        minCorrect = correctCount;
         break;
       }
     }
@@ -86,18 +86,18 @@ export function scoreAssessment(questions, submittedAnswers) {
     return { valid: false, error: "lms.errors.invalidSubmission" };
   }
 
-  const questionById = new Map(questions.map((q) => [String(q.id), q]));
+  const questionById = new Map(questions.map((question) => [String(question.id), question]));
 
   // Every question must be answered exactly once.
   const seen = new Set();
-  for (const item of submittedAnswers) {
-    if (!item || !item.questionId) return { valid: false, error: "lms.errors.invalidSubmission" };
-    const key = String(item.questionId);
+  for (const submittedAnswer of submittedAnswers) {
+    if (!submittedAnswer || !submittedAnswer.questionId) return { valid: false, error: "lms.errors.invalidSubmission" };
+    const key = String(submittedAnswer.questionId);
     if (seen.has(key)) return { valid: false, error: "lms.errors.invalidSubmission" };
     seen.add(key);
     const question = questionById.get(key);
     if (!question) return { valid: false, error: "lms.errors.invalidSubmission" };
-    if (!isValidAnswer(question, item.answer)) {
+    if (!isValidAnswer(question, submittedAnswer.answer)) {
       return { valid: false, error: "lms.errors.invalidSubmission" };
     }
   }
@@ -106,10 +106,10 @@ export function scoreAssessment(questions, submittedAnswers) {
   }
 
   let correctCount = 0;
-  for (const item of submittedAnswers) {
-    const question = questionById.get(String(item.questionId));
+  for (const submittedAnswer of submittedAnswers) {
+    const question = questionById.get(String(submittedAnswer.questionId));
     const correct = Array.isArray(question.correct_answer) ? question.correct_answer : [];
-    if (String(item.answer) === String(correct[0])) correctCount += 1;
+    if (String(submittedAnswer.answer) === String(correct[0])) correctCount += 1;
   }
 
   const total = questions.length;
@@ -124,5 +124,5 @@ function isValidAnswer(question, answer) {
   }
   // multiple_choice: the answer must be one of the author-configured option keys.
   const options = Array.isArray(question.options) ? question.options : [];
-  return options.some((o) => String(o.key) === String(answer));
+  return options.some((option) => String(option.key) === String(answer));
 }

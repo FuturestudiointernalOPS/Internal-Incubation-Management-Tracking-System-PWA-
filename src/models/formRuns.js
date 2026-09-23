@@ -404,14 +404,14 @@ export async function listFormRunsPage({ groupId, programId, formId, status, per
     status,
   });
 
-  const res = await db.execute({
+  const result = await db.execute({
     sql: `SELECT r.*, f.name as form_name, ga.target_id as group_target_id, COUNT(*) OVER () AS total_count ${RUN_LIST_FROM}${whereClause} ORDER BY r.updated_at DESC LIMIT ? OFFSET ?`,
     args: [...args, perPage, offset],
   });
 
-  const rows = (res.rows || []).map(({ total_count: _totalCount, ...row }) => row);
-  if ((res.rows || []).length > 0) {
-    return { rows, total: parseInt(res.rows[0].total_count) || 0 };
+  const rows = (result.rows || []).map(({ total_count: _totalCount, ...row }) => row);
+  if ((result.rows || []).length > 0) {
+    return { rows, total: parseInt(result.rows[0].total_count) || 0 };
   }
   if (offset === 0) return { rows, total: 0 };
 
@@ -909,8 +909,8 @@ export async function updateFormRunMetadataById({ id, name, description, status,
   const fields = [];
   const args = [];
   const updatable = { name, description, status, opens_at, closes_at };
-  for (const [k, v] of Object.entries(updatable)) {
-    if (v !== undefined) { fields.push(`${k} = ?`); args.push(v); }
+  for (const [columnName, columnValue] of Object.entries(updatable)) {
+    if (columnValue !== undefined) { fields.push(`${columnName} = ?`); args.push(columnValue); }
   }
   if (settings !== undefined) { fields.push("settings = ?"); args.push(JSON.stringify(settings)); }
   fields.push("updated_at = NOW()");

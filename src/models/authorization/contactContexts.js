@@ -30,37 +30,37 @@ import { resolveScopeIds, SCOPE_POLICIES } from "./scope";
 /** A pathological membership list must not blow up the payload or the query. */
 const MAX_IDS = 60;
 
-const ph = (n) => new Array(n).fill("?").join(",");
+const placeholders = (count) => new Array(count).fill("?").join(",");
 
 async function ventureLabels(ids) {
-  const r = await db.execute({
+  const result = await db.execute({
     sql: `SELECT CAST(venture_id AS TEXT) AS id,
                  COALESCE(NULLIF(name, ''), company_name, CAST(venture_id AS TEXT)) AS label
           FROM ventures
-          WHERE CAST(venture_id AS TEXT) IN (${ph(ids.length)})`,
+          WHERE CAST(venture_id AS TEXT) IN (${placeholders(ids.length)})`,
     args: ids,
   });
-  return Object.fromEntries(r.rows.map((row) => [String(row.id), row.label]));
+  return Object.fromEntries(result.rows.map((row) => [String(row.id), row.label]));
 }
 
 async function programLabels(ids) {
-  const r = await db.execute({
+  const result = await db.execute({
     sql: `SELECT CAST(id AS TEXT) AS id, name AS label
           FROM v2_programs
-          WHERE CAST(id AS TEXT) IN (${ph(ids.length)})`,
+          WHERE CAST(id AS TEXT) IN (${placeholders(ids.length)})`,
     args: ids,
   });
-  return Object.fromEntries(r.rows.map((row) => [String(row.id), row.label]));
+  return Object.fromEntries(result.rows.map((row) => [String(row.id), row.label]));
 }
 
 async function courseLabels(ids) {
-  const r = await db.execute({
+  const result = await db.execute({
     sql: `SELECT CAST(id AS TEXT) AS id, title AS label
           FROM lms_courses
-          WHERE CAST(id AS TEXT) IN (${ph(ids.length)})`,
+          WHERE CAST(id AS TEXT) IN (${placeholders(ids.length)})`,
     args: ids,
   });
-  return Object.fromEntries(r.rows.map((row) => [String(row.id), row.label]));
+  return Object.fromEntries(result.rows.map((row) => [String(row.id), row.label]));
 }
 
 /**
@@ -70,14 +70,14 @@ async function courseLabels(ids) {
  */
 async function ventureRoles(cid, ids) {
   const roles = {};
-  const m = await db.execute({
+  const membershipResult = await db.execute({
     sql: `SELECT CAST(venture_id AS TEXT) AS id, member_type, is_owner
           FROM venture_members
           WHERE (user_cid = ? OR contact_id = ?) AND removed_at IS NULL
-            AND CAST(venture_id AS TEXT) IN (${ph(ids.length)})`,
+            AND CAST(venture_id AS TEXT) IN (${placeholders(ids.length)})`,
     args: [cid, cid, ...ids],
   });
-  for (const row of m.rows) {
+  for (const row of membershipResult.rows) {
     const key = String(row.id);
     const owner = row.is_owner === true || Number(row.is_owner) === 1;
     roles[key] = owner ? "founder" : row.member_type || "team_member";
@@ -85,14 +85,14 @@ async function ventureRoles(cid, ids) {
   // venture_staff_assignments stores the delegated responsibility in
   // `responsibility_code` (there is no `role` column — it was renamed when the
   // responsibility+scope model landed). Every other reader uses that column.
-  const s = await db.execute({
+  const staffResult = await db.execute({
     sql: `SELECT CAST(venture_id AS TEXT) AS id, responsibility_code
           FROM venture_staff_assignments
           WHERE staff_contact_id = ? AND status = 'active'
-            AND CAST(venture_id AS TEXT) IN (${ph(ids.length)})`,
+            AND CAST(venture_id AS TEXT) IN (${placeholders(ids.length)})`,
     args: [cid, ...ids],
   });
-  for (const row of s.rows) {
+  for (const row of staffResult.rows) {
     const key = String(row.id);
     if (!roles[key]) roles[key] = row.responsibility_code || "venture_staff";
   }
@@ -102,21 +102,21 @@ async function ventureRoles(cid, ids) {
 /** Participant (enrolled) or the program-staff role (assigned; email-tolerant). */
 async function programRoles(cid, email, ids) {
   const roles = {};
-  const p = await db.execute({
+  const participantResult = await db.execute({
     sql: `SELECT CAST(program_id AS TEXT) AS id
           FROM participant_programs
-          WHERE participant_id = ? AND CAST(program_id AS TEXT) IN (${ph(ids.length)})`,
+          WHERE participant_id = ? AND CAST(program_id AS TEXT) IN (${placeholders(ids.length)})`,
     args: [cid, ...ids],
   });
-  for (const row of p.rows) roles[String(row.id)] = "participant";
-  const s = await db.execute({
+  for (const row of participantResult.rows) roles[String(row.id)] = "participant";
+  const programStaffResult = await db.execute({
     sql: `SELECT CAST(program_id AS TEXT) AS id, role
           FROM v2_program_staff
           WHERE (staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(?))
-            AND CAST(program_id AS TEXT) IN (${ph(ids.length)})`,
+            AND CAST(program_id AS TEXT) IN (${placeholders(ids.length)})`,
     args: [cid, email || cid, ...ids],
   });
-  for (const row of s.rows) roles[String(row.id)] = row.role || "program_staff";
+  for (const row of programStaffResult.rows) roles[String(row.id)] = row.role || "program_staff";
   return roles;
 }
 

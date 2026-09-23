@@ -19,34 +19,34 @@ export async function getLearnerJourney(cid) {
   const certificates = await getCertificatesForLearner(cid);
 
   return {
-    courses: courses.map((c) => ({
+    courses: courses.map((courseEntry) => ({
       course: {
-        id: c.course.id,
-        title: c.course.title,
-        thumbnail_url: c.course.thumbnail_url,
-        status: c.course.status,
+        id: courseEntry.course.id,
+        title: courseEntry.course.title,
+        thumbnail_url: courseEntry.course.thumbnail_url,
+        status: courseEntry.course.status,
       },
-      enrollment: c.enrollment
+      enrollment: courseEntry.enrollment
         ? {
-            source: c.enrollment.source,
-            status: c.enrollment.status,
-            enrolled_at: c.enrollment.enrolled_at,
-            completed_at: c.enrollment.completed_at,
+            source: courseEntry.enrollment.source,
+            status: courseEntry.enrollment.status,
+            enrolled_at: courseEntry.enrollment.enrolled_at,
+            completed_at: courseEntry.enrollment.completed_at,
           }
         : null,
-      progress: c.progress
+      progress: courseEntry.progress
         ? {
-            percent: c.progress.percent,
-            status: c.progress.status,
-            completedLessons: c.progress.completedLessons,
-            totalLessons: c.progress.totalLessons,
+            percent: courseEntry.progress.percent,
+            status: courseEntry.progress.status,
+            completedLessons: courseEntry.progress.completedLessons,
+            totalLessons: courseEntry.progress.totalLessons,
           }
         : null,
-      certificate: c.certificate
+      certificate: courseEntry.certificate
         ? {
-            certificate_number: c.certificate.certificate_number,
-            status: c.certificate.status,
-            issued_at: c.certificate.issued_at,
+            certificate_number: courseEntry.certificate.certificate_number,
+            status: courseEntry.certificate.status,
+            issued_at: courseEntry.certificate.issued_at,
           }
         : null,
     })),

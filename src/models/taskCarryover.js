@@ -48,10 +48,10 @@ export async function completeCarryoverAncestors(taskId) {
       if (nextRes.rows.length === 0) break;
       ancestorId = nextRes.rows[0].carried_over_from_task_id;
     }
-  } catch (e) {
+  } catch (error) {
     console.error(
       "[taskCarryover] completeCarryoverAncestors failed (non-fatal):",
-      e.message,
+      error.message,
     );
   }
 

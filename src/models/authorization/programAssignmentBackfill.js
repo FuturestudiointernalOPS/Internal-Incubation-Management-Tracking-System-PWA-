@@ -125,8 +125,8 @@ async function ensureProfile(template) {
   const profileId = res.rows?.[0]?.id ?? null;
   if (!profileId) return null;
 
-  for (const [module, caps] of Object.entries(template.capabilities)) {
-    for (const [capability, level] of Object.entries(caps)) {
+  for (const [module, capabilities] of Object.entries(template.capabilities)) {
+    for (const [capability, level] of Object.entries(capabilities)) {
       await db.execute({
         sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
               VALUES (?, ?, ?, ?)
@@ -212,13 +212,13 @@ export async function backfillFacilitatorTickLists() {
   const rows = rowRes.rows || [];
   if (rows.length === 0) return { success: true, updated: 0, scanned: 0 };
 
-  const programIds = [...new Set(rows.map((r) => String(r.program_id)))].filter(
+  const programIds = [...new Set(rows.map((row) => String(row.program_id)))].filter(
     Boolean,
   );
   const profileIds = [
     ...new Set(
       rows
-        .map((r) => r.access_profile_id)
+        .map((row) => row.access_profile_id)
         .filter((id) => id !== null && id !== undefined && id !== ""),
     ),
   ];
@@ -248,16 +248,16 @@ export async function backfillFacilitatorTickLists() {
   }
   const profileCapsById = {};
   for (const row of profileRes.rows || []) {
-    const id = String(row.profile_id);
-    profileCapsById[id] ??= [];
-    profileCapsById[id].push(row);
+    const profileId = String(row.profile_id);
+    profileCapsById[profileId] ??= [];
+    profileCapsById[profileId].push(row);
   }
 
   let updated = 0;
   for (const row of rows) {
     const current = parsePermissions(row.permissions);
     const missing = FACILITATOR_CAPABILITY_KEYS.filter(
-      (cap) => typeof current[cap] !== "number",
+      (capability) => typeof current[capability] !== "number",
     );
     if (missing.length === 0) continue;
 

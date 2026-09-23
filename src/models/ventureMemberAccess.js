@@ -22,8 +22,8 @@ export async function resolveVentureCode(db, idOrCode) {
   if (!idOrCode) return idOrCode;
   if (typeof idOrCode === "string" && idOrCode.includes("-") && !idOrCode.startsWith("VNT-")) {
     try {
-      const r = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [idOrCode] });
-      return r.rows?.[0]?.venture_id || idOrCode;
+      const result = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [idOrCode] });
+      return result.rows?.[0]?.venture_id || idOrCode;
     } catch {
       return idOrCode;
     }
@@ -33,29 +33,29 @@ export async function resolveVentureCode(db, idOrCode) {
 
 export async function getVentureFounderCount(db, ventureId) {
   const code = await resolveVentureCode(db, ventureId);
-  const r = await db.execute({
+  const result = await db.execute({
     sql: "SELECT COUNT(*) as cnt FROM venture_members WHERE venture_id = ? AND member_type = 'founder' AND removed_at IS NULL",
     args: [code],
   });
-  return parseInt(r.rows?.[0]?.cnt || 0);
+  return parseInt(result.rows?.[0]?.cnt || 0);
 }
 
 export async function isVentureMember(db, ventureId, cid) {
   const code = await resolveVentureCode(db, ventureId);
-  const r = await db.execute({
+  const result = await db.execute({
     sql: "SELECT id FROM venture_members WHERE venture_id = ? AND contact_id = ? AND removed_at IS NULL LIMIT 1",
     args: [code, cid],
   });
-  return r.rows?.length > 0;
+  return result.rows?.length > 0;
 }
 
 export async function isVentureFounder(db, ventureId, cid) {
   const code = await resolveVentureCode(db, ventureId);
-  const r = await db.execute({
+  const result = await db.execute({
     sql: "SELECT id FROM venture_members WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL LIMIT 1",
     args: [code, cid],
   });
-  return r.rows?.length > 0;
+  return result.rows?.length > 0;
 }
 
 export async function checkVentureMemberViewAccess(db, ventureId, userRole, userCid) {

@@ -132,10 +132,10 @@ export async function issueCertificate({ enrollment, course, learnerName }) {
         ],
       });
       return { certificate: parseCertificate(res.rows[0]), created: true };
-    } catch (e) {
+    } catch (error) {
       // Collision on certificate_number (concurrent issuance) — retry with a
       // fresh number. Any other error propagates.
-      if (!/unique/i.test(String(e.message))) throw e;
+      if (!/unique/i.test(String(error.message))) throw error;
     }
   }
   throw new LmsError("lms.errors.certificateIssueFailed", 500);

@@ -129,8 +129,8 @@ export function ensureContextRoleProfilesSchema() {
          ON context_role_profiles(context, role_key)`,
       );
       return true;
-    })().catch((e) => {
-      console.warn("[Authz] ensureContextRoleProfilesSchema failed:", e.message);
+    })().catch((error) => {
+      console.warn("[Authz] ensureContextRoleProfilesSchema failed:", error.message);
       contextRoleProfilesSchemaPromise = null; // allow retry on the next call
       return false;
     });
@@ -165,8 +165,8 @@ export async function seedContextRoleProfiles() {
       });
     }
     return { success: true };
-  } catch (e) {
-    return { success: false, error: e.message };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 }
 
@@ -290,10 +290,10 @@ export async function countContextRoleHolders(context, roleKey) {
   try {
     const res = await db.execute(sql);
     return Number(res.rows[0]?.c ?? 0);
-  } catch (e) {
+  } catch (error) {
     console.warn(
       `[Authz] countContextRoleHolders(${context}:${roleKey}) failed:`,
-      e.message,
+      error.message,
     );
     return null;
   }

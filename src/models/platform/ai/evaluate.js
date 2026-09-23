@@ -22,16 +22,16 @@ function formatSubmissionForAI(submission, fields) {
   // Build a map of field_id → label for lookup
   const fieldMap = {};
   if (Array.isArray(fields)) {
-    for (const f of fields) {
-      fieldMap[String(f.id)] = f.label;
-      fieldMap[f.label] = f.label;
+    for (const field of fields) {
+      fieldMap[String(field.id)] = field.label;
+      fieldMap[field.label] = field.label;
     }
   }
 
   for (const [key, value] of Object.entries(data)) {
     if (key.startsWith("_")) continue; // skip internal keys like _scores, _evaluation
     const displayValue = typeof value === "string" && value.startsWith("{") && value.includes('"code"')
-      ? (() => { try { const p = JSON.parse(value); return `${p.code} ${p.number}`; } catch { return String(value); } })()
+      ? (() => { try { const parsedValue = JSON.parse(value); return `${parsedValue.code} ${parsedValue.number}`; } catch { return String(value); } })()
       : String(value);
     // Use readable label if available, otherwise use raw key
     const label = fieldMap[key] || key;
@@ -59,11 +59,11 @@ async function getFramework(formId) {
  */
 function buildEvaluationPrompt(framework, formattedSubmission, formName) {
   const dimensionsJson = JSON.stringify(
-    (framework.dimensions || []).map((d) => ({
-      name: d.name,
-      criteria: d.criteria || [],
-      ai_prompt: d.ai_prompt || `Evaluate ${d.name}.`,
-      weight: d.weight || 0,
+    (framework.dimensions || []).map((dimension) => ({
+      name: dimension.name,
+      criteria: dimension.criteria || [],
+      ai_prompt: dimension.ai_prompt || `Evaluate ${dimension.name}.`,
+      weight: dimension.weight || 0,
     })),
     null,
     2
@@ -132,11 +132,11 @@ function parseEvaluationResponse(raw, framework) {
     }
 
     // Add final_score and human_score defaults to each dimension
-    const dimensions = (parsed.dimensions || []).map((d) => ({
-      ...d,
+    const dimensions = (parsed.dimensions || []).map((dimension) => ({
+      ...dimension,
       human_score: null,
       human_comment: null,
-      final_score: d.score, // default to AI score until human overrides
+      final_score: dimension.score, // default to AI score until human overrides
     }));
 
     return {
@@ -147,8 +147,8 @@ function parseEvaluationResponse(raw, framework) {
       ranking: ranking || "Unranked",
       recommendation: parsed.recommendation || "",
     };
-  } catch (e) {
-    console.error("[AI Evaluation] Parse error:", e.message);
+  } catch (error) {
+    console.error("[AI Evaluation] Parse error:", error.message);
     return null;
   }
 }
@@ -165,12 +165,12 @@ export async function evaluateSubmission(submissionId) {
     await initDb();
 
     // Fetch submission
-    const sub = await db.execute({
+    const submissionResult = await db.execute({
       sql: "SELECT * FROM platform_form_submissions WHERE id = ?",
       args: [submissionId],
     });
-    if (sub.rows.length === 0) return null;
-    const submission = sub.rows[0];
+    if (submissionResult.rows.length === 0) return null;
+    const submission = submissionResult.rows[0];
 
     // Fetch run
     const run = await db.execute({
@@ -220,7 +220,7 @@ export async function evaluateSubmission(submissionId) {
 
     // Store evaluation in SEPARATE table (not in submission data)
     const avgConfidence = evaluation.dimensions.length > 0
-      ? evaluation.dimensions.reduce((s, d) => s + (d.confidence || 0), 0) / evaluation.dimensions.length
+      ? evaluation.dimensions.reduce((sum, dimension) => sum + (dimension.confidence || 0), 0) / evaluation.dimensions.length
       : null;
 
     await db.execute({
@@ -258,8 +258,8 @@ export async function evaluateSubmission(submissionId) {
     } catch (_) {}
 
     return evaluation;
-  } catch (e) {
-    console.error("[AI Evaluation] Error:", e.message);
+  } catch (error) {
+    console.error("[AI Evaluation] Error:", error.message);
     return null;
   }
 }
@@ -317,11 +317,11 @@ export async function formHasAiEvaluation(formId) {
  */
 export async function submissionHasEvaluation(submissionId) {
   await initDb();
-  const r = await db.execute({
+  const result = await db.execute({
     sql: "SELECT 1 FROM platform_submission_evaluations WHERE submission_id = ? LIMIT 1",
     args: [parseInt(submissionId)],
   });
-  return r.rows.length > 0;
+  return result.rows.length > 0;
 }
 
 export default {

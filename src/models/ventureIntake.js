@@ -22,13 +22,13 @@ import db, { initDb } from "@/lib/db";
 export async function getActiveVentureForms() {
   await initDb();
   try {
-    const res = await db.execute({
+    const result = await db.execute({
       sql: `SELECT id, name, status, settings FROM platform_forms
             WHERE settings->>'venture_application' = 'true'
             ORDER BY id ASC`,
       args: [],
     });
-    return res.rows || [];
+    return result.rows || [];
   } catch (_) {
     return [];
   }
@@ -40,7 +40,7 @@ export async function getActiveVentureForms() {
  */
 export async function assertSingleVentureForm(excludeFormId = null) {
   const rows = await getActiveVentureForms();
-  const owner = rows.find((r) => String(r.id) !== String(excludeFormId));
+  const owner = rows.find((row) => String(row.id) !== String(excludeFormId));
   if (owner) {
     return { ok: false, owner: { id: owner.id, name: owner.name || `#${owner.id}` } };
   }
@@ -65,10 +65,10 @@ export async function ensureSingleVentureFormIndex() {
       args: [],
     });
     return true;
-  } catch (e) {
+  } catch (error) {
     console.warn(
       "[Venture Intake] Single-flag unique index NOT created. Multiple forms may currently hold the Venture flag — clear the extra flags, then re-run. Reason:",
-      e.message,
+      error.message,
     );
     return false;
   }

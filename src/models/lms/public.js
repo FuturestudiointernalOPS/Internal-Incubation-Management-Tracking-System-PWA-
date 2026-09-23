@@ -31,13 +31,13 @@ async function loadContentStats(courseIds) {
           WHERE course_id IN (${placeholders})`,
     args: courseIds,
   });
-  for (const r of sectionsRes.rows) {
-    const key = String(r.course_id);
-    const cur = stats.get(key) || { sections: 0, lessons: 0, duration_minutes: 0 };
-    cur.sections += 1;
-    stats.set(key, cur);
+  for (const sectionRow of sectionsRes.rows) {
+    const key = String(sectionRow.course_id);
+    const entry = stats.get(key) || { sections: 0, lessons: 0, duration_minutes: 0 };
+    entry.sections += 1;
+    stats.set(key, entry);
   }
-  const sectionIds = sectionsRes.rows.map((r) => String(r.id));
+  const sectionIds = sectionsRes.rows.map((row) => String(row.id));
   if (sectionIds.length === 0) return stats;
   const sectionPlaceholders = sectionIds.map(() => "?").join(",");
 
@@ -46,20 +46,20 @@ async function loadContentStats(courseIds) {
           WHERE section_id IN (${sectionPlaceholders})`,
     args: sectionIds,
   });
-  const sectionToCourse = new Map(sectionsRes.rows.map((r) => [String(r.id), String(r.course_id)]));
-  for (const r of lessonsRes.rows) {
-    const key = sectionToCourse.get(String(r.section_id));
+  const sectionToCourse = new Map(sectionsRes.rows.map((row) => [String(row.id), String(row.course_id)]));
+  for (const lessonRow of lessonsRes.rows) {
+    const key = sectionToCourse.get(String(lessonRow.section_id));
     if (!key) continue;
-    const cur = stats.get(key) || { sections: 0, lessons: 0, duration_minutes: 0 };
-    cur.lessons += 1;
-    cur.duration_minutes += Number(r.duration_minutes || 0);
-    stats.set(key, cur);
+    const entry = stats.get(key) || { sections: 0, lessons: 0, duration_minutes: 0 };
+    entry.lessons += 1;
+    entry.duration_minutes += Number(lessonRow.duration_minutes || 0);
+    stats.set(key, entry);
   }
   return stats;
 }
 
 function toPublicCourse(row, stats) {
-  const s = stats.get(String(row.id)) || { sections: 0, lessons: 0, duration_minutes: 0 };
+  const entry = stats.get(String(row.id)) || { sections: 0, lessons: 0, duration_minutes: 0 };
   return {
     slug: row.slug,
     title: row.title,
@@ -67,9 +67,9 @@ function toPublicCourse(row, stats) {
     thumbnail_url: row.thumbnail_url,
     is_free: row.is_free !== false,
     price: row.is_free === false ? Number(row.price || 0) : null,
-    sections: s.sections,
-    lessons: s.lessons,
-    duration_minutes: s.duration_minutes,
+    sections: entry.sections,
+    lessons: entry.lessons,
+    duration_minutes: entry.duration_minutes,
     updated_at: row.updated_at,
   };
 }
@@ -83,8 +83,8 @@ export async function listPublicCourses() {
   });
   const courses = res.rows;
   if (courses.length === 0) return [];
-  const stats = await loadContentStats(courses.map((c) => String(c.id)));
-  return courses.map((c) => toPublicCourse(c, stats));
+  const stats = await loadContentStats(courses.map((course) => String(course.id)));
+  return courses.map((course) => toPublicCourse(course, stats));
 }
 
 /** One public course by slug (404 unless published + public). Returns the
@@ -118,7 +118,7 @@ export async function getPublicCourseStructure(courseId) {
     args: [courseId],
   });
   const sections = sectionsRes.rows;
-  const sectionIds = sections.map((s) => s.id);
+  const sectionIds = sections.map((section) => section.id);
 
   let lessons = [];
   if (sectionIds.length > 0) {
@@ -138,19 +138,19 @@ export async function getPublicCourseStructure(courseId) {
   });
 
   const lessonsBySection = {};
-  for (const l of lessons) {
-    (lessonsBySection[String(l.section_id)] ??= []).push({
-      title: l.title,
-      position: l.position,
+  for (const lesson of lessons) {
+    (lessonsBySection[String(lesson.section_id)] ??= []).push({
+      title: lesson.title,
+      position: lesson.position,
     });
   }
 
   return {
-    sections: sections.map((s) => ({
-      title: s.title,
-      description: s.description,
-      position: s.position,
-      lessons: lessonsBySection[String(s.id)] || [],
+    sections: sections.map((section) => ({
+      title: section.title,
+      description: section.description,
+      position: section.position,
+      lessons: lessonsBySection[String(section.id)] || [],
     })),
     assessments: Number(assessmentsRes.rows[0]?.n || 0),
   };

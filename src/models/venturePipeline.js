@@ -25,12 +25,12 @@ import {
 } from "@/lib/ventures";
 
 function pickValues(submissionData, keyMap) {
-  const out = {};
+  const mappedValues = {};
   for (const [fieldId, value] of Object.entries(submissionData || {})) {
     const key = keyMap[String(fieldId)];
-    if (key) out[key] = value;
+    if (key) mappedValues[key] = value;
   }
-  return out;
+  return mappedValues;
 }
 
 /**
@@ -39,13 +39,13 @@ function pickValues(submissionData, keyMap) {
  * refers to the company/venture (never the founder's name, team, contacts).
  */
 function inferCompanyNameFromFields(submissionData, fieldRows) {
-  for (const f of fieldRows || []) {
-    const label = String(f.label || "");
+  for (const fieldRow of fieldRows || []) {
+    const label = String(fieldRow.label || "");
     if (!/company|venture|business|startup|organisation|organization|enterprise|\bfirm\b/i.test(label)) continue;
     if (/founder|lead|contact|person|first|last|email|phone|\bteam\b/i.test(label)) continue;
-    const val = submissionData?.[String(f.id)];
-    if (typeof val === "string" && val.trim()) {
-      return val.trim().substring(0, 200);
+    const fieldValue = submissionData?.[String(fieldRow.id)];
+    if (typeof fieldValue === "string" && fieldValue.trim()) {
+      return fieldValue.trim().substring(0, 200);
     }
   }
   return "";
@@ -69,19 +69,19 @@ function parseEmailList(value) {
   if (!value) return [];
   return String(value)
     .split(/[\n,;]+/)
-    .map((s) => s.trim().toLowerCase())
-    .filter((s) => s.includes("@"));
+    .map((segment) => segment.trim().toLowerCase())
+    .filter((segment) => segment.includes("@"));
 }
 
 /** The name + email of an existing contact (used when the form carried none). */
 async function contactIdentity(contactCid) {
   if (!contactCid) return null;
   try {
-    const res = await db.execute({
+    const result = await db.execute({
       sql: "SELECT name, email FROM contacts WHERE cid = ?",
       args: [contactCid],
     });
-    return (res.rows || [])[0] || null;
+    return (result.rows || [])[0] || null;
   } catch (_) {
     return null;
   }
@@ -161,8 +161,8 @@ export async function createVentureFromSubmission({ submission, run, form, revie
   });
   const fieldRows = fieldRes.rows || [];
   const keyMap = {};
-  for (const f of fieldRows) {
-    if (f.settings?.key) keyMap[String(f.id)] = f.settings.key;
+  for (const fieldRow of fieldRows) {
+    if (fieldRow.settings?.key) keyMap[String(fieldRow.id)] = fieldRow.settings.key;
   }
   const data = pickValues(submission.data || {}, keyMap);
 
@@ -205,12 +205,12 @@ export async function createVentureFromSubmission({ submission, run, form, revie
   }
 
   // ── 3. Duplicate company name ──
-  const dup = await db.execute({
+  const duplicateResult = await db.execute({
     sql: "SELECT venture_id FROM ventures WHERE LOWER(company_name) = LOWER(?)",
     args: [companyName],
   });
-  if (dup.rows.length > 0) {
-    return { skipped: true, reason: "duplicate company name", venture_id: dup.rows[0].venture_id };
+  if (duplicateResult.rows.length > 0) {
+    return { skipped: true, reason: "duplicate company name", venture_id: duplicateResult.rows[0].venture_id };
   }
 
   // ── 4. Submitter = primary founder ──
@@ -245,9 +245,9 @@ export async function createVentureFromSubmission({ submission, run, form, revie
     args: [run.id],
   });
   const assignments = assignRes.rows || [];
-  const progAssign = assignments.find((a) => a.target_type === "program");
-  const groupAssign = assignments.find((a) => ["group", "cohort"].includes(a.target_type));
-  const teamAssign = assignments.find((a) => a.target_type === "team");
+  const progAssign = assignments.find((assignment) => assignment.target_type === "program");
+  const groupAssign = assignments.find((assignment) => ["group", "cohort"].includes(assignment.target_type));
+  const teamAssign = assignments.find((assignment) => assignment.target_type === "team");
 
   let invitationRow = null;
   if (submission.invitation_id) {
@@ -380,15 +380,15 @@ export async function createVentureFromSubmission({ submission, run, form, revie
     try {
       const { resolveTeamMembersForPromotion } = await import("@/lib/ventures");
       const teamMembers = await resolveTeamMembersForPromotion(originTeam);
-      for (const m of teamMembers) {
-        if (!m?.contact_id || String(m.contact_id) === submitterCid) continue;
+      for (const teamMember of teamMembers) {
+        if (!teamMember?.contact_id || String(teamMember.contact_id) === submitterCid) continue;
         await db.execute({
           sql: `INSERT INTO venture_members (venture_id, contact_id, user_cid, member_type, role, permissions, joined_at, lead_founder, is_owner)
                 VALUES (?, ?, ?, 'team_member', 'member', 'edit', ?, FALSE, FALSE)
                 ON CONFLICT DO NOTHING`,
-          args: [ventureId, String(m.contact_id), String(m.contact_id), now],
+          args: [ventureId, String(teamMember.contact_id), String(teamMember.contact_id), now],
         });
-        await mirrorRoleHistory(ventureId, String(m.contact_id), "member", true);
+        await mirrorRoleHistory(ventureId, String(teamMember.contact_id), "member", true);
       }
     } catch (_) {}
   }

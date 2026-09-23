@@ -84,9 +84,9 @@ async function listTemplateCapabilities(profileIds) {
   });
   const byProfile = {};
   for (const row of res.rows || []) {
-    const id = String(row.profile_id);
-    byProfile[id] ??= [];
-    byProfile[id].push(row);
+    const profileId = String(row.profile_id);
+    byProfile[profileId] ??= [];
+    byProfile[profileId].push(row);
   }
   return byProfile;
 }
@@ -116,21 +116,21 @@ async function listTemplateHolders(profileIds, roleDefaults) {
   const roles = [
     ...new Set(
       roleDefaults
-        .filter((r) => profileIds.includes(r.access_profile_id))
-        .map((r) => r.role_name),
+        .filter((roleDefault) => profileIds.includes(roleDefault.access_profile_id))
+        .map((roleDefault) => roleDefault.role_name),
     ),
   ];
   if (roles.length === 0) return [];
 
-  const phProfiles = profileIds.map(() => "?").join(",");
-  const phRoles = roles.map(() => "?").join(",");
+  const profilePlaceholders = profileIds.map(() => "?").join(",");
+  const rolePlaceholders = roles.map(() => "?").join(",");
   const res = await db.execute({
     sql: `SELECT c.cid, c.name, c.role, c.access_profile_id,
                  ap.name AS override_profile_name
           FROM contacts c
           LEFT JOIN access_profiles ap ON ap.id = c.access_profile_id
-          WHERE c.access_profile_id IN (${phProfiles})
-             OR (c.access_profile_id IS NULL AND c.role IN (${phRoles}))
+          WHERE c.access_profile_id IN (${profilePlaceholders})
+             OR (c.access_profile_id IS NULL AND c.role IN (${rolePlaceholders}))
           LIMIT ${MAX_HOLDERS}`,
     args: [...profileIds, ...roles],
   });
@@ -146,7 +146,7 @@ function effectiveProfileFor(row, roleDefaults, templatesById) {
       viaRole: null,
     };
   }
-  const via = roleDefaults.find((r) => r.role_name === row.role);
+  const via = roleDefaults.find((roleDefault) => roleDefault.role_name === row.role);
   if (!via) return { profileId: null, profile: null, viaRole: null };
   return {
     profileId: String(via.access_profile_id),
@@ -196,8 +196,8 @@ export async function buildProgramScopeReadiness() {
   await initDb();
 
   const templates = await listPortfolioTemplates();
-  const templateIds = templates.map((t) => t.id);
-  const templatesById = Object.fromEntries(templates.map((t) => [String(t.id), t.name]));
+  const templateIds = templates.map((template) => template.id);
+  const templatesById = Object.fromEntries(templates.map((template) => [String(template.id), template.name]));
 
   const [capsByProfile, roleDefaults, programRes] = await Promise.all([
     listTemplateCapabilities(templateIds),
@@ -216,7 +216,7 @@ export async function buildProgramScopeReadiness() {
   ]);
 
   const programs = programRes.rows || [];
-  const running = programs.filter((p) => !isProgramEnded(p));
+  const running = programs.filter((program) => !isProgramEnded(program));
 
   // 1. Running programmes nobody manages. A programme-manager STAFF row counts
   //    as a manager even when assigned_pm_id is empty — the two are read
@@ -226,27 +226,27 @@ export async function buildProgramScopeReadiness() {
     for (const id of programIds) managedByStaffRow.add(id);
   }
   const unmanaged = running
-    .filter((p) => {
-      const hasNamed = p.assigned_pm_id && String(p.assigned_pm_id).trim() !== "";
-      return !hasNamed && !managedByStaffRow.has(String(p.id));
+    .filter((program) => {
+      const hasNamed = program.assigned_pm_id && String(program.assigned_pm_id).trim() !== "";
+      return !hasNamed && !managedByStaffRow.has(String(program.id));
     })
-    .map((p) => ({
-      id: String(p.id),
-      name: p.name || null,
-      status: p.status || null,
-      endDate: p.end_date ? String(p.end_date).slice(0, 10) : null,
+    .map((program) => ({
+      id: String(program.id),
+      name: program.name || null,
+      status: program.status || null,
+      endDate: program.end_date ? String(program.end_date).slice(0, 10) : null,
     }));
 
   // 2. Who would lose access, and how much. "Kept" is the count of RUNNING
   //    programmes they are attached to; zero means the rule would leave them
   //    with nothing.
-  const holderRows = holders.map((h) => {
-    const kept = attachments[String(h.cid)] || [];
-    const effective = effectiveProfileFor(h, roleDefaults, templatesById);
+  const holderRows = holders.map((holder) => {
+    const kept = attachments[String(holder.cid)] || [];
+    const effective = effectiveProfileFor(holder, roleDefaults, templatesById);
     return {
-      cid: String(h.cid),
-      name: h.name || null,
-      role: h.role || null,
+      cid: String(holder.cid),
+      name: holder.name || null,
+      role: holder.role || null,
       profile: effective.profile,
       viaRole: effective.viaRole,
       profileId: effective.profileId,
@@ -263,18 +263,18 @@ export async function buildProgramScopeReadiness() {
   //    that are not programme management. Reported as a property of the
   //    template (it is the same for everyone on it), with the template named.
   const removals = [];
-  for (const t of templates) {
-    const rows = capsByProfile[String(t.id)] || [];
-    const present = new Set(rows.map((r) => key(r.module, r.capability)));
+  for (const template of templates) {
+    const rows = capsByProfile[String(template.id)] || [];
+    const present = new Set(rows.map((row) => key(row.module, row.capability)));
     for (const bundle of MISPLACED_BUNDLES) {
       if (present.has(key(bundle.module, bundle.capability))) {
         removals.push({
-          profileId: t.id,
-          profile: t.name,
+          profileId: template.id,
+          profile: template.name,
           module: bundle.module,
           capability: bundle.capability,
           why: bundle.why,
-          holders: holderRows.filter((h) => h.profileId === String(t.id)).length,
+          holders: holderRows.filter((holder) => holder.profileId === String(template.id)).length,
         });
       }
     }
@@ -282,14 +282,14 @@ export async function buildProgramScopeReadiness() {
 
   // Which templates bundle programme capability with an unrelated power —
   // the answer to "why can't we just narrow it in place".
-  const portfolioTemplates = templates.map((t) => ({
-    id: t.id,
-    name: t.name,
-    isActive: Number(t.is_active) === 1,
-    capabilities: (capsByProfile[String(t.id)] || [])
-      .map((r) => key(r.module, r.capability))
+  const portfolioTemplates = templates.map((template) => ({
+    id: template.id,
+    name: template.name,
+    isActive: Number(template.is_active) === 1,
+    capabilities: (capsByProfile[String(template.id)] || [])
+      .map((row) => key(row.module, row.capability))
       .sort(),
-    holders: holderRows.filter((h) => h.profileId === String(t.id)).length,
+    holders: holderRows.filter((holder) => holder.profileId === String(template.id)).length,
   }));
 
   // COVERAGE — which write domains are fully protected and which are not. There
@@ -306,14 +306,14 @@ export async function buildProgramScopeReadiness() {
       exempt: info.exempt || [],
     };
   });
-  const exemptSurfaces = coverage.flatMap((c) => c.exempt);
+  const exemptSurfaces = coverage.flatMap((waveCoverage) => waveCoverage.exempt);
 
   return {
     success: true,
     unmanaged,
     holders: holderRows
       .slice()
-      .sort((a, b) => a.keptCount - b.keptCount || String(a.name).localeCompare(String(b.name))),
+      .sort((first, second) => first.keptCount - second.keptCount || String(first.name).localeCompare(String(second.name))),
     portfolioTemplates,
     removals,
     coverage,
@@ -326,10 +326,10 @@ export async function buildProgramScopeReadiness() {
       // with the rule enforced they can still SEE the catalog, but every write is
       // refused until somebody attaches them. This is the number to review before
       // and after a deploy, not a gate on one.
-      losesEverything: holderRows.filter((h) => h.losesEverything).length,
-      keptSome: holderRows.filter((h) => !h.losesEverything).length,
-      partialWaves: coverage.filter((c) => c.partial).length,
-      coveredWaves: coverage.filter((c) => c.covered).length,
+      losesEverything: holderRows.filter((holder) => holder.losesEverything).length,
+      keptSome: holderRows.filter((holder) => !holder.losesEverything).length,
+      partialWaves: coverage.filter((waveCoverage) => waveCoverage.partial).length,
+      coveredWaves: coverage.filter((waveCoverage) => waveCoverage.covered).length,
       exemptSurfaces: exemptSurfaces.length,
     },
   };

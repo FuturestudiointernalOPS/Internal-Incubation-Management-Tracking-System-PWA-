@@ -33,7 +33,7 @@ export function validateCourseForPublish(course, structure = {}) {
     errors.push({ field: "sections", key: "lms.errors.noSections" });
   }
 
-  const allLessons = sections.flatMap((s) => s.lessons || []);
+  const allLessons = sections.flatMap((section) => section.lessons || []);
   if (allLessons.length === 0) {
     errors.push({ field: "lessons", key: "lms.errors.noLessons" });
   }
@@ -89,31 +89,31 @@ function validateAssessment(assessment, errors) {
     });
   }
 
-  for (const q of questions) {
-    if (!q.question || !String(q.question).trim()) {
+  for (const question of questions) {
+    if (!question.question || !String(question.question).trim()) {
       errors.push({
-        field: `questions.${q.id}`,
+        field: `questions.${question.id}`,
         key: "lms.errors.questionTextRequired",
       });
     }
-    if (q.question_type === "multiple_choice") {
-      const options = Array.isArray(q.options) ? q.options : [];
+    if (question.question_type === "multiple_choice") {
+      const options = Array.isArray(question.options) ? question.options : [];
       if (options.length < 2) {
         errors.push({
-          field: `questions.${q.id}`,
+          field: `questions.${question.id}`,
           key: "lms.errors.mcOptionsRequired",
         });
       }
-      if (!Array.isArray(q.correct_answer) || q.correct_answer.length === 0) {
+      if (!Array.isArray(question.correct_answer) || question.correct_answer.length === 0) {
         errors.push({
-          field: `questions.${q.id}`,
+          field: `questions.${question.id}`,
           key: "lms.errors.correctAnswerRequired",
         });
       }
-    } else if (q.question_type === "true_false") {
-      if (!Array.isArray(q.correct_answer) || q.correct_answer.length === 0) {
+    } else if (question.question_type === "true_false") {
+      if (!Array.isArray(question.correct_answer) || question.correct_answer.length === 0) {
         errors.push({
-          field: `questions.${q.id}`,
+          field: `questions.${question.id}`,
           key: "lms.errors.correctAnswerRequired",
         });
       }

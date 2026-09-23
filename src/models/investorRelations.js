@@ -671,8 +671,8 @@ export async function listInvestorsByApprovalStatus({ status, search }) {
   }
   if (search) {
     sql += " AND (c.name ILIKE ? OR c.email ILIKE ? OR ip.organization_name ILIKE ?)";
-    const q = `%${search}%`;
-    args.push(q, q, q);
+    const searchPattern = `%${search}%`;
+    args.push(searchPattern, searchPattern, searchPattern);
   }
 
   sql += " ORDER BY ip.created_at DESC";

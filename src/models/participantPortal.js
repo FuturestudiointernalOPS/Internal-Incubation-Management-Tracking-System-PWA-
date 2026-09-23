@@ -539,9 +539,9 @@ export async function getBulkProgramById(programId) {
  * in `staff_id`), which is why both the raw and the lowercase ids are bound.
  */
 export async function checkBulkFacilitatorConflicts(programId, participantIds) {
-  const ids = participantIds || [];
-  if (ids.length === 0) return { rows: [] };
-  const placeholders = ids.map(() => "?").join(", ");
+  const participantCids = participantIds || [];
+  if (participantCids.length === 0) return { rows: [] };
+  const placeholders = participantCids.map(() => "?").join(", ");
   return db.execute({
     sql: `SELECT staff_id FROM v2_program_staff
           WHERE (staff_id IN (${placeholders})
@@ -549,8 +549,8 @@ export async function checkBulkFacilitatorConflicts(programId, participantIds) {
             AND CAST(program_id AS TEXT) = ?
             AND role = 'facilitator'`,
     args: [
-      ...ids,
-      ...ids.map((id) => String(id).toLowerCase()),
+      ...participantCids,
+      ...participantCids.map((cid) => String(cid).toLowerCase()),
       String(programId),
     ],
   });
@@ -558,26 +558,26 @@ export async function checkBulkFacilitatorConflicts(programId, participantIds) {
 
 /** Bulk-enroll a chunk of participants in a program (idempotent, one statement). */
 export async function insertBulkParticipantPrograms(participantIds, programId) {
-  const ids = participantIds || [];
-  if (ids.length === 0) return { rows: [], rowsAffected: 0 };
-  const values = ids.map(() => "(?, ?)").join(", ");
+  const participantCids = participantIds || [];
+  if (participantCids.length === 0) return { rows: [], rowsAffected: 0 };
+  const values = participantCids.map(() => "(?, ?)").join(", ");
   return db.execute({
     sql: `INSERT INTO participant_programs (participant_id, program_id)
                   VALUES ${values}
                   ON CONFLICT (participant_id, program_id) DO NOTHING`,
-    args: ids.flatMap((id) => [id, programId]),
+    args: participantCids.flatMap((cid) => [cid, programId]),
   });
 }
 
 /** Bulk-remove a chunk of participants from a program (one statement). */
 export async function deleteBulkParticipantPrograms(participantIds, programId) {
-  const ids = participantIds || [];
-  if (ids.length === 0) return { rows: [], rowsAffected: 0 };
-  const placeholders = ids.map(() => "?").join(", ");
+  const participantCids = participantIds || [];
+  if (participantCids.length === 0) return { rows: [], rowsAffected: 0 };
+  const placeholders = participantCids.map(() => "?").join(", ");
   return db.execute({
     sql: `DELETE FROM participant_programs
           WHERE program_id = ? AND participant_id IN (${placeholders})`,
-    args: [programId, ...ids],
+    args: [programId, ...participantCids],
   });
 }
 
@@ -588,13 +588,13 @@ export async function insertBulkAudits(
   auditAction,
   performedBy,
 ) {
-  const ids = participantIds || [];
-  if (ids.length === 0) return { rows: [], rowsAffected: 0 };
-  const values = ids.map(() => "(?, ?, ?, ?)").join(", ");
+  const participantCids = participantIds || [];
+  if (participantCids.length === 0) return { rows: [], rowsAffected: 0 };
+  const values = participantCids.map(() => "(?, ?, ?, ?)").join(", ");
   return db.execute({
     sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by)
                 VALUES ${values}`,
-    args: ids.flatMap((id) => [id, programId, auditAction, performedBy]),
+    args: participantCids.flatMap((cid) => [cid, programId, auditAction, performedBy]),
   });
 }
 
