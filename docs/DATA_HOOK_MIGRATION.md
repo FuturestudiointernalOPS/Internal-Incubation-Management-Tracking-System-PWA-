@@ -977,4 +977,110 @@ where it was made; together they are:
 | The theme, the language and the capability matrix (§4.4) | The theme switch dark → light → system and a cold reload for a flash; the language switch, a reload, and an account whose language is stored; that no door is missing or extra for a role. |
 | The dashboard's data hook, everywhere (§4.3) | For a converted screen: the first paint, the return from another page, and the empty state. |
 | The two public screens (§3.3, §3.4) | The SIGN-IN link: a real invitation, an expired one, one with no token, a password-reset link, and the submission. The PUBLIC FORM: a link with a saved draft, a multi-section form, a FRENCH form opened with no language chosen, an ENGLISH form opened by someone whose language is French, a run that is not there, and a submission. |
-rather than inconveniencing them.
+
+---
+
+## 6. Close-out (2026-09): what the sweep left, and why
+
+This section records the state after the sweep's final pass, so the four reports
+that remain are read as DECISIONS and not as unfinished work.
+
+### 6.1 One error, and it was not a warning
+
+`src/components/lms/SessionResourcesSection.js` held a single invalid line
+(`./SectionResourcesEditor`). The commit that carried it (`f1077644`) CREATED it
+that way, one line long; the feature it named had been retired earlier -
+`0da953f3` deleted the session-level component when the material moved to a
+course section, and dropped the table it read. Nothing imported the stub. It was
+removed, and `npx eslint .` went from **1 error** to **0**.
+
+### 6.2 The four silences are gone, and each became a fix
+
+Four `eslint-disable` comments were standing in for a dependency list. Each was
+replaced by the thing the comment was avoiding:
+
+| Where | What it took |
+|---|---|
+| `src/components/ui/NavigationLoader.js` | the three helpers were used only by the effect: they moved INSIDE it, so `[]` is the complete truth. |
+| `src/app/admin/ventures/[id]/permissions/page.js` | the loader had one caller - the effect - so it moved inside it; `[id]` is complete. |
+| `src/components/permissions/PermissionCenter.js` | the pure helper was hoisted to module scope, the profile selector memoised and listed as a dependency. |
+| `src/app/platform/runs/page.js` | two pure helpers hoisted, four memoised, and the filter memo now depends on their identity instead of the raw values they read. |
+
+From here the rule is enforced by a test rather than by habit:
+`src/__tests__/no-silenced-hook-warnings.test.js` fails if any source file turns
+off a React Hooks rule. A silenced warning cannot be counted, reviewed or
+planned, which is why it is treated as a defect rather than as a tool.
+
+### 6.3 The four reports that remain - all in the reading hook
+
+They are `react-hooks/set-state-in-effect` x2 and `react-hooks/exhaustive-deps`
+x2 in `src/lib/hooks/useApi.js` (section 3.7). They are RECORDED, not silenced:
+
+- the "state in an effect" reports are the hook performing the very conversion
+  the rest of the codebase went through; it cannot perform it on itself, and the
+  only shapes the checker accepts are a deferred write (which moves when the
+  spinner appears) or a different data boundary entirely.
+- the spread IS the contract: the caller owns part of the dependency list, and a
+  list that is statically verifiable would force every caller to memoise it -
+  which is the foot-gun the spread exists to avoid.
+
+What changed around them is the safety net: the `deps` contract is documented in
+the hook's own JSDoc, pinned by two tests in `use-api-hook.test.js` (a value that
+changes re-reads; a fresh array of the SAME values does not), and a development
+guard in the hook now names the address when a caller changes the list's size -
+the case React otherwise refuses with a message that does not say which screen.
+
+### 6.4 Images: one exemption, in one file
+
+Every image now renders through `src/components/ui/AppImage.js`, and the
+`@next/next/no-img-element` exemption lives there and nowhere else. A host that
+is listed in `OPTIMISABLE_HOSTS` (and in `images.remotePatterns` - the same list)
+goes through `next/image`; everything else - the author- and contact-provided
+URLs, the signed storage links - takes the plain path, because there is no fixed
+domain to allow and the caller's own referrer/loading attributes are
+load-bearing. The set is empty today on purpose: no host qualifies yet.
+
+### 6.5 The venture tabs - an audit, and the one correction it produced
+
+`src/components/ventures/workspace/tabs/` holds ten files. **Eight are live**:
+`participant/ventures/[id]/page.js` imports them and renders each exactly once.
+This CORRECTS an earlier note in this document, which said they were unrendered -
+the page was wired up after that note was written.
+
+Two were imported by nothing: `ReportingTabs.js` (`StandupsTab`, `RetrosTab`,
+`BlockersTab`) and `ScheduleTabs.js` (`CalendarTab`). They are real components
+rather than an accidental file, so they were not swept away with the lint
+cleanup - removing working code because it looks unused is a product decision,
+not housekeeping. That decision was taken explicitly: nothing renders standups,
+retros, blockers or the calendar through them, so they were DELETED. They are
+recoverable from git if the feature is picked up again.
+
+### 6.6 Housekeeping
+
+The phase's throwaway artefacts (the audit tables and the per-lot ESLint JSON)
+were cleared from `scratch/`. The DIRECTORY is kept: committed tooling writes its
+before-images there (`scripts/apply-template-ceiling-eligibility.mjs`,
+`scripts/audit-participant-membership-gaps.mjs`, `scripts/i6c-acceptance-matrix.mjs`).
+
+### 6.7 The actor of a write comes from the session
+
+Two writes read their actor - and one of them the moment - from the request body:
+
+- `POST /api/announcements` preferred a body `author_id`/`author_name` over the
+  session (`author_id || session.cid`), so a caller holding
+  `internal_comms.create_announcements` could attribute a post to anyone, and
+  the stored `author_name` was free text.
+- `PUT /api/contacts` accepted `archived_by` and `archived_at` as ordinary
+  updatable columns, filled by the browser out of `localStorage`.
+
+Neither was a privilege escalation - both routes already require a capability -
+but both let the HOLDER of that capability misattribute the record. The fix:
+
+- the announcement's author is `session.cid`, and the body's
+  `author_id`/`author_name` are not read at all;
+- archiving is one intent, `archived: true|false`; the server writes
+  `archived_at` from its own clock and `archived_by` from the session, and the two
+  columns are no longer caller-settable. Restore clears both.
+
+`src/__tests__/identity-in-writes.test.js` pins that the values a body could
+previously smuggle in never reach the write.
