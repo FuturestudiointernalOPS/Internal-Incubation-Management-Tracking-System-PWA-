@@ -152,9 +152,12 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
-      message: `User '${user.name}' approved successfully. Setup email sent to ${user.email}.`,
+      // Honest wording: the approval succeeded, but the setup email only left
+      // the system if the transport actually reported success.
+      message: emailResult.success
+        ? `User '${user.name}' approved successfully. Setup email sent to ${user.email}.`
+        : `User '${user.name}' approved successfully, but the setup email could not be sent to ${user.email}.`,
       emailSent: emailResult.success,
-      emailMocked: emailResult.mock,
       setupUrl,
     });
   } catch (error) {

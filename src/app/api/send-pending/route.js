@@ -29,6 +29,7 @@ export async function GET() {
     }
 
     let sentCount = 0;
+    let failedCount = 0;
 
     for (const row of result.rows) {
       let formUrl = "";
@@ -70,22 +71,34 @@ export async function GET() {
         `;
 
       try {
-        await sendEmail({
+        const delivery = await sendEmail({
           to: row.email,
           subject,
           body: htmlContent,
           isHtml: true,
         });
 
-        // Single-send: mark contact as completed after sending
-        await completeCampaignContact(row.cc_id);
-        sentCount++;
+        if (delivery?.success) {
+          // Single-send: mark contact as completed ONLY after a real send.
+          await completeCampaignContact(row.cc_id);
+          sentCount++;
+        } else {
+          // Left pending on purpose: the next run retries this recipient
+          // instead of counting a message that never went out.
+          failedCount++;
+          console.error(
+            "Campaign email not delivered to",
+            row.email,
+            delivery?.error || delivery?.note || "unknown error",
+          );
+        }
       } catch (err) {
+        failedCount++;
         console.error("Failed to send email to", row.email, err);
       }
     }
 
-    return NextResponse.json({ success: true, sent: sentCount });
+    return NextResponse.json({ success: true, sent: sentCount, failed: failedCount });
   } catch (err) {
     console.error("Automation Error:", err);
     return NextResponse.json(
