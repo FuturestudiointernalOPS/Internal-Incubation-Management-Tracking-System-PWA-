@@ -2,7 +2,7 @@ import { initDb } from "@/lib/db";
 import { requireAuthorization } from "@/lib/authorization";
 import { normalizeGroupName, INTERNAL_GROUP } from "@/lib/authorization/membership";
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "@/server/auth/password";
 import Papa from "papaparse";
 import {
   deleteContactByCid,
@@ -196,7 +196,7 @@ export async function POST(req) {
     for (const row of validated) {
       try {
         const randomPass = Math.random().toString(36).substring(2, 10) + "A1!";
-        const hashedPassword = await bcrypt.hash(randomPass, 10);
+        const hashedPassword = await hashPassword(randomPass);
         const cid =
           "USR-" + Math.random().toString(36).substring(2, 10).toUpperCase();
 

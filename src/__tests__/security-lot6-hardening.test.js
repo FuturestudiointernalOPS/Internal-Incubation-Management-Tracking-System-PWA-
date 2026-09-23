@@ -28,17 +28,23 @@ describe("CSV exports neutralise formulas", () => {
 });
 
 describe("session hardening", () => {
-  const src = read("src/lib/auth.js");
+  // The session code left src/lib/auth.js (now a compatibility facade) for the
+  // authentication layer and its model. The guarantees below are unchanged; only
+  // the files that hold them moved.
+  const session = read("src/server/auth/session.js");
+  const sessionSql = read("src/models/sessions.js");
 
   test("no token material is logged", () => {
-    expect(src).not.toMatch(/token:[\s\S]{0,40}substring\(0, 8\)/);
-    expect(src).not.toMatch(/console\.log\([\s\S]{0,80}token\.substring/);
+    for (const src of [session, sessionSql]) {
+      expect(src).not.toMatch(/token:[\s\S]{0,40}substring\(0, 8\)/);
+      expect(src).not.toMatch(/console\.log\([\s\S]{0,80}token\.substring/);
+    }
   });
 
   test("impersonation is persisted on the session row and returned", () => {
-    expect(src).toMatch(/is_impersonation\)\s*\n?\s*VALUES \(\?, \?, \?, \?, \?, \?\)/);
-    expect(src).toMatch(/is_impersonation: session\.is_impersonation === true/);
-    expect(src).toMatch(/ensureSessionColumns/);
+    expect(sessionSql).toMatch(/is_impersonation\)\s*\n?\s*VALUES \(\?, \?, \?, \?, \?, \?\)/);
+    expect(session).toMatch(/is_impersonation: session\.is_impersonation === true/);
+    expect(session).toMatch(/ensureSessionColumns/);
   });
 });
 

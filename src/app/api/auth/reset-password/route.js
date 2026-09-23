@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
 import { initDb } from '@/lib/db';
-import bcrypt from 'bcryptjs';
+import { hashPassword, verifyPassword } from "@/server/auth/password";
 import { enforceRateLimit, getClientIp } from '@/lib/rate-limit';
 import {
   getContactByEmailForPasswordReset,
   updateContactPasswordByEmail,
   deleteUserSessions,
 } from '@/models/authFlows';
+
+// A valid bcrypt hash of a throwaway string, compared when the account does not
+// exist so the "unknown account" and "wrong password" responses take comparable
+// time (AUTH-4). Never matches a caller-supplied password.
+const TIMING_EQUALIZER_HASH =
+  '$2b$10$fn1mJNjkFvAK/0ZRjg3mI.ESbkl87xtv22wPOzYPxjK6yAg0gcv3.';
 
 export async function POST(req) {
   try {
@@ -31,7 +37,7 @@ export async function POST(req) {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    const hashedNewPassword = await hashPassword(newPassword);
 
     // Self-reset: verify current password (users manage their own passwords;
     // there is no administrator password-reset path by design).
@@ -40,23 +46,25 @@ export async function POST(req) {
     }
 
     const userResult = await getContactByEmailForPasswordReset(cleanEmail);
+    const user = userResult.rows?.[0] || null;
 
-    if (!userResult.rows || userResult.rows.length === 0) {
-      return NextResponse.json({ success: false, error: 'User not found.' }, { status: 404 });
-    }
-
-    const user = userResult.rows[0];
-    const isHashed = user.password && user.password.startsWith('$2');
+    // AUTH-4 — no account-existence oracle. "No such account" and "wrong current
+    // password" return the SAME status and message, and the missing-account path
+    // still pays a bcrypt comparison so the response time does not distinguish
+    // them either. Previously this was a 404 "User not found." versus a 401
+    // "Current password is incorrect.", which let anyone enumerate accounts.
     let isMatch = false;
-
-    if (isHashed) {
-      isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (user) {
+      const isHashed = user.password && user.password.startsWith('$2');
+      isMatch = isHashed
+        ? await verifyPassword(currentPassword, user.password)
+        : (currentPassword === user.password);
     } else {
-      isMatch = (currentPassword === user.password);
+      await verifyPassword(currentPassword, TIMING_EQUALIZER_HASH);
     }
 
-    if (!isMatch) {
-      return NextResponse.json({ success: false, error: 'Current password is incorrect.' }, { status: 401 });
+    if (!user || !isMatch) {
+      return NextResponse.json({ success: false, error: 'Invalid credentials.' }, { status: 401 });
     }
 
     await updateContactPasswordByEmail(hashedNewPassword, cleanEmail);

@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "@/server/auth/password";
 import { sendStandaloneEmail } from "@/lib/email";
 import {
   findContactByEmail,
@@ -54,7 +54,7 @@ export async function POST(req) {
     // New user — create contact + profile. The password is hashed before it is
     // stored; it must never be written in clear text.
     const cid = `USR-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await hashPassword(password, { rounds: 12 });
 
     await insertContactForRegistration(cid, name, email, hashedPassword);
 

@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "@/server/auth/password";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
@@ -73,7 +73,7 @@ export async function POST(req) {
     }
 
     // 2. Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await hashPassword(password);
 
     // 3. Update user - set password and status to active
     await setContactPasswordAndStatusActive(hashedPassword, setupRecord.contact_cid);

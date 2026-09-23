@@ -207,7 +207,7 @@ describe("static guarantees for the remaining P0 fixes", () => {
 
   test("investor registration hashes the password and never mutates an existing role", () => {
     const src = read("src/app/api/investor/register/route.js");
-    expect(src).toMatch(/bcrypt\.hash\(/);
+    expect(src).toMatch(/hashPassword\(/);
     expect(src).not.toMatch(/setContactRoleToInvestor/);
   });
 });

@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "@/server/auth/password";
 import { requireAuth, getSession, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import { normalizeGroupName, INTERNAL_GROUP } from "@/lib/authorization/membership";
@@ -133,7 +133,7 @@ export async function POST(req) {
       // Admins never create user passwords. Store an unusable random hash so
       // the account can only gain a real password through the invitation /
       // activation flow (user sets their own password).
-      const hashedPassword = await bcrypt.hash(uuidv4(), 10);
+      const hashedPassword = await hashPassword(uuidv4());
 
       // Gated Status Logic (UPPERCASE NORMALIZATION)
       const groupName = (contact.group_name || "unassigned").toUpperCase();

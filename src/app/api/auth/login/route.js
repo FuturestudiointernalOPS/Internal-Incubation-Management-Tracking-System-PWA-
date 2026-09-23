@@ -4,7 +4,7 @@ import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
 import { resolveEffectiveRole } from "@/lib/platform/roles";
 import { getEffectiveGroupsForUser } from "@/lib/authorization/membership";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
-import bcrypt from "bcryptjs";
+import { verifyPassword } from "@/server/auth/password";
 import {
   getContactByEmailOrId,
   getTeamByUsernameForLogin,
@@ -17,6 +17,15 @@ import {
   ensureContactsLoginCountColumnForLogin,
   recordContactLoginActivityForLogin,
 } from "@/models/authFlows";
+
+// AUTH-4 — one generic message for every credential failure, so a caller cannot
+// tell "no such account" from "wrong password". The unknown-account path also
+// pays a bcrypt comparison (below) so the two take comparable time.
+const INVALID_CREDENTIALS = "Invalid credentials or unauthorized access.";
+
+// A valid bcrypt hash of a throwaway string; never matches a real password.
+const TIMING_EQUALIZER_HASH =
+  "$2b$10$fn1mJNjkFvAK/0ZRjg3mI.ESbkl87xtv22wPOzYPxjK6yAg0gcv3.";
 
 export async function POST(req) {
   try {
@@ -91,10 +100,13 @@ export async function POST(req) {
     }
 
     if (!user) {
+      // Pay the same bcrypt cost as the wrong-password path below, so account
+      // existence is not revealed by response time (AUTH-4).
+      await verifyPassword(cleanPassword, TIMING_EQUALIZER_HASH);
       return NextResponse.json(
         {
           success: false,
-          error: "Invalid credentials or unauthorized access.",
+          error: INVALID_CREDENTIALS,
         },
         { status: 401 },
       );
@@ -107,14 +119,14 @@ export async function POST(req) {
       let isMatch = false;
 
       if (isHashed) {
-        isMatch = await bcrypt.compare(cleanPassword, user.password);
+        isMatch = await verifyPassword(cleanPassword, user.password);
       } else {
         isMatch = cleanPassword === user.password;
       }
 
       if (!isMatch) {
         return NextResponse.json(
-          { success: false, error: "Invalid credentials node." },
+          { success: false, error: INVALID_CREDENTIALS },
           { status: 401 },
         );
       }

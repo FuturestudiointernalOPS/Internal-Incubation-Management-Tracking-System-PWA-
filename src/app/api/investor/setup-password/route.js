@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "@/server/auth/password";
 import {
   clearSetupTokenAndSetPassword,
   findContactBySetupToken,
@@ -34,7 +34,7 @@ export async function POST(req) {
     }
 
     // Hash password and update
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await hashPassword(password);
     await clearSetupTokenAndSetPassword(hashedPassword, contact.cid);
 
     return NextResponse.json({ success: true, message: "Password set successfully." });

@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "@/server/auth/password";
 import { hashToken } from "@/lib/token-hashing";
 import {
   getContactProfileFields,
@@ -172,7 +172,7 @@ export async function PUT(req) {
         );
       }
       updates.push("password = ?");
-      args.push(await bcrypt.hash(String(password), 10));
+      args.push(await hashPassword(String(password)));
     }
 
     // Optional secondary contact fields. Kept separate so a missing column

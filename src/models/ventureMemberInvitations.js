@@ -20,7 +20,7 @@
 
 import db from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "@/server/auth/password";
 import { hashToken } from "@/lib/token-hashing";
 import {
   normalizeEmail,
@@ -339,7 +339,7 @@ export async function completeVentureMemberInvitation({
 
   // ── Optional account creation, so a guest from outside can sign in ────────
   if (password) {
-    const hashed = await bcrypt.hash(String(password), 12);
+    const hashed = await hashPassword(String(password), { rounds: 12 });
     await safe(
       `UPDATE contacts SET password = ?, status = 'active',
               name = COALESCE(NULLIF(?, ''), name)

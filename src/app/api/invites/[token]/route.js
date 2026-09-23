@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "@/server/auth/password";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 import {
@@ -90,7 +90,7 @@ export async function POST(req, { params }) {
     const contactRole = contact.role || "participant";
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await hashPassword(password, { rounds: 12 });
 
     // Check if contact already exists
     const existingContactResult = await findContactByEmail(contactEmail);

@@ -148,7 +148,8 @@ describe("I2 mutation-stop guard presence", () => {
   });
 
   test("createSession consults the legacy-role derivation flag", () => {
-    const auth = fs.readFileSync("src/lib/auth.js", "utf8");
+    // createSession moved to the authentication layer (src/lib/auth.js is a facade).
+    const auth = fs.readFileSync("src/server/auth/session.js", "utf8");
     expect(auth).toContain("deriveLegacyRoleEnabled()");
   });
 });

@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "@/server/auth/password";
 import { sendWelcomeEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
@@ -135,7 +135,7 @@ export async function POST(req) {
       );
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await hashPassword(password);
 
     // Update contact: set password, mark as active and verified
     await activateContactWithPassword(hashedPassword, record.contact_cid);

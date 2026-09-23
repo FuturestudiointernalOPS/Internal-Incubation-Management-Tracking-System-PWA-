@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
+import { hashPassword } from "@/server/auth/password";
 import { v4 as uuidv4 } from "uuid";
 import { assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 import {
@@ -52,7 +52,7 @@ export async function POST(req) {
     // password, name or group from an anonymous form. The submission is still
     // accepted (and reviewed); the existing account keeps its own credentials.
     if (existingContact.rows.length === 0) {
-      const hashedPassword = await bcrypt.hash(password, 12);
+      const hashedPassword = await hashPassword(password, { rounds: 12 });
       await insertContactForRegistration(cid, name, normalizedEmail, phone, hashedPassword, group.name);
     }
 

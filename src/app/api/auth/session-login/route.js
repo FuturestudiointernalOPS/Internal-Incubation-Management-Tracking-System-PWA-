@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
+import { verifyPassword } from "@/server/auth/password";
 import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
 import { resolveLanding, landingNeedsRelationships } from "@/lib/platform/roles";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
@@ -96,7 +96,7 @@ export async function POST(req) {
       let isMatch = false;
 
       if (isHashed) {
-        isMatch = await bcrypt.compare(cleanPassword, user.password);
+        isMatch = await verifyPassword(cleanPassword, user.password);
       } else {
         isMatch = cleanPassword === user.password;
       }
