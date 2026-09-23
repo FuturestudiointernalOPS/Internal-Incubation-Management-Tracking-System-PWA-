@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { deepseekIntelligence } from "@/lib/deepseek";
 import { requireAuthorization } from "@/lib/authorization";
 import { getDefaultTemplate } from "@/lib/email";
+import { TEMPLATE_SPECS, variableGuide, specVariableNames } from "@/models/platform/ai/templateSpecs";
 import {
   placeholdersOf,
   normalizeToHtml,
@@ -34,43 +35,15 @@ import {
  *  - If the AI returns a structurally different document, a deterministic
  *    fallback personalizes only the text segments and splices them back into
  *    the original markup, so structure is preserved by construction.
- *  - {{placeholders}} are never renamed, removed, or invented.
+ *  - {{variables}} that are already present are never renamed or removed. The
+ *    model MAY put one back where the text carries the concrete value it stands
+ *    for — a pasted name, score or company must not become everyone's — but it
+ *    may never invent a variable outside the message's list.
  *  - Empty subject stays empty so the existing default-subject fallback
  *    (run → form → platform default) applies at send time.
  */
 
 export const dynamic = "force-dynamic";
-
-const TEMPLATE_SPECS = {
-  acknowledgement: {
-    label: "submission confirmation",
-    placeholders: ["{{name}}", "{{form_name}}", "{{organization}}"],
-  },
-  approval: {
-    label: "approval (acceptance) notification",
-    placeholders: ["{{name}}", "{{form_name}}", "{{score}}", "{{group_name}}", "{{organization}}"],
-  },
-  activation: {
-    label: "account activation email that includes a password setup link",
-    placeholders: ["{{name}}", "{{organization}}", "{{activation_link}}"],
-  },
-  existing_user: {
-    label: "access email for a person who already has an account (they must log in with their existing credentials)",
-    placeholders: ["{{name}}", "{{organization}}", "{{login_url}}"],
-  },
-  rejection: {
-    label: "polite rejection notification",
-    placeholders: ["{{name}}", "{{form_name}}", "{{organization}}"],
-  },
-  result: {
-    label: "result notification that accompanies a personalised report",
-    placeholders: ["{{name}}", "{{organization}}", "{{score}}", "{{project_name}}", "{{document_access}}"],
-  },
-  manual: {
-    label: "manual ad-hoc message to selected participants",
-    placeholders: ["{{name}}", "{{group_name}}", "{{organization}}"],
-  },
-};
 
 function parseJsonObject(raw) {
   const match = (raw || "").match(/\{[\s\S]*\}/);
@@ -122,7 +95,7 @@ export async function POST(req) {
     const allowedNames = new Set([
       ...placeholdersOf(draftSubject),
       ...placeholdersOf(draftBody),
-      ...spec.placeholders.map((placeholder) => placeholder.replace(/[{}]/g, "").toLowerCase()),
+      ...specVariableNames(spec),
     ]);
 
     // LANGUAGE LOCK: personalization must NEVER translate the template.
@@ -152,11 +125,16 @@ Personalize ONLY the wording of the text content. Preserve the structure exactly
 - keep list markers and their numbering unchanged (1. 2. 3. or bullets)
 - keep bold (<strong>/<b>) and italic (<em>/<i>) exactly where they are
 - keep paragraph breaks and line breaks
-- keep every {{placeholder}} exactly as written — never rename, remove, or add variables
+- keep every {{variable}} that is ALREADY in the text exactly as written — never rename or remove one
+- this message is reused for EVERY recipient, so no value belonging to one person may stay in it: when the text names the recipient, gives a score, names their project or company, or spells out the organisation, replace that value with the variable that stands for it
+- use ONLY the variables listed below, and only where they replace a value they really stand for. Never turn an unrelated proper noun (a city, a partner, a product) into a variable, and never invent one
 - keep the language of the template — never translate the content into another language
 
+VARIABLES FOR THIS MESSAGE:
+${variableGuide(spec)}
+
 ${tone}
-${draftSubject ? "Personalize the subject wording (keep its placeholders)." : 'Return an EMPTY string for "subject".'}
+${draftSubject ? "Personalize the subject wording (keep its variables, and put one back if the subject names a specific person or value)." : 'Return an EMPTY string for "subject".'}
 
 Return ONLY valid JSON with exactly two keys:
 {"subject": "...", "body": "<the personalized HTML with identical structure>"}`;
@@ -199,7 +177,10 @@ Return ONLY valid JSON with exactly two keys:
 Return ONLY valid JSON: {"segments": ["segment 1", "segment 2", ...]} with EXACTLY the same number of segments, in the same order.
 
 Rules for every segment:
-- keep {{placeholders}} exactly as written (never rename, remove, or add variables)
+- keep the {{variables}} that are already there exactly as written
+- replace a concrete value that one of the variables below stands for with the variable itself — the message is reused for every recipient:
+${variableGuide(spec)}
+- never invent a variable that is not in that list, and never turn an unrelated proper noun into one
 - keep list markers and their numbers (1. 2. 3., bullets, dashes)
 - keep trailing spaces and line breaks within the segment
 - only reword the human-readable text; keep it short and natural
