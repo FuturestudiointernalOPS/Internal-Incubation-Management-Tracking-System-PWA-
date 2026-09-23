@@ -15,9 +15,11 @@ import { NextResponse } from "next/server";
  *   - /api/auth/forgot-password
  *   - /api/auth/setup-password/*
  *   - /invite/*
+ *   - /venture-invite/* (a member invitation link: the token is the credential)
  *   - /register-participant
  *   - /register-staff
  *   - /api/contacts (POST - registration)
+ *   - /api/venture-member-invites/* (validate/accept an invitation)
  *   - /_next/*
  *   - /brand/*
  *   - /favicon.ico
@@ -29,6 +31,7 @@ const publicPaths = [
   "/forgot-password",
   "/setup-password",
   "/invite",
+  "/venture-invite",
   "/register-participant",
   "/register-staff",
   "/register-venture",
@@ -52,6 +55,7 @@ const publicApiPaths = [
   "/api/contacts",
   "/api/invites",
   "/api/venture-invites",
+  "/api/venture-member-invites",
   "/api/migrate",
   "/api/s",
   "/api/investor/register",
