@@ -31,16 +31,22 @@ accès** au lieu de deviner.
 
 ### L'unité du montant
 
-Le prix est **stocké en unités entières** (ce que la personne paie) et
-converti **seulement aux deux bords** : ce que la fenêtre de paiement demande,
-et ce à quoi la vérification est comparée. C'est `PAYMENT_AMOUNT_UNIT` qui
-tranche :
+Le prix est **stocké en unités entières** (ce que la personne paie) et converti
+**seulement aux deux bords** : ce que la fenêtre de paiement demande, et ce à
+quoi la vérification est comparée. Le montant réellement demandé est **mémorisé
+sur l'inscription** (`provider_amount`), donc un changement d'unité plus tard ne
+peut pas invalider un paiement déjà confirmé.
 
-- `major` (défaut) — 25 000 XOF partent en `25000`.
-- `minor` — 250 EUR partent en `25000` (centimes), et la personne voit toujours
-  « 250 ». La comparaison utilise la même échelle, donc une confirmation réelle
-  n'est plus refusée en silence.
-- `PAYMENT_AMOUNT_MULTIPLIER` — pour un cas particulier (ex. `1000`).
+Trois niveaux, du plus précis au plus général :
+
+1. **Par cours** (onglet cours payant) : *Devise du paiement*, *Unité du montant*
+   (`Unités entières` / `Unités mineures`), et *Texte du consentement*.
+2. `PAYMENT_AMOUNT_UNIT` / `PAYMENT_CURRENCY` — la valeur par défaut de la plateforme.
+3. `PAYMENT_AMOUNT_MULTIPLIER` — un nombre explicite, quand ni `major` ni `minor`
+   ne convient.
+
+Exemples : `major` — 25 000 XOF partent en `25000`. `minor` — 250 EUR partent en
+`25000` (centimes), et la personne lit toujours « 250 ».
 
 À vérifier une fois sur une **vraie transaction de test** avant la production.
 
@@ -76,7 +82,16 @@ curl -X POST "https://<domaine>/api/lms/registrations?action=link-run" \
   -d '{"runId": 42, "courseId": "00000000-0000-0000-0000-000000000000"}'
 ```
 
-## 4. Validation en mode test
+## 4. Où voir ce qui se passe
+
+- **Exécutions** (`/platform/runs`) : la colonne **Paiement** de chaque réponse
+  dit où en est la personne. Le survol donne le montant, l'accès au cours et le
+  reçu, plus la référence.
+- **Admin → LMS → Inscriptions** : la vue complète — filtres par exécution,
+  compteurs, dernier événement de paiement, file « à examiner », et les actions
+  (relancer l'accès, renvoyer l'e-mail, rembourser).
+
+## 5. Validation en mode test
 
 `KKIAPAY_SANDBOX=true`, puis, avec les numéros et cartes de test Kkiapay :
 
@@ -94,7 +109,7 @@ curl -X POST "https://<domaine>/api/lms/registrations?action=link-run" \
 | Lien d'accès expiré | « consultez votre e-mail », puis re-demande du lien |
 | **Unité du montant** | à vérifier sur une vraie transaction de test (XOF, sans centimes) |
 
-## 5. Ce qu'il faut savoir
+## 6. Ce qu'il faut savoir
 
 - **Le schéma s'applique tout seul.** La migration `supabase/migrations/20260924_lms_checkout_registrations.sql` est fournie pour l'explicite, mais le code crée la colonne et les deux tables **au premier usage** (`IF NOT EXISTS`, une fois par processus) — comme le reste du projet. Aucune étape SQL manuelle n'est nécessaire.
 - **Sécurité** : la référence d'une inscription **existante** n'est jamais
