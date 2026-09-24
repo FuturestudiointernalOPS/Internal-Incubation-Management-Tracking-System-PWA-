@@ -509,7 +509,7 @@ export default function SubmitFormPage() {
             <h2 className="text-sm font-black uppercase text-[var(--text-primary)]">{run.name}</h2>
             {run.description && <p className="text-[10px] font-medium text-[var(--text-secondary)]">{run.description}</p>}
             {run.settings?.instructions && (
-              <div className="flex items-start gap-2 p-3 rounded-xl bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/10">
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-brand-orange/5 border border-brand-orange/10">
                 <Info className="w-3.5 h-3.5 text-[var(--brand-orange)] shrink-0 mt-0.5" />
                 <p className="text-[10px] text-[var(--text-primary)] font-bold whitespace-pre-wrap">{run.settings.instructions}</p>
               </div>

@@ -18,6 +18,13 @@ module.exports = {
         },
       },
       colors: {
+        // Theme colours that accept an opacity modifier (`bg-brand-orange/10`,
+        // `border-divider/50`). An arbitrary value such as
+        // `bg-[var(--brand-orange)]/10` generates NO CSS in Tailwind 3: the
+        // opacity cannot be applied to a bare var(), so the class is silently
+        // dropped. Use these names whenever a theme colour needs transparency.
+        "brand-orange": "rgb(255 102 0 / <alpha-value>)",
+        divider: "rgb(var(--border-primary-rgb) / <alpha-value>)",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

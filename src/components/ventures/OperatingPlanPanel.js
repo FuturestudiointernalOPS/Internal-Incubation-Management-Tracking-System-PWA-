@@ -358,7 +358,7 @@ export default function OperatingPlanPanel({ ventureId }) {
         <div className="space-y-2">
           {plans.map((plan) => (
             <div key={plan.id} className="rounded-xl border border-[var(--border-primary)] overflow-hidden">
-              <div className="w-full flex items-center justify-between gap-3 p-3 text-left bg-[var(--surface-2)]/40">
+              <div className="w-full flex items-center justify-between gap-3 p-3 text-left bg-surface-2">
                 <button onClick={() => openPlanDetail(plan.id)} className="flex items-center gap-2 flex-1 min-w-0">
                   {openPlanId === plan.id ? <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />}
                   <span className="text-sm font-bold text-[var(--text-primary)] truncate">{plan.name}</span>

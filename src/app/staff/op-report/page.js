@@ -1414,7 +1414,7 @@ function StaffOpReport() {
                             <React.Fragment key={report.id}>
                               <tr
                                 key={report.id}
-                                className="border-b border-[var(--border-primary)]/50 hover:bg-tertiary/50 transition-colors"
+                                className="border-b border-divider/50 hover:bg-tertiary/50 transition-colors"
                               >
                                 <td className="px-4 py-3">
                                   <span className="text-[13px] font-semibold text-[var(--text-primary)]">
@@ -1690,7 +1690,7 @@ function StaffOpReport() {
                                                       return (
                                                         <tr
                                                           key={task.id}
-                                                          className={`border-b border-[var(--border-primary)]/40 hover:bg-primary/50 transition-colors ${
+                                                          className={`border-b border-divider/40 hover:bg-primary/50 transition-colors ${
                                                             task.isSubtask &&
                                                             !task.isOrphan
                                                               ? "bg-tertiary/20"
@@ -1822,7 +1822,7 @@ function StaffOpReport() {
                                                   }));
                                                   setTaskCreationOpen(true);
                                                 }}
-                                                className="w-full py-2 border border-dashed border-[var(--border-primary)] rounded-lg text-[10px] font-medium text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all flex items-center justify-center gap-1.5"
+                                                className="w-full py-2 border border-dashed border-[var(--border-primary)] rounded-lg text-[10px] font-medium text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:border-brand-orange/30 transition-all flex items-center justify-center gap-1.5"
                                               >
                                                 <Plus className="w-3.5 h-3.5" />{" "}
                                                 {t("reports.addTask")}
@@ -1958,7 +1958,7 @@ function StaffOpReport() {
                             <React.Fragment key={weekKey}>
                               <tr
                                 key={weekKey}
-                                className="border-b border-[var(--border-primary)]/50 hover:bg-tertiary/50 transition-colors"
+                                className="border-b border-divider/50 hover:bg-tertiary/50 transition-colors"
                               >
                                 <td className="px-4 py-3">
                                   <span className="text-[13px] font-semibold text-[var(--text-primary)]">
@@ -2084,7 +2084,7 @@ function StaffOpReport() {
                                                   return (
                                                     <tr
                                                       key={task.id}
-                                                      className="border-b border-[var(--border-primary)]/40 hover:bg-primary/50 transition-colors"
+                                                      className="border-b border-divider/40 hover:bg-primary/50 transition-colors"
                                                     >
                                                       <td className="px-3 py-2.5 text-center">
                                                         <button
@@ -2629,7 +2629,7 @@ function StaffOpReport() {
                       const dateRange = `${formatLocaleDate(monday, { month: "short", day: "numeric" }, lang)} - ${formatLocaleDate(friday, { month: "short", day: "numeric" }, lang)}`;
 
                       return (
-                        <div className="card p-5 space-y-4 border-[var(--brand-orange)]/20">
+                        <div className="card p-5 space-y-4 border-brand-orange/20">
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-lg font-black text-[var(--text-primary)]">
@@ -2675,7 +2675,7 @@ function StaffOpReport() {
                               </p>
                             </div>
                           </div>
-                          <div className="flex flex-wrap gap-4 pt-2 border-t border-[var(--border-primary)]/30">
+                          <div className="flex flex-wrap gap-4 pt-2 border-t border-divider/30">
                             <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                               {t("staff.opReport.productivity")}:{" "}
                               <span className="font-bold text-emerald-400">
@@ -2759,7 +2759,7 @@ function StaffOpReport() {
                                 )?.name;
                                 return (
                                   <React.Fragment key={task.id}>
-                                    <tr className="border-b border-[var(--border-primary)]/40 hover:bg-tertiary/30 transition-colors">
+                                    <tr className="border-b border-divider/40 hover:bg-tertiary/30 transition-colors">
                                       <td className="px-3 py-2.5 text-[11px] font-bold text-[var(--text-primary)]">
                                         {task.title}
                                       </td>
@@ -2911,7 +2911,7 @@ function StaffOpReport() {
                                 />
                               </div>
                               {expanded && (
-                                <div className="space-y-1.5 pt-2 border-t border-[var(--border-primary)]/30">
+                                <div className="space-y-1.5 pt-2 border-t border-divider/30">
                                   {projectTasks.map((projTask) => {
                                     const statusConfig =
                                       STATUS_CONFIG[projTask.status] ||
@@ -3037,7 +3037,7 @@ function StaffOpReport() {
                                       .map((blocker) => (
                                         <tr
                                           key={blocker.id}
-                                          className="border-b border-[var(--border-primary)]/40"
+                                          className="border-b border-divider/40"
                                         >
                                           <td className="px-3 py-2 text-[10px] font-bold text-emerald-400">
                                             {blocker.title}
@@ -3100,7 +3100,7 @@ function StaffOpReport() {
                                         return (
                                           <tr
                                             key={blocker.id}
-                                            className={`border-b border-[var(--border-primary)]/40 ${weeksOpen > 2 ? "bg-rose-500/5" : ""}`}
+                                            className={`border-b border-divider/40 ${weeksOpen > 2 ? "bg-rose-500/5" : ""}`}
                                           >
                                             <td className="px-3 py-2 text-[10px] font-bold text-rose-400">
                                               {blocker.title}
@@ -3174,7 +3174,7 @@ function StaffOpReport() {
                                 </span>
                               </div>
                               {summaryCollapsed[name] && (
-                                <div className="mt-2 pt-2 border-t border-[var(--border-primary)]/30 space-y-1">
+                                <div className="mt-2 pt-2 border-t border-divider/30 space-y-1">
                                   {sharedTasks.map((task) => (
                                     <div
                                       key={task.id}
@@ -3673,7 +3673,7 @@ function StaffOpReport() {
               )}
               {/* Draft Recovery Banner */}
               {draftAvailable && !isHistorical && (
-                <div className="px-4 py-3 rounded-lg border border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/10 flex items-center justify-between gap-4">
+                <div className="px-4 py-3 rounded-lg border border-brand-orange/40 bg-brand-orange/10 flex items-center justify-between gap-4">
                   <div className="flex items-start gap-3">
                     <Clock className="w-4 h-4 shrink-0 mt-0.5 text-[var(--brand-orange)]" />
                     <span className="text-[12px] text-[var(--text-primary)] leading-relaxed font-medium">

@@ -288,7 +288,7 @@ export default function UserAccessSummary() {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder={t("adminMisc.access.searchPlaceholder")}
-                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 text-sm font-bold transition-all"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-brand-orange/50 text-sm font-bold transition-all"
               />
             </div>
 
@@ -304,7 +304,7 @@ export default function UserAccessSummary() {
                     <button
                       key={person.cid}
                       onClick={() => fetchUserSummary(person)}
-                      className="w-full ios-card !p-4 border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all text-left flex items-center justify-between"
+                      className="w-full ios-card !p-4 border-[var(--border-primary)] hover:border-brand-orange/30 transition-all text-left flex items-center justify-between"
                     >
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
@@ -447,7 +447,7 @@ export default function UserAccessSummary() {
                       <h3 className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                         {t("adminMisc.access.responsibilities")}
                       </h3>
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-brand-orange/10 text-[var(--brand-orange)]">
                         {(userData.responsibilities || []).length}
                       </span>
                     </div>
@@ -486,7 +486,7 @@ export default function UserAccessSummary() {
                               className={`text-[10px] font-bold px-2 py-1 rounded uppercase flex items-center gap-1 ${
                                 blocked
                                   ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
-                                  : "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                                  : "bg-brand-orange/10 text-[var(--brand-orange)]"
                               }`}
                             >
                               {blocked && <AlertTriangle className="w-2.5 h-2.5" />}
@@ -505,7 +505,7 @@ export default function UserAccessSummary() {
                       <h3 className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                         {t("adminMisc.access.assignments")}
                       </h3>
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-brand-orange/10 text-[var(--brand-orange)]">
                         {(userData.assignments || []).length}
                       </span>
                     </div>
@@ -527,7 +527,7 @@ export default function UserAccessSummary() {
                               key={index}
                               className={`rounded-xl border p-3 ${
                                 isCurrent
-                                  ? "border-[var(--brand-orange)]/20 bg-[var(--brand-orange)]/[0.03]"
+                                  ? "border-brand-orange/20 bg-brand-orange/[0.03]"
                                   : "border-[var(--border-primary)] bg-tertiary/40 opacity-60"
                               }`}
                             >
@@ -640,7 +640,7 @@ export default function UserAccessSummary() {
                           value={supervisorQuery}
                           onChange={(event) => setSupervisorQuery(event.target.value)}
                           placeholder={t("adminMisc.access.supervisorSearchPlaceholder")}
-                          className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50"
+                          className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50"
                         />
                         <div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar">
                           {filteredSupervisors.map((person) => (
@@ -682,7 +682,7 @@ export default function UserAccessSummary() {
                     ) : (
                       <button
                         onClick={() => setShowSupervisorPicker(true)}
-                        className="w-full px-3 py-2 rounded-lg bg-secondary border border-dashed border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/40 transition-all"
+                        className="w-full px-3 py-2 rounded-lg bg-secondary border border-dashed border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:border-brand-orange/40 transition-all"
                       >
                         {t("adminMisc.access.assignSupervisor")}
                       </button>
@@ -777,7 +777,7 @@ export default function UserAccessSummary() {
                                   {Object.entries(permissions).map(([capability, level]) => (
                                     <span key={capability} className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
                                       level > 0
-                                        ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                                        ? "bg-brand-orange/10 text-[var(--brand-orange)]"
                                         : "bg-slate-500/10 text-[var(--text-secondary)]"
                                     }`}>
                                       {capability.replace(/_/g, " ")}

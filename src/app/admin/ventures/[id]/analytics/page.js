@@ -165,7 +165,7 @@ export default function VentureAnalyticsPage() {
                 const barHeight = (month.activities / maxActivities) * 100;
                 return (
                   <div key={index} className="flex-1 flex flex-col items-center gap-1">
-                    <div className="w-full bg-[var(--brand-orange)]/30 rounded-t" style={{ height: `${barHeight}%` }} />
+                    <div className="w-full bg-brand-orange/30 rounded-t" style={{ height: `${barHeight}%` }} />
                     <span className="text-[10px] text-[var(--text-secondary)]">{month.month?.slice(5, 10) || ""}</span>
                   </div>
                 );

@@ -326,7 +326,7 @@ export default function TeamManagementPage({ params }) {
 
           <button
             onClick={openCreateModal}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-[var(--brand-orange)]/90 transition-all shadow-lg shadow-[var(--brand-orange)]/20"
+            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-brand-orange/90 transition-all shadow-lg shadow-brand-orange/20"
           >
             <Plus className="w-4 h-4" />
             {t("admin.teams.createTeam")}
@@ -379,7 +379,7 @@ export default function TeamManagementPage({ params }) {
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20 flex items-center justify-center text-[var(--brand-orange)] shrink-0">
+                          <div className="w-8 h-8 rounded-lg bg-brand-orange/10 border border-brand-orange/20 flex items-center justify-center text-[var(--brand-orange)] shrink-0">
                             <Users className="w-4 h-4" />
                           </div>
                           <span className="text-sm font-bold text-[var(--text-primary)] uppercase">
@@ -396,7 +396,7 @@ export default function TeamManagementPage({ params }) {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className="px-3 py-1 rounded-full bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[10px] font-black uppercase tracking-wider">
+                        <span className="px-3 py-1 rounded-full bg-brand-orange/10 text-[var(--brand-orange)] text-[10px] font-black uppercase tracking-wider">
                           {t("adminMisc.programTeams.membersCount", {
                             count: getMemberCount(team),
                           })}
@@ -440,7 +440,7 @@ export default function TeamManagementPage({ params }) {
                       <td className="px-6 py-4 text-right">
                         <button
                           onClick={() => router.push(`/team/${team.id}`)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20 text-[var(--brand-orange)] text-[10px] font-black uppercase tracking-wider hover:bg-[var(--brand-orange)]/20 transition-all"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-orange/10 border border-brand-orange/20 text-[var(--brand-orange)] text-[10px] font-black uppercase tracking-wider hover:bg-brand-orange/20 transition-all"
                         >
                           <ExternalLink className="w-3 h-3" />
                           {t("adminMisc.programTeams.open")}
@@ -500,7 +500,7 @@ export default function TeamManagementPage({ params }) {
                   value={teamName}
                   onChange={(event) => setTeamName(event.target.value)}
                   placeholder={t("admin.teams.teamNamePlaceholder")}
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors"
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60 transition-colors"
                   autoFocus
                 />
               </div>
@@ -513,7 +513,7 @@ export default function TeamManagementPage({ params }) {
                 <select
                   value={handlerId}
                   onChange={(event) => setHandlerId(event.target.value)}
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors appearance-none cursor-pointer"
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/60 transition-colors appearance-none cursor-pointer"
                   style={{
                     backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E")`,
                     backgroundRepeat: "no-repeat",
@@ -551,7 +551,7 @@ export default function TeamManagementPage({ params }) {
                     value={memberSearch}
                     onChange={(event) => setMemberSearch(event.target.value)}
                     placeholder={t("admin.teams.selectMembers")}
-                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl pl-9 pr-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors"
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl pl-9 pr-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60 transition-colors"
                   />
                 </div>
 
@@ -575,7 +575,7 @@ export default function TeamManagementPage({ params }) {
                           type="button"
                           onClick={() => toggleMember(participantId)}
                           className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors hover:bg-secondary ${
-                            isSelected ? "bg-[var(--brand-orange)]/5" : ""
+                            isSelected ? "bg-brand-orange/5" : ""
                           }`}
                         >
                           <div className="flex flex-col min-w-0">
@@ -616,7 +616,7 @@ export default function TeamManagementPage({ params }) {
                 <button
                   type="submit"
                   disabled={saving || !teamName.trim()}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-[var(--brand-orange)]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-brand-orange/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   {editingTeam ? t("common.update") : t("common.create")}

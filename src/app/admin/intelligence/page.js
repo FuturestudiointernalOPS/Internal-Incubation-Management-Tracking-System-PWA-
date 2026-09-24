@@ -10,7 +10,7 @@ export default function IntelligencePage() {
     <>
       <div className="p-6 flex items-center justify-center min-h-[70vh]">
         <div className="text-center max-w-md">
-          <div className="w-16 h-16 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center mx-auto mb-6">
+          <div className="w-16 h-16 rounded-2xl bg-brand-orange/10 flex items-center justify-center mx-auto mb-6">
             <TrendingUp className="w-8 h-8 text-[var(--brand-orange)]" />
           </div>
           <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)] mb-3">

@@ -177,14 +177,14 @@ export default function VentureCoachesPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-4 min-w-0">
                       <div className={`w-14 h-14 rounded-full flex items-center justify-center text-lg font-black shrink-0 ${
-                        assignment.coach_type==="advisor" ? "bg-purple-500/20 text-purple-400" : "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                        assignment.coach_type==="advisor" ? "bg-purple-500/20 text-purple-400" : "bg-brand-orange/10 text-[var(--brand-orange)]"
                       }`}>
                         {assignment.full_name?.charAt(0)||"?"}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-bold text-[var(--text-primary)]">{assignment.full_name}</p>
-                          <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${assignment.coach_type==="advisor"?"bg-purple-500/10 text-purple-400":"bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"}`}>
+                          <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${assignment.coach_type==="advisor"?"bg-purple-500/10 text-purple-400":"bg-brand-orange/10 text-[var(--brand-orange)]"}`}>
                             {assignment.coach_type}
                           </span>
                           {assignment.is_primary ? <Star className="w-3.5 h-3.5 text-amber-400" /> : null}
@@ -220,7 +220,7 @@ export default function VentureCoachesPage() {
               coachesList.map((assignment) => (
                 <div key={assignment.id} className="flex items-center justify-between p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-sm font-black text-[var(--brand-orange)]">{assignment.full_name?.charAt(0)}</div>
+                    <div className="w-10 h-10 rounded-full bg-brand-orange/10 flex items-center justify-center text-sm font-black text-[var(--brand-orange)]">{assignment.full_name?.charAt(0)}</div>
                     <div><p className="text-xs font-bold text-[var(--text-primary)]">{assignment.full_name}</p><p className="text-[10px] text-[var(--text-secondary)]">{assignment.email}</p></div>
                   </div>
                   <span className="text-[10px] text-[var(--text-secondary)] capitalize">{assignment.availability||"available"}</span>

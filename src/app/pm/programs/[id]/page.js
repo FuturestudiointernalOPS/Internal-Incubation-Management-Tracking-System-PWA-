@@ -1655,7 +1655,7 @@ function ProgramWorkspace() {
           {activeTab === "participants" && (
             <div className="space-y-6 animate-in">
               {/* SUB-TAB NAVIGATION */}
-              <div className="flex gap-4 border-b border-[var(--border-primary)]/30 pb-2">
+              <div className="flex gap-4 border-b border-divider/30 pb-2">
                 <button
                   onClick={() => setActiveSubTab("individuals")}
                   className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeSubTab === "individuals" ? "border-[var(--brand-orange)] text-[var(--text-primary)]" : "border-transparent text-[var(--text-secondary)] opacity-50 hover:opacity-100"}`}
@@ -1963,7 +1963,7 @@ function ProgramWorkspace() {
                         className="card flex items-center justify-between p-4 hover:border-[var(--brand-orange)] transition-all"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] flex items-center justify-center text-xs font-black uppercase border border-[var(--brand-orange)]/20">
+                          <div className="w-10 h-10 rounded-full bg-brand-orange/10 text-[var(--brand-orange)] flex items-center justify-center text-xs font-black uppercase border border-brand-orange/20">
                             {staff.name?.charAt(0)}
                           </div>
                           <div>
@@ -2057,7 +2057,7 @@ function ProgramWorkspace() {
                   .map((session) => (
                     <div
                       key={session.id}
-                      className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all shadow-xl bg-secondary group"
+                      className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-brand-orange/50 transition-all shadow-xl bg-secondary group"
                     >
                       {/* STEP 0: THE HEADER (GLOBAL STATE) — click to toggle */}
                       <div
@@ -2068,7 +2068,7 @@ function ProgramWorkspace() {
                               : session.id,
                           )
                         }
-                        className="px-6 py-4 bg-gradient-to-r from-[var(--bg-tertiary)] to-[var(--bg-secondary)] flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all cursor-pointer"
+                        className="px-6 py-4 bg-gradient-to-r from-[var(--bg-tertiary)] to-[var(--bg-secondary)] flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border-primary)] hover:border-brand-orange/50 transition-all cursor-pointer"
                       >
                         <div className="flex items-center gap-4">
                           <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-primary border border-[var(--border-primary)] shadow-inner">
@@ -2216,7 +2216,7 @@ function ProgramWorkspace() {
                               );
                             }}
                             title={t("pmMisc.workspace.sessionDetailsTitle")}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all ${expandedSessionId === session.id ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)] text-[var(--brand-orange)]" : "bg-transparent border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]/50 hover:text-[var(--text-primary)]"}`}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all ${expandedSessionId === session.id ? "bg-brand-orange/10 border-[var(--brand-orange)] text-[var(--brand-orange)]" : "bg-transparent border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-brand-orange/50 hover:text-[var(--text-primary)]"}`}
                           >
                             <ChevronRight className={`w-3 h-3 transition-transform ${expandedSessionId === session.id ? "rotate-90" : ""}`} />
                             {expandedSessionId === session.id ? t("pmMisc.workspace.hideDetails") : t("pmMisc.workspace.viewDetails")}
@@ -2614,9 +2614,9 @@ function ProgramWorkspace() {
 
                           {/* PHASE 2: CURRICULUM (THE CORE) */}
                           <div className="space-y-6">
-                            <div className="flex items-center justify-between pb-3 border-b border-[var(--brand-orange)]/20">
+                            <div className="flex items-center justify-between pb-3 border-b border-brand-orange/20">
                               <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[9px] font-black text-[var(--brand-orange)] border border-[var(--brand-orange)]/20 shadow-sm">
+                                <div className="w-6 h-6 rounded-full bg-brand-orange/10 flex items-center justify-center text-[9px] font-black text-[var(--brand-orange)] border border-brand-orange/20 shadow-sm">
                                   2
                                 </div>
                                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-orange)]">
@@ -2649,7 +2649,7 @@ function ProgramWorkspace() {
                                 .map((requirement) => (
                                   <div
                                     key={requirement.id}
-                                    className="flex items-center justify-between p-4 bg-primary rounded-2xl border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all shadow-sm"
+                                    className="flex items-center justify-between p-4 bg-primary rounded-2xl border border-[var(--border-primary)] hover:border-brand-orange/30 transition-all shadow-sm"
                                   >
                                     <div className="flex items-center gap-4">
                                       <div className="w-9 h-9 rounded-xl bg-indigo-500/5 flex items-center justify-center">
@@ -2712,7 +2712,7 @@ function ProgramWorkspace() {
                                               notify(t("pmMisc.workspace.reminderError"));
                                             }
                                           }}
-                                          className="text-[7px] font-black uppercase text-[var(--brand-orange)]/60 hover:text-[var(--brand-orange)] transition-all px-2 py-1 rounded border border-[var(--brand-orange)]/20 hover:border-[var(--brand-orange)]/50"
+                                          className="text-[7px] font-black uppercase text-brand-orange/60 hover:text-[var(--brand-orange)] transition-all px-2 py-1 rounded border border-brand-orange/20 hover:border-brand-orange/50"
                                           title={t("pmMisc.workspace.sendReminderTitle")}
                                         >
                                           <Bell className="w-3 h-3 inline mr-1" />
@@ -3202,7 +3202,7 @@ function ProgramWorkspace() {
                         return (
                           <div
                             key={kpi.id}
-                            className="card !p-4 hover:border-[var(--brand-orange)]/30 transition-all group"
+                            className="card !p-4 hover:border-brand-orange/30 transition-all group"
                           >
                             <div className="flex items-center justify-between mb-3">
                               <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
@@ -3215,7 +3215,7 @@ function ProgramWorkspace() {
                             <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-tight mb-3 group-hover:text-[var(--brand-orange)] transition-colors">
                               {kpi.title}
                             </p>
-                            <div className="w-full h-2 bg-[var(--border-primary)]/20 rounded-full overflow-hidden">
+                            <div className="w-full h-2 bg-divider/20 rounded-full overflow-hidden">
                               <div
                                 className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-orange-400 rounded-full transition-all duration-700"
                                 style={{ width: `${kpiProgress}%` }}
@@ -3395,7 +3395,7 @@ function ProgramWorkspace() {
           {activeTab === "reports" && (
             <div className="space-y-6">
               {user.role === "program_manager" && (
-                <div className="flex items-start gap-3 p-4 rounded-xl border border-[var(--brand-orange)]/30 bg-[var(--brand-orange)]/5">
+                <div className="flex items-start gap-3 p-4 rounded-xl border border-brand-orange/30 bg-brand-orange/5">
                   <FileText className="w-5 h-5 text-[var(--brand-orange)] shrink-0 mt-0.5" />
                   <div>
                     <p className="text-xs font-black uppercase tracking-tight text-[var(--text-primary)]">
@@ -3471,7 +3471,7 @@ function ProgramWorkspace() {
                         ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
                         : format === "pdf"
                           ? "bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20"
-                          : "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] border-[var(--brand-orange)]/20 hover:bg-[var(--brand-orange)]/20"
+                          : "bg-brand-orange/10 text-[var(--brand-orange)] border-brand-orange/20 hover:bg-brand-orange/20"
                     }`}
                   >
                     {label}
@@ -3590,7 +3590,7 @@ function ProgramWorkspace() {
                       key={submission.id}
                       className={
                         submission.status === "pending" && !submissionsSeen
-                          ? "bg-[var(--brand-orange)]/5"
+                          ? "bg-brand-orange/5"
                           : ""
                       }
                     >
@@ -3679,7 +3679,7 @@ function ProgramWorkspace() {
             >
               <div className="flex items-center justify-between border-b border-[var(--border-primary)] pb-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
+                  <div className="p-2 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)]">
                     <FileText className="w-5 h-5" />
                   </div>
                   <div>
@@ -3977,7 +3977,7 @@ function ProgramWorkspace() {
             >
               <div className="flex justify-between items-center pb-4 border-b border-[var(--border-primary)]">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-xl bg-brand-orange/10 flex items-center justify-center">
                     <FileText className="w-4 h-4 text-[var(--brand-orange)]" />
                   </div>
                   <div>
@@ -4423,7 +4423,7 @@ function ProgramWorkspace() {
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-2">
                               <span className="text-[11px] font-black text-[var(--text-primary)] uppercase">{requirement.title}</span>
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] uppercase">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-orange/10 text-[var(--brand-orange)] uppercase">
                                 {requirement.allowed_format}
                               </span>
                             </div>
@@ -5306,7 +5306,7 @@ function ProgramWorkspace() {
                       className="flex items-center justify-between p-4 bg-primary rounded-xl border border-[var(--border-primary)]"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[10px] font-black uppercase">
+                        <div className="w-8 h-8 rounded-full bg-brand-orange/10 flex items-center justify-center text-[10px] font-black uppercase">
                           {participant.name?.charAt(0)}
                         </div>
                         <div>
@@ -5436,8 +5436,8 @@ function ProgramWorkspace() {
               <div className="space-y-8">
                 {/* ────────── SECTION 1: WEEKLY OVERVIEW ────────── */}
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-[var(--brand-orange)]/20">
-                    <div className="w-5 h-5 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[8px] font-black text-[var(--brand-orange)] border border-[var(--brand-orange)]/20">
+                  <div className="flex items-center gap-2 pb-2 border-b border-brand-orange/20">
+                    <div className="w-5 h-5 rounded-full bg-brand-orange/10 flex items-center justify-center text-[8px] font-black text-[var(--brand-orange)] border border-brand-orange/20">
                       1
                     </div>
                     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--brand-orange)]">
@@ -6745,7 +6745,7 @@ function ProgramWorkspace() {
               ) : (
                 <>
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 bg-[var(--brand-orange)]/10 rounded-xl">
+                    <div className="p-3 bg-brand-orange/10 rounded-xl">
                       <Zap className="w-6 h-6 text-[var(--brand-orange)]" />
                     </div>
                     <div>

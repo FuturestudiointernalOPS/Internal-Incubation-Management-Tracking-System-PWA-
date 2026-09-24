@@ -446,10 +446,10 @@ const SidebarContent = ({
             onMouseLeave={
               collapsed && !showLabels ? scheduleFlyoutClose : undefined
             }
-            className={`w-full flex items-center justify-between transition-all font-bold uppercase ${
+            className={`w-full flex items-center justify-between transition-all ${
               isTop
-                ? "px-4 py-3.5 rounded-xl text-[11px] tracking-wide"
-                : "px-4 py-2 rounded-lg text-[11px] tracking-wide"
+                ? "px-4 py-3 rounded-xl text-[13px] font-semibold"
+                : "px-4 py-2 rounded-lg text-[13px] font-medium"
             } ${
               onPath
                 ? "text-[var(--text-primary)] bg-tertiary border border-[var(--border-secondary)]"
@@ -501,10 +501,10 @@ const SidebarContent = ({
           setMobileMenuOpen(false);
           setFlyout(null);
         }}
-        className={`w-full flex items-center transition-all font-bold uppercase ${
+        className={`w-full flex items-center transition-all ${
           isTop
-            ? "gap-4 px-4 py-3.5 rounded-xl text-[11px] tracking-wide"
-            : "gap-3 px-4 py-2 rounded-lg text-[11px] tracking-wide"
+            ? "gap-4 px-4 py-3 rounded-xl text-[13px] font-semibold"
+            : "gap-3 px-4 py-2 rounded-lg text-[13px] font-medium"
         } ${
           isActive
             ? "text-[var(--brand-orange)] bg-tertiary border border-[var(--border-secondary)]"
@@ -615,7 +615,7 @@ const SidebarContent = ({
         <div className="space-y-1">
           <button
             onClick={() => toggleMenu("profile")}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-bold uppercase tracking-wide text-[11px] ${pathname?.includes("profile") ? "bg-tertiary text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-semibold text-[13px] ${pathname?.includes("profile") ? "bg-tertiary text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
           >
             <div className="flex items-center gap-4">
               <User className="w-4 h-4 flex-shrink-0" />
@@ -630,14 +630,14 @@ const SidebarContent = ({
               <Link
                 href={profileHref}
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all font-bold text-[11px] uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"
+                className="w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all font-medium text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"
               >
                 <span className="truncate">{t(tnav("profile"))}</span>
               </Link>
               <Link
                 href={`${profileHref}#timeline`}
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all font-bold text-[11px] uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"
+                className="w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all font-medium text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"
               >
                 <span className="truncate">{t(tnav("timeline"))}</span>
               </Link>
@@ -650,14 +650,14 @@ const SidebarContent = ({
             const current = localStorage.getItem("impactos_lang") || "en";
             switchLang(current === "en" ? "fr" : "en");
           }}
-          className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary transition-all font-bold uppercase tracking-wide text-[11px]"
+          className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary transition-all font-semibold text-[13px]"
         >
           <Globe className="w-4 h-4 flex-shrink-0" />
           {!collapsed && <span>FR/EN</span>}
         </button>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-all font-bold uppercase tracking-wide text-[11px]"
+          className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-all font-semibold text-[13px]"
         >
           <LogOut className="w-4 h-4 flex-shrink-0" />
           {!collapsed && <span>{t(tnav("logout"))}</span>}
@@ -1558,7 +1558,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
 
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <header className="h-20 flex items-center px-4 lg:px-6 border-b border-[var(--border-primary)] bg-secondary/80 backdrop-blur-xl sticky top-0 z-[100]">
-            <div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-orange)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute inset-0 bg-gradient-to-r from-brand-orange/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-secondary)] uppercase relative z-10 min-w-0">
               <span className="hidden sm:inline">ImpactOS</span>
               <ChevronRight className="w-3 h-3 opacity-30 hidden sm:inline" />
@@ -1607,7 +1607,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                           }}
                           className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-bold transition-colors ${
                             theme === option.value
-                              ? "text-[var(--brand-orange)] bg-[var(--brand-orange)]/10"
+                              ? "text-[var(--brand-orange)] bg-brand-orange/10"
                               : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-primary)]"
                           }`}
                         >
@@ -1719,7 +1719,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                                 setShowNotifications(false);
                               }
                             }}
-                            className={`p-3 rounded-xl hover:bg-primary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)] group ${!notification.is_read ? "bg-[var(--brand-orange)]/5" : ""}`}
+                            className={`p-3 rounded-xl hover:bg-primary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)] group ${!notification.is_read ? "bg-brand-orange/5" : ""}`}
                           >
                             <div className="flex items-center justify-between mb-1">
                               <p className="font-black text-[10px] uppercase tracking-tight text-[var(--text-primary)]">
@@ -1989,7 +1989,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                 {pinnedAnnouncements.map((announcement) => (
                   <div
                     key={announcement.id}
-                    className="p-4 rounded-xl bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 flex items-center justify-between flex-wrap gap-3 cursor-pointer hover:bg-[var(--brand-orange)]/15 transition-all"
+                    className="p-4 rounded-xl bg-brand-orange/10 border border-brand-orange/30 flex items-center justify-between flex-wrap gap-3 cursor-pointer hover:bg-brand-orange/15 transition-all"
                     onClick={() => router.push("/admin/announcements")}
                   >
                     <div className="flex items-center gap-3">
@@ -2018,7 +2018,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
             )}
             {/* Project Invitation Banner */}
             {pendingInvites.length > 0 && (
-              <div className="mb-6 p-4 rounded-xl bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 flex items-center justify-between flex-wrap gap-3">
+              <div className="mb-6 p-4 rounded-xl bg-brand-orange/10 border border-brand-orange/30 flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
                   <Briefcase className="w-5 h-5 text-[var(--brand-orange)]" />
                   <div>

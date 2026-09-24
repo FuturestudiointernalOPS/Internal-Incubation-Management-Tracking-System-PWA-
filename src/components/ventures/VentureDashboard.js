@@ -39,7 +39,7 @@ function WidgetCard({ title, icon: Icon, iconColor, children, loading, error, on
     <div className="card">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${iconColor || "bg-[var(--brand-orange)]/10"}`}>
+          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${iconColor || "bg-brand-orange/10"}`}>
             <Icon className="w-4 h-4 text-[var(--brand-orange)]" />
           </div>
           <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">{title}</h3>
@@ -334,7 +334,7 @@ export default function VentureDashboard({ id, embedded = false }) {
             <Zap className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("vadmin.dashboard.quickActions")}
           </h3>
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => router.push(`/ventures/${id}/wizard`)} className="px-3 py-2 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
+            <button onClick={() => router.push(`/ventures/${id}/wizard`)} className="px-3 py-2 bg-brand-orange/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
               <Layers className="w-3 h-3" /> {t("vadmin.dashboard.profileWizard")}
             </button>
             <button onClick={() => router.push(`/admin/ventures/${id}/verification`)} className="px-3 py-2 bg-emerald-500/10 text-emerald-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
@@ -444,7 +444,7 @@ export default function VentureDashboard({ id, embedded = false }) {
                     </div>
                   ))}
                 </div>
-                <button onClick={() => router.push(`/admin/ventures/${id}/verification`)} className="w-full py-2 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all">
+                <button onClick={() => router.push(`/admin/ventures/${id}/verification`)} className="w-full py-2 bg-brand-orange/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all">
                   {t("vadmin.dashboard.openVerification")}
                 </button>
               </div>
@@ -606,7 +606,7 @@ export default function VentureDashboard({ id, embedded = false }) {
             </WidgetCard>
 
             {/* 9. Documents */}
-            <WidgetCard title={t("vadmin.dashboard.recentDocuments")} icon={FileText} iconColor="bg-[var(--brand-orange)]/10"
+            <WidgetCard title={t("vadmin.dashboard.recentDocuments")} icon={FileText} iconColor="bg-brand-orange/10"
               loading={widgetState("documents").loading} error={widgetState("documents").error}
               empty={widgetState("documents").empty} emptyMessage={t("vadmin.dashboard.noDocumentsUploaded")}
               onRefresh={() => refreshWidget("documents")}

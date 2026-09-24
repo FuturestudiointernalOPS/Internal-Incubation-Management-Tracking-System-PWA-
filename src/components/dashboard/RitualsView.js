@@ -26,7 +26,7 @@ const RITUAL_TYPES = [
     label: "Standup",
     icon: Zap,
     color: "text-[var(--brand-orange)]",
-    bg: "bg-[var(--brand-orange)]/10",
+    bg: "bg-brand-orange/10",
   },
   {
     id: "checkin",
@@ -287,8 +287,8 @@ export default function RitualsView() {
             onClick={() => setActiveForm(activeForm === ritualType.id ? null : ritualType.id)}
             className={`p-4 rounded-xl border transition-all text-left ${
               activeForm === ritualType.id
-                ? "border-[var(--brand-orange)] bg-[var(--brand-orange)]/5"
-                : "border-[var(--border-primary)] bg-[var(--bg-tertiary)] hover:border-[var(--brand-orange)]/30"
+                ? "border-[var(--brand-orange)] bg-brand-orange/5"
+                : "border-[var(--border-primary)] bg-[var(--bg-tertiary)] hover:border-brand-orange/30"
             }`}
           >
             <div

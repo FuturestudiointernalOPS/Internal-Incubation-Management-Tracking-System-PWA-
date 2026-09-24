@@ -1463,7 +1463,7 @@ export default function TaskManager({
 
       {/* ─── Task Form ─── */}
       {showTaskForm ? (
-        <div className="p-3 rounded-xl border border-[var(--brand-orange)]/30 bg-[var(--brand-orange)]/[0.02] space-y-3">
+        <div className="p-3 rounded-xl border border-brand-orange/30 bg-brand-orange/[0.02] space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)]">
               {pendingParentTaskId ? "Add Sub-task" : "New Task"}

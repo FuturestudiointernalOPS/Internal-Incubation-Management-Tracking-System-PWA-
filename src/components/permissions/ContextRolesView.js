@@ -201,7 +201,7 @@ export default function ContextRolesView() {
               const draft = drafts[key] || {};
               const dirty = isDirty(row);
               return (
-                <tr key={key} className="border-b border-[var(--border-primary)]/50 align-top">
+                <tr key={key} className="border-b border-divider/50 align-top">
                   <td className="p-3">
                     <span className="inline-block px-2 py-1 rounded-md bg-primary border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
                       {t(`engineering.permissions.contextRolesContexts.${row.context}`)}
@@ -234,7 +234,7 @@ export default function ContextRolesView() {
                     <select
                       value={draft.profile_id ?? ""}
                       onChange={(event) => setDraftField(row, "profile_id", event.target.value)}
-                      className={`w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40 ${
+                      className={`w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50 focus-visible:ring-2 focus-visible:ring-brand-orange/40 ${
                         draft.profile_id === "" ? "opacity-70" : ""
                       }`}
                     >
@@ -260,14 +260,14 @@ export default function ContextRolesView() {
                     <input
                       value={draft.notes || ""}
                       onChange={(event) => setDraftField(row, "notes", event.target.value)}
-                      className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+                      className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-brand-orange/50 focus-visible:ring-2 focus-visible:ring-brand-orange/40"
                     />
                   </td>
                   <td className="p-3 text-right">
                     <button
                       onClick={() => save(row)}
                       disabled={!dirty || busyKey === key}
-                      className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                      className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
                     >
                       {busyKey === key
                         ? t("engineering.permissions.contextRolesSaving")
@@ -325,7 +325,7 @@ export default function ContextRolesView() {
                 <select
                   value={draft.profile_id ?? ""}
                   onChange={(event) => setDraftField(row, "profile_id", event.target.value)}
-                  className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+                  className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50 focus-visible:ring-2 focus-visible:ring-brand-orange/40"
                 >
                   <option value="">{t("engineering.permissions.contextRolesNone")}</option>
                   {profiles.map((profile) => (
@@ -355,14 +355,14 @@ export default function ContextRolesView() {
                 <input
                   value={draft.notes || ""}
                   onChange={(event) => setDraftField(row, "notes", event.target.value)}
-                  className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+                  className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-brand-orange/50 focus-visible:ring-2 focus-visible:ring-brand-orange/40"
                 />
               </label>
 
               <button
                 onClick={() => save(row)}
                 disabled={!dirty || busyKey === key}
-                className="w-full px-3 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                className="w-full px-3 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
               >
                 {busyKey === key
                   ? t("engineering.permissions.contextRolesSaving")

@@ -34,7 +34,7 @@ export default function AuditPersonFilter({ value = "", onChange }) {
       <select
         value={value || ""}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-xl border border-[var(--border-primary)] bg-secondary px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+        className="rounded-xl border border-[var(--border-primary)] bg-secondary px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50 focus-visible:ring-2 focus-visible:ring-brand-orange/40"
       >
         <option value="">
           {t("engineering.permissions.auditFilterPersonAll")}

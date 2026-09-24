@@ -88,7 +88,7 @@ export default function PublicApplicationRegistration() {
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="card max-w-md text-center p-12 space-y-6 border-[var(--brand-orange)]/20"
+          className="card max-w-md text-center p-12 space-y-6 border-brand-orange/20"
           style={{ background: "var(--surface-1)" }}
         >
           <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto">

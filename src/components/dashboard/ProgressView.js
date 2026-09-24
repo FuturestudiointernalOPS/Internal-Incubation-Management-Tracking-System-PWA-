@@ -306,7 +306,7 @@ export default function ProgressView({ programId: _filterProgramId }) {
           value={metrics.programCompletion}
           icon={Target}
           color={{
-            bg: "bg-[var(--brand-orange)]/10",
+            bg: "bg-brand-orange/10",
             text: "text-[var(--brand-orange)]",
             hex: "#FF6600",
           }}

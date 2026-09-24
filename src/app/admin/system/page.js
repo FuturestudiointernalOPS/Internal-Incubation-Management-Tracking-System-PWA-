@@ -229,7 +229,7 @@ export default function SystemMonitoringPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-[#020617] text-white p-6">
+      <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -237,29 +237,29 @@ export default function SystemMonitoringPage() {
               <HeartPulse className="text-[var(--brand-orange)]" size={24} />
               {t("adminMisc.system.title")}
             </h1>
-            <p className="text-sm text-gray-400 mt-1">{t("adminMisc.system.subtitle")}</p>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">{t("adminMisc.system.subtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={runHealthCheck} disabled={runningHealth}
-              className="flex items-center gap-2 px-4 py-2 bg-[#0f172a] border border-gray-800 rounded-xl hover:bg-[#1e293b] transition-colors text-sm disabled:opacity-50">
+              className="flex items-center gap-2 px-4 py-2 bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl hover:bg-[var(--surface-2)] transition-colors text-sm disabled:opacity-50">
               {runningHealth ? <Loader2 className="animate-spin" size={14} /> : <Activity size={14} />}
               {runningHealth ? t("adminMisc.system.running") : t("adminMisc.system.runHealthCheck")}
             </button>
             <button onClick={refreshAll}
-              className="flex items-center gap-2 px-4 py-2 bg-[#0f172a] border border-gray-800 rounded-xl hover:bg-[#1e293b] transition-colors text-sm">
+              className="flex items-center gap-2 px-4 py-2 bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl hover:bg-[var(--surface-2)] transition-colors text-sm">
               <RefreshCw size={14} /> {t("adminMisc.system.refresh")}
             </button>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-[#0f172a] border border-gray-800 rounded-xl p-1 mb-6 overflow-x-auto">
+        <div className="flex gap-1 bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl p-1 mb-6 overflow-x-auto">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                  activeTab === tab.id ? "bg-[var(--brand-orange)] text-black" : "text-gray-400 hover:text-white hover:bg-white/5"
+                  activeTab === tab.id ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)]"
                 }`}>
                 <Icon size={16} /> {t(tab.label)}
               </button>
@@ -295,30 +295,30 @@ export default function SystemMonitoringPage() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
-                    <h3 className="text-sm font-medium text-gray-300 mb-3">{t("adminMisc.system.systemTitle")}</h3>
+                  <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl p-4">
+                    <h3 className="text-sm font-medium text-[var(--text-primary)] mb-3">{t("adminMisc.system.systemTitle")}</h3>
                     <div className="space-y-2 text-sm">
-                      <div className="flex justify-between"><span className="text-gray-500">{t("adminMisc.system.status")}</span>
+                      <div className="flex justify-between"><span className="text-[var(--text-secondary)]">{t("adminMisc.system.status")}</span>
                         <span className={`${status?.status === "healthy" ? "text-emerald-400" : status?.status === "degraded" ? "text-amber-400" : "text-red-400"}`}>
                           {t(STATUS_KEYS[status?.status] || "") || status?.status || t("adminMisc.system.unknown")}
                         </span>
                       </div>
-                      <div className="flex justify-between"><span className="text-gray-500">{t("adminMisc.system.uptime")}</span><span className="text-gray-300">{Math.round(status?.uptime || 0)}s</span></div>
-                      <div className="flex justify-between"><span className="text-gray-500">{t("adminMisc.system.env")}</span><span className="text-gray-300">{t(ENV_KEYS[status?.environment] || "") || status?.environment || t("adminMisc.system.na")}</span></div>
+                      <div className="flex justify-between"><span className="text-[var(--text-secondary)]">{t("adminMisc.system.uptime")}</span><span className="text-[var(--text-primary)]">{Math.round(status?.uptime || 0)}s</span></div>
+                      <div className="flex justify-between"><span className="text-[var(--text-secondary)]">{t("adminMisc.system.env")}</span><span className="text-[var(--text-primary)]">{t(ENV_KEYS[status?.environment] || "") || status?.environment || t("adminMisc.system.na")}</span></div>
                     </div>
                   </div>
-                  <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
-                    <h3 className="text-sm font-medium text-gray-300 mb-3">{t("adminMisc.system.apiActivity")}</h3>
+                  <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl p-4">
+                    <h3 className="text-sm font-medium text-[var(--text-primary)] mb-3">{t("adminMisc.system.apiActivity")}</h3>
                     <div className="grid grid-cols-2 gap-2">
-                      <div><p className="text-xl font-bold">{apiMonitor?.total_requests || 0}</p><p className="text-xs text-gray-500">{t("adminMisc.system.requests")}</p></div>
-                      <div><p className="text-xl font-bold text-red-400">{apiMonitor?.errors || 0}</p><p className="text-xs text-gray-500">{t("adminMisc.system.errors")}</p></div>
+                      <div><p className="text-xl font-bold">{apiMonitor?.total_requests || 0}</p><p className="text-xs text-[var(--text-secondary)]">{t("adminMisc.system.requests")}</p></div>
+                      <div><p className="text-xl font-bold text-red-400">{apiMonitor?.errors || 0}</p><p className="text-xs text-[var(--text-secondary)]">{t("adminMisc.system.errors")}</p></div>
                     </div>
                   </div>
-                  <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
-                    <h3 className="text-sm font-medium text-gray-300 mb-3">{t("adminMisc.system.storage")}</h3>
+                  <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl p-4">
+                    <h3 className="text-sm font-medium text-[var(--text-primary)] mb-3">{t("adminMisc.system.storage")}</h3>
                     <div className="grid grid-cols-2 gap-2">
-                      <div><p className="text-xl font-bold">{storage?.database_size_mb || 0} MB</p><p className="text-xs text-gray-500">{t("adminMisc.system.database")}</p></div>
-                      <div><p className="text-xl font-bold">{storage?.total_ventures || 0}</p><p className="text-xs text-gray-500">{t("adminMisc.system.ventures")}</p></div>
+                      <div><p className="text-xl font-bold">{storage?.database_size_mb || 0} MB</p><p className="text-xs text-[var(--text-secondary)]">{t("adminMisc.system.database")}</p></div>
+                      <div><p className="text-xl font-bold">{storage?.total_ventures || 0}</p><p className="text-xs text-[var(--text-secondary)]">{t("adminMisc.system.ventures")}</p></div>
                     </div>
                   </div>
                 </div>
@@ -339,17 +339,17 @@ export default function SystemMonitoringPage() {
                            component.status === "degraded" ? <AlertTriangle size={18} className="text-amber-400" /> :
                            <XCircle size={18} className="text-red-400" />}
                         </div>
-                        <p className="text-xs text-gray-400">{component.message || t("adminMisc.system.noMessage")}</p>
-                        {component.response_time_ms != null && <p className="text-xs text-gray-500 mt-2">{t("adminMisc.system.responseTime", { ms: component.response_time_ms })}</p>}
-                        <p className="text-[10px] text-gray-600 mt-1">{formatDate(component.checked_at)}</p>
+                        <p className="text-xs text-[var(--text-secondary)]">{component.message || t("adminMisc.system.noMessage")}</p>
+                        {component.response_time_ms != null && <p className="text-xs text-[var(--text-secondary)] mt-2">{t("adminMisc.system.responseTime", { ms: component.response_time_ms })}</p>}
+                        <p className="text-[10px] text-[var(--text-tertiary)] mt-1">{formatDate(component.checked_at)}</p>
                       </div>
                     );
                   })}
                 </div>
                 {(Array.isArray(health) ? health : []).length === 0 && (
-                  <div className="bg-[#0f172a] border-gray-800 rounded-xl p-12 text-center">
-                    <Activity className="mx-auto mb-3 text-gray-500" size={40} />
-                    <p className="text-gray-400">{t("adminMisc.system.noHealthChecks")}</p>
+                  <div className="bg-[var(--surface-1)] border-[var(--border-primary)] rounded-xl p-12 text-center">
+                    <Activity className="mx-auto mb-3 text-[var(--text-secondary)]" size={40} />
+                    <p className="text-[var(--text-secondary)]">{t("adminMisc.system.noHealthChecks")}</p>
                   </div>
                 )}
               </div>
@@ -357,20 +357,20 @@ export default function SystemMonitoringPage() {
 
             {/* ─── ALERTS ────────────────────────────────────────────────── */}
             {activeTab === "alerts" && (
-              <div className="bg-[#0f172a] border border-gray-800 rounded-xl overflow-hidden">
-                <div className="p-4 border-b border-gray-800 text-sm text-gray-400">
+              <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl overflow-hidden">
+                <div className="p-4 border-b border-[var(--border-primary)] text-sm text-[var(--text-secondary)]">
                   {t("adminMisc.system.alertsOpen", { count: alerts?.open || 0 })} · {t("adminMisc.system.alertsCritical", { count: alerts?.critical || 0 })}
                 </div>
                 {status?.open_alerts?.length > 0 ? (
-                  <div className="divide-y divide-gray-800/50">
+                  <div className="divide-y divide-[var(--border-secondary)]">
                     {status.open_alerts.map((alert) => (
                       <div key={alert.id} className="flex items-start gap-3 p-4">
                         {alert.severity === "critical" ? <AlertCircle size={16} className="mt-0.5 text-red-400 shrink-0" /> :
                          <AlertTriangle size={16} className="mt-0.5 text-amber-400 shrink-0" />}
                         <div>
                           <p className="text-sm font-medium">{alert.title}</p>
-                          {alert.message && <p className="text-xs text-gray-400 mt-1">{alert.message}</p>}
-                          <div className="flex gap-2 mt-1.5 text-[10px] text-gray-500">
+                          {alert.message && <p className="text-xs text-[var(--text-secondary)] mt-1">{alert.message}</p>}
+                          <div className="flex gap-2 mt-1.5 text-[10px] text-[var(--text-secondary)]">
                             <span className={`px-1.5 py-0.5 rounded ${alert.severity === "critical" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}>
                               {alert.severity}
                             </span>
@@ -384,7 +384,7 @@ export default function SystemMonitoringPage() {
                 ) : (
                   <div className="p-12 text-center">
                     <CheckCircle2 className="mx-auto mb-3 text-emerald-400" size={40} />
-                    <p className="text-gray-400">{t("adminMisc.system.noOpenAlerts")}</p>
+                    <p className="text-[var(--text-secondary)]">{t("adminMisc.system.noOpenAlerts")}</p>
                   </div>
                 )}
               </div>
@@ -393,21 +393,21 @@ export default function SystemMonitoringPage() {
             {/* ─── API ───────────────────────────────────────────────────── */}
             {activeTab === "api" && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
+                <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl p-4">
                   <h3 className="text-sm font-medium mb-4">{t("adminMisc.system.summary")}</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="bg-[#020617] rounded-lg p-3"><p className="text-2xl font-bold">{apiMonitor?.total_requests || 0}</p><p className="text-xs text-gray-500">{t("adminMisc.system.requests")}</p></div>
-                    <div className="bg-[#020617] rounded-lg p-3"><p className="text-2xl font-bold text-red-400">{apiMonitor?.errors || 0}</p><p className="text-xs text-gray-500">{t("adminMisc.system.errors")}</p></div>
-                    <div className="bg-[#020617] rounded-lg p-3"><p className="text-2xl font-bold">{apiMonitor?.error_rate || 0}%</p><p className="text-xs text-gray-500">{t("adminMisc.system.errorRate")}</p></div>
+                    <div className="bg-[var(--bg-primary)] rounded-lg p-3"><p className="text-2xl font-bold">{apiMonitor?.total_requests || 0}</p><p className="text-xs text-[var(--text-secondary)]">{t("adminMisc.system.requests")}</p></div>
+                    <div className="bg-[var(--bg-primary)] rounded-lg p-3"><p className="text-2xl font-bold text-red-400">{apiMonitor?.errors || 0}</p><p className="text-xs text-[var(--text-secondary)]">{t("adminMisc.system.errors")}</p></div>
+                    <div className="bg-[var(--bg-primary)] rounded-lg p-3"><p className="text-2xl font-bold">{apiMonitor?.error_rate || 0}%</p><p className="text-xs text-[var(--text-secondary)]">{t("adminMisc.system.errorRate")}</p></div>
                   </div>
                 </div>
                 {apiMonitor?.slow_endpoints?.length > 0 && (
-                  <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
+                  <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl p-4">
                     <h3 className="text-sm font-medium mb-4">{t("adminMisc.system.slowEndpoints")}</h3>
                     <div className="space-y-1.5">
                       {apiMonitor.slow_endpoints.map((endpoint, index) => (
                         <div key={index} className="flex justify-between text-xs">
-                          <span className="text-gray-400 font-mono truncate max-w-[250px]">{endpoint.endpoint}</span>
+                          <span className="text-[var(--text-secondary)] font-mono truncate max-w-[250px]">{endpoint.endpoint}</span>
                           <span className="text-amber-400">{Math.round(endpoint.avg_ms)}ms</span>
                         </div>
                       ))}
@@ -420,21 +420,21 @@ export default function SystemMonitoringPage() {
             {/* ─── DATABASE ──────────────────────────────────────────────── */}
             {activeTab === "database" && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
+                <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl p-4">
                   <h3 className="text-sm font-medium mb-4">{t("adminMisc.system.info")}</h3>
                   <div className="space-y-2 text-sm">
-                    <div className="flex justify-between py-1 border-b border-gray-800/50"><span className="text-gray-400">{t("adminMisc.system.activeConnections")}</span><span>{dbInfo?.active_connections || 0}</span></div>
-                    <div className="flex justify-between py-1 border-b border-gray-800/50"><span className="text-gray-400">{t("adminMisc.system.size")}</span><span>{dbInfo?.database_size_mb || 0} MB</span></div>
+                    <div className="flex justify-between py-1 border-b border-[var(--border-secondary)]"><span className="text-[var(--text-secondary)]">{t("adminMisc.system.activeConnections")}</span><span>{dbInfo?.active_connections || 0}</span></div>
+                    <div className="flex justify-between py-1 border-b border-[var(--border-secondary)]"><span className="text-[var(--text-secondary)]">{t("adminMisc.system.size")}</span><span>{dbInfo?.database_size_mb || 0} MB</span></div>
                   </div>
                 </div>
                 {dbInfo?.tables?.length > 0 && (
-                  <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
+                  <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl p-4">
                     <h3 className="text-sm font-medium mb-4">{t("adminMisc.system.tables")}</h3>
                     <div className="space-y-1 max-h-[300px] overflow-y-auto">
                       {dbInfo.tables.slice(0, 15).map((row, rowIndex) => (
-                        <div key={rowIndex} className="flex justify-between text-xs py-1 border-b border-gray-800/30">
-                          <span className="text-gray-400">{row.tablename}</span>
-                          <span className="text-gray-500">{t("adminMisc.system.rows", { count: row.approx_rows })}</span>
+                        <div key={rowIndex} className="flex justify-between text-xs py-1 border-b border-divider/30">
+                          <span className="text-[var(--text-secondary)]">{row.tablename}</span>
+                          <span className="text-[var(--text-secondary)]">{t("adminMisc.system.rows", { count: row.approx_rows })}</span>
                         </div>
                       ))}
                     </div>
@@ -446,25 +446,25 @@ export default function SystemMonitoringPage() {
             {/* ─── STORAGE ───────────────────────────────────────────────── */}
             {activeTab === "storage" && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
+                <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl p-4">
                   <HardDrive size={20} className="text-blue-400 mb-2" />
                   <p className="text-2xl font-bold">{storage?.database_size_mb || 0} MB</p>
-                  <p className="text-xs text-gray-500">{t("adminMisc.system.databaseSize")}</p>
+                  <p className="text-xs text-[var(--text-secondary)]">{t("adminMisc.system.databaseSize")}</p>
                 </div>
-                <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
+                <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl p-4">
                   <Server size={20} className="text-emerald-400 mb-2" />
                   <p className="text-2xl font-bold">{storage?.total_ventures || 0}</p>
-                  <p className="text-xs text-gray-500">{t("adminMisc.system.ventures")}</p>
+                  <p className="text-xs text-[var(--text-secondary)]">{t("adminMisc.system.ventures")}</p>
                 </div>
-                <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
+                <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl p-4">
                   <Activity size={20} className="text-purple-400 mb-2" />
                   <p className="text-2xl font-bold">{storage?.total_users || 0}</p>
-                  <p className="text-xs text-gray-500">{t("adminMisc.system.users")}</p>
+                  <p className="text-xs text-[var(--text-secondary)]">{t("adminMisc.system.users")}</p>
                 </div>
-                <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
+                <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl p-4">
                   <FileText size={20} className="text-amber-400 mb-2" />
                   <p className="text-2xl font-bold">{storage?.total_documents || 0}</p>
-                  <p className="text-xs text-gray-500">{t("adminMisc.system.documents")}</p>
+                  <p className="text-xs text-[var(--text-secondary)]">{t("adminMisc.system.documents")}</p>
                 </div>
               </div>
             )}
@@ -473,26 +473,26 @@ export default function SystemMonitoringPage() {
             {activeTab === "jobs" && (
               <div className="space-y-6">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4"><p className="text-2xl font-bold text-blue-400">{jobStats?.running || 0}</p><p className="text-xs text-gray-500">{t("adminMisc.system.statsRunning")}</p></div>
-                  <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4"><p className="text-2xl font-bold text-amber-400">{jobStats?.queued || 0}</p><p className="text-xs text-gray-500">{t("adminMisc.system.statsQueued")}</p></div>
-                  <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4"><p className="text-2xl font-bold text-red-400">{jobStats?.failed || 0}</p><p className="text-xs text-gray-500">{t("adminMisc.system.statsFailed")}</p></div>
-                  <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4"><p className="text-2xl font-bold text-emerald-400">{jobStats?.completed_24h || 0}</p><p className="text-xs text-gray-500">{t("adminMisc.system.statsCompleted")}</p></div>
+                  <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl p-4"><p className="text-2xl font-bold text-blue-400">{jobStats?.running || 0}</p><p className="text-xs text-[var(--text-secondary)]">{t("adminMisc.system.statsRunning")}</p></div>
+                  <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl p-4"><p className="text-2xl font-bold text-amber-400">{jobStats?.queued || 0}</p><p className="text-xs text-[var(--text-secondary)]">{t("adminMisc.system.statsQueued")}</p></div>
+                  <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl p-4"><p className="text-2xl font-bold text-red-400">{jobStats?.failed || 0}</p><p className="text-xs text-[var(--text-secondary)]">{t("adminMisc.system.statsFailed")}</p></div>
+                  <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl p-4"><p className="text-2xl font-bold text-emerald-400">{jobStats?.completed_24h || 0}</p><p className="text-xs text-[var(--text-secondary)]">{t("adminMisc.system.statsCompleted")}</p></div>
                 </div>
                 {jobs.length > 0 ? (
-                  <div className="bg-[#0f172a] border border-gray-800 rounded-xl overflow-x-auto">
+                  <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl overflow-x-auto">
                     <table className="w-full">
-                      <thead><tr className="border-b border-gray-800">
-                <th className="text-left p-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.system.colJob")}</th>
-                        <th className="text-left p-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.system.colType")}</th>
-                        <th className="text-left p-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.system.status")}</th>
-                        <th className="text-left p-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.system.duration")}</th>
-                        <th className="text-left p-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.system.started")}</th>
+                      <thead><tr className="border-b border-[var(--border-primary)]">
+                <th className="text-left p-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("adminMisc.system.colJob")}</th>
+                        <th className="text-left p-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("adminMisc.system.colType")}</th>
+                        <th className="text-left p-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("adminMisc.system.status")}</th>
+                        <th className="text-left p-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("adminMisc.system.duration")}</th>
+                        <th className="text-left p-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("adminMisc.system.started")}</th>
                       </tr></thead>
                       <tbody>
                         {jobs.map((job) => (
-                          <tr key={job.id} className="border-b border-gray-800/50">
+                          <tr key={job.id} className="border-b border-[var(--border-secondary)]">
                             <td className="p-3 text-sm">{job.job_name}</td>
-                            <td className="p-3 text-sm text-gray-400">{job.job_type}</td>
+                            <td className="p-3 text-sm text-[var(--text-secondary)]">{job.job_type}</td>
                             <td className="p-3">
                               <span className={`text-xs px-2 py-0.5 rounded-full ${
                                 job.status === "completed" ? "bg-emerald-500/10 text-emerald-400" :
@@ -500,17 +500,17 @@ export default function SystemMonitoringPage() {
                                 job.status === "failed" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"
                               }`}>{job.status}</span>
                             </td>
-                            <td className="p-3 text-sm text-gray-400">{job.duration_ms ? `${job.duration_ms}ms` : "-"}</td>
-                            <td className="p-3 text-sm text-gray-500">{formatDate(job.created_at)}</td>
+                            <td className="p-3 text-sm text-[var(--text-secondary)]">{job.duration_ms ? `${job.duration_ms}ms` : "-"}</td>
+                            <td className="p-3 text-sm text-[var(--text-secondary)]">{formatDate(job.created_at)}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
                 ) : (
-                  <div className="bg-[#0f172a] border-gray-800 rounded-xl p-12 text-center">
-                    <Cpu className="mx-auto mb-3 text-gray-500" size={40} />
-                    <p className="text-gray-400">{t("adminMisc.system.noJobs")}</p>
+                  <div className="bg-[var(--surface-1)] border-[var(--border-primary)] rounded-xl p-12 text-center">
+                    <Cpu className="mx-auto mb-3 text-[var(--text-secondary)]" size={40} />
+                    <p className="text-[var(--text-secondary)]">{t("adminMisc.system.noJobs")}</p>
                   </div>
                 )}
               </div>
@@ -521,46 +521,46 @@ export default function SystemMonitoringPage() {
               <div className="space-y-6">
                 <div className="flex flex-wrap gap-3">
                   <button onClick={() => generateReport("daily")} disabled={generatingReport}
-                    className="px-4 py-2 bg-[#0f172a] border border-gray-800 rounded-xl text-sm hover:bg-[#1e293b] disabled:opacity-50 flex items-center gap-2">
+                    className="px-4 py-2 bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl text-sm hover:bg-[var(--surface-2)] disabled:opacity-50 flex items-center gap-2">
                     {generatingReport && <Loader2 className="animate-spin" size={12} />}
                     {t("adminMisc.system.generateDailyReport")}
                   </button>
                   <button onClick={() => generateReport("weekly")} disabled={generatingReport}
-                    className="px-4 py-2 bg-[#0f172a] border border-gray-800 rounded-xl text-sm hover:bg-[#1e293b] disabled:opacity-50">
+                    className="px-4 py-2 bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl text-sm hover:bg-[var(--surface-2)] disabled:opacity-50">
                     {t("adminMisc.system.generateWeeklyReport")}
                   </button>
                   <button onClick={() => generateReport("monthly")} disabled={generatingReport}
-                    className="px-4 py-2 bg-[#0f172a] border border-gray-800 rounded-xl text-sm hover:bg-[#1e293b] disabled:opacity-50">
+                    className="px-4 py-2 bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl text-sm hover:bg-[var(--surface-2)] disabled:opacity-50">
                     {t("adminMisc.system.generateMonthlyReport")}
                   </button>
                 </div>
                 {reports.length > 0 ? (
-                  <div className="bg-[#0f172a] border border-gray-800 rounded-xl overflow-x-auto">
+                  <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl overflow-x-auto">
                     <table className="w-full">
-                      <thead><tr className="border-b border-gray-800">
-                        <th className="text-left p-3 text-xs text-gray-400">{t("adminMisc.system.colTitle")}</th>
-                        <th className="text-left p-3 text-xs text-gray-400">{t("adminMisc.system.colType")}</th>
-                        <th className="text-left p-3 text-xs text-gray-400">{t("adminMisc.system.period")}</th>
-                        <th className="text-left p-3 text-xs text-gray-400 max-w-[300px]">{t("adminMisc.system.summary")}</th>
-                        <th className="text-left p-3 text-xs text-gray-400">{t("adminMisc.system.generated")}</th>
+                      <thead><tr className="border-b border-[var(--border-primary)]">
+                        <th className="text-left p-3 text-xs text-[var(--text-secondary)]">{t("adminMisc.system.colTitle")}</th>
+                        <th className="text-left p-3 text-xs text-[var(--text-secondary)]">{t("adminMisc.system.colType")}</th>
+                        <th className="text-left p-3 text-xs text-[var(--text-secondary)]">{t("adminMisc.system.period")}</th>
+                        <th className="text-left p-3 text-xs text-[var(--text-secondary)] max-w-[300px]">{t("adminMisc.system.summary")}</th>
+                        <th className="text-left p-3 text-xs text-[var(--text-secondary)]">{t("adminMisc.system.generated")}</th>
                       </tr></thead>
                       <tbody>
                         {reports.map((report) => (
-                          <tr key={report.id} className="border-b border-gray-800/50">
+                          <tr key={report.id} className="border-b border-[var(--border-secondary)]">
                             <td className="p-3 text-sm font-medium">{report.title}</td>
                             <td className="p-3"><span className="text-xs px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full">{t(REPORT_TYPE_KEYS[report.report_type] || "") || report.report_type}</span></td>
-                            <td className="p-3 text-sm text-gray-400">{report.period_start} → {report.period_end}</td>
-                            <td className="p-3 text-sm text-gray-500 truncate max-w-[300px]">{report.summary}</td>
-                            <td className="p-3 text-sm text-gray-500 whitespace-nowrap">{formatDate(report.created_at)}</td>
+                            <td className="p-3 text-sm text-[var(--text-secondary)]">{report.period_start} → {report.period_end}</td>
+                            <td className="p-3 text-sm text-[var(--text-secondary)] truncate max-w-[300px]">{report.summary}</td>
+                            <td className="p-3 text-sm text-[var(--text-secondary)] whitespace-nowrap">{formatDate(report.created_at)}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
                 ) : (
-                  <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-12 text-center">
-                    <FileText className="mx-auto mb-3 text-gray-500" size={40} />
-                    <p className="text-gray-400">{t("adminMisc.system.noReports")}</p>
+                  <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl p-12 text-center">
+                    <FileText className="mx-auto mb-3 text-[var(--text-secondary)]" size={40} />
+                    <p className="text-[var(--text-secondary)]">{t("adminMisc.system.noReports")}</p>
                   </div>
                 )}
               </div>

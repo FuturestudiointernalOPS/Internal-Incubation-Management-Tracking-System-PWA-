@@ -193,7 +193,7 @@ export function DialogProvider({ children }) {
                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] ${
                   danger
                     ? "bg-rose-500/10 text-rose-500"
-                    : "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                    : "bg-brand-orange/10 text-[var(--brand-orange)]"
                 }`}
               >
                 <Icon className="h-4 w-4" />

@@ -610,7 +610,7 @@ export default function PermissionManager({
                     <button
                       type="button"
                       onClick={() => selectUser(selectedUser)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
                     >
                       <RefreshCw className="w-3 h-3" />
                       {t("common.refresh")}
@@ -697,7 +697,7 @@ export default function PermissionManager({
                         <select
                           value={assignProfileId}
                           onChange={(event) => setAssignProfileId(event.target.value)}
-                          className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+                          className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50 transition-all"
                         >
                           <option value="">
                             {t("engineering.permissions.selectProfile")}
@@ -802,7 +802,7 @@ export default function PermissionManager({
                         <button
                           type="button"
                           onClick={() => fetchModules()}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
                         >
                           <RefreshCw className="w-3 h-3" />
                           {t("common.refresh")}
@@ -892,7 +892,7 @@ export default function PermissionManager({
                                         return (
                                           <tr
                                             key={cap}
-                                            className="group border-b border-[var(--border-primary)]/50 last:border-b-0 hover:bg-tertiary/20 transition-all"
+                                            className="group border-b border-divider/50 last:border-b-0 hover:bg-tertiary/20 transition-all"
                                           >
                                             {/* Capability name */}
                                             <td className="px-5 py-3">
@@ -1858,7 +1858,7 @@ function AccessProfilesView({ initialProfileId = null }) {
                     setNewProfile({ ...newProfile, name: event.target.value })
                   }
                   placeholder={t("engineering.permissions.profileNamePlaceholder")}
-                  className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+                  className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50 transition-all"
                 />
                 <input
                   value={newProfile.description}
@@ -1866,7 +1866,7 @@ function AccessProfilesView({ initialProfileId = null }) {
                     setNewProfile({ ...newProfile, description: event.target.value })
                   }
                   placeholder={t("engineering.permissions.descriptionOptional")}
-                  className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+                  className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50 transition-all"
                 />
                 <div className="flex gap-2">
                   <button
@@ -1902,7 +1902,7 @@ function AccessProfilesView({ initialProfileId = null }) {
           id="access-profile-picker"
           value={selectedProfile ? String(selectedProfile.id) : ""}
           onChange={handleProfilePick}
-          className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+          className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50 focus-visible:ring-2 focus-visible:ring-brand-orange/40"
         >
           <option value="">{t("engineering.permissions.selectProfileOption")}</option>
           {profiles.map((profile) => (
@@ -1932,7 +1932,7 @@ function AccessProfilesView({ initialProfileId = null }) {
                         value={renameValue}
                         onChange={(event) => setRenameValue(event.target.value)}
                         placeholder={t("engineering.permissions.renamePlaceholder")}
-                        className="w-56 bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50"
+                        className="w-56 bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50"
                       />
                       <button
                         onClick={renameProfile}
@@ -2051,7 +2051,7 @@ function AccessProfilesView({ initialProfileId = null }) {
                       setRemoveErr("");
                       setRolesModalOpen(true);
                     }}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
                   >
                     <Pencil className="w-3 h-3" />{" "}
                     {t("engineering.permissions.editRoles")}
@@ -2062,7 +2062,7 @@ function AccessProfilesView({ initialProfileId = null }) {
                     {selectedIsDefaultFor.map((role) => (
                       <span
                         key={role}
-                        className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                        className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded bg-brand-orange/10 text-[var(--brand-orange)]"
                       >
                         {role.replace(/_/g, " ")}
                       </span>
@@ -2137,7 +2137,7 @@ function AccessProfilesView({ initialProfileId = null }) {
               </div>
 
               {selectedIsDefaultFor.length > 0 ? (
-                <div className="p-3 rounded-xl bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/20">
+                <div className="p-3 rounded-xl bg-brand-orange/5 border border-brand-orange/20">
                   <p className="text-[10px] font-bold text-[var(--text-secondary)]">
                     {t("engineering.permissions.profileEligibilityFilterHint", {
                       roles: selectedIsDefaultFor.join(", "),
@@ -2330,7 +2330,7 @@ function AccessProfilesView({ initialProfileId = null }) {
                 value={defaultRoleChoice}
                 onChange={(event) => setDefaultRoleChoice(event.target.value)}
                 aria-label={t("engineering.permissions.defaultForTitle")}
-                className="bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+                className="bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50 focus-visible:ring-2 focus-visible:ring-brand-orange/40"
               >
                 <option value="">
                   {t("engineering.permissions.defaultForPick")}
@@ -2346,7 +2346,7 @@ function AccessProfilesView({ initialProfileId = null }) {
               <button
                 onClick={assignRoleDefault}
                 disabled={!defaultRoleChoice || defaultRoleBusy}
-                className="px-3 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                className="px-3 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
               >
                 {t("engineering.permissions.rolesAdd")}
               </button>
@@ -2576,7 +2576,7 @@ function ResponsibilitiesView() {
           value={searchQuery}
           onChange={(event) => searchUsers(event.target.value)}
           placeholder={t("engineering.permissions.responsibilitiesSearchPlaceholder")}
-          className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
+          className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-brand-orange/50 font-bold text-xs transition-all"
         />
       </div>
 
@@ -2587,7 +2587,7 @@ function ResponsibilitiesView() {
             <button
               key={user.cid}
               onClick={() => selectUser(user)}
-              className="w-full ios-card !p-3 border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all text-left flex items-center justify-between"
+              className="w-full ios-card !p-3 border-[var(--border-primary)] hover:border-brand-orange/30 transition-all text-left flex items-center justify-between"
             >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
@@ -2703,7 +2703,7 @@ function ResponsibilitiesView() {
                   onClick={() => toggleResponsibility(resp)}
                   className={`ios-card !p-4 border transition-all text-left ${
                     resp.assigned
-                      ? "border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/5"
+                      ? "border-brand-orange/40 bg-brand-orange/5"
                       : "border-[var(--border-primary)] opacity-60 hover:opacity-100"
                   }`}
                 >
@@ -2966,7 +2966,7 @@ function ResponsibilityAccessView() {
                       <span
                         className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
                           isCustom
-                            ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                            ? "bg-brand-orange/10 text-[var(--brand-orange)]"
                             : "bg-slate-500/10 text-slate-400"
                         }`}
                       >
@@ -3002,7 +3002,7 @@ function ResponsibilityAccessView() {
                         title={role}
                         className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-lg border transition-all disabled:opacity-50 ${
                           active
-                            ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]/40 text-[var(--brand-orange)]"
+                            ? "bg-brand-orange/10 border-brand-orange/40 text-[var(--brand-orange)]"
                             : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] opacity-70 hover:opacity-100"
                         }`}
                       >
@@ -3329,7 +3329,7 @@ function EligibilityView() {
 
           {/* Small screens: one card per identity, one chip per feature — the
               same tap opens the same identity editor. */}
-          <div className="md:hidden divide-y divide-[var(--border-primary)]/50">
+          <div className="md:hidden divide-y divide-divider/50">
             {matrixRoles.map((role) => (
               <div key={role} className="p-3 space-y-2">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]">
@@ -3368,7 +3368,7 @@ function EligibilityView() {
         </div>
       )}
 
-      <div className="flex items-start gap-2 p-3 rounded-xl bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/20">
+      <div className="flex items-start gap-2 p-3 rounded-xl bg-brand-orange/5 border border-brand-orange/20">
         <Info className="w-3.5 h-3.5 text-[var(--brand-orange)] shrink-0 mt-0.5" />
         <p className="text-[10px] font-bold text-[var(--text-secondary)]">
           {t("engineering.permissions.eligibilityHint")}
@@ -3481,7 +3481,7 @@ function EligibilityView() {
                 return (
                   <div
                     key={featureKey}
-                    className={`flex items-center justify-between gap-3 px-4 py-2.5 ${dirty ? "bg-[var(--brand-orange)]/5" : ""}`}
+                    className={`flex items-center justify-between gap-3 px-4 py-2.5 ${dirty ? "bg-brand-orange/5" : ""}`}
                   >
                     <div className="min-w-0">
                       <p className="text-[10px] font-black uppercase tracking-wider text-[var(--text-primary)]">
@@ -3904,7 +3904,7 @@ function AuditView() {
             onKeyDown={(event) => event.key === "Enter" && applyFilters()}
             placeholder={t("engineering.permissions.auditSearch")}
             aria-label={t("engineering.permissions.auditSearch")}
-            className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40 transition-all"
+            className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50 focus-visible:ring-2 focus-visible:ring-brand-orange/40 transition-all"
           />
         </div>
         <input
@@ -3913,7 +3913,7 @@ function AuditView() {
           onKeyDown={(event) => event.key === "Enter" && applyFilters()}
           placeholder={t("engineering.permissions.auditFilterActor")}
           aria-label={t("engineering.permissions.auditFilterActor")}
-          className="w-40 bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+          className="w-40 bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50 focus-visible:ring-2 focus-visible:ring-brand-orange/40"
         />
         <input
           value={filters.target}
@@ -3921,7 +3921,7 @@ function AuditView() {
           onKeyDown={(event) => event.key === "Enter" && applyFilters()}
           placeholder={t("engineering.permissions.auditFilterTarget")}
           aria-label={t("engineering.permissions.auditFilterTarget")}
-          className="w-40 bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+          className="w-40 bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50 focus-visible:ring-2 focus-visible:ring-brand-orange/40"
         />
         <input
           value={filters.capability}
@@ -3929,13 +3929,13 @@ function AuditView() {
           onKeyDown={(event) => event.key === "Enter" && applyFilters()}
           placeholder={t("engineering.permissions.auditFilterCapability")}
           aria-label={t("engineering.permissions.auditFilterCapability")}
-          className="w-40 bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+          className="w-40 bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50 focus-visible:ring-2 focus-visible:ring-brand-orange/40"
         />
         <select
           value={filters.action}
           onChange={(event) => updateFilter("action", event.target.value)}
           aria-label={t("engineering.permissions.auditFilterActionAria")}
-          className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+          className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"
         >
           <option value="">{t("engineering.permissions.auditAllActions")}</option>
           {AUDIT_ACTIONS.map((action) => (
@@ -3948,7 +3948,7 @@ function AuditView() {
           value={filters.module}
           onChange={(event) => updateFilter("module", event.target.value)}
           aria-label={t("engineering.permissions.auditFilterModuleAria")}
-          className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+          className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"
         >
           <option value="">{t("engineering.permissions.auditAllModules")}</option>
           {moduleOptions.map((module) => (
@@ -3969,7 +3969,7 @@ function AuditView() {
             type="date"
             value={filters.from}
             onChange={(event) => updateFilter("from", event.target.value)}
-            className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+            className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"
           />
         </label>
         <label className="flex flex-col gap-1">
@@ -3980,25 +3980,25 @@ function AuditView() {
             type="date"
             value={filters.to}
             onChange={(event) => updateFilter("to", event.target.value)}
-            className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+            className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/40"
           />
         </label>
         <button
           onClick={applyFilters}
-          className="px-4 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+          className="px-4 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
         >
           {t("engineering.permissions.auditApplyFilters")}
         </button>
         <button
           onClick={clearFilters}
-          className="px-4 py-2.5 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+          className="px-4 py-2.5 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
         >
           {t("engineering.permissions.auditClearFilters")}
         </button>
       </div>
 
       {applied.target_cid && (
-        <p className="rounded-xl border border-[var(--brand-orange)]/30 bg-[var(--brand-orange)]/5 px-3 py-2 text-[10px] font-bold text-[var(--text-primary)]">
+        <p className="rounded-xl border border-brand-orange/30 bg-brand-orange/5 px-3 py-2 text-[10px] font-bold text-[var(--text-primary)]">
           {t("engineering.permissions.auditFilterPersonActive")}
         </p>
       )}
@@ -4050,7 +4050,7 @@ function AuditView() {
               </thead>
               <tbody>
                 {entries.map((entry) => (
-                  <tr key={entry.id} className="border-b border-[var(--border-primary)]/50 last:border-b-0 hover:bg-tertiary/20 transition-all">
+                  <tr key={entry.id} className="border-b border-divider/50 last:border-b-0 hover:bg-tertiary/20 transition-all">
                     <td className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-secondary)] whitespace-nowrap">
                       {fmtDate(entry.created_at)}
                     </td>
@@ -4094,7 +4094,7 @@ function AuditView() {
           </div>
 
           {/* Small screens: one card per record — same fields, same drawer. */}
-          <div className="md:hidden divide-y divide-[var(--border-primary)]/50">
+          <div className="md:hidden divide-y divide-divider/50">
             {entries.map((entry) => (
               <div key={entry.id} className="p-3 space-y-2">
                 <div className="flex items-center justify-between gap-2">
@@ -4207,7 +4207,7 @@ function AuditView() {
                   />
                 </div>
                 {parsed.reason && (
-                  <div className="col-span-2 rounded-lg border border-[var(--brand-orange)]/30 bg-[var(--brand-orange)]/5 p-3">
+                  <div className="col-span-2 rounded-lg border border-brand-orange/30 bg-brand-orange/5 p-3">
                     <p className="text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)] mb-1">
                       {t("engineering.permissions.auditReason")}
                     </p>

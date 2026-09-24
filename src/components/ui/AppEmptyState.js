@@ -30,9 +30,9 @@ export default function AppEmptyState({
   size = "md",
 }) {
   const sizeStyles = {
-    sm: { padding: "p-8", titleSize: "text-[10px]", iconSize: "w-8 h-8", gap: "gap-3" },
-    md: { padding: "p-12", titleSize: "text-xs", iconSize: "w-10 h-10", gap: "gap-4" },
-    lg: { padding: "p-16", titleSize: "text-sm", iconSize: "w-12 h-12", gap: "gap-5" },
+    sm: { padding: "p-8", titleSize: "text-[10px]", iconSize: "w-8 h-8", boxSize: "3.5rem", gap: "gap-3" },
+    md: { padding: "p-12", titleSize: "text-xs", iconSize: "w-10 h-10", boxSize: "4rem", gap: "gap-4" },
+    lg: { padding: "p-16", titleSize: "text-sm", iconSize: "w-12 h-12", boxSize: "4.5rem", gap: "gap-5" },
   };
 
   const sizeStyle = sizeStyles[size] || sizeStyles.md;
@@ -46,8 +46,9 @@ export default function AppEmptyState({
           className="flex items-center justify-center rounded-2xl"
           style={{
             background: "var(--surface-3)",
-            width: `calc(${sizeStyle.iconSize} + 1.5rem)`,
-            height: `calc(${sizeStyle.iconSize} + 1.5rem)`,
+            // Icon size + 1.5rem of padding (iconSize is a class, not a length)
+            width: sizeStyle.boxSize,
+            height: sizeStyle.boxSize,
           }}
         >
           <Icon

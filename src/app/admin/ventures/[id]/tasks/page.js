@@ -279,10 +279,10 @@ export default function VentureTasksPage() {
           <div className="flex items-center gap-3">
             {/* View toggle */}
             <div className="flex bg-tertiary rounded-xl border border-[var(--border-primary)] p-0.5">
-              <button onClick={() => setView("kanban")} className={`p-2 rounded-lg transition-all ${view === "kanban" ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "text-slate-500 hover:text-[var(--text-primary)]"}`}>
+              <button onClick={() => setView("kanban")} className={`p-2 rounded-lg transition-all ${view === "kanban" ? "bg-brand-orange/10 text-[var(--brand-orange)]" : "text-slate-500 hover:text-[var(--text-primary)]"}`}>
                 <Columns className="w-4 h-4" />
               </button>
-              <button onClick={() => setView("list")} className={`p-2 rounded-lg transition-all ${view === "list" ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "text-slate-500 hover:text-[var(--text-primary)]"}`}>
+              <button onClick={() => setView("list")} className={`p-2 rounded-lg transition-all ${view === "list" ? "bg-brand-orange/10 text-[var(--brand-orange)]" : "text-slate-500 hover:text-[var(--text-primary)]"}`}>
                 <List className="w-4 h-4" />
               </button>
             </div>
@@ -299,11 +299,11 @@ export default function VentureTasksPage() {
         {/* Archive toolbar + inline result */}
         <div className="flex flex-wrap items-center gap-2">
           <button onClick={() => { setViewArchived(false); setSearch(""); }}
-            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${!viewArchived ? "bg-[var(--brand-orange)]/15 text-[var(--brand-orange)] border-[var(--brand-orange)]/30" : "bg-tertiary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"}`}>
+            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${!viewArchived ? "bg-brand-orange/15 text-[var(--brand-orange)] border-brand-orange/30" : "bg-tertiary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"}`}>
             {t("vadmin.tasks.viewActive", { n: activeTasks.length })}
           </button>
           <button onClick={() => { setViewArchived(true); setSearch(""); }}
-            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${viewArchived ? "bg-[var(--brand-orange)]/15 text-[var(--brand-orange)] border-[var(--brand-orange)]/30" : "bg-tertiary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"}`}>
+            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${viewArchived ? "bg-brand-orange/15 text-[var(--brand-orange)] border-brand-orange/30" : "bg-tertiary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"}`}>
             {t("vadmin.tasks.viewArchived", { n: archivedTasks.length })}
           </button>
         </div>
@@ -352,7 +352,7 @@ export default function VentureTasksPage() {
                   onDragOver={(event) => handleDragOver(event, status)}
                   onDragLeave={handleDragLeave}
                   onDrop={(event) => handleDrop(event, status)}>
-                  <div className={`rounded-2xl border ${dragOver === status ? "border-[var(--brand-orange)] bg-[var(--brand-orange)]/5" : "border-[var(--border-primary)] bg-tertiary"}`}>
+                  <div className={`rounded-2xl border ${dragOver === status ? "border-[var(--brand-orange)] bg-brand-orange/5" : "border-[var(--border-primary)] bg-tertiary"}`}>
                     <div className="flex items-center justify-between p-3 border-b border-[var(--border-primary)]">
                       <div className="flex items-center gap-2">
                         <span className={`w-2 h-2 rounded-full ${statusConfig.dot}`} />
@@ -369,7 +369,7 @@ export default function VentureTasksPage() {
                       {items.map((task) => (
                         <div key={task.id} draggable onDragStart={(event) => handleDragStart(event, task.id)}
                           onClick={() => openTask(task)}
-                          className="p-3 rounded-xl bg-primary border border-[var(--border-primary)] cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all group">
+                          className="p-3 rounded-xl bg-primary border border-[var(--border-primary)] cursor-pointer hover:border-brand-orange/30 transition-all group">
                           <div className="flex items-start justify-between gap-2">
                             <p className="text-[10px] font-bold text-[var(--text-primary)] leading-tight">{task.title}</p>
                             <span className={`text-[7px] font-black shrink-0 ${PRIORITY_CFG[task.priority] || "text-slate-500"}`}>
@@ -418,7 +418,7 @@ export default function VentureTasksPage() {
                 const statusConfig = STATUS_CFG[task.status];
                 return (
                   <div key={task.id} onClick={() => openTask(task)}
-                    className="flex items-center gap-4 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all">
+                    className="flex items-center gap-4 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-brand-orange/30 transition-all">
                     <span className={`w-2 h-2 rounded-full ${statusConfig.dot} shrink-0`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-[var(--text-primary)] truncate">{task.title}</p>
@@ -501,7 +501,7 @@ export default function VentureTasksPage() {
                   <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider">Labels</p>
                   <div className="flex gap-1 mt-0.5 flex-wrap">
                     {(selectedTask.labels || []).length === 0 ? <span className="text-[9px] text-slate-500">—</span> :
-                      selectedTask.labels.map((label, index) => <span key={index} className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">{label}</span>)
+                      selectedTask.labels.map((label, index) => <span key={index} className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-brand-orange/10 text-[var(--brand-orange)]">{label}</span>)
                     }
                   </div>
                 </div>

@@ -221,7 +221,7 @@ export default function VentureInvestorsPage() {
               allInvestors.map((investor) => (
                 <div key={investor.id} className="flex items-center justify-between p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-sm font-black text-[var(--brand-orange)]">{investor.name?.charAt(0)}</div>
+                    <div className="w-10 h-10 rounded-full bg-brand-orange/10 flex items-center justify-center text-sm font-black text-[var(--brand-orange)]">{investor.name?.charAt(0)}</div>
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-[var(--text-primary)]">{investor.name}</p>
                       <p className="text-[10px] text-[var(--text-secondary)]">{investor.organization || investor.email}</p>

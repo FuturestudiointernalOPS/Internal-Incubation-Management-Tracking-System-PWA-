@@ -364,7 +364,7 @@ export default function CollectionsPage() {
               return (
                 <div
                   key={collection.id}
-                  className="p-5 rounded-2xl bg-secondary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all group"
+                  className="p-5 rounded-2xl bg-secondary border border-[var(--border-primary)] hover:border-brand-orange/50 transition-all group"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <span

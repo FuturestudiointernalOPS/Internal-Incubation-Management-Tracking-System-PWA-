@@ -175,7 +175,7 @@ export default function EntitlementRollup() {
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex items-center gap-2 rounded-lg border border-[var(--border-primary)] px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+        className="inline-flex items-center gap-2 rounded-lg border border-[var(--border-primary)] px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
       >
         {open ? (
           <ChevronDown className="h-3.5 w-3.5" />
@@ -209,9 +209,9 @@ export default function EntitlementRollup() {
                     setKind(identityKind);
                     setValue("");
                   }}
-                  className={`rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 ${
+                  className={`rounded-md px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 ${
                     kind === identityKind
-                      ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                      ? "bg-brand-orange/10 text-[var(--brand-orange)]"
                       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                 >
@@ -231,7 +231,7 @@ export default function EntitlementRollup() {
               <select
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
-                className="rounded-xl border border-[var(--border-primary)] bg-secondary px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+                className="rounded-xl border border-[var(--border-primary)] bg-secondary px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50 focus-visible:ring-2 focus-visible:ring-brand-orange/40"
               >
                 <option value="">—</option>
                 {options.map((option) => (

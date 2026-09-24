@@ -32,7 +32,7 @@ export default function WhyDrawer({ title, onClose, children }) {
           <button
             onClick={onClose}
             aria-label={t("engineering.permissions.whyClose")}
-            className="p-1 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+            className="p-1 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
           >
             <X className="w-4 h-4 text-[var(--text-secondary)]" />
           </button>

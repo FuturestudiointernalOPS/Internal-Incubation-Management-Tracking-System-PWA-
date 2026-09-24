@@ -386,7 +386,7 @@ export default function LoginPage() {
               onClick={() => switchLang(language.code)}
               className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md transition-all ${
                 lang === language.code
-                  ? "bg-[var(--brand-orange)]/20 text-[var(--brand-orange)] border border-[var(--brand-orange)]/30"
+                  ? "bg-brand-orange/20 text-[var(--brand-orange)] border border-brand-orange/30"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent"
               }`}
             >

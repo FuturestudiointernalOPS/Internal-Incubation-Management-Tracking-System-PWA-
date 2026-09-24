@@ -205,14 +205,14 @@ export default function InvestorProfilePage() {
                     <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
                     <input value={field("orgName")} onChange={event => setField("orgName", event.target.value)}
                       placeholder={t("investorMisc.profile.orgNamePlaceholder")}
-                      className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                      className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60" />
                   </div>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.profile.biography")}</label>
                   <textarea value={field("biography")} onChange={event => setField("biography", event.target.value)}
                     rows={3} placeholder={t("investorMisc.profile.bioPlaceholder")}
-                    className="w-full mt-1.5 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 resize-none" />
+                    className="w-full mt-1.5 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60 resize-none" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -221,7 +221,7 @@ export default function InvestorProfilePage() {
                       <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
                       <input value={field("website")} onChange={event => setField("website", event.target.value)}
                         placeholder="https://..."
-                        className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                        className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60" />
                     </div>
                   </div>
                   <div>
@@ -230,7 +230,7 @@ export default function InvestorProfilePage() {
                       <Link className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
                       <input value={field("linkedin")} onChange={event => setField("linkedin", event.target.value)}
                         placeholder="linkedin.com/in/..."
-                        className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                        className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60" />
                     </div>
                   </div>
                 </div>
@@ -310,10 +310,10 @@ export default function InvestorProfilePage() {
                   <div className="grid grid-cols-2 gap-3 mt-2">
                     <input value={field("ticketMin")} onChange={event => setField("ticketMin", event.target.value)}
                       type="number" placeholder={t("investorMisc.profile.min")}
-                      className="px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                      className="px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60" />
                     <input value={field("ticketMax")} onChange={event => setField("ticketMax", event.target.value)}
                       type="number" placeholder={t("investorMisc.profile.max")}
-                      className="px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                      className="px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60" />
                   </div>
                 </div>
 
@@ -322,7 +322,7 @@ export default function InvestorProfilePage() {
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.profile.investmentPhilosophy")}</label>
                   <textarea value={field("philosophy")} onChange={event => setField("philosophy", event.target.value)}
                     rows={2} placeholder={t("investorMisc.profile.philosophyPlaceholder")}
-                    className="w-full mt-2 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 resize-none" />
+                    className="w-full mt-2 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60 resize-none" />
                 </div>
               </div>
             </AppCard>

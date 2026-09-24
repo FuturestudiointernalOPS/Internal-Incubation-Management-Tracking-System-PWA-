@@ -130,7 +130,7 @@ export default function InvestmentHistoryPage() {
               <AppCard key={decision.id} padding="md">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <Building2 className="w-8 h-8 text-[var(--brand-orange)]/60" />
+                    <Building2 className="w-8 h-8 text-brand-orange/60" />
                     <div>
                       <p className="text-sm font-bold text-[var(--text-primary)]">{decision.venture_name || t("investorMisc.history.venture")}</p>
                       <p className="text-[10px] text-[var(--text-secondary)]">{decision.industry || ""}</p>

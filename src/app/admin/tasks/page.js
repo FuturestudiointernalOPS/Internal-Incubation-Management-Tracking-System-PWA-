@@ -514,7 +514,7 @@ export default function AdminTasks() {
                   {filteredTasks.map((task) => (
                     <tr
                       key={task.id}
-                      className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors"
+                      className="border-b border-divider/50 hover:bg-white/5 transition-colors"
                     >
                       <td className="p-4">
                         <button
@@ -923,7 +923,7 @@ export default function AdminTasks() {
                     />
                     <button
                       onClick={handleAddComment}
-                      className="p-2 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20 transition-all"
+                      className="p-2 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)] hover:bg-brand-orange/20 transition-all"
                     >
                       <Send className="w-3 h-3" />
                     </button>

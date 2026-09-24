@@ -70,7 +70,7 @@ function SetupPasswordForm() {
     <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center mx-auto">
+          <div className="w-12 h-12 rounded-xl bg-brand-orange/10 flex items-center justify-center mx-auto">
             <Lock className="w-6 h-6 text-[var(--brand-orange)]" />
           </div>
           <h1 className="text-xl font-black text-[var(--text-primary)] uppercase">{t("investorMisc.setupPassword.title")}</h1>
@@ -84,13 +84,13 @@ function SetupPasswordForm() {
             <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.setupPassword.newPasswordLabel")}</label>
             <input type="password" value={password} onChange={event => setPassword(event.target.value)}
               placeholder={t("investorMisc.setupPassword.passwordPlaceholder")}
-              className="w-full mt-1 px-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+              className="w-full mt-1 px-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60" />
           </div>
           <div>
             <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.setupPassword.confirmPasswordLabel")}</label>
             <input type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)}
               placeholder={t("investorMisc.setupPassword.confirmPasswordPlaceholder")}
-              className="w-full mt-1 px-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+              className="w-full mt-1 px-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60" />
           </div>
           <button onClick={handleSubmit} disabled={loading}
             className="w-full py-3 bg-[var(--brand-orange)] text-white text-xs font-black uppercase tracking-wider rounded-xl disabled:opacity-60">

@@ -64,18 +64,18 @@ export default function StaffVenturesList() {
               <button
                 key={assignment.id}
                 onClick={() => router.push(`/staff/ventures/${assignment.venture_id}`)}
-                className="w-full card hover:border-[var(--brand-orange)]/40 transition-all text-left"
+                className="w-full card hover:border-brand-orange/40 transition-all text-left"
               >
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4 min-w-0">
-                    <div className="w-11 h-11 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center shrink-0">
+                    <div className="w-11 h-11 rounded-xl bg-brand-orange/10 flex items-center justify-center shrink-0">
                       <Rocket className="w-5 h-5 text-[var(--brand-orange)]" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-black text-[var(--text-primary)] truncate">{displayName}</p>
                       <p className="text-[10px] text-slate-500 font-mono">{assignment.venture_id}</p>
                       <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
+                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-brand-orange/10 text-[var(--brand-orange)]">
                           {assignment.responsibility_name || assignment.responsibility_code}
                         </span>
                         {assignment.scope_type !== "venture_wide" && (

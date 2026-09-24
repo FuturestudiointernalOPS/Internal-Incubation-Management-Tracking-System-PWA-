@@ -647,7 +647,7 @@ export default function PlatformForms() {
         className={cn(
           "p-4 rounded-xl border transition-all cursor-pointer group",
           selectedFieldId === tempId
-            ? "border-[var(--brand-orange)] bg-[var(--brand-orange)]/5"
+            ? "border-[var(--brand-orange)] bg-brand-orange/5"
             : "border-[var(--border-primary)] bg-secondary hover:border-[var(--text-secondary)]",
         )}
       >
@@ -856,9 +856,9 @@ export default function PlatformForms() {
             {forms.filter((form) => !search || form.name.toLowerCase().includes(search.toLowerCase())).map((form) => {
               const collection = form.collection_id ? collections.find((candidate) => candidate.id === form.collection_id) : null;
               return (
-                <div key={form.id} className="p-5 rounded-2xl bg-secondary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all group">
+                <div key={form.id} className="p-5 rounded-2xl bg-secondary border border-[var(--border-primary)] hover:border-brand-orange/50 transition-all group">
                   <div className="flex items-start justify-between mb-3">
-                    <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-brand-orange/10 flex items-center justify-center">
                       <FileText className="w-5 h-5 text-[var(--brand-orange)]" />
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
@@ -1383,7 +1383,7 @@ export default function PlatformForms() {
                   const locked = !!ventureOwner && !isVentureForm;
                   return (
                     <div className="mb-3">
-                      <label className={`flex items-start gap-3 p-3 rounded-xl bg-tertiary border border-[var(--brand-orange)]/30 ${locked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}>
+                      <label className={`flex items-start gap-3 p-3 rounded-xl bg-tertiary border border-brand-orange/30 ${locked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}>
                         <input
                           type="checkbox"
                           checked={isVentureForm}
@@ -1911,7 +1911,7 @@ export default function PlatformForms() {
               <div key={section.id} className="pt-2 border-t border-[var(--border-primary)]">
                 <button
                   onClick={() => setActiveSectionId(section.id)}
-                  className={`w-full text-left p-1 rounded text-[10px] font-bold uppercase mb-1 transition-all ${activeSectionId === section.id ? 'text-[var(--brand-orange)] bg-[var(--brand-orange)]/10' : 'text-[var(--text-secondary)] opacity-50'}`}
+                  className={`w-full text-left p-1 rounded text-[10px] font-bold uppercase mb-1 transition-all ${activeSectionId === section.id ? 'text-[var(--brand-orange)] bg-brand-orange/10' : 'text-[var(--text-secondary)] opacity-50'}`}
                 >
                   {t("platformMisc.forms.paletteInto", { title: section.title })} {activeSectionId === section.id && '✓'}
                 </button>

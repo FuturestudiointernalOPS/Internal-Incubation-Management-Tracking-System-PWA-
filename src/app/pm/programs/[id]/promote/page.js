@@ -557,7 +557,7 @@ export default function PromoteToVenture() {
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="card max-w-md w-full space-y-6 p-6">
               <div className="text-center space-y-2">
-                <div className="w-12 h-12 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center mx-auto">
+                <div className="w-12 h-12 rounded-full bg-brand-orange/10 flex items-center justify-center mx-auto">
                   <Rocket className="w-6 h-6 text-[var(--brand-orange)]" />
                 </div>
                 <h3 className="text-lg font-black uppercase tracking-tight">

@@ -72,7 +72,7 @@ export default function InvestorReviewPage() {
 
           <AppCard padding="lg">
             <div className="flex items-start gap-4 mb-6">
-              <div className="w-14 h-14 rounded-2xl bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20 flex items-center justify-center">
+              <div className="w-14 h-14 rounded-2xl bg-brand-orange/10 border border-brand-orange/20 flex items-center justify-center">
                 <Building2 className="w-7 h-7 text-[var(--brand-orange)]"/>
               </div>
               <div>

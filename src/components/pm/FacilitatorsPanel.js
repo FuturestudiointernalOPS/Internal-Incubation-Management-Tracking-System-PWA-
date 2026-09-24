@@ -475,7 +475,7 @@ export function FacilitatorsPanel({ programId }) {
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => saveProgramConfig({ facilitator_scope: "assigned_groups" })}
-              className={`p-4 rounded-2xl border text-left transition-all ${program.facilitator_scope !== "all" ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]" : "bg-secondary border-[var(--border-primary)]"}`}
+              className={`p-4 rounded-2xl border text-left transition-all ${program.facilitator_scope !== "all" ? "bg-brand-orange/10 border-[var(--brand-orange)]" : "bg-secondary border-[var(--border-primary)]"}`}
             >
               <p className="text-[11px] font-bold uppercase tracking-wide">{t("pmMisc.facilitators.assignedGroupsOnly")}</p>
               <p className="text-sm text-[var(--text-secondary)] mt-1">
@@ -484,7 +484,7 @@ export function FacilitatorsPanel({ programId }) {
             </button>
             <button
               onClick={() => saveProgramConfig({ facilitator_scope: "all" })}
-              className={`p-4 rounded-2xl border text-left transition-all ${program.facilitator_scope === "all" ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]" : "bg-secondary border-[var(--border-primary)]"}`}
+              className={`p-4 rounded-2xl border text-left transition-all ${program.facilitator_scope === "all" ? "bg-brand-orange/10 border-[var(--brand-orange)]" : "bg-secondary border-[var(--border-primary)]"}`}
             >
               <p className="text-[11px] font-bold uppercase tracking-wide">{t("pmMisc.facilitators.allParticipants")}</p>
               <p className="text-sm text-[var(--text-secondary)] mt-1">

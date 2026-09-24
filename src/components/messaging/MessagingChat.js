@@ -946,9 +946,9 @@ export default function MessagingChat({ role = "super_admin" }) {
                     key={thread.id}
                     onClick={() => openConversation(thread)}
                     className={cn(
-                      "w-full text-left p-3 transition-all flex items-center gap-3 border-b border-[var(--border-primary)]/50",
+                      "w-full text-left p-3 transition-all flex items-center gap-3 border-b border-divider/50",
                       isActive
-                        ? "bg-[var(--brand-orange)]/10"
+                        ? "bg-brand-orange/10"
                         : "hover:bg-tertiary",
                     )}
                   >
@@ -956,7 +956,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                       className={cn(
                         "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0",
                         isActive || unread > 0
-                          ? "bg-[var(--brand-orange)]/15 text-[var(--brand-orange)]"
+                          ? "bg-brand-orange/15 text-[var(--brand-orange)]"
                           : "bg-tertiary text-[var(--text-secondary)]",
                       )}
                     >
@@ -1058,7 +1058,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                     </svg>
                   </button>
                 )}
-                <div className="w-9 h-9 rounded-full bg-[var(--brand-orange)]/15 text-[var(--brand-orange)] flex items-center justify-center flex-shrink-0">
+                <div className="w-9 h-9 rounded-full bg-brand-orange/15 text-[var(--brand-orange)] flex items-center justify-center flex-shrink-0">
                   {React.createElement(threadIcon(activeConversation), {
                     className: "w-4 h-4",
                   })}
@@ -1120,7 +1120,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                                 "flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded-md text-[10px] font-bold transition-colors",
                                 isSent
                                   ? "bg-black/10 text-black hover:bg-black/20"
-                                  : "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20",
+                                  : "bg-brand-orange/10 text-[var(--brand-orange)] hover:bg-brand-orange/20",
                               )}
                             >
                               <ExternalLink className="w-3 h-3 shrink-0" />
@@ -1200,7 +1200,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                     className={cn(
                       "px-2.5 py-2.5 rounded-xl text-[10px] font-bold transition-all",
                       replyShowAttachment || replyAttachmentUrl
-                        ? "bg-[var(--brand-orange)]/20 text-[var(--brand-orange)]"
+                        ? "bg-brand-orange/20 text-[var(--brand-orange)]"
                         : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
                     )}
                     title={t("messaging.attachFile")}
@@ -1339,7 +1339,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                                 setContactSearch("");
                                 setShowContactDropdown(false);
                               }}
-                              className="w-full text-left px-4 py-2.5 hover:bg-tertiary transition-colors border-b border-[var(--border-primary)]/50 last:border-0"
+                              className="w-full text-left px-4 py-2.5 hover:bg-tertiary transition-colors border-b border-divider/50 last:border-0"
                             >
                               <p className="text-[11px] font-bold text-[var(--text-primary)]">
                                 {contact.name}

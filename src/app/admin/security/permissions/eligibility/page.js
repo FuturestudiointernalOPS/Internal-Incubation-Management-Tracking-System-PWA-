@@ -45,7 +45,7 @@ export default function PermissionRulesPage() {
           <button
             onClick={() => setShowCatalog((open) => !open)}
             aria-expanded={showCatalog}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
           >
             {showCatalog ? (
               <ChevronDown className="w-3.5 h-3.5" />

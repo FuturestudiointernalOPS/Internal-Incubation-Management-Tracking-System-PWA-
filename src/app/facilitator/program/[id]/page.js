@@ -369,7 +369,7 @@ export default function FacilitatorProgram({ params }) {
               onClick={() => setTab(tabItem.key)}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border text-[10px] font-bold uppercase tracking-wide transition-all ${
                 tab === tabItem.key
-                  ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)] text-[var(--brand-orange)]"
+                  ? "bg-brand-orange/10 border-[var(--brand-orange)] text-[var(--brand-orange)]"
                   : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)]"
               }`}
             >

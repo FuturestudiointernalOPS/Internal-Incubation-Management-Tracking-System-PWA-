@@ -14,7 +14,7 @@ const TYPE_COLORS = {
   mentoring: "text-purple-400 bg-purple-500/10",
   investment: "text-emerald-400 bg-emerald-500/10",
   verification: "text-amber-400 bg-amber-500/10",
-  knowledge: "text-[var(--brand-orange)] bg-[var(--brand-orange)]/10",
+  knowledge: "text-[var(--brand-orange)] bg-brand-orange/10",
   meetings: "text-indigo-400 bg-indigo-500/10",
   security: "text-rose-400 bg-rose-500/10",
   announcements: "text-amber-400 bg-amber-500/10",
@@ -149,7 +149,7 @@ export default function NotificationsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center"><Bell className="w-6 h-6 text-[var(--brand-orange)]" /></div>
+            <div className="w-12 h-12 rounded-2xl bg-brand-orange/10 flex items-center justify-center"><Bell className="w-6 h-6 text-[var(--brand-orange)]" /></div>
             <div>
               <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">{t("adminMisc.notifications.title")}</h1>
               <p className="text-sm text-[var(--text-secondary)]">{t("adminMisc.notifications.unreadTotal", { unread: unreadCount, total: notifications.length })}</p>
@@ -182,9 +182,9 @@ export default function NotificationsPage() {
           <>
             {/* Filter */}
             <div className="flex gap-1 overflow-x-auto pb-1">
-              <button onClick={() => setFilterType("")} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap ${!filterType?"bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]":"bg-tertiary text-[var(--text-secondary)]"}`}>{t("adminMisc.notifications.all")}</button>
+              <button onClick={() => setFilterType("")} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap ${!filterType?"bg-brand-orange/10 text-[var(--brand-orange)]":"bg-tertiary text-[var(--text-secondary)]"}`}>{t("adminMisc.notifications.all")}</button>
               {Object.keys(TYPE_COLORS).map((typeKey) => (
-                <button key={typeKey} onClick={() => setFilterType(typeKey)} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap ${filterType===typeKey?"bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]":"bg-tertiary text-[var(--text-secondary)]"}`}>{typeKey}</button>
+                <button key={typeKey} onClick={() => setFilterType(typeKey)} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap ${filterType===typeKey?"bg-brand-orange/10 text-[var(--brand-orange)]":"bg-tertiary text-[var(--text-secondary)]"}`}>{typeKey}</button>
               ))}
             </div>
 
@@ -195,7 +195,7 @@ export default function NotificationsPage() {
               <div className="space-y-2">
                 {filtered.map((notification) => (
                   <div key={notification.id}
-                    className={`p-4 rounded-2xl border transition-all cursor-pointer ${notification.status==="unread" ? "bg-[var(--brand-orange)]/[0.02] border-[var(--brand-orange)]/20" : "bg-tertiary border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30"}`}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer ${notification.status==="unread" ? "bg-brand-orange/[0.02] border-brand-orange/20" : "bg-tertiary border-[var(--border-primary)] hover:border-brand-orange/30"}`}
                     onClick={() => notification.status === "unread" && markRead(notification.id)}>
                     <div className="flex items-start gap-3">
                       <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${notification.status==="unread" ? "bg-[var(--brand-orange)]" : "bg-transparent"}`} />

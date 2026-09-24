@@ -480,17 +480,17 @@ export default function StandupRetroView({ user, context, contextLabel }) {
             <div>
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.thisWeeksPriorities")}</label>
               <textarea value={standupForm.priorities} onChange={(event) => editStandup("priorities", event.target.value)} rows={3} placeholder={t("staffMisc.standupRetro.prioritiesPlaceholder")}
-                className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
+                className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-brand-orange/40 transition-colors" />
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.expectedDeliverables")}</label>
               <textarea value={standupForm.deliverables} onChange={(event) => editStandup("deliverables", event.target.value)} rows={2} placeholder={t("staffMisc.standupRetro.deliverablesPlaceholder")}
-                className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
+                className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-brand-orange/40 transition-colors" />
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.blockersSupportNeeded")}</label>
               <textarea value={standupForm.notes} onChange={(event) => editStandup("notes", event.target.value)} rows={2} placeholder={t("staffMisc.standupRetro.supportPlaceholder")}
-                className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
+                className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-brand-orange/40 transition-colors" />
             </div>
           </>
         ) : (
@@ -498,17 +498,17 @@ export default function StandupRetroView({ user, context, contextLabel }) {
             <div>
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.whatWentWell")}</label>
               <textarea value={retroForm.wentWell} onChange={(event) => editRetro("wentWell", event.target.value)} rows={3} placeholder={t("staffMisc.standupRetro.wentWellPlaceholder")}
-                className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
+                className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-brand-orange/40 transition-colors" />
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.whatDidntGoWell")}</label>
               <textarea value={retroForm.wentWrong} onChange={(event) => editRetro("wentWrong", event.target.value)} rows={2} placeholder={t("staffMisc.standupRetro.wentWrongPlaceholder")}
-                className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
+                className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-brand-orange/40 transition-colors" />
             </div>
             <div>
               <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.whatWillImprove")}</label>
               <textarea value={retroForm.improve} onChange={(event) => editRetro("improve", event.target.value)} rows={2} placeholder={t("staffMisc.standupRetro.improvePlaceholder")}
-                className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
+                className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-brand-orange/40 transition-colors" />
             </div>
           </>
         )}

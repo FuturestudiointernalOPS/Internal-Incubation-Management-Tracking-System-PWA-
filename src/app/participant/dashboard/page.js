@@ -80,10 +80,10 @@ export default function ParticipantDashboard() {
 
         {/* Current Program Mini Banner */}
         {primaryProgram && (
-          <div className="bg-gradient-to-r from-[var(--brand-orange)]/10 to-transparent border border-[var(--brand-orange)]/20 rounded-xl p-4">
+          <div className="bg-gradient-to-r from-brand-orange/10 to-transparent border border-brand-orange/20 rounded-xl p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-lg bg-[var(--brand-orange)]/20 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-brand-orange/20 flex items-center justify-center">
                   <Target className="w-5 h-5 text-[var(--brand-orange)]" />
                 </div>
                 <div>

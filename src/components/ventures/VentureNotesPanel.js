@@ -207,7 +207,7 @@ export default function VentureNotesPanel({ ventureId }) {
             <button
               key={note.id}
               onClick={() => setOpenNote(note)}
-              className="w-full text-left p-3 rounded-lg border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/40 transition-all"
+              className="w-full text-left p-3 rounded-lg border border-[var(--border-primary)] hover:border-brand-orange/40 transition-all"
             >
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-bold text-[var(--text-primary)] truncate">{note.title}</p>

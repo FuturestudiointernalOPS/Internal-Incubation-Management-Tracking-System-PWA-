@@ -198,7 +198,7 @@ export default function PMSubmissions() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder={t("pmMisc.submissions.searchPlaceholder")}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-brand-orange/50 font-bold text-xs transition-all"
             />
           </div>
           <select
@@ -261,7 +261,7 @@ export default function PMSubmissions() {
             {filtered.map((submission) => (
               <div
                 key={submission.id}
-                className={`ios-card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all ${
+                className={`ios-card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-brand-orange/30 transition-all ${
                   submission.status === "pending"
                     ? "border-l-4 border-l-amber-500"
                     : ""

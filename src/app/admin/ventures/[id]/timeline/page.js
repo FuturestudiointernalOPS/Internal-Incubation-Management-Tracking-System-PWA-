@@ -29,7 +29,7 @@ import {
 
 const ROW_COLORS = {
   milestone: { bg: "bg-indigo-500/10", text: "text-indigo-400", border: "border-indigo-500/20" },
-  task: { bg: "bg-[var(--brand-orange)]/10", text: "text-[var(--brand-orange)]", border: "border-[var(--brand-orange)]/20" },
+  task: { bg: "bg-brand-orange/10", text: "text-[var(--brand-orange)]", border: "border-brand-orange/20" },
   deliverable: { bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/20" },
 };
 
@@ -162,12 +162,12 @@ export default function VentureTimelinePage() {
             <div className="flex bg-tertiary rounded-xl border border-[var(--border-primary)] p-0.5">
               {["gantt", "progress", "delay"].map((viewOption) => (
                 <button key={viewOption} onClick={() => setView(viewOption)}
-                  className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${view === viewOption ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "text-slate-500 hover:text-[var(--text-primary)]"}`}>
+                  className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${view === viewOption ? "bg-brand-orange/10 text-[var(--brand-orange)]" : "text-slate-500 hover:text-[var(--text-primary)]"}`}>
                   {viewOption === "gantt" ? "Gantt" : viewOption === "progress" ? "Progress" : "Delays"}
                 </button>
               ))}
               <button onClick={() => setView("roadmap")}
-                className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${view === "roadmap" ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "text-slate-500 hover:text-[var(--text-primary)]"}`}>
+                className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${view === "roadmap" ? "bg-brand-orange/10 text-[var(--brand-orange)]" : "text-slate-500 hover:text-[var(--text-primary)]"}`}>
                 {t("vadmin.reports.tabJourney")}
               </button>
             </div>

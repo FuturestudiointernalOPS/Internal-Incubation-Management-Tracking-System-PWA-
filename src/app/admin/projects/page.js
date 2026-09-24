@@ -661,7 +661,7 @@ export default function AdminProjects() {
                   {filteredProjects.map((project) => (
                     <tr
                       key={project.id}
-                      className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors cursor-pointer"
+                      className="border-b border-divider/50 hover:bg-white/5 transition-colors cursor-pointer"
                       onClick={() =>
                         router.push(`/admin/projects/${project.id}`)
                       }
@@ -836,7 +836,7 @@ export default function AdminProjects() {
                               });
                               fetchMembers(project.id);
                             }}
-                            className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)] hover:text-black transition-all"
+                            className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest bg-brand-orange/10 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)] hover:text-black transition-all"
                           >
                             {t("adminMisc.projectsList.edit")}
                           </button>
@@ -1038,7 +1038,7 @@ export default function AdminProjects() {
                               }));
                             }
                           }}
-                          className="rounded border-[var(--border-primary)] bg-transparent text-[var(--brand-orange)] focus:ring-[var(--brand-orange)]/50"
+                          className="rounded border-[var(--border-primary)] bg-transparent text-[var(--brand-orange)] focus:ring-brand-orange/50"
                         />
                         <span className="text-[10px] text-[var(--text-primary)]">
                           {staffMember.name}
@@ -1152,7 +1152,7 @@ export default function AdminProjects() {
             </button>
 
             {/* Collaborators */}
-            <div className="pt-3 border-t border-[var(--border-primary)]/30">
+            <div className="pt-3 border-t border-divider/30">
               <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">
                 {t("adminMisc.projectsList.collaborators")}
               </p>
@@ -1454,7 +1454,7 @@ export default function AdminProjects() {
                               }));
                             }
                           }}
-                          className="rounded border-[var(--border-primary)] bg-transparent text-[var(--brand-orange)] focus:ring-[var(--brand-orange)]/50"
+                          className="rounded border-[var(--border-primary)] bg-transparent text-[var(--brand-orange)] focus:ring-brand-orange/50"
                         />
                         <span className="text-[10px] text-[var(--text-primary)]">
                           {staffMember.name}

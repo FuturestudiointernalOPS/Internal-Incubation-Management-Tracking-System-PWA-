@@ -87,7 +87,7 @@ export default function PersonScopePanel({
             type="button"
             onClick={onRefresh}
             disabled={refreshing}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-primary)] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 disabled:opacity-40"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-primary)] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 disabled:opacity-40"
           >
             <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} />
             {refreshing
@@ -145,7 +145,7 @@ export default function PersonScopePanel({
                     onClick={() =>
                       setOpen((prev) => ({ ...prev, [entry.policy]: !isOpen }))
                     }
-                    className="ml-auto inline-flex items-center gap-1 rounded-lg border border-[var(--border-primary)] px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                    className="ml-auto inline-flex items-center gap-1 rounded-lg border border-[var(--border-primary)] px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
                   >
                     {isOpen ? (
                       <ChevronDown className="h-3 w-3" />
@@ -159,7 +159,7 @@ export default function PersonScopePanel({
                 </div>
 
                 {isOpen && (
-                  <div className="mt-2 space-y-2 border-t border-[var(--border-primary)]/50 pt-2">
+                  <div className="mt-2 space-y-2 border-t border-divider/50 pt-2">
                     {/* 1. WHICH records — named, because a count answers nothing. */}
                     <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("engineering.permissions.scopeRecordsNamed")}
@@ -179,7 +179,7 @@ export default function PersonScopePanel({
                             })
                           }
                           title={String(id)}
-                          className="rounded-md border border-[var(--border-primary)] bg-primary px-2 py-0.5 text-[10px] font-bold text-[var(--text-secondary)] transition-colors hover:border-[var(--brand-orange)]/50 hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                          className="rounded-md border border-[var(--border-primary)] bg-primary px-2 py-0.5 text-[10px] font-bold text-[var(--text-secondary)] transition-colors hover:border-brand-orange/50 hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
                         >
                           {labels[String(id)] || String(id)}
                         </button>
@@ -217,7 +217,7 @@ export default function PersonScopePanel({
                           placeholder={t(
                             "engineering.permissions.scopeVerifyPlaceholder",
                           )}
-                          className="w-full rounded-lg border border-[var(--border-primary)] bg-secondary px-3 py-2 text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+                          className="w-full rounded-lg border border-[var(--border-primary)] bg-secondary px-3 py-2 text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50 focus-visible:ring-2 focus-visible:ring-brand-orange/40"
                         />
                         <datalist id={`scope-records-${entry.policy}`}>
                           {ids.slice(0, 200).map((id) => (
@@ -230,7 +230,7 @@ export default function PersonScopePanel({
                       <button
                         type="submit"
                         disabled={probe.busy || !probe.resourceId?.trim()}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--brand-orange)] px-3 py-2 text-[10px] font-black uppercase tracking-widest text-black disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--brand-orange)] px-3 py-2 text-[10px] font-black uppercase tracking-widest text-black disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
                       >
                         {probe.busy ? (
                           <Loader2 className="h-3 w-3 animate-spin" />

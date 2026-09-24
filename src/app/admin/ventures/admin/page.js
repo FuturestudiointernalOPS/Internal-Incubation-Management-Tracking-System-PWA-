@@ -121,7 +121,7 @@ export default function VentureAdminPage() {
 
         {/* Header */}
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center"><Settings className="w-6 h-6 text-[var(--brand-orange)]" /></div>
+          <div className="w-12 h-12 rounded-2xl bg-brand-orange/10 flex items-center justify-center"><Settings className="w-6 h-6 text-[var(--brand-orange)]" /></div>
           <div>
             <h1 className="text-2xl font-black text-[var(--text-primary)]">Venture OS Administration</h1>
             <p className="text-xs text-slate-500">System configuration, feature flags, and role management</p>

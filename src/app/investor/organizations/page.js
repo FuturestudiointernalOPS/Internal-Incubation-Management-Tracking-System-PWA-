@@ -135,7 +135,7 @@ export default function InvestorOrganizationsPage() {
 
             <AppCard padding="lg">
               <div className="flex items-start gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20 flex items-center justify-center shrink-0">
+                <div className="w-14 h-14 rounded-2xl bg-brand-orange/10 border border-brand-orange/20 flex items-center justify-center shrink-0">
                   <Building2 className="w-7 h-7 text-[var(--brand-orange)]" />
                 </div>
                 <div className="flex-1">
@@ -170,7 +170,7 @@ export default function InvestorOrganizationsPage() {
                   {orgMembers.map(member => (
                     <div key={member.id} className="flex items-center justify-between p-3 rounded-xl bg-[var(--surface-3)]">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-lg bg-brand-orange/10 flex items-center justify-center">
                           <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
                         </div>
                         <div>
@@ -208,7 +208,7 @@ export default function InvestorOrganizationsPage() {
             {orgs.map(organization => (
               <AppCard key={organization.id} padding="md" hover onClick={() => fetchOrgDetail(organization.id)}>
                 <div className="flex items-center gap-4 cursor-pointer">
-                  <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-brand-orange/10 border border-brand-orange/20 flex items-center justify-center">
                     <Building2 className="w-5 h-5 text-[var(--brand-orange)]" />
                   </div>
                   <div className="flex-1">
@@ -243,19 +243,19 @@ export default function InvestorOrganizationsPage() {
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.organizations.name")}</label>
                   <input value={newOrg.name} onChange={event => setNewOrg({...newOrg, name: event.target.value})}
                     placeholder={t("investorMisc.organizations.namePlaceholder")}
-                    className="w-full mt-1.5 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                    className="w-full mt-1.5 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.organizations.description")}</label>
                   <textarea value={newOrg.description} onChange={event => setNewOrg({...newOrg, description: event.target.value})}
                     rows={2} placeholder={t("investorMisc.organizations.descriptionPlaceholder")}
-                    className="w-full mt-1.5 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 resize-none" />
+                    className="w-full mt-1.5 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60 resize-none" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.organizations.website")}</label>
                   <input value={newOrg.website} onChange={event => setNewOrg({...newOrg, website: event.target.value})}
                     placeholder="https://..."
-                    className="w-full mt-1.5 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                    className="w-full mt-1.5 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60" />
                 </div>
               </div>
               <div className="flex justify-end gap-3 px-6 pb-5">

@@ -821,6 +821,13 @@ export async function countActiveV2Programs() {
   );
 }
 
+/** Count of internal projects that are not archived (same rule as the Projects list). */
+export async function countActiveProjects() {
+  return db.execute(
+    "SELECT COUNT(*) as count FROM v2_projects WHERE status != 'Archived'",
+  );
+}
+
 /** Count of participant contacts (not deleted). */
 export async function countParticipantContacts() {
   return db.execute(

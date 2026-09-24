@@ -74,7 +74,7 @@ export default function InvestorRegisterPage() {
             {t("investorMisc.register.submittedDescription")}
           </p>
           <button onClick={() => router.push("/login")}
-            className="px-6 py-3 bg-[var(--brand-orange)] text-white text-xs font-black uppercase tracking-wider rounded-xl hover:bg-[var(--brand-orange)]/90">
+            className="px-6 py-3 bg-[var(--brand-orange)] text-white text-xs font-black uppercase tracking-wider rounded-xl hover:bg-brand-orange/90">
             {t("investorMisc.register.goToLogin")}
           </button>
         </div>
@@ -91,7 +91,7 @@ export default function InvestorRegisterPage() {
         </button>
 
         <div className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-2xl bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20 flex items-center justify-center mx-auto">
+          <div className="w-14 h-14 rounded-2xl bg-brand-orange/10 border border-brand-orange/20 flex items-center justify-center mx-auto">
             <Building2 className="w-7 h-7 text-[var(--brand-orange)]" />
           </div>
           <h1 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter">{t("investorMisc.register.title")}</h1>
@@ -112,14 +112,14 @@ export default function InvestorRegisterPage() {
               <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
               <input type="text" name="name" value={form.name} onChange={handleChange}
                 placeholder={t("investorMisc.register.fullNamePlaceholder")} required
-                className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60" />
             </div>
 
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
               <input type="email" name="email" value={form.email} onChange={handleChange}
                 placeholder={t("investorMisc.register.emailPlaceholder")} required
-                className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60" />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -127,11 +127,11 @@ export default function InvestorRegisterPage() {
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
                 <input type="password" name="password" value={form.password} onChange={handleChange}
                   placeholder={t("investorMisc.register.passwordPlaceholder")} required minLength={6}
-                  className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                  className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60" />
               </div>
               <input type="password" name="confirmPassword" value={form.confirmPassword} onChange={handleChange}
                 placeholder={t("investorMisc.register.confirmPasswordPlaceholder")} required
-                className="px-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                className="px-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60" />
             </div>
           </div>
 
@@ -141,29 +141,29 @@ export default function InvestorRegisterPage() {
               <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
               <input type="text" name="organization_name" value={form.organization_name} onChange={handleChange}
                 placeholder={t("investorMisc.register.organizationPlaceholder")}
-                className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60" />
             </div>
             <textarea name="biography" value={form.biography} onChange={handleChange}
               rows={2} placeholder={t("investorMisc.register.biographyPlaceholder")}
-              className="w-full px-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 resize-none" />
+              className="w-full px-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60 resize-none" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="relative">
                 <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
                 <input type="url" name="website" value={form.website} onChange={handleChange}
                   placeholder={t("investorMisc.register.websitePlaceholder")}
-                  className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                  className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60" />
               </div>
               <div className="relative">
                 <Link className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
                 <input type="url" name="linkedin" value={form.linkedin} onChange={handleChange}
                   placeholder={t("investorMisc.register.linkedinPlaceholder")}
-                  className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                  className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60" />
               </div>
             </div>
           </div>
 
           <button type="submit" disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-3.5 bg-[var(--brand-orange)] text-white text-xs font-black uppercase tracking-wider rounded-xl hover:bg-[var(--brand-orange)]/90 disabled:opacity-60 transition-all">
+            className="w-full flex items-center justify-center gap-2 py-3.5 bg-[var(--brand-orange)] text-white text-xs font-black uppercase tracking-wider rounded-xl hover:bg-brand-orange/90 disabled:opacity-60 transition-all">
             {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> {t("investorMisc.register.submitting")}</> : t("investorMisc.register.submitButton")}
           </button>
 

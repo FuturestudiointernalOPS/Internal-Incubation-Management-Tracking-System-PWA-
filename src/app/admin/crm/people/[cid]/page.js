@@ -336,7 +336,7 @@ export default function CrmDetailPage({ params }) {
         {/* Identity Header */}
         <div className="bg-primary border border-[var(--border-primary)] rounded-2xl p-6">
           <div className="flex items-start gap-4 flex-wrap">
-            <div className="w-14 h-14 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center shrink-0">
+            <div className="w-14 h-14 rounded-xl bg-brand-orange/10 flex items-center justify-center shrink-0">
               <User className="w-6 h-6 text-[var(--brand-orange)]" />
             </div>
             <div className="flex-1 min-w-0">
@@ -346,7 +346,7 @@ export default function CrmDetailPage({ params }) {
               </p>
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {currentRoles.map(roleAssignment => (
-                  <span key={roleAssignment.id} className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
+                  <span key={roleAssignment.id} className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-brand-orange/10 text-[var(--brand-orange)]">
                     {t(ROLE_LABELS[roleAssignment.role] || "") || roleAssignment.role}
                   </span>
                 ))}
@@ -449,8 +449,8 @@ export default function CrmDetailPage({ params }) {
                   onClick={() => setModuleFilter(moduleFilter === panel.key ? "" : panel.key)}
                   className={`p-3 rounded-xl border text-center transition-all ${
                     moduleFilter === panel.key
-                      ? "border-[var(--brand-orange)] bg-[var(--brand-orange)]/5"
-                      : "border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50"
+                      ? "border-[var(--brand-orange)] bg-brand-orange/5"
+                      : "border-[var(--border-primary)] hover:border-brand-orange/50"
                   }`}
                 >
                   <p className="text-lg font-black">{panel.count}</p>

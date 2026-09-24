@@ -841,8 +841,8 @@ export default function ProjectDetail() {
                 </span>
               </div>
               {project.owner_name ? (
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--brand-orange)]/[0.04] border border-[var(--brand-orange)]/20">
-                  <div className="w-10 h-10 rounded-full bg-[var(--brand-orange)]/20 border border-[var(--brand-orange)]/30 flex items-center justify-center text-xs font-black text-[var(--brand-orange)]">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-brand-orange/[0.04] border border-brand-orange/20">
+                  <div className="w-10 h-10 rounded-full bg-brand-orange/20 border border-brand-orange/30 flex items-center justify-center text-xs font-black text-[var(--brand-orange)]">
                     {project.owner_name.charAt(0)}
                   </div>
                   <div>
@@ -935,7 +935,7 @@ export default function ProjectDetail() {
               )}
 
               {/* Add Collaborator */}
-              <div className="pt-3 border-t border-[var(--border-primary)]/30">
+              <div className="pt-3 border-t border-divider/30">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">
                   {t("adminMisc.projectDetail.addCollaborator")}
                 </p>

@@ -1220,7 +1220,7 @@ export default function ProgramManagement() {
 
       {editingProgram && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md overflow-y-auto">
-          <div className="card w-full max-w-xl space-y-8 border-[var(--brand-orange)]/30 animate-in text-left my-auto max-h-[85vh] overflow-y-auto custom-scrollbar">
+          <div className="card w-full max-w-xl space-y-8 border-brand-orange/30 animate-in text-left my-auto max-h-[85vh] overflow-y-auto custom-scrollbar">
             <div className="flex justify-between items-center sticky top-0 bg-secondary pb-4 z-10 border-b border-[var(--border-primary)]">
               <div>
                 <h3 className="text-lg font-black text-[var(--text-primary)] tracking-tight">
@@ -1571,12 +1571,12 @@ export default function ProgramManagement() {
                           }}
                           className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
                             isActive
-                              ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)] text-[var(--brand-orange)]"
+                              ? "bg-brand-orange/10 border-[var(--brand-orange)] text-[var(--brand-orange)]"
                               : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)]"
                           }`}
                         >
                           <div
-                            className={`w-6 h-6 rounded bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold ${isActive ? "text-[var(--brand-orange)] border-[var(--brand-orange)]/30" : ""}`}
+                            className={`w-6 h-6 rounded bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold ${isActive ? "text-[var(--brand-orange)] border-brand-orange/30" : ""}`}
                           >
                             {member.name?.charAt(0) || "?"}
                           </div>
@@ -1620,7 +1620,7 @@ export default function ProgramManagement() {
                   <button
                     type="button"
                     onClick={() => setShowCreateNote(!showCreateNote)}
-                    className="px-3 py-2 rounded-xl border border-dashed border-[var(--brand-orange)] text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wider hover:bg-[var(--brand-orange)]/10 transition-all whitespace-nowrap"
+                    className="px-3 py-2 rounded-xl border border-dashed border-[var(--brand-orange)] text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wider hover:bg-brand-orange/10 transition-all whitespace-nowrap"
                   >
                     {t("adminMisc.programs.newNote")}
                   </button>
@@ -1840,7 +1840,7 @@ export default function ProgramManagement() {
                         key={family.id}
                         className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
                           isActive
-                            ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)] text-[var(--brand-orange)]"
+                            ? "bg-brand-orange/10 border-[var(--brand-orange)] text-[var(--brand-orange)]"
                             : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)]"
                         }`}
                       >
@@ -2015,7 +2015,7 @@ export default function ProgramManagement() {
                 </div>
 
                 {/* ═══ PROGRAM FACILITATORS (EXTERNAL PERSONNEL) ═══ */}
-                <div className="space-y-3 mt-4 pt-4 border-t border-[var(--border-primary)]/40">
+                <div className="space-y-3 mt-4 pt-4 border-t border-divider/40">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
                     {t("adminMisc.programs.programFacilitatorsTitle")}
                   </label>
@@ -2027,7 +2027,7 @@ export default function ProgramManagement() {
                     <button
                       type="button"
                       onClick={() => setEditingProgram({ ...editingProgram, facilitator_scope: "assigned_groups" })}
-                      className={`p-3 rounded-xl border text-left transition-all ${editingProgram?.facilitator_scope !== "all" ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]" : "bg-secondary border-[var(--border-primary)]"}`}
+                      className={`p-3 rounded-xl border text-left transition-all ${editingProgram?.facilitator_scope !== "all" ? "bg-brand-orange/10 border-[var(--brand-orange)]" : "bg-secondary border-[var(--border-primary)]"}`}
                     >
                       <p className={`text-[10px] font-bold uppercase ${editingProgram?.facilitator_scope !== "all" ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}>{t("adminMisc.programs.scopeAssignedGroups")}</p>
                       <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">{t("adminMisc.programs.scopeAssignedGroupsHint")}</p>
@@ -2035,7 +2035,7 @@ export default function ProgramManagement() {
                     <button
                       type="button"
                       onClick={() => setEditingProgram({ ...editingProgram, facilitator_scope: "all" })}
-                      className={`p-3 rounded-xl border text-left transition-all ${editingProgram?.facilitator_scope === "all" ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]" : "bg-secondary border-[var(--border-primary)]"}`}
+                      className={`p-3 rounded-xl border text-left transition-all ${editingProgram?.facilitator_scope === "all" ? "bg-brand-orange/10 border-[var(--brand-orange)]" : "bg-secondary border-[var(--border-primary)]"}`}
                     >
                       <p className={`text-[10px] font-bold uppercase ${editingProgram?.facilitator_scope === "all" ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}>{t("adminMisc.programs.scopeAll")}</p>
                       <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">{t("adminMisc.programs.scopeAllHint")}</p>
@@ -2271,7 +2271,7 @@ export default function ProgramManagement() {
                   {editingKpis.map((kpi) => (
                     <div
                       key={kpi.id}
-                      className="flex items-center justify-between p-3.5 bg-white/[0.02] border border-[var(--border-primary)] rounded-xl group hover:border-[var(--brand-orange)]/30 transition-all"
+                      className="flex items-center justify-between p-3.5 bg-white/[0.02] border border-[var(--border-primary)] rounded-xl group hover:border-brand-orange/30 transition-all"
                     >
                       <div>
                         <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
@@ -2291,7 +2291,7 @@ export default function ProgramManagement() {
                     </div>
                   ))}
 
-                  <div className="p-4 bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/10 rounded-xl space-y-4">
+                  <div className="p-4 bg-brand-orange/5 border border-brand-orange/10 rounded-xl space-y-4">
                     <div className="space-y-1">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)]">
                         {t("adminMisc.programs.defineNewTarget")}

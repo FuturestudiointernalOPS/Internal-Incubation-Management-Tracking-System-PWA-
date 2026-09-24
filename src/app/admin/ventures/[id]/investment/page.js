@@ -186,7 +186,7 @@ export default function VentureInvestmentPage() {
               <div className={`w-32 h-32 rounded-full flex items-center justify-center text-4xl font-black border-4 ${
                 overallScore >= 75 ? "border-emerald-500 bg-emerald-500/10 text-emerald-400" :
                 overallScore >= 50 ? "border-amber-500 bg-amber-500/10 text-amber-400" :
-                overallScore >= 25 ? "border-[var(--brand-orange)] bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" :
+                overallScore >= 25 ? "border-[var(--brand-orange)] bg-brand-orange/10 text-[var(--brand-orange)]" :
                 "border-rose-500 bg-rose-500/10 text-rose-400"
               }`}>
                 {overallScore}
@@ -207,7 +207,7 @@ export default function VentureInvestmentPage() {
                   { min: 51, max: 75, label: "Investment Ready", color: "text-emerald-400" },
                   { min: 76, max: 100, label: "Fundraising Ready", color: "text-[var(--brand-orange)]" },
                 ].map((level) => (
-                  <div key={level.label} className={`p-2 rounded-lg ${overallScore >= level.min && overallScore <= level.max ? "bg-[var(--brand-orange)]/10" : "bg-tertiary"}`}>
+                  <div key={level.label} className={`p-2 rounded-lg ${overallScore >= level.min && overallScore <= level.max ? "bg-brand-orange/10" : "bg-tertiary"}`}>
                     <p className={`text-[10px] font-bold uppercase ${overallScore >= level.min && overallScore <= level.max ? level.color : "text-slate-500"}`}>{level.min}-{level.max}</p>
                     <p className={`text-[10px] font-bold ${overallScore >= level.min && overallScore <= level.max ? level.color : "text-slate-500"}`}>{level.label}</p>
                   </div>

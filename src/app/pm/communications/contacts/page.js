@@ -219,7 +219,7 @@ export default function PMGroups() {
                       className={classNames(
                         "w-full text-left p-2.5 rounded-xl transition-all flex items-center gap-2.5",
                         isActive
-                          ? "bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20"
+                          ? "bg-brand-orange/10 border border-brand-orange/20"
                           : "hover:bg-tertiary border border-transparent",
                       )}
                     >
@@ -227,7 +227,7 @@ export default function PMGroups() {
                         className={classNames(
                           "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
                           isActive
-                            ? "bg-[var(--brand-orange)]/20 text-[var(--brand-orange)]"
+                            ? "bg-brand-orange/20 text-[var(--brand-orange)]"
                             : "bg-tertiary text-[var(--text-secondary)]",
                         )}
                       >
@@ -384,7 +384,7 @@ export default function PMGroups() {
                         return (
                           <div
                             key={identifier || name}
-                            className="p-4 rounded-xl bg-primary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/20 transition-all group"
+                            className="p-4 rounded-xl bg-primary border border-[var(--border-primary)] hover:border-brand-orange/20 transition-all group"
                           >
                             <div className="flex items-start gap-3">
                               {/* Avatar */}
@@ -416,7 +416,7 @@ export default function PMGroups() {
                               {email && (
                                 <a
                                   href={`mailto:${email}`}
-                                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/20 transition-all text-[10px] font-bold uppercase tracking-wide"
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:border-brand-orange/20 transition-all text-[10px] font-bold uppercase tracking-wide"
                                 >
                                   <Mail className="w-3 h-3" />
                                   {t("pmMisc.contacts.email")}

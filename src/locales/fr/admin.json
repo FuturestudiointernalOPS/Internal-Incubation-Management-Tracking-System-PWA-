@@ -1,6 +1,6 @@
 {
   "admin": {
-    "command": "COMMANDE ADMIN",
+    "command": "Commande admin",
     "programOperations": "Opérations des programmes",
     "internalOperations": "Opérations internes",
     "teamAccountability": "Responsabilité d'équipe",
