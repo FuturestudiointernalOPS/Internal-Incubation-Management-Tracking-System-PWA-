@@ -265,10 +265,28 @@ export async function getRoleDefaultsForProfile(profileId) {
   });
 }
 
-/** Number of contacts still assigned the profile (DELETE audit detail). */
+/**
+ * Number of LIVE contacts still assigned the profile. Scoped to the same rows
+ * the impact count shows (not soft-deleted/archived), so the blocking message
+ * and the number on screen can never disagree.
+ */
 export async function countProfileUsers(profileId) {
   return db.execute({
-    sql: "SELECT COUNT(*) as cnt FROM contacts WHERE access_profile_id = ?",
+    sql: `SELECT COUNT(*) as cnt FROM contacts
+          WHERE access_profile_id = ? AND deleted_at IS NULL AND archived_at IS NULL`,
+    args: [profileId],
+  });
+}
+
+/**
+ * DELETE guard — names of the contacts still assigned the profile, ordered by
+ * name and capped at 10, so the blocking message can say WHO is in the way.
+ */
+export async function listProfileAssignedNames(profileId) {
+  return db.execute({
+    sql: `SELECT name FROM contacts
+          WHERE access_profile_id = ? AND deleted_at IS NULL AND archived_at IS NULL
+          ORDER BY name LIMIT 10`,
     args: [profileId],
   });
 }
@@ -339,6 +357,79 @@ export async function getRoleDefaultProfileName(role) {
             WHERE rpd.role_name = ?`,
     args: [role],
   });
+}
+
+/**
+ * PUT assign — the user's CURRENT base capabilities, resolved the SAME way as
+ * the resolver (authorization/resolver.js, "user override → role default →
+ * legacy"):
+ *   - an active profile assigned to the contact wins (source "profile")
+ *   - otherwise the role's active default profile (source "role_default")
+ *   - otherwise the legacy role_capabilities rows (source "legacy")
+ * Only the base layer is read (group/individual layers are additive and are
+ * not affected by an assignment), so the caller can warn before a swap
+ * replaces the base and strips capabilities.
+ *
+ * Returns { source, profileName, caps: [{ module, capability, access_level }] }.
+ */
+export async function getCurrentBaseCapabilities(userCid) {
+  const contactRes = await db.execute({
+    sql: "SELECT role, access_profile_id FROM contacts WHERE cid = ?",
+    args: [userCid],
+  });
+  const contact = contactRes.rows[0] || {};
+  const role = contact.role;
+
+  const [overrideRes, roleDefaultRes] = await Promise.all([
+    contact.access_profile_id
+      ? db.execute({
+          sql: "SELECT id, name FROM access_profiles WHERE id = ? AND is_active = 1",
+          args: [contact.access_profile_id],
+        })
+      : Promise.resolve({ rows: [] }),
+    role
+      ? db.execute({
+          sql: `SELECT ap.id, ap.name
+                FROM role_access_profile_defaults rpd
+                JOIN access_profiles ap ON ap.id = rpd.access_profile_id
+                WHERE rpd.role_name = ? AND ap.is_active = 1`,
+          args: [role],
+        })
+      : Promise.resolve({ rows: [] }),
+  ]);
+
+  let source = "legacy";
+  let profileId = null;
+  let profileName = null;
+  if (overrideRes.rows[0]) {
+    source = "profile";
+    profileId = overrideRes.rows[0].id;
+    profileName = overrideRes.rows[0].name;
+  } else if (roleDefaultRes.rows[0]) {
+    source = "role_default";
+    profileId = roleDefaultRes.rows[0].id;
+    profileName = roleDefaultRes.rows[0].name;
+  }
+
+  const capsRes = profileId
+    ? await db.execute({
+        sql: "SELECT module, capability, access_level FROM access_profile_capabilities WHERE profile_id = ?",
+        args: [profileId],
+      })
+    : await db.execute({
+        sql: "SELECT module, capability, access_level FROM role_capabilities WHERE role = ?",
+        args: [role],
+      });
+
+  return {
+    source,
+    profileName,
+    caps: (capsRes.rows || []).map((row) => ({
+      module: row.module,
+      capability: row.capability,
+      access_level: Number(row.access_level) || 0,
+    })),
+  };
 }
 
 /** GET — contact row (with access_profile_id) for the assignment readback. */
@@ -758,9 +849,14 @@ export async function listPermissionAudits(whereSql, args) {
  * Mirrors the resolver's profile resolution (user override → role default):
  * direct = contacts.access_profile_id = P; roleDefault = profile-less
  * contacts whose stored role maps to P via role_access_profile_defaults.
+ *
+ * contextBindings counts context_role_profiles rows pointing at P — a MAPPING
+ * count, not people, so it is deliberately kept out of `total` (which stays
+ * direct + roleDefault). contextRoles carries "<context>:<role_key>" strings
+ * for those rows so callers can say exactly which mappings are in the way.
  */
 export async function getProfileImpactCounts(profileId) {
-  const [directRes, roleRes] = await Promise.all([
+  const [directRes, roleRes, contextRes] = await Promise.all([
     db.execute({
       sql: "SELECT COUNT(*) AS n FROM contacts WHERE access_profile_id = ? AND deleted_at IS NULL AND archived_at IS NULL",
       args: [profileId],
@@ -772,8 +868,23 @@ export async function getProfileImpactCounts(profileId) {
                           WHERE rpd.access_profile_id = ? AND LOWER(rpd.role_name) = LOWER(c.role))`,
       args: [profileId],
     }),
+    db.execute({
+      sql: `SELECT context, role_key FROM context_role_profiles
+            WHERE profile_id = ? ORDER BY context, role_key`,
+      args: [profileId],
+    }),
   ]);
   const direct = Number(directRes.rows[0]?.n || 0);
   const roleDefault = Number(roleRes.rows[0]?.n || 0);
-  return { profile_id: profileId, direct, roleDefault, total: direct + roleDefault };
+  const contextRoles = (contextRes.rows || []).map(
+    (row) => `${row.context}:${row.role_key}`,
+  );
+  return {
+    profile_id: profileId,
+    direct,
+    roleDefault,
+    total: direct + roleDefault,
+    contextBindings: contextRoles.length,
+    contextRoles,
+  };
 }

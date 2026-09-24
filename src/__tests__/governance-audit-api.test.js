@@ -121,7 +121,10 @@ describe("Protected profile safeguards (role-default profiles)", () => {
     );
     const data = await res.json();
     expect(data.success).toBe(false);
-    expect(String(data.error)).toMatch(/default for role/i);
+    // Structured refusal: a machine key for the UI, the roles, and the sentence.
+    expect(data.error).toBe("profile_in_use_role_default");
+    expect(data.roles).toEqual(["staff"]);
+    expect(String(data.message)).toMatch(/default for role/i);
     expect(mockExecutedQueries.some((statement) => statement.includes("DELETE FROM access_profiles"))).toBe(false);
   });
 });
