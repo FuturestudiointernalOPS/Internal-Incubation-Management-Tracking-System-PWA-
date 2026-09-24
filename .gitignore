@@ -60,3 +60,11 @@ src/graphify-out/
 graphify-out/cache/
 graphify-out-full/cache/
 .aider*
+
+
+# a new personnal doc added in the working place
+personal/*
+
+
+#never to be pushed
+env.local
