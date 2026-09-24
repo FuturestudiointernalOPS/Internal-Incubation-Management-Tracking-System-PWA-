@@ -278,7 +278,7 @@ export default function DocumentTypeManager({ ventureId, backHref = "/admin/vent
                   onClick={() => setValue("required", choice.value)}
                   className={`px-4 py-3 rounded-md text-[10px] font-bold uppercase tracking-wider border transition-all ${
                     selected
-                      ? "border-[var(--brand-orange)] bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                      ? "border-[var(--brand-orange)] bg-brand-orange/10 text-[var(--brand-orange)]"
                       : "border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                 >
@@ -304,7 +304,7 @@ export default function DocumentTypeManager({ ventureId, backHref = "/admin/vent
       <AppCard padding="lg">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-2xl bg-brand-orange/10 flex items-center justify-center">
               <FileText className="w-6 h-6 text-[var(--brand-orange)]" />
             </div>
             <div>
@@ -320,7 +320,7 @@ export default function DocumentTypeManager({ ventureId, backHref = "/admin/vent
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase px-2 py-1 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
+            <span className="text-[10px] font-bold uppercase px-2 py-1 rounded bg-brand-orange/10 text-[var(--brand-orange)]">
               {t("venture.documentTypes.badgeVenture")}
             </span>
             <AppButton variant="secondary" size="sm" icon={RefreshCw} onClick={() => refresh()}>
@@ -390,7 +390,7 @@ export default function DocumentTypeManager({ ventureId, backHref = "/admin/vent
           return (
             <AppCard key={documentType.id} className={documentType.is_active ? "" : "opacity-60"}>
               <div className="flex flex-col md:flex-row md:items-center gap-4">
-                <div className="w-11 h-11 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-brand-orange/10 flex items-center justify-center shrink-0">
                   <Icon className="w-5 h-5 text-[var(--brand-orange)]" />
                 </div>
 

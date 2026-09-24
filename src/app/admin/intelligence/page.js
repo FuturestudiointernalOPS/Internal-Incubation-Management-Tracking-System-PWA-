@@ -31,7 +31,7 @@ const LEVEL_STYLES = {
   not_ready: "text-rose-400 bg-rose-500/10 border-rose-500/20",
   early_ready: "text-amber-400 bg-amber-500/10 border-amber-500/20",
   investment_ready: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  fundraising_ready: "text-[var(--brand-orange)] bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]/20",
+  fundraising_ready: "text-[var(--brand-orange)] bg-brand-orange/10 border-brand-orange/20",
 };
 
 const LEVEL_BAR_CLASSES = {
@@ -45,7 +45,7 @@ function MetricCard({ icon: Icon, label, value, hint, accentClass }) {
   return (
     <div className="rounded-2xl border border-[var(--border-primary)] bg-surface-2 p-5">
       <div className="flex items-center gap-3">
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${accentClass ?? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"}`}>
+        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${accentClass ?? "bg-brand-orange/10 text-[var(--brand-orange)]"}`}>
           <Icon className="w-5 h-5" />
         </div>
         <div className="min-w-0">
@@ -191,7 +191,7 @@ export default function IntelligencePage() {
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-brand-orange/10 flex items-center justify-center">
                 <TrendingUp className="w-5 h-5 text-[var(--brand-orange)]" />
               </div>
               <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
@@ -227,7 +227,7 @@ export default function IntelligencePage() {
                 icon={Building2}
                 label={t("adminMisc.intelligence.totalVentures")}
                 value={fmtCount(ventures.total_ventures)}
-                accentClass="bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                accentClass="bg-brand-orange/10 text-[var(--brand-orange)]"
               />
               <MetricCard
                 icon={AlertTriangle}
@@ -378,7 +378,7 @@ export default function IntelligencePage() {
                       </thead>
                       <tbody>
                         {programs.kpis.slice(0, 8).map((kp) => (
-                          <tr key={kp.id} className="border-b border-[var(--border-primary)]/50 last:border-0">
+                          <tr key={kp.id} className="border-b border-divider/50 last:border-0">
                             <td className="py-2.5 pr-3">
                               <p className="font-medium text-[var(--text-primary)]">{kp.name}</p>
                               <p className="text-[11px] text-[var(--text-tertiary)]">{formatLabel(kp.status)}</p>
@@ -502,7 +502,7 @@ export default function IntelligencePage() {
                       <div
                         key={m.month}
                         title={`${m.month} · ${m.created}`}
-                        className="flex-1 rounded-t bg-[var(--brand-orange)]/80 hover:bg-[var(--brand-orange)] transition-colors"
+                        className="flex-1 rounded-t bg-brand-orange/80 hover:bg-[var(--brand-orange)] transition-colors"
                         style={{ height: `${Math.max(6, Math.round((Number(m.created) || 0) / growthMax * 100))}%` }}
                       />
                     ))}
