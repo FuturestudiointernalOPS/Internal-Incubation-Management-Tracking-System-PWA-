@@ -3,6 +3,9 @@ import { initDb } from "@/lib/db";
 import { after } from "next/server";
 import { onSubmission } from "@/lib/platform/automation";
 import { getClientIp } from "@/lib/rate-limit";
+import { defaultPaymentProvider } from "@/lib/integrations/payments";
+import { findRegistrationByCourseAndEmail, toProviderAmount } from "@/lib/lms/registrations";
+import { getPaidRunContext, startCheckoutForSubmission } from "@/lib/lms/checkout";
 import {
   ensurePublicSubmitInvitationColumn,
   ensurePublicSubmitInvitationIndex,
@@ -45,6 +48,48 @@ async function ensurePublicSubmitSchema() {
 }
 
 /**
+ * Shape the checkout payload the public page reasons about.
+ *
+ * `neutralCheckoutPayload` is the answer for an EXISTING registration: it says
+ * only that one exists and whether it is paid. No reference — the browser has no
+ * business holding one it did not just create.
+ */
+function courseSummary(course) {
+  return { title: course.title, amount: course.amount, currency: course.currency };
+}
+
+function paymentConfig() {
+  const provider = defaultPaymentProvider();
+  return { ...provider.publicConfig(), configured: provider.isConfigured() };
+}
+
+function neutralCheckoutPayload(paidContext, registration) {
+  return {
+    existing: Boolean(registration),
+    paid: registration?.status === "paid",
+    status: registration?.status || null,
+    course: courseSummary(paidContext.course),
+    payment: paymentConfig(),
+  };
+}
+
+function freshCheckoutPayload(paidContext, registration) {
+  return {
+    existing: false,
+    paid: false,
+    reference: registration.reference,
+    // What the payment window is asked for (the money's smallest unit when the
+    // currency has one), and what the person is shown.
+    amount: toProviderAmount(registration.amount),
+    display_amount: registration.amount,
+    currency: registration.currency,
+    email: registration.email,
+    course: courseSummary(paidContext.course),
+    payment: paymentConfig(),
+  };
+}
+
+/**
  * POST /api/s/public-submit
  * Public endpoint — accepts form submissions without auth.
  * 
@@ -72,7 +117,7 @@ export async function POST(req) {
     }
 
     body = await req.json();
-    const { data, slug, invitation_token } = body;
+    const { data, slug, invitation_token, consent, language } = body;
 
     if (!slug || !data || typeof data !== "object") {
       return NextResponse.json({ success: false, error: "slug and data required" }, { status: 400 });
@@ -104,6 +149,24 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Submission deadline has passed" }, { status: 400 });
     }
 
+    // ── A PAID Execution resolves its course and its price SERVER-side, and
+    // asks for consent, BEFORE anything is written. ──
+    let paidContext = null;
+    try {
+      paidContext = await getPaidRunContext(run_id);
+    } catch (error) {
+      console.warn("[Public Submit] paid context read failed:", error.message);
+    }
+    if (paidContext?.hasCourse) {
+      if (!paidContext.course) {
+        return NextResponse.json({ success: false, error: "lms.errors.courseNotForSale" }, { status: 409 });
+      }
+      const accepted = consent === true || consent === "true";
+      if (!accepted) {
+        return NextResponse.json({ success: false, error: "lms.errors.registrationConsentRequired" }, { status: 400 });
+      }
+    }
+
     // Optional Venture Run invitation: link the submission to the invitation
     // so provenance (invitation → submission → Venture) is preserved.
     let invitationId = null;
@@ -130,6 +193,7 @@ export async function POST(req) {
     // Find submitter identity by looking up form field labels
     let submitterName = "Anonymous";
     let submitterEmail = null;
+    let submitterPhone = null;
     if (typeof data === "object" && run_id) {
       try {
         // Fetch form fields to map field IDs to labels
@@ -157,6 +221,9 @@ export async function POST(req) {
             if (label.includes("email") && !submitterEmail && fieldValue.includes("@")) {
               submitterEmail = fieldValue.substring(0, 200);
             }
+            if (!submitterPhone && /phone|t[eé]l/.test(label)) {
+              submitterPhone = fieldValue.substring(0, 40);
+            }
           }
           if (fullNameValue || plainNameValue) submitterName = fullNameValue || plainNameValue;
         }
@@ -172,11 +239,18 @@ export async function POST(req) {
           if (isFull && !keyFullName) keyFullName = fieldValue.substring(0, 200);
           else if (!isFull && lowerKey.includes("name") && !keyPlainName) keyPlainName = fieldValue.substring(0, 200);
           if (lowerKey.includes("email") && !submitterEmail && fieldValue.includes("@")) submitterEmail = fieldValue.substring(0, 200);
+          if (!submitterPhone && /phone|t[eé]l/.test(lowerKey)) submitterPhone = fieldValue.substring(0, 40);
         }
         if (submitterName === "Anonymous" && (keyFullName || keyPlainName)) submitterName = keyFullName || keyPlainName;
       }
     }
     const submitterId = submitterEmail || "public-" + Date.now();
+
+    // A paid registration is anchored to a real address: it is where the receipt
+    // and the way back are sent.
+    if (paidContext?.hasCourse && !submitterEmail) {
+      return NextResponse.json({ success: false, error: "lms.errors.registrationEmailRequired" }, { status: 400 });
+    }
 
     // Prevent duplicate SUBMITTED entries by same email — idempotent:
     // a repeat submission returns success (not an error) so a participant who
@@ -184,12 +258,24 @@ export async function POST(req) {
     if (submitterEmail) {
       const existing = await getSubmittedSubmissionBySubmitter(run_id, submitterEmail);
       if (existing.rows.length > 0) {
+        // A paid Execution: a repeat submission is not simply "already done" —
+        // the page must know whether to offer the TWO exits (sign in, or be
+        // emailed a fresh link). The reference is deliberately ABSENT here.
+        let repeatCheckout = null;
+        if (paidContext?.hasCourse) {
+          const registration = await findRegistrationByCourseAndEmail(
+            paidContext.course.id,
+            submitterEmail,
+          );
+          repeatCheckout = neutralCheckoutPayload(paidContext, registration);
+        }
         return NextResponse.json({
           success: true,
           id: existing.rows[0].id,
           already_submitted: true,
           success_message: null,
           redirect_url: null,
+          checkout: repeatCheckout,
         });
       }
     }
@@ -228,6 +314,35 @@ export async function POST(req) {
       }
     } catch (_) {}
 
+    // ── PAID EXECUTION: the SAME request captures the registration ──
+    // One submission = one registration. Nothing about the money is trusted
+    // from the browser: the price and the reference are decided here, and an
+    // EXISTING registration is answered NEUTRALLY — its reference is never
+    // handed back, which is what made an account takeover possible.
+    let checkout = null;
+    if (paidContext?.hasCourse) {
+      try {
+        const started = await startCheckoutForSubmission({
+          run: paidContext.run,
+          course: paidContext.course,
+          submissionId,
+          fullName: submitterName,
+          email: submitterEmail,
+          phone: submitterPhone,
+          language: language || "fr",
+          consent: true,
+        });
+        checkout = started.existing
+          ? neutralCheckoutPayload(paidContext, await findRegistrationByCourseAndEmail(paidContext.course.id, submitterEmail))
+          : freshCheckoutPayload(paidContext, started.registration);
+      } catch (error) {
+        // The submission is already saved, so nothing is lost — but the payer
+        // must be told the payment could not be prepared, not shown a blank end.
+        console.warn("[Public Submit] checkout capture failed:", error.message);
+        checkout = { failed: true, error: "lms.errors.checkoutUnavailable" };
+      }
+    }
+
     // Fire post-submission automation (CRM contact, confirmation email, owner
     // notification) in the background so it never blocks or breaks the response.
     // The submission is already saved — any automation failure is logged, not
@@ -255,11 +370,14 @@ export async function POST(req) {
       });
     } catch (_) {}
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       id: submissionId,
       success_message: successConfig?.message || null,
-      redirect_url: successConfig?.redirect_url || null,
+      // A paid Execution must not be redirected away: the page has to open the
+      // payment window next.
+      redirect_url: paidContext?.hasCourse ? null : successConfig?.redirect_url || null,
+      checkout,
     });
   } catch (error) {
     console.error("[Public Submit] Error:", error.message, error.stack);

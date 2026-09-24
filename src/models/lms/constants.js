@@ -128,3 +128,21 @@ export function formatFileSize(bytes) {
   // One decimal, but without a pointless ".0" (4 MB, not 4.0 MB).
   return `${Number((value / (1024 * 1024)).toFixed(1))} MB`;
 }
+
+// ── Checkout registrations ─────────────────────────────────────────────────
+// Mirrors the CHECK constraints in
+// supabase/migrations/20260924_lms_checkout_registrations.sql.
+export const LMS_REGISTRATION_STATUSES = ["pending", "paid", "failed", "cancelled", "refunded"];
+
+export const LMS_REGISTRATION_ACCESS_STATES = ["pending", "granted", "failed"];
+
+export const LMS_REGISTRATION_EMAIL_STATES = ["pending", "sent", "failed"];
+
+export const LMS_PAYMENT_EVENT_STATUSES = ["received", "processed", "ignored", "failed"];
+
+/**
+ * How long after `paid_at` the payer's own tab may still be handed a fresh
+ * one-time access link. Past it, the answer is "check your email" — so a
+ * reference that leaked somewhere else is no longer worth anything.
+ */
+export const LMS_CHECKOUT_ACCESS_WINDOW_MINUTES = 15;
