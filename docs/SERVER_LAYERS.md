@@ -70,7 +70,8 @@ or a membership check — and runs after an identity exists.
 | Capabilities vocabulary | `server/authz/capabilities.js` | ✅ moved |
 | Program access resolution + resource guards | `server/authz/{programAccess,guards}.js` + `models/authorization/accessQueries.js` | ✅ moved |
 | Authorization reads (project membership, assignment probes, team scope, supervision) + the permission audit write | `models/authorization/accessQueries.js` | ✅ moved |
-| Role/access-profile seeds, responsibilities, schema self-heals | still `src/lib/auth.js` (25 SQL statements) | ⏳ next batches |
+| Runtime schema self-heal + default grants (role capabilities, Access Profiles, responsibilities catalogue) | `models/authorization/bootstrap.js` | ✅ moved |
+| Effective access-profile resolution, responsibilities domain | still `src/lib/auth.js` (6 functions, 8 SQL statements) | ⏸ **blocked on a decision** — see below |
 
 Two overlaps are **known and deliberately left alone** until a decision is made,
 because merging them would change behaviour and is not a pure move:
@@ -79,6 +80,16 @@ because merging them would change behaviour and is not a pure move:
 - responsibilities functions (`lib/auth.js`) vs `models/responsibilities.js`.
 - `getUserEffectiveProfile` / `getAccessProfileCapabilities` (`lib/auth.js`) vs the
   access-profile readers in `models/authorization.js`.
+
+## Known defect, pinned by a test but not fixed
+
+`seedDefaultResponsibilities()` memoises its work, and its comment says a failure
+clears the memo "so the next call retries instead of the process caching a broken
+state". It does not: the inner seeding function RESOLVES with `{ success: false }`
+instead of throwing, so the `.catch` that clears the memo never runs, and a failed
+seed stays failed until the process restarts. A real retry needs the inner
+function to throw — a behaviour change, so it awaits an explicit decision.
+`src/__tests__/authorization-bootstrap.test.js` pins today's behaviour and says so.
 
 ## Migrating a batch (recipe)
 
