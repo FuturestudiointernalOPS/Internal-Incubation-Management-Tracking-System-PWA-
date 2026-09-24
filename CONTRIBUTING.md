@@ -15,13 +15,14 @@ discipline décrite ici n'est pas du zèle, c'est ce qui la rend encore modifiab
 
 | # | Document | Ce qu'il t'apprend |
 |---|---|---|
-| 1 | `AGENTS.md` | Règles non négociables : traduction, composants, compilation |
-| 2 | `.ai/STANDARDS.md` | Conventions de code réellement appliquées |
-| 3 | `DESIGN_SYSTEM.md` | Jetons de couleur, composants réutilisables, styles |
-| 4 | `.ai/PROJECT.md` | Architecture, modules par domaine, règles métier |
-| 5 | `docs/MVC_REFACTOR.md` + `docs/SERVER_LAYERS.md` | Où doit vivre chaque morceau de code |
-| 6 | `.ai/MEMORY.md` | Décisions durables et dette technique connue |
-| 7 | ce document | Comment travailler au quotidien |
+| 1 | `OVERVIEW.md` | La vue d'ensemble : produit, rôles, domaines, modèle de droits, vocabulaire |
+| 2 | `AGENTS.md` | Règles non négociables : traduction, composants, compilation |
+| 3 | `.ai/STANDARDS.md` | Conventions de code réellement appliquées |
+| 4 | `DESIGN_SYSTEM.md` | Jetons de couleur, composants réutilisables, styles |
+| 5 | `.ai/PROJECT.md` | Architecture, modules par domaine, règles métier |
+| 6 | `docs/MVC_REFACTOR.md` + `docs/SERVER_LAYERS.md` | Où doit vivre chaque morceau de code |
+| 7 | `.ai/MEMORY.md` | Décisions durables et dette technique connue |
+| 8 | ce document | Comment travailler au quotidien |
 
 Pour tout ce qui touche aux droits et permissions, ajoute
 `docs/AUTHZ_CURRENT_STATE.md`. Pour tout ce qui touche à la sécurité, ajoute
@@ -437,6 +438,7 @@ recrue ne peut pas les deviner. À trancher avant d'ouvrir la contribution :
 
 | Sujet | Document |
 |---|---|
+| Vue d'ensemble du projet | `OVERVIEW.md` |
 | Règles pour les agents et les humains | `AGENTS.md` |
 | Conventions de code appliquées | `.ai/STANDARDS.md` |
 | Architecture et modules par domaine | `.ai/PROJECT.md` |
