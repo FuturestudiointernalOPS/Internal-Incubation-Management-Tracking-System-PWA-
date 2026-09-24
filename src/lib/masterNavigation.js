@@ -118,6 +118,8 @@ export const MASTER_NAVIGATION = [
     ],
   },
 
+  { id: "intelligence", name: "INTELLIGENCE", icon: "trendingUp", href: "/admin/intelligence" },
+
   {
     id: "reports",
     name: "REPORTS",
@@ -136,7 +138,6 @@ export const MASTER_NAVIGATION = [
     icon: "library",
     children: [
       { id: "knowledge_base", name: "KNOWLEDGE BASE", href: "/admin/knowledge" },
-      { id: "intelligence", name: "INTELLIGENCE", href: "/admin/intelligence" },
     ],
   },
 
@@ -205,7 +206,7 @@ export const ROLE_ACCESS = {
   super_admin: {
     top: [
       "dashboard", "crm", "communication", "programs", "ventures", "investors",
-      "finance", "operations", "reports", "knowledge", "lms", "security", "settings",
+      "finance", "operations", "intelligence", "reports", "knowledge", "lms", "security", "settings",
     ],
     children: {
       crm: ["crm_dashboard", "all_contacts", "crm_membership", "crm_timeline", "crm_duplicates", "pending_users", "bulk_upload"],
@@ -215,7 +216,7 @@ export const ROLE_ACCESS = {
       investors: ["investors_manage", "investors_dashboard", "investors_review", "investors_overview", "investors_campaigns", "investors_relationships"],
       operations: ["internal_ops_board", "all_projects", "create_project", "tasks", "blockers", "standup", "retro"],
       reports: ["program_reports", "internal_reports", "metrics"],
-      knowledge: ["knowledge_base", "intelligence"],
+      knowledge: ["knowledge_base"],
       lms: ["lms_courses"],
       security: ["security", "audit_logs", "access_summary", "permissions"],
       settings: ["integrations", "system"],
