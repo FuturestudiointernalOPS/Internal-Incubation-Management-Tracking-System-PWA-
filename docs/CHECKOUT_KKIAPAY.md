@@ -124,3 +124,29 @@ curl -X POST "https://<domaine>/api/lms/registrations?action=link-run" \
 - **Réconciliation** : `POST /api/lms/registrations?action=reconcile`
   (capacité `lms.edit`) rejoue les accès échoués et revérifie les succès non
   confirmés.
+
+## 7. Ce dont le SITE a besoin (raccordement)
+
+Le site n'a **qu'un seul travail** : pointer vers la bonne exécution.
+
+| Ce que le site utilise | Où le trouver |
+|---|---|
+| L'adresse publique de l'exécution du cours : `https://<domaine-impactos>/s/<public_slug>` | dans **Exécutions** (`/platform/runs`), sur la ligne de l'exécution ; également lisible par `GET /api/platform/form-runs` |
+
+Le bouton « S'inscrire » d'une fiche cours pointe donc simplement vers cette
+adresse. Tout le reste — formulaire, prix, paiement, création du compte, accès au
+cours, reçu — se passe **dans ImpactOS**.
+
+**Ce que le site ne doit pas faire :**
+
+- afficher un prix qui ne vient pas d'ImpactOS : le prix décidé côté serveur est
+  le seul qui fait foi ;
+- ouvrir lui-même une fenêtre de paiement, ni croire un « paiement réussi »
+  annoncé par un navigateur ;
+- envoyer les coordonnées de la personne à un autre système avant le paiement.
+  Elle est captée **dans ImpactOS**, et la référence ne circule qu'entre ImpactOS
+  et Kkiapay ;
+- envoyer un montant : il est ignoré par le serveur.
+
+**Un cours gratuit ne change rien** : c'est le même formulaire, sans étape de
+paiement, et l'exécution se comporte exactement comme avant.
