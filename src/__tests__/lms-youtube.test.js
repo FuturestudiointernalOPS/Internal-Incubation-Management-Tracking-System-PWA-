@@ -89,27 +89,39 @@ describe("isValidYouTubeVideoId", () => {
 });
 
 describe("buildYouTubeEmbedUrl", () => {
-  test("builds a cookie-free embed URL with the default player params", () => {
+  const HARDENED =
+    "rel=0&modestbranding=1&playsinline=1&color=white&controls=0&iv_load_policy=3&disablekb=1&fs=0&enablejsapi=1";
+
+  test("builds a cookie-free embed URL with the hardened player params", () => {
     expect(buildYouTubeEmbedUrl("dQw4w9WgXcQ")).toBe(
-      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1&color=white",
+      `https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?${HARDENED}`,
     );
+  });
+
+  test("hides YouTube's own controls so the container can render its own", () => {
+    const url = buildYouTubeEmbedUrl("dQw4w9WgXcQ");
+    expect(url).toContain("controls=0");
+    expect(url).toContain("iv_load_policy=3");
+    expect(url).toContain("disablekb=1");
+    expect(url).toContain("fs=0");
+    expect(url).toContain("enablejsapi=1");
   });
 
   test("adds autoplay only when requested", () => {
     expect(buildYouTubeEmbedUrl("dQw4w9WgXcQ", { autoplay: true })).toBe(
-      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1&color=white&autoplay=1",
+      `https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?${HARDENED}&autoplay=1`,
     );
   });
 
   test("adds loop with the playlist id when requested", () => {
     expect(buildYouTubeEmbedUrl("dQw4w9WgXcQ", { loop: true })).toBe(
-      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1&color=white&loop=1&playlist=dQw4w9WgXcQ",
+      `https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?${HARDENED}&loop=1&playlist=dQw4w9WgXcQ`,
     );
   });
 
   test("combines autoplay and loop", () => {
     expect(buildYouTubeEmbedUrl("dQw4w9WgXcQ", { autoplay: true, loop: true })).toBe(
-      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1&color=white&autoplay=1&loop=1&playlist=dQw4w9WgXcQ",
+      `https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?${HARDENED}&autoplay=1&loop=1&playlist=dQw4w9WgXcQ`,
     );
   });
 
