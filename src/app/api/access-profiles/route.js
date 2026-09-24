@@ -30,8 +30,10 @@ import {
   replaceProfileCapability,
   getRoleDefaultsForProfile,
   countProfileUsers,
+  listProfileAssignedNames,
   getAccessProfileName,
   deleteAccessProfile,
+  getProfileImpactCounts,
 } from "@/models/authorization";
 
 /**
@@ -382,18 +384,53 @@ export async function DELETE(req) {
     const roleRefs = await getRoleDefaultsForProfile(id);
 
     if (roleRefs.rows.length > 0) {
-      const roles = roleRefs.rows.map((row) => row.role_name).join(", ");
+      const roles = roleRefs.rows.map((row) => row.role_name);
       return NextResponse.json(
         {
           success: false,
-          error: `Cannot delete: profile is the default for role(s): ${roles}. Change the role default first.`,
+          error: "profile_in_use_role_default",
+          message: `Cannot delete: profile is the default for role(s): ${roles.join(", ")}. Change the role default first.`,
+          roles,
         },
         { status: 400 },
       );
     }
 
-    // Check if any users reference this profile
+    // Check B — people: a profile still carried by users must not vanish under
+    // them. Deleting it would silently drop those users to the legacy fallback.
     const userRefs = await countProfileUsers(id);
+    const assignedCount = Number(userRefs.rows[0]?.cnt || 0);
+    if (assignedCount > 0) {
+      const nameRows = await listProfileAssignedNames(id);
+      return NextResponse.json(
+        {
+          success: false,
+          error: "profile_in_use_assignments",
+          message: `Cannot delete: ${assignedCount} user(s) still use this profile. Remove it from them first.`,
+          assignedCount,
+          assignedNames: nameRows.rows.map((row) => row.name).filter(Boolean),
+        },
+        { status: 400 },
+      );
+    }
+
+    // Check C — context bindings: context_role_profiles.profile_id carries NO
+    // foreign key to access_profiles, so deleting this profile would leave
+    // those rows pointing at a dead id (dangling reference). Block until the
+    // mappings are re-pointed.
+    const impact = await getProfileImpactCounts(id);
+    if (impact.contextBindings > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "profile_in_use_context",
+          message: `Cannot delete: ${impact.contextBindings} context role(s) still map to this profile. Change them first.`,
+          contextCount: impact.contextBindings,
+          contextRoles: impact.contextRoles,
+        },
+        { status: 400 },
+      );
+    }
 
     // Get profile name for audit
     const profile = await getAccessProfileName(id);
@@ -407,7 +444,8 @@ export async function DELETE(req) {
       targetCid: "system",
       targetName: profile.rows[0]?.name || "Unknown",
       action: "profile_deleted",
-      details: `Deleted access profile with ${userRefs.rows[0]?.cnt || 0} users still assigned`,
+      details:
+        "Deleted access profile (no users, role defaults or context roles referenced it)",
     });
     invalidateAllAuthorizationContexts();
 

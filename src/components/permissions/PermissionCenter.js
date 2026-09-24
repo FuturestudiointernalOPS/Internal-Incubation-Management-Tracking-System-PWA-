@@ -28,6 +28,7 @@ import {
 import AppPagination from "@/components/ui/AppPagination";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/lib/i18n";
+import { useDialogs } from "@/components/ui/DialogProvider";
 import { capabilityLabel, CAPABILITY_CATALOG, moduleCapabilityParents } from "@/lib/authorization/capability-catalog";
 import { FEATURE_ORDER } from "@/models/authorization/eligibility-defaults";
 import { deriveMembershipStatus } from "@/lib/membership-ui";
@@ -71,6 +72,7 @@ export default function PermissionManager({
   cid = null,
 }) {
   const { t, lang } = useI18n();
+  const { confirm } = useDialogs();
   // Navigation is owned by the Permission Shell (route + `?sub=`); this screen
   // renders exactly the view its props ask for. The call sites key the
   // instance on the sub-tab, so switching a sub-tab remounts it fresh — there
@@ -227,8 +229,16 @@ export default function PermissionManager({
     }
   };
 
-  // Assign or remove the selected user's profile override (empty = remove).
-  const saveProfileOverride = async (profileId) => {
+  /**
+   * Assign or remove the selected user's profile override (empty = remove).
+   *
+   * Assigning a profile REPLACES the person's base capabilities — the resolver
+   * reads access_profile_capabilities INSTEAD OF role_capabilities — so a
+   * thinner (or empty) profile silently removes access. The server answers 409
+   * with the exact diff; we show it and only re-send with `confirm` once the
+   * admin accepts the loss.
+   */
+  const saveProfileOverride = async (profileId, options = {}) => {
     if (!selectedUser) return;
     setAssignBusy(true);
     setAssignMsg("");
@@ -240,6 +250,7 @@ export default function PermissionManager({
         body: JSON.stringify({
           user_cid: selectedUser.cid,
           profile_id: profileId,
+          ...(options.confirm ? { confirm: true } : {}),
         }),
       });
       const data = await res.json();
@@ -248,6 +259,48 @@ export default function PermissionManager({
         setShowAssignForm(false);
         setAssignProfileId("");
         selectUser(selectedUser); // refresh the effective profile + matrix
+      } else if (res.status === 409 && data.requiresConfirmation) {
+        const loss = data.loss || {};
+        const removedList = loss.removed || [];
+        const accepted = await confirm({
+          title: t("engineering.permissions.assignImpactTitle"),
+          message: t(
+            data.error === "profile_assignment_empty_profile"
+              ? "engineering.permissions.assignEmptyProfileConfirm"
+              : "engineering.permissions.assignLossConfirm",
+            {
+              name: loss.newProfileName || "",
+              current: loss.currentCount ?? 0,
+              removed: loss.removedCount ?? 0,
+              gained: loss.gainedCount ?? 0,
+            },
+          ),
+          // The hint renders as ONE quieter line (DialogProvider collapses the
+          // rest of the message), so the loss is listed inline rather than
+          // stacked — the dialog stays readable at any width.
+          hint: [
+            t("engineering.permissions.assignLossHint"),
+            removedList
+              .slice(0, 6)
+              .map((row) => `${row.module}.${row.capability}`)
+              .join(", "),
+            removedList.length > 6
+              ? t("engineering.permissions.assignLossMore", {
+                  count: removedList.length - 6,
+                })
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" "),
+          tone: "danger",
+          confirmLabel: t("common.continue"),
+          cancelLabel: t("common.cancel"),
+        });
+        if (!accepted) {
+          setAssignErr(t("engineering.permissions.assignCancelled"));
+          return;
+        }
+        return await saveProfileOverride(profileId, { confirm: true });
       } else {
         setAssignErr(t((data.error || t("engineering.permissions.failedToAssign")) || "") || (data.error || t("engineering.permissions.failedToAssign")));
       }
@@ -1180,9 +1233,11 @@ function capsToObject(rows) {
 
 function AccessProfilesView({ initialProfileId = null }) {
   const { t } = useI18n();
+  const { confirm } = useDialogs();
   const [profiles, setProfiles] = useState([]);
   const [roleDefaults, setRoleDefaults] = useState({});
   const [allRoles, setAllRoles] = useState([]);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const [eligibilityRows, setEligibilityRows] = useState([]); // feature_eligibility rows for role-based filtering
   const [moduleToFeature, setModuleToFeature] = useState({}); // capability module → feature key
   const [featureKeys, setFeatureKeys] = useState([]); // canonical feature order (eligibility API)
@@ -1216,6 +1271,10 @@ function AccessProfilesView({ initialProfileId = null }) {
   // users this profile currently reaches (real count, from the impact API).
   const [reason, setReason] = useState("");
   const [impactTotal, setImpactTotal] = useState(null);
+  // Context-role bindings are mappings, not people, so they are reported
+  // separately: a profile can read "0 people" and still be live through
+  // context_role_profiles (e.g. Assigned Program Manager → program:program_manager).
+  const [impactContextBindings, setImpactContextBindings] = useState(null);
   // "Default for" — which kinds of person receive this template. This was the
   // Role → Profile screen; it belongs on the template it changes, one click
   // from the contents it affects. Same endpoint, no new authority.
@@ -1245,7 +1304,20 @@ function AccessProfilesView({ initialProfileId = null }) {
       // a default — so every role can be configured in the form dropdown.
       // The same payload also feeds the role-based feature filter below.
       if (eligData.success) {
-        setAllRoles(eligData.roles || Object.keys(data.roleDefaults || {}));
+        // The curated identity list is only PART of the vocabulary the engine
+        // enforces: roles that exist in this database but not in that list
+        // (program_manager, teacher, mentor…) are served separately as
+        // `extraRoles`. Merge them, otherwise those roles cannot be re-bound to
+        // a profile from this screen even though the engine honours them.
+        const mergedRoles = [
+          ...new Set([
+            ...(eligData.roles || []),
+            ...(eligData.extraRoles || []),
+          ]),
+        ];
+        setAllRoles(
+          mergedRoles.length > 0 ? mergedRoles : Object.keys(data.roleDefaults || {}),
+        );
         setEligibilityRows(eligData.rows || []);
         setModuleToFeature(eligData.moduleToFeature || {});
         setFeatureKeys(eligData.features || []);
@@ -1358,7 +1430,10 @@ function AccessProfilesView({ initialProfileId = null }) {
   // it today). Read-only, fail-soft: no number is better than a wrong number.
   useEffect(() => {
     if (!selectedProfile?.id) {
-      defer(() => setImpactTotal(null));
+      defer(() => {
+        setImpactTotal(null);
+        setImpactContextBindings(null);
+      });
       return undefined;
     }
     let alive = true;
@@ -1368,9 +1443,16 @@ function AccessProfilesView({ initialProfileId = null }) {
           `/api/engineering/permissions/impact?profile_id=${encodeURIComponent(selectedProfile.id)}`,
         );
         const data = await res.json();
-        if (alive) setImpactTotal(data.success ? Number(data.impact?.total || 0) : null);
+        if (!alive) return;
+        setImpactTotal(data.success ? Number(data.impact?.total || 0) : null);
+        setImpactContextBindings(
+          data.success ? Number(data.impact?.contextBindings || 0) : null,
+        );
       } catch {
-        if (alive) setImpactTotal(null);
+        if (alive) {
+          setImpactTotal(null);
+          setImpactContextBindings(null);
+        }
       }
     })();
     return () => {
@@ -1477,6 +1559,80 @@ function AccessProfilesView({ initialProfileId = null }) {
       }
     } catch {
       setActionError(t("engineering.permissions.networkError"));
+    }
+  };
+
+  /**
+   * What a refused delete means, in a sentence the admin can act on. The server
+   * owns the decision (assigned people, role defaults, context mappings) and
+   * answers with the counts; this only renders them.
+   */
+  const describeDeleteBlock = (data) => {
+    if (data?.error === "profile_in_use_assignments") {
+      return t("engineering.permissions.deleteBlockedAssigned", {
+        count: data.assignedCount ?? 0,
+        names: (data.assignedNames || []).join(", "),
+      });
+    }
+    if (data?.error === "profile_in_use_context") {
+      return t("engineering.permissions.deleteBlockedContext", {
+        count: data.contextCount ?? 0,
+        roles: (data.contextRoles || []).join(", "),
+      });
+    }
+    if (data?.error === "profile_in_use_role_default") {
+      return t("engineering.permissions.deleteBlockedRoleDefault", {
+        roles: (data.roles || []).join(", "),
+      });
+    }
+    return (
+      t((data?.error || t("engineering.permissions.failedToDeleteProfile")) || "") ||
+      data?.message ||
+      data?.error ||
+      t("engineering.permissions.failedToDeleteProfile")
+    );
+  };
+
+  // A profile still carried by anyone must not be deleted — the server blocks it
+  // and explains why. Deleting is offered here, but never decided here.
+  const deleteProfile = async (profile) => {
+    if (!profile?.id || deleteBusy) return;
+    setActionMsg("");
+    setActionError("");
+    const accepted = await confirm({
+      title: t("engineering.permissions.deleteProfileTitle"),
+      message: t("engineering.permissions.deleteProfileConfirm", {
+        name: profile.name,
+      }),
+      hint:
+        impactTotal !== null && impactTotal > 0
+          ? t("engineering.permissions.deleteProfileImpactHint", { total: impactTotal })
+          : undefined,
+      tone: "danger",
+      confirmLabel: t("common.delete"),
+      cancelLabel: t("common.cancel"),
+    });
+    if (!accepted) return;
+    setDeleteBusy(true);
+    try {
+      const res = await fetch(
+        `/api/access-profiles?id=${encodeURIComponent(profile.id)}`,
+        { method: "DELETE" },
+      );
+      const data = await res.json();
+      if (data.success) {
+        setActionMsg(
+          t("engineering.permissions.profileDeleted", { name: profile.name }),
+        );
+        setSelectedProfile(null);
+        fetchProfiles(true);
+      } else {
+        setActionError(describeDeleteBlock(data));
+      }
+    } catch {
+      setActionError(t("engineering.permissions.networkError"));
+    } finally {
+      setDeleteBusy(false);
     }
   };
 
@@ -1732,17 +1888,31 @@ function AccessProfilesView({ initialProfileId = null }) {
 
   // Feature sections: each FEATURE (sidebar-level section) carries its modules
   // as sub-sections (rows) and the ordered union of their capabilities (the
-  // header row). STRICT: only the features the profile's assigned role(s) are
-  // eligible for are shown (union); a profile with no role shows nothing until
-  // it is assigned one (see filterSectionsByRoleEligibility).
+  // header row).
   //
   // Unmapped modules (modules with no feature — e.g. org_membership) are NOT
   // features and are dropped: the template only ever shows dashboard sections.
-  const eligibleSections = filterSectionsByRoleEligibility(
-    groupModulesByFeature(availableModules, moduleToFeature, featureKeys),
-    selectedIsDefaultFor,
-    isRoleEligibleForFeature,
+  const allSections = groupModulesByFeature(
+    availableModules,
+    moduleToFeature,
+    featureKeys,
   ).filter((section) => !section.unmapped);
+
+  // A profile is configurable ON ITS OWN. It does not have to be a role's
+  // default to be edited (see docs/ACCESS_PROFILE_CLEANUP.md). Only a profile
+  // that IS bound as a role default is narrowed to those roles' eligibility —
+  // that is the ceiling the resolver enforces for the people who inherit it
+  // that way. A standalone profile shows the whole catalogue; its ceiling is
+  // still enforced where it actually binds, at assignment time
+  // (assertTemplateCapsEligible in /api/access-profiles/assign).
+  const eligibleSections =
+    selectedIsDefaultFor.length > 0
+      ? filterSectionsByRoleEligibility(
+          allSections,
+          selectedIsDefaultFor,
+          isRoleEligibleForFeature,
+        )
+      : allSections;
 
   // The features the profile's roles are eligible for. Also the ceiling for the
   // Advanced section, so it never offers what the roles cannot hold.
@@ -2029,6 +2199,18 @@ function AccessProfilesView({ initialProfileId = null }) {
                       <EyeOff className="w-3.5 h-3.5" />
                     )}
                   </button>
+                  <button
+                    onClick={() => deleteProfile(selectedProfile)}
+                    disabled={deleteBusy}
+                    title={t("engineering.permissions.deleteProfileTitle")}
+                    className="p-1.5 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-red-400 disabled:opacity-40"
+                  >
+                    {deleteBusy ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5" />
+                    )}
+                  </button>
                 </div>
               </div>
 
@@ -2088,9 +2270,22 @@ function AccessProfilesView({ initialProfileId = null }) {
               </div>
 
               <div className="rounded-xl border border-[var(--border-primary)] bg-surface-1 p-3 space-y-2 shadow-lg">
-                {impactTotal !== null && impactTotal > 0 && (
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+                {impactTotal !== null && (
+                  <p
+                    className={`text-[10px] font-black uppercase tracking-widest ${
+                      impactTotal > 0
+                        ? "text-[var(--brand-orange)]"
+                        : "text-[var(--text-secondary)]"
+                    }`}
+                  >
                     {t("engineering.permissions.impactAffects", { total: impactTotal })}
+                  </p>
+                )}
+                {impactContextBindings !== null && impactContextBindings > 0 && (
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                    {t("engineering.permissions.impactContextBindings", {
+                      count: impactContextBindings,
+                    })}
                   </p>
                 )}
                 {changesCount > 0 && (
@@ -2147,7 +2342,7 @@ function AccessProfilesView({ initialProfileId = null }) {
               ) : (
                 <div className="p-3 rounded-xl bg-secondary/50 border border-[var(--border-primary)]">
                   <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-                    {t("engineering.permissions.profileNoRolesHint")}
+                    {t("engineering.permissions.profileStandaloneHint")}
                   </p>
                 </div>
               )}
@@ -2165,7 +2360,7 @@ function AccessProfilesView({ initialProfileId = null }) {
                   <p className="text-xs font-black text-[var(--text-primary)] uppercase">
                     {t(
                       selectedIsDefaultFor.length === 0
-                        ? "engineering.permissions.profileNoRolesEmpty"
+                        ? "engineering.permissions.profileNoConfigurableFeatures"
                         : "engineering.permissions.profileNoEligibleFeatures",
                     )}
                   </p>
