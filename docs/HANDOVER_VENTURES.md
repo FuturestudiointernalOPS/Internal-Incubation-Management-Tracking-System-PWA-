@@ -516,6 +516,15 @@ Each of these has already cost time once.
 - `venture_journey_stages.id` is **UUID**.
 - **`venture_milestones.id` type is unresolved.** The code already defends with
   `milestone_id::text = ANY(?)`. Check before writing a new join.
+- **Two `venture_milestones` column generations exist, and production has the
+  newer one.** Progress is `progress` (the Journey spine's column), the date is
+  `target_date`. The 016-era names — `completion_percentage` and `due_date` —
+  live **only** on databases whose milestone table was created by that legacy
+  DDL. Writing `completion_percentage` is what made a founder's deliverable
+  submission 500 *after* the file had already been stored (the recount ran
+  after the row was written). Never name either legacy column in new SQL; the
+  original DDL has no migration file of its own, so the table's shape depends on
+  which generation got there first.
 - `venture_id` is a **VNT code (TEXT)** in `venture_members` and
   `venture_staff_assignments`, but a **UUID** elsewhere. `resolveVentureCode`
   exists for this. Skipping the conversion silently denies every delegated
