@@ -10,7 +10,9 @@ import { listSectionResourcesByCourse } from "./sectionResources";
  */
 
 const COURSE_SELECT = `SELECT id, title, description, thumbnail_url, status,
-                              visibility, is_free, price, created_by, created_at, updated_at
+                              visibility, is_free, price, payment_currency,
+                              payment_amount_unit, payment_consent_text,
+                              created_by, created_at, updated_at
                        FROM lms_courses`;
 
 function parseCourse(row) {
@@ -129,6 +131,9 @@ export async function createCourse({
   visibility,
   is_free,
   price,
+  payment_currency,
+  payment_amount_unit,
+  payment_consent_text,
   createdBy,
 }) {
   if (!title || !String(title).trim()) {
@@ -143,8 +148,9 @@ export async function createCourse({
     }
   }
   const res = await db.execute({
-    sql: `INSERT INTO lms_courses (title, description, thumbnail_url, status, visibility, is_free, price, created_by)
-          VALUES (?, ?, ?, 'draft', ?, ?, ?, ?) RETURNING *`,
+    sql: `INSERT INTO lms_courses (title, description, thumbnail_url, status, visibility, is_free, price,
+                                   payment_currency, payment_amount_unit, payment_consent_text, created_by)
+          VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
     args: [
       String(title).trim(),
       description || null,
@@ -152,13 +158,25 @@ export async function createCourse({
       visibility || "public",
       isFree,
       priceValue,
+      payment_currency || null,
+      payment_amount_unit || null,
+      payment_consent_text || null,
       createdBy || null,
     ],
   });
   return parseCourse(res.rows[0]);
 }
 
-const COURSE_EDITABLE = ["title", "description", "thumbnail_url", "visibility"];
+const COURSE_EDITABLE = [
+  "title",
+  "description",
+  "thumbnail_url",
+  "visibility",
+  // Per-course payment settings; NULL/empty clears them back to the defaults.
+  "payment_currency",
+  "payment_amount_unit",
+  "payment_consent_text",
+];
 
 export async function updateCourse(courseId, fields = {}) {
   const course = await getCourse(courseId);

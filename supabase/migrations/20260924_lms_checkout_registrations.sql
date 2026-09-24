@@ -45,6 +45,15 @@ ALTER TABLE platform_form_runs
 CREATE INDEX IF NOT EXISTS idx_platform_form_runs_lms_course
     ON platform_form_runs(lms_course_id);
 
+-- Per-course payment settings. NULL falls back to the environment, so nothing
+-- changes for a course that does not set them.
+ALTER TABLE lms_courses
+    ADD COLUMN IF NOT EXISTS payment_currency TEXT;
+ALTER TABLE lms_courses
+    ADD COLUMN IF NOT EXISTS payment_amount_unit TEXT;   -- 'major' | 'minor'
+ALTER TABLE lms_courses
+    ADD COLUMN IF NOT EXISTS payment_consent_text TEXT;
+
 -- ── 2. Registrations ─────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS lms_registrations (
@@ -58,6 +67,7 @@ CREATE TABLE IF NOT EXISTS lms_registrations (
     phone TEXT,
     language TEXT NOT NULL DEFAULT 'en',        -- drives the language of the receipt
     amount NUMERIC(10,2) NOT NULL,              -- server-decided price snapshot
+    provider_amount NUMERIC(10,2),              -- what the provider was asked for (unit-scaled)
     currency TEXT NOT NULL DEFAULT 'XOF',
     status TEXT NOT NULL DEFAULT 'pending'
         CHECK (status IN ('pending', 'paid', 'failed', 'cancelled', 'refunded')),

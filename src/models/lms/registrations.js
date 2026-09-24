@@ -25,9 +25,10 @@ import { LmsError } from "./errors";
  */
 
 const REGISTRATION_SELECT = `SELECT id, reference, run_id, submission_id, course_id, full_name, email, phone,
-                                    language, amount, currency, status, provider, provider_transaction_id,
+                                    language, amount, provider_amount, currency, status, provider, provider_transaction_id,
                                     partner_id, access_status, access_error, email_status, user_cid,
-                                    consent_at, paid_at, failed_at, refunded_at, created_at, updated_at
+                                    consent_at, paid_at, failed_at, refunded_at,
+                                    resume_token_hash, resume_token_expires_at, created_at, updated_at
                              FROM lms_registrations`;
 
 export function paymentCurrency() {
@@ -38,33 +39,39 @@ export function paymentCurrency() {
  * HOW THE PRICE REACHES THE PROVIDER.
  *
  * A currency with no minor unit (XOF, XAF) is sent whole; one with cents is
- * usually expected in minor units. Rather than guessing, the unit is DEFINABLE:
+ * usually expected in minor units. Rather than guessing, the unit is DEFINABLE —
+ * per course first, then by the environment:
  *
- *   PAYMENT_AMOUNT_UNIT          "major" (default) | "minor"  -> x1 | x100
- *   PAYMENT_AMOUNT_MULTIPLIER    an explicit number, when neither fits
+ *   lms_courses.payment_amount_unit   'major' | 'minor'      -> x1 | x100
+ *   PAYMENT_AMOUNT_UNIT               'major' (default) | 'minor'
+ *   PAYMENT_AMOUNT_MULTIPLIER         an explicit number, when neither fits
  *
  * The registration always stores the amount the PERSON pays (whole units); the
  * conversion happens only at the two edges: what the payment window is asked
  * for, and what the provider's verification is compared against.
  */
-export function paymentAmountMultiplier() {
+export function paymentAmountMultiplier(unit = null) {
+  const resolved = String(unit || "").trim().toLowerCase();
+  if (resolved === "major") return 1;
+  if (resolved === "minor") return 100;
+
   const explicit = Number(process.env.PAYMENT_AMOUNT_MULTIPLIER);
   if (Number.isFinite(explicit) && explicit > 0) return explicit;
   return String(process.env.PAYMENT_AMOUNT_UNIT || "major").toLowerCase() === "minor" ? 100 : 1;
 }
 
 /** Whole-unit price -> the amount the provider expects. */
-export function toProviderAmount(amount) {
+export function toProviderAmount(amount, unit = null) {
   const value = Number(amount);
   if (!Number.isFinite(value)) return null;
-  return Math.round(value * paymentAmountMultiplier());
+  return Math.round(value * paymentAmountMultiplier(unit));
 }
 
 /** The provider's amount -> the whole-unit price. */
-export function fromProviderAmount(amount) {
+export function fromProviderAmount(amount, unit = null) {
   const value = Number(amount);
   if (!Number.isFinite(value)) return null;
-  const multiplier = paymentAmountMultiplier();
+  const multiplier = paymentAmountMultiplier(unit);
   return multiplier === 1 ? value : value / multiplier;
 }
 
@@ -85,7 +92,23 @@ export function generateReference() {
 
 function parseRegistration(row) {
   if (!row) return null;
-  return { ...row, amount: row.amount == null ? null : Number(row.amount) };
+  return {
+    ...row,
+    amount: row.amount == null ? null : Number(row.amount),
+    provider_amount: row.provider_amount == null ? null : Number(row.provider_amount),
+  };
+}
+
+/**
+ * The amount that was actually handed to the payment provider for this
+ * registration (the whole-unit price scaled by the unit in force at capture
+ * time). Rows written before the column existed fall back to a fresh
+ * conversion, so the comparison never silently mismatches.
+ */
+export function providerAmountOf(registration) {
+  if (!registration) return null;
+  if (registration.provider_amount != null) return Number(registration.provider_amount);
+  return toProviderAmount(registration.amount);
 }
 
 /**
@@ -106,6 +129,11 @@ export function ensureCheckoutSchema() {
       const statements = [
         "ALTER TABLE platform_form_runs ADD COLUMN IF NOT EXISTS lms_course_id UUID",
         "CREATE INDEX IF NOT EXISTS idx_platform_form_runs_lms_course ON platform_form_runs(lms_course_id)",
+        // Per-course payment settings: the currency, the amount unit, and the
+        // consent wording shown on the checkout.
+        "ALTER TABLE lms_courses ADD COLUMN IF NOT EXISTS payment_currency TEXT",
+        "ALTER TABLE lms_courses ADD COLUMN IF NOT EXISTS payment_amount_unit TEXT",
+        "ALTER TABLE lms_courses ADD COLUMN IF NOT EXISTS payment_consent_text TEXT",
         `CREATE TABLE IF NOT EXISTS lms_registrations (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           reference TEXT NOT NULL UNIQUE,
@@ -117,6 +145,7 @@ export function ensureCheckoutSchema() {
           phone TEXT,
           language TEXT NOT NULL DEFAULT 'en',
           amount NUMERIC(10,2) NOT NULL,
+          provider_amount NUMERIC(10,2),
           currency TEXT NOT NULL DEFAULT 'XOF',
           status TEXT NOT NULL DEFAULT 'pending'
             CHECK (status IN ('pending', 'paid', 'failed', 'cancelled', 'refunded')),
@@ -237,6 +266,7 @@ export async function createRegistration({
   amount,
   currency = paymentCurrency(),
   consent = false,
+  providerAmount = null,
 }) {
   await ensureCheckoutSchema();
   const cleanName = String(fullName || "").trim();
@@ -247,8 +277,8 @@ export async function createRegistration({
   const res = await db.execute({
     sql: `INSERT INTO lms_registrations
             (reference, run_id, submission_id, course_id, full_name, email, phone, language,
-             amount, currency, status, consent_at, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NOW(), NOW())
+             amount, provider_amount, currency, status, consent_at, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NOW(), NOW())
           RETURNING *`,
     args: [
       reference || generateReference(),
@@ -260,6 +290,7 @@ export async function createRegistration({
       phone ? String(phone).trim().substring(0, 40) : null,
       language || "en",
       amount,
+      providerAmount == null ? toProviderAmount(amount) : providerAmount,
       currency,
       consent ? new Date().toISOString() : null,
     ],

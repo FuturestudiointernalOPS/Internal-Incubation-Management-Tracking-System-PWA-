@@ -4,9 +4,9 @@ import {
   listPaidRegistrationsNeedingAccess,
   listPaymentEvents,
   markRegistrationPaid,
+  providerAmountOf,
   recordPaymentEvent,
   setEmailState,
-  toProviderAmount,
 } from "@/lib/lms/registrations";
 import { fulfillRegistration } from "@/lib/lms/checkout";
 import { deliverCheckoutEmail } from "@/lib/lms/checkoutMail";
@@ -53,8 +53,9 @@ export async function reconcileRegistrations({ limit = 25 } = {}) {
 
     const verified = await provider.verifyTransaction(event.provider_transaction_id);
     if (!verified.ok || !verified.isSuccess) continue;
-    // The provider reports in ITS unit; the price is stored in whole units.
-    const expected = toProviderAmount(registration.amount);
+    // The provider reports in ITS unit; the price is stored in whole units, and
+    // the amount actually asked for is remembered on the registration.
+    const expected = providerAmountOf(registration);
     if (verified.amount != null && Number(verified.amount) !== Number(expected)) continue;
 
     await markRegistrationPaid(registration.id, {

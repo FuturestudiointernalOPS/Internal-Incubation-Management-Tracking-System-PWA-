@@ -64,6 +64,8 @@ export async function GET(req) {
                 amount: context.course.amount,
                 currency: context.course.currency,
               },
+              // The wording the team wrote for this course, when there is one.
+              consent_text: context.course.consentText || null,
               payment: { ...provider.publicConfig(), configured: provider.isConfigured() },
             }
           : { misconfigured: true };

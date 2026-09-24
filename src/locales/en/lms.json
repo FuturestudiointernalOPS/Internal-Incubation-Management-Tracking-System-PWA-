@@ -286,6 +286,16 @@
       "paid": "Paid",
       "price": "Price",
       "pricePlaceholder": "0.00",
+      "paymentCurrency": "Payment currency",
+      "paymentCurrencyPlaceholder": "XOF",
+      "paymentAmountUnit": "Amount unit",
+      "paymentAmountUnitDefault": "Platform default",
+      "paymentAmountUnitMajor": "Whole units (XOF, XAF…)",
+      "paymentAmountUnitMinor": "Minor units (cents)",
+      "paymentUnitHint": "Leave empty to use the platform default. Whole units send the price as-is; minor units send it multiplied by 100.",
+      "paymentConsent": "Consent wording",
+      "paymentConsentPlaceholder": "I agree that my details are recorded to manage my registration, my payment and my access to this course.",
+      "paymentConsentHint": "Shown on the checkout, above the checkbox the person must tick. Leave empty to use the default wording.",
       "updatedAt": "Updated"
     },
     "richText": {

@@ -6,9 +6,9 @@ import {
   getRegistrationByTransactionId,
   markRegistrationFailed,
   markRegistrationPaid,
+  providerAmountOf,
   recordPaymentEvent,
   setEmailState,
-  toProviderAmount,
 } from "@/lib/lms/registrations";
 import { fulfillRegistration } from "@/lib/lms/checkout";
 import { deliverCheckoutEmail } from "@/lib/lms/checkoutMail";
@@ -128,8 +128,9 @@ export async function POST(req) {
       return NextResponse.json({ success: true, recorded: true, verified: true, payment: "pending" });
     }
 
-    // The provider reports in ITS unit; the price is stored in whole units.
-    const expected = toProviderAmount(registration.amount);
+    // The provider reports in ITS unit; the price is stored in whole units, and
+    // the amount actually asked for is remembered on the registration.
+    const expected = providerAmountOf(registration);
     if (verified.amount != null && Number(verified.amount) !== Number(expected)) {
       // A divergent amount is a fraud/error signal: record it and refuse.
       await journal("notification", "failed", "amount_mismatch");

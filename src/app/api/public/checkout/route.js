@@ -5,9 +5,9 @@ import { isValidEmail, normalizeEmail } from "@/lib/email-utils";
 import { defaultPaymentProvider } from "@/lib/integrations/payments";
 import {
   getRegistrationByReference,
+  providerAmountOf,
   setEmailState,
   setPaymentHint,
-  toProviderAmount,
 } from "@/lib/lms/registrations";
 import {
   findResumableRegistration,
@@ -229,7 +229,7 @@ async function handleContinue(req, body) {
     paid: false,
     reference: registration.reference,
     email: registration.email,
-    amount: toProviderAmount(registration.amount),
+    amount: providerAmountOf(registration),
     display_amount: registration.amount,
     currency: registration.currency,
     status: registration.status,

@@ -9,6 +9,7 @@ import {
   generateReference,
   createRegistration,
   ensureCheckoutSchema,
+  toProviderAmount,
   findRegistrationByCourseAndEmail,
   updateRegistrationAttempt,
   getRegistrationById,
@@ -44,8 +45,10 @@ import {
  */
 export async function resolveCheckoutCourse(courseId) {
   if (!courseId) return null;
+  await ensureCheckoutSchema();
   const res = await db.execute({
-    sql: `SELECT id, slug, title, description, thumbnail_url, status, visibility, is_free, price
+    sql: `SELECT id, slug, title, description, thumbnail_url, status, visibility, is_free, price,
+                 payment_currency, payment_amount_unit, payment_consent_text
           FROM lms_courses WHERE id = ?`,
     args: [courseId],
   });
@@ -64,7 +67,10 @@ export async function resolveCheckoutCourse(courseId) {
     description: row.description,
     thumbnail_url: row.thumbnail_url,
     amount,
-    currency: paymentCurrency(),
+    // Per-course overrides, falling back to the environment.
+    currency: String(row.payment_currency || paymentCurrency()).toUpperCase(),
+    amountUnit: row.payment_amount_unit || null,
+    consentText: row.payment_consent_text || null,
   };
 }
 
@@ -356,6 +362,7 @@ export async function startCheckoutForSubmission({
     language,
     amount: course.amount,
     currency: course.currency,
+    providerAmount: toProviderAmount(course.amount, course.amountUnit),
     consent: true,
   });
 

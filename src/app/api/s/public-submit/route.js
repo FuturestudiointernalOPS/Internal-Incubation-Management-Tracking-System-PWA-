@@ -4,7 +4,7 @@ import { after } from "next/server";
 import { onSubmission } from "@/lib/platform/automation";
 import { getClientIp } from "@/lib/rate-limit";
 import { defaultPaymentProvider } from "@/lib/integrations/payments";
-import { findRegistrationByCourseAndEmail, toProviderAmount } from "@/lib/lms/registrations";
+import { findRegistrationByCourseAndEmail, providerAmountOf } from "@/lib/lms/registrations";
 import { getPaidRunContext, startCheckoutForSubmission } from "@/lib/lms/checkout";
 import {
   ensurePublicSubmitInvitationColumn,
@@ -69,6 +69,7 @@ function neutralCheckoutPayload(paidContext, registration) {
     paid: registration?.status === "paid",
     status: registration?.status || null,
     course: courseSummary(paidContext.course),
+    consent_text: paidContext.course.consentText || null,
     payment: paymentConfig(),
   };
 }
@@ -80,9 +81,10 @@ function freshCheckoutPayload(paidContext, registration) {
     reference: registration.reference,
     // What the payment window is asked for (the money's smallest unit when the
     // currency has one), and what the person is shown.
-    amount: toProviderAmount(registration.amount),
+    amount: providerAmountOf(registration),
     display_amount: registration.amount,
     currency: registration.currency,
+    consent_text: paidContext.course.consentText || null,
     email: registration.email,
     course: courseSummary(paidContext.course),
     payment: paymentConfig(),

@@ -286,6 +286,16 @@
       "paid": "Payant",
       "price": "Prix",
       "pricePlaceholder": "0.00",
+      "paymentCurrency": "Devise du paiement",
+      "paymentCurrencyPlaceholder": "XOF",
+      "paymentAmountUnit": "Unité du montant",
+      "paymentAmountUnitDefault": "Valeur par défaut",
+      "paymentAmountUnitMajor": "Unités entières (XOF, XAF…)",
+      "paymentAmountUnitMinor": "Unités mineures (centimes)",
+      "paymentUnitHint": "Laisser vide pour utiliser la valeur par défaut. Les unités entières envoient le prix tel quel ; les unités mineures l'envoient multiplié par 100.",
+      "paymentConsent": "Texte du consentement",
+      "paymentConsentPlaceholder": "J'accepte que mes informations soient enregistrées pour gérer mon inscription, mon paiement et mon accès à ce cours.",
+      "paymentConsentHint": "Affiché sur la page de paiement, au-dessus de la case que la personne doit cocher. Laisser vide pour utiliser le texte par défaut.",
       "updatedAt": "Mis à jour"
     },
     "richText": {

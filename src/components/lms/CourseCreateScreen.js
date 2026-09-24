@@ -16,6 +16,9 @@ const EMPTY = {
   visibility: "public",
   is_free: true,
   price: null,
+  payment_currency: "",
+  payment_amount_unit: "",
+  payment_consent_text: "",
 };
 
 /**

@@ -892,7 +892,7 @@ export default function PublicSubmitPage() {
                 className="mt-0.5 w-4 h-4 shrink-0 accent-orange-500"
               />
               <span className="text-[11px] leading-relaxed text-slate-400">
-                {t("forms.consentLabel")}
+                {checkout?.consent_text || t("forms.consentLabel")}
               </span>
             </label>
             {checkout?.misconfigured && (
