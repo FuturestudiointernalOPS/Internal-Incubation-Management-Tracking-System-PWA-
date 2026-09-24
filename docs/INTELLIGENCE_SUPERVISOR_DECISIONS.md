@@ -114,9 +114,23 @@ page was not yet available) has been **fully replaced** by the real module; no
 | Live `GET /api/intelligence/metrics` | HTTP 200 — pillars: ventures, investor, programs, operations, contacts |
 | Live `/admin/intelligence` | HTTP 200 |
 
-## 6. Open follow-ups
+## 6. Note on the `navigation.test.js` fixture & status
 
-- [ ] Update `src/__tests__/navigation.test.js` super_admin fixture (stale after
-      the sidebar change) and re-run the full suite + build.
-- [ ] Commit the work (1 file = 1 commit) and push to
-      `feature/interns-data-analysis` once the user approves.
+> **What is a "fixture"?** `src/__tests__/navigation.test.js` hard-codes the
+> *expected* sidebar projection for every role. For `super_admin` it lists the
+> exact top-level order and each section's children, and the test compares it
+> against the real output of `buildRoleNav(role)`.
+>
+> **Rule**: any change to `src/lib/masterNavigation.js` that alters a role's
+> projection **must** be mirrored in that fixture, otherwise `npm test` fails
+> (the suite would be red). Always run the full test suite before
+> committing navigation changes.
+
+### Status
+
+- [x] Update `src/__tests__/navigation.test.js` super_admin fixture so
+      `intelligence` is a top-level node right after `operations` (and removed
+      from the `knowledge` sub-items). → commit `19fa2d15`. Full suite:
+      2555/2555 green.
+- [x] Commit the work (1 file = 1 commit) — 10 commits, pushed to
+      `feature/intelligence-metrics`.
