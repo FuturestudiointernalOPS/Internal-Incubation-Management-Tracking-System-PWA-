@@ -6,7 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { notify } from "@/lib/notify";
-import { ArrowLeft, Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote } from "lucide-react";
+import { Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote } from "lucide-react";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
 import OperatingPlanPanel from "@/components/ventures/OperatingPlanPanel";
@@ -28,7 +28,6 @@ import DocumentTypeManager from "@/components/ventures/DocumentTypeManager";
  * scrolling through one long page.
  */
 const TABS = [
-  { id: "my-ventures", label: "venture.personal.myVentures", icon: ArrowLeft, href: "/staff/ventures" },
   { id: "overview", label: "venture.overview", icon: Rocket },
   { id: "journey", label: "venture.journey", icon: Route },
   { id: "sessions", label: "venture.sessions", icon: Calendar },
@@ -204,17 +203,11 @@ export default function StaffVentureWorkspace() {
       <div className="flex gap-1 border-b border-[var(--border-primary)] overflow-x-auto scrollbar-thin">
         {TABS.map((tab) => {
           const Icon = tab.icon;
-          const isActive = tab.id !== "my-ventures" && activeTab === tab.id;
+          const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
-              onClick={() => {
-                if (tab.href) {
-                  router.push(tab.href);
-                  return;
-                }
-                setActiveTab(tab.id);
-              }}
+              onClick={() => setActiveTab(tab.id)}
               className={`px-5 py-3 text-[9px] font-black uppercase tracking-widest flex items-center gap-2 transition-all border-b-2 whitespace-nowrap ${
                 isActive
                   ? "border-[var(--brand-orange)] text-[var(--brand-orange)]"
