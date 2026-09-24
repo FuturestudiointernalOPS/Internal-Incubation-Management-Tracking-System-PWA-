@@ -87,6 +87,11 @@ const FIXTURE = {
       ],
     },
     {
+      id: "intelligence",
+      href: "/admin/intelligence",
+      subItems: null,
+    },
+    {
       id: "reports",
       href: null,
       subItems: [
@@ -100,7 +105,6 @@ const FIXTURE = {
       href: null,
       subItems: [
         { id: "knowledge_base", href: "/admin/knowledge", subItems: null },
-        { id: "intelligence", href: "/admin/intelligence", subItems: null },
       ],
     },
     {
