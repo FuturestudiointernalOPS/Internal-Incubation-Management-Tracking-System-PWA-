@@ -12,7 +12,7 @@
 - **CSS variable theming over Tailwind dark mode** — `data-theme` attribute on `<html>`, CSS custom properties, NO `dark:` variants. Theme managed by `ThemeProvider` + `localStorage`. This avoids OS-level dark mode conflicts.
 - **Custom i18n engine** — not `next-intl` or similar. `t()` function with deep key resolution, English fallback, French mandatory. Locale files split by feature area under `src/locales/en/` and `src/locales/fr/` with mirrored key structure.
 - **Single Postgres pool** — `src/lib/db.js` with `pg.Pool`, connection retry, `?` → `$N` translation, statement timeout, forensic tracing. No ORM. All SQL lives in `src/models/**` (MVC refactor); routes call models.
-- **Deployed on Vercel** — `main` = production (auto-deploy), `dev` = staging (preview deploys). Staging Supabase at `mbpaxrfhqqclzyiefuab.supabase.co`.
+- **Deployed on Vercel** — `main` = production (auto-deploys on push), `G` = staging (`Ventures` is its twin; keep the two level), `dev` = retired. Promoting staging to `main` is a manual procedure (`docs/PRODUCTION_TEST.md`) — staging and production are different databases, so `npm test` / `npm run build` never substitute for it. Staging Supabase at `mbpaxrfhqqclzyiefuab.supabase.co`.
 
 ## Reusable Facts
 
@@ -56,7 +56,7 @@
 2. **God files** — 33 files > 500 lines, including 4 files > 2000 lines: `pm/programs/[id]/page.js` (5001 lines), `staff/op-report/page.js` (3579), `admin/op-reports/page.js` (2294), `TaskManager.js` (2117). Single-responsibility principle violations — changing one feature risks breaking unrelated ones.
 3. **Model layer** — SQL lives in named functions under `src/models/**`; routes orchestrate them. Some API routes under `src/app/api/ventures/**` still call the db directly — see `docs/MVC_REFACTOR.md` for the remaining work.
 4. **Schema drift** — historical divergence between code and the live schema; verify queries against the live schema when touching older domains. Tracked in `docs/SECURITY_AUDIT_REGISTER.md` and the migration files.
-5. **Tests** — 168 Jest suites under `src/__tests__/` (`npm test`). Run them before promoting; a green build alone never substitutes for the production test (`docs/PRODUCTION_TEST.md`).
+5. **Tests** — 186 Jest suites (2,486 tests) under `src/__tests__/` (`npm test`). Run them before promoting; a green build alone never substitutes for the production test (`docs/PRODUCTION_TEST.md`).
 6. **Duplicate migration locations** — SQL migrations in both `src/migrations/` and `supabase/migrations/`. No single source of truth for the current schema shape.
 7. **Legacy facades** — some `src/lib/*.js` files only re-export from `@/models/*` so old import paths keep working; new code imports from `@/models/*` directly.
 8. **API boilerplate** — `createHandler()` (`src/lib/api/createHandler.js`) wraps auth + error handling for new routes; many older handlers still repeat the pattern by hand.

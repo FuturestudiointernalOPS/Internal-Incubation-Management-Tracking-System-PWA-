@@ -9,7 +9,7 @@
 - **Stack:** Next.js 16 (App Router) · React 19 · JavaScript (ES modules) · Tailwind CSS 3 · PostgreSQL (via `pg`) + Supabase (storage/admin).
 - **Key libs:** `@supabase/supabase-js`, `bcryptjs`, `framer-motion`, `lucide-react`, `recharts`, `read-excel-file` + `write-excel-file` (spreadsheet import/export), `jspdf` + `html2canvas` (PDF exports), `resend` + `googleapis` (email), `papaparse`, `uuid`.
 - **Scripts:** `npm run dev` · `build` · `start` · `lint` (ESLint 9 + `next/core-web-vitals`) · `sync-finance` (Google Sheets sync).
-- **Deployment:** Vercel. Two branches: `main` (production, auto-deploys), `dev` (staging, preview deploys).
+- **Deployment:** Vercel. `main` = production (auto-deploys on push), `G` = staging (`Ventures` is its twin — keep the two level), `dev` = retired staging branch. Promoting staging to `main` is a **manual, item-by-item** procedure (`docs/PRODUCTION_TEST.md`): staging and production are different databases, so a green build proves nothing.
 
 ## 2. Architecture
 
