@@ -89,7 +89,7 @@ curl -X POST "https://<domaine>/api/lms/registrations?action=link-run" \
   reçu, plus la référence.
 - **Admin → LMS → Inscriptions** : la vue complète — filtres par exécution,
   compteurs, dernier événement de paiement, file « à examiner », et les actions
-  (relancer l'accès, renvoyer l'e-mail, rembourser).
+  (relancer l'accès, renvoyer l'e-mail, rembourser, retirer l'accès).
 
 ## 5. Validation en mode test
 
@@ -106,6 +106,8 @@ curl -X POST "https://<domaine>/api/lms/registrations?action=link-run" \
 | Même personne qui recommence | réponse **neutre**, sans référence |
 | Montant falsifié | refusé, journalisé |
 | **Paiement confirmé, accès en échec** | reçu envoyé quand même, **aucun bouton de payer** |
+| Remboursement | inscription remboursée, **accès conservé** |
+| Remboursement + retrait d'accès | accès **Retiré**, cours absent de **My Learning** |
 | Lien d'accès expiré | « consultez votre e-mail », puis re-demande du lien |
 | **Unité du montant** | à vérifier sur une vraie transaction de test (XOF, sans centimes) |
 
@@ -121,6 +123,12 @@ curl -X POST "https://<domaine>/api/lms/registrations?action=link-run" \
 - **Accès au cours** = se connecter et retrouver le cours dans **My Learning**.
 - **Reçu** : il part dès que le paiement est confirmé, même si l'accès est encore
   en cours.
+- **Remboursement et accès sont deux décisions séparées.** Rembourser ne retire
+  **jamais** l'accès tout seul. Pour le reprendre, un second geste explicite :
+  « Rembourser et retirer l'accès » en une fois, ou le bouton **Retirer l'accès**
+  ensuite — réservé aux inscriptions **remboursées**. L'état d'accès passe alors à
+  **Retiré** (`revoked`) et l'inscription de cours est suspendue : le cours
+  disparaît de **My Learning**, mais le paiement et sa trace restent.
 - **Réconciliation** : `POST /api/lms/registrations?action=reconcile`
   (capacité `lms.edit`) rejoue les accès échoués et revérifie les succès non
   confirmés.

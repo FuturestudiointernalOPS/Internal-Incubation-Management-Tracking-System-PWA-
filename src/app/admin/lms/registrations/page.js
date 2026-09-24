@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, GraduationCap, Link2, Loader2, Mail, ReceiptText, RefreshCw, RotateCcw, Undo2, Users } from "lucide-react";
+import { AlertTriangle, GraduationCap, Link2, Loader2, Mail, ReceiptText, RefreshCw, RotateCcw, Undo2, UserX, Users } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import AppCard from "@/components/ui/AppCard";
@@ -17,7 +17,7 @@ const TONES = {
 };
 
 const PAYMENT_TONES = { paid: "ok", pending: "warn", failed: "bad", cancelled: "idle", refunded: "idle" };
-const ACCESS_TONES = { granted: "ok", pending: "warn", failed: "bad" };
+const ACCESS_TONES = { granted: "ok", pending: "warn", failed: "bad", revoked: "idle" };
 const EMAIL_TONES = { sent: "ok", pending: "warn", failed: "bad" };
 
 const capitalize = (value) => `${String(value || "").charAt(0).toUpperCase()}${String(value || "").slice(1)}`;
@@ -142,6 +142,10 @@ export default function LmsRegistrationsPage() {
       const confirmed = await confirm({ message: t("lms.registrations.confirmRefund"), tone: "danger" });
       if (!confirmed) return;
     }
+    if (action === "revoke-access") {
+      const confirmed = await confirm({ message: t("lms.registrations.confirmRevokeAccess"), tone: "danger" });
+      if (!confirmed) return;
+    }
     setBusyId(registration.id);
     try {
       const response = await fetch(`/api/lms/registrations/${registration.id}`, {
@@ -154,6 +158,8 @@ export default function LmsRegistrationsPage() {
 
       if (action === "refund") {
         await alert({ message: t("lms.registrations.refunded") });
+      } else if (action === "revoke-access") {
+        await alert({ message: t("lms.registrations.accessRemoved") });
       } else if (payload.email_sent === false) {
         await alert({ message: t("lms.registrations.resendFailed"), tone: "danger" });
       } else {
@@ -283,6 +289,7 @@ export default function LmsRegistrationsPage() {
             { value: "granted", label: t("lms.registrations.accessGranted") },
             { value: "pending", label: t("lms.registrations.accessPending") },
             { value: "failed", label: t("lms.registrations.accessFailed") },
+            { value: "revoked", label: t("lms.registrations.accessRevoked") },
           ]}
         />
         <AppSelect
@@ -484,6 +491,22 @@ export default function LmsRegistrationsPage() {
                           onClick={() => runAction(registration, "refund")}
                         >
                           {t("lms.registrations.refund")}
+                        </AppButton>
+                        {/* Refunding never removes the access on its own: taking it
+                            back is this separate, explicit act, offered for a
+                            registration that was refunded and still has access. */}
+                        <AppButton
+                          size="sm"
+                          variant="danger"
+                          icon={UserX}
+                          disabled={
+                            busyId === registration.id ||
+                            registration.status !== "refunded" ||
+                            registration.access_status !== "granted"
+                          }
+                          onClick={() => runAction(registration, "revoke-access")}
+                        >
+                          {t("lms.registrations.revokeAccess")}
                         </AppButton>
                       </div>
                     </td>

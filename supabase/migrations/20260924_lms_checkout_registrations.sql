@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS lms_registrations (
     provider_transaction_id TEXT,
     partner_id TEXT,                            -- what the widget sent back as partnerId
     access_status TEXT NOT NULL DEFAULT 'pending'
-        CHECK (access_status IN ('pending', 'granted', 'failed')),
+        CHECK (access_status IN ('pending', 'granted', 'failed', 'revoked')),
     access_error TEXT,                          -- why the access step failed (replayable)
     email_status TEXT NOT NULL DEFAULT 'pending'
         CHECK (email_status IN ('pending', 'sent', 'failed')),
@@ -109,6 +109,14 @@ CREATE INDEX IF NOT EXISTS idx_lms_registrations_email
 CREATE UNIQUE INDEX IF NOT EXISTS idx_lms_registrations_resume_token
     ON lms_registrations(resume_token_hash)
     WHERE resume_token_hash IS NOT NULL;
+
+-- 'revoked' is the FOURTH access state: the team refunded and then deliberately
+-- took the course access back. The constraint is recreated so a table built
+-- before that state existed accepts it too (the CREATE TABLE IF NOT EXISTS above
+-- leaves an existing table untouched).
+ALTER TABLE lms_registrations DROP CONSTRAINT IF EXISTS lms_registrations_access_status_check;
+ALTER TABLE lms_registrations ADD CONSTRAINT lms_registrations_access_status_check
+    CHECK (access_status IN ('pending', 'granted', 'failed', 'revoked'));
 
 -- ── 3. Payment journal ───────────────────────────────────────────────────────
 

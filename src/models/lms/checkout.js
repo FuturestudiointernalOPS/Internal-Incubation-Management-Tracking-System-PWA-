@@ -146,6 +146,30 @@ export async function insertPurchaseEnrollment(courseId, userCid) {
 }
 
 /**
+ * Take the course access back. The enrollment is SUSPENDED — the state the rest
+ * of the platform already treats as "no access" — so My Learning stops listing
+ * the course while the payment, the registration and the audit trail all stay.
+ * Only the enrollment this checkout created (source 'purchase') is touched,
+ * never an admin- or program-granted one. Idempotent.
+ */
+export async function revokePurchaseAccess({ courseId, userCid }) {
+  if (!courseId || !userCid) return { revoked: false };
+
+  const found = await db.execute({
+    sql: "SELECT id FROM lms_enrollments WHERE course_id = ? AND user_cid = ? AND source = 'purchase'",
+    args: [String(courseId), String(userCid)],
+  });
+  const enrollment = found.rows[0];
+  if (!enrollment) return { revoked: false };
+
+  const res = await db.execute({
+    sql: "UPDATE lms_enrollments SET status = 'suspended' WHERE id = ?",
+    args: [enrollment.id],
+  });
+  return { revoked: (res.rowsAffected || 0) > 0 };
+}
+
+/**
  * A one-time link where the person chooses their OWN password. Only the HASH is
  * stored: a database leak yields no usable takeover link. The previous unused
  * token is invalidated, so only the newest link works.

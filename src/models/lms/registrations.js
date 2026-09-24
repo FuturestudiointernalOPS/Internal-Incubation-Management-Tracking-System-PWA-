@@ -153,7 +153,7 @@ export function ensureCheckoutSchema() {
           provider_transaction_id TEXT,
           partner_id TEXT,
           access_status TEXT NOT NULL DEFAULT 'pending'
-            CHECK (access_status IN ('pending', 'granted', 'failed')),
+            CHECK (access_status IN ('pending', 'granted', 'failed', 'revoked')),
           access_error TEXT,
           email_status TEXT NOT NULL DEFAULT 'pending'
             CHECK (email_status IN ('pending', 'sent', 'failed')),
@@ -168,6 +168,12 @@ export function ensureCheckoutSchema() {
           updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
         )`,
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_lms_registrations_reference ON lms_registrations(reference)",
+        // A refund does not decide the access: revoking it is a SEPARATE, explicit
+        // act (the team refunds first, then chooses). 'revoked' is that fourth
+        // access state. The constraint is re-created so a table built before this
+        // state existed accepts it too.
+        "ALTER TABLE lms_registrations DROP CONSTRAINT IF EXISTS lms_registrations_access_status_check",
+        "ALTER TABLE lms_registrations ADD CONSTRAINT lms_registrations_access_status_check CHECK (access_status IN ('pending', 'granted', 'failed', 'revoked'))",
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_lms_registrations_course_email ON lms_registrations(course_id, email)",
         "CREATE INDEX IF NOT EXISTS idx_lms_registrations_course ON lms_registrations(course_id)",
         "CREATE INDEX IF NOT EXISTS idx_lms_registrations_run ON lms_registrations(run_id)",
@@ -353,6 +359,18 @@ export async function setAccessState(id, { status, error = null, userCid = null 
   return db.execute({
     sql: "UPDATE lms_registrations SET access_status = ?, access_error = ?, user_cid = ?, updated_at = NOW() WHERE id = ?",
     args: [status, error, userCid, id],
+  });
+}
+
+/**
+ * The team removed the course access of a REFUNDED registration. Distinct from a
+ * technical failure ('failed'): the access existed and was deliberately taken
+ * back, and the enrollment behind it is suspended (see revokePurchaseAccess).
+ */
+export async function markRegistrationAccessRevoked(id) {
+  return db.execute({
+    sql: "UPDATE lms_registrations SET access_status = 'revoked', updated_at = NOW() WHERE id = ?",
+    args: [id],
   });
 }
 

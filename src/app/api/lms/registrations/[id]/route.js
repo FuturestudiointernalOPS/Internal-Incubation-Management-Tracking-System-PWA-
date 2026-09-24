@@ -5,10 +5,12 @@ import { lmsErrorResponse } from "@/lib/lms/errors";
 import { getPaymentProvider } from "@/lib/integrations/payments";
 import {
   getRegistrationById,
+  markRegistrationAccessRevoked,
   markRegistrationRefunded,
+  recordPaymentEvent,
   setEmailState,
 } from "@/lib/lms/registrations";
-import { fulfillRegistration, prepareAccessDelivery } from "@/lib/lms/checkout";
+import { fulfillRegistration, prepareAccessDelivery, revokePurchaseAccess } from "@/lib/lms/checkout";
 import { deliverCheckoutEmail } from "@/lib/lms/checkoutMail";
 
 export const dynamic = "force-dynamic";
@@ -16,12 +18,15 @@ export const dynamic = "force-dynamic";
 /**
  * POST /api/lms/registrations/[id]  { action }
  *
- * The three team actions, all server-side:
- *   retry-access  replay the course-access step (the payment is untouched);
- *   resend-email  issue a fresh one-time link and send it again;
- *   refund        refund at the provider, then record it. The LMS access is
- *                 deliberately NOT removed automatically: revoking access is a
- *                 separate decision the team makes knowingly.
+ * The team actions, all server-side:
+ *   retry-access   replay the course-access step (the payment is untouched);
+ *   resend-email   issue a fresh one-time link and send it again;
+ *   refund         refund at the provider, then record it. The LMS access is
+ *                  deliberately NOT removed automatically — see the next line;
+ *   revoke-access  take the course access back (only for a REFUNDED
+ *                  registration). Refunding and revoking are two separate
+ *                  decisions the team makes knowingly, and the refund accepts
+ *                  `revokeAccess: true` to do both in one step.
  *
  * Requires lms.edit.
  */
@@ -54,7 +59,21 @@ export async function POST(req, { params }) {
         return NextResponse.json({ success: false, error: refund.error }, { status: 502 });
       }
       await markRegistrationRefunded(registration.id);
-      return NextResponse.json({ success: true, status: "refunded" });
+
+      // The access is a SEPARATE decision; the caller may do both in one step.
+      const revoked = body.revokeAccess === true ? await revokeAccessOf(registration) : false;
+      return NextResponse.json({ success: true, status: "refunded", access_revoked: revoked });
+    }
+
+    if (action === "revoke-access") {
+      if (registration.status !== "refunded") {
+        return NextResponse.json({ success: false, error: "lms.errors.revokeOnlyWhenRefunded" }, { status: 409 });
+      }
+      const revoked = await revokeAccessOf(registration);
+      if (!revoked) {
+        return NextResponse.json({ success: false, error: "lms.errors.noAccessToRevoke" }, { status: 409 });
+      }
+      return NextResponse.json({ success: true, status: "refunded", access: "revoked" });
     }
 
     if (action === "retry-access" || action === "resend-email") {
@@ -90,4 +109,29 @@ export async function POST(req, { params }) {
   } catch (error) {
     return lmsErrorResponse(error);
   }
+}
+
+/**
+ * Suspend the purchase enrollment and record the state on the registration,
+ * with a journal line so the revocation is visible in the team view. Returns
+ * whether an access actually existed to take back.
+ */
+async function revokeAccessOf(registration) {
+  const { revoked } = await revokePurchaseAccess({
+    courseId: registration.course_id,
+    userCid: registration.user_cid,
+  });
+  if (!revoked) return false;
+
+  await markRegistrationAccessRevoked(registration.id);
+  await recordPaymentEvent({
+    registrationId: registration.id,
+    reference: registration.reference,
+    runId: registration.run_id,
+    provider: registration.provider || null,
+    eventType: "access.revoked",
+    status: "processed",
+    message: "access_revoked",
+  }).catch(() => {});
+  return true;
 }
