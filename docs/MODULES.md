@@ -83,7 +83,7 @@
 | File | Exports | Purpose |
 |---|---|---|
 | `src/lib/lms/constants.js` | LMS_COURSE_STATUSES, LMS_COURSE_VISIBILITY, LMS_ENROLLMENT_SOURCES, LMS_ENROLLMENT_STATUSES, LMS_PROGRESS_STATUSES, LMS_LESSON_CONTENT_TYPES, LMS_QUESTION_TYPES | LMS domain vocabulary — mirrors the CHECK-constraint values in `supabase/migrations/20260827_lms_foundation.sql`; the schema test (`src/__tests__/lms-foundation.test.js`) guards against drift. |
-| `src/lib/lms/youtube.js` | extractYouTubeVideoId, isValidYouTubeVideoId, buildYouTubeEmbedUrl | Normalizes YouTube URLs / bare IDs into the canonical 11-char video ID (the only video data the LMS stores) + builds the cookie-free embed URL (`youtube-nocookie`, `rel=0`, `modestbranding`, opt-in `autoplay`) shared by every player. |
+| `src/lib/lms/youtube.js` | extractYouTubeVideoId, isValidYouTubeVideoId, buildYouTubeEmbedUrl | Normalizes YouTube URLs / bare IDs into the canonical 11-char video ID (the only video data the LMS stores) + builds the cookie-free embed URL (`youtube-nocookie`, hardened params hiding YouTube's own controls, opt-in `autoplay`) shared by every player. |
 | `src/lib/lms/validation.js` | validateCourseForPublish | Pure publish-validation rules (sections, lessons, video refs, MC/TF questions, pass mark). |
 | `src/lib/lms/errors.js` | LmsError, lmsErrorResponse | Domain error with i18n key + HTTP status; standard route error responses (never leak raw DB errors). |
 | `src/lib/lms/courses.js` | listCourses, getCourse, getCourseStructure, createCourse, updateCourse, deleteCourse, publishCourse, archiveCourse | Course lifecycle + authoring structure assembly (admin). |
@@ -117,7 +117,8 @@
 | `src/components/lms/LessonStateIcon.js` | LessonStateIcon | ✓ completed / ▶ current / ○ not-started lesson states. |
 | `src/components/lms/LearnerLearning.js` | LearnerLearning | My Learning: enrolled courses, progress, Continue Learning. |
 | `src/components/lms/LearnerCourse.js` | LearnerCourse | Course overview: progress, sections, resume point. |
-| `src/components/lms/LearnerPlayer.js` | LearnerPlayer | Course player: embedded YouTube, prev/next, Mark Complete, content panel. |
+| `src/components/lms/LearnerPlayer.js` | LearnerPlayer | Course player: embedded YouTube (via `YouTubePlayer`), prev/next, Mark Complete, content panel. |
+| `src/components/lms/YouTubePlayer.js` | YouTubePlayer | Hardened YouTube embed used by every video surface (learner player, admin/PM course presentation, lesson preview): hides YouTube's own controls (`controls=0` + hardened params), blocks the right-click/context menu and drag-copy, and renders its own play/pause, mute and fullscreen controls via the postMessage API. |
 | `src/components/lms/AssessmentTake.js` | AssessmentTake | **Phase 4** — learner assessment experience: entry (start/retry, pass mark, attempt history), question navigation with single-answer radio selection, server-scored submission, PASS/FAIL result views. Phase 5: completion notification. |
 | `src/components/lms/CertificateCard.js` | CertificateCard | **Phase 5** — the learner's certificate for a completed course (authoritative record) + server-built PDF download. |
 | `src/components/lms/notify.js` | notify | Toast helper (dispatches `impactos:notify` for GlobalToast). |

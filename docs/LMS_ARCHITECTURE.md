@@ -465,8 +465,9 @@ never exposed to learners; archived courses remain accessible to enrolled learne
 ### Video embedding
 
 - Embed built from the stored 11-char ID only: `https://www.youtube-nocookie.com/embed/<id>
-  ?rel=0&modestbranding=1&playsinline=1&color=white` (privacy-enhanced domain; plays inline on
-  mobile). No raw URL is ever shown; invalid/missing IDs render a graceful fallback.
+  ?rel=0&modestbranding=1&playsinline=1&color=white&controls=0&iv_load_policy=3&disablekb=1&fs=0&enablejsapi=1`
+  (privacy-enhanced domain; plays inline on mobile). No raw URL is ever shown; invalid/missing
+  IDs render a graceful fallback.
 - **One box, everywhere**: every surface plays a video through the same component,
   `src/components/lms/EmbeddedVideo.js` — the course presentation, the lesson authoring preview,
   the learner player, and a section resource whose link is a YouTube video (§13.1). It shows a
@@ -475,6 +476,12 @@ never exposed to learners; archived courses remain accessible to enrolled learne
   videos and its copy-link control. The authoring preview loops too: an embed that behaved
   differently while authoring was how the same video could be copied in one screen and not in
   another.
+- That box renders the hardened container `src/components/lms/YouTubePlayer.js`: YouTube's own
+  chrome is hidden (`controls=0`, plus no branding/cards/keyboard/native fullscreen) and the
+  video sits inside a container that refuses the right-click (context) menu, drag-copy and text
+  selection, with a transparent shield over the iframe so YouTube's own context menu can never
+  appear. Play/pause, mute and fullscreen are our own controls, driven through the YouTube
+  postMessage API.
 - YouTube hides share/copy controls within its own iframe UI where supported, but **we make no
   DRM or non-copyability claims** — an Unlisted video can still be extracted or shared by a
   determined user. That limitation is intentionally documented, not hidden.

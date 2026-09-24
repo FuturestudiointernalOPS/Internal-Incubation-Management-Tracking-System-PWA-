@@ -15,8 +15,12 @@ export function isValidYouTubeVideoId(value) {
   return YT_ID_RE.test(String(value || "").trim());
 }
 
-// Default player parameters shared by every embed (admin presentation + learner
-// player). Rationale:
+// Default player parameters shared by every embed (learner player, admin/PM
+// course presentation, admin lesson preview). The player always runs inside our
+// own hardened container (see components/lms/EmbeddedVideo.js and its hardened
+// renderer components/lms/YouTubePlayer.js) which blocks the right-click menu
+// and renders its own playback controls, so YouTube's chrome is hidden here.
+// Rationale:
 //   - youtube-nocookie.com        keep the player on-page without YouTube's
 //                                 tracking cookies on our site (privacy).
 //   - rel=0                       end-of-video suggestions stay on the same
@@ -26,7 +30,25 @@ export function isValidYouTubeVideoId(value) {
 //   - playsinline=1               play inline on mobile instead of forcing
 //                                 fullscreen.
 //   - color=white                 neutral control bar matching the embeds.
-const EMBED_PARAMS = ["rel=0", "modestbranding=1", "playsinline=1", "color=white"];
+//   - controls=0                  hide YouTube's own control bar (settings gear,
+//                                 share, watch-later, branding); the container
+//                                 provides play/pause, mute and fullscreen.
+//   - iv_load_policy=3            no annotations / info cards.
+//   - disablekb=1                 no YouTube keyboard shortcuts.
+//   - fs=0                        no YouTube fullscreen button (ours instead).
+//   - enablejsapi=1               let the container drive play/pause/mute via
+//                                 postMessage commands.
+const EMBED_PARAMS = [
+  "rel=0",
+  "modestbranding=1",
+  "playsinline=1",
+  "color=white",
+  "controls=0",
+  "iv_load_policy=3",
+  "disablekb=1",
+  "fs=0",
+  "enablejsapi=1",
+];
 
 /**
  * Build the cookie-free embed URL for a validated video ID.
@@ -35,6 +57,8 @@ const EMBED_PARAMS = ["rel=0", "modestbranding=1", "playsinline=1", "color=white
  * - `loop` restarts the video at its end (`loop=1` + the same id in
  *   `playlist`), so the player never reaches YouTube's end screen with its
  *   suggested-videos and copy-link UI.
+ * The embed hides YouTube's own controls (see EMBED_PARAMS); playback is driven
+ * by the caller's own controls through the postMessage API.
  * Returns null when the ID is not a valid 11-char YouTube video ID.
  */
 export function buildYouTubeEmbedUrl(videoId, { autoplay = false, loop = false } = {}) {

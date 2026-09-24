@@ -1,10 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { PlayCircle, X } from "lucide-react";
-import { useI18n } from "@/lib/i18n";
-import { isValidYouTubeVideoId, buildYouTubeEmbedUrl } from "@/lib/lms/youtube";
-import AppImage from "@/components/ui/AppImage";
+import { isValidYouTubeVideoId } from "@/lib/lms/youtube";
+import YouTubePlayer from "./YouTubePlayer";
 
 /**
  * THE EMBEDDED VIDEO BOX — the single place the LMS plays a YouTube video.
@@ -24,6 +21,12 @@ import AppImage from "@/components/ui/AppImage";
  *   - only the stored 11-char reference is used: no raw URL is ever rendered,
  *     and nothing here links out to YouTube.
  *
+ * The locked container itself lives in `YouTubePlayer` (YouTube's own controls
+ * hidden, right-click/context menu and drag-copy blocked, our own play/pause,
+ * mute and fullscreen controls driven through the postMessage API); this box is
+ * the boundary the rest of the app talks to, so the invalid-reference case and
+ * the always-loop rule stay in one place.
+ *
  * This hides the accidental copy, it does not protect the video: the reference
  * can still be extracted by a determined viewer (see docs/LMS_ARCHITECTURE.md
  * §10). The no-video case stays with the caller — an empty state, or the plain
@@ -35,58 +38,17 @@ import AppImage from "@/components/ui/AppImage";
  * reference starts on its own poster instead of inheriting "playing".
  */
 export default function EmbeddedVideo({ videoId, title, playLabel, className = "" }) {
-  const { t } = useI18n();
-  const [playing, setPlaying] = useState(false);
   const reference = isValidYouTubeVideoId(videoId) ? String(videoId).trim() : null;
 
   if (!reference) return null;
 
   return (
-    <div
-      className={`relative w-full overflow-hidden rounded-2xl border ${className}`}
-      style={{ aspectRatio: "16 / 9", background: "#000", borderColor: "var(--border-primary)" }}
-    >
-      {playing ? (
-        <>
-          <iframe
-            className="absolute inset-0 w-full h-full"
-            src={buildYouTubeEmbedUrl(reference, { autoplay: true, loop: true })}
-            title={title}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-          />
-          <button
-            type="button"
-            onClick={() => setPlaying(false)}
-            title={t("common.close")}
-            className="absolute top-2 right-2 z-10 p-1.5 rounded-full transition-colors"
-            style={{ background: "rgba(0,0,0,0.6)", color: "rgba(255,255,255,0.9)" }}
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setPlaying(true)}
-          title={playLabel}
-          className="absolute inset-0 w-full h-full flex items-center justify-center group"
-        >
-          <AppImage
-            src={`https://img.youtube.com/vi/${reference}/hqdefault.jpg`}
-            alt=""
-            aria-hidden="true"
-            className="absolute inset-0 w-full h-full object-cover"
-            loading="lazy"
-          />
-          <span
-            className="relative z-10 flex items-center justify-center w-16 h-16 rounded-full transition-transform group-hover:scale-110"
-            style={{ background: "rgba(0,0,0,0.55)" }}
-          >
-            <PlayCircle className="w-9 h-9" style={{ color: "rgba(255,255,255,0.95)" }} />
-          </span>
-        </button>
-      )}
-    </div>
+    <YouTubePlayer
+      videoId={reference}
+      title={title}
+      loop
+      playLabel={playLabel}
+      className={className}
+    />
   );
 }
