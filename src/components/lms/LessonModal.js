@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, AlertCircle, Film, PlayCircle, X } from "lucide-react";
+import { CheckCircle2, AlertCircle, Film } from "lucide-react";
 import AppModal from "@/components/ui/AppModal";
 import AppInput from "@/components/ui/AppInput";
 import AppButton from "@/components/ui/AppButton";
+import YouTubePlayer from "./YouTubePlayer";
 import { useI18n } from "@/lib/i18n";
-import { extractYouTubeVideoId, buildYouTubeEmbedUrl } from "@/lib/lms/youtube";
+import { extractYouTubeVideoId } from "@/lib/lms/youtube";
 import { notify } from "./notify";
 
 /**
@@ -269,63 +270,18 @@ export default function LessonModal({ isOpen, onClose, onSaved, mode, sectionId,
 }
 
 /**
- * Live preview of the YouTube video referenced by the lesson. Shows the video
- * poster with a play button; clicking embeds the player right there (autoplay,
- * same cookie-free embed as the course view). A close control returns to the
- * poster. Mounted with `key={videoId}`, so it always starts on the poster for
- * the current ID.
+ * Live preview of the YouTube video referenced by the lesson, rendered through
+ * the same hardened player used by the course and learner surfaces (YouTube
+ * chrome hidden, right-click blocked, our own controls). Mounted with
+ * `key={videoId}`, so it always starts on the poster for the current ID.
  */
 function VideoPreview({ videoId, playLabel }) {
-  const { t } = useI18n();
-  const [playing, setPlaying] = useState(false);
-
   return (
-    <div
-      className="relative w-full overflow-hidden rounded-xl border"
-      style={{ aspectRatio: "16 / 9", background: "#000", borderColor: "var(--border-primary)" }}
-    >
-      {playing ? (
-        <>
-          <iframe
-            className="absolute inset-0 w-full h-full"
-            src={buildYouTubeEmbedUrl(videoId, { autoplay: true })}
-            title={playLabel}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-          />
-          <button
-            type="button"
-            onClick={() => setPlaying(false)}
-            title={t("common.close")}
-            className="absolute top-2 right-2 z-10 p-1.5 rounded-full transition-colors"
-            style={{ background: "rgba(0,0,0,0.6)", color: "rgba(255,255,255,0.9)" }}
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setPlaying(true)}
-          title={playLabel}
-          className="absolute inset-0 w-full h-full flex items-center justify-center group"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
-            alt=""
-            aria-hidden="true"
-            className="absolute inset-0 w-full h-full object-cover"
-            loading="lazy"
-          />
-          <span
-            className="relative z-10 flex items-center justify-center w-14 h-14 rounded-full transition-transform group-hover:scale-110"
-            style={{ background: "rgba(0,0,0,0.55)" }}
-          >
-            <PlayCircle className="w-8 h-8" style={{ color: "rgba(255,255,255,0.95)" }} />
-          </span>
-        </button>
-      )}
-    </div>
+    <YouTubePlayer
+      videoId={videoId}
+      title={playLabel}
+      playLabel={playLabel}
+      rounded="rounded-xl"
+    />
   );
 }
