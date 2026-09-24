@@ -34,6 +34,14 @@ const TABLES = [
   "lms_program_requirements",
   "lms_section_resources",
   "lms_coaching_requests",
+  "lms_registrations",
+  "lms_payment_events",
+  "password_setup_tokens",
+  "platform_form_runs",
+  "platform_form_submissions",
+  "platform_forms",
+  "platform_form_sections",
+  "platform_form_fields",
   "v2_programs",
   "v2_sessions",
   "v2_program_staff",
@@ -48,6 +56,15 @@ const TABLES = [
 const TABLE_DEFAULTS = {
   lms_certificates: { status: "valid" },
   lms_coaching_requests: { status: "pending", timing: "during" },
+  lms_registrations: {
+    status: "pending",
+    access_status: "pending",
+    email_status: "pending",
+    currency: "XOF",
+    language: "fr",
+  },
+  lms_payment_events: { status: "received" },
+  password_setup_tokens: { used: 0 },
 };
 
 /**

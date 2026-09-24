@@ -108,6 +108,7 @@ const FIXTURE = {
       href: null,
       subItems: [
         { id: "lms_courses", href: "/admin/lms/courses", subItems: null },
+        { id: "lms_registrations", href: "/admin/lms/registrations", subItems: null },
       ],
     },
     {
