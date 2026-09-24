@@ -27,6 +27,12 @@ export function ensureTokenHashColumns() {
   if (!ensurePromise) {
     ensurePromise = (async () => {
       const statements = [
+        // The access-token inserts write ONLY the hash, leaving the legacy plaintext
+        // `token` column empty. Where that column was created NOT NULL, every such
+        // insert was rejected (a paid learner could then never set a password). The
+        // column is only a legacy fallback for rows stored before hashing, so it is
+        // allowed to stay NULL.
+        "ALTER TABLE password_setup_tokens ALTER COLUMN token DROP NOT NULL",
         "ALTER TABLE password_setup_tokens ADD COLUMN IF NOT EXISTS token_hash TEXT",
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_password_setup_tokens_token_hash ON password_setup_tokens(token_hash) WHERE token_hash IS NOT NULL",
         "ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS token_hash TEXT",
