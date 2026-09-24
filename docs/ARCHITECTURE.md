@@ -1,6 +1,11 @@
 # Architecture
 
-How ImpactOS fits together. For setup/run instructions see the root [README](../README.md). For route-by-route and function-by-function reference see [API.md](API.md) and [MODULES.md](MODULES.md).
+How ImpactOS fits together. For the product and code big picture see [`../OVERVIEW.md`](../OVERVIEW.md); for setup/run instructions see the root [README](../README.md). For route-by-route and function-by-function reference see [API.md](API.md) and [MODULES.md](MODULES.md).
+
+> **Where things live has moved.** Where server code belongs is documented in
+> [SERVER_LAYERS.md](SERVER_LAYERS.md); the permission system as it stands is in
+> [AUTHZ_CURRENT_STATE.md](AUTHZ_CURRENT_STATE.md); current security status is in
+> [SECURITY_AUDIT_REGISTER.md](SECURITY_AUDIT_REGISTER.md).
 
 ## Overview
 
@@ -10,7 +15,7 @@ Next.js App Router app, one Postgres database, multiple role-based dashboards sh
 
 Custom cookie-session auth, not Supabase Auth (Supabase is used for storage/admin tasks elsewhere, not the primary login flow):
 
-- `src/lib/auth.js` is the auth module. Sessions are server-side records in a `user_sessions` Postgres table, referenced by a `impactos_session` cookie (`SESSION_COOKIE_NAME`), 24h expiry (`SESSION_DURATION_HOURS`).
+- Authentication lives in **`src/server/auth/`** (session, cookies, password, guards) backed by `src/models/sessions.js`. `src/lib/auth.js` is kept as a **facade** that re-exports the same symbols, so older import paths keep working — new code imports from the new homes. Sessions are server-side records in a `user_sessions` Postgres table, referenced by an `impactos_session` cookie (`SESSION_COOKIE_NAME`), 24h expiry (`SESSION_DURATION_HOURS`).
 - `createSession(userCid, userRole)` — issues a session on login, deletes the user's prior sessions first (single active session per user).
 - `getSession()` — reads the current session from the cookie + DB.
 - `requireSession(allowedRoles)` / `requireAuth(allowedRoles)` — guard functions called at the top of pages/route handlers; redirect or 401 if no valid session or role mismatch.
@@ -20,7 +25,7 @@ Every request also passes a central gate: `src/proxy.js` (Next.js middleware) va
 
 ## Permissions
 
-Beyond role (`super_admin`/`program_manager`/`staff`/`participant`, plus `facilitator`, `investor`, `finance`, `crm`, `team`, `founder`, `member`), there's a finer-grained capability system in `src/lib/auth.js`:
+Beyond role (`super_admin`/`program_manager`/`staff`/`participant`, plus `facilitator`, `investor`, `finance`, `crm`, `team`, and the contextual `founder`/`member`), a finer-grained capability system decides what a person may actually do. Its canonical engine is **`src/server/authz/`**, driven by the reads in **`src/models/authorization/`**; `src/lib/auth.js` re-exports the same checks as a facade. In short:
 
 - `PERMISSION_MODULES` — named permission domains (e.g. finance, reports).
 - `ACCESS_LEVELS` — graded access (none → full) per module.
@@ -32,8 +37,8 @@ This is why some routes check role AND capability — role gets you in the door,
 ## Data Layer
 
 - `src/lib/db.js` — single Postgres connection pool (`pg`), lazy-initialized from `DATABASE_URL`. All DB access goes through this module's `execute()`-style query wrapper.
-- **Model layer — `src/models/`** (MVC refactor, waves 0–6): every SQL statement lives in a domain model module under `src/models/**` (files + domain folders: `lms/`, `authorization/`, `finance/`, `platform/`, `integrations/`). API route handlers (`src/app/api/**/route.js`) are thin controllers — they authenticate, validate, orchestrate model calls and shape responses; they contain **no inline SQL**. Pages/components never import the db layer. Legacy domain modules that used to live in `src/lib` now sit in `src/models` behind facades re-exported from their old `src/lib` paths (e.g. `src/lib/taskAudit.js`), so old import paths keep working. See `docs/MVC_REFACTOR.md`.
-- `src/migrations/*.sql` — schema migrations, applied manually/historically.
+- **Model layer — `src/models/`** (MVC refactor, waves 0–6): every SQL statement lives in a domain model module under `src/models/**` (files + domain folders: `lms/`, `authorization/`, `finance/`, `platform/`, `integrations/`). API route handlers (`src/app/api/**/route.js`) are thin controllers — they authenticate, validate, orchestrate model calls and shape responses; they must contain **no inline SQL**. That rule is not yet fully met: a few dozen route files still query the pool directly (tracked in [MVC_REFACTOR.md](MVC_REFACTOR.md) and [SECURITY_AUDIT_REGISTER.md](SECURITY_AUDIT_REGISTER.md)) — do not add more. Pages/components never import the db layer. Legacy domain modules that used to live in `src/lib` now sit in `src/models` behind facades re-exported from their old `src/lib` paths (e.g. `src/lib/taskAudit.js`), so old import paths keep working. See `docs/MVC_REFACTOR.md`.
+- `supabase/migrations/*.sql` — **new** schema work goes here (idempotent, `YYYYMMDD_` prefix). `src/migrations/*.sql` and the legacy root `migrations/` folder are historical; do not add new files there.
 - `scripts/migrations/*.mjs` — Node-based migration/seed/backfill scripts, re-runnable (check for "already exists" before erroring).
 
 ## Roles & Routing
@@ -54,7 +59,7 @@ Sidebar navigation is defined once in `src/lib/masterNavigation.js` (`MASTER_NAV
 
 ## Internationalization (i18n)
 
-Custom translation engine (`src/lib/i18n.js`), **not** `next-intl` or similar — every user-facing string must go through `t()`. English is the fallback language. Locale files are split by feature area under `src/locales/en/` and `src/locales/fr/` (mirrored key structure — see `AGENTS.md` for the full namespace table). This is enforced by convention, not a lint rule — AI agents and contributors are expected to follow `AGENTS.md` directly.
+Custom translation engine (`src/lib/i18n.js`), **not** `next-intl` or similar — every user-facing string must go through `t()`. English is the fallback language. Locale files are split by feature area under `src/locales/en/` and `src/locales/fr/` (mirrored key structure — see `AGENTS.md` for the full namespace table). This is enforced by convention, not a lint rule — AI agents and contributors are expected to follow `AGENTS.md` directly. `npm run i18n:parity` verifies that every English key has a French counterpart and reports missing or orphaned keys.
 
 ## External Integrations
 
