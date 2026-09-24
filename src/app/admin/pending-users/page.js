@@ -363,7 +363,7 @@ export default function PendingUsersPage() {
                   <span className="text-sm font-bold uppercase tracking-tight text-[var(--text-primary)]">
                     {groupName === "UNASSIGNED" ? t("adminMisc.pendingUsers.unassigned") : groupName}
                   </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-orange/10 text-[var(--brand-orange)]">
                     {users.length}
                   </span>
                 </div>
@@ -385,7 +385,7 @@ export default function PendingUsersPage() {
                     <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
-                        <tr className="border-b border-[var(--border-primary)]/50">
+                        <tr className="border-b border-divider/50">
                           <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                             {t("adminMisc.pendingUsers.colName")}
                           </th>
@@ -407,7 +407,7 @@ export default function PendingUsersPage() {
                         {users.map((user) => (
                           <tr
                             key={user.cid}
-                            className="border-b border-[var(--border-primary)]/20 hover:bg-white/5 transition-colors"
+                            className="border-b border-divider/20 hover:bg-white/5 transition-colors"
                           >
                             <td className="p-4">
                               <div className="flex items-center gap-3">

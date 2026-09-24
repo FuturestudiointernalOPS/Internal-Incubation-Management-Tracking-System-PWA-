@@ -210,7 +210,7 @@ export default function AdvancedCapabilities({
                     type="button"
                     disabled={disabled}
                     onClick={() => onAction?.("grant", module, capability, 1)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/10 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20 transition-all disabled:opacity-40"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-brand-orange/40 bg-brand-orange/10 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:bg-brand-orange/20 transition-all disabled:opacity-40"
                   >
                     {t("engineering.permissions.advancedGrantDirect")}
                   </button>
@@ -283,7 +283,7 @@ export default function AdvancedCapabilities({
                 {featureText(group.feature)}
               </h4>
             </div>
-            <div className="divide-y divide-[var(--border-primary)]/50">
+            <div className="divide-y divide-divider/50">
               {group.modules.map((mod) => (
                 <div key={mod.module} className="px-4 py-3 space-y-1">
                   <p className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-wide">

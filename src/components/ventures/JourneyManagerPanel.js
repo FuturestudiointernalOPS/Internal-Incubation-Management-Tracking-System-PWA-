@@ -1282,7 +1282,7 @@ export default function JourneyManagerPanel({ ventureId }) {
         <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
           <Route className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
           {t("venture.manager.title")}
-          <span className="px-1.5 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">{t("venture.manager.stagesCount", { count: activeStages.length })}</span>
+          <span className="px-1.5 py-0.5 rounded bg-brand-orange/10 text-[var(--brand-orange)]">{t("venture.manager.stagesCount", { count: activeStages.length })}</span>
         </h3>
         {access.create && (
           <div className="flex items-center gap-2">
@@ -1296,7 +1296,7 @@ export default function JourneyManagerPanel({ ventureId }) {
             {access.manage && stages.length > 0 && (
               <button
                 onClick={() => setSaveOpen(!saveOpen)}
-                className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[var(--brand-orange)]/40 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/10 flex items-center gap-1.5"
+                className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-brand-orange/40 text-[var(--brand-orange)] hover:bg-brand-orange/10 flex items-center gap-1.5"
               >
                 <Save className="w-3 h-3" />
                 {t("venture.manager.saveTemplate")}
@@ -1315,12 +1315,12 @@ export default function JourneyManagerPanel({ ventureId }) {
       <p className="text-[10px] text-slate-400 mb-3 -mt-1">{t("venture.manager.intro")}</p>
 
       {templateSource && (
-        <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-[var(--brand-orange)]/25 bg-[var(--brand-orange)]/[0.04] px-4 py-2.5">
+        <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-brand-orange/25 bg-brand-orange/[0.04] px-4 py-2.5">
           <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
             <Copy className="w-3.5 h-3.5" /> {t("venture.manager.sourceFrom")}
           </span>
           <span className="text-xs font-bold text-[var(--text-primary)]">{templateSource.name || templateSource.id}</span>
-          <span className="px-1.5 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+          <span className="px-1.5 py-0.5 rounded bg-brand-orange/10 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
             {t(templateSource.type === "journey" ? "venture.manager.sourceTypeJourney" : "venture.manager.sourceTypePlan")}
           </span>
         </div>
@@ -1332,13 +1332,13 @@ export default function JourneyManagerPanel({ ventureId }) {
         <div className="flex flex-wrap items-center gap-2 mb-3">
           <button
             onClick={() => { setViewArchived(false); setSelectedStageIds(new Set()); }}
-            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${!viewArchived ? "bg-[var(--brand-orange)]/15 text-[var(--brand-orange)] border-[var(--brand-orange)]/30" : "bg-tertiary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"}`}
+            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${!viewArchived ? "bg-brand-orange/15 text-[var(--brand-orange)] border-brand-orange/30" : "bg-tertiary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"}`}
           >
             {t("venture.manager.viewActiveJourneys", { n: activeStages.length })}
           </button>
           <button
             onClick={() => { setViewArchived(true); setSelectedStageIds(new Set()); }}
-            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${viewArchived ? "bg-[var(--brand-orange)]/15 text-[var(--brand-orange)] border-[var(--brand-orange)]/30" : "bg-tertiary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"}`}
+            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${viewArchived ? "bg-brand-orange/15 text-[var(--brand-orange)] border-brand-orange/30" : "bg-tertiary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"}`}
           >
             {t("venture.manager.viewArchivedJourneys", { n: archivedStages.length })}
           </button>
@@ -1375,7 +1375,7 @@ export default function JourneyManagerPanel({ ventureId }) {
       )}
 
       {saveOpen && (
-        <form onSubmit={saveJourneyTemplate} className="mb-4 p-3 rounded-xl border border-[var(--brand-orange)]/30 bg-tertiary space-y-2">
+        <form onSubmit={saveJourneyTemplate} className="mb-4 p-3 rounded-xl border border-brand-orange/30 bg-tertiary space-y-2">
           <p className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
             {t("venture.manager.saveTemplateTitle")}
           </p>
@@ -1613,7 +1613,7 @@ export default function JourneyManagerPanel({ ventureId }) {
                                       key={report.id}
                                       type="button"
                                       onClick={() => setReportOpenId(reportOpenId === report.id ? null : report.id)}
-                                      className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded transition-colors ${reportOpenId === report.id ? "bg-[var(--brand-orange)]/20 text-[var(--brand-orange)]" : "bg-white/10 text-slate-400 hover:text-[var(--text-primary)]"}`}
+                                      className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded transition-colors ${reportOpenId === report.id ? "bg-brand-orange/20 text-[var(--brand-orange)]" : "bg-white/10 text-slate-400 hover:text-[var(--text-primary)]"}`}
                                     >
                                       {report.report_kind === "closing" ? t("venture.manager.closingReport") : t("venture.manager.progressReport")} · {reportStatusLabel(report.status)}
                                     </button>
@@ -1761,7 +1761,7 @@ export default function JourneyManagerPanel({ ventureId }) {
                       {(milestones.length > 0 || (milestoneAuthority && !stage.is_archived)) && (
                         <div className="px-4 pb-4 space-y-2">
                           {milestones.length > 0 && (
-                            <div className="rounded-xl border border-[var(--border-primary)] divide-y divide-[var(--border-primary)]/60 overflow-hidden">
+                            <div className="rounded-xl border border-[var(--border-primary)] divide-y divide-divider/60 overflow-hidden">
                               {milestones.map((milestone, milestoneIndex) => {
                                 const milestoneProgress = Math.min(100, Math.max(0, Number(milestone.progress) || 0));
                                 const deliverableList = milestone.deliverables || [];
@@ -1921,7 +1921,7 @@ export default function JourneyManagerPanel({ ventureId }) {
                                             const status = deliverableStatus(deliverable);
                                             const mode = deliverableAction?.id === deliverable.id ? deliverableAction.mode : null;
                                             return (
-                                              <div key={deliverable.id} className="rounded-lg border border-[var(--border-primary)]/70 px-2.5 py-2">
+                                              <div key={deliverable.id} className="rounded-lg border border-divider/70 px-2.5 py-2">
                                                 {mode === "edit" ? (
                                                   <form onSubmit={(event) => saveDeliverableEdit(event, deliverable, milestone)} className="space-y-2">
                                                     <input
@@ -2438,7 +2438,7 @@ export default function JourneyManagerPanel({ ventureId }) {
                             ) : (
                               <button
                                 onClick={() => { setMilestoneAddFor(stage.id); setMilestoneForm(emptyMilestoneForm); setMilestoneDeliverables([]); }}
-                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] border border-[var(--brand-orange)]/30 hover:bg-[var(--brand-orange)]/10"
+                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] border border-brand-orange/30 hover:bg-brand-orange/10"
                               >
                                 <Plus className="w-3.5 h-3.5" /> {t("venture.manager.addMilestone")}
                               </button>

@@ -61,10 +61,10 @@ const LEVEL_CHIP_STYLES = {
 };
 
 const LEVEL_CHIP_BASE =
-  "h-7 w-7 rounded-lg border-2 flex items-center justify-center mx-auto text-[10px] font-black transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 disabled:opacity-25 disabled:cursor-not-allowed";
+  "h-7 w-7 rounded-lg border-2 flex items-center justify-center mx-auto text-[10px] font-black transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 disabled:opacity-25 disabled:cursor-not-allowed";
 
 const LEVEL_CHIP_OFF =
-  "border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] opacity-40 hover:opacity-100 hover:border-[var(--brand-orange)]/50 hover:text-[var(--brand-orange)]";
+  "border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] opacity-40 hover:opacity-100 hover:border-brand-orange/50 hover:text-[var(--brand-orange)]";
 
 /**
  * One level chip. Checked shows the level code (V/C/E/D/All) coloured by level;
@@ -271,7 +271,7 @@ export default function FeatureMatrixSection({
             {(rows || []).map((row) => (
               <tr
                 key={row.id}
-                className="border-b border-[var(--border-primary)]/50 last:border-b-0"
+                className="border-b border-divider/50 last:border-b-0"
               >
                 <td className="px-4 py-2 text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide whitespace-nowrap">
                   {rowLabel(row)}
@@ -293,7 +293,7 @@ export default function FeatureMatrixSection({
       </div>
 
       {/* Small screens: one card per sub-section, one chip per capability. */}
-      <div className="md:hidden divide-y divide-[var(--border-primary)]/50">
+      <div className="md:hidden divide-y divide-divider/50">
         {(rows || []).map((row) => (
           <div key={row.id} className="p-3 space-y-2">
             <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">

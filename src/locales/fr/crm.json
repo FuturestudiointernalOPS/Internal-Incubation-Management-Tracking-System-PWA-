@@ -457,6 +457,7 @@
       "startFollowUpList": "Lancer la liste de relance"
     },
     "roles": {
+      "member": "Membre",
       "participant": "Participant",
       "staff": "Personnel",
       "investor": "Investisseur",

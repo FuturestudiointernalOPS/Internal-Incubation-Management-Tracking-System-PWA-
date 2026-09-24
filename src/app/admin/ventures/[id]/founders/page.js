@@ -345,7 +345,7 @@ export default function VentureFoundersPage() {
               <ArrowLeft className="w-3 h-3" /> {t("vadmin.founders.backToVenture", { name: venture.company_name })}
             </button>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-brand-orange/10 flex items-center justify-center">
                 <User className="w-6 h-6 text-[var(--brand-orange)]" />
               </div>
               <div>
@@ -406,7 +406,7 @@ export default function VentureFoundersPage() {
             placeholder={t("vadmin.founders.searchPlaceholder")}
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-secondary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+            className="w-full pl-12 pr-4 py-3 bg-secondary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-brand-orange/50 transition-all"
           />
         </div>
 
@@ -448,7 +448,7 @@ export default function VentureFoundersPage() {
                       ? "bg-rose-500/5 border-rose-500/20 opacity-60"
                       : isOwner
                         ? "bg-amber-500/5 border-amber-500/20"
-                        : "bg-tertiary border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30"
+                        : "bg-tertiary border-[var(--border-primary)] hover:border-brand-orange/30"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-4">
@@ -644,7 +644,7 @@ export default function VentureFoundersPage() {
           <div className="w-full max-w-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-brand-orange/10 flex items-center justify-center">
                   <UserPlus className="w-5 h-5 text-[var(--brand-orange)]" />
                 </div>
                 <div>

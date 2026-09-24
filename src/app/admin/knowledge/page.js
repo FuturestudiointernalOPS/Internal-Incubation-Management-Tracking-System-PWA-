@@ -287,7 +287,7 @@ export default function KnowledgeBank() {
                          <p className="text-sm text-[var(--text-secondary)]">{t("adminMisc.knowledge.libraryEmpty")}</p>
                       </div>
                    ) : filteredNotes.map(note => (
-                      <div key={note.id} onClick={() => setViewingNote(note)} className={`p-4 rounded-xl border transition-all cursor-pointer ${viewingNote?.id === note.id ? 'border-[var(--brand-orange)] bg-[var(--brand-orange)]/10' : 'border-[var(--border-primary)] bg-primary hover:border-[var(--brand-orange)]'}`}>
+                      <div key={note.id} onClick={() => setViewingNote(note)} className={`p-4 rounded-xl border transition-all cursor-pointer ${viewingNote?.id === note.id ? 'border-[var(--brand-orange)] bg-brand-orange/10' : 'border-[var(--border-primary)] bg-primary hover:border-[var(--brand-orange)]'}`}>
                          <div className="flex justify-between items-start gap-2">
                             <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide truncate flex-1">{note.title}</p>
                             {note.is_archived && <span className="text-[10px] font-bold uppercase text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded">{t("adminMisc.knowledge.archive")}</span>}
@@ -304,7 +304,7 @@ export default function KnowledgeBank() {
       {/* CREATE MODAL */}
       {showUploadModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
-          <div className="card w-full max-w-xl space-y-8 border-[var(--brand-orange)]/30 animate-in text-left">
+          <div className="card w-full max-w-xl space-y-8 border-brand-orange/30 animate-in text-left">
             <div className="flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight">{t("adminMisc.knowledge.newKnowledgeNode")}</h3>
@@ -347,7 +347,7 @@ export default function KnowledgeBank() {
 
       {/* EDIT MODAL */}      {editingNote && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
-          <div className="card w-full max-w-xl space-y-8 border-[var(--brand-orange)]/30 animate-in text-left max-h-[90vh] overflow-y-auto">
+          <div className="card w-full max-w-xl space-y-8 border-brand-orange/30 animate-in text-left max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight">{t("adminMisc.knowledge.editIntelligenceNode")}</h3>
@@ -390,7 +390,7 @@ export default function KnowledgeBank() {
                 <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)] ml-2">{t("adminMisc.knowledge.stageNewResources", { count: editingNote.stagedFiles?.length || 0 })}</label>
                 <div className="grid grid-cols-1 gap-3">
                   {(editingNote.stagedFiles || []).map((file, fileIndex) => (
-                    <div key={fileIndex} className="flex items-center justify-between p-3 bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/20 rounded-xl">
+                    <div key={fileIndex} className="flex items-center justify-between p-3 bg-brand-orange/5 border border-brand-orange/20 rounded-xl">
                       <div className="flex items-center gap-3">
                         <Upload className="w-4 h-4 text-[var(--brand-orange)]" />
                         <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase truncate max-w-[250px]">{file.name}</span>

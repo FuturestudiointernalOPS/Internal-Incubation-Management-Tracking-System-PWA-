@@ -233,7 +233,7 @@ export default function StaffVentureWorkspace() {
         ) : (
           <div className="flex flex-wrap gap-2">
             {myRoles.map((role) => (
-              <span key={role.id} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
+              <span key={role.id} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)]">
                 {role.responsibility_name || role.responsibility_code}
                 {role.scope_type !== "venture_wide" && ` · ${role.scope_type}${role.scope_ref_id ? `: ${role.scope_ref_id}` : ""}`}
               </span>

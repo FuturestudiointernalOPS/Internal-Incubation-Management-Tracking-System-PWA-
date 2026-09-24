@@ -547,7 +547,7 @@ export default function ProgramScopePanel() {
               </p>
               <Link
                 href={`${PERMISSION_BASE}/profiles`}
-                className="mt-1.5 inline-flex items-center gap-1.5 rounded-sm text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                className="mt-1.5 inline-flex items-center gap-1.5 rounded-sm text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
               >
                 <ExternalLink className="h-3 w-3" />
                 {t("engineering.permissions.programScopeRepointLink")}

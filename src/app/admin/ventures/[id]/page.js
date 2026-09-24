@@ -91,7 +91,7 @@ const STAGE_CONFIG = {
   validation: { label: "vadmin.detail.stageValidation", color: "text-purple-400 bg-purple-500/10", order: 2 },
   early_traction: { label: "vadmin.detail.stageEarlyTraction", color: "text-amber-400 bg-amber-500/10", order: 3 },
   growth: { label: "vadmin.detail.stageGrowth", color: "text-emerald-400 bg-emerald-500/10", order: 4 },
-  scaling: { label: "vadmin.detail.stageScaling", color: "text-[var(--brand-orange)] bg-[var(--brand-orange)]/10", order: 5 },
+  scaling: { label: "vadmin.detail.stageScaling", color: "text-[var(--brand-orange)] bg-brand-orange/10", order: 5 },
 };
 
 const WIZARD_STEPS = [
@@ -268,7 +268,7 @@ export default function VentureDetailPage({ params }) {
         <div className="card">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
             <div className="flex items-center gap-5">
-              <div className="w-16 h-16 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-2xl bg-brand-orange/10 flex items-center justify-center">
                 <Rocket className="w-8 h-8 text-[var(--brand-orange)]" />
               </div>
               <div>
@@ -540,7 +540,7 @@ export default function VentureDetailPage({ params }) {
             <div className="card">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-2xl bg-brand-orange/10 flex items-center justify-center">
                     <Users className="w-6 h-6 text-[var(--brand-orange)]" />
                   </div>
                   <div>
@@ -604,7 +604,7 @@ export default function VentureDetailPage({ params }) {
                               {member.name || member.email || t("vadmin.detail.unnamedMember")}
                             </p>
                             {member.is_owner ? (
-                              <span className="flex items-center gap-1 text-[8px] font-black uppercase px-2 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
+                              <span className="flex items-center gap-1 text-[8px] font-black uppercase px-2 py-0.5 rounded bg-brand-orange/10 text-[var(--brand-orange)]">
                                 <Crown className="w-3 h-3" /> {t("vadmin.detail.owner")}
                               </span>
                             ) : member.is_founder ? (

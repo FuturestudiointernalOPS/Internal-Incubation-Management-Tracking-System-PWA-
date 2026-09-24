@@ -508,7 +508,7 @@ export default function ProfileView() {
           {/* Avatar card */}
           <div className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl p-6 text-center">
             <div className="relative w-24 h-24 mx-auto mb-4">
-              <div className="w-24 h-24 rounded-2xl bg-[var(--brand-orange)]/10 border-2 border-[var(--brand-orange)]/20 flex items-center justify-center overflow-hidden">
+              <div className="w-24 h-24 rounded-2xl bg-brand-orange/10 border-2 border-brand-orange/20 flex items-center justify-center overflow-hidden">
                 {contact.image ? (
                   <AppImage
                     src={contact.image}
@@ -784,7 +784,7 @@ export default function ProfileView() {
             <SectionCard title={t("adminMisc.profile.startupProfile")} icon={Rocket}>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-brand-orange/10 flex items-center justify-center">
                     <Building2 className="w-5 h-5 text-[var(--brand-orange)]" />
                   </div>
                   <div>
@@ -845,7 +845,7 @@ export default function ProfileView() {
                   .map((program) => (
                     <div
                       key={program.id}
-                      className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20"
+                      className="px-3 py-1.5 rounded-lg bg-brand-orange/10 border border-brand-orange/20"
                     >
                       <p className="text-[10px] font-bold text-[var(--brand-orange)]">
                         {program.name}

@@ -88,7 +88,7 @@ export default function AppTabs({
                 <span
                   className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
                     isActive
-                      ? "bg-[var(--brand-orange)]/20 text-[var(--brand-orange)]"
+                      ? "bg-brand-orange/20 text-[var(--brand-orange)]"
                       : "bg-[var(--surface-3)] text-[var(--text-tertiary)]"
                   }`}
                 >

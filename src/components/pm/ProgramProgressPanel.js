@@ -77,7 +77,7 @@ function PaceCard({
           <p className="text-[10px] font-medium text-[var(--text-secondary)]">
             {doneOfDue}
           </p>
-          <div className="h-1.5 overflow-hidden rounded-full bg-[var(--border-primary)]/20">
+          <div className="h-1.5 overflow-hidden rounded-full bg-divider/20">
             <div
               className="h-full rounded-full"
               style={{
@@ -354,7 +354,7 @@ export function ProgramProgressPanel({
               {t("pmMisc.workspace.progress.upToDate")}
             </span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-[var(--border-primary)]/20">
+          <div className="h-2 overflow-hidden rounded-full bg-divider/20">
             <div
               className="h-full rounded-full transition-all"
               style={{

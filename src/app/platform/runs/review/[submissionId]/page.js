@@ -314,7 +314,7 @@ export default function ReviewPage() {
         {/* ── APPLICANT ── */}
         <div className="rounded-2xl bg-secondary border border-[var(--border-primary)] overflow-hidden">
           <div className="px-6 py-4 border-b border-[var(--border-primary)] flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-brand-orange/10 flex items-center justify-center">
               <User className="w-5 h-5 text-[var(--brand-orange)]" />
             </div>
             <div>
@@ -519,7 +519,7 @@ export default function ReviewPage() {
                             onChange={event => updateDimScore(dimensionIndex, event.target.value === "" ? null : parseFloat(event.target.value))}
                             className={cn(
                               "w-12 px-1.5 py-1 rounded-lg border text-xs font-bold outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
-                              dimension.human_score != null ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]/40 text-[var(--brand-orange)]" : "bg-primary border-[var(--border-primary)] text-[var(--text-primary)]",
+                              dimension.human_score != null ? "bg-brand-orange/10 border-brand-orange/40 text-[var(--brand-orange)]" : "bg-primary border-[var(--border-primary)] text-[var(--text-primary)]",
                               isReviewLocked && "opacity-50 cursor-not-allowed"
                             )}
                           />

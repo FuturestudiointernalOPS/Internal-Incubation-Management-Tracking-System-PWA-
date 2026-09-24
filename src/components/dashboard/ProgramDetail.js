@@ -600,7 +600,7 @@ function ResourceCard({ resource }) {
   if (!hasValidUrl) {
     return (
       <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] opacity-60 cursor-default">
-        <div className="w-8 h-8 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center shrink-0">
+        <div className="w-8 h-8 rounded-lg bg-brand-orange/10 flex items-center justify-center shrink-0">
           <Icon className="w-4 h-4 text-[var(--brand-orange)]" />
         </div>
         <div className="flex-1 min-w-0">
@@ -625,9 +625,9 @@ function ResourceCard({ resource }) {
       href={resource.url}
       target={isExternalUrl ? "_blank" : "_self"}
       rel={isExternalUrl ? "noopener noreferrer" : ""}
-      className="flex items-center gap-3 p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/20 transition-all group"
+      className="flex items-center gap-3 p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] hover:border-brand-orange/20 transition-all group"
     >
-      <div className="w-8 h-8 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center shrink-0">
+      <div className="w-8 h-8 rounded-lg bg-brand-orange/10 flex items-center justify-center shrink-0">
         <Icon className="w-4 h-4 text-[var(--brand-orange)]" />
       </div>
       <div className="flex-1 min-w-0">
@@ -853,7 +853,7 @@ export default function ProgramDetail({ programId }) {
           </p>
           <div className="flex flex-wrap gap-2">
             {program.pmName && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-brand-orange/10 border border-brand-orange/20">
                 <User className="w-3 h-3 text-[var(--brand-orange)]" />
                 <span className="text-[10px] font-bold text-[var(--brand-orange)]">
                   {program.pmName} (PM)
@@ -1045,7 +1045,7 @@ export default function ProgramDetail({ programId }) {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-[var(--bg-tertiary)] rounded-xl p-5 border border-[var(--border-primary)]">
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-brand-orange/10 flex items-center justify-center">
                   <Target className="w-4 h-4 text-[var(--brand-orange)]" />
                 </div>
               </div>

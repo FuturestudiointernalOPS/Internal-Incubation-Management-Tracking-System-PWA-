@@ -193,7 +193,7 @@ export default function ReportResponses() {
                   >
                     <div className="flex flex-col md:flex-row justify-between gap-6">
                       <div className="flex gap-5">
-                        <div className="w-14 h-14 rounded-2xl bg-tertiary border border-[var(--border-secondary)] flex flex-col items-center justify-center group-hover:border-[var(--brand-orange)]/50 transition-colors">
+                        <div className="w-14 h-14 rounded-2xl bg-tertiary border border-[var(--border-secondary)] flex flex-col items-center justify-center group-hover:border-brand-orange/50 transition-colors">
                           <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase">
                             {t("adminMisc.reportsResponses.weekAbbrev")}
                           </span>
@@ -257,7 +257,7 @@ export default function ReportResponses() {
             if (!window.printing) setViewingReport(null);
           }}
         >
-          <div className="card w-full max-w-2xl space-y-6 border-[var(--brand-orange)]/30 animate-in text-left overflow-y-auto max-h-[90vh] print:!max-h-none print:!shadow-none print:!border-none print:!p-0 print:!bg-white print:!text-black print:!w-full print:!max-w-full print:!m-0">
+          <div className="card w-full max-w-2xl space-y-6 border-brand-orange/30 animate-in text-left overflow-y-auto max-h-[90vh] print:!max-h-none print:!shadow-none print:!border-none print:!p-0 print:!bg-white print:!text-black print:!w-full print:!max-w-full print:!m-0">
             {/* Header — hidden on print */}
             <div className="flex justify-between items-start print:hidden">
               <div>
@@ -359,8 +359,8 @@ export default function ReportResponses() {
 
             {/* ───────── 1. WEEKLY OVERVIEW ───────── */}
             <section className="space-y-3">
-              <h5 className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-widest flex items-center gap-2 border-b border-[var(--brand-orange)]/20 pb-2 print:text-orange-600 print:border-orange-200">
-                <span className="w-4 h-4 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[10px] font-bold print:bg-orange-100 print:text-orange-600">
+              <h5 className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-widest flex items-center gap-2 border-b border-brand-orange/20 pb-2 print:text-orange-600 print:border-orange-200">
+                <span className="w-4 h-4 rounded-full bg-brand-orange/10 flex items-center justify-center text-[10px] font-bold print:bg-orange-100 print:text-orange-600">
                   1
                 </span>
                 {t("adminMisc.reportsResponses.weeklyOverview")}

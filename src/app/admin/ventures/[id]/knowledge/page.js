@@ -190,7 +190,7 @@ export default function VentureKnowledgePage() {
             <input value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => event.key === "Enter" && handleSearch()}
               placeholder={t("vadmin.knowledge.searchPlaceholder")} className="w-full pl-12 pr-4 py-3 bg-secondary border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
           </div>
-          <button onClick={handleSearch} className="px-4 py-3 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-widest hover:brightness-110">{t("vadmin.knowledge.search")}</button>
+          <button onClick={handleSearch} className="px-4 py-3 bg-brand-orange/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-widest hover:brightness-110">{t("vadmin.knowledge.search")}</button>
         </div>
 
         {/* View Tabs */}
@@ -216,12 +216,12 @@ export default function VentureKnowledgePage() {
           {/* Categories sidebar */}
           <div className="w-48 shrink-0 space-y-1">
             <button onClick={() => filterByCategory("")}
-              className={`w-full text-left px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${!activeCategory ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "text-[var(--text-secondary)] hover:bg-tertiary"}`}>
+              className={`w-full text-left px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${!activeCategory ? "bg-brand-orange/10 text-[var(--brand-orange)]" : "text-[var(--text-secondary)] hover:bg-tertiary"}`}>
               {t("vadmin.knowledge.allResources")}
             </button>
             {categories.map((category) => (
               <button key={category.id} onClick={() => filterByCategory(category.slug)}
-                className={`w-full text-left px-3 py-2 rounded-xl text-[10px] font-bold transition-all flex items-center justify-between ${activeCategory === category.slug ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "text-[var(--text-secondary)] hover:bg-tertiary"}`}>
+                className={`w-full text-left px-3 py-2 rounded-xl text-[10px] font-bold transition-all flex items-center justify-between ${activeCategory === category.slug ? "bg-brand-orange/10 text-[var(--brand-orange)]" : "text-[var(--text-secondary)] hover:bg-tertiary"}`}>
                 <span>{category.name}</span>
                 <span className="text-[10px] text-[var(--text-secondary)]">{category.resource_count}</span>
               </button>
@@ -288,7 +288,7 @@ export default function VentureKnowledgePage() {
                     <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-3">{t("vadmin.knowledge.continueLearning")}</h3>
                     <div className="space-y-2">
                       {learningProgress.pending_resources.map((resource) => (
-                        <div key={resource.id} className="flex items-center gap-3 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-[var(--brand-orange)]/30" onClick={() => loadResource(resource.id)}>
+                        <div key={resource.id} className="flex items-center gap-3 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-brand-orange/30" onClick={() => loadResource(resource.id)}>
                           <FileText className="w-4 h-4 text-[var(--brand-orange)]" />
                           <div className="flex-1 min-w-0">
                             <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{resource.title}</p>
@@ -310,10 +310,10 @@ export default function VentureKnowledgePage() {
               displayResources.map((resource) => {
                 const Icon = TYPE_ICONS[resource.resource_type] || FileText;
                 return (
-                  <div key={resource.id} className="p-4 rounded-2xl bg-tertiary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all cursor-pointer"
+                  <div key={resource.id} className="p-4 rounded-2xl bg-tertiary border border-[var(--border-primary)] hover:border-brand-orange/30 transition-all cursor-pointer"
                     onClick={() => loadResource(resource.id)}>
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-brand-orange/10 flex items-center justify-center shrink-0">
                         <Icon className="w-5 h-5 text-[var(--brand-orange)]" />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -348,7 +348,7 @@ export default function VentureKnowledgePage() {
           <div className="w-full max-w-2xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 max-h-[80vh] overflow-y-auto space-y-6">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-brand-orange/10 flex items-center justify-center">
                   {React.createElement(TYPE_ICONS[selectedResource.resource_type] || FileText, { className: "w-6 h-6 text-[var(--brand-orange)]" })}
                 </div>
                 <div>
@@ -376,14 +376,14 @@ export default function VentureKnowledgePage() {
             {selectedResource.content && <div className="p-4 bg-primary rounded-xl text-xs text-[var(--text-secondary)] whitespace-pre-wrap max-h-48 overflow-y-auto">{selectedResource.content}</div>}
 
             {selectedResource.url && (
-              <a href={selectedResource.url} target="_blank" className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 w-fit" rel="noreferrer">
+              <a href={selectedResource.url} target="_blank" className="flex items-center gap-2 px-4 py-2.5 bg-brand-orange/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 w-fit" rel="noreferrer">
                 <ExternalLink className="w-3.5 h-3.5" /> {t("vadmin.knowledge.openResource")}
               </a>
             )}
 
             <div className="flex gap-3 pt-2 border-t border-[var(--border-primary)]">
               <button onClick={() => { handleBookmark(selectedResource.id); setSelectedResource((previous) => ({ ...previous, is_bookmarked: !previous.is_bookmarked })); }}
-                className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${selectedResource.is_bookmarked ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "border border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-tertiary"}`}>
+                className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${selectedResource.is_bookmarked ? "bg-brand-orange/10 text-[var(--brand-orange)]" : "border border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-tertiary"}`}>
                 <Bookmark className={`w-3 h-3 ${selectedResource.is_bookmarked ? "fill-current" : ""}`} /> {selectedResource.is_bookmarked ? t("vadmin.knowledge.bookmarked") : t("vadmin.knowledge.bookmark")}
               </button>
               {!selectedResource.is_completed && (

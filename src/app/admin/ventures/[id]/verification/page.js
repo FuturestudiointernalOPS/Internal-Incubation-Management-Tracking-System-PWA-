@@ -399,7 +399,7 @@ export default function VentureVerificationPage() {
                           <div className="flex items-center gap-1 shrink-0">
                             {href && (
                               <a href={href} target="_blank" rel="noreferrer" title={t("common.view")}
-                                className="p-1 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/10 rounded"><Download className="w-3 h-3" /></a>
+                                className="p-1 text-[var(--brand-orange)] hover:bg-brand-orange/10 rounded"><Download className="w-3 h-3" /></a>
                             )}
                             <button onClick={() => handleDeleteDoc(documentEntry.id)} className="p-1 text-rose-500 hover:bg-rose-500/10 rounded shrink-0"><Trash2 className="w-3 h-3" /></button>
                           </div>
@@ -411,7 +411,7 @@ export default function VentureVerificationPage() {
 
                   {/* Upload button (only for upload-backed, non-verified types) */}
                   {isUpload && item?.status !== "verified" && (
-                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:brightness-110 transition-all">
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-orange/10 text-[var(--brand-orange)] rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:brightness-110 transition-all">
                       {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
                       {isUploading ? t("vadmin.verification.uploading") : t("vadmin.verification.upload")}
                       <input type="file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" className="hidden"
@@ -521,7 +521,7 @@ export default function VentureVerificationPage() {
           <div className="w-full max-w-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-brand-orange/10 flex items-center justify-center">
                   <Shield className="w-5 h-5 text-[var(--brand-orange)]" />
                 </div>
                 <div>

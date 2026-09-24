@@ -573,7 +573,7 @@ export default function TeamDashboardPage({ params }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <AppCard padding="md">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-brand-orange/10 flex items-center justify-center">
                     <BarChart3 className="w-5 h-5 text-[var(--brand-orange)]" />
                   </div>
                   <div>
@@ -774,7 +774,7 @@ export default function TeamDashboardPage({ params }) {
                         key={member.cid || member.id || index}
                         className="flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--surface-3)] transition-colors"
                       >
-                        <div className="w-8 h-8 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[10px] font-black text-[var(--brand-orange)]">
+                        <div className="w-8 h-8 rounded-full bg-brand-orange/10 flex items-center justify-center text-[10px] font-black text-[var(--brand-orange)]">
                           {(member.name || "?")[0].toUpperCase()}
                         </div>
                         <div className="min-w-0">
@@ -1510,7 +1510,7 @@ export default function TeamDashboardPage({ params }) {
                     value={submitLink}
                     onChange={(event) => setSubmitLink(event.target.value)}
                     placeholder="https://drive.google.com/..."
-                    className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors"
+                    className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60 transition-colors"
                   />
                 </div>
               </div>
@@ -1526,7 +1526,7 @@ export default function TeamDashboardPage({ params }) {
                 <button
                   onClick={handleSubmitDeliverable}
                   disabled={submitting || (!submitFileUrl && !submitLink)}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-[var(--brand-orange)]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-brand-orange/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {submitting ? (
                     <>
@@ -1604,7 +1604,7 @@ export default function TeamDashboardPage({ params }) {
                     onChange={(event) => setReviewFeedback(event.target.value)}
                     placeholder={t("rootMisc.team.feedbackPlaceholder")}
                     rows={3}
-                    className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors resize-none"
+                    className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60 transition-colors resize-none"
                   />
                 </div>
 
@@ -1617,7 +1617,7 @@ export default function TeamDashboardPage({ params }) {
                       type="datetime-local"
                       value={followUpDate}
                       onChange={(event) => setFollowUpDate(event.target.value)}
-                      className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors"
+                      className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/60 transition-colors"
                     />
                   </div>
                 )}
@@ -1716,7 +1716,7 @@ export default function TeamDashboardPage({ params }) {
                       setTaskForm({ ...taskForm, title: event.target.value })
                     }
                     placeholder={t("rootMisc.team.taskTitlePlaceholder")}
-                    className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors"
+                    className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60 transition-colors"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1730,7 +1730,7 @@ export default function TeamDashboardPage({ params }) {
                     }
                     placeholder={t("rootMisc.team.descriptionPlaceholder")}
                     rows={2}
-                    className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors resize-none"
+                    className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60 transition-colors resize-none"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -1743,7 +1743,7 @@ export default function TeamDashboardPage({ params }) {
                       onChange={(event) =>
                         setTaskForm({ ...taskForm, priority: event.target.value })
                       }
-                      className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors appearance-none cursor-pointer"
+                      className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/60 transition-colors appearance-none cursor-pointer"
                     >
                       <option value="low">{t("rootMisc.team.priorityLow")}</option>
                       <option value="medium">{t("rootMisc.team.priorityMedium")}</option>
@@ -1763,7 +1763,7 @@ export default function TeamDashboardPage({ params }) {
                           assigned_to: event.target.value,
                         })
                       }
-                      className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors appearance-none cursor-pointer"
+                      className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/60 transition-colors appearance-none cursor-pointer"
                     >
                       <option value="">{t("rootMisc.team.anyone")}</option>
                       {members.map((member) => (
@@ -1785,7 +1785,7 @@ export default function TeamDashboardPage({ params }) {
                 <button
                   onClick={handleCreateTask}
                   disabled={savingTask || !taskForm.title.trim()}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-[var(--brand-orange)]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-brand-orange/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {savingTask ? (
                     <>

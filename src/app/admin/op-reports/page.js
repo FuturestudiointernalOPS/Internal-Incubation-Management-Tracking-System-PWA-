@@ -516,8 +516,8 @@ export default function AdminOpReports() {
                     onClick={() => setViewingUser(stat)}
                     className={`p-4 rounded-xl border transition-all text-left ${
                       viewingUser?.id === stat.id
-                        ? "bg-[var(--brand-orange)]/5 border-[var(--brand-orange)]/30"
-                        : "bg-tertiary border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30"
+                        ? "bg-brand-orange/5 border-brand-orange/30"
+                        : "bg-tertiary border-[var(--border-primary)] hover:border-brand-orange/30"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-2">
@@ -593,7 +593,7 @@ export default function AdminOpReports() {
                 <div className="flex justify-center pt-2">
                   <button
                     onClick={() => setReportsPage((page) => page + 1)}
-                    className="px-6 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[10px] font-bold uppercase tracking-wide hover:border-[var(--brand-orange)]/30 transition-all"
+                    className="px-6 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[10px] font-bold uppercase tracking-wide hover:border-brand-orange/30 transition-all"
                   >
                     {t("reports.loadMore", {
                       count: filteredReports.length - reportsPage * PAGE_SIZE,
@@ -717,7 +717,7 @@ export default function AdminOpReports() {
                       {allTasks.slice(0, 10).map((task) => (
                         <tr
                           key={task.id}
-                          className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors"
+                          className="border-b border-divider/50 hover:bg-white/5 transition-colors"
                         >
                           <td className="p-4">
                             <p className="text-xs font-bold uppercase tracking-tight text-[var(--text-primary)]">
@@ -1041,7 +1041,7 @@ export default function AdminOpReports() {
                               return (
                                 <tr
                                   key={blocker.id}
-                                  className={`border-b border-[var(--border-primary)]/40 ${blocker.status === "active" ? "bg-rose-500/[0.02]" : ""}`}
+                                  className={`border-b border-divider/40 ${blocker.status === "active" ? "bg-rose-500/[0.02]" : ""}`}
                                 >
                                   <td className="px-3 py-2.5 text-xs font-bold text-[var(--text-primary)]">
                                     {blocker.title}
@@ -1099,7 +1099,7 @@ export default function AdminOpReports() {
                     <div className="flex justify-center px-4 pb-4">
                       <button
                         onClick={() => setBlockersPage((page) => page + 1)}
-                        className="px-6 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[10px] font-bold uppercase tracking-wide hover:border-[var(--brand-orange)]/30 transition-all"
+                        className="px-6 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[10px] font-bold uppercase tracking-wide hover:border-brand-orange/30 transition-all"
                       >
                         {t("reports.loadMore", {
                           count: filtered.length - blockersPage * PAGE_SIZE,
@@ -1312,14 +1312,14 @@ export default function AdminOpReports() {
                     setViewingReport(report);
                     setViewingUser(null);
                   }}
-                  className="w-full flex items-center justify-between p-3 rounded-xl bg-tertiary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all text-left"
+                  className="w-full flex items-center justify-between p-3 rounded-xl bg-tertiary border border-[var(--border-primary)] hover:border-brand-orange/30 transition-all text-left"
                 >
                   <div className="flex items-center gap-3">
                     <div
                       className={
                         "w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black " +
                         (report.report_type === "standup"
-                          ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                          ? "bg-brand-orange/10 text-[var(--brand-orange)]"
                           : "bg-emerald-500/10 text-emerald-500")
                       }
                     >
@@ -1398,7 +1398,7 @@ function ReportCard({ report, onClick }) {
             className={
               "w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black " +
               (report.report_type === "standup"
-                ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] border border-[var(--brand-orange)]/20"
+                ? "bg-brand-orange/10 text-[var(--brand-orange)] border border-brand-orange/20"
                 : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20")
             }
           >
@@ -1814,7 +1814,7 @@ function ReportDetailModal({ report, onClose }) {
         if (!window.printing) onClose();
       }}
     >
-      <div className="card w-full max-w-2xl space-y-6 border-[var(--brand-orange)]/30 animate-in text-left overflow-y-auto max-h-[90vh] print:!max-h-none print:!shadow-none print:!border-none print:!p-0 print:!bg-white print:!text-black print:!w-full print:!max-w-full print:!m-0">
+      <div className="card w-full max-w-2xl space-y-6 border-brand-orange/30 animate-in text-left overflow-y-auto max-h-[90vh] print:!max-h-none print:!shadow-none print:!border-none print:!p-0 print:!bg-white print:!text-black print:!w-full print:!max-w-full print:!m-0">
         {/* Header */}
         <div className="flex justify-between items-start print:hidden">
           <div>

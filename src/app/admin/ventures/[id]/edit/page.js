@@ -202,7 +202,7 @@ export default function EditVenturePage({ params }) {
         {form && (
           <div className="card space-y-6">
             <div className="flex items-center gap-3 pb-4 border-b border-[var(--border-primary)]">
-              <div className="w-8 h-8 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-xl bg-brand-orange/10 flex items-center justify-center">
                 <Building2 className="w-4 h-4 text-[var(--brand-orange)]" />
               </div>
               <div>
@@ -222,7 +222,7 @@ export default function EditVenturePage({ params }) {
                   type="text"
                   value={form.company_name}
                   onChange={(event) => handleChange("company_name", event.target.value)}
-                  className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+                  className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-brand-orange/50 transition-all"
                 />
               </div>
 
@@ -234,7 +234,7 @@ export default function EditVenturePage({ params }) {
                   type="text"
                   value={form.registration_number}
                   onChange={(event) => handleChange("registration_number", event.target.value)}
-                  className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+                  className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-brand-orange/50 transition-all"
                 />
               </div>
 
@@ -246,7 +246,7 @@ export default function EditVenturePage({ params }) {
                   type="url"
                   value={form.website}
                   onChange={(event) => handleChange("website", event.target.value)}
-                  className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+                  className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-brand-orange/50 transition-all"
                 />
               </div>
 
@@ -257,7 +257,7 @@ export default function EditVenturePage({ params }) {
                 <select
                   value={form.industry}
                   onChange={(event) => handleChange("industry", event.target.value)}
-                  className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+                  className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-brand-orange/50 transition-all"
                 >
                   {INDUSTRIES.map((ind) => (
                     <option key={ind} value={ind.toLowerCase()}>{ind}</option>
@@ -272,7 +272,7 @@ export default function EditVenturePage({ params }) {
                 <select
                   value={form.business_stage}
                   onChange={(event) => handleChange("business_stage", event.target.value)}
-                  className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+                  className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-brand-orange/50 transition-all"
                 >
                   {BUSINESS_STAGES.map((stage) => (
                     <option key={stage.value} value={stage.value}>{t(`vadmin.edit.stageOptions.${stage.value}`)}</option>
@@ -288,7 +288,7 @@ export default function EditVenturePage({ params }) {
                   value={form.description}
                   onChange={(event) => handleChange("description", event.target.value)}
                   rows={4}
-                  className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all resize-none"
+                  className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-brand-orange/50 transition-all resize-none"
                 />
               </div>
             </div>

@@ -35,7 +35,7 @@ export default function TerminalRedirectPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-6 font-sans bg-primary">
       <div className="w-full max-w-md text-center space-y-8 animate-in">
-        <div className="w-16 h-16 mx-auto bg-[var(--brand-orange)] rounded-2xl flex items-center justify-center shadow-xl shadow-[var(--brand-orange)]/20">
+        <div className="w-16 h-16 mx-auto bg-[var(--brand-orange)] rounded-2xl flex items-center justify-center shadow-xl shadow-brand-orange/20">
           <Shield className="w-8 h-8 text-white" />
         </div>
 

@@ -338,7 +338,7 @@ export default function InvestorDashboard() {
                   onChange={event => setSearch(event.target.value)}
                   onKeyDown={event => event.key === "Enter" && searchVentures()}
                   placeholder={t("searchVentures")}
-                  className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60"
+                  className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60"
                 />
               </div>
               <button
@@ -409,7 +409,7 @@ export default function InvestorDashboard() {
                             <AppCard key={meeting.id} padding="md" className="mb-2">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                  <div className="p-2 rounded-xl bg-[var(--brand-orange)]/10">
+                                  <div className="p-2 rounded-xl bg-brand-orange/10">
                                     <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
                                   </div>
                                   <div>
@@ -600,7 +600,7 @@ export default function InvestorDashboard() {
                   <AppCard key={item.id} padding="md">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <Building2 className="w-8 h-8 text-[var(--brand-orange)]/60" />
+                        <Building2 className="w-8 h-8 text-brand-orange/60" />
                         <div>
                           <p className="text-sm font-bold text-[var(--text-primary)]">{item.venture_name || item.venture_id}</p>
                           <p className="text-[10px] text-[var(--text-tertiary)]">

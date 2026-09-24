@@ -2,6 +2,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import { NextResponse } from "next/server";
 import {
   countActiveV2Programs,
+  countActiveProjects,
   countParticipantContacts,
   countStaffContacts,
   listRecentActivityLogs,
@@ -11,14 +12,21 @@ import {
 export const dynamic = "force-dynamic";
 
 export const GET = createHandler({ roles: ["super_admin"] }, async () => {
-  const [programsResult, participantsResult, staffResult, logsResult, activePrograms] =
-    await Promise.all([
-      countActiveV2Programs(),
-      countParticipantContacts(),
-      countStaffContacts(),
-      listRecentActivityLogs(),
-      listActiveV2Programs(),
-    ]);
+  const [
+    programsResult,
+    participantsResult,
+    staffResult,
+    logsResult,
+    activePrograms,
+    projectsResult,
+  ] = await Promise.all([
+    countActiveV2Programs(),
+    countParticipantContacts(),
+    countStaffContacts(),
+    listRecentActivityLogs(),
+    listActiveV2Programs(),
+    countActiveProjects(),
+  ]);
 
   return NextResponse.json(
     {
@@ -27,6 +35,7 @@ export const GET = createHandler({ roles: ["super_admin"] }, async () => {
         programs: programsResult.rows[0].count,
         participants: participantsResult.rows[0].count,
         totalStaff: staffResult.rows[0].count,
+        projects: projectsResult.rows[0].count,
       },
       activity: logsResult.rows,
       activePrograms: activePrograms.rows,

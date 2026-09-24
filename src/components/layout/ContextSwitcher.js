@@ -177,7 +177,7 @@ export default function ContextSwitcher() {
         onClick={() => setOpen(!open)}
         className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border-primary)] bg-primary/50 text-[10px] font-bold uppercase tracking-wide transition-all ${
           activeItem
-            ? "text-[var(--brand-orange)] border-[var(--brand-orange)]/40 hover:text-[var(--brand-orange)]"
+            ? "text-[var(--brand-orange)] border-brand-orange/40 hover:text-[var(--brand-orange)]"
             : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
         }`}
         title={

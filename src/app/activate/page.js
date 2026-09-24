@@ -199,7 +199,7 @@ function ActivateContent() {
 
         <div className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-2xl p-8 space-y-6">
           <div className="text-center">
-            <div className="w-16 h-16 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-brand-orange/10 flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 className="w-8 h-8 text-[var(--brand-orange)]" />
             </div>
             <h2 className="text-lg font-black text-[var(--text-primary)] tracking-tight">

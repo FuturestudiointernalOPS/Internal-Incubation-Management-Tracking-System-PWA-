@@ -234,7 +234,7 @@ export default function VentureReportsPage() {
                     return (
                       <div key={index} className="flex-1 flex flex-col items-center gap-0.5">
                         <div className="w-full bg-emerald-500/30 rounded-t" style={{ height: `${(day.completed / maxH) * 100}%` }} />
-                        <div className="w-full bg-[var(--brand-orange)]/30 rounded-t" style={{ height: `${(day.created / maxH) * 100}%` }} />
+                        <div className="w-full bg-brand-orange/30 rounded-t" style={{ height: `${(day.created / maxH) * 100}%` }} />
                         <span className="text-[10px] text-[var(--text-secondary)] mt-0.5">{day.date?.slice(5)}</span>
                       </div>
                     );
@@ -341,7 +341,7 @@ export default function VentureReportsPage() {
                   <div key={index} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[10px] font-black text-[var(--brand-orange)]">
+                        <div className="w-8 h-8 rounded-full bg-brand-orange/10 flex items-center justify-center text-[10px] font-black text-[var(--brand-orange)]">
                           {teamMember.name?.charAt(0) || "?"}
                         </div>
                         <div>

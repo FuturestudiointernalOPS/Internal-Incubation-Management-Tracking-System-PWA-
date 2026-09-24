@@ -174,7 +174,7 @@ export default function MyProjects() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder={t("common.search")}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-brand-orange/50 font-bold text-xs transition-all"
             />
           </div>
         </header>
@@ -259,13 +259,13 @@ export default function MyProjects() {
                   onClick={() => {
                     router.push(`/staff/projects/${project.id}`);
                   }}
-                  className="ios-card !p-0 overflow-hidden group cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all hover:bg-tertiary border-[var(--border-primary)]"
+                  className="ios-card !p-0 overflow-hidden group cursor-pointer hover:border-brand-orange/30 transition-all hover:bg-tertiary border-[var(--border-primary)]"
                 >
                   <div className="flex flex-col lg:flex-row items-stretch">
                     <div className="p-6 lg:w-72 bg-tertiary border-r border-[var(--border-primary)] flex flex-col justify-between">
                       <div>
                         <div className="flex items-center gap-3 mb-4">
-                          <div className="p-2 rounded-xl bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] border border-[var(--brand-orange)]/20">
+                          <div className="p-2 rounded-xl bg-brand-orange/10 text-[var(--brand-orange)] border border-brand-orange/20">
                             <Briefcase className="w-5 h-5" />
                           </div>
                           <span

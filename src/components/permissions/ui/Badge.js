@@ -14,7 +14,7 @@ const VARIANTS = {
   denied: "border-red-400/30 bg-red-400/10 text-red-400",
   locked: "border-[var(--border-primary)] bg-secondary text-[var(--text-secondary)]",
   verified:
-    "border-[var(--brand-orange)]/30 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]",
+    "border-brand-orange/30 bg-brand-orange/10 text-[var(--brand-orange)]",
   neutral: "border-[var(--border-primary)] bg-secondary text-[var(--text-secondary)]",
 };
 

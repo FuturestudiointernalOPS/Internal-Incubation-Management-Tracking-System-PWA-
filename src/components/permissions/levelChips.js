@@ -38,7 +38,7 @@ export const GRANT_LEVELS = LEVELS_ORDER.filter((level) => level > 0);
 // by level for a PERSONAL grant and neutral for an inherited right; the origin
 // dot carries the same information. `!h-6 !w-6` compacts them for table rows.
 export const LEVEL_CHIP_BASE =
-  "h-7 w-7 rounded-lg border-2 text-[10px] font-black flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 disabled:cursor-default";
+  "h-7 w-7 rounded-lg border-2 text-[10px] font-black flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 disabled:cursor-default";
 
 export const LEVEL_CHIP_ACTIVE = {
   1: "bg-blue-500/15 border-blue-500/40 text-blue-400",
@@ -52,7 +52,7 @@ export const LEVEL_CHIP_INHERITED =
   "bg-slate-500/20 border-slate-500/40 text-slate-300";
 
 export const LEVEL_CHIP_IDLE =
-  "border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] opacity-50 hover:opacity-100 hover:border-[var(--brand-orange)]/50 hover:text-[var(--brand-orange)]";
+  "border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] opacity-50 hover:opacity-100 hover:border-brand-orange/50 hover:text-[var(--brand-orange)]";
 
 /**
  * The level a person holds PERSONALLY for one capability (0 = none).

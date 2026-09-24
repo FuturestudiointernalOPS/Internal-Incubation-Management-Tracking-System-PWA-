@@ -626,7 +626,7 @@ export default function NewProgram() {
                 <button
                   type="button"
                   onClick={() => setShowNewTypeInput(!showNewTypeInput)}
-                  className="px-4 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] border border-[var(--brand-orange)]/20 rounded-2xl hover:bg-[var(--brand-orange)]/20 transition-all shrink-0"
+                  className="px-4 bg-brand-orange/10 text-[var(--brand-orange)] border border-brand-orange/20 rounded-2xl hover:bg-brand-orange/20 transition-all shrink-0"
                   title={t("adminMisc.newProgram.addTypeTitle")}
                 >
                   <Plus className="w-5 h-5" />
@@ -911,7 +911,7 @@ export default function NewProgram() {
                       ))}
                     </select>
                   ) : (
-                    <div className="space-y-4 p-4 bg-primary border border-[var(--brand-orange)]/20 rounded-xl animate-in fade-in zoom-in-95">
+                    <div className="space-y-4 p-4 bg-primary border border-brand-orange/20 rounded-xl animate-in fade-in zoom-in-95">
                       <input
                         value={newKB.title}
                         onChange={(event) =>
@@ -944,7 +944,7 @@ export default function NewProgram() {
                       <button
                         type="button"
                         onClick={handleCreateKBInline}
-                        className="w-full py-2 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase rounded-lg border border-[var(--brand-orange)]/20"
+                        className="w-full py-2 bg-brand-orange/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase rounded-lg border border-brand-orange/20"
                       >
                         {t("adminMisc.newProgram.initializeKnowledgeBase")}
                       </button>
@@ -1164,7 +1164,7 @@ export default function NewProgram() {
                       return (
                         <div
                           key={cid}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20 rounded-lg text-[10px] font-bold text-[var(--brand-orange)]"
+                          className="flex items-center gap-2 px-3 py-1.5 bg-brand-orange/10 border border-brand-orange/20 rounded-lg text-[10px] font-bold text-[var(--brand-orange)]"
                         >
                           {staff?.name.toUpperCase()}
                           <button
@@ -1202,7 +1202,7 @@ export default function NewProgram() {
           <div className="card space-y-6 relative overflow-hidden">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center text-[var(--brand-orange)]">
+                <div className="w-10 h-10 rounded-xl bg-brand-orange/10 flex items-center justify-center text-[var(--brand-orange)]">
                   <Target className="w-5 h-5" />
                 </div>
                 <div className="text-left">
@@ -1292,7 +1292,7 @@ export default function NewProgram() {
                   {kpisList.map((kpi, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-4 bg-white/[0.02] border border-[var(--border-primary)] rounded-xl group hover:border-[var(--brand-orange)]/30 transition-all text-left"
+                      className="flex items-center justify-between p-4 bg-white/[0.02] border border-[var(--border-primary)] rounded-xl group hover:border-brand-orange/30 transition-all text-left"
                     >
                       <div>
                         <p className="text-xs font-bold text-white uppercase tracking-tighter">

@@ -111,7 +111,7 @@ export default function StaffDashboard() {
               {upcomingTasks.slice(0, 5).map((task) => (
                 <div
                   key={task.id}
-                  className="flex items-center justify-between p-3 rounded-xl bg-tertiary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all"
+                  className="flex items-center justify-between p-3 rounded-xl bg-tertiary border border-[var(--border-primary)] hover:border-brand-orange/30 transition-all"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />

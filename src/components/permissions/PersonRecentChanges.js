@@ -66,14 +66,14 @@ export default function PersonRecentChanges({ person = null }) {
           <button
             type="button"
             onClick={refresh}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-primary)] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-primary)] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
           >
             <RefreshCw className="h-3 w-3" />
             {t("common.refresh")}
           </button>
           <Link
             href={fullHistoryHref}
-            className="rounded-lg border border-[var(--border-primary)] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+            className="rounded-lg border border-[var(--border-primary)] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
           >
             {t("engineering.permissions.personRecentViewAll")}
           </Link>
@@ -98,7 +98,7 @@ export default function PersonRecentChanges({ person = null }) {
           {t("engineering.permissions.personRecentEmpty")}
         </p>
       ) : (
-        <ul className="divide-y divide-[var(--border-primary)]/50">
+        <ul className="divide-y divide-divider/50">
           {entries.map((entry) => {
             const parsed = splitAuditReason(entry.details);
             return (

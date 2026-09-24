@@ -123,7 +123,7 @@ export default function CrmWorkspace() {
               <a
                 key={card.key}
                 href={card.href}
-                className="ios-card !p-6 border-[var(--border-primary)] hover:border-[var(--brand-orange)]/40 transition-all"
+                className="ios-card !p-6 border-[var(--border-primary)] hover:border-brand-orange/40 transition-all"
               >
                 <Icon className="w-5 h-5 text-[var(--brand-orange)]" />
                 <p className="mt-3 text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">

@@ -19,7 +19,7 @@ const VENTURE_STAGES = {
   validation: { label: "vadmin.list.stageValidation", color: "text-purple-400 bg-purple-500/10" },
   early_traction: { label: "vadmin.list.stageEarlyTraction", color: "text-amber-400 bg-amber-500/10" },
   growth: { label: "vadmin.list.stageGrowth", color: "text-emerald-400 bg-emerald-500/10" },
-  scaling: { label: "vadmin.list.stageScaling", color: "text-[var(--brand-orange)] bg-[var(--brand-orange)]/10" },
+  scaling: { label: "vadmin.list.stageScaling", color: "text-[var(--brand-orange)] bg-brand-orange/10" },
 };
 
 const STATUS_CONFIG = {
@@ -207,7 +207,7 @@ export default function VenturesPage() {
             placeholder={t("vadmin.list.searchPlaceholder")}
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-secondary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder-slate-500 focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+            className="w-full pl-12 pr-4 py-3 bg-secondary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder-slate-500 focus:outline-none focus:border-brand-orange/50 transition-all"
           />
         </div>
 
@@ -253,11 +253,11 @@ export default function VenturesPage() {
                       <tr
                         key={venture.id}
                         onClick={() => router.push(`/admin/ventures/${venture.venture_id}`)}
-                        className="border-b border-[var(--border-primary)]/50 cursor-pointer hover:bg-tertiary/50 transition-all group"
+                        className="border-b border-divider/50 cursor-pointer hover:bg-tertiary/50 transition-all group"
                       >
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] group-hover:scale-110 transition-transform">
+                            <div className="p-2 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)] group-hover:scale-110 transition-transform">
                               <Rocket className="w-4 h-4" />
                             </div>
                             <div>

@@ -23,7 +23,7 @@ import { useApi } from "@/lib/hooks/useApi";
 // ─── Metric Card ────────────────────────────────────────────────────
 function MetricCard({ label, value, icon: Icon, color, trend }) {
   return (
-    <div className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl p-5 hover:border-[var(--brand-orange)]/20 transition-all group">
+    <div className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl p-5 hover:border-brand-orange/20 transition-all group">
       <div className="flex items-start justify-between mb-3">
         <div
           className={`w-10 h-10 rounded-lg flex items-center justify-center ${color.bg}`}
@@ -74,7 +74,7 @@ function AnnouncementItem({ announcement }) {
   const Icon = typeIcons[announcement.type] || Bell;
 
   const typeColors = {
-    announcement: "text-[var(--brand-orange)] bg-[var(--brand-orange)]/10",
+    announcement: "text-[var(--brand-orange)] bg-brand-orange/10",
     schedule: "text-blue-400 bg-blue-500/10",
     alert: "text-rose-400 bg-rose-500/10",
     milestone: "text-emerald-400 bg-emerald-500/10",
@@ -82,7 +82,7 @@ function AnnouncementItem({ announcement }) {
   const colors = typeColors[announcement.type] || typeColors.announcement;
 
   return (
-    <div className="flex items-start gap-4 p-4 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)] hover:border-[var(--border-primary)]/50 transition-all">
+    <div className="flex items-start gap-4 p-4 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)] hover:border-divider/50 transition-all">
       <div
         className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${colors}`}
       >
@@ -266,7 +266,7 @@ export default function ParticipantDashboardHome() {
         className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[var(--bg-tertiary)] via-[var(--bg-secondary)] to-[var(--bg-tertiary)] border border-[var(--border-primary)] p-8"
       >
         {/* Decorative gradient orbs */}
-        <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-[var(--brand-orange)]/5 blur-3xl" />
+        <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-brand-orange/5 blur-3xl" />
         <div className="absolute -bottom-20 -left-20 w-48 h-48 rounded-full bg-blue-500/5 blur-3xl" />
 
         <div className="relative z-10">
@@ -285,7 +285,7 @@ export default function ParticipantDashboardHome() {
           </h1>
           {primaryProgram && (
             <div className="flex flex-wrap items-center gap-4 mt-4">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-brand-orange/10 border border-brand-orange/20">
                 <BookOpen className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
                 <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wider">
                   {primaryProgram.name}
@@ -326,7 +326,7 @@ export default function ParticipantDashboardHome() {
             value={primaryProgram?.metrics?.programCompletion || 0}
             icon={Target}
             color={{
-              bg: "bg-[var(--brand-orange)]/10",
+              bg: "bg-brand-orange/10",
               text: "text-[var(--brand-orange)]",
               hex: "#FF6600",
             }}

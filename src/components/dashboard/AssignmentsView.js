@@ -357,7 +357,7 @@ export default function AssignmentsView() {
                       href={assignment.resourceUrl}
                       target="_blank"
                       rel="noreferrer noopener"
-                      className="inline-flex items-center gap-1 mt-2 px-3 py-1.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--brand-orange)]/30 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
+                      className="inline-flex items-center gap-1 mt-2 px-3 py-1.5 rounded-lg bg-[var(--bg-primary)] border border-brand-orange/30 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
                     >
                       <ExternalLink className="w-3 h-3" />
                       {assignment.resourceLabel || t("participantMisc.assignments.openResource")}
@@ -442,7 +442,7 @@ export default function AssignmentsView() {
                   href={showSubmitModal.resourceUrl}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-[var(--bg-primary)] border border-[var(--brand-orange)]/30 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
+                  className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-[var(--bg-primary)] border border-brand-orange/30 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
                 >
                   <ExternalLink className="w-3 h-3" />
                   {showSubmitModal.resourceLabel || t("participantMisc.assignments.openResource")}

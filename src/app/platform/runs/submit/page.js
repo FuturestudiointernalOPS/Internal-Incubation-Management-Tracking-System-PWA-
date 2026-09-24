@@ -84,11 +84,11 @@ export default function MySubmissionsPage() {
               <div
                 key={submission.id}
                 onClick={() => router.push(`/platform/runs/submit/${submission.run_id}`)}
-                className="p-4 rounded-2xl bg-secondary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50 transition-all cursor-pointer space-y-2"
+                className="p-4 rounded-2xl bg-secondary border border-[var(--border-primary)] hover:border-brand-orange/50 transition-all cursor-pointer space-y-2"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-xl bg-brand-orange/10 flex items-center justify-center">
                       <Play className="w-4 h-4 text-[var(--brand-orange)]" />
                     </div>
                     <div>

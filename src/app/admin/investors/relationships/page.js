@@ -445,7 +445,7 @@ export default function AdminRelationshipsPage() {
                         <AppCard key={meeting.id} padding="md">
                           <div className="flex items-start justify-between">
                             <div className="flex items-start gap-3">
-                              <div className={`p-2 rounded-xl ${meeting.status === "completed" ? "bg-emerald-500/10" : meeting.status === "cancelled" ? "bg-rose-500/10" : "bg-[var(--brand-orange)]/10"}`}>
+                              <div className={`p-2 rounded-xl ${meeting.status === "completed" ? "bg-emerald-500/10" : meeting.status === "cancelled" ? "bg-rose-500/10" : "bg-brand-orange/10"}`}>
                                 <MIcon className={`w-4 h-4 ${meeting.status === "completed" ? "text-emerald-400" : meeting.status === "cancelled" ? "text-rose-400" : "text-[var(--brand-orange)]"}`} />
                               </div>
                               <div>
@@ -804,7 +804,7 @@ export default function AdminRelationshipsPage() {
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.meetingType")}</label>
                   <select value={meetingForm.meeting_type} onChange={event => setMeetingForm({...meetingForm, meeting_type: event.target.value})}
-                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60">
+                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/60">
                     {MEETING_TYPES.map(meetingType => <option key={meetingType.value} value={meetingType.value}>{t(meetingType.label)}</option>)}
                   </select>
                 </div>
@@ -812,30 +812,30 @@ export default function AdminRelationshipsPage() {
                   <div>
                     <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.dateLabel")}</label>
                     <input type="date" value={meetingForm.scheduled_date} onChange={event => setMeetingForm({...meetingForm, scheduled_date: event.target.value})}
-                      className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                      className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/60" />
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.time")}</label>
                     <input type="time" value={meetingForm.scheduled_time} onChange={event => setMeetingForm({...meetingForm, scheduled_time: event.target.value})}
-                      className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                      className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/60" />
                   </div>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.durationLabel")}</label>
                   <input type="number" value={meetingForm.duration_minutes} onChange={event => setMeetingForm({...meetingForm, duration_minutes: parseInt(event.target.value) || 60})}
-                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/60" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.location")}</label>
                   <input value={meetingForm.location} onChange={event => setMeetingForm({...meetingForm, location: event.target.value})}
                     placeholder={t("investorAdmin.relationships.locationPlaceholder")}
-                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.notes")}</label>
                   <textarea value={meetingForm.notes} onChange={event => setMeetingForm({...meetingForm, notes: event.target.value})}
                     rows={2} placeholder={t("investorAdmin.relationships.notesPlaceholder")}
-                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none focus:border-[var(--brand-orange)]/60" />
+                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none focus:border-brand-orange/60" />
                 </div>
               </div>
               <div className="flex justify-end gap-2 px-6 pb-5">
@@ -859,7 +859,7 @@ export default function AdminRelationshipsPage() {
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.outcome")}</label>
                   <select value={completeForm.outcome} onChange={event => setCompleteForm({...completeForm, outcome: event.target.value})}
-                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60">
+                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/60">
                     <option value="">{t("investorAdmin.relationships.selectOutcome")}</option>
                     <option value="Positive">{t("investorAdmin.relationships.outcomePositive")}</option>
                     <option value="Neutral">{t("investorAdmin.relationships.outcomeNeutral")}</option>
@@ -871,13 +871,13 @@ export default function AdminRelationshipsPage() {
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.meetingNotes")}</label>
                   <textarea value={completeForm.notes} onChange={event => setCompleteForm({...completeForm, notes: event.target.value})}
                     rows={3} placeholder={t("investorAdmin.relationships.meetingNotesPlaceholder")}
-                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none focus:border-[var(--brand-orange)]/60" />
+                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none focus:border-brand-orange/60" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.actionItemsPerLine")}</label>
                   <textarea value={completeForm.action_items} onChange={event => setCompleteForm({...completeForm, action_items: event.target.value})}
                     rows={3} placeholder={t("investorAdmin.relationships.actionItemsPlaceholder")}
-                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none focus:border-[var(--brand-orange)]/60" />
+                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none focus:border-brand-orange/60" />
                 </div>
               </div>
               <div className="flex justify-end gap-2 px-6 pb-5">
@@ -902,20 +902,20 @@ export default function AdminRelationshipsPage() {
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.titleLabel")}</label>
                   <input value={requestForm.title} onChange={event => setRequestForm({...requestForm, title: event.target.value})}
                     placeholder={t("investorAdmin.relationships.titlePlaceholder")}
-                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.category")}</label>
                     <select value={requestForm.category} onChange={event => setRequestForm({...requestForm, category: event.target.value})}
-                      className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60">
+                      className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/60">
                       {["corporate","financial","commercial","technical","legal"].map(categoryOption => <option key={categoryOption} value={categoryOption}>{categoryOption.charAt(0).toUpperCase()+categoryOption.slice(1)}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.priority")}</label>
                     <select value={requestForm.priority} onChange={event => setRequestForm({...requestForm, priority: event.target.value})}
-                      className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60">
+                      className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/60">
                       <option value="low">{t("investorAdmin.relationships.priorityLow")}</option>
                       <option value="medium">{t("investorAdmin.relationships.priorityMedium")}</option>
                       <option value="high">{t("investorAdmin.relationships.priorityHigh")}</option>
@@ -925,13 +925,13 @@ export default function AdminRelationshipsPage() {
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.dueDate")}</label>
                   <input type="date" value={requestForm.due_date} onChange={event => setRequestForm({...requestForm, due_date: event.target.value})}
-                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60" />
+                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/60" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.description")}</label>
                   <textarea value={requestForm.description} onChange={event => setRequestForm({...requestForm, description: event.target.value})}
                     rows={2} placeholder={t("investorAdmin.relationships.descriptionPlaceholder")}
-                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none focus:border-[var(--brand-orange)]/60" />
+                    className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none focus:border-brand-orange/60" />
                 </div>
               </div>
               <div className="flex justify-end gap-2 px-6 pb-5">

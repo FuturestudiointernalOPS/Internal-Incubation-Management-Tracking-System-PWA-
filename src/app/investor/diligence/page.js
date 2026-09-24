@@ -459,7 +459,7 @@ function DueDiligenceContent() {
                                     <div className="flex gap-2">
                                       <input value={followupQuestion} onChange={event => setFollowupQuestion(event.target.value)}
                                         placeholder="Ask a follow-up question..."
-                                        className="flex-1 px-3 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-[10px] font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60"
+                                        className="flex-1 px-3 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-[10px] font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60"
                                         onKeyDown={event => event.key === "Enter" && addFollowup()} />
                                       <AppButton variant="primary" size="sm" icon={Send} onClick={addFollowup}>Send</AppButton>
                                       <AppButton variant="secondary" size="sm" onClick={() => { setFollowupRequestId(null); setFollowupQuestion(""); }}>Cancel</AppButton>
@@ -601,7 +601,7 @@ function DueDiligenceContent() {
                               <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                                 note.note_type === "private" ? "bg-slate-500/10 text-slate-400" :
                                 note.note_type === "shared" ? "bg-blue-500/10 text-blue-400" :
-                                note.note_type === "advisor" ? "bg-purple-500/10 text-purple-400" : "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                                note.note_type === "advisor" ? "bg-purple-500/10 text-purple-400" : "bg-brand-orange/10 text-[var(--brand-orange)]"
                               }`}>{note.note_type}</span>
                             </div>
                             <p className="text-xs text-[var(--text-primary)]">{note.content}</p>

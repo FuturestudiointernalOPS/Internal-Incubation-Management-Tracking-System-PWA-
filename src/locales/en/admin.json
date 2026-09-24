@@ -1,6 +1,6 @@
 {
   "admin": {
-    "command": "ADMIN COMMAND",
+    "command": "Admin command",
     "programOperations": "Program Operations",
     "internalOperations": "Internal Operations",
     "teamAccountability": "Team Accountability",

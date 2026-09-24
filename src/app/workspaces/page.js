@@ -50,7 +50,7 @@ const ContextCard = ({ title, role, href, completed, badge }) => {
             {title}
           </p>
           {(completed || badge) && (
-            <span className="px-2 py-0.5 rounded-full bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)]">
+            <span className="px-2 py-0.5 rounded-full bg-brand-orange/10 border border-brand-orange/30 text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)]">
               {t("common.workspaces.completedViewOnly")}
             </span>
           )}

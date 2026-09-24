@@ -25,7 +25,7 @@ const SESSION_TYPE_CFG = {
   mentoring: { label: "vadmin.sessions.mentoring", color: "bg-purple-500/10 text-purple-400" },
   advisory: { label: "vadmin.sessions.advisory", color: "bg-emerald-500/10 text-emerald-400" },
   office_hours: { label: "vadmin.sessions.officeHours", color: "bg-amber-500/10 text-amber-400" },
-  review_meeting: { label: "vadmin.sessions.review", color: "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" },
+  review_meeting: { label: "vadmin.sessions.review", color: "bg-brand-orange/10 text-[var(--brand-orange)]" },
 };
 
 const STATUS_CFG = {
@@ -245,7 +245,7 @@ export default function VentureSessionsPage() {
               const statusConfig = STATUS_CFG[session.status] || STATUS_CFG.scheduled;
               return (
                 <div key={session.id} onClick={()=>loadSessionDetail(session.id)}
-                  className="p-5 rounded-2xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all">
+                  className="p-5 rounded-2xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-brand-orange/30 transition-all">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-4 min-w-0">
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${typeConfig.color}`}>
@@ -411,7 +411,7 @@ export default function VentureSessionsPage() {
                 {selectedSession.session_type && <div className="p-3 bg-primary rounded-xl"><p className="text-[7px] font-black text-slate-500 uppercase">{t("vadmin.sessions.type")}</p><p className="font-bold mt-0.5 capitalize">{selectedSession.session_type}</p></div>}
               </div>
               {selectedSession.meeting_link && (
-                <a href={selectedSession.meeting_link} target="_blank" className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-xl text-[9px] font-black uppercase tracking-wider hover:brightness-110 w-fit" rel="noreferrer">
+                <a href={selectedSession.meeting_link} target="_blank" className="flex items-center gap-2 px-4 py-2.5 bg-brand-orange/10 text-[var(--brand-orange)] rounded-xl text-[9px] font-black uppercase tracking-wider hover:brightness-110 w-fit" rel="noreferrer">
                   <Video className="w-3.5 h-3.5" /> {t("vadmin.sessions.joinMeeting")}
                 </a>
               )}

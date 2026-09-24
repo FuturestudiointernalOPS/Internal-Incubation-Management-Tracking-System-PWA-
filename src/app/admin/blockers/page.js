@@ -40,7 +40,7 @@ const SEVERITY_CONFIG = {
   low: {
     label: "Low",
     color: "text-[var(--text-secondary)]",
-    bg: "bg-[var(--border-primary)]/20",
+    bg: "bg-divider/20",
   },
   medium: { label: "Medium", color: "text-amber-500", bg: "bg-amber-500/10" },
   high: { label: "High", color: "text-rose-500", bg: "bg-rose-500/10" },
@@ -67,7 +67,7 @@ function getSeverityColor(severity) {
 
 function getSeverityBg(severity) {
   const config = SEVERITY_CONFIG[severity];
-  return config ? config.bg : "bg-[var(--border-primary)]/20";
+  return config ? config.bg : "bg-divider/20";
 }
 
 export default function AdminBlockers() {
@@ -360,7 +360,7 @@ export default function AdminBlockers() {
                   {filteredBlockers.map((blocker) => (
                     <tr
                       key={blocker.id}
-                      className={`border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors ${
+                      className={`border-b border-divider/50 hover:bg-white/5 transition-colors ${
                         blocker.status === "active"
                           ? "bg-rose-500/5"
                           : "opacity-60"

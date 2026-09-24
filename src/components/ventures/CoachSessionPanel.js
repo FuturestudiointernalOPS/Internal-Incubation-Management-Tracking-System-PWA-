@@ -220,7 +220,7 @@ export default function CoachSessionPanel({
                   value={noteText}
                   onChange={(event) => setNoteText(event.target.value)}
                   placeholder={t("venture.coach.reportPlaceholder")}
-                  className="flex-1 min-w-0 bg-primary border border-[var(--border-primary)] rounded-lg px-2.5 py-1.5 text-[10px] text-[var(--text-primary)] placeholder:text-slate-500 outline-none focus:border-[var(--brand-orange)]/50"
+                  className="flex-1 min-w-0 bg-primary border border-[var(--border-primary)] rounded-lg px-2.5 py-1.5 text-[10px] text-[var(--text-primary)] placeholder:text-slate-500 outline-none focus:border-brand-orange/50"
                 />
                 <button
                   onClick={addNote}

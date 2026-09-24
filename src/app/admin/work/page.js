@@ -302,7 +302,7 @@ export default function ProjectKanbanBoard() {
       draggable
       onDragStart={(event) => handleDragStart(event, task.id)}
       onDragEnd={handleDragEnd}
-      className={`p-2 rounded-lg border border-[var(--border-primary)] bg-tertiary/50 cursor-grab active:cursor-grabbing hover:border-[var(--brand-orange)]/30 transition-colors ${
+      className={`p-2 rounded-lg border border-[var(--border-primary)] bg-tertiary/50 cursor-grab active:cursor-grabbing hover:border-brand-orange/30 transition-colors ${
         task.status === "completed" ? "opacity-60" : ""
       }`}
     >
@@ -405,7 +405,7 @@ export default function ProjectKanbanBoard() {
               key={col.id}
               className={`flex-shrink-0 w-80 rounded-xl border flex flex-col transition-colors ${
                 dragOverCol === col.id
-                  ? "border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/5"
+                  ? "border-brand-orange/40 bg-brand-orange/5"
                   : "border-[var(--border-primary)] bg-tertiary/30"
               }`}
               onDragOver={(event) => handleDragOver(event, col.id)}

@@ -6,7 +6,7 @@ import React from 'react';
  */
 
 export const Skeleton = ({ className, variant = 'rect' }) => {
-  const baseClass = "animate-pulse bg-[var(--border-primary)]/50";
+  const baseClass = "animate-pulse bg-divider/50";
   const variants = {
     rect: "rounded-xl",
     circle: "rounded-full",

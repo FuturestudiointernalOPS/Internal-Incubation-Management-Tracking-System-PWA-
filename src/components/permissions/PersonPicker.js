@@ -131,7 +131,7 @@ export default function PersonPicker({ selectedCid = null, onSelect }) {
               setLoading(true);
               loadUsers(true);
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
           >
             <RefreshCw className="w-3 h-3" />
             {t("common.refresh")}
@@ -145,7 +145,7 @@ export default function PersonPicker({ selectedCid = null, onSelect }) {
             const hit = users.find((user) => String(user.cid) === event.target.value);
             if (hit && onSelect) onSelect(hit);
           }}
-          className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+          className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50 focus-visible:ring-2 focus-visible:ring-brand-orange/40"
         >
           <option value="">
             {t("engineering.permissions.personPickerPlaceholder")}

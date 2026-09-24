@@ -93,7 +93,7 @@ function ProgramCard({ program, onSelect }) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl p-6 hover:border-[var(--brand-orange)]/30 transition-all cursor-pointer group"
+      className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl p-6 hover:border-brand-orange/30 transition-all cursor-pointer group"
       onClick={() => onSelect?.(program.id)}
     >
       {/* Header */}
@@ -186,7 +186,7 @@ function ProgramCard({ program, onSelect }) {
           label={t("participantMisc.programListing.progress")}
           value={metrics.percentComplete}
           color={{
-            bg: "bg-[var(--brand-orange)]/10",
+            bg: "bg-brand-orange/10",
             text: "text-[var(--brand-orange)]",
           }}
         />

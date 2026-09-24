@@ -416,7 +416,7 @@ export function VerificationTab() {
                                 target="_blank"
                                 rel="noreferrer"
                                 title={t("common.view")}
-                                className="p-1 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/10 rounded"
+                                className="p-1 text-[var(--brand-orange)] hover:bg-brand-orange/10 rounded"
                               >
                                 <Download size={12} />
                               </a>
@@ -456,7 +456,7 @@ export function VerificationTab() {
                 )}
 
                 {isUpload && item?.status !== "verified" && (
-                  <label className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest cursor-pointer bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] hover:brightness-110 transition-all">
+                  <label className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest cursor-pointer bg-brand-orange/10 text-[var(--brand-orange)] hover:brightness-110 transition-all">
                     {isUploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
                     {isUploading ? t("vadmin.verification.uploading") : t("vadmin.verification.upload")}
                     <input

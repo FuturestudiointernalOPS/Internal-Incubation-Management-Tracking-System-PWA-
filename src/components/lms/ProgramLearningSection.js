@@ -175,9 +175,9 @@ export default function ProgramLearningSection({
   return (
     <div className="space-y-4">
       {/* PHASE 4: LEARNING (LMS) */}
-      <div className="flex items-center justify-between pb-3 border-b border-[var(--brand-orange)]/20">
+      <div className="flex items-center justify-between pb-3 border-b border-brand-orange/20">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[9px] font-black text-[var(--brand-orange)] border border-[var(--brand-orange)]/20 shadow-sm">
+          <div className="w-6 h-6 rounded-full bg-brand-orange/10 flex items-center justify-center text-[9px] font-black text-[var(--brand-orange)] border border-brand-orange/20 shadow-sm">
             4
           </div>
           <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-orange)]">
@@ -222,7 +222,7 @@ export default function ProgramLearningSection({
                     iconClassName="w-4 h-4"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-brand-orange/10 flex items-center justify-center shrink-0">
                     <GraduationCap className="w-4 h-4 text-[var(--brand-orange)]" />
                   </div>
                 )}

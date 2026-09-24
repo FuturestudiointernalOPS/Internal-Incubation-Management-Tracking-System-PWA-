@@ -51,14 +51,14 @@ export default function ModulesPage() {
               className={`p-5 rounded-2xl bg-secondary border transition-all ${
                 moduleItem.future
                   ? "border-dashed border-[var(--border-primary)] opacity-60"
-                  : "border-[var(--border-primary)] hover:border-[var(--brand-orange)]/50"
+                  : "border-[var(--border-primary)] hover:border-brand-orange/50"
               }`}
             >
               <div
                 className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${
                   moduleItem.future
                     ? "bg-amber-500/10"
-                    : "bg-[var(--brand-orange)]/10"
+                    : "bg-brand-orange/10"
                 }`}
               >
                 <Icon

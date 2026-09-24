@@ -451,7 +451,7 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
               requestAccess("revoke", module, capability);
             }}
             title={t("engineering.permissions.titleRevokeGrant")}
-            className="p-1 rounded-md hover:bg-red-500/10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+            className="p-1 rounded-md hover:bg-red-500/10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
           >
             <Trash2 className="w-3 h-3 text-red-400" />
           </button>
@@ -478,7 +478,7 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
           <button
             type="button"
             onClick={() => selected && pick(selected)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
           >
             <RefreshCw className="w-3 h-3" />
             {t("common.refresh")}
@@ -602,16 +602,16 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
                     placeholder={t(
                       "engineering.permissions.peopleMatrixFilterPlaceholder",
                     )}
-                    className="w-48 sm:w-64 bg-primary border border-[var(--border-primary)] rounded-lg pl-8 pr-3 py-2 text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/40"
+                    className="w-48 sm:w-64 bg-primary border border-[var(--border-primary)] rounded-lg pl-8 pr-3 py-2 text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50 focus-visible:ring-2 focus-visible:ring-brand-orange/40"
                   />
                 </div>
                 <button
                   type="button"
                   aria-pressed={onlyGranted}
                   onClick={() => setOnlyGranted((prev) => !prev)}
-                  className={`px-3 py-2 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 ${
+                  className={`px-3 py-2 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 ${
                     onlyGranted
-                      ? "border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                      ? "border-brand-orange/40 bg-brand-orange/10 text-[var(--brand-orange)]"
                       : "border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                 >
@@ -639,7 +639,7 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
               tabIndex={0}
               role="region"
               aria-label={t("engineering.permissions.peopleTableAria")}
-              className="hidden md:block overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-orange)]/60"
+              className="hidden md:block overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-orange/60"
             >
               <table className="w-full text-left border-collapse min-w-[760px]">
                 <thead>
@@ -679,7 +679,7 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
                                 }
                                 className={`px-1.5 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest ${
                                   right.held
-                                    ? "border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                                    ? "border-brand-orange/40 bg-brand-orange/10 text-[var(--brand-orange)]"
                                     : right.offered
                                       ? "border-[var(--border-primary)] text-[var(--text-secondary)] opacity-60"
                                       : "border-[var(--border-primary)] text-[var(--text-secondary)] opacity-25"
@@ -712,7 +712,7 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
                             aria-label={t("engineering.permissions.peopleRowAria", {
                               capability: `${module.module}.${cap}`,
                             })}
-                            className="border-b border-[var(--border-primary)]/40 cursor-pointer hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-orange)]/60"
+                            className="border-b border-divider/40 cursor-pointer hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-orange/60"
                           >
                             <td className="px-3 py-1.5 text-xs font-bold text-[var(--text-primary)]">
                               {module.module}.{cap}
@@ -772,7 +772,7 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
                         key={right.cap}
                         className={`px-1.5 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest ${
                           right.held
-                            ? "border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                            ? "border-brand-orange/40 bg-brand-orange/10 text-[var(--brand-orange)]"
                             : right.offered
                               ? "border-[var(--border-primary)] text-[var(--text-secondary)] opacity-60"
                               : "border-[var(--border-primary)] text-[var(--text-secondary)] opacity-25"
@@ -803,7 +803,7 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
                             setWhy({ module: module.module, cap, state: state, reason });
                           }
                         }}
-                        className="w-full text-left rounded-xl border border-[var(--border-primary)] bg-secondary/30 p-3 space-y-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
+                        className="w-full text-left rounded-xl border border-[var(--border-primary)] bg-secondary/30 p-3 space-y-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
                       >
                         <span className="flex items-center justify-between gap-2">
                           <span className="text-xs font-bold text-[var(--text-primary)]">
@@ -827,7 +827,7 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
                           {originText(state)}
                         </span>
                         <span
-                          className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--border-primary)]/50"
+                          className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-divider/50"
                           onClick={(event) => event.stopPropagation()}
                         >
                           <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">

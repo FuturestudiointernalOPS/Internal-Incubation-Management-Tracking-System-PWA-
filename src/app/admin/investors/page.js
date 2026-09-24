@@ -135,7 +135,7 @@ export default function AdminInvestorsPage() {
               onChange={e => setSearch(e.target.value)}
               onKeyDown={e => e.key === "Enter" && refresh()}
               placeholder={t("investorAdmin.list.searchPlaceholder")}
-              className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60"
+              className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60"
             />
           </div>
         </div>
@@ -159,7 +159,7 @@ export default function AdminInvestorsPage() {
                 <AppCard key={inv.id} padding="md">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-xl bg-brand-orange/10 border border-brand-orange/20 flex items-center justify-center">
                         <Building2 className="w-5 h-5 text-[var(--brand-orange)]" />
                       </div>
                       <div>

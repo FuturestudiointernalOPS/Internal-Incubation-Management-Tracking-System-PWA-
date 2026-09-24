@@ -3601,7 +3601,7 @@ export const INVESTMENT_LEVELS = [
   { min: 0, max: 25, level: "not_ready", label: "Not Ready", color: "text-rose-400 bg-rose-500/10" },
   { min: 26, max: 50, level: "early_ready", label: "Early Ready", color: "text-amber-400 bg-amber-500/10" },
   { min: 51, max: 75, level: "investment_ready", label: "Investment Ready", color: "text-emerald-400 bg-emerald-500/10" },
-  { min: 76, max: 100, level: "fundraising_ready", label: "Fundraising Ready", color: "text-[var(--brand-orange)] bg-[var(--brand-orange)]/10" },
+  { min: 76, max: 100, level: "fundraising_ready", label: "Fundraising Ready", color: "text-[var(--brand-orange)] bg-brand-orange/10" },
 ];
 
 function getInvestmentLevel(score) {

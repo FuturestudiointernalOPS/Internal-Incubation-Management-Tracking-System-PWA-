@@ -64,7 +64,7 @@ export default function AppMenu({
         >
           {items.map((item, index) =>
             item.separator ? (
-              <div key={`sep-${index}`} className="my-1 h-px bg-[var(--border-primary)]/60" />
+              <div key={`sep-${index}`} className="my-1 h-px bg-divider/60" />
             ) : (
               <button
                 key={item.key || index}

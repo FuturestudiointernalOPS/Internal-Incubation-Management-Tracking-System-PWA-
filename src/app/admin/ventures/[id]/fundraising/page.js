@@ -24,7 +24,7 @@ const STAGES = [
   { key: "meeting_scheduled", label: "Meeting", color: "bg-amber-500/10 text-amber-400" },
   { key: "pitch_delivered", label: "Pitched", color: "bg-purple-500/10 text-purple-400" },
   { key: "due_diligence", label: "Due Diligence", color: "bg-emerald-500/10 text-emerald-400" },
-  { key: "negotiation", label: "Negotiation", color: "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" },
+  { key: "negotiation", label: "Negotiation", color: "bg-brand-orange/10 text-[var(--brand-orange)]" },
   { key: "term_sheet", label: "Term Sheet", color: "bg-rose-500/10 text-rose-400" },
   { key: "closed_won", label: "Won", color: "bg-emerald-500/20 text-emerald-500" },
   { key: "closed_lost", label: "Lost", color: "bg-slate-500/10 text-slate-500" },
@@ -220,7 +220,7 @@ export default function VentureFundraisingPage() {
         <div className="flex gap-1">
           {["kanban", "list"].map((viewOption) => (
             <button key={viewOption} onClick={() => setActiveView(viewOption)}
-              className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider ${activeView===viewOption?"bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]":"text-slate-500 hover:bg-tertiary"}`}>{viewOption}</button>
+              className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider ${activeView===viewOption?"bg-brand-orange/10 text-[var(--brand-orange)]":"text-slate-500 hover:bg-tertiary"}`}>{viewOption}</button>
           ))}
         </div>
 
@@ -242,7 +242,7 @@ export default function VentureFundraisingPage() {
                       {items.length === 0 && <p className="text-[8px] text-slate-600 text-center py-4">Empty</p>}
                       {items.map((opportunity) => (
                         <div key={opportunity.id} onClick={() => loadDetail(opportunity.id)}
-                          className="p-3 rounded-xl bg-primary border border-[var(--border-primary)] cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all">
+                          className="p-3 rounded-xl bg-primary border border-[var(--border-primary)] cursor-pointer hover:border-brand-orange/30 transition-all">
                           <p className="text-[10px] font-bold text-[var(--text-primary)]">{opportunity.investor_name || "Unknown"}</p>
                           {opportunity.expected_amount && <p className="text-[9px] font-black text-[var(--brand-orange)] mt-1">${parseFloat(opportunity.expected_amount).toLocaleString()}</p>}
                           <div className="flex items-center gap-2 mt-1.5 text-[7px] text-slate-500">
@@ -276,7 +276,7 @@ export default function VentureFundraisingPage() {
                 const stageConfig = STAGES.find((stage) => stage.key === opportunity.stage) || STAGES[0];
                 return (
                   <div key={opportunity.id} onClick={() => loadDetail(opportunity.id)}
-                    className="flex items-center gap-4 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all">
+                    className="flex items-center gap-4 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-brand-orange/30 transition-all">
                     <span className={`w-2 h-2 rounded-full ${stageConfig.color.split(" ")[0].replace("text-", "bg-")} shrink-0`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-[var(--text-primary)]">{opportunity.investor_name || "Unknown"}</p>

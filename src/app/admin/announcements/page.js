@@ -166,7 +166,7 @@ export default function AnnouncementsPage() {
               onClick={() => setShowArchived(!showArchived)}
               className={`px-3 py-1.5 text-[10px] font-bold rounded-lg border transition-all uppercase ${
                 showArchived
-                  ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]/30 text-[var(--brand-orange)]"
+                  ? "bg-brand-orange/10 border-brand-orange/30 text-[var(--brand-orange)]"
                   : "border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
@@ -328,7 +328,7 @@ export default function AnnouncementsPage() {
                 key={ann.id}
                 className={`p-5 rounded-xl border transition-all ${
                   ann.is_pinned
-                    ? "bg-[var(--brand-orange)]/5 border-[var(--brand-orange)]/30"
+                    ? "bg-brand-orange/5 border-brand-orange/30"
                     : ann.is_archived
                       ? "bg-secondary border-[var(--border-primary)] opacity-60"
                       : "bg-secondary border-[var(--border-primary)]"
@@ -349,7 +349,7 @@ export default function AnnouncementsPage() {
                         {ann.title}
                       </h3>
                       {!ann.is_archived && (
-                        <span className="flex-shrink-0 px-2 py-0.5 text-[10px] font-bold rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] border border-[var(--brand-orange)]/20">
+                        <span className="flex-shrink-0 px-2 py-0.5 text-[10px] font-bold rounded bg-brand-orange/10 text-[var(--brand-orange)] border border-brand-orange/20">
                           {ann.target_type === "all"
                             ? t("announcements.targetAll")
                             : `${ann.target_type}: ${ann.target_id || "—"}`}

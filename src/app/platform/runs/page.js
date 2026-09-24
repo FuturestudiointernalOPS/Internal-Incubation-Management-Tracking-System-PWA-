@@ -2502,7 +2502,7 @@ export default function FormRunsPage() {
           {(() => {
             const group = groups.find((candidate) => (candidate.registration_id || candidate.id) === selectedRun.group_target_id);
             return group ? (
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap text-[var(--brand-orange)] bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30">{t("platformMisc.runs.assignedGroup", { name: group.name })}</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap text-[var(--brand-orange)] bg-brand-orange/10 border border-brand-orange/30">{t("platformMisc.runs.assignedGroup", { name: group.name })}</span>
             ) : null;
           })()}
           {/* Status action buttons */}
@@ -2679,7 +2679,7 @@ export default function FormRunsPage() {
                     className={cn(
                       "p-4 rounded-2xl border text-center transition-all",
                       subFilter === statCard.filter
-                        ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]"
+                        ? "bg-brand-orange/10 border-[var(--brand-orange)]"
                         : "bg-secondary border-[var(--border-primary)] hover:border-[var(--text-secondary)]"
                     )}
                   >
@@ -2712,7 +2712,7 @@ export default function FormRunsPage() {
                     <button
                       onClick={clearScoreFilter}
                       title="Remove this filter"
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[10px] font-bold text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-orange/10 border border-brand-orange/30 text-[10px] font-bold text-[var(--brand-orange)] hover:bg-brand-orange/20"
                     >
                       {scoreChipLabel} <X className="w-3 h-3" />
                     </button>
@@ -2723,7 +2723,7 @@ export default function FormRunsPage() {
                       key={label}
                       onClick={() => removeFieldFilter(label)}
                       title="Remove this filter"
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[10px] font-bold text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-orange/10 border border-brand-orange/30 text-[10px] font-bold text-[var(--brand-orange)] hover:bg-brand-orange/20"
                     >
                       {label}: {filterValue} <X className="w-3 h-3" />
                     </button>
@@ -2734,7 +2734,7 @@ export default function FormRunsPage() {
                       key={filter.key}
                       onClick={() => setTrackingFilter(filter.key, "")}
                       title="Remove this filter"
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[10px] font-bold text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-brand-orange/10 border border-brand-orange/30 text-[10px] font-bold text-[var(--brand-orange)] hover:bg-brand-orange/20"
                     >
                       {filter.label}: {trackingFilterOptionLabel(filter.key, filter.value)} <X className="w-3 h-3" />
                     </button>
@@ -2742,7 +2742,7 @@ export default function FormRunsPage() {
 
                   {/* Inline editor — AI Score */}
                   {filterPickerMode === "score" && (
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-tertiary border border-[var(--brand-orange)]/30">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-tertiary border border-brand-orange/30">
                       <select
                         value={scoreOp}
                         onChange={(event) => setScoreOp(event.target.value)}
@@ -2791,7 +2791,7 @@ export default function FormRunsPage() {
 
                   {/* Inline editor — form field option */}
                   {filterPickerMode && filterPickerMode.type === "field" && (
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-tertiary border border-[var(--brand-orange)]/30">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-tertiary border border-brand-orange/30">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{filterPickerMode.label}:</span>
                       <select
                         value=""
@@ -2818,7 +2818,7 @@ export default function FormRunsPage() {
 
                   {/* Inline editor — tracking filter (Approval Email / Review / Status / Activation Email / Account Status) */}
                   {filterPickerMode && filterPickerMode.type === "status" && (
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-tertiary border border-[var(--brand-orange)]/30">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-tertiary border border-brand-orange/30">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                         {TRACKING_FILTERS.find((filter) => filter.key === filterPickerMode.key)?.label || filterPickerMode.key}:
                       </span>
@@ -3188,7 +3188,7 @@ export default function FormRunsPage() {
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1">
-                                <button onClick={() => setSelectedSubmission(selectedSubmission?.id === submission.id ? null : submission)} className="px-2 py-1 rounded-lg bg-tertiary text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wide hover:bg-[var(--brand-orange)]/10 hover:text-[var(--brand-orange)] flex items-center gap-1">
+                                <button onClick={() => setSelectedSubmission(selectedSubmission?.id === submission.id ? null : submission)} className="px-2 py-1 rounded-lg bg-tertiary text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wide hover:bg-brand-orange/10 hover:text-[var(--brand-orange)] flex items-center gap-1">
                                   <History className="w-3 h-3" /> {t("platformMisc.runs.history")}
                                 </button>
                                 <a href={`/platform/runs/review/${submission.id}`} className="px-2 py-1 rounded-lg bg-purple-500/10 text-purple-400 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 flex items-center gap-1">
@@ -3200,7 +3200,7 @@ export default function FormRunsPage() {
                                   </button>
                                 )}
                                 {submission.status === "submitted" && (
-                                  <button onClick={() => openReview(submission)} className="px-2 py-1 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:bg-[var(--brand-orange)]/20">{t("platformMisc.runs.review")}</button>
+                                  <button onClick={() => openReview(submission)} className="px-2 py-1 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:bg-brand-orange/20">{t("platformMisc.runs.review")}</button>
                                 )}
                                 <button onClick={() => handleDeleteSubmission(submission.id)} className="px-2 py-1 rounded-lg bg-rose-500/10 text-rose-500 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20">{t("platformMisc.runs.delete")}</button>
                               </div>
@@ -3990,7 +3990,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                         const targetName = assignment.target_name || (group ? group.name : contact ? (contact.name || contact.email) : assignment.target_id);
                         return (
                           <tr key={assignment.id} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
-                            <td className="px-4 py-3"><span className="px-2 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase">{t(TARGET_LABELS[assignment.target_type]) || assignment.target_type}</span></td>
+                            <td className="px-4 py-3"><span className="px-2 py-0.5 rounded bg-brand-orange/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase">{t(TARGET_LABELS[assignment.target_type]) || assignment.target_type}</span></td>
                             <td className="px-4 py-3 text-[10px] font-medium text-[var(--text-secondary)]">{targetName}</td>
                             <td className="px-4 py-3 text-[10px] font-medium text-[var(--text-secondary)]">{new Date(assignment.assigned_at).toLocaleDateString()}</td>
                             <td className="px-4 py-3"><button onClick={() => handleUnassign(assignment.id)} className="text-rose-500 hover:text-rose-400"><Trash2 className="w-3.5 h-3.5" /></button></td>
@@ -4111,7 +4111,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                   <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.runConfigurationDesc")}</p>
                 </div>
                 {!editingSettings ? (
-                  <button onClick={() => setEditingSettings(true)} className="px-3 py-2 rounded-xl bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:bg-[var(--brand-orange)]/20">{t("platformMisc.runs.edit")}</button>
+                  <button onClick={() => setEditingSettings(true)} className="px-3 py-2 rounded-xl bg-brand-orange/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:bg-brand-orange/20">{t("platformMisc.runs.edit")}</button>
                 ) : (
                   <div className="flex items-center gap-2">
                     <button onClick={() => { setEditingSettings(false); setRunSettings(selectedRun.settings || {}); }} className="px-3 py-2 rounded-xl bg-tertiary text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wide">{t("platformMisc.runs.cancel")}</button>
@@ -4265,7 +4265,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                         "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
                         reportFileBusy
                           ? "opacity-60 cursor-wait bg-tertiary text-[var(--text-secondary)]"
-                          : "cursor-pointer bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20",
+                          : "cursor-pointer bg-brand-orange/10 text-[var(--brand-orange)] hover:bg-brand-orange/20",
                       )}>
                         {reportFileBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
                         {reportFileBusy

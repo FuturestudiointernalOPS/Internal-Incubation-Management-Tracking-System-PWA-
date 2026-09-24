@@ -98,7 +98,7 @@ function VersionTimeline({ versions }) {
 
           {/* Version card */}
           <div
-            className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg p-3 cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all"
+            className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg p-3 cursor-pointer hover:border-brand-orange/30 transition-all"
             onClick={() =>
               setExpandedVersion(
                 expandedVersion === version.id ? null : version.id,
@@ -144,7 +144,7 @@ function VersionTimeline({ versions }) {
                         href={version.file_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] hover:border-brand-orange/30 transition-all"
                       >
                         <FileText className="w-3 h-3 text-[var(--brand-orange)]" />
                         <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)]">
@@ -158,7 +158,7 @@ function VersionTimeline({ versions }) {
                         href={version.supporting_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] hover:border-brand-orange/30 transition-all"
                       >
                         <ExternalLink className="w-3 h-3 text-blue-400" />
                         <span className="text-[10px] font-bold uppercase tracking-wide text-blue-400">

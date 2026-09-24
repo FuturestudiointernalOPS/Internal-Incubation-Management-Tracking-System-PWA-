@@ -1107,7 +1107,7 @@ function ContactsPageContent() {
       {/* MODALS */}
       {showManualModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
-          <div className="card w-full max-w-xl space-y-6 border-[var(--brand-orange)]/30 max-h-[85vh] overflow-y-auto">
+          <div className="card w-full max-w-xl space-y-6 border-brand-orange/30 max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-center">
               <h3 className="text-xl font-bold uppercase">{t("crm.contacts.identityProfile")}</h3>
               <button onClick={() => setShowManualModal(false)}>
@@ -1206,7 +1206,7 @@ function ContactsPageContent() {
 
       {showGroupModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
-          <div className="card w-full max-w-sm space-y-6 border-[var(--brand-orange)]/30 max-h-[85vh] overflow-y-auto">
+          <div className="card w-full max-w-sm space-y-6 border-brand-orange/30 max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-center">
               <h3 className="text-xl font-bold uppercase">
                 {typeof showGroupModal === "object"
@@ -1257,7 +1257,7 @@ function ContactsPageContent() {
 
       {showInviteModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
-          <div className="card w-full max-w-sm space-y-6 border-[var(--brand-orange)]/30 max-h-[85vh] overflow-y-auto">
+          <div className="card w-full max-w-sm space-y-6 border-brand-orange/30 max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-center">
               <h3 className="text-xl font-bold uppercase">
                 {t("crm.contacts.inviteTo")}: {showInviteModal.name}
@@ -1313,7 +1313,7 @@ function ContactsPageContent() {
       {/* BULK PROGRAM ASSIGNMENT MODAL */}
       {showBulkProgramModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
-          <div className="card w-full max-w-2xl space-y-6 border-[var(--brand-orange)]/30 max-h-[85vh] overflow-y-auto">
+          <div className="card w-full max-w-2xl space-y-6 border-brand-orange/30 max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-bold uppercase">
                 {t("crm.contacts.bulkProgramAssignment")}
@@ -1348,7 +1348,7 @@ function ContactsPageContent() {
               <div className="flex gap-2">
                 <button
                   id="bulk-action-add"
-                  className="flex-1 py-2 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[var(--brand-orange)] text-[10px] font-black uppercase tracking-wider"
+                  className="flex-1 py-2 rounded-lg bg-brand-orange/10 border border-brand-orange/30 text-[var(--brand-orange)] text-[10px] font-black uppercase tracking-wider"
                 >
                   {t("crm.contacts.addToProgram")}
                 </button>
@@ -1417,7 +1417,7 @@ function ContactsPageContent() {
                         }}
                         className={`flex items-center gap-2 p-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all text-left ${
                           isSelected
-                            ? "bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[var(--brand-orange)]"
+                            ? "bg-brand-orange/10 border border-brand-orange/30 text-[var(--brand-orange)]"
                             : "bg-tertiary border border-transparent text-[var(--text-secondary)] hover:border-[var(--border-primary)]"
                         }`}
                       >

@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";
+import AppEmptyState from "@/components/ui/AppEmptyState";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 function cn(...classes) {
@@ -109,6 +110,66 @@ const STATUS_CONFIG = {
   },
 };
 
+// Display rules for one calendar day:
+//  1. Order = creation order. Task ids are serial, so a lower id was created
+//     first.
+//  2. The same task is shown ONCE. Two tasks with the same title on the same
+//     day (a carried-over copy next to the original…) are the same work, shown
+//     with the look of the most pressing copy (open work before finished).
+//     Only a different time of day keeps them apart; tasks have no time today
+//     (DATE columns), so the time only matters if one is ever provided.
+const STATUS_RANK = {
+  blocked: 0,
+  in_progress: 1,
+  pending: 2,
+  carried_over: 3,
+  completed: 4,
+};
+
+function groupSameTitle(tasks) {
+  const groups = new Map();
+  const ordered = [...tasks].sort(
+    (first, second) => (Number(first.id) || 0) - (Number(second.id) || 0),
+  );
+  for (const task of ordered) {
+    const key = `${String(task.title || "").trim().toLowerCase()}:${task.time || ""}`;
+    const group = groups.get(key);
+    if (!group) {
+      groups.set(key, { primary: task, items: [task] });
+      continue;
+    }
+    group.items.push(task);
+    const rank = STATUS_RANK[task.status] ?? 2;
+    if (rank < (STATUS_RANK[group.primary.status] ?? 2)) group.primary = task;
+  }
+  return [...groups.values()];
+}
+
+/**
+ * Calendar colours for a task: `chip` for a labelled entry, `bar` for the
+ * quiet in-between days of a multi-day task. The status decides first (a
+ * finished task reads as finished whatever its priority), then the priority.
+ */
+function calendarTaskTone(task) {
+  if (task.status === "completed")
+    return {
+      chip: "bg-[var(--surface-2)] text-[var(--text-tertiary)] line-through",
+      bar: "bg-emerald-400",
+    };
+  if (task.status === "blocked")
+    return { chip: "bg-rose-500/15 text-rose-400", bar: "bg-rose-400" };
+  if (task.priority === "critical")
+    return { chip: "bg-red-500/20 text-red-400", bar: "bg-red-400" };
+  if (task.priority === "high")
+    return { chip: "bg-amber-500/20 text-amber-400", bar: "bg-amber-400" };
+  const config = STATUS_CONFIG[task.status];
+  if (config) return { chip: `${config.bg} ${config.color}`, bar: config.dot };
+  return {
+    chip: "bg-secondary text-[var(--text-secondary)]",
+    bar: "bg-slate-400",
+  };
+}
+
 const StatCard = ({
   title,
   value,
@@ -139,7 +200,7 @@ const StatCard = ({
       {title}
     </p>
     {loading ? (
-      <div className="h-8 w-16 bg-[var(--border-primary)]/20 animate-pulse rounded-lg" />
+      <div className="h-8 w-16 bg-divider/20 animate-pulse rounded-lg" />
     ) : (
       <>
         <h3 className="text-2xl font-black text-[var(--text-primary)] tracking-tight">
@@ -206,7 +267,7 @@ export default function AdminDashboard() {
   const [processingId, setProcessingId] = useState(null);
   const [expandedSections, setExpandedSections] = useState({});
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   const statusLabel = (key) => {
     const map = {
@@ -474,6 +535,32 @@ export default function AdminDashboard() {
   // Calendar computed
   const calendarDays = getCalendarDays(calYear, calMonth);
 
+  // A task spanning several days is listed on each of them. `calendarSpans`
+  // records where each day sits in that span ("middle" = neither first nor
+  // last), so the grid can draw the in-between days as a quiet bar instead of
+  // repeating the full title every day.
+  const calendarSpans = React.useMemo(() => {
+    const spans = {};
+    const allTasks = [...(tasks || []), ...(assignments || [])];
+    allTasks.forEach((task) => {
+      if (!task.start_date || !task.end_date) return;
+      const start = new Date(task.start_date);
+      const end = new Date(task.end_date);
+      const current = new Date(start);
+      current.setDate(current.getDate() + 1);
+      while (current < end) {
+        const key = formatDate(
+          current.getFullYear(),
+          current.getMonth(),
+          current.getDate(),
+        );
+        spans[`${key}:${task.id}`] = "middle";
+        current.setDate(current.getDate() + 1);
+      }
+    });
+    return spans;
+  }, [tasks, assignments]);
+
   const calendarTasks = React.useMemo(() => {
     const cal = {};
     const allTasks = [...(tasks || []), ...(assignments || [])];
@@ -591,7 +678,7 @@ export default function AdminDashboard() {
                 {t("reports.operationalReports")}
               </span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
               {t("admin.command")}
             </h1>
           </div>
@@ -658,67 +745,90 @@ export default function AdminDashboard() {
                       />
                     );
                   const dateStr = formatDate(calYear, calMonth, day);
-                  const dayTasks = calendarTasks[dateStr] || [];
+                  const dayTasks = groupSameTitle(calendarTasks[dateStr] || []);
                   const isCurrent = isToday(new Date(calYear, calMonth, day));
                   const isPast =
                     new Date(calYear, calMonth, day) <
                     new Date(new Date().toDateString());
+                  const isWeekStart =
+                    day === 1 || new Date(calYear, calMonth, day).getDay() === 0;
+                  const expanded = expandedCalendarDays[dateStr];
                   return (
                     <div
                       key={dateStr}
-                      className={`bg-primary p-1.5 min-h-[90px] transition-all ${isCurrent ? "ring-1 ring-[var(--brand-orange)]/40" : ""} ${isPast ? "opacity-60" : ""}`}
+                      className={cn(
+                        "p-1.5 min-h-[90px] transition-all",
+                        isCurrent
+                          ? "bg-[var(--surface-1)] ring-2 ring-inset ring-brand-orange/60"
+                          : "bg-primary",
+                        isPast && "opacity-60",
+                      )}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span
-                          className={`text-[10px] font-bold ${isCurrent ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}
+                          className={cn(
+                            "text-[10px] font-bold",
+                            isCurrent
+                              ? "min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--brand-orange)] text-white flex items-center justify-center"
+                              : "text-[var(--text-secondary)]",
+                          )}
                         >
                           {day}
                         </span>
                         {dayTasks.length > 0 && (
-                          <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                          <span className="text-[10px] font-bold text-[var(--text-tertiary)]">
                             {dayTasks.length}
                           </span>
                         )}
                       </div>
-                      <div className={`space-y-0.5 ${expandedCalendarDays[dateStr] ? "max-h-[200px]" : ""} overflow-y-auto custom-scrollbar`}>
-                        {dayTasks.slice(0, expandedCalendarDays[dateStr] ? undefined : 3).map((task) => {
-                          const priorityColor =
-                            task.priority === "critical"
-                              ? "bg-red-500/20 text-red-400"
-                              : task.priority === "high"
-                                ? "bg-amber-500/20 text-amber-400"
-                                : task.status === "completed"
-                                  ? "bg-emerald-500/10 text-emerald-400/70 line-through"
-                                  : task.status === "blocked"
-                                    ? "bg-rose-500/15 text-rose-400"
-                                    : STATUS_CONFIG[task.status]?.bg +
-                                        " " +
-                                        STATUS_CONFIG[task.status]?.color ||
-                                      "bg-secondary text-[var(--text-secondary)]";
+                      <div className={`space-y-0.5 ${expanded ? "max-h-[200px]" : ""} overflow-y-auto custom-scrollbar`}>
+                        {dayTasks.slice(0, expanded ? undefined : 3).map(({ primary: task }) => {
+                          const tone = calendarTaskTone(task);
+                          // In-between days of a multi-day task: a thin bar, with
+                          // the title repeated only at the start of each week row.
+                          if (calendarSpans[`${dateStr}:${task.id}`] === "middle" && !isWeekStart) {
+                            return (
+                              <button
+                                key={task.id}
+                                onClick={() => setSelectedTask(task)}
+                                title={task.title}
+                                aria-label={task.title}
+                                className={cn(
+                                  "block w-full h-1.5 my-1 rounded-full hover:opacity-100 transition-all",
+                                  tone.bar,
+                                  task.status === "completed" ? "opacity-30" : "opacity-60",
+                                )}
+                              />
+                            );
+                          }
                           return (
                             <button
                               key={task.id}
                               onClick={() => setSelectedTask(task)}
-                              className={`w-full text-left px-1.5 py-0.5 rounded text-[10px] font-bold truncate leading-tight ${priorityColor} hover:brightness-110 transition-all`}
+                              title={task.title}
+                              className={cn(
+                                "w-full text-left px-1.5 py-0.5 rounded text-[10px] font-semibold truncate leading-tight hover:brightness-110 transition-all",
+                                tone.chip,
+                              )}
                             >
                               {task.title}
                             </button>
                           );
                         })}
-                        {dayTasks.length > 3 && !expandedCalendarDays[dateStr] && (
+                        {dayTasks.length > 3 && !expanded && (
                           <button
                             onClick={() => setExpandedCalendarDays(prev => ({ ...prev, [dateStr]: true }))}
                             className="w-full text-center py-0.5 text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary rounded transition-all"
                           >
-                            +{dayTasks.length - 3} more
+                            +{dayTasks.length - 3} {t("common.more")}
                           </button>
                         )}
-                        {expandedCalendarDays[dateStr] && dayTasks.length > 3 && (
+                        {expanded && dayTasks.length > 3 && (
                           <button
                             onClick={() => setExpandedCalendarDays(prev => ({ ...prev, [dateStr]: false }))}
                             className="w-full text-center py-0.5 text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary rounded transition-all"
                           >
-                            Show less
+                            {t("common.showLess")}
                           </button>
                         )}
                       </div>
@@ -763,8 +873,10 @@ export default function AdminDashboard() {
                   tom.getMonth(),
                   tom.getDate(),
                 );
-                const todayT = calendarTasks[ts] || [];
-                const tomorrowT = calendarTasks[tms] || [];
+                const firstOfEachTitle = (tasks) =>
+                  groupSameTitle(tasks).map((group) => group.primary);
+                const todayT = firstOfEachTitle(calendarTasks[ts] || []);
+                const tomorrowT = firstOfEachTitle(calendarTasks[tms] || []);
                 if (todayT.length === 0 && tomorrowT.length === 0)
                   return (
                     <p className="text-sm text-[var(--text-secondary)]">
@@ -934,7 +1046,7 @@ export default function AdminDashboard() {
                             {t("admin.assignedBy")}:{" "}
                             {task.user_name || t("adminMisc.dashboard.system")}
                             {task.end_date
-                              ? ` · ${t("time.due")}: ${new Date(task.end_date).toLocaleDateString()}`
+                              ? ` · ${t("time.due")}: ${new Date(task.end_date).toLocaleDateString(lang)}`
                               : ""}
                           </p>
                         </div>
@@ -1101,7 +1213,7 @@ export default function AdminDashboard() {
             title={t("admin.programOperations")}
             subtitle={t("admin.sectionSubtitles.educationalPerformance")}
             icon={Briefcase}
-            color="bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+            color="bg-brand-orange/10 text-[var(--brand-orange)]"
             action={
               <button
                 onClick={() => router.push("/admin/programs")}
@@ -1111,7 +1223,7 @@ export default function AdminDashboard() {
               </button>
             }
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <StatCard
               title={t("admin.activePrograms")}
               value={stats.programs}
@@ -1140,7 +1252,7 @@ export default function AdminDashboard() {
             />
             <StatCard
               title={t("admin.projects")}
-              value={stats.projects || stats.totalProjects || "—"}
+              value={stats.projects ?? stats.totalProjects ?? 0}
               icon={Briefcase}
               color="text-purple-500"
               subtitle={t("admin.sectionSubtitles.activeInternalProjects")}
@@ -1165,7 +1277,7 @@ export default function AdminDashboard() {
                   activity.slice(0, 6).map((log, index) => (
                     <div
                       key={index}
-                      className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 transition-colors group"
+                      className="flex items-center gap-4 p-3 rounded-lg hover:bg-tertiary transition-colors group"
                     >
                       <div className="w-10 h-10 rounded-xl bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)] group-hover:border-[var(--brand-orange)]">
                         <Zap className="w-4 h-4" />
@@ -1176,16 +1288,18 @@ export default function AdminDashboard() {
                         </p>
                         <p className="text-[10px] text-[var(--text-secondary)] font-medium mt-0.5">
                           {log.user || t("adminMisc.dashboard.system")} ·{" "}
-                          {new Date(log.timestamp).toLocaleTimeString()}
+                          {new Date(log.timestamp).toLocaleTimeString(lang)}
                         </p>
                       </div>
                       <ChevronRight className="w-4 h-4 text-[var(--border-primary)]" />
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-[var(--text-secondary)] py-8 text-center">
-                    {t("common.noResults")}
-                  </p>
+                  <AppEmptyState
+                    size="sm"
+                    icon={Sparkles}
+                    title={t("reports.noActivity")}
+                  />
                 )}
               </div>
             </div>
@@ -1211,7 +1325,7 @@ export default function AdminDashboard() {
                     <div
                       key={program.id}
                       onClick={() => router.push(`/admin/programs/${program.id}`)}
-                      className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 transition-all cursor-pointer group border border-transparent hover:border-[var(--border-primary)]"
+                      className="flex items-center gap-4 p-3 rounded-lg hover:bg-tertiary transition-all cursor-pointer group border border-transparent hover:border-[var(--border-primary)]"
                     >
                       <div className="w-8 h-8 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)] group-hover:scale-110 transition-transform">
                         <Rocket className="w-4 h-4" />
@@ -1225,7 +1339,7 @@ export default function AdminDashboard() {
                             {programStatusLabel(program.status)}
                           </span>
                           <span className="text-[10px] font-medium text-[var(--text-secondary)] uppercase">
-                            {new Date(program.created_at).toLocaleDateString()}
+                            {new Date(program.created_at).toLocaleDateString(lang)}
                           </span>
                         </div>
                       </div>
@@ -1379,7 +1493,7 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <button
             onClick={() => router.push("/admin/work")}
-            className="card hover:border-[var(--brand-orange)]/30 transition-all text-left ring-1 ring-[var(--brand-orange)]/20"
+            className="card hover:border-brand-orange/30 transition-all text-left ring-1 ring-brand-orange/20"
           >
             <div className="flex items-center gap-3 mb-3">
               <LayoutGrid className="w-5 h-5 text-[var(--brand-orange)]" />
@@ -1393,7 +1507,7 @@ export default function AdminDashboard() {
           </button>
           <button
             onClick={() => router.push("/admin/tasks")}
-            className="card hover:border-[var(--brand-orange)]/30 transition-all text-left"
+            className="card hover:border-brand-orange/30 transition-all text-left"
           >
             <div className="flex items-center gap-3 mb-3">
               <ListTodo className="w-5 h-5 text-blue-500" />
@@ -1407,7 +1521,7 @@ export default function AdminDashboard() {
           </button>
           <button
             onClick={() => router.push("/admin/blockers")}
-            className="card hover:border-[var(--brand-orange)]/30 transition-all text-left"
+            className="card hover:border-brand-orange/30 transition-all text-left"
           >
             <div className="flex items-center gap-3 mb-3">
               <Shield className="w-5 h-5 text-rose-500" />
@@ -1421,7 +1535,7 @@ export default function AdminDashboard() {
           </button>
           <button
             onClick={() => router.push("/admin/projects")}
-            className="card hover:border-[var(--brand-orange)]/30 transition-all text-left"
+            className="card hover:border-brand-orange/30 transition-all text-left"
           >
             <div className="flex items-center gap-3 mb-3">
               <Briefcase className="w-5 h-5 text-emerald-500" />
@@ -1560,7 +1674,7 @@ export default function AdminDashboard() {
                         return (
                           <tr
                             key={staff.id}
-                            className="border-b border-[var(--border-primary)]/50 hover:bg-white/5 transition-colors"
+                            className="border-b border-divider/50 hover:bg-tertiary transition-colors"
                           >
                             <td className="p-4">
                               <div className="flex items-center gap-3">
@@ -1609,7 +1723,7 @@ export default function AdminDashboard() {
                             </td>
                             <td className="text-right p-4 text-[10px] font-medium text-[var(--text-secondary)]">
                               {staff.latest
-                                ? new Date(staff.latest).toLocaleDateString()
+                                ? new Date(staff.latest).toLocaleDateString(lang)
                                 : "—"}
                             </td>
                           </tr>
@@ -1820,7 +1934,7 @@ export default function AdminDashboard() {
           onClick={() => setSelectedTask(null)}
         >
           <div
-            className="card w-full max-w-lg space-y-5 border-[var(--brand-orange)]/30 max-h-[90vh] overflow-y-auto"
+            className="card w-full max-w-lg space-y-5 border-brand-orange/30 max-h-[90vh] overflow-y-auto"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex justify-between items-start">
@@ -1846,7 +1960,7 @@ export default function AdminDashboard() {
               </div>
               <button
                 onClick={() => setSelectedTask(null)}
-                className="p-1 hover:bg-white/5 rounded-lg"
+                className="p-1 hover:bg-tertiary rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1858,7 +1972,7 @@ export default function AdminDashboard() {
                     {t("time.start")}
                   </p>
                   <p className="text-sm font-bold text-[var(--text-primary)]">
-                    {new Date(selectedTask.start_date).toLocaleDateString()}
+                    {new Date(selectedTask.start_date).toLocaleDateString(lang)}
                   </p>
                 </div>
               )}
@@ -1868,7 +1982,7 @@ export default function AdminDashboard() {
                     {t("time.due")}
                   </p>
                   <p className="text-sm font-bold text-[var(--text-primary)]">
-                    {new Date(selectedTask.end_date).toLocaleDateString()}
+                    {new Date(selectedTask.end_date).toLocaleDateString(lang)}
                   </p>
                 </div>
               )}
@@ -1878,7 +1992,7 @@ export default function AdminDashboard() {
                 </p>
                 <p className="text-sm font-bold text-[var(--text-primary)]">
                   {selectedTask.created_at
-                    ? new Date(selectedTask.created_at).toLocaleDateString()
+                    ? new Date(selectedTask.created_at).toLocaleDateString(lang)
                     : "—"}
                 </p>
               </div>

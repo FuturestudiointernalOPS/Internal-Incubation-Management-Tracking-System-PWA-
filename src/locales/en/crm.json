@@ -457,6 +457,7 @@
       "startFollowUpList": "Start Follow-up List"
     },
     "roles": {
+      "member": "Member",
       "participant": "Participant",
       "staff": "Staff",
       "investor": "Investor",

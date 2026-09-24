@@ -114,7 +114,7 @@ export default function PermissionShell({ active, sub, onSubChange, children }) 
               key={item.key}
               href={item.href}
               aria-current={isActive ? "page" : undefined}
-              className={`px-4 py-3 text-[11px] font-bold uppercase tracking-widest border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 rounded-sm ${
+              className={`px-4 py-3 text-[11px] font-bold uppercase tracking-widest border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 rounded-sm ${
                 isActive
                   ? "border-[var(--brand-orange)] text-[var(--brand-orange)]"
                   : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -141,9 +141,9 @@ export default function PermissionShell({ active, sub, onSubChange, children }) 
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => onSubChange && onSubChange(tab.key)}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-widest border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 ${
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-widest border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 ${
                   isActive
-                    ? "border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                    ? "border-brand-orange/40 bg-brand-orange/10 text-[var(--brand-orange)]"
                     : "border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >

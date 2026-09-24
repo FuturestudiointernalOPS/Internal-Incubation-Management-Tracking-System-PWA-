@@ -19,7 +19,7 @@ import { useI18n } from "@/lib/i18n";
 const Section = ({ icon: Icon, title, count, children }) => (
   <section className="card">
     <div className="flex items-center gap-2 mb-3">
-      <div className="w-8 h-8 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center">
+      <div className="w-8 h-8 rounded-lg bg-brand-orange/10 flex items-center justify-center">
         <Icon className="w-4 h-4 text-[var(--brand-orange)]" />
       </div>
       <h2 className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-wide">
@@ -76,7 +76,7 @@ export default function VentureHistoryPage() {
 
       <div className="card">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-brand-orange/10 flex items-center justify-center">
             <History className="w-6 h-6 text-[var(--brand-orange)]" />
           </div>
           <div>

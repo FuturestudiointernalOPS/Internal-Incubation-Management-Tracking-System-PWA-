@@ -80,15 +80,68 @@ const PRIORITY_COLORS = {
 };
 
 const getEventStyle = (event) => {
-  // Completed tasks: muted green
+  // Completed: muted and struck through, so open work stands out
   if (event.status === "completed")
-    return "bg-emerald-500/10 text-emerald-400/70 line-through";
+    return "bg-[var(--surface-2)] text-[var(--text-tertiary)] line-through";
   if (event.status === "blocked") return "bg-rose-500/15 text-rose-400";
   // Tasks: color by priority
   if (event.source === "task" && event.priority && event.priority !== "medium") {
     return PRIORITY_COLORS[event.priority] || EVENT_BASE.task;
   }
   return EVENT_BASE[event.source] || "bg-secondary text-[var(--text-secondary)]";
+};
+
+// Display rules for one calendar day:
+//  1. Order = creation order. Task ids are serial, so a lower id was created
+//     first; tasks come first, then the other entries in the order received.
+//  2. The same task is shown ONCE. Two tasks with the same title on the same
+//     day (a carried-over copy next to the original…) are the same work, shown
+//     with the look of the most pressing copy (open work before finished).
+//     Only a different time of day keeps them apart; tasks have no time today
+//     (DATE columns), so the time only matters if one is ever provided.
+//     Sessions, deliverables and events are never merged.
+const STATUS_RANK = {
+  blocked: 0,
+  in_progress: 1,
+  pending: 2,
+  carried_over: 3,
+  completed: 4,
+};
+
+function creationOrder(first, second) {
+  const firstIsTask = first.source === "task";
+  const secondIsTask = second.source === "task";
+  if (firstIsTask !== secondIsTask) return firstIsTask ? -1 : 1;
+  if (!firstIsTask) return 0;
+  return (Number(first.related_id) || 0) - (Number(second.related_id) || 0);
+}
+
+function groupSameTitle(items) {
+  const groups = new Map();
+  for (const item of [...items].sort(creationOrder)) {
+    const key =
+      item.source === "task"
+        ? `task:${String(item.title || "").trim().toLowerCase()}:${item.time || ""}`
+        : `id:${item.id}`;
+    const group = groups.get(key);
+    if (!group) {
+      groups.set(key, { primary: item, items: [item] });
+      continue;
+    }
+    group.items.push(item);
+    const rank = STATUS_RANK[item.status] ?? 2;
+    if (rank < (STATUS_RANK[group.primary.status] ?? 2)) group.primary = item;
+  }
+  return [...groups.values()];
+}
+
+// Bar colour for the in-between days of a multi-day task (see the month grid).
+const getEventBar = (event) => {
+  if (event.status === "completed") return "bg-emerald-400 opacity-30";
+  if (event.status === "blocked") return "bg-rose-400 opacity-60";
+  if (event.priority === "critical") return "bg-red-400 opacity-60";
+  if (event.priority === "high") return "bg-amber-400 opacity-60";
+  return "bg-blue-400 opacity-60";
 };
 
 const EVENT_DOTS = {
@@ -466,7 +519,7 @@ export default function UnifiedDashboard({ role: propRole }) {
               onClick={refreshDashboard}
               className="px-6 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-wide"
             >
-              Retry
+              {t("common.retry")}
             </button>
           </div>
         </div>
@@ -478,6 +531,13 @@ export default function UnifiedDashboard({ role: propRole }) {
   const summary = data?.summary || {};
   const attention = data?.attention || {};
   const events = data?.calendar?.events || [];
+  // "<task id>:<date>" for every day a task appears on, to tell the in-between
+  // days of a multi-day task from its first day.
+  const taskDays = new Set(
+    events
+      .filter((event) => event.source === "task")
+      .map((event) => `${event.related_id}:${event.date}`),
+  );
   const quickAccess = data?.quickAccess || {};
   const assignments = data?.assignments || [];
   const activity = data?.activity || [];
@@ -493,11 +553,11 @@ export default function UnifiedDashboard({ role: propRole }) {
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                Dashboard
+                {t("navigation.dashboard")}
               </span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-black text-[var(--text-primary)] tracking-tighter uppercase">
-              {user?.name || "Loading"}
+            <h1 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)] tracking-tight">
+              {user?.name || t("common.loading")}
               <span className="text-[var(--text-secondary)] opacity-30 text-2xl ml-2">
                 · {effectiveRole?.replace(/_/g, " ") || ""}
               </span>
@@ -574,16 +634,27 @@ export default function UnifiedDashboard({ role: propRole }) {
                   );
                 const dateStr = formatDate(calYear, calMonth, day);
                 const dayEvents = events.filter((event) => event.date === dateStr);
+                const dayGroups = groupSameTitle(dayEvents);
                 const current = isToday(new Date(calYear, calMonth, day));
                 const past =
                   new Date(calYear, calMonth, day) <
                   new Date(new Date().toDateString());
+                const isWeekStart =
+                  day === 1 || new Date(calYear, calMonth, day).getDay() === 0;
+                const previousDay = new Date(calYear, calMonth, day - 1);
+                const previousDateStr = formatDate(
+                  previousDay.getFullYear(),
+                  previousDay.getMonth(),
+                  previousDay.getDate(),
+                );
                 return (
                   <div
                     key={dateStr}
                     className={cn(
-                      "bg-primary p-1 min-h-[55px] transition-all",
-                      current && "ring-1 ring-[var(--brand-orange)]/40",
+                      "p-1 min-h-[55px] transition-all",
+                      current
+                        ? "bg-[var(--surface-1)] ring-2 ring-inset ring-brand-orange/60"
+                        : "bg-primary",
                       past && "opacity-50",
                     )}
                   >
@@ -592,22 +663,31 @@ export default function UnifiedDashboard({ role: propRole }) {
                         className={cn(
                           "text-[10px] font-bold",
                           current
-                            ? "text-[var(--brand-orange)]"
+                            ? "min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--brand-orange)] text-white flex items-center justify-center"
                             : "text-[var(--text-secondary)]",
                         )}
                       >
                         {day}
                       </span>
-                      {dayEvents.length > 0 && (
-                        <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                          {dayEvents.length}
+                      {dayGroups.length > 0 && (
+                        <span className="text-[10px] font-bold text-[var(--text-tertiary)]">
+                          {dayGroups.length}
                         </span>
                       )}
                     </div>
                     <div className="space-y-0.5 mt-0.5 max-h-[90px] overflow-y-auto custom-scrollbar">
-                      {dayEvents.map((event) => (
+                      {dayGroups.map(({ primary: event }) => {
+                        // In-between day of a multi-day task: a thin bar, the
+                        // title only repeated at the start of each week row.
+                        const isMiddle =
+                          event.source === "task" &&
+                          event.type === "task_active" &&
+                          taskDays.has(`${event.related_id}:${previousDateStr}`);
+                        return (
                         <button
                           key={event.id}
+                          title={event.title}
+                          aria-label={isMiddle && !isWeekStart ? event.title : undefined}
                           onClick={() => {
                             if (event.source === "task" && event.id) {
                               const taskId = String(event.id).startsWith("task-")
@@ -623,14 +703,22 @@ export default function UnifiedDashboard({ role: propRole }) {
                               setSelectedEvent(event);
                             }
                           }}
-                          className={cn(
-                            "w-full text-left px-1 py-0.5 rounded text-[10px] font-bold truncate leading-tight hover:brightness-110 transition-all",
-                            getEventStyle(event),
-                          )}
+                          className={
+                            isMiddle && !isWeekStart
+                              ? cn(
+                                  "block w-full h-1.5 my-1 rounded-full hover:opacity-100 transition-all",
+                                  getEventBar(event),
+                                )
+                              : cn(
+                                  "w-full text-left px-1 py-0.5 rounded text-[10px] font-semibold truncate leading-tight hover:brightness-110 transition-all",
+                                  getEventStyle(event),
+                                )
+                          }
                         >
-                          {event.title}
+                          {isMiddle && !isWeekStart ? null : event.title}
                         </button>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -662,7 +750,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                       className={cn(
                         "flex items-start gap-3 p-2 rounded-lg",
                         current
-                          ? "bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/20"
+                          ? "bg-brand-orange/5 border border-brand-orange/20"
                           : "hover:bg-tertiary",
                       )}
                     >
@@ -718,7 +806,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                 return (
                   <>
                     <p className="text-[11px] font-bold text-[var(--text-primary)] mb-2">
-                      {today.toLocaleDateString("en-US", {
+                      {today.toLocaleDateString(lang, {
                         weekday: "long",
                         month: "long",
                         day: "numeric",
@@ -818,7 +906,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                       <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                         {t("dashboard.assignedBy", "Assigné par:")} {task.user_name || "System"}
                         {task.end_date
-                          ? ` \u00B7 ${t("common.due", "Échéance:")} ${new Date(task.end_date).toLocaleDateString()}`
+                          ? ` \u00B7 ${t("common.due", "Échéance:")} ${new Date(task.end_date).toLocaleDateString(lang)}`
                           : ""}
                       </p>
                     </div>
@@ -924,7 +1012,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                       )}
                       <span className="text-[10px] font-medium text-[var(--text-secondary)] shrink-0">
                         {task.due_date
-                          ? new Date(task.due_date).toLocaleDateString()
+                          ? new Date(task.due_date).toLocaleDateString(lang)
                           : ""}
                       </span>
                     </div>
@@ -1195,10 +1283,10 @@ export default function UnifiedDashboard({ role: propRole }) {
                     <div
                       key={program.id}
                       onClick={() => router.push(`/facilitator/program/${program.id}`)}
-                      className="p-4 rounded-xl bg-primary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/40 transition-all cursor-pointer group"
+                      className="p-4 rounded-xl bg-primary border border-[var(--border-primary)] hover:border-brand-orange/40 transition-all cursor-pointer group"
                     >
                       <div className="flex items-center gap-2 mb-2">
-                        <div className="w-7 h-7 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                        <div className="w-7 h-7 rounded-lg bg-brand-orange/10 flex items-center justify-center">
                           <Users className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
                         </div>
                         <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)]">
@@ -1346,7 +1434,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                       </div>
                       <span className="text-[10px] font-medium text-[var(--text-secondary)] shrink-0">
                         {activityEntry.timestamp
-                          ? new Date(activityEntry.timestamp).toLocaleDateString()
+                          ? new Date(activityEntry.timestamp).toLocaleDateString(lang)
                           : ""}
                       </span>
                     </div>
@@ -1730,7 +1818,7 @@ function OperationsSection({ userId, summary }) {
     <div className="card !p-4 border-l-4 border-l-[var(--brand-orange)] space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-lg bg-brand-orange/10 flex items-center justify-center">
             <Activity className="w-5 h-5 text-[var(--brand-orange)]" />
           </div>
           <div>
@@ -1758,7 +1846,7 @@ function OperationsSection({ userId, summary }) {
         {/* Standup status */}
         <button
           onClick={() => router.push("/staff/op-report?tab=standup")}
-          className="w-full flex items-center justify-between gap-2 p-3 cursor-pointer hover:bg-white/[0.03] transition-all text-left"
+          className="w-full flex items-center justify-between gap-2 p-3 cursor-pointer hover:bg-tertiary transition-all text-left"
         >
           <div className="flex items-center gap-2 min-w-0">
             <Calendar className="w-4 h-4 text-[var(--brand-orange)] shrink-0" />
@@ -1787,7 +1875,7 @@ function OperationsSection({ userId, summary }) {
         {/* Retro status */}
         <button
           onClick={() => router.push("/staff/op-report?tab=retro")}
-          className="w-full flex items-center justify-between gap-2 p-3 cursor-pointer hover:bg-white/[0.03] transition-all text-left"
+          className="w-full flex items-center justify-between gap-2 p-3 cursor-pointer hover:bg-tertiary transition-all text-left"
         >
           <div className="flex items-center gap-2 min-w-0">
             <Trophy className="w-4 h-4 text-purple-400 shrink-0" />

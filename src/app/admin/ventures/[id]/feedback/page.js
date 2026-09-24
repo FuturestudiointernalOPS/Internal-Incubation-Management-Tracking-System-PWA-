@@ -177,7 +177,7 @@ export default function VentureFeedbackPage() {
                   {coachAnalytics.slice(0, 5).map((coach) => (
                     <div key={coach.coach_id} className="flex items-center justify-between p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[10px] font-black text-[var(--brand-orange)]">{coach.full_name?.charAt(0)}</div>
+                        <div className="w-8 h-8 rounded-full bg-brand-orange/10 flex items-center justify-center text-[10px] font-black text-[var(--brand-orange)]">{coach.full_name?.charAt(0)}</div>
                         <div>
                           <p className="text-[10px] font-bold text-[var(--text-primary)]">{coach.full_name}</p>
                           <div className="flex items-center gap-2 text-[8px] text-slate-500">
@@ -203,7 +203,7 @@ export default function VentureFeedbackPage() {
                 <div key={coach.coach_id} className="p-5 rounded-2xl bg-tertiary border border-[var(--border-primary)]">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-sm font-black text-[var(--brand-orange)]">{coach.full_name?.charAt(0)}</div>
+                      <div className="w-10 h-10 rounded-full bg-brand-orange/10 flex items-center justify-center text-sm font-black text-[var(--brand-orange)]">{coach.full_name?.charAt(0)}</div>
                       <div>
                         <p className="text-sm font-bold text-[var(--text-primary)]">{coach.full_name}</p>
                         <p className="text-[8px] text-slate-500">{coach.organization||""}</p>

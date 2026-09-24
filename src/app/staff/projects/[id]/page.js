@@ -637,7 +637,7 @@ export default function StaffProjectDetail() {
                     )}
                   </div>
                   <span
-                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${member.member_role === "lead" ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "bg-slate-500/10 text-slate-500"}`}
+                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${member.member_role === "lead" ? "bg-brand-orange/10 text-[var(--brand-orange)]" : "bg-slate-500/10 text-slate-500"}`}
                   >
                     {t(
                       MEMBER_ROLE_LABELS[member.member_role] ||

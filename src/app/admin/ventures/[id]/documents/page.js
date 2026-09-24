@@ -186,9 +186,9 @@ export default function VentureDataRoomPage() {
         {/* Categories + Search */}
         <div className="flex gap-3">
           <div className="flex gap-1 overflow-x-auto pb-1">
-            <button onClick={() => setActiveCategory("")} className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${!activeCategory ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "bg-tertiary text-[var(--text-secondary)] hover:bg-white/5"}`}>All</button>
+            <button onClick={() => setActiveCategory("")} className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${!activeCategory ? "bg-brand-orange/10 text-[var(--brand-orange)]" : "bg-tertiary text-[var(--text-secondary)] hover:bg-white/5"}`}>All</button>
             {CATEGORIES.map((category) => (
-              <button key={category.value} onClick={() => setActiveCategory(category.value)} className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${activeCategory===category.value ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "bg-tertiary text-[var(--text-secondary)] hover:bg-white/5"}`}>{category.label}</button>
+              <button key={category.value} onClick={() => setActiveCategory(category.value)} className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${activeCategory===category.value ? "bg-brand-orange/10 text-[var(--brand-orange)]" : "bg-tertiary text-[var(--text-secondary)] hover:bg-white/5"}`}>{category.label}</button>
             ))}
           </div>
           <div className="relative flex-1 max-w-xs ml-auto">
@@ -203,9 +203,9 @@ export default function VentureDataRoomPage() {
             <div className="col-span-full text-center py-16"><FileText className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-[var(--text-secondary)]">No documents</p></div>
           ) : (
             filtered.map((documentEntry) => (
-              <div key={documentEntry.id} onClick={() => loadDetail(documentEntry.id)} className="p-4 rounded-2xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all">
+              <div key={documentEntry.id} onClick={() => loadDetail(documentEntry.id)} className="p-4 rounded-2xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-brand-orange/30 transition-all">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[var(--brand-orange)]/10 flex items-center justify-center shrink-0"><FileText className="w-5 h-5 text-[var(--brand-orange)]" /></div>
+                  <div className="w-10 h-10 rounded-xl bg-brand-orange/10 flex items-center justify-center shrink-0"><FileText className="w-5 h-5 text-[var(--brand-orange)]" /></div>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold text-[var(--text-primary)] truncate">{documentEntry.title}</p>
                     <p className="text-[10px] text-[var(--text-secondary)] mt-0.5 capitalize">{documentEntry.category?.replace(/_/g, " ")}</p>
@@ -287,7 +287,7 @@ export default function VentureDataRoomPage() {
 
               {/* Actions */}
               <div className="flex gap-2">
-                <a href={selectedDoc.file_url} target="_blank" className="flex-1 py-2.5 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 flex items-center justify-center gap-1.5" rel="noreferrer"><Eye className="w-3 h-3" /> View</a>
+                <a href={selectedDoc.file_url} target="_blank" className="flex-1 py-2.5 bg-brand-orange/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 flex items-center justify-center gap-1.5" rel="noreferrer"><Eye className="w-3 h-3" /> View</a>
                 <button onClick={() => { setShowShareModal(true); }} className="flex-1 py-2.5 bg-blue-500/10 text-blue-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 flex items-center justify-center gap-1.5"><Share2 className="w-3 h-3" /> Share</button>
                 <button onClick={() => handleDelete(selectedDoc.id)} className="flex-1 py-2.5 bg-rose-500/10 text-rose-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 flex items-center justify-center gap-1.5"><Trash2 className="w-3 h-3" /> Delete</button>
               </div>
