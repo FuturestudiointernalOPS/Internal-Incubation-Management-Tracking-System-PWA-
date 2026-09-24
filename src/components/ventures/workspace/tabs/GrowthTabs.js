@@ -1,8 +1,101 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { Gauge, X, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useVenture } from "../VentureContext";
+import { useDialogs } from "@/components/ui/DialogProvider";
+
+/* Create KPI Definition Modal */
+function CreateKpiDefinitionModal() {
+  const { t } = useI18n();
+  const { showAddKpiDefinition, setShowAddKpiDefinition, editingKpiDef, setEditingKpiDef, kpiDefForm, setKpiDefForm, fetchKpiDefinitions, fetchKpis, inputStyle } = useVenture();
+  if (!showAddKpiDefinition) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgb(0 0 0 / 0.6)' }} onClick={() => setShowAddKpiDefinition(false)}>
+      <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{ backgroundColor: '#0f172a', borderColor: 'rgb(255 255 255 / 0.1)', color: 'var(--text-primary)' }} onClick={event => event.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{editingKpiDef ? t('venture.edit') : t('venture.create')} KPI</h2><button onClick={() => { setShowAddKpiDefinition(false); setEditingKpiDef(null); setKpiDefForm({}); }} style={{ color: 'var(--text-secondary)' }}><X size={20} /></button></div>
+        <form onSubmit={async event => { event.preventDefault(); const method = editingKpiDef ? 'PATCH' : 'POST'; const url = editingKpiDef ? '/api/venture-kpi-definitions' : '/api/venture-kpi-definitions'; const body = editingKpiDef ? { ...kpiDefForm, id: editingKpiDef.id } : kpiDefForm; await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); setShowAddKpiDefinition(false); setEditingKpiDef(null); setKpiDefForm({}); fetchKpiDefinitions(); fetchKpis(); }} className="space-y-3">
+          <input placeholder="KPI Name" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={kpiDefForm.name || ''} onChange={event => setKpiDefForm({ ...kpiDefForm, name: event.target.value })} required />
+          <textarea placeholder={t('venture.description')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={kpiDefForm.description || ''} onChange={event => setKpiDefForm({ ...kpiDefForm, description: event.target.value })} />
+          <input placeholder={t('venture.unit')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={kpiDefForm.unit || ''} onChange={event => setKpiDefForm({ ...kpiDefForm, unit: event.target.value })} />
+          <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={kpiDefForm.auto_calc_source || ''} onChange={event => setKpiDefForm({ ...kpiDefForm, auto_calc_source: event.target.value })}>
+            <option value="">{t('venture.manualEntry')}</option>
+            <option value="customer_interviews">{t('venture.autoCalculated')} — Customer Interviews</option>
+            <option value="milestones">{t('venture.autoCalculated')} — Milestones</option>
+            <option value="tasks">{t('venture.autoCalculated')} — Tasks</option>
+          </select>
+          <button type="submit" className="w-full py-2 rounded-lg text-white" style={{ backgroundColor: 'var(--brand-orange)' }}>{t('venture.save')}</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* Assign KPI Modal */
+function AssignKpiModal() {
+  const { t } = useI18n();
+  const { showAddKpi, setShowAddKpi, params, kpiForm, setKpiForm, kpiDefinitions, fetchKpis, notifyMsg, inputStyle } = useVenture();
+  if (!showAddKpi) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgb(0 0 0 / 0.6)' }} onClick={() => setShowAddKpi(false)}>
+      <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{ backgroundColor: '#0f172a', borderColor: 'rgb(255 255 255 / 0.1)', color: 'var(--text-primary)' }} onClick={event => event.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.assignKpi')}</h2><button onClick={() => setShowAddKpi(false)} style={{ color: 'var(--text-secondary)' }}><X size={20} /></button></div>
+        <form onSubmit={async event => { event.preventDefault(); const res = await fetch(`/api/ventures/${params.id}/kpis`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(kpiForm) }); const payload = await res.json(); if (!payload.success) notifyMsg(t(payload.error || "") || payload.error); setShowAddKpi(false); setKpiForm({}); fetchKpis(); }} className="space-y-3">
+          <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={kpiForm.kpi_definition_id || ''} onChange={event => setKpiForm({ ...kpiForm, kpi_definition_id: event.target.value })} required>
+            <option value="">{t('venture.kpis')}</option>
+            {kpiDefinitions.map(definition => <option key={definition.id} value={definition.id}>{definition.name}</option>)}
+          </select>
+          <input type="number" placeholder={t('venture.target')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={kpiForm.target_value || ''} onChange={event => setKpiForm({ ...kpiForm, target_value: event.target.value })} />
+          <button type="submit" className="w-full py-2 rounded-lg text-white" style={{ backgroundColor: 'var(--brand-orange)' }}>{t('venture.save')}</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* Coaching Tab — founder-facing (scheduling only). Sessions show who, when,
+   where and the follow-up date so founders know what is next. Facilitator
+   notes/observations/recommendations and staff review actions are
+   intentionally not rendered for founders. */
+
+/* KPIs Tab */
+export function KpisTab() {
+  const { t } = useI18n();
+  const { prompt } = useDialogs();
+  const { kpis, kpiDefinitions, setShowAddKpiDefinition, setShowAddKpi, setKpiDefForm, setEditingKpiDef, handleUpdateKpi, cardStyle } = useVenture();
+  return (
+    <>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between"><h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.kpis')} ({kpis.length})</h2>
+          <div className="flex gap-2">
+            <button onClick={() => setShowAddKpiDefinition(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm" style={{ color: 'var(--text-secondary)', border: '1px solid rgb(255 255 255 / 0.15)' }}><Gauge size={16} /> {t('venture.create')}</button>
+            <button onClick={() => setShowAddKpi(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{ backgroundColor: 'var(--brand-orange)' }}><Gauge size={16} /> {t('venture.assignKpi')}</button>
+          </div>
+        </div>
+        {kpis.length === 0 ? (<div className="rounded-xl p-6 border text-center" style={{ ...cardStyle, color: 'var(--text-secondary)' }}>{t('venture.noEvents')}</div>) :
+          kpis.map(kpi => (
+            <div key={kpi.id} className="rounded-xl p-4 border" style={cardStyle}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <p className="font-medium">{kpi.name}</p>
+                  <button onClick={() => { const kpiDefinition = kpiDefinitions.find(entry => entry.id === kpi.kpi_definition_id); if (kpiDefinition) { setKpiDefForm(kpiDefinition); setEditingKpiDef(kpiDefinition); setShowAddKpiDefinition(true); } }} className="text-xs px-2 py-0.5 rounded" style={{ color: 'var(--brand-orange)', border: '1px solid var(--brand-orange)' }}>{t('venture.edit')}</button>
+                </div>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-white/10">{kpi.auto_calc_source ? t('venture.autoCalculated') : t('venture.manualEntry')}</span>
+              </div>
+              <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>{t('venture.current')}: {kpi.current_value ?? 0}{kpi.target_value && ` / ${t('venture.target')}: ${kpi.target_value}`} {kpi.unit}</p>
+              {!kpi.auto_calc_source && (
+                <button onClick={async () => { const newValue = await prompt({ message: t('venture.updateValue'), defaultValue: kpi.current_value || 0, required: false }); if (newValue !== null) handleUpdateKpi(kpi.id, parseFloat(newValue) || 0); }}
+                  className="text-xs px-3 py-1 mt-2 rounded-lg" style={{ color: 'var(--text-secondary)', border: '1px solid rgb(255 255 255 / 0.15)' }}>{t('venture.updateValue')}</button>
+              )}
+            </div>
+          ))
+        }
+      </div>
+      <CreateKpiDefinitionModal />
+      <AssignKpiModal />
+    </>
+  );
+}
 
 /* Investment Readiness Tab */
 export function InvestmentTab() {

@@ -3,7 +3,7 @@
 import { Save, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useVenture } from "../VentureContext";
-import { STAGES, INDUSTRY_FALLBACK } from "../ventureMeta";
+import { STAGES, INDUSTRY_FALLBACK, VISIBILITIES } from "../ventureMeta";
 import CountrySelect from "@/components/ventures/CountrySelect";
 import { countryName } from "@/lib/countries";
 
@@ -113,6 +113,47 @@ export function ProfileTab() {
               {t("venture.socialPasteUrl") || "Paste the full link to your page — no @username needed."}
             </p>
           </div>
+        </div>
+      </div>
+      <div className="flex justify-end pt-4 border-t" style={{ borderColor: "rgb(255 255 255 / 0.1)" }}>
+        <button type="submit" disabled={saving}
+          className="flex items-center gap-2 px-6 py-2 rounded-lg text-white disabled:opacity-50 transition-colors"
+          style={{ backgroundColor: "var(--brand-orange)" }}>
+          {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+          {saving ? t("venture.saving") : t("venture.save")}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/* Settings Tab */
+export function SettingsTab() {
+  const { t } = useI18n();
+  const { form, setForm, saving, handleSave, inputStyle, cardStyle } = useVenture();
+  return (
+    <form onSubmit={handleSave} className="space-y-6">
+      <div className="rounded-xl p-6 space-y-4 border" style={cardStyle}>
+        <div>
+          <label className="block text-sm font-medium mb-1">{t("venture.status")}</label>
+          <p className="text-xs mb-2" style={{ color: "var(--text-secondary)" }}>{t("venture.statusManagedByStaff") || "Status is managed by Future Studio staff."}</p>
+          <span className="inline-block text-xs px-2.5 py-1 rounded-full font-medium" style={{ backgroundColor: "rgb(255 255 255 / 0.06)", border: "1px solid rgb(255 255 255 / 0.12)" }}>
+            {t(`venture.statuses.${form.status}`) || form.status}
+          </span>
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">{t("venture.visibility")}</label>
+          <select value={form.visibility} onChange={event => setForm({...form, visibility: event.target.value})}
+            className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle}>
+            {VISIBILITIES.map(visibility => <option key={visibility} value={visibility}>{t(`venture.visibilityOptions.${visibility}`)}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">{t("venture.language")}</label>
+          <select value={form.language} onChange={event => setForm({...form, language: event.target.value})}
+            className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle}>
+            <option value="en">English</option><option value="fr">Français</option>
+          </select>
         </div>
       </div>
       <div className="flex justify-end pt-4 border-t" style={{ borderColor: "rgb(255 255 255 / 0.1)" }}>
