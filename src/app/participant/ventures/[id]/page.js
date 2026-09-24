@@ -9,18 +9,18 @@ import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import { VentureWorkspace } from "@/components/ventures/workspace/VentureContext";
-import { ProfileTab, SettingsTab } from "@/components/ventures/workspace/tabs/ProfileSettingsTabs";
+import { ProfileTab } from "@/components/ventures/workspace/tabs/ProfileSettingsTabs";
 import { TeamTab } from "@/components/ventures/workspace/tabs/MembersTabs";
 import { DashboardTab } from "@/components/ventures/workspace/tabs/DashboardHistoryTabs";
 import { JourneyTab, BusinessModelTab } from "@/components/ventures/workspace/tabs/JourneyPlaybookTabs";
 import { DiscoveryTab, ValidationTab, PmfTab } from "@/components/ventures/workspace/tabs/LeanStartupTabs";
 import { DocumentsTab } from "@/components/ventures/workspace/tabs/DocumentsTabs";
-import { KpisTab, InvestmentTab } from "@/components/ventures/workspace/tabs/GrowthTabs";
+import { InvestmentTab } from "@/components/ventures/workspace/tabs/GrowthTabs";
 import { VerificationTab } from "@/components/ventures/workspace/tabs/VerificationTab";
 
 const TABS = [
-  "dashboard", "journey", "kpis", "investment", "verification",
-  "profile", "team", "settings",
+  "dashboard", "journey", "investment", "verification",
+  "profile", "team",
 ];
 
 // Secondary Venture tools that live inside Journey. They stay reachable from
@@ -77,8 +77,6 @@ const pickMilestones = pickList("milestones");
 const pickCalendar = pickList("events");
 const pickProgress = pickThing("progress");
 const pickDocuments = pickList("documents");
-const pickKpis = pickList("kpis");
-const pickKpiDefinitions = pickList("kpi_definitions");
 const pickJourney = pickList("stages");
 const pickInvestmentReadiness = (payload) =>
   payload?.success
@@ -113,7 +111,7 @@ export default function VentureDetail() {
   const [showAddAction, setShowAddAction] = useState(false);
   const [interviewForm, setInterviewForm] = useState({});
   const [validationForm, setValidationForm] = useState({ type: 'problem' });
-  const [pmfForm, setPmfForm] = useState({});
+  const [pmfForm, setPmfForm] = useState({}); 
   const [milestoneForm, setMilestoneForm] = useState({});
   const [actionForm, setActionForm] = useState({});
 
@@ -155,15 +153,10 @@ export default function VentureDetail() {
   const [coachingSessions, setCoachingSessions] = useState([]);
   const [showAddAdvisor, setShowAddAdvisor] = useState(false);
   const [showAddCoaching, setShowAddCoaching] = useState(false);
-  const [showAddKpi, setShowAddKpi] = useState(false);
-  const [showAddKpiDefinition, setShowAddKpiDefinition] = useState(false);
-  const [editingKpiDef, setEditingKpiDef] = useState(null);
   const [showEditCoaching, setShowEditCoaching] = useState(false);
   const [editingCoaching, setEditingCoaching] = useState(null);
   const [advisorForm, setAdvisorForm] = useState({});
   const [coachingForm, setCoachingForm] = useState({});
-  const [kpiForm, setKpiForm] = useState({});
-  const [kpiDefForm, setKpiDefForm] = useState({});
   const [documentSearch, setDocumentSearch] = useState('');
   const [documentCategory, setDocumentCategory] = useState('');
 
@@ -367,14 +360,6 @@ export default function VentureDetail() {
       const response = await fetch(url); const data = await response.json(); if (data.success) cacheSet(url, data); apply(data);
     } catch{}
   }
-  const { data: kpis, refresh: fetchKpis } = useApi(
-    ready && activeTab === "kpis" ? `/api/ventures/${params.id}/kpis` : null,
-    { defaultValue: [], transform: pickKpis },
-  );
-  const { data: kpiDefinitions, refresh: fetchKpiDefinitions } = useApi(
-    ready && activeTab === "kpis" ? `/api/venture-kpi-definitions` : null,
-    { defaultValue: [], transform: pickKpiDefinitions },
-  );
   async function handleResolveBlocker(blockerId) {
     await fetch(`/api/ventures/${params.id}/blockers`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ blocker_id: blockerId, action: "resolve" }) });
     fetchBlockers(true);
@@ -455,11 +440,6 @@ export default function VentureDetail() {
     defaultValue: {},
     transform: pickOptionLists,
   });
-
-  async function handleUpdateKpi(assignmentId, current_value) {
-    await fetch(`/api/ventures/${params.id}/kpis`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: assignmentId, current_value }) });
-    fetchKpis(true);
-  }
 
   async function handleSave(event) {
     event.preventDefault();
@@ -584,7 +564,7 @@ export default function VentureDetail() {
     form, setForm, saving, members, dashboardData, historyData,
     bmData, setBmData, interviews, validations, assessments, milestones,
     actionPlans, tasks, standups, retros, blockers, calendarEvents,
-    progressData, documents, advisors, coachingSessions, kpis, kpiDefinitions,
+    progressData, documents, advisors, coachingSessions,
     journeyStages, playbookEntries, investmentReadiness,
     currentWeekStandup, currentWeekRetro, currentWeekNum, currentWeekYear,
     showAddInterview, setShowAddInterview,
@@ -599,28 +579,25 @@ export default function VentureDetail() {
     showAddDocument, setShowAddDocument,
     showAddAdvisor, setShowAddAdvisor,
     showAddCoaching, setShowAddCoaching,
-    showAddKpi, setShowAddKpi,
-    showAddKpiDefinition, setShowAddKpiDefinition,
     showAddMember, setShowAddMember,
     showVersions, setShowVersions, versionsDoc, setVersionsDoc, versions, setVersions,
     showReview, setShowReview, reviewDoc, setReviewDoc, reviewComment, setReviewComment, reviews, setReviews,
     showPermissions, setShowPermissions, permissionsDoc, setPermissionsDoc, permissions, setPermissions,
-    editingKpiDef, setEditingKpiDef, showEditCoaching, setShowEditCoaching, editingCoaching, setEditingCoaching,
+    showEditCoaching, setShowEditCoaching, editingCoaching, setEditingCoaching,
     addMemberType, setAddMemberType, inviteEmail, setInviteEmail, inviting, removeConfirm, setRemoveConfirm,
     invitations, handleInviteMember, handleRevokeInvitation,
     interviewForm, setInterviewForm, validationForm, setValidationForm, pmfForm, setPmfForm,
     milestoneForm, setMilestoneForm, actionForm, setActionForm, taskForm, setTaskForm,
     standupForm, setStandupForm, retroForm, setRetroForm, blockerForm, setBlockerForm,
     documentForm, setDocumentForm, advisorForm, setAdvisorForm, coachingForm, setCoachingForm,
-    kpiForm, setKpiForm, kpiDefForm, setKpiDefForm, documentSearch, setDocumentSearch, documentCategory, setDocumentCategory,
+    documentSearch, setDocumentSearch, documentCategory, setDocumentCategory,
     loadMembers, handleSave, handleUpdateMemberRole, handleRemoveMember,
     handleTaskStatusChange, handleResolveBlocker, handleMakePrimaryAdvisor, handleRemoveAdvisor,
     handleDocumentTransition, handleDocumentUpdate, handleDocumentDelete, handleVersionRestore,
     handleReview, handleSubmitReview, handlePermissions, handleSavePermission,
-    handleUpdateKpi,
     fetchBm, fetchInterviews, fetchValidations, fetchPmf, fetchMilestones, fetchActionPlans,
     fetchTasks, fetchStandups, fetchRetros, fetchBlockers, fetchCalendar, fetchProgress,
-    fetchDocuments, fetchAdvisors, fetchCoaching, fetchKpis, fetchKpiDefinitions,
+    fetchDocuments, fetchAdvisors, fetchCoaching,
     fetchJourney, fetchPlaybook, fetchInvestmentReadiness,
   };
 
@@ -713,12 +690,10 @@ export default function VentureDetail() {
             )}
           </div>
         )}
-        {activeTab === "kpis" && <KpisTab />}
         {activeTab === "investment" && <InvestmentTab />}
         {activeTab === "verification" && <VerificationTab />}
         {activeTab === "profile" && <ProfileTab />}
         {activeTab === "team" && <TeamTab />}
-        {activeTab === "settings" && <SettingsTab />}
 
       </div>
     </VentureWorkspace.Provider>
