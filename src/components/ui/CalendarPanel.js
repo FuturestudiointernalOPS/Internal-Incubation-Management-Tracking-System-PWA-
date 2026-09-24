@@ -78,7 +78,7 @@ export default function CalendarPanel({
   onEventClick,
   compact = false,
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const now = useMemo(() => new Date(), []);
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
@@ -136,7 +136,7 @@ export default function CalendarPanel({
         <div className="flex items-center justify-between mb-3">
           <button
             onClick={handlePrev}
-            className="p-1 rounded hover:bg-white/5 transition-all"
+            className="p-1 rounded hover:bg-tertiary transition-all"
           >
             <ChevronLeft
               className={`${compact ? "w-3 h-3" : "w-3.5 h-3.5"} text-slate-400`}
@@ -144,7 +144,7 @@ export default function CalendarPanel({
           </button>
           <div className="flex items-center gap-2">
             <Calendar
-              className={`${compact ? "w-3 h-3" : "w-3.5 h-3.5"} text-[#FF6600]`}
+              className={`${compact ? "w-3 h-3" : "w-3.5 h-3.5"} text-[var(--brand-orange)]`}
             />
             <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
               {t("time.months." + MONTH_KEYS[month])} {year}
@@ -153,13 +153,13 @@ export default function CalendarPanel({
           <div className="flex items-center gap-1">
             <button
               onClick={handleToday}
-              className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-white/5 transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]`}
+              className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]`}
             >
               {t("time.today")}
             </button>
             <button
               onClick={handleNext}
-              className="p-1 rounded hover:bg-white/5 transition-all"
+              className="p-1 rounded hover:bg-tertiary transition-all"
             >
               <ChevronRight
                 className={`${compact ? "w-3 h-3" : "w-3.5 h-3.5"} text-slate-400`}
@@ -195,10 +195,10 @@ export default function CalendarPanel({
                 className={cn(
                   `${daySize} flex flex-col items-center justify-center rounded-lg font-bold transition-all cursor-pointer`,
                   today
-                    ? "bg-[#FF6600] text-white shadow-lg shadow-[#FF6600]/30"
+                    ? "bg-[var(--brand-orange)] text-white shadow-lg shadow-brand-orange/30"
                     : hasEvents
-                      ? "bg-[#FF6600]/15 text-[#FF6600] border border-[#FF6600]/20 hover:bg-[#FF6600]/25"
-                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5",
+                      ? "bg-brand-orange/15 text-[var(--brand-orange)] border border-brand-orange/20 hover:bg-brand-orange/25"
+                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary",
                 )}
               >
                 <span className="text-[10px] font-bold leading-none">
@@ -206,7 +206,7 @@ export default function CalendarPanel({
                 </span>
                 {hasEvents && (
                   <span
-                    className={`${compact ? "w-1 h-1 mt-0.5" : "w-1.5 h-1.5 mt-1"} rounded-full bg-[#FF6600]`}
+                    className={`${compact ? "w-1 h-1 mt-0.5" : "w-1.5 h-1.5 mt-1"} rounded-full bg-[var(--brand-orange)]`}
                   />
                 )}
               </div>
@@ -221,7 +221,7 @@ export default function CalendarPanel({
               <div
                 key={event.id}
                 onClick={() => onEventClick?.(event)}
-                className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white/5 transition-all cursor-pointer group"
+                className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-tertiary transition-all cursor-pointer group"
               >
                 <div
                   className={`w-1.5 h-1.5 rounded-full shrink-0 ${EVENT_DOTS[event.source] || "bg-slate-400"}`}
@@ -261,10 +261,10 @@ export default function CalendarPanel({
             {/* Header */}
             <div className="flex items-center justify-between p-5 pb-0">
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-[#FF6600]" />
+                <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
                 <h3 className="text-lg font-black text-[var(--text-primary)] tracking-tight">
                   {new Date(year, month, selectedDay.day).toLocaleDateString(
-                    "en-US",
+                    lang,
                     {
                       weekday: "long",
                       month: "long",
@@ -275,7 +275,7 @@ export default function CalendarPanel({
               </div>
               <button
                 onClick={closePopup}
-                className="p-1 rounded-lg hover:bg-white/5 transition-all"
+                className="p-1 rounded-lg hover:bg-tertiary transition-all"
               >
                 <X className="w-4 h-4 text-slate-400" />
               </button>
