@@ -13,7 +13,7 @@
  */
 
 import db from "@/lib/db";
-import { ensurePermissionsSchema } from "@/lib/auth";
+import { ensurePermissionsSchema } from "@/models/authorization/bootstrap";
 import { runAuthzMigration } from "./migrations";
 import { ensureMembershipBootstrap } from "./membership";
 import { backfillContextRoleProfileMappings } from "./contextRoleProfiles";

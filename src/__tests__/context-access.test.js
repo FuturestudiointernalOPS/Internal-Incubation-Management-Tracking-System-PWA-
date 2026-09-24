@@ -70,8 +70,15 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
+// The session is stubbed on both paths: the authorization model now imports it
+// from @/server/auth/session directly, while older modules still reach it through
+// the @/lib/auth facade.
+const mockSession = { cid: "USR_X", name: "X", role: "staff", email: "x@example.com" };
 jest.mock("@/lib/auth", () => ({
-  getSession: jest.fn().mockResolvedValue({ cid: "USR_X", name: "X", role: "staff", email: "x@example.com" }),
+  getSession: jest.fn().mockResolvedValue(mockSession),
+}));
+jest.mock("@/server/auth/session", () => ({
+  getSession: jest.fn().mockResolvedValue(mockSession),
 }));
 
 const mockAuthzContext = { isSuperAdmin: false, eligibility: {}, effective: {} };

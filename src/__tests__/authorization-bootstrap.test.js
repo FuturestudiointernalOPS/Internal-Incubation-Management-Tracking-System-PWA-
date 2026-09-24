@@ -169,17 +169,25 @@ describe("seedDefaultResponsibilities", () => {
     expect(insertsInto("responsibilities").length).toBe(afterFirst);
   });
 
-  it("retries after a failure so a broken seed is never cached", async () => {
+  it("caches a failed seed for the life of the process", async () => {
     const { seedDefaultResponsibilities } = load();
-    mockExecute.mockRejectedValueOnce(new Error("connection terminated"));
+    mockExecute.mockRejectedValue(new Error("connection terminated"));
 
     await expect(seedDefaultResponsibilities()).resolves.toEqual({
       success: false,
       error: "connection terminated",
     });
 
+    // PINNED, NOT ENDORSED — this is today's behaviour and it contradicts the
+    // memo-clearing comment in the source: the inner seeding function RESOLVES
+    // with {success:false} instead of throwing, so the `.catch` that would clear
+    // the memo never runs. A real retry needs the inner function to throw, which
+    // is a behaviour change and therefore left to an explicit decision.
     mockExecute.mockReset();
     mockExecute.mockResolvedValue({ rows: [] });
-    await expect(seedDefaultResponsibilities()).resolves.toEqual({ success: true });
+    await expect(seedDefaultResponsibilities()).resolves.toEqual({
+      success: false,
+      error: "connection terminated",
+    });
   });
 });

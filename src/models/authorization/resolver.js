@@ -18,7 +18,8 @@
 
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { getSession, PERMISSION_MODULES, ACCESS_LEVELS } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
+import { PERMISSION_MODULES, ACCESS_LEVELS } from "@/server/authz/capabilities";
 import {
   MODULE_TO_FEATURE,
   ensureEligibilitySchema,

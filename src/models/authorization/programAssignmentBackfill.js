@@ -33,7 +33,7 @@
  */
 
 import db from "@/lib/db";
-import { ensurePermissionsSchema } from "@/lib/auth";
+import { ensurePermissionsSchema } from "@/models/authorization/bootstrap";
 import {
   FACILITATOR_CAPABILITY_KEYS,
   parsePermissions,
