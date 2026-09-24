@@ -122,6 +122,7 @@ export const POST = createHandler(
       try {
         const verificationResult = await getOrCreateVerification(id);
         const result = await uploadVerificationDocument({
+          ventureId: id,
           verificationId: verificationResult.verification.id,
           category: body.category,
           documentType: body.document_type,

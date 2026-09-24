@@ -4,6 +4,8 @@ import { hashToken } from "@/lib/token-hashing";
 import { isUnknownColumnError } from "@/lib/ventureInput";
 import { SESSION_MIN_LEAD_MINUTES } from "@/lib/ventureSessionRules";
 import { listVentureMembers, summarizeVentureMembers } from "@/models/ventureMembers";
+import { listActiveVentureDocumentTypesOrDefaults } from "@/models/ventureDocumentTypes";
+import { DEFAULT_VENTURE_DOCUMENT_TYPES } from "@/lib/ventureDocumentTypeDefaults";
 
 /**
  * VENTURE OS — Shared Business Logic
@@ -1881,29 +1883,32 @@ export async function reactivateFounder({ founderId, ventureId, reactivatedByFou
 }
 
 // =============================================================================
-// ENHANCEMENT 1.4: STARTUP VERIFICATION
+// ENHANCEMENT 1.4: STARTUP VERIFICATION (the Data bank)
 // =============================================================================
 
 /**
- * Verification categories.
+ * The document types the Data bank asks for now live in `venture_document_types`
+ * (see the model) and are defined by a Super Admin or a Lead Manager. These two
+ * exports are the built-in seed, kept as the load-bearing fallback for a
+ * database whose configuration table cannot be read.
  */
-export const VERIFICATION_CATEGORIES = [
-  "business_registration",
-  "founder_identity",
-  "email_verification",
-  "phone_verification",
-  "legal_documents",
-  "financial_documents",
-];
+export const VERIFICATION_CATEGORIES = DEFAULT_VENTURE_DOCUMENT_TYPES.map(
+  (documentType) => documentType.code,
+);
 
-export const VERIFICATION_CATEGORY_LABELS = {
-  business_registration: "Business Registration",
-  founder_identity: "Founder Identity",
-  email_verification: "Email Verification",
-  phone_verification: "Phone Verification",
-  legal_documents: "Legal Documents",
-  financial_documents: "Financial Documents",
-};
+export const VERIFICATION_CATEGORY_LABELS = Object.fromEntries(
+  DEFAULT_VENTURE_DOCUMENT_TYPES.map((documentType) => [documentType.code, documentType.label_en]),
+);
+
+/**
+ * The codes a document may be filed under right now FOR ONE VENTURE: the
+ * types its Data bank asks for, falling back to the built-in set. Used to refuse
+ * a document filed under an unknown (or retired) type.
+ */
+async function resolveActiveDocumentTypeCodes(ventureId) {
+  const types = await listActiveVentureDocumentTypesOrDefaults(ventureId);
+  return (types || []).map((documentType) => documentType.code);
+}
 
 /**
  * Check if user can manage verification (review/submit for others).
@@ -1961,21 +1966,36 @@ export async function getOrCreateVerification(ventureId) {
     args: [verification.id],
   });
 
-  let items = itemsRes.rows;
-  if (items.length === 0) {
-    for (const cat of VERIFICATION_CATEGORIES) {
+  // Reconcile the Venture's items with the document types its Data bank asks
+  // for: a type added after this Venture was first opened gets its item here, so
+  // every Venture shows exactly the types defined for IT. A type that was turned
+  // off keeps its item and its uploaded documents — it is simply not asked for
+  // any more (the screens render the configured list).
+  const documentTypes = await listActiveVentureDocumentTypesOrDefaults(ventureId);
+  const knownCategories = new Set(itemsRes.rows.map((item) => item.category));
+  const addedCategories = documentTypes
+    .map((documentType) => documentType.code)
+    .filter((code) => !knownCategories.has(code));
+
+  if (addedCategories.length > 0) {
+    for (const category of addedCategories) {
       await db.execute({
-        sql: "INSERT INTO venture_verification_items (verification_id, category, status) VALUES (?, ?, 'pending')",
-        args: [verification.id, cat],
+        sql: `INSERT INTO venture_verification_items (verification_id, category, status)
+              VALUES (?, ?, 'pending')
+              ON CONFLICT (verification_id, category) DO NOTHING`,
+        args: [verification.id, category],
       });
     }
-    // Re-fetch
-    const refreshed = await db.execute({
-      sql: "SELECT * FROM venture_verification_items WHERE verification_id = ?",
-      args: [verification.id],
-    });
-    items = refreshed.rows;
   }
+
+  const itemsRes2 =
+    addedCategories.length > 0
+      ? await db.execute({
+          sql: "SELECT * FROM venture_verification_items WHERE verification_id = ?",
+          args: [verification.id],
+        })
+      : itemsRes;
+  const items = itemsRes2.rows;
 
   // Get documents
   const docsRes = await db.execute({
@@ -2005,7 +2025,10 @@ export async function getOrCreateVerification(ventureId) {
     verification,
     items: items.map((item) => ({
       ...item,
-      category_label: VERIFICATION_CATEGORY_LABELS[item.category] || item.category,
+      category_label:
+        documentTypes.find((documentType) => documentType.code === item.category)?.label_en ||
+        VERIFICATION_CATEGORY_LABELS[item.category] ||
+        item.category,
     })),
     documents: docsRes.rows,
     history: historyRes.rows,
@@ -2028,15 +2051,21 @@ export async function submitVerification({ ventureId, submittedBy }) {
     throw new Error("Verification is already under review.");
   }
 
-  // Check each category has at least one document uploaded
+  // Check every REQUIRED, upload-backed document type has at least one file. A
+  // type confirmed by another means (email, phone) and an optional one never
+  // block the submission.
+  const documentTypes = await listActiveVentureDocumentTypesOrDefaults(ventureId);
+  const typesByCode = new Map((documentTypes || []).map((documentType) => [documentType.code, documentType]));
   const missingCategories = [];
   for (const item of items) {
-    if (item.category === "email_verification" || item.category === "phone_verification") {
-      continue; // These are verified by other means
-    }
+    const documentType = typesByCode.get(item.category);
+    if (!documentType) continue; // retired type — no longer asked for
+    if (documentType.verification_method === "external") continue;
+    if (documentType.required === false) continue;
+    if (item.status === "not_applicable") continue;
     const hasDoc = documents.some((document) => document.category === item.category);
-    if (!hasDoc && item.status !== "not_applicable") {
-      missingCategories.push(VERIFICATION_CATEGORY_LABELS[item.category] || item.category);
+    if (!hasDoc) {
+      missingCategories.push(documentType.label_en || VERIFICATION_CATEGORY_LABELS[item.category] || item.category);
     }
   }
 
@@ -2105,7 +2134,9 @@ export async function updateVerificationStatus({
   const previousStatus = verification.status;
 
   if (category) {
-    if (!VERIFICATION_CATEGORIES.includes(category)) throw new Error(`Invalid category: "${category}".`);
+    if (!(await resolveActiveDocumentTypeCodes(ventureId)).includes(category)) {
+      throw new Error(`Invalid category: "${category}".`);
+    }
 
     const itemRes = await db.execute({
       sql: "SELECT * FROM venture_verification_items WHERE verification_id = ? AND category = ?",
@@ -2202,8 +2233,10 @@ export async function resubmitVerification({ ventureId, submittedBy }) {
 /**
  * Upload a verification document.
  */
-export async function uploadVerificationDocument({ verificationId, category, documentType, fileName, fileSize, fileType, fileUrl, uploadedBy }) {
-  if (!VERIFICATION_CATEGORIES.includes(category)) throw new Error(`Invalid category: "${category}".`);
+export async function uploadVerificationDocument({ ventureId, verificationId, category, documentType, fileName, fileSize, fileType, fileUrl, uploadedBy }) {
+  if (!(await resolveActiveDocumentTypeCodes(ventureId)).includes(category)) {
+    throw new Error(`Invalid category: "${category}".`);
+  }
 
   await db.execute({
     sql: `INSERT INTO venture_verification_documents (verification_id, category, document_type, file_name, file_size, file_type, file_url, uploaded_by)
