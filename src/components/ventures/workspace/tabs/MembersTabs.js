@@ -1,6 +1,10 @@
 "use client";
 
-import { UserPlus, X } from "lucide-react";
+// Add-team ("Invite Member") capability is removed from the founder and
+// team-member Venture views for now. The icon import and the AddMemberModal
+// component below are commented out together with the button that opened it;
+// restore all three at once.
+// import { UserPlus, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useVenture } from "../VentureContext";
 import { FOUNDER_ROLES, TEAM_ROLES, getFounderMembers, getTeamMembers } from "../ventureMeta";
@@ -8,6 +12,11 @@ import { FOUNDER_ROLES, TEAM_ROLES, getFounderMembers, getTeamMembers } from "..
 /* Add Member Modal — a founder invites by EMAIL; the person joins the Venture
    only after accepting the emailed link. The chosen type decides founder vs
    team_member. */
+
+/* COMMENTED OUT: the founder and team-member Venture views no longer offer
+   "Invite Member". Uncomment this component, the button in TeamTab below, and
+   the lucide import above to restore the flow.
+
 function AddMemberModal() {
   const { t } = useI18n();
   const { showAddMember, setShowAddMember, addMemberType, setAddMemberType, inviteEmail, setInviteEmail, inviting, handleInviteMember, inputStyle } = useVenture();
@@ -65,6 +74,7 @@ function AddMemberModal() {
     </div>
   );
 }
+*/
 
 /* Remove Confirm Modal */
 function RemoveConfirmModal() {
@@ -121,7 +131,7 @@ function MemberRow({ member, roleOptions, handleRoleChange, onRemove }) {
    founder status in the membership model (member_type). */
 export function TeamTab() {
   const { t } = useI18n();
-  const { members, setAddMemberType, setShowAddMember, handleUpdateMemberRole, setRemoveConfirm, cardStyle, invitations, handleRevokeInvitation } = useVenture();
+  const { members, handleUpdateMemberRole, setRemoveConfirm, cardStyle, invitations, handleRevokeInvitation } = useVenture();
   const founders = getFounderMembers(members);
   const team = getTeamMembers(members);
   const pending = Array.isArray(invitations) ? invitations : [];
@@ -131,6 +141,9 @@ export function TeamTab() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("venture.teamMembers")} ({members.length})</h2>
+          {/* "Invite Member" removed on the founder and team-member views for
+              now. Uncomment this button (and restore the AddMemberModal render
+              and the lucide import) to bring back adding team members.
           <button
             onClick={() => { setAddMemberType("team_member"); setShowAddMember(true); }}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white transition-colors"
@@ -138,6 +151,7 @@ export function TeamTab() {
           >
             <UserPlus size={16} /> {t("venture.inviteMember")}
           </button>
+          */}
         </div>
 
         {pending.length > 0 && (
@@ -215,7 +229,7 @@ export function TeamTab() {
           </div>
         )}
       </div>
-      <AddMemberModal />
+      {/* <AddMemberModal /> — commented out with the invite button above. */}
       <RemoveConfirmModal />
     </>
   );
