@@ -2317,7 +2317,13 @@ export async function updateDeliverable(deliverableId, updates, actorCid, actorN
     });
     const counts = countResult.rows[0] || { t: 0, d: 0 };
     const pct = counts.t > 0 ? Math.round((counts.d / counts.t) * 100) : 0;
-    await db.execute({ sql: "UPDATE venture_milestones SET completion_percentage = ?, updated_at = NOW() WHERE id = ?", args: [pct, deliverable.milestone_id] });
+    // `progress` is the canonical milestone progress column (the one the Journey
+    // spine and the milestone PATCH route read/write). The 016-era
+    // `completion_percentage` only exists on databases whose milestone table was
+    // created by that legacy DDL — on production it does NOT exist, and this
+    // write is what made a founder's deliverable submission 500 *after* the file
+    // was already stored.
+    await db.execute({ sql: "UPDATE venture_milestones SET progress = ?, updated_at = NOW() WHERE id = ?", args: [pct, deliverable.milestone_id] });
   }
 
   return { updated: true };
@@ -2511,7 +2517,7 @@ export async function getProjectTimeline(ventureId) {
 
   // Milestones as timeline rows
   const milestones = await db.execute({
-    sql: `SELECT id, title, status, completion_percentage as progress, due_date, created_at FROM venture_milestones WHERE venture_id = ? ORDER BY display_order ASC, created_at ASC`,
+    sql: `SELECT id, title, status, progress, target_date, created_at FROM venture_milestones WHERE venture_id = ? ORDER BY display_order ASC, created_at ASC`,
     args: [ventureId],
   });
   for (const milestone of milestones.rows || []) {
@@ -2524,7 +2530,7 @@ export async function getProjectTimeline(ventureId) {
       status: milestone.status,
       progress: milestone.progress || 0,
       start_date: milestone.created_at,
-      end_date: milestone.due_date,
+      end_date: milestone.target_date,
       parent_id: null,
     });
   }
@@ -2623,14 +2629,17 @@ export async function getDelaySummary(ventureId) {
     args: [ventureId],
   });
 
+  // `target_date` is the canonical milestone date column. It is aliased to
+  // `due_date` on purpose: the callers (timeline page, delay panel) read that
+  // key, and the JSON contract must not change with the column fix.
   const delayedMilestones = await db.execute({
-    sql: `SELECT id, title, status, due_date FROM venture_milestones WHERE venture_id = ? AND due_date IS NOT NULL AND due_date < NOW() AND status NOT IN ('completed', 'cancelled') ORDER BY due_date ASC`,
+    sql: `SELECT id, title, status, target_date AS due_date FROM venture_milestones WHERE venture_id = ? AND target_date IS NOT NULL AND target_date < NOW() AND status NOT IN ('completed', 'cancelled') ORDER BY target_date ASC`,
     args: [ventureId],
   });
 
   const upcomingDeadlines = await db.execute({
     sql: `SELECT id, title, 'task' as type, due_date FROM venture_tasks WHERE venture_id = ? AND due_date IS NOT NULL AND due_date BETWEEN NOW() AND NOW() + INTERVAL '7 days' AND status NOT IN ('done', 'cancelled') UNION ALL
-          SELECT id, title, 'milestone' as type, due_date FROM venture_milestones WHERE venture_id = ? AND due_date IS NOT NULL AND due_date BETWEEN NOW() AND NOW() + INTERVAL '7 days' AND status NOT IN ('completed', 'cancelled') ORDER BY due_date ASC`,
+          SELECT id, title, 'milestone' as type, target_date AS due_date FROM venture_milestones WHERE venture_id = ? AND target_date IS NOT NULL AND target_date BETWEEN NOW() AND NOW() + INTERVAL '7 days' AND status NOT IN ('completed', 'cancelled') ORDER BY target_date ASC`,
     args: [ventureId, ventureId],
   });
 
@@ -2893,8 +2902,8 @@ export async function getExportData(ventureId, type = "tasks") {
     const ms = await getMilestonesReport(ventureId);
     return ms.map((milestone) => ({
       Title: milestone.title, Status: milestone.status, Priority: milestone.priority,
-      "Due Date": milestone.due_date ? new Date(milestone.due_date).toLocaleDateString() : "",
-      "Completion %": milestone.completion_percentage,
+      "Due Date": milestone.target_date ? new Date(milestone.target_date).toLocaleDateString() : "",
+      "Completion %": milestone.progress,
       Deliverables: `${milestone.del_done||0}/${milestone.del_total||0}`,
       Tasks: `${milestone.task_done||0}/${milestone.task_total||0}`,
     }));

@@ -283,13 +283,13 @@ export default function VentureReportsPage() {
                           "bg-slate-500/10 text-slate-500"
                         }`}>{milestone.status?.replace(/_/g, " ")}</span>
                       </div>
-                      <span className="text-[9px] font-bold">{milestone.completion_percentage || 0}%</span>
+                      <span className="text-[9px] font-bold">{milestone.progress || 0}%</span>
                     </div>
-                    {progressBar(milestone.completion_percentage || 0)}
+                    {progressBar(milestone.progress || 0)}
                     <div className="flex gap-4 mt-2 text-[10px] text-[var(--text-secondary)]">
                       <span>Deliverables: {milestone.del_done || 0}/{milestone.del_total || 0}</span>
                       <span>Tasks: {milestone.task_done || 0}/{milestone.task_total || 0}</span>
-                      {milestone.due_date && <span>Due: {new Date(milestone.due_date).toLocaleDateString()}</span>}
+                      {milestone.target_date && <span>Due: {new Date(milestone.target_date).toLocaleDateString()}</span>}
                     </div>
                   </div>
                 ))}

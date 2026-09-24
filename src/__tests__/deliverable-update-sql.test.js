@@ -12,11 +12,16 @@
 
 const updates = [];
 const reviewRows = [];
+const milestoneUpdates = [];
 
 const mockDb = {
   execute: jest.fn(async ({ sql, args = [] }) => {
     if (/^UPDATE venture_deliverables SET/.test(sql)) {
       updates.push({ sql, args });
+      return { rows: [] };
+    }
+    if (/^UPDATE venture_milestones SET/.test(sql)) {
+      milestoneUpdates.push({ sql, args });
       return { rows: [] };
     }
     if (/^INSERT INTO venture_deliverable_reviews/.test(sql)) {
@@ -63,6 +68,7 @@ const columnsAssignedTwice = (sql) => {
 beforeEach(() => {
   updates.length = 0;
   reviewRows.length = 0;
+  milestoneUpdates.length = 0;
 });
 
 describe("a deliverable submission", () => {
@@ -145,6 +151,33 @@ describe("a deliverable review", () => {
       reviewer_name: "Lead Manager",
       status: "completed",
     });
+  });
+});
+
+describe("the milestone recount after a submission", () => {
+  test("writes the canonical `progress` column, never the legacy one", async () => {
+    // Reported failure: the file uploaded and the submission was recorded, then
+    // the milestone recount ran `SET completion_percentage = ?` and the whole
+    // request 500'd — because that column exists only on databases whose
+    // milestone table came from the legacy 016 DDL. Production's table has
+    // `progress` (the Journey spine's column) and does not have the other.
+    await updateDeliverable(
+      "dv-1",
+      {
+        attachment_url: "deliverables/VNT-1/dv-1/1700000000000_plan.xlsx",
+        attachment_name: "plan.xlsx",
+        status: "submitted",
+        approval_status: null,
+      },
+      "USR-founder",
+      "Founder",
+    );
+
+    expect(milestoneUpdates).toHaveLength(1);
+    const { sql, args } = milestoneUpdates[0];
+    expect(sql).toContain("SET progress = ?");
+    expect(sql).not.toContain("completion_percentage");
+    expect(args).toEqual([0, "ms-1"]);
   });
 });
 
