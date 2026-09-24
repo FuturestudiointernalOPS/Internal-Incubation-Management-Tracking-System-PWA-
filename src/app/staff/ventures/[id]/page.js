@@ -6,12 +6,13 @@ import { useI18n } from "@/lib/i18n";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { notify } from "@/lib/notify";
-import { ArrowLeft, Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote } from "lucide-react";
+import { Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote } from "lucide-react";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
 import OperatingPlanPanel from "@/components/ventures/OperatingPlanPanel";
 import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
+import DocumentTypeManager from "@/components/ventures/DocumentTypeManager";
 
 /**
  * Staff → Ventures → [Venture] — staff workspace (Phase 3).
@@ -32,6 +33,7 @@ const TABS = [
   { id: "sessions", label: "venture.sessions", icon: Calendar },
   { id: "notes", label: "venture.notes", icon: StickyNote },
   { id: "plan", label: "venture.operatingPlan", icon: FileText },
+  { id: "documents", label: "venture.documentTypes.title", icon: FileText },
 ];
 
 export default function StaffVentureWorkspace() {
@@ -185,13 +187,6 @@ export default function StaffVentureWorkspace() {
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
-      <button
-        onClick={() => router.push("/staff/ventures")}
-        className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all"
-      >
-        <ArrowLeft className="w-3 h-3" /> {t("venture.personal.myVentures")}
-      </button>
-
       <VenturePageHeader
         displayName={displayName}
         brandColor={venture.branding?.color}
@@ -387,6 +382,10 @@ export default function StaffVentureWorkspace() {
       {activeTab === "notes" && <VentureNotesPanel ventureId={id} />}
 
       {activeTab === "plan" && <OperatingPlanPanel ventureId={id} />}
+
+      {activeTab === "documents" && (
+        <DocumentTypeManager ventureId={id} backHref={`/staff/ventures/${id}`} />
+      )}
     </div>
   );
 }
