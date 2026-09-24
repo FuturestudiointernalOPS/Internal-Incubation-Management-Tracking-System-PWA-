@@ -33,10 +33,10 @@ function MyComponent() {
 
 | Token | Light | Dark | Usage |
 |-------|-------|------|-------|
-| `--bg-primary` | `#F8FAFC` | `#020617` | Page background |
-| `--surface-1` | `#FFFFFF` | `#0F172A` | Cards, modals, tables |
-| `--surface-2` | `#F8FAFC` | `#1E293B` | Hover states, table headers |
-| `--surface-3` | `#F1F5F9` | `#334155` | Subtle backgrounds, disabled |
+| `--bg-primary` | `#F3F5F8` | `#060A14` | Page background |
+| `--surface-1` | `#FFFFFF` | `#111A2C` | Cards, modals, tables |
+| `--surface-2` | `#F8FAFC` | `#1C2638` | Hover states, table headers |
+| `--surface-3` | `#F1F5F9` | `#2B3649` | Subtle backgrounds, disabled |
 
 **Tailwind classes**: `bg-surface-1`, `bg-surface-2`, `bg-surface-3`
 
@@ -55,7 +55,7 @@ function MyComponent() {
 | Token | Light | Dark |
 |-------|-------|------|
 | `--border-primary` | `#E2E8F0` | `#334155` |
-| `--border-secondary` | `#F1F5F9` | `#1E293B` |
+| `--border-secondary` | `#F1F5F9` | `#243044` |
 
 **Tailwind utility class**: `.border-soft`
 
@@ -66,6 +66,28 @@ function MyComponent() {
 | `--brand-orange` | `#FF6600` |
 | `--brand-blue` | `#0066FF` |
 | `--accent` | `var(--brand-orange)` |
+
+### Transparent theme colours (opacity modifiers)
+
+Tailwind 3 **cannot** apply an opacity modifier to a bare CSS variable:
+`bg-[var(--brand-orange)]/10` or `border-[var(--border-primary)]/50` generate
+**no CSS at all** — the class is silently dropped. Use the named colours from
+`tailwind.config.js` instead:
+
+| Want | Write |
+|------|-------|
+| Brand orange at 10 % | `bg-brand-orange/10` (also `border-`, `ring-`, `text-`…) |
+| Theme border at 50 % | `border-divider/50` (follows light/dark via `--border-primary-rgb`) |
+
+A solid colour with no opacity keeps the variable form: `bg-[var(--brand-orange)]`.
+
+### Status text in light mode
+
+Status colours are written with Tailwind's 400/500 shades (`text-emerald-400`,
+`text-rose-500`…), which are tuned for dark surfaces. `globals.css` maps them to
+the 700 shade of the same hue in light mode, so they stay readable on white.
+Nothing to do in components — but do not hardcode a dark background
+(`bg-[#0f172a]`) behind them: use `bg-surface-1` / `bg-[var(--surface-1)]`.
 
 ### Chart Colors
 
