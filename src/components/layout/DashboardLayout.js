@@ -1303,7 +1303,6 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
   // server applies to the Data bank's document definitions, so the door the
   // sidebar offers matches the door the server opens.
   const [ventureAssignCount, setVentureAssignCount] = useState(null);
-  const [isLeadManager, setIsLeadManager] = useState(false);
   useEffect(() => {
     if (!user.cid) return;
     if (!["staff", "program_manager"].includes(user.role)) return;
@@ -1314,13 +1313,9 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
         if (!alive) return;
         const assignments = payload.assignments || [];
         setVentureAssignCount(assignments.length);
-        setIsLeadManager(
-          assignments.some((assignment) => assignment.responsibility_code === "lead_manager"),
-        );
       })
       .catch(() => {
         setVentureAssignCount(0);
-        setIsLeadManager(false);
       });
     return () => {
       alive = false;
@@ -1402,19 +1397,6 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
           href: "/staff/ventures",
         });
       }
-      // A LEAD MANAGER also defines what the Data bank asks every Venture for.
-      // The door opens on the same rule the server enforces for the write
-      // (the `lead_manager` responsibility), so the sidebar never offers a
-      // screen the server would refuse.
-      if (isLeadManager && !next.some((navItem) => navItem.id === "document_types")) {
-        const venturesIndex = next.findIndex((navItem) => navItem.id === "ventures");
-        next.splice(venturesIndex === -1 ? next.length : venturesIndex + 1, 0, {
-          id: "document_types",
-          name: "DATA BANK DOCUMENTS",
-          icon: FileText,
-          href: "/staff/ventures/document-types",
-        });
-      }
       return next;
     };
 
@@ -1469,7 +1451,6 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     hasLmsEnrollments,
     effectiveCaps,
     ventureAssignCount,
-    isLeadManager,
     relationships,
   ]);
 

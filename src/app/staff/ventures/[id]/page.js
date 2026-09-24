@@ -12,6 +12,7 @@ import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
 import OperatingPlanPanel from "@/components/ventures/OperatingPlanPanel";
 import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
+import DocumentTypeManager from "@/components/ventures/DocumentTypeManager";
 
 /**
  * Staff → Ventures → [Venture] — staff workspace (Phase 3).
@@ -27,11 +28,13 @@ import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
  * scrolling through one long page.
  */
 const TABS = [
+  { id: "my-ventures", label: "venture.personal.myVentures", icon: ArrowLeft, href: "/staff/ventures" },
   { id: "overview", label: "venture.overview", icon: Rocket },
   { id: "journey", label: "venture.journey", icon: Route },
   { id: "sessions", label: "venture.sessions", icon: Calendar },
   { id: "notes", label: "venture.notes", icon: StickyNote },
   { id: "plan", label: "venture.operatingPlan", icon: FileText },
+  { id: "documents", label: "venture.documentTypes.title", icon: FileText },
 ];
 
 export default function StaffVentureWorkspace() {
@@ -185,13 +188,6 @@ export default function StaffVentureWorkspace() {
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
-      <button
-        onClick={() => router.push("/staff/ventures")}
-        className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all"
-      >
-        <ArrowLeft className="w-3 h-3" /> {t("venture.personal.myVentures")}
-      </button>
-
       <VenturePageHeader
         displayName={displayName}
         brandColor={venture.branding?.color}
@@ -208,11 +204,17 @@ export default function StaffVentureWorkspace() {
       <div className="flex gap-1 border-b border-[var(--border-primary)] overflow-x-auto scrollbar-thin">
         {TABS.map((tab) => {
           const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
+          const isActive = tab.id !== "my-ventures" && activeTab === tab.id;
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                if (tab.href) {
+                  router.push(tab.href);
+                  return;
+                }
+                setActiveTab(tab.id);
+              }}
               className={`px-5 py-3 text-[9px] font-black uppercase tracking-widest flex items-center gap-2 transition-all border-b-2 whitespace-nowrap ${
                 isActive
                   ? "border-[var(--brand-orange)] text-[var(--brand-orange)]"
@@ -387,6 +389,10 @@ export default function StaffVentureWorkspace() {
       {activeTab === "notes" && <VentureNotesPanel ventureId={id} />}
 
       {activeTab === "plan" && <OperatingPlanPanel ventureId={id} />}
+
+      {activeTab === "documents" && (
+        <DocumentTypeManager ventureId={id} backHref={`/staff/ventures/${id}`} />
+      )}
     </div>
   );
 }
