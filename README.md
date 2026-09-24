@@ -4,13 +4,17 @@ Internal incubation management & tracking system for FutureStudio: programs, pro
 
 > **AI Agents: Read [`AGENTS.md`](AGENTS.md) before making any changes.**
 > Critical rules for i18n, component usage, and build requirements.
+>
+> **New to the project? Read [`CONTRIBUTING.md`](CONTRIBUTING.md) first.**
+> Local setup, the rules that are not negotiable, the quality gates to run before
+> every push, the branch model and the known traps.
 
 ## Environments
 
 | Environment | Branch | Vercel | Database |
 |---|---|---|---|
 | **Production** | `main` | Auto-deploys on push | Production Supabase |
-| **Staging** | `dev` | Preview deploys | Staging Supabase |
+| **Staging** | `G` (twin: `Ventures`) | Preview deploys | Staging Supabase |
 
 ### Staging Database
 
@@ -104,18 +108,27 @@ There is no single bootstrap script: apply the SQL migrations (`src/migrations/`
 
 ### Database migrations
 
-SQL migrations live in `src/migrations/`. Schema-change scripts (Node/`.mjs`) live in `scripts/migrations/` — run individually with `node scripts/migrations/<file>.mjs`, they're idempotent.
+New schema work goes in `supabase/migrations/` — idempotent SQL with a
+`YYYYMMDD_` date prefix. Do **not** add new files to `src/migrations/` or the
+legacy root `migrations/` folder; those are historical. Schema-change scripts
+(Node/`.mjs`) live in `scripts/migrations/` — run individually with
+`node scripts/migrations/<file>.mjs`, they're idempotent.
 
 ---
 
 ## Git Workflow
 
 ```
-dev  →  merge into main  →  push main (triggers production deploy)
+your branch  →  G (staging, twin: Ventures)  →  main (production, promotion only)
 ```
 
-- **`dev`** — staging, safe to break
-- **`main`** — production, deployable only
+- **`G`** (and its twin `Ventures`, which must stay identical) — staging, safe to break
+- **`main`** — production; it only ever receives a promotion
+- Promoting to `main` is a manual, item-by-item procedure — see
+  [`docs/PRODUCTION_TEST.md`](docs/PRODUCTION_TEST.md). It is not `npm test` and
+  not `npm run build`: staging and production are **different databases**.
+- Day-to-day branch rules, setup and conventions: [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- `dev` is a legacy staging branch and no longer receives work.
 
 ---
 
@@ -145,6 +158,7 @@ docs/             Architecture, API reference, module reference, tickets, audits
 
 ## Documentation
 
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — **start here when joining**: setup, non-negotiable rules, quality gates, branch model, known traps
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — how the app fits together (auth, roles, data flow, i18n)
 - [`docs/API.md`](docs/API.md) — all API routes, grouped by domain, with purpose
 - [`docs/MODULES.md`](docs/MODULES.md) — `src/lib`, `src/components`, `src/utils` reference
