@@ -149,6 +149,7 @@ const NAV_KEY_MAP = {
   all_ventures: "navigation.allVentures",
   journey_reports: "navigation.journeyReports",
   register_venture: "navigation.registerVenture",
+  document_types: "navigation.documentTypes",
   investors: "navigation.investors",
   investors_manage: "navigation.investorsManage",
   investors_dashboard: "navigation.investorsDashboard",
@@ -1298,7 +1299,11 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
 
   // Staff Venture console visibility (Phase 3): delegated staff see the
   // Ventures entry ONLY when they hold at least one active Venture assignment.
+  // The same read says whether this person is a LEAD MANAGER — the check the
+  // server applies to the Data bank's document definitions, so the door the
+  // sidebar offers matches the door the server opens.
   const [ventureAssignCount, setVentureAssignCount] = useState(null);
+  const [isLeadManager, setIsLeadManager] = useState(false);
   useEffect(() => {
     if (!user.cid) return;
     if (!["staff", "program_manager"].includes(user.role)) return;
@@ -1306,9 +1311,17 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     fetch("/api/ventures/assigned")
       .then((response) => response.json())
       .then((payload) => {
-        if (alive) setVentureAssignCount((payload.assignments || []).length);
+        if (!alive) return;
+        const assignments = payload.assignments || [];
+        setVentureAssignCount(assignments.length);
+        setIsLeadManager(
+          assignments.some((assignment) => assignment.responsibility_code === "lead_manager"),
+        );
       })
-      .catch(() => setVentureAssignCount(0));
+      .catch(() => {
+        setVentureAssignCount(0);
+        setIsLeadManager(false);
+      });
     return () => {
       alive = false;
     };
@@ -1378,16 +1391,30 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
       if (typeof ventureAssignCount !== "number" || ventureAssignCount <= 0) {
         return list;
       }
-      if (list.some((navItem) => navItem.id === "ventures")) return list;
-      const dashIndex = list.findIndex((navItem) => navItem.id === "dashboard");
-      const insertAt = dashIndex === -1 ? 0 : dashIndex + 1;
       const next = list.slice();
-      next.splice(insertAt, 0, {
-        id: "ventures",
-        name: "MY VENTURES",
-        icon: Rocket,
-        href: "/staff/ventures",
-      });
+      if (!next.some((navItem) => navItem.id === "ventures")) {
+        const dashIndex = next.findIndex((navItem) => navItem.id === "dashboard");
+        const insertAt = dashIndex === -1 ? 0 : dashIndex + 1;
+        next.splice(insertAt, 0, {
+          id: "ventures",
+          name: "MY VENTURES",
+          icon: Rocket,
+          href: "/staff/ventures",
+        });
+      }
+      // A LEAD MANAGER also defines what the Data bank asks every Venture for.
+      // The door opens on the same rule the server enforces for the write
+      // (the `lead_manager` responsibility), so the sidebar never offers a
+      // screen the server would refuse.
+      if (isLeadManager && !next.some((navItem) => navItem.id === "document_types")) {
+        const venturesIndex = next.findIndex((navItem) => navItem.id === "ventures");
+        next.splice(venturesIndex === -1 ? next.length : venturesIndex + 1, 0, {
+          id: "document_types",
+          name: "DATA BANK DOCUMENTS",
+          icon: FileText,
+          href: "/staff/ventures/document-types",
+        });
+      }
       return next;
     };
 
@@ -1442,6 +1469,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     hasLmsEnrollments,
     effectiveCaps,
     ventureAssignCount,
+    isLeadManager,
     relationships,
   ]);
 

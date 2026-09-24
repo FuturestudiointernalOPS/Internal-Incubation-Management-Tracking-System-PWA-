@@ -57,6 +57,7 @@ const FIXTURE = {
       subItems: [
         { id: "all_ventures", href: "/admin/ventures", subItems: null },
         { id: "journey_reports", href: "/admin/journey-reports", subItems: null },
+        { id: "document_types", href: "/admin/ventures/document-types", subItems: null },
       ],
     },
     {

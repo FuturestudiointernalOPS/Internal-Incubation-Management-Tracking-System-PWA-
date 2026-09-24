@@ -11,6 +11,7 @@
     "taskCreateFailed": "Could not create the task.",
     "authRequired": "Authentication required.",
     "insufficientPermissions": "Insufficient permissions.",
+    "forbidden": "You are not allowed to do this.",
     "invalidEligibilityChanges": "Invalid eligibility configuration.",
     "invalidMembershipAction": "Invalid membership action.",
     "invalidMembershipRequest": "user_cid and group_name are required.",

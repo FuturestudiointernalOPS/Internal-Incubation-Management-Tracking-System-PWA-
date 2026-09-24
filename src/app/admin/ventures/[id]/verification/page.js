@@ -16,25 +16,24 @@ import {
   X,
   FileText,
   Download,
-  Mail,
-  Phone,
-  Building2,
-  User,
-  Briefcase,
-  DollarSign,
   MessageCircle,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
+import { DEFAULT_VENTURE_DOCUMENT_TYPES } from "@/lib/ventureDocumentTypeDefaults";
+import { documentTypeIcon, documentTypeName, isUploadDocumentType } from "@/components/ventures/documentTypeMeta";
 
-const VERIFICATION_STEPS = [
-  { key: "business_registration", label: "vadmin.verification.stepBusinessRegistration", icon: Building2 },
-  { key: "founder_identity", label: "vadmin.verification.stepFounderIdentity", icon: User },
-  { key: "email_verification", label: "vadmin.verification.stepEmailVerification", icon: Mail },
-  { key: "phone_verification", label: "vadmin.verification.stepPhoneVerification", icon: Phone },
-  { key: "legal_documents", label: "vadmin.verification.stepLegalDocuments", icon: Briefcase },
-  { key: "financial_documents", label: "vadmin.verification.stepFinancialDocuments", icon: DollarSign },
-];
+// The documents the Data bank asks for are CONFIGURED (Super Admin / Lead
+// Manager, see /admin/ventures/document-types) and read from the API below; the
+// six built-in types are the fallback for a read that cannot be served.
+
+// Module-scope reader — the reading hook keys its internal work on it.
+// A refused (or unreadable) answer resolves to null, which the screen reads as
+// "the list could not be loaded" and falls back to the built-in types; a
+// SUCCESSFUL empty list is an answer too — the administrator turned every type
+// off — and renders no sections at all.
+const pickDocumentTypes = (payload) =>
+  payload?.success ? payload.document_types || [] : null;
 
 const STATUS_CONFIG = {
   draft: { label: "vadmin.verification.statusDraft", color: "text-slate-400 bg-slate-500/10", dot: "bg-slate-400" },
@@ -64,7 +63,7 @@ const documentHref = (documentEntry) => {
 export default function VentureVerificationPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   const [venture, setVenture] = useState(null);
   const [data, setData] = useState(null);
@@ -80,6 +79,22 @@ export default function VentureVerificationPage() {
   const [reviewDecision, setReviewDecision] = useState("verified");
   const [reviewNotes, setReviewNotes] = useState("");
   const [reviewing, setReviewing] = useState(false);
+
+  // The document types THIS Venture's Data bank asks for. An unreadable answer
+  // falls back to the six built-in types rather than rendering no sections at
+  // all; an EMPTY list is a real answer (every type turned off) and renders
+  // exactly that.
+  const { data: configuredDocumentTypes } = useApi(
+    id ? `/api/ventures/${id}/document-types` : null,
+    {
+      defaultValue: null,
+      transform: pickDocumentTypes,
+      deps: [id],
+    },
+  );
+  const documentTypes = Array.isArray(configuredDocumentTypes)
+    ? configuredDocumentTypes
+    : DEFAULT_VENTURE_DOCUMENT_TYPES;
 
   const notify = (msg, type = "success") => {
     setToast({ msg, type });
@@ -322,6 +337,13 @@ export default function VentureVerificationPage() {
             </div>
           </div>
           <div className="flex gap-3">
+            <button
+              onClick={() => router.push(`/admin/ventures/${id}/document-types`)}
+              className="px-4 py-2.5 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all flex items-center gap-2"
+              title={t("venture.documentTypes.ventureHint")}
+            >
+              <FileText className="w-3.5 h-3.5" /> {t("venture.documentTypes.title")}
+            </button>
             {verification && getStatusBadge(verification.status)}
             {verification?.status === "pending_review" && (
               <button onClick={() => setShowReviewModal(true)}
@@ -336,17 +358,19 @@ export default function VentureVerificationPage() {
         <div className="card">
           <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4">{t("vadmin.verification.progress")}</h3>
           <div className="space-y-3">
-            {VERIFICATION_STEPS.map((step) => {
-              const item = getItemForCategory(step.key);
-              const stepDocs = getDocsForCategory(step.key);
-              const StepIcon = step.icon;
-              const isUploading = uploading[step.key];
+            {documentTypes.map((documentType) => {
+              const stepKey = documentType.code;
+              const item = getItemForCategory(stepKey);
+              const stepDocs = getDocsForCategory(stepKey);
+              const StepIcon = documentTypeIcon(stepKey);
+              const isUploading = uploading[stepKey];
+              const isUpload = isUploadDocumentType(documentType);
               return (
-                <div key={step.key} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                <div key={stepKey} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
                       <StepIcon className="w-4 h-4 text-[var(--brand-orange)]" />
-                      <span className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">{t(step.label)}</span>
+                      <span className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">{documentTypeName(documentType, lang, t)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       {item && getItemStatusBadge(item.status)}
@@ -355,6 +379,10 @@ export default function VentureVerificationPage() {
                       )}
                     </div>
                   </div>
+
+                  {documentType.description && (
+                    <p className="text-[10px] text-[var(--text-secondary)] mb-3 break-words">{documentType.description}</p>
+                  )}
 
                   {/* Uploaded documents */}
                   {stepDocs.length > 0 && (
@@ -381,19 +409,22 @@ export default function VentureVerificationPage() {
                     </div>
                   )}
 
-                  {/* Upload button (only for non-email/phone and non-verified) */}
-                  {step.key !== "email_verification" && step.key !== "phone_verification" && item?.status !== "verified" && (
+                  {/* Upload button (only for upload-backed, non-verified types) */}
+                  {isUpload && item?.status !== "verified" && (
                     <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:brightness-110 transition-all">
                       {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
                       {isUploading ? t("vadmin.verification.uploading") : t("vadmin.verification.upload")}
                       <input type="file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" className="hidden"
                         disabled={isUploading}
-                        onChange={(event) => { if (event.target.files[0]) handleUpload(step.key, event.target.files[0]); event.target.value = ""; }}
+                        onChange={(event) => { if (event.target.files[0]) handleUpload(stepKey, event.target.files[0]); event.target.value = ""; }}
                       />
                     </label>
                   )}
-                  {step.key === "email_verification" && <p className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.verification.emailVerifiedViaLink")}</p>}
-                  {step.key === "phone_verification" && <p className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.verification.phoneVerifiedViaSms")}</p>}
+                  {!isUpload && stepKey === "email_verification" && <p className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.verification.emailVerifiedViaLink")}</p>}
+                  {!isUpload && stepKey === "phone_verification" && <p className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.verification.phoneVerifiedViaSms")}</p>}
+                  {!isUpload && stepKey !== "email_verification" && stepKey !== "phone_verification" && (
+                    <p className="text-[10px] text-[var(--text-secondary)]">{t("venture.verificationTab.confirmedAnotherWay")}</p>
+                  )}
                 </div>
               );
             })}

@@ -4,26 +4,22 @@ import { useCallback, useMemo, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
-  Briefcase,
-  Building2,
   CheckCircle2,
   Clock,
-  DollarSign,
   Download,
   FileText,
   Loader2,
-  Mail,
   MessageCircle,
-  Phone,
   RefreshCw,
   Send,
   Shield,
   Trash2,
   Upload,
-  User,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
+import { DEFAULT_VENTURE_DOCUMENT_TYPES } from "@/lib/ventureDocumentTypeDefaults";
+import { documentTypeIcon, documentTypeName, isUploadDocumentType } from "../../documentTypeMeta";
 import { useVenture } from "../VentureContext";
 
 /**
@@ -36,16 +32,18 @@ import { useVenture } from "../VentureContext";
  * from here.
  */
 
-// Same category order as the server (VERIFICATION_CATEGORIES, src/lib/ventures.js)
-// so the founder sees exactly the items the admin reviews.
-const VERIFICATION_STEPS = [
-  { key: "business_registration", label: "vadmin.verification.stepBusinessRegistration", icon: Building2 },
-  { key: "founder_identity", label: "vadmin.verification.stepFounderIdentity", icon: User },
-  { key: "email_verification", label: "vadmin.verification.stepEmailVerification", icon: Mail },
-  { key: "phone_verification", label: "vadmin.verification.stepPhoneVerification", icon: Phone },
-  { key: "legal_documents", label: "vadmin.verification.stepLegalDocuments", icon: Briefcase },
-  { key: "financial_documents", label: "vadmin.verification.stepFinancialDocuments", icon: DollarSign },
-];
+// The documents the Data bank asks for are CONFIGURED (Super Admin / Lead
+// Manager, see /admin/ventures/document-types) and read from the API below. The
+// six built-in types remain the fallback for a read that cannot be served, so
+// the tab never goes blank.
+
+// Module-scope readers — the reading hook keys its internal work on them.
+// A refused (or unreadable) answer resolves to null, which the screen reads as
+// "the list could not be loaded" and falls back to the built-in types; a
+// SUCCESSFUL empty list is an answer too — the administrator turned every type
+// off — and renders no sections at all.
+const pickDocumentTypes = (payload) =>
+  payload?.success ? payload.document_types || [] : null;
 
 const VERIFICATION_STATUS = {
   draft: { label: "vadmin.verification.statusDraft", cls: "bg-slate-500/10 text-slate-400" },
@@ -81,7 +79,7 @@ const documentHref = (doc) => {
 const pickVerification = (payload) => (payload && typeof payload === "object" ? payload : null);
 
 export function VerificationTab() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { params, notifyMsg } = useVenture();
 
   const ventureId = params?.id;
@@ -131,6 +129,22 @@ export function VerificationTab() {
       fetchOptions: { cache: "no-store" },
     },
   );
+
+  // The document types THIS Venture's Data bank asks for. An unreadable answer
+  // falls back to the six built-in types rather than rendering no sections at
+  // all; an EMPTY list is a real answer (every type turned off) and renders
+  // exactly that.
+  const { data: configuredDocumentTypes } = useApi(
+    ventureId ? `/api/ventures/${ventureId}/document-types` : null,
+    {
+      defaultValue: null,
+      transform: pickDocumentTypes,
+      deps: [ventureId],
+    },
+  );
+  const documentTypes = Array.isArray(configuredDocumentTypes)
+    ? configuredDocumentTypes
+    : DEFAULT_VENTURE_DOCUMENT_TYPES;
 
   // A refusal arrives as a payload rather than as a failed request, so it has to
   // be read from the payload; the hook reports only a request that never
@@ -249,16 +263,20 @@ export function VerificationTab() {
   const hasData = Boolean(verification) || items.length > 0;
 
   // Same rule the server enforces on submit (src/lib/ventures.js): every
-  // category but email/phone needs at least one document.
+  // required, upload-backed document type needs at least one document. A type
+  // confirmed another way, or one that is optional, never blocks the submission.
   const stillRequired = useMemo(
     () =>
-      VERIFICATION_STEPS.filter((step) => {
-        if (step.key === "email_verification" || step.key === "phone_verification") return false;
-        const item = items.find((stepItem) => stepItem.category === step.key);
-        if (item?.status === "not_applicable") return false;
-        return !documents.some((doc) => doc.category === step.key);
-      }).map((step) => t(step.label)),
-    [items, documents, t],
+      documentTypes
+        .filter((documentType) => {
+          if (!isUploadDocumentType(documentType)) return false;
+          if (documentType.required === false) return false;
+          const item = items.find((stepItem) => stepItem.category === documentType.code);
+          if (item?.status === "not_applicable") return false;
+          return !documents.some((doc) => doc.category === documentType.code);
+        })
+        .map((documentType) => documentTypeName(documentType, lang, t)),
+    [documentTypes, items, documents, lang, t],
   );
 
   const statusConfig = VERIFICATION_STATUS[verification?.status] || VERIFICATION_STATUS.draft;
@@ -332,21 +350,22 @@ export function VerificationTab() {
             </p>
           )}
 
-          {VERIFICATION_STEPS.map((step) => {
-            const item = items.find((stepItem) => stepItem.category === step.key);
-            const stepDocs = documents.filter((doc) => doc.category === step.key);
-            const StepIcon = step.icon;
-            const isUploading = uploadingCategory === step.key;
-            const isEmailOrPhone = step.key === "email_verification" || step.key === "phone_verification";
+          {documentTypes.map((documentType) => {
+            const stepKey = documentType.code;
+            const item = items.find((stepItem) => stepItem.category === stepKey);
+            const stepDocs = documents.filter((doc) => doc.category === stepKey);
+            const StepIcon = documentTypeIcon(stepKey);
+            const isUploading = uploadingCategory === stepKey;
+            const isUpload = isUploadDocumentType(documentType);
             const itemConfig = ITEM_STATUS[item?.status] || ITEM_STATUS.pending;
 
             return (
-              <div key={step.key} className="rounded-xl p-4 border border-[var(--border-primary)] bg-surface-2">
+              <div key={stepKey} className="rounded-xl p-4 border border-[var(--border-primary)] bg-surface-2">
                 <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
                   <div className="flex items-center gap-2">
                     <StepIcon size={14} className="text-[var(--brand-orange)]" />
                     <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text-primary)]">
-                      {t(step.label)}
+                      {documentTypeName(documentType, lang, t)}
                     </span>
                   </div>
                   {item && (
@@ -355,6 +374,10 @@ export function VerificationTab() {
                     </span>
                   )}
                 </div>
+
+                {documentType.description && (
+                  <p className="text-[10px] text-[var(--text-secondary)] mb-2 break-words">{documentType.description}</p>
+                )}
 
                 {item?.notes && (
                   <p className="text-[10px] text-[var(--text-secondary)] mb-2 break-words">
@@ -418,19 +441,21 @@ export function VerificationTab() {
                   </div>
                 )}
 
-                {stepDocs.length === 0 && isEmailOrPhone && (
+                {stepDocs.length === 0 && !isUpload && (
                   <p className="text-[10px] text-[var(--text-secondary)]">
-                    {step.key === "email_verification"
+                    {stepKey === "email_verification"
                       ? t("vadmin.verification.emailVerifiedViaLink")
-                      : t("vadmin.verification.phoneVerifiedViaSms")}
+                      : stepKey === "phone_verification"
+                        ? t("vadmin.verification.phoneVerifiedViaSms")
+                        : t("venture.verificationTab.confirmedAnotherWay")}
                   </p>
                 )}
 
-                {stepDocs.length === 0 && !isEmailOrPhone && (
+                {stepDocs.length === 0 && isUpload && (
                   <p className="text-[10px] text-[var(--text-secondary)]">{t("venture.verificationTab.missingDocuments")}</p>
                 )}
 
-                {!isEmailOrPhone && item?.status !== "verified" && (
+                {isUpload && item?.status !== "verified" && (
                   <label className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest cursor-pointer bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] hover:brightness-110 transition-all">
                     {isUploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
                     {isUploading ? t("vadmin.verification.uploading") : t("vadmin.verification.upload")}
@@ -440,7 +465,7 @@ export function VerificationTab() {
                       className="hidden"
                       disabled={isUploading}
                       onChange={(event) => {
-                        if (event.target.files[0]) handleUpload(step.key, event.target.files[0]);
+                        if (event.target.files[0]) handleUpload(stepKey, event.target.files[0]);
                         event.target.value = "";
                       }}
                     />

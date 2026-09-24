@@ -11,6 +11,7 @@
     "taskCreateFailed": "Impossible de créer la tâche.",
     "authRequired": "Authentification requise.",
     "insufficientPermissions": "Permissions insuffisantes.",
+    "forbidden": "Vous n'êtes pas autorisé à effectuer cette action.",
     "invalidEligibilityChanges": "Configuration d'éligibilité invalide.",
     "invalidMembershipAction": "Action d'adhésion invalide.",
     "invalidMembershipRequest": "user_cid et group_name sont requis.",
