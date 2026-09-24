@@ -1,0 +1,46 @@
+-- =============================================================================
+-- ALIGN the `staff` and `member` role -> profile defaults (staging is the truth)
+-- =============================================================================
+-- WHY
+--   Staging and production disagreed on exactly two mappings:
+--     staff  -> Staff Default   (staging: yes, production: NO)
+--     member -> Venture Member  (staging: yes, production: NO)
+--   Decision (product owner, 2026-09-24): staging is correct.
+--
+-- MEASURED IMPACT ON PRODUCTION (read-only audit run before writing this file)
+--   staff:  LOST 0 capabilities. GAINED 8 — forms view/create/edit/delete,
+--           internal_comms view, runs review, ventures view/edit.
+--           Affects the 3 live staff who have no profile override:
+--           eddy codo toafode, Maryse DOSSOU, Soriane PRUDENCIO.
+--           Josias Hinnakou is UNAFFECTED — his own Program Manager override
+--           outranks the role default (resolver precedence: user -> role).
+--           "Staff Default" carries 0 capabilities outside the staff
+--           eligibility ceiling, so this is the same verdict the API's
+--           assertTemplateCapsEligible would give for the same binding.
+--   member: "Venture Member" does NOT exist on production, so statement 2 is a
+--           deliberate NO-OP there. It stays so the two databases converge the
+--           moment that profile is created. Creating it is NOT part of this
+--           file: it would grant new access to 2 live accounts (gwin, tets)
+--           and is a separate decision.
+--
+-- PREVIOUS BEHAVIOUR (why this changes anything)
+--   Neither role had a default profile, so both fell through to the legacy
+--   role_capabilities table. Production `staff` has 28 rows there; `member`
+--   has ZERO rows there, so the 2 members currently receive no base
+--   capabilities at all.
+--
+-- REVERSIBLE
+--   To undo the staff half:
+--     DELETE FROM role_access_profile_defaults WHERE role_name = 'staff';
+--   Staff then falls back to role_capabilities — its previous behaviour.
+--
+-- VERIFY AFTER APPLYING (run by hand)
+--   SELECT rpd.role_name, ap.name AS profile
+--     FROM role_access_profile_defaults rpd
+--     JOIN access_profiles ap ON ap.id = rpd.access_profile_id
+--    ORDER BY rpd.role_name;
+-- =============================================================================
+
+INSERT INTO role_access_profile_defaults (role_name, access_profile_id) SELECT 'staff', ap.id FROM access_profiles ap WHERE ap.name = 'Staff Default' ON CONFLICT (role_name) DO UPDATE SET access_profile_id = EXCLUDED.access_profile_id;  -- staff -> Staff Default
+
+INSERT INTO role_access_profile_defaults (role_name, access_profile_id) SELECT 'member', ap.id FROM access_profiles ap WHERE ap.name = 'Venture Member' ON CONFLICT (role_name) DO UPDATE SET access_profile_id = EXCLUDED.access_profile_id;  -- member -> Venture Member (no-op while the profile is absent)
