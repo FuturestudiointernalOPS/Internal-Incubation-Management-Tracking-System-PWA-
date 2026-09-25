@@ -172,6 +172,7 @@ export default function IntelligencePage() {
   const blockers = operations?.blockers ?? {};
   const compliance = operations?.report_compliance ?? {};
   const contacts = data?.contacts ?? {};
+  const crmStats = contacts.contacts ?? {};
   const growthMonthly = contacts.growth?.monthly ?? [];
   const growthMax = Math.max(1, ...growthMonthly.map((m) => Number(m.created) || 0));
 
@@ -472,24 +473,37 @@ export default function IntelligencePage() {
                 </div>
               </SectionCard>
 
-              <SectionCard
-                title={t("adminMisc.intelligence.crmTitle")}
-                subtitle={t("adminMisc.intelligence.invitationActivation")}
-              >
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-lg font-black tracking-tighter text-[var(--text-primary)]">{fmtCount(contacts.invitations.invited)}</p>
-                    <p className="mt-1 text-xs text-[var(--text-secondary)]">{t("adminMisc.intelligence.invited")}</p>
+<SectionCard
+                  title={t("adminMisc.intelligence.crmTitle")}
+                  subtitle={t("adminMisc.intelligence.invitationActivation")}
+                >
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-lg font-black tracking-tighter text-[var(--text-primary)]">{fmtCount(crmStats.activated)}</p>
+                      <p className="mt-1 text-xs text-[var(--text-secondary)]">{t("adminMisc.intelligence.activated")}</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-black tracking-tighter text-[var(--text-primary)]">{fmtCount(crmStats.sent)}</p>
+                      <p className="mt-1 text-xs text-[var(--text-secondary)]">{t("adminMisc.intelligence.crmWaiting")}</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-black tracking-tighter text-[var(--brand-orange)]">{fmtCount(crmStats.activation_rate)}%</p>
+                      <p className="mt-1 text-xs text-[var(--text-secondary)]">{t("adminMisc.intelligence.activationRate")}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-lg font-black tracking-tighter text-[var(--text-primary)]">{fmtCount(contacts.invitations.activated)}</p>
-                    <p className="mt-1 text-xs text-[var(--text-secondary)]">{t("adminMisc.intelligence.activated")}</p>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface-3 px-4 py-3">
+                    <span className="text-[11px] font-medium text-[var(--text-secondary)]">
+                      {t("adminMisc.intelligence.registryStatus")}
+                    </span>
+                    <span className="text-xs text-[var(--text-secondary)]">
+                      {t("adminMisc.intelligence.contactsTotal")}:{" "}
+                      <strong className="text-[var(--text-primary)]">{fmtCount(crmStats.total)}</strong>
+                      <span className="mx-2 text-[var(--text-tertiary)]">·</span>
+                      {t("adminMisc.intelligence.invitationsExpired")}: {fmtCount(crmStats.expired)}
+                      <span className="mx-2 text-[var(--text-tertiary)]">·</span>
+                      {t("adminMisc.intelligence.notInvited")}: {fmtCount(crmStats.not_invited)}
+                    </span>
                   </div>
-                  <div>
-                    <p className="text-lg font-black tracking-tighter text-[var(--brand-orange)]">{fmtCount(contacts.invitations.activation_rate)}%</p>
-                    <p className="mt-1 text-xs text-[var(--text-secondary)]">{t("adminMisc.intelligence.activationRate")}</p>
-                  </div>
-                </div>
                 <div className="mt-5 border-t border-[var(--border-primary)] pt-4">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-[var(--text-secondary)]">{t("adminMisc.intelligence.contactGrowth")}</span>
