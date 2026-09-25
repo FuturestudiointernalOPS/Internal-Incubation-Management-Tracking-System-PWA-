@@ -949,10 +949,6 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
       writeSeenWatermark(SEEN_KEYS.announcements);
       fetchNotifications();
     }
-    if (currentPath.startsWith("/admin/communications/forms")) {
-      writeSeenWatermark(SEEN_KEYS.forms);
-      fetchNotifications();
-    }
   }, [
     pathname,
     fetchNotifications,
