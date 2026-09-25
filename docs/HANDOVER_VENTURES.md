@@ -43,6 +43,12 @@ milestone starts `locked` unless it is the stage's first, or follows a completed
 one. A **Journey closes automatically** when every milestone in it is complete —
 manual close is deliberately refused. A Journey with no milestones never closes.
 
+A milestone's **own status follows the work inside it**: `in_progress`,
+`under_review` or `changes_requested` as its deliverables move, so the row and
+the Journey's `x/y` can never contradict the evidence a founder is looking at.
+Approving a milestone's **last** deliverable completes it — the same act, under
+the same authority, as marking it complete by hand.
+
 **③ Three artefacts, three homes.**
 
 | Artefact | Home | Direction | Who writes it |
@@ -146,6 +152,11 @@ Two rules worth stating on their own:
 - **A session cannot exist outside a milestone**, must carry a **Memo**, and must
   start at least `SESSION_MIN_LEAD_MINUTES` (30) ahead. A **founder may only book
   their current milestone** — enforced server-side by `assertBookableMilestone`.
+- **Completing a milestone** is also reached by approving its **last**
+  deliverable. The authority is unchanged (`milestones.edit`, or a Super Admin):
+  a scoped coach may *review* evidence and push the milestone to `in_progress`,
+  but the sign-off — and the unlock / Journey close it triggers — stays with the
+  Lead Manager.
 - **Internal notes never leave the staff side.** They are scope-filtered, not
   just permission-filtered: a coach sees the notes inside their assignment.
 
@@ -290,8 +301,9 @@ review is a state on the record, not an overwrite.
 
 ### Step 8 — Completion, and the chain moves
 
-David (or Super Admin — nobody else) marks *Pitch Deck* **completed**. Three
-things happen without a second instruction:
+David (or Super Admin — nobody else) marks *Pitch Deck* **completed** — either by
+approving its last outstanding deliverable, or by completing the milestone
+directly. Three things happen without a second instruction:
 
 ```
 Pitch Deck            ✓ completed

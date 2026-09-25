@@ -4,8 +4,9 @@ import db from "@/lib/db";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { canDefineDeliverables, canReviewDeliverable } from "@/lib/ventureDeliverables";
+import { canManageMilestones, syncMilestoneStatusFromDeliverables } from "@/lib/ventureMilestoneEngine";
 import { dateOrNull, textOrNull } from "@/lib/ventureInput";
-import { listDeliverables, createDeliverable, updateDeliverable, getDeliverable } from "@/lib/ventures";
+import { listDeliverables, createDeliverable, updateDeliverable, getDeliverable, notifyVentureFounders } from "@/lib/ventures";
 
 /**
  * Deliverable management — a deliverable always belongs to a milestone, and a
@@ -150,7 +151,17 @@ export const PATCH = createHandler(async (req, { params }) => {
       session?.cid || null,
       session?.name || null,
     );
-    return NextResponse.json({ success: true });
+    // The evidence is in: the milestone's OWN status follows its deliverables
+    // (a submission moves it to "awaiting review"). A submission is the
+    // founder's act, so it can never COMPLETE the milestone — `canComplete` is
+    // false and the sign-off stays with the Lead Manager.
+    const milestoneSync = await syncMilestoneStatusFromDeliverables(db, {
+      dbId,
+      milestoneId: milestone.id,
+      cid: session?.cid || null,
+      canComplete: false,
+    });
+    return NextResponse.json({ success: true, milestone_status: milestoneSync.status || null });
   }
 
   // ── review: Lead Manager / Super Admin, or a scoped staff member ─────────
@@ -207,7 +218,71 @@ export const PATCH = createHandler(async (req, { params }) => {
       });
     } catch (_) {}
 
-    return NextResponse.json({ success: true, decision });
+    // The review moves the milestone's own status with the work: approving some
+    // evidence puts it In Progress, returning some puts it Changes Requested,
+    // and the LAST approval closes it — but closing a milestone stays the Lead
+    // Manager / Super Admin's decision (the same authority the manual complete
+    // action requires); a scoped coach's approval stops at In Progress.
+    const canCompleteMilestone = await canManageMilestones(db, { id, cid: session?.cid, role: session?.role });
+    const milestoneSync = await syncMilestoneStatusFromDeliverables(db, {
+      dbId,
+      milestoneId: milestone.id,
+      cid: session?.cid || null,
+      canComplete: canCompleteMilestone,
+    });
+
+    if (milestoneSync.status === "completed") {
+      try {
+        await notifyVentureFounders(
+          dbId,
+          "Milestone approved",
+          `The milestone "${milestoneSync.milestone_title || ""}" has been completed and approved.`,
+          { journey_stage_id: milestone.journey_stage_id || null, milestone_id: milestone.id },
+          { templateKey: "venture.notif.milestoneApproved", params: { milestoneTitle: milestoneSync.milestone_title || "" }, dedupeKey: `milestone-completed:${milestone.id}` },
+        );
+      } catch (_) {}
+      try {
+        const { addVentureHistory } = await import("@/lib/ventures");
+        await addVentureHistory({
+          venture_id: id,
+          event_type: "MILESTONE_COMPLETED",
+          description: `Milestone "${milestoneSync.milestone_title || milestone.id}" completed — every deliverable approved`,
+        });
+      } catch (_) {}
+
+      if (milestoneSync.journey_completed) {
+        try {
+          await notifyVentureFounders(
+            dbId,
+            "Journey completed",
+            `All milestones in "${milestoneSync.journey?.name || "your journey"}" are completed.`,
+            { journey_stage_id: milestone.journey_stage_id || null },
+            {
+              templateKey: "venture.notif.journeyCompleted",
+              params: { stageName: milestoneSync.journey?.name || "" },
+              dedupeKey: `journey-completed:${milestone.journey_stage_id}`,
+            },
+          );
+        } catch (_) {}
+        try {
+          const { addVentureHistory } = await import("@/lib/ventures");
+          await addVentureHistory({
+            venture_id: id,
+            event_type: "JOURNEY_COMPLETED",
+            description: `Journey "${milestoneSync.journey?.name || ""}" completed — all milestones are done${milestoneSync.journey?.next_stage_id ? "; the next journey is now active" : ""}`,
+          });
+        } catch (_) {}
+      }
+    }
+
+    // `journey_completed` is additive, exactly as the milestone PATCH returns it.
+    return NextResponse.json({
+      success: true,
+      decision,
+      milestone_status: milestoneSync.status || null,
+      journey_completed: Boolean(milestoneSync.journey_completed),
+      journey: milestoneSync.journey || null,
+    });
   }
 
   // ── update: the definition, managers only ───────────────────────────────

@@ -301,6 +301,134 @@ export async function assertBookableMilestone(db, { dbId, milestoneId }) {
 }
 
 /**
+ * The milestone's OWN status follows the WORK inside it.
+ *
+ * The stored milestone vocabulary (locked | not_started | in_progress |
+ * under_review | changes_requested | completed) was only ever half written:
+ * creation states and `completed` existed, while the three work states the
+ * lexicon already defines were never produced. So a milestone whose evidence
+ * had been submitted and approved still read "Not Started", and a Journey's
+ * "x/y milestones" never moved — a founder could see an approved deliverable,
+ * a 67% bar and "Not Started" on the same row.
+ *
+ * This is a PURE derivation from the deliverables' own states: it reflects the
+ * work, it does not decide anything. Moving the milestone — and closing it — is
+ * done by `syncMilestoneStatusFromDeliverables` below.
+ *
+ * Precedence, most actionable first:
+ *   every deliverable approved → completed
+ *   any deliverable sent back  → changes_requested  (the founder must act)
+ *   any deliverable awaiting review → under_review
+ *   anything started              → in_progress
+ *   nothing started               → not_started
+ *
+ * Returns one of the milestone statuses, or null when the milestone has no
+ * deliverables (there is no work to reflect).
+ */
+export function deriveMilestoneStatusFromDeliverables(deliverables = []) {
+  const list = (deliverables || []).filter(Boolean);
+  if (list.length === 0) return null;
+
+  const stateOf = (deliverable) => {
+    const approval = String(deliverable.approval_status || "").trim().toLowerCase();
+    const status = String(deliverable.status || "").trim().toLowerCase();
+    if (approval === "approved" || status === "approved" || status === "completed" || status === "accepted") return "approved";
+    if (approval === "rejected" || status === "changes_requested" || status === "revision_requested") return "changes_requested";
+    if (status === "submitted" || status === "under_review" || status === "review") return "awaiting_review";
+    if (status === "in_progress") return "in_progress";
+    return "not_started";
+  };
+
+  const states = list.map(stateOf);
+  if (states.every((state) => state === "approved")) return "completed";
+  if (states.includes("changes_requested")) return "changes_requested";
+  if (states.includes("awaiting_review")) return "under_review";
+  if (states.includes("in_progress") || states.includes("approved")) return "in_progress";
+  return "not_started";
+}
+
+/**
+ * Move a milestone to the status its deliverables imply, after evidence was
+ * submitted or reviewed.
+ *
+ * Two lines are never crossed:
+ *   - a `locked` milestone is unreleased planning; the work inside it cannot be
+ *     what releases it, and
+ *   - a `completed` milestone is the manager's decision already taken; later
+ *     evidence never reopens it.
+ *
+ * Completion keeps its AUTHORITY: when every deliverable is approved the
+ * milestone closes — unlocking the next one and, if that was the last, closing
+ * the Journey — but ONLY for an actor who may complete milestones (the Lead
+ * Manager / a Super Admin). A scoped coach, who may REVIEW a deliverable but
+ * holds no `milestones.edit`, moves the milestone to `in_progress` and leaves
+ * the sign-off where it belongs.
+ *
+ * Returns { changed, status, journey_completed?, journey? }.
+ */
+export async function syncMilestoneStatusFromDeliverables(db, { dbId, milestoneId, cid = null, canComplete = false }) {
+  if (!milestoneId || !dbId) return { changed: false, status: null };
+  try {
+    const milestoneResult = await db
+      .execute({
+        sql: "SELECT id, title, status, journey_stage_id FROM venture_milestones WHERE id = ? AND venture_id = ?",
+        args: [milestoneId, dbId],
+      })
+      .catch(() => ({ rows: [] }));
+    const milestone = rowsOf(milestoneResult)[0];
+    if (!milestone) return { changed: false, status: null };
+    if (milestone.status === "locked" || isMilestoneComplete(milestone.status)) {
+      return { changed: false, status: milestone.status };
+    }
+
+    const deliverablesResult = await db
+      .execute({
+        sql: "SELECT status, approval_status FROM venture_deliverables WHERE milestone_id::text = ?",
+        args: [String(milestoneId)],
+      })
+      .catch(() => ({ rows: [] }));
+
+    let target = deriveMilestoneStatusFromDeliverables(rowsOf(deliverablesResult));
+    if (!target || target === milestone.status) return { changed: false, status: milestone.status };
+
+    if (target === "completed") {
+      if (!canComplete) {
+        // The work is done, but closing a milestone is not the reviewer's call.
+        target = "in_progress";
+      } else {
+        await completeMilestoneAndUnlockNext(db, { dbId, milestoneId });
+        const stageOutcome = await completeStageIfAllMilestonesDone(db, {
+          dbId,
+          stageId: milestone.journey_stage_id,
+          cid,
+        });
+        return {
+          changed: true,
+          status: "completed",
+          milestone_title: milestone.title || null,
+          journey_completed: Boolean(stageOutcome?.completed),
+          journey: stageOutcome?.completed
+            ? {
+                id: milestone.journey_stage_id ? String(milestone.journey_stage_id) : null,
+                name: stageOutcome.stage_name || null,
+                next_stage_id: stageOutcome.next_stage_id || null,
+              }
+            : null,
+        };
+      }
+    }
+
+    await db.execute({
+      sql: "UPDATE venture_milestones SET status = ?, updated_at = NOW() WHERE id = ? AND venture_id = ?",
+      args: [target, milestoneId, dbId],
+    });
+    return { changed: true, status: target };
+  } catch (_) {
+    return { changed: false, status: null };
+  }
+}
+
+/**
  * Mark a milestone completed and unlock the next locked milestone in the
  * same stage. Returns { unlocked_milestone_id } (null when none follows).
  * Assumes the caller already verified completion authority.
@@ -337,4 +465,4 @@ export async function completeMilestoneAndUnlockNext(db, { dbId, milestoneId }) 
   return { unlocked_milestone_id: next.id };
 }
 
-export default { isMilestoneLeadAuthority, resolveVentureCode, canManageMilestones, computeInitialMilestoneStatus, releaseFirstMilestoneForStage, completeStageIfAllMilestonesDone, completeMilestoneAndUnlockNext, assertBookableMilestone };
+export default { isMilestoneLeadAuthority, resolveVentureCode, canManageMilestones, computeInitialMilestoneStatus, releaseFirstMilestoneForStage, completeStageIfAllMilestonesDone, completeMilestoneAndUnlockNext, assertBookableMilestone, deriveMilestoneStatusFromDeliverables, syncMilestoneStatusFromDeliverables };
