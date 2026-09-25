@@ -796,7 +796,7 @@ export default function PlatformForms() {
               <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.conditionalShowOnlyWhen")}</label>
                 <select value={field.conditional_logic?.field_id || ""} onChange={(event) => updateField(tempId, { conditional_logic: { ...(field.conditional_logic || {}), field_id: event.target.value || undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none">
                   <option value="">{t("platformMisc.forms.conditionalAlwaysVisible")}</option>
-                  {fields.filter((candidate) => candidate !== field).slice(0, 20).map((candidate) => <option key={candidate.label} value={candidate.label}>{candidate.label}</option>)}
+                  {fields.filter((candidate) => candidate !== field).slice(0, 20).map((candidate) => <option key={candidate._tmpId || candidate.id || candidate.label} value={candidate.label}>{candidate.label}</option>)}
                 </select>
               </div>
               {field.conditional_logic?.field_id && (
@@ -867,11 +867,9 @@ export default function PlatformForms() {
                       {form.status !== "archived" ? (
                         <button onClick={() => handleArchive(form.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-rose-500 hover:bg-tertiary" title={t("platformMisc.forms.archiveTitle")}><Archive className="w-3 h-3" /></button>
                       ) : (
-                        <>
-                          <button onClick={() => handleUnarchive(form.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-emerald-500 hover:bg-tertiary" title={t("platformMisc.forms.restoreTitle")}><RotateCcw className="w-3 h-3" /></button>
-                          <button onClick={() => handleDeletePermanently(form.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-rose-500 hover:bg-tertiary" title={t("platformMisc.forms.deleteTitle")}><Trash2 className="w-3 h-3" /></button>
-                        </>
+                        <button onClick={() => handleUnarchive(form.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-emerald-500 hover:bg-tertiary" title={t("platformMisc.forms.restoreTitle")}><RotateCcw className="w-3 h-3" /></button>
                       )}
+                      <button onClick={() => handleDeletePermanently(form.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-rose-500 hover:bg-tertiary" title={t("platformMisc.forms.deleteTitle")}><Trash2 className="w-3 h-3" /></button>
                     </div>
                   </div>
                   <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">{form.name}</h3>
@@ -1179,7 +1177,7 @@ export default function PlatformForms() {
                                 const isScored = currentLabels.includes(field.label);
                                 return (
                                   <button
-                                    key={field.label}
+                                    key={field._tmpId || field.id || field.label}
                                     onClick={() => {
                                       const nextLabels = isScored ? currentLabels.filter((label) => label !== field.label) : [...currentLabels, field.label];
                                       setScoringConfig({
