@@ -336,6 +336,22 @@ export async function getInvestorProfileIdByUserId(userCid) {
   });
 }
 
+/**
+ * The APPROVED investor context of a person, if any.
+ *
+ * Used by the login landing, the personal sidebar and the workspaces hub to
+ * recognise someone who has been MADE an investor even when their global
+ * identity is still the baseline "member" — the profile is the entitlement,
+ * not the legacy role string. Approval is required: a pending or rejected
+ * application is not a context yet.
+ */
+export async function getApprovedInvestorProfileIdByUserId(userCid) {
+  return db.execute({
+    sql: "SELECT id FROM investor_profiles WHERE user_id = ? AND approval_status = 'approved' LIMIT 1",
+    args: [userCid],
+  });
+}
+
 /** pipeline POST — upsert the investment pipeline entry. */
 export async function upsertInvestmentPipeline({ investor_id, venture_id, stage, notes }) {
   return db.execute({

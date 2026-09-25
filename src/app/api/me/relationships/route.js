@@ -7,6 +7,7 @@ import {
   getVentureMembershipsForContact,
 } from "@/models/contacts";
 import { isFounderMembership } from "@/lib/platform/roles";
+import { getApprovedInvestorProfileIdByUserId } from "@/models/investor";
 
 /**
  * GET /api/me/relationships
@@ -20,6 +21,8 @@ import { isFounderMembership } from "@/lib/platform/roles";
  *   ventures             : active venture_memberships (venture_members)
  *   isVentureMember      : ventures.length > 0
  *   isFounder            : owns at least one of those ventures
+ *   isInvestor           : holds an APPROVED investor profile (an assigned
+ *                          context, independent of the global role string)
  */
 
 export async function GET() {
@@ -65,11 +68,22 @@ export async function GET() {
     // permission.
     const isFounder = ventures.some(isFounderMembership);
 
+    // The investor context: an approved investor profile is a relationship the
+    // baseline badge cannot express, so the personal sidebar reads it here —
+    // this is what gives a "member" who was taken as an investor their investor
+    // door without any change to their global identity.
+    let isInvestor = false;
+    try {
+      const investorProfile = await getApprovedInvestorProfileIdByUserId(cid);
+      isInvestor = (investorProfile.rows || []).length > 0;
+    } catch (_) {}
+
     return NextResponse.json({
       success: true,
       isProgramParticipant,
       isVentureMember: ventures.length > 0,
       isFounder,
+      isInvestor,
       ventures,
     });
   } catch (error) {
