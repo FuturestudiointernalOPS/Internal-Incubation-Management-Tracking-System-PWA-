@@ -186,6 +186,21 @@ export default function IntelligencePage() {
         ]
       : [];
 
+  const readinessCategories = ventures?.readiness?.by_category ?? [];
+  const categoryKeys = {
+    startup_profile: "startupProfile",
+    legal: "legal",
+    financial: "financial",
+    product: "product",
+    traction: "traction",
+    market_validation: "marketValidation",
+    business_model: "businessModel",
+    team: "team",
+    technology: "technology",
+    pitch_readiness: "pitchReadiness",
+  };
+  const invitedCount = (crmStats.sent || 0) + (crmStats.expired || 0);
+
   return (
     <>
       <div className="p-6 space-y-6">
@@ -279,6 +294,37 @@ export default function IntelligencePage() {
                       {t("adminMisc.intelligence.assessed")} · {fmtCount(ventures.readiness.unassessed)} {t("adminMisc.intelligence.unassessed")}
                     </p>
                   </div>
+                </div>
+                <div className="rounded-xl bg-surface-3 p-4 mb-5">
+                  <p className="text-[11px] font-medium text-[var(--text-secondary)] mb-1">
+                    {t("adminMisc.intelligence.readinessBreakdown")}
+                  </p>
+                  <p className="text-[11px] text-[var(--text-tertiary)] mb-3">
+                    {t("adminMisc.intelligence.readinessHint")}
+                  </p>
+                  {readinessCategories.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
+                      {readinessCategories.map((c) => (
+                        <div key={c.category} className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] text-[var(--text-secondary)] truncate">
+                            {t(`adminMisc.intelligence.category.${categoryKeys[c.category] || c.category}`)}
+                          </span>
+                          <span className="flex items-center gap-2 shrink-0">
+                            <span className="h-1.5 w-14 rounded-full bg-[var(--surface-1)] overflow-hidden">
+                              <span
+                                className="block h-full rounded-full bg-[var(--brand-orange)]"
+                                style={{ width: `${Math.min(100, c.avg_score)}%` }}
+                              />
+                            </span>
+                            <span className="text-xs font-bold text-[var(--text-primary)] w-7 text-right">{fmtCount(c.avg_score)}</span>
+                            <span className="text-[10px] text-[var(--text-tertiary)] w-9 text-right">· {c.weight}%</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[var(--text-tertiary)]">{t("adminMisc.intelligence.noData")}</p>
+                  )}
                 </div>
                 <div className="space-y-3">
                   {readinessLevels.map((item) => (
@@ -499,9 +545,10 @@ export default function IntelligencePage() {
                       {t("adminMisc.intelligence.contactsTotal")}:{" "}
                       <strong className="text-[var(--text-primary)]">{fmtCount(crmStats.total)}</strong>
                       <span className="mx-2 text-[var(--text-tertiary)]">·</span>
-                      {t("adminMisc.intelligence.invitationsExpired")}: {fmtCount(crmStats.expired)}
+                      {t("adminMisc.intelligence.invited")}:{" "}
+                      <strong className="text-[var(--text-primary)]">{fmtCount(invitedCount)}</strong>
                       <span className="mx-2 text-[var(--text-tertiary)]">·</span>
-                      {t("adminMisc.intelligence.notInvited")}: {fmtCount(crmStats.not_invited)}
+                      {t("adminMisc.intelligence.invitationsExpired")}: {fmtCount(crmStats.expired)}
                     </span>
                   </div>
                 <div className="mt-5 border-t border-[var(--border-primary)] pt-4">
