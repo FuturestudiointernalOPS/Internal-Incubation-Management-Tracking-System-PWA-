@@ -8,7 +8,6 @@ import { stopRoleMutationEnabled } from "@/lib/identity";
  *   src/app/api/investor/relationships/route.js            (12 queries)
  *   src/app/api/investor/relationships/meetings/route.js   (10 queries)
  *   src/app/api/investor/meetings/route.js                 ( 2 queries)
- *   src/app/api/investor/register/route.js                 (11 queries)
  *   src/app/api/investor/organizations/route.js            ( 8 queries)
  *   src/app/api/investor/profile/route.js                  ( 6 queries)
  *   src/app/api/investor/decisions/route.js                ( 6 queries)
@@ -320,14 +319,126 @@ export async function insertInvestorMeeting(ventureId, title, description, start
   });
 }
 
-// ── POST /api/investor/register ──────────────────────────────────────────────
+// ── Investor Application approval provisioning ───────────────────────────────
 
-/** Contact lookup by email during self-registration. */
-export async function findContactByEmail(email) {
-  return db.execute({
-    sql: "SELECT cid, role FROM contacts WHERE email = ? AND deleted = 0",
-    args: [email],
+/** Trimmed non-empty text, joining array answers; null when there is nothing. */
+function asText(value) {
+  if (typeof value === "string") return value.trim() || null;
+  if (typeof value === "number") return String(value);
+  if (Array.isArray(value)) return value.map((entry) => String(entry).trim()).filter(Boolean).join(", ") || null;
+  return null;
+}
+
+/** Multi-select answers as a clean string list, from an array or a CSV string. */
+function normalizeArray(value) {
+  if (Array.isArray(value)) return value.map((entry) => String(entry).trim()).filter(Boolean);
+  if (typeof value === "string" && value.trim()) return value.split(",").map((entry) => entry.trim()).filter(Boolean);
+  return [];
+}
+
+/** Integer answer, or null when it is empty / not a number. */
+function normalizeNumber(value) {
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Provision the investor account when an Investor Application submission is
+ * approved: create (or reuse) the investor profile, store the requested
+ * preferences, and give the contact the investor context. Idempotent — a
+ * re-approval updates the same profile instead of creating a second one.
+ */
+export async function provisionInvestorFromApproval({ contactCid, submission, formId }) {
+  const cid = String(contactCid || "").trim();
+  if (!cid) return { skipped: true, reason: "missing_contact" };
+
+  // 1. Map the submission answers to their meaning via each field's settings.key.
+  const data = {};
+  try {
+    const fieldsResult = await db.execute({
+      sql: "SELECT id, settings FROM platform_form_fields WHERE form_id = ?",
+      args: [formId],
+    });
+    const keyMap = {};
+    for (const fieldRow of fieldsResult.rows || []) {
+      if (fieldRow.settings?.key) keyMap[String(fieldRow.id)] = fieldRow.settings.key;
+    }
+    for (const [fieldId, value] of Object.entries(submission?.data || {})) {
+      const key = keyMap[String(fieldId)];
+      if (key) data[key] = value;
+    }
+  } catch (_) {}
+
+  const organizationName = asText(data.organization_name);
+  const biography = asText(data.biography);
+  const website = asText(data.website);
+  const linkedin = asText(data.linkedin);
+  const experience =
+    [asText(data.investment_experience), asText(data.prior_investments)].filter(Boolean).join("\n\n") || null;
+  const industries = normalizeArray(data.industries);
+  const countries = normalizeArray(data.countries);
+  const stages = normalizeArray(data.startup_stages);
+  const ticketMin = normalizeNumber(data.ticket_size_min);
+  const ticketMax = normalizeNumber(data.ticket_size_max);
+
+  // 2. One profile per contact: reuse it when it exists, create it otherwise.
+  const existingResult = await db.execute({
+    sql: "SELECT id FROM investor_profiles WHERE user_id = ? LIMIT 1",
+    args: [cid],
   });
+  let profileId = existingResult.rows[0]?.id || null;
+
+  if (profileId) {
+    await db.execute({
+      sql: `UPDATE investor_profiles
+              SET approval_status = 'approved',
+                  organization_name = COALESCE(?, organization_name),
+                  biography = COALESCE(?, biography),
+                  website = COALESCE(?, website),
+                  linkedin = COALESCE(?, linkedin),
+                  updated_at = NOW()
+            WHERE id = ?`,
+      args: [organizationName, biography, website, linkedin, profileId],
+    });
+  } else {
+    const inserted = await db.execute({
+      sql: `INSERT INTO investor_profiles (user_id, organization_name, biography, website, linkedin, approval_status)
+              VALUES (?, ?, ?, ?, ?, 'approved') RETURNING id`,
+      args: [cid, organizationName, biography, website, linkedin],
+    });
+    profileId = inserted.rows[0]?.id || null;
+  }
+
+  // 3. Qualification columns live outside the committed migrations (they exist
+  //    in production). Set them best-effort so an environment without them still
+  //    gets a working profile.
+  try {
+    await db.execute({
+      sql: `UPDATE investor_profiles
+              SET qualification_status = 'approved', profile_completion = 100, investment_experience = COALESCE(?, investment_experience), updated_at = NOW()
+            WHERE id = ?`,
+      args: [experience, profileId],
+    });
+  } catch (_) {}
+
+  // 4. Preferences — one row per profile.
+  if (industries.length || countries.length || stages.length || ticketMin !== null || ticketMax !== null) {
+    await db.execute({
+      sql: `INSERT INTO investor_preferences (investor_id, industries, countries, startup_stages, ticket_size_min, ticket_size_max)
+              VALUES (?, ?, ?, ?, ?, ?)
+              ON CONFLICT (investor_id)
+              DO UPDATE SET industries = EXCLUDED.industries, countries = EXCLUDED.countries,
+                            startup_stages = EXCLUDED.startup_stages, ticket_size_min = EXCLUDED.ticket_size_min,
+                            ticket_size_max = EXCLUDED.ticket_size_max, updated_at = NOW()`,
+      args: [profileId, industries, countries, stages, ticketMin, ticketMax],
+    });
+  }
+
+  // 5. Give the contact the investor context (guarded: a baseline identity is
+  //    never overwritten — see upgradeContactRoleToInvestor).
+  await upgradeContactRoleToInvestor(cid);
+
+  return { success: true, profile_id: profileId };
 }
 
 /** Promote an existing contact to the investor role. */
@@ -342,58 +453,6 @@ export async function setContactRoleToInvestor(name, contactId) {
   return db.execute({
     sql: "UPDATE contacts SET role = 'investor', name = ? WHERE cid = ?",
     args: [name, contactId],
-  });
-}
-
-/** Create the contacts row for a brand-new investor registration. */
-export async function insertContactForRegistration(cid, name, email, password) {
-  return db.execute({
-    sql: `INSERT INTO contacts (cid, name, email, password, role, status, group_name)
-            VALUES (?, ?, ?, ?, 'investor', 'active', 'INVESTOR')`,
-    args: [cid, name, email, password],
-  });
-}
-
-/** Create the investor profile for a brand-new registration. */
-export async function insertInvestorProfileForRegistration(userId, organizationName, biography, website, linkedin, investmentExperience) {
-  return db.execute({
-    sql: `INSERT INTO investor_profiles (user_id, organization_name, biography, website, linkedin, approval_status, qualification_status, investment_experience, profile_completion)
-            VALUES (?, ?, ?, ?, ?, 'pending_review', 'pending_review', ?, 100)`,
-    args: [userId, organizationName, biography, website, linkedin, investmentExperience],
-  });
-}
-
-/** Profile id resolver for new-contact preferences (register). */
-export async function getNewInvestorProfileId(contactId) {
-  return db.execute({
-    sql: "SELECT id FROM investor_profiles WHERE user_id = ?",
-    args: [contactId],
-  });
-}
-
-/** Insert preferences for a brand-new registration. */
-export async function insertInvestorPreferences(investorId, industries, countries, startupStages, ticketSizeMin, ticketSizeMax) {
-  return db.execute({
-    sql: `INSERT INTO investor_preferences (investor_id, industries, countries, startup_stages, ticket_size_min, ticket_size_max)
-              VALUES (?, ?, ?, ?, ?, ?)`,
-    args: [investorId, industries, countries, startupStages, ticketSizeMin, ticketSizeMax],
-  });
-}
-
-/** Admin/staff contacts to notify about a new registration. */
-export async function listAdminContactIdsForNotification() {
-  return db.execute({
-    sql: "SELECT cid FROM contacts WHERE role IN ('super_admin', 'staff') AND deleted_at IS NULL",
-    args: [],
-  });
-}
-
-/** Notify admins that a new investor registered. */
-export async function notifyAdminsOfNewInvestor(recipientId, title, message) {
-  return db.execute({
-    sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at, link)
-                VALUES (?, ?, ?, 'investor', 0, NOW(), ?)`,
-    args: [recipientId, title, message, "/admin/investors/review"],
   });
 }
 
