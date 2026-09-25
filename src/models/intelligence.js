@@ -1,6 +1,6 @@
 import db from "@/lib/db";
 import { getWeekNumber } from "@/lib/constants";
-import { calculateInvestmentReadiness } from "@/lib/ventures";
+import { calculateInvestmentReadiness, INVESTMENT_CATEGORIES } from "@/lib/ventures";
 import {
   getTaskStatusStats,
   getBlockerStatusStats,
@@ -55,6 +55,21 @@ export async function getVentureMetrics() {
     if (r && byLevel[r.investment_level] !== undefined) byLevel[r.investment_level] += 1;
   }
 
+  const readinessResults = readinessList.filter(Boolean);
+  const byCategory = INVESTMENT_CATEGORIES.map((category) => {
+    const entries = readinessResults
+      .map((r) => (r.categories || []).find((c) => c.category === category))
+      .filter(Boolean);
+    return {
+      category,
+      weight: entries[0]?.weight ?? 0,
+      avg_score:
+        entries.length > 0
+          ? Math.round(entries.reduce((sum, c) => sum + c.score, 0) / entries.length)
+          : 0,
+    };
+  });
+
   const assessed = scores.length;
 
   return {
@@ -68,6 +83,7 @@ export async function getVentureMetrics() {
           ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
           : 0,
       by_level: byLevel,
+      by_category: byCategory,
     },
   };
 }
