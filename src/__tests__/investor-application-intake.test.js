@@ -25,6 +25,10 @@ jest.mock("@/lib/identity", () => ({
   stopRoleMutationEnabled: jest.fn(() => false),
 }));
 
+jest.mock("@/models/adminOps", () => ({
+  insertErrorLog: jest.fn(async () => ({ rows: [{ id: 1 }] })),
+}));
+
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -32,6 +36,7 @@ const ROOT = process.cwd();
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 const db = require("@/lib/db").default;
+const { insertErrorLog } = require("@/models/adminOps");
 const { provisionInvestorFromApproval } = require("@/models/investorRelations");
 
 const SEED_ROUTE = "src/app/api/platform/seed/investor-application/route.js";
@@ -106,9 +111,28 @@ describe("static contract — the investor intake wiring", () => {
     expect(src).toMatch(/status: 410/);
     expect(src).toMatch(/LEGACY_FLOW_RETIRED/);
   });
+
+  test("the schema alignment file carries the missing investor profile columns", () => {
+    const sql = read("migrations/align_schema_with_code.sql");
+    for (const column of MISSING_PROFILE_COLUMNS) {
+      expect(sql).toContain(`investor_profiles ADD COLUMN IF NOT EXISTS ${column}`);
+    }
+  });
 });
 
 // ─── Behaviour ───────────────────────────────────────────────────────────────
+
+// The profile columns the intake reads and writes that no versioned migration
+// ever created (they existed in production only). Kept in one place so the code
+// self-heal and the schema-alignment file are checked against the same list.
+const MISSING_PROFILE_COLUMNS = [
+  "qualification_status",
+  "investment_experience",
+  "profile_completion",
+  "review_notes",
+  "reviewed_at",
+  "reviewed_by",
+];
 
 const FIELD_ROWS = [
   { id: 10, settings: { key: "organization_name" } },
@@ -199,5 +223,46 @@ describe("provisionInvestorFromApproval", () => {
     const result = await provisionInvestorFromApproval({ contactCid: "", submission: SUBMISSION, formId: 3 });
     expect(result).toEqual({ skipped: true, reason: "missing_contact" });
     expect(db.execute).not.toHaveBeenCalled();
+  });
+
+  test("the schema self-heal creates the six profile columns, once per process", async () => {
+    let mod;
+    jest.isolateModules(() => {
+      mod = require("@/models/investorRelations");
+    });
+    db.execute.mockReset();
+    db.execute.mockImplementation(async () => ({ rows: [] }));
+
+    await expect(mod.ensureInvestorProfileSchema()).resolves.toBe(true);
+
+    const alters = db.execute.mock.calls.map(([call]) => String(call?.sql || call));
+    for (const column of MISSING_PROFILE_COLUMNS) {
+      expect(alters.some((sql) => sql.includes(`ADD COLUMN IF NOT EXISTS ${column}`))).toBe(true);
+    }
+
+    // Memoised: a second call issues no further statements.
+    const afterFirst = db.execute.mock.calls.length;
+    await mod.ensureInvestorProfileSchema();
+    expect(db.execute.mock.calls.length).toBe(afterFirst);
+  });
+
+  test("a failed profile write is reported, never swallowed", async () => {
+    db.execute.mockImplementation(async ({ sql } = {}) => {
+      const text = String(sql);
+      if (text.includes("FROM platform_form_fields")) return { rows: FIELD_ROWS };
+      if (text.includes("SELECT id FROM investor_profiles WHERE user_id")) return { rows: [] };
+      if (text.includes("ALTER TABLE investor_profiles")) return { rows: [] };
+      if (text.includes("INSERT INTO investor_profiles")) throw new Error("column \"profile_completion\" does not exist");
+      return { rows: [] };
+    });
+
+    const result = await provisionInvestorFromApproval({ contactCid: "USR-X", submission: SUBMISSION, formId: 3 });
+
+    expect(result.success).toBe(false);
+    expect(insertErrorLog).toHaveBeenCalled();
+    const [body, category] = insertErrorLog.mock.calls[0];
+    expect(category).toBe("database_error");
+    expect(body.severity).toBe("error");
+    expect(body.message).toContain("creating the investor profile");
   });
 });

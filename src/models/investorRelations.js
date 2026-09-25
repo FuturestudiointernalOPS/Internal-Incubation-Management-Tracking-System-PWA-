@@ -343,10 +343,73 @@ function normalizeNumber(value) {
 }
 
 /**
+ * Ensure the investor profile columns the intake reads and writes exist.
+ *
+ * Several of them live OUTSIDE the committed migrations — they exist in the
+ * production database only (see the section in migrations/align_schema_with_code.sql).
+ * This self-heal keeps any environment usable without waiting for a migration to
+ * be run by hand. Memoised like the platform's other schema helpers: one attempt
+ * per process, and a failure is retried on the next call instead of cached broken.
+ */
+let investorProfileSchemaPromise = null;
+export function ensureInvestorProfileSchema() {
+  if (!investorProfileSchemaPromise) {
+    investorProfileSchemaPromise = (async () => {
+      try {
+        await db.execute("ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS qualification_status TEXT DEFAULT 'pending_review'");
+        await db.execute("ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS investment_experience TEXT");
+        await db.execute("ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS profile_completion INTEGER DEFAULT 0");
+        await db.execute("ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS review_notes TEXT");
+        await db.execute("ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP WITH TIME ZONE");
+        await db.execute("ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS reviewed_by TEXT");
+        return true;
+      } catch (error) {
+        console.warn("[Investor] schema self-heal failed, will retry:", error.message);
+        investorProfileSchemaPromise = null;
+        return false;
+      }
+    })();
+  }
+  return investorProfileSchemaPromise;
+}
+
+/**
+ * Make a provisioning failure VISIBLE instead of swallowing it: a plain server
+ * error, plus a row in the Errors register the admins triage. Never on the
+ * critical path — a logging failure must not mask the original one.
+ */
+async function reportInvestorProvisioningFailure(context, error, contactCid) {
+  const message = `[Investor provisioning] ${context} failed: ${error?.message || error}`;
+  console.error(message);
+  try {
+    const { insertErrorLog } = await import("@/models/adminOps");
+    await insertErrorLog(
+      {
+        message,
+        stack: error?.stack || null,
+        severity: "error",
+        endpoint: "automation:investor-provisioning",
+        page: "Investor application approval",
+        action_attempted: context,
+        user_id: contactCid || null,
+        method: "AUTOMATION",
+      },
+      "database_error",
+      `investor-provisioning:${context}`,
+    );
+  } catch (loggingError) {
+    console.error("[Investor provisioning] could not record the failure:", loggingError.message);
+  }
+}
+
+/**
  * Provision the investor account when an Investor Application submission is
  * approved: create (or reuse) the investor profile, store the requested
  * preferences, and give the contact the investor context. Idempotent — a
  * re-approval updates the same profile instead of creating a second one.
+ *
+ * Every write is guarded so an environment problem is REPORTED, never silent,
+ * and never turns a successful approval into a failed request.
  */
 export async function provisionInvestorFromApproval({ contactCid, submission, formId }) {
   const cid = String(contactCid || "").trim();
@@ -367,7 +430,9 @@ export async function provisionInvestorFromApproval({ contactCid, submission, fo
       const key = keyMap[String(fieldId)];
       if (key) data[key] = value;
     }
-  } catch (_) {}
+  } catch (error) {
+    await reportInvestorProvisioningFailure("reading the form's answer mapping", error, cid);
+  }
 
   const organizationName = asText(data.organization_name);
   const biography = asText(data.biography);
@@ -381,37 +446,50 @@ export async function provisionInvestorFromApproval({ contactCid, submission, fo
   const ticketMin = normalizeNumber(data.ticket_size_min);
   const ticketMax = normalizeNumber(data.ticket_size_max);
 
-  // 2. One profile per contact: reuse it when it exists, create it otherwise.
-  const existingResult = await db.execute({
-    sql: "SELECT id FROM investor_profiles WHERE user_id = ? LIMIT 1",
-    args: [cid],
-  });
-  let profileId = existingResult.rows[0]?.id || null;
-
-  if (profileId) {
-    await db.execute({
-      sql: `UPDATE investor_profiles
-              SET approval_status = 'approved',
-                  organization_name = COALESCE(?, organization_name),
-                  biography = COALESCE(?, biography),
-                  website = COALESCE(?, website),
-                  linkedin = COALESCE(?, linkedin),
-                  updated_at = NOW()
-            WHERE id = ?`,
-      args: [organizationName, biography, website, linkedin, profileId],
-    });
-  } else {
-    const inserted = await db.execute({
-      sql: `INSERT INTO investor_profiles (user_id, organization_name, biography, website, linkedin, approval_status)
-              VALUES (?, ?, ?, ?, ?, 'approved') RETURNING id`,
-      args: [cid, organizationName, biography, website, linkedin],
-    });
-    profileId = inserted.rows[0]?.id || null;
+  // 2. Make sure the profile columns exist (they may be absent in a given env).
+  if (!(await ensureInvestorProfileSchema())) {
+    await reportInvestorProvisioningFailure(
+      "ensuring the investor profile columns",
+      new Error("schema self-heal failed"),
+      cid,
+    );
   }
 
-  // 3. Qualification columns live outside the committed migrations (they exist
-  //    in production). Set them best-effort so an environment without them still
-  //    gets a working profile.
+  // 3. One profile per contact: reuse it when it exists, create it otherwise.
+  let profileId = null;
+  try {
+    const existingResult = await db.execute({
+      sql: "SELECT id FROM investor_profiles WHERE user_id = ? LIMIT 1",
+      args: [cid],
+    });
+    profileId = existingResult.rows[0]?.id || null;
+
+    if (profileId) {
+      await db.execute({
+        sql: `UPDATE investor_profiles
+                SET approval_status = 'approved',
+                    organization_name = COALESCE(?, organization_name),
+                    biography = COALESCE(?, biography),
+                    website = COALESCE(?, website),
+                    linkedin = COALESCE(?, linkedin),
+                    updated_at = NOW()
+              WHERE id = ?`,
+        args: [organizationName, biography, website, linkedin, profileId],
+      });
+    } else {
+      const inserted = await db.execute({
+        sql: `INSERT INTO investor_profiles (user_id, organization_name, biography, website, linkedin, approval_status)
+                VALUES (?, ?, ?, ?, ?, 'approved') RETURNING id`,
+        args: [cid, organizationName, biography, website, linkedin],
+      });
+      profileId = inserted.rows[0]?.id || null;
+    }
+  } catch (error) {
+    await reportInvestorProvisioningFailure("creating the investor profile", error, cid);
+    return { success: false, error: error.message };
+  }
+
+  // 4. Qualification markers (permissions permitting — reported when refused).
   try {
     await db.execute({
       sql: `UPDATE investor_profiles
@@ -419,24 +497,34 @@ export async function provisionInvestorFromApproval({ contactCid, submission, fo
             WHERE id = ?`,
       args: [experience, profileId],
     });
-  } catch (_) {}
-
-  // 4. Preferences — one row per profile.
-  if (industries.length || countries.length || stages.length || ticketMin !== null || ticketMax !== null) {
-    await db.execute({
-      sql: `INSERT INTO investor_preferences (investor_id, industries, countries, startup_stages, ticket_size_min, ticket_size_max)
-              VALUES (?, ?, ?, ?, ?, ?)
-              ON CONFLICT (investor_id)
-              DO UPDATE SET industries = EXCLUDED.industries, countries = EXCLUDED.countries,
-                            startup_stages = EXCLUDED.startup_stages, ticket_size_min = EXCLUDED.ticket_size_min,
-                            ticket_size_max = EXCLUDED.ticket_size_max, updated_at = NOW()`,
-      args: [profileId, industries, countries, stages, ticketMin, ticketMax],
-    });
+  } catch (error) {
+    await reportInvestorProvisioningFailure("writing the qualification markers", error, cid);
   }
 
-  // 5. Give the contact the investor context (guarded: a baseline identity is
+  // 5. Preferences — one row per profile.
+  if (industries.length || countries.length || stages.length || ticketMin !== null || ticketMax !== null) {
+    try {
+      await db.execute({
+        sql: `INSERT INTO investor_preferences (investor_id, industries, countries, startup_stages, ticket_size_min, ticket_size_max)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT (investor_id)
+                DO UPDATE SET industries = EXCLUDED.industries, countries = EXCLUDED.countries,
+                              startup_stages = EXCLUDED.startup_stages, ticket_size_min = EXCLUDED.ticket_size_min,
+                              ticket_size_max = EXCLUDED.ticket_size_max, updated_at = NOW()`,
+        args: [profileId, industries, countries, stages, ticketMin, ticketMax],
+      });
+    } catch (error) {
+      await reportInvestorProvisioningFailure("writing the investor preferences", error, cid);
+    }
+  }
+
+  // 6. Give the contact the investor context (guarded: a baseline identity is
   //    never overwritten — see upgradeContactRoleToInvestor).
-  await upgradeContactRoleToInvestor(cid);
+  try {
+    await upgradeContactRoleToInvestor(cid);
+  } catch (error) {
+    await reportInvestorProvisioningFailure("granting the investor context", error, cid);
+  }
 
   return { success: true, profile_id: profileId };
 }
