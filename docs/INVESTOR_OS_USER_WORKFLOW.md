@@ -22,26 +22,26 @@
 
 ### 1.1 Comment un investisseur rejoint la plateforme ?
 
-> **L'Admin copie le lien d'inscription** et le transmet à l'investisseur. Celui-ci crée son compte en 5 étapes, puis son profil passe en **Pending Review**.
+> L'intake investisseur est un **formulaire de la plateforme**, comme la candidature de venture : un formulaire officiel (**Investor Application**) avec **une seule exécution active** dont le lien public est partagé à l'investisseur.
 
 1. L'Admin va dans **Admin → Investors → Investor Management** (`/admin/investors`)
-2. L'Admin clique **Copy Registration Link** (le lien pointe vers `/investor/wizard`)
-3. L'investisseur ouvre le lien
-4. Il remplit le parcours en 5 étapes : **Account** (nom, email, mot de passe), **Organization** (organisation, biographie), **Preferences** (industries, pays, stages, ticket), **Experience** (expérience d'investissement), **Review**
-5. Il soumet → message *"Registration submitted for review. You'll be notified once approved."*
+2. L'Admin (super admin) clique **Ajouter un investisseur** : la plateforme prépare le formulaire + son exécution et affiche le **lien de candidature**
+3. L'Admin copie le lien et le transmet à l'investisseur (bouton **Régénérer le lien** pour invalider l'ancien)
+4. L'investisseur ouvre le lien et remplit le formulaire : **Account** (nom, email), **Organization** (organisation, biographie, site, LinkedIn), **Preferences** (industries, pays, stages, ticket), **Experience** (expérience, investissements précédents)
+5. Il soumet → sa candidature arrive à **examiner** dans la même liste
 
 ### 1.2 Approbation par l'Admin
 
-1. L'Admin va dans **Admin → Investors → Review**
-2. L'investisseur apparaît avec le statut **Pending Review**
-3. L'Admin clique **Approve** (ou **Reject** / **Suspend**)
-4. L'investisseur reçoit une notification + email
+1. L'Admin examine la candidature (approbation de la soumission)
+2. À l'approbation, la plateforme **crée le compte investisseur** (profil + préférences) et envoie à l'investisseur un **email d'activation**
+3. Une fois connecté, l'investisseur apparaît **Approuvé** dans **Admin → Investors → Investor Management** et peut être **Suspendu** / réactivé
 
 ### 1.3 Première connexion
 
-1. L'investisseur va sur `/login`
-2. Saisit email + mot de passe → **Authenticate**
-3. Redirigé vers son **Investor Dashboard**
+1. L'investisseur ouvre le lien reçu par email pour **créer son mot de passe**
+2. Il va sur `/login`
+3. Saisit email + mot de passe → **Authenticate**
+4. Redirigé vers son **Investor Dashboard**
 
 ---
 
