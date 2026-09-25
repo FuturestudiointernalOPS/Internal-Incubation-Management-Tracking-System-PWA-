@@ -1,5 +1,6 @@
 import db from "@/lib/db";
 import { getWeekNumber } from "@/lib/constants";
+import { calculateInvestmentReadiness } from "@/lib/ventures";
 import {
   getTaskStatusStats,
   getBlockerStatusStats,
@@ -20,9 +21,17 @@ import { getProgramKpiSummary } from "@/models/dashboard";
  * makes sense; aggregates are pushed down to SQL to avoid per-venture loops.
  */
 
-/** Venture READINESS aggregates. One row per venture, latest assessment only. */
+/**
+ * Venture READINESS aggregates.
+ *
+ * Readiness is COMPUTED LIVE with the same engine the Venture pages use
+ * (calculateInvestmentReadiness: 10 weighted categories over the venture's
+ * profile/legal/financial/product/traction/market/model/team/tech/pitch data),
+ * NOT read from the investment_assessments cache table (which is only written
+ * when a single venture is evaluated and stays empty otherwise).
+ */
 export async function getVentureMetrics() {
-  const [totalRes, overdueRes, readinessRes] = await Promise.all([
+  const [totalRes, overdueRes, venturesRes] = await Promise.all([
     db.execute({ sql: "SELECT COUNT(*)::int AS total FROM ventures" }),
     db.execute({
       sql: `SELECT COUNT(*)::int AS overdue
@@ -30,25 +39,23 @@ export async function getVentureMetrics() {
             WHERE due_date IS NOT NULL AND due_date < NOW()
               AND status NOT IN ('completed', 'cancelled')`,
     }),
-    db.execute({
-      sql: `WITH latest AS (
-              SELECT DISTINCT ON (venture_id) venture_id, overall_score, investment_level
-              FROM investment_assessments
-              ORDER BY venture_id, calculated_at DESC
-            )
-            SELECT COUNT(*)::int AS assessed,
-                   ROUND(AVG(overall_score))::int AS avg_score,
-                   COUNT(*) FILTER (WHERE investment_level = 'not_ready')::int AS not_ready,
-                   COUNT(*) FILTER (WHERE investment_level = 'early_ready')::int AS early_ready,
-                   COUNT(*) FILTER (WHERE investment_level = 'investment_ready')::int AS investment_ready,
-                   COUNT(*) FILTER (WHERE investment_level = 'fundraising_ready')::int AS fundraising_ready
-            FROM latest`,
-    }),
+    db.execute({ sql: "SELECT venture_id FROM ventures ORDER BY venture_id" }),
   ]);
 
   const totalVentures = totalRes.rows[0]?.total ?? 0;
-  const readiness = readinessRes.rows[0] || {};
-  const assessed = readiness.assessed ?? 0;
+  const ventureIds = (venturesRes.rows || []).map((row) => row.venture_id);
+
+  const readinessList = await Promise.all(
+    ventureIds.map((id) => calculateInvestmentReadiness(id).catch(() => null)),
+  );
+
+  const scores = readinessList.filter(Boolean).map((r) => r.overall_score);
+  const byLevel = { not_ready: 0, early_ready: 0, investment_ready: 0, fundraising_ready: 0 };
+  for (const r of readinessList) {
+    if (r && byLevel[r.investment_level] !== undefined) byLevel[r.investment_level] += 1;
+  }
+
+  const assessed = scores.length;
 
   return {
     total_ventures: totalVentures,
@@ -56,13 +63,11 @@ export async function getVentureMetrics() {
     readiness: {
       assessed,
       unassessed: Math.max(0, totalVentures - assessed),
-      avg_score: readiness.avg_score ?? 0,
-      by_level: {
-        not_ready: readiness.not_ready ?? 0,
-        early_ready: readiness.early_ready ?? 0,
-        investment_ready: readiness.investment_ready ?? 0,
-        fundraising_ready: readiness.fundraising_ready ?? 0,
-      },
+      avg_score:
+        scores.length > 0
+          ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
+          : 0,
+      by_level: byLevel,
     },
   };
 }
@@ -228,51 +233,89 @@ export async function getProgramMetrics() {
   };
 }
 
-/** CRM: invitation → activation funnel + contact base growth. */
+/**
+ * CRM: contact registry + invitation/activation funnel.
+ *
+ * Mirrors EXACTLY what the CRM page (/admin/communications/contacts) shows —
+ * contacts that are neither archived nor soft-deleted, with invitation status
+ * derived the same way as attachInvitationStatus/deriveInvitationStatus:
+ *  - activated   -> status 'active' OR a password is set
+ *  - sent        -> not activated, has at least one unused token not yet expired
+ *  - expired     -> not activated, has unused tokens but all expired
+ *  - not_invited -> not activated, no unused token
+ * (Tokens live in password_setup_tokens; the legacy v2_invitations table is NOT used.)
+ */
 export async function getContactMetrics() {
-  const [invitationRes, totalRes, last30Res, monthlyRes] = await Promise.all([
+  const [contactsRes, last30Res, monthlyRes] = await Promise.all([
     db.execute({
-      sql: `WITH emailed AS (
-              SELECT LOWER(TRIM(email)) AS email
-              FROM v2_invitations
-              WHERE email IS NOT NULL AND TRIM(email) <> ''
-            )
-            SELECT COUNT(*)::int AS invited,
-                   COUNT(*) FILTER (WHERE e.email IN (
-                     SELECT LOWER(TRIM(email)) FROM contacts WHERE deleted = 0
-                   ))::int AS activated
-            FROM emailed e`,
-    }),
-    db.execute({
-      sql: `SELECT COUNT(*)::int AS total
-            FROM contacts
-            WHERE deleted = 0`,
+      sql: `SELECT
+              COUNT(*)::int AS total,
+              COUNT(*) FILTER (
+                WHERE LOWER(COALESCE(status, '')) = 'active'
+                   OR (password IS NOT NULL AND length(password) > 0)
+              )::int AS activated,
+              COUNT(*) FILTER (
+                WHERE LOWER(COALESCE(status, '')) <> 'active'
+                  AND (password IS NULL OR length(password) = 0)
+                  AND EXISTS (
+                    SELECT 1 FROM password_setup_tokens t
+                    WHERE t.contact_cid = c.cid AND t.used = 0 AND t.expires_at > NOW()
+                  )
+              )::int AS sent,
+              COUNT(*) FILTER (
+                WHERE LOWER(COALESCE(status, '')) <> 'active'
+                  AND (password IS NULL OR length(password) = 0)
+                  AND EXISTS (
+                    SELECT 1 FROM password_setup_tokens t
+                    WHERE t.contact_cid = c.cid AND t.used = 0
+                  )
+                  AND NOT EXISTS (
+                    SELECT 1 FROM password_setup_tokens t
+                    WHERE t.contact_cid = c.cid AND t.used = 0 AND t.expires_at > NOW()
+                  )
+              )::int AS expired,
+              COUNT(*) FILTER (
+                WHERE LOWER(COALESCE(status, '')) <> 'active'
+                  AND (password IS NULL OR length(password) = 0)
+                  AND NOT EXISTS (
+                    SELECT 1 FROM password_setup_tokens t
+                    WHERE t.contact_cid = c.cid AND t.used = 0
+                  )
+              )::int AS not_invited
+            FROM contacts c
+            WHERE c.archived_at IS NULL AND c.deleted_at IS NULL`,
     }),
     db.execute({
       sql: `SELECT COUNT(*)::int AS created_last_30d
             FROM contacts
-            WHERE deleted = 0 AND created_at >= NOW() - INTERVAL '30 days'`,
+            WHERE archived_at IS NULL AND deleted_at IS NULL
+              AND created_at >= NOW() - INTERVAL '30 days'`,
     }),
     db.execute({
       sql: `SELECT to_char(created_at, 'YYYY-MM') AS month, COUNT(*)::int AS created
             FROM contacts
-            WHERE deleted = 0 AND created_at >= NOW() - INTERVAL '6 months'
+            WHERE archived_at IS NULL AND deleted_at IS NULL
+              AND created_at >= NOW() - INTERVAL '6 months'
             GROUP BY to_char(created_at, 'YYYY-MM')
             ORDER BY month`,
     }),
   ]);
 
-  const invited = invitationRes.rows[0]?.invited ?? 0;
-  const activated = invitationRes.rows[0]?.activated ?? 0;
+  const row = contactsRes.rows[0] || {};
+  const total = row.total ?? 0;
+  const activated = row.activated ?? 0;
 
   return {
-    invitations: {
-      invited,
+    contacts: {
+      total,
       activated,
-      activation_rate: invited > 0 ? Math.round((activated / invited) * 100) : 0,
+      sent: row.sent ?? 0,
+      expired: row.expired ?? 0,
+      not_invited: row.not_invited ?? 0,
+      activation_rate: total > 0 ? Math.round((activated / total) * 100) : 0,
     },
     growth: {
-      total: totalRes.rows[0]?.total ?? 0,
+      total,
       created_last_30d: last30Res.rows[0]?.created_last_30d ?? 0,
       monthly: monthlyRes.rows,
     },
