@@ -45,7 +45,6 @@ const publicPaths = [
   "/register",
   "/join",
   "/verify",
-  "/investor/wizard",
   "/investor/setup-password",
   "/s",
   "/_next",

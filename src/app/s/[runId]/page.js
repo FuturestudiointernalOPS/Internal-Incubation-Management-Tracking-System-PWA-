@@ -482,6 +482,34 @@ export default function PublicSubmitPage() {
             {(field.options || []).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         );
+      case "multiselect": {
+        const selected = Array.isArray(value) ? value : [];
+        return (
+          <div className="space-y-2">
+            {(field.options || []).map((option, index) => {
+              const optionValue = option.value || option;
+              const isChecked = selected.includes(optionValue);
+              return (
+                <label key={index} className={`flex items-center gap-2 text-sm text-slate-100 ${isDisabled ? "opacity-60" : ""}`}>
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={(event) => {
+                      const nextValue = event.target.checked
+                        ? [...selected, optionValue]
+                        : selected.filter((selectedValue) => selectedValue !== optionValue);
+                      updateField(field.id, nextValue);
+                    }}
+                    disabled={isDisabled}
+                    className="w-4 h-4 accent-orange-500"
+                  />
+                  {option.label || option}
+                </label>
+              );
+            })}
+          </div>
+        );
+      }
       case "rating": {
         const opts = (Array.isArray(field.options) && field.options.length > 0) ? field.options : [{ label: "1", value: "1" }, { label: "2", value: "2" }, { label: "3", value: "3" }, { label: "4", value: "4" }, { label: "5", value: "5" }];
         return (

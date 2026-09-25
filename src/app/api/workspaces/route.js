@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-import { roleHomeHref, resolveLanding } from "@/lib/platform/roles";
+import { roleHomeHref, resolveLanding, landingNeedsRelationships } from "@/lib/platform/roles";
 import { getEffectiveGroupsAndHistory } from "@/lib/authorization/membership";
 import {
   getStaffAssignmentsForUser,
@@ -12,6 +12,7 @@ import {
   getContactStoredRole,
 } from "@/models/workspace";
 import { learnerHasEnrollments } from "@/lib/lms/learning";
+import { getApprovedInvestorProfileIdByUserId } from "@/models/investor";
 import { isBaselineIdentity } from "@/lib/identity";
 import {
   readWorkspaceContext,
@@ -309,15 +310,28 @@ export async function GET(request) {
     // labels the identity chip, and a cached list must never be able to mislabel
     // the person it belongs to. It rides with the navigation read so that a first
     // navigation is still ONE wave, and on a cached one it is the only statement.
-    const [navigation, [storedRoleSettled]] = await Promise.all([
+    //
+    // The investor context rides in the same wave, for the same reason: `home` is
+    // not cached, and whether the person was MADE an investor can move it. It is
+    // answered locally (no statement) for a global identity, whose home never
+    // depends on relationships.
+    const needsRelationshipReads = landingNeedsRelationships(session.role);
+    const [navigation, [storedRoleSettled, investorSettled]] = await Promise.all([
       cachedNavigation
         ? cachedNavigation
         : buildNavigation(session, contextsOnly).then((builtNavigation) => {
             writeWorkspaceContext(session.cid, scope, builtNavigation);
             return builtNavigation;
           }),
-      Promise.allSettled([getContactStoredRole(session.cid)]),
+      Promise.allSettled([
+        getContactStoredRole(session.cid),
+        needsRelationshipReads
+          ? getApprovedInvestorProfileIdByUserId(session.cid)
+          : Promise.resolve({ rows: [] }),
+      ]),
     ]);
+
+    const isInvestor = rowsOf(investorSettled).length > 0;
 
     let baselineRole = session.role;
     const storedRows = rowsOf(storedRoleSettled);
@@ -346,6 +360,7 @@ export async function GET(request) {
       home: resolveLanding({
         role: session.role,
         ventures: navigation.contexts?.venture_memberships || [],
+        isInvestor,
       }),
       workspaces: navigation.workspaces,
       contexts: navigation.contexts,

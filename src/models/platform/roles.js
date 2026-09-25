@@ -179,11 +179,18 @@ export function landingNeedsRelationships(role) {
  *      wants to land directly inside it. That is a fact about what the person
  *      OWNS, and the baseline badge ("member") cannot express it — which is why
  *      the old badge-keyed shortcut only ever fired for legacy accounts.
+ *      Being MADE an investor (an approved investor context) is the same kind
+ *      of fact, so it lands in the investor space for the same reason.
+ *
+ * Precedence inside the personal world: an owned Venture first (the existing
+ * single-Venture shortcut is unchanged), then an approved investor context,
+ * then the personal home. A person who is both keeps the Venture landing and
+ * still gets the investor door in the sidebar.
  *
  * The last resort is the neutral hub, which refuses nobody, so no branch here
  * can strand someone.
  */
-export function resolveLanding({ role, teamId = null, ventures = [] } = {}) {
+export function resolveLanding({ role, teamId = null, ventures = [], isInvestor = false } = {}) {
   const normalizedRole = String(role || "").trim().toLowerCase();
 
   // An entity login IS the account (a team, a family), not a person whose
@@ -197,6 +204,11 @@ export function resolveLanding({ role, teamId = null, ventures = [] } = {}) {
   if (owned.length === 1 && owned[0].venture_id) {
     return `/participant/ventures/${owned[0].venture_id}`;
   }
+
+  // An approved investor context is a relationship the badge cannot carry:
+  // a baseline member who was taken as an investor belongs in their investor
+  // space, not on the empty participant dashboard.
+  if (isInvestor) return roleHomeHref("investor");
 
   // Several Ventures is not a decision this rule can take for the person, and
   // none is the empty state the personal surfaces already handle.

@@ -602,6 +602,25 @@ const RULES = [
           });
         } catch (_) {}
 
+        // ── Investor Application: provision the investor account on approval ──
+        // Form-scoped via settings.investor_application (set by the Investor
+        // Application seed), so no other run/submission is affected. Runs in
+        // sequence with the contact resolution above, so the investor profile is
+        // always attached to the contact this submission just resolved.
+        if (isApproved && ctx.form?.settings?.investor_application === true && contact?.cid) {
+          try {
+            const { provisionInvestorFromApproval } = await import("@/models/investorRelations");
+            const investorResult = await provisionInvestorFromApproval({
+              contactCid: contact.cid,
+              submission: ctx.submission,
+              formId: ctx.run?.form_id || ctx.form?.id,
+            });
+            console.log("[Automation] Investor provisioning result:", investorResult);
+          } catch (error) {
+            console.error("[Automation] Investor provisioning failed:", error.message);
+          }
+        }
+
         // 3. Workflow toggle for the email itself
         if (!shouldSendActivation) {
           await recordEmailStatus({

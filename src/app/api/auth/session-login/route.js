@@ -5,6 +5,7 @@ import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
 import { resolveLanding, landingNeedsRelationships } from "@/lib/platform/roles";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getVentureMembershipsForContact } from "@/models/contacts";
+import { getApprovedInvestorProfileIdByUserId } from "@/models/investor";
 import {
   getContactByEmailOrCid,
   getTeamByUsernameForSessionLogin,
@@ -192,13 +193,22 @@ export async function POST(req) {
     // judged to have no relationship at all and could lose the participant
     // identity on the spot.
     //
-    // A global identity's landing never depends on them, so such a login pays
+    // The approved investor context rides in the same wave: a baseline "member"
+    // who has been made an investor belongs in the investor space, and that fact
+    // lives in their investor profile, not in their badge.
+    //
+    // A global identity's landing never depends on these, so such a login pays
     // for no extra read.
     let ventureMemberships = [];
+    let isInvestor = false;
     if (!isTeamLogin && !isFamilyLogin && landingNeedsRelationships(finalRole)) {
       try {
-        const ventureMembershipsResult = await getVentureMembershipsForContact(userCid);
+        const [ventureMembershipsResult, investorProfileResult] = await Promise.all([
+          getVentureMembershipsForContact(userCid),
+          getApprovedInvestorProfileIdByUserId(userCid),
+        ]);
         ventureMemberships = ventureMembershipsResult.rows || [];
+        isInvestor = (investorProfileResult.rows || []).length > 0;
       } catch (_) {}
     }
 
@@ -279,6 +289,7 @@ export async function POST(req) {
       role: responseUser.role,
       teamId: responseUser.team_id || null,
       ventures: ventureMemberships,
+      isInvestor,
     });
 
     // --- LOGIN ACTIVITY TRACKING (successful login only) ---

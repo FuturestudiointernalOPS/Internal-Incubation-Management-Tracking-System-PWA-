@@ -1,31 +1,5 @@
 {
   "investorMisc": {
-    "register": {
-      "errorRequiredFields": "Name, email, and password are required.",
-      "errorPasswordsMismatch": "Passwords do not match.",
-      "errorPasswordTooShort": "Password must be at least 6 characters.",
-      "errorRegistrationFailed": "Registration failed.",
-      "errorNetwork": "Network error. Please try again.",
-      "submittedTitle": "Registration Submitted",
-      "submittedDescription": "Your investor account is pending review. You'll be notified once approved.",
-      "goToLogin": "Go to Login",
-      "backToLogin": "Back to Login",
-      "title": "Investor Registration",
-      "subtitle": "Join Future Studio's investment ecosystem",
-      "fullNamePlaceholder": "Full Name *",
-      "emailPlaceholder": "Email Address *",
-      "passwordPlaceholder": "Password *",
-      "confirmPasswordPlaceholder": "Confirm Password *",
-      "organizationLabel": "Organization (Optional)",
-      "organizationPlaceholder": "Organization / VC Firm Name",
-      "biographyPlaceholder": "Brief investment focus / biography",
-      "websitePlaceholder": "Website",
-      "linkedinPlaceholder": "LinkedIn URL",
-      "submitting": "Submitting...",
-      "submitButton": "Register as Investor",
-      "alreadyRegistered": "Already registered?",
-      "loginLink": "Log in"
-    },
     "setupPassword": {
       "errorPasswordRequired": "Password is required.",
       "errorPasswordTooShort": "Password must be at least 6 characters.",
