@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PlayCircle, AlertCircle, HelpCircle, CheckCircle2, XCircle } from "lucide-react";
+import { PlayCircle, AlertCircle, HelpCircle, CheckCircle2, XCircle, ChevronDown } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import LearnerProgressBar from "./LearnerProgressBar";
 import LessonStateIcon from "./LessonStateIcon";
@@ -58,6 +59,11 @@ export default function LearnerCourse({ courseId }) {
   // arrives, with the same fallback as before.
   const error = courseRead.failure || readError || null;
 
+  // Which sections the learner has opened, keyed by section id. It lives here,
+  // above the early returns, because a hook may not run conditionally; the
+  // defaults are derived from the loaded payload further down.
+  const [sectionToggles, setSectionToggles] = useState({});
+
   if (loading) {
     return (
       <div className="flex justify-center py-24">
@@ -87,6 +93,27 @@ export default function LearnerCourse({ courseId }) {
 
   const openAssessment = (assessmentId) =>
     router.push(`/participant/learning/${course.id}/assessments/${assessmentId}`);
+
+  // ─── Which sections are open ─────────────────────────────────────────────
+  // A section's lesson list folds away so the learner is not handed every
+  // section's lessons at once. The section's own description and material stay
+  // visible either way; only the lessons fold. Everything starts closed except
+  // the section holding the resume point, and once the learner toggles a
+  // section their choice wins over that default for the rest of the visit.
+  const currentSectionId = continueLesson
+    ? sections.find((section) =>
+        section.lessons.some((lesson) => String(lesson.id) === String(continueLesson.lessonId)),
+      )?.id
+    : null;
+  const isSectionOpen = (section) =>
+    sectionToggles[String(section.id)] ?? String(section.id) === String(currentSectionId);
+  const toggleSection = (section) => {
+    const key = String(section.id);
+    setSectionToggles((previous) => ({
+      ...previous,
+      [key]: !(previous[key] ?? key === String(currentSectionId)),
+    }));
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -171,10 +198,17 @@ export default function LearnerCourse({ courseId }) {
       <div className="space-y-3">
         {sections.map((section, sectionIndex) => (
           <div key={section.id} className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border-primary)" }}>
-            <div
-              className="flex items-center gap-3 px-4 py-3 flex-wrap"
+            <button
+              type="button"
+              onClick={() => toggleSection(section)}
+              aria-expanded={isSectionOpen(section)}
+              className="w-full flex items-center gap-3 px-4 py-3 flex-wrap text-left"
               style={{ background: "var(--surface-2)" }}
             >
+              <ChevronDown
+                className={`w-3.5 h-3.5 shrink-0 transition-transform ${isSectionOpen(section) ? "" : "-rotate-90"}`}
+                style={{ color: "var(--text-tertiary)" }}
+              />
               <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-tertiary)" }}>
                 {sectionIndex + 1}
               </p>
@@ -188,7 +222,7 @@ export default function LearnerCourse({ courseId }) {
                 section.progress.completed === section.progress.total && (
                   <CheckCircle2 className="w-4 h-4" style={{ color: "var(--chart-success)" }} />
                 )}
-            </div>
+            </button>
 
             {section.description && (
               <div className="px-4 pt-3">
@@ -206,54 +240,56 @@ export default function LearnerCourse({ courseId }) {
               </div>
             )}
 
-            <div className="p-3 space-y-1">
-              {section.lessons.length === 0 && (
-                <p className="text-[10px] font-bold uppercase tracking-wider text-center py-2" style={{ color: "var(--text-tertiary)" }}>
-                  {t("lms.lessons.empty")}
-                </p>
-              )}
-              {section.lessons.map((lesson) => (
-                <div
-                  key={lesson.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openLesson(lesson.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      openLesson(lesson.id);
-                    }
-                  }}
-                  className="w-full px-3 py-2.5 rounded-lg text-left transition-colors cursor-pointer"
-                  style={{
-                    background: lesson.state === "current" ? "var(--surface-3)" : "transparent",
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    <LessonStateIcon state={lesson.state} />
-                    <span className="text-xs font-bold truncate flex-1">{lesson.title}</span>
-                    {!lesson.is_required && (
-                      <span className="text-[9px] font-black uppercase tracking-wider shrink-0" style={{ color: "var(--text-tertiary)" }}>
-                        {t("lms.lessons.optional")}
-                      </span>
-                    )}
+            {isSectionOpen(section) && (
+              <div className="p-3 space-y-1">
+                {section.lessons.length === 0 && (
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-center py-2" style={{ color: "var(--text-tertiary)" }}>
+                    {t("lms.lessons.empty")}
+                  </p>
+                )}
+                {section.lessons.map((lesson) => (
+                  <div
+                    key={lesson.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openLesson(lesson.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openLesson(lesson.id);
+                      }
+                    }}
+                    className="w-full px-3 py-2.5 rounded-lg text-left transition-colors cursor-pointer"
+                    style={{
+                      background: lesson.state === "current" ? "var(--surface-3)" : "transparent",
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <LessonStateIcon state={lesson.state} />
+                      <span className="text-xs font-bold truncate flex-1">{lesson.title}</span>
+                      {!lesson.is_required && (
+                        <span className="text-[9px] font-black uppercase tracking-wider shrink-0" style={{ color: "var(--text-tertiary)" }}>
+                          {t("lms.lessons.optional")}
+                        </span>
+                      )}
+                    </div>
+                    <RichTextContent
+                      value={lesson.description}
+                      className="text-[11px] mt-1 pl-6"
+                      style={{ color: "var(--text-tertiary)" }}
+                    />
                   </div>
-                  <RichTextContent
-                    value={lesson.description}
-                    className="text-[11px] mt-1 pl-6"
-                    style={{ color: "var(--text-tertiary)" }}
+                ))}
+                {section.assessment && (
+                  <AssessmentRow
+                    t={t}
+                    assessment={section.assessment}
+                    onOpen={openAssessment}
                   />
-                </div>
-              ))}
-              {section.assessment && (
-                <AssessmentRow
-                  t={t}
-                  assessment={section.assessment}
-                  onOpen={openAssessment}
-                />
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
