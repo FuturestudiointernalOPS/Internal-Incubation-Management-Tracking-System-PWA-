@@ -82,7 +82,12 @@
       "title": "Gestion des investisseurs",
       "subtitle": "Approuver, rejeter et gérer l'accès des investisseurs à Investor OS",
       "linkCopied": "Lien copié",
-      "copyRegistrationLink": "Copier le lien d'inscription",
+      "addInvestor": "Ajouter un investisseur",
+      "addInvestorHint": "Partagez ce lien avec l'investisseur. Sa candidature est relue ici ; son approbation crée son compte et envoie l'email d'activation.",
+      "copyLink": "Copier le lien",
+      "regenerateLink": "Régénérer le lien",
+      "regenerateConfirm": "Régénérer le lien ?\nL'ancien lien cesse de fonctionner immédiatement.",
+      "linkFailed": "Impossible de générer le lien investisseur",
       "all": "Tout",
       "statusPendingReview": "En attente d'examen",
       "statusApproved": "Approuvé",
@@ -110,9 +115,7 @@
       "actionDone": "Investisseur {action}",
       "actionApproved": "approuvé",
       "actionRejected": "rejeté",
-      "actionSuspended": "suspendu",
-      "registrationLinkCopied": "Lien d'inscription copié !",
-      "failedToCopy": "Échec de la copie"
+      "actionSuspended": "suspendu"
     },
     "overview": {
       "investorActivity": "Activité des investisseurs",
