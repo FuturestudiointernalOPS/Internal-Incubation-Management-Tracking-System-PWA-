@@ -202,12 +202,6 @@ describe("static guarantees for the remaining P0 fixes", () => {
   test("public registration never rewrites an existing account's credentials", () => {
     const src = read("src/app/api/public/register/route.js");
     expect(src).not.toMatch(/updateContactForRegistration/);
-    expect(src).toMatch(/existingContact\.rows\.length === 0/);
-  });
-
-  test("investor registration hashes the password and never mutates an existing role", () => {
-    const src = read("src/app/api/investor/register/route.js");
-    expect(src).toMatch(/hashPassword\(/);
-    expect(src).not.toMatch(/setContactRoleToInvestor/);
+    expect(src).toMatch(/existingContact.rows.length === 0/);
   });
 });

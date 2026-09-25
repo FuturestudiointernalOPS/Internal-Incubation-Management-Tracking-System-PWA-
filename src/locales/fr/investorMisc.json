@@ -1,31 +1,5 @@
 {
   "investorMisc": {
-    "register": {
-      "errorRequiredFields": "Le nom, l'email et le mot de passe sont requis.",
-      "errorPasswordsMismatch": "Les mots de passe ne correspondent pas.",
-      "errorPasswordTooShort": "Le mot de passe doit contenir au moins 6 caractères.",
-      "errorRegistrationFailed": "Échec de l'inscription.",
-      "errorNetwork": "Erreur réseau. Veuillez réessayer.",
-      "submittedTitle": "Inscription soumise",
-      "submittedDescription": "Votre compte investisseur est en attente de révision. Vous serez notifié une fois approuvé.",
-      "goToLogin": "Aller à la connexion",
-      "backToLogin": "Retour à la connexion",
-      "title": "Inscription investisseur",
-      "subtitle": "Rejoignez l'écosystème d'investissement de Future Studio",
-      "fullNamePlaceholder": "Nom complet *",
-      "emailPlaceholder": "Adresse email *",
-      "passwordPlaceholder": "Mot de passe *",
-      "confirmPasswordPlaceholder": "Confirmer le mot de passe *",
-      "organizationLabel": "Organisation (facultatif)",
-      "organizationPlaceholder": "Organisation / Nom du fonds VC",
-      "biographyPlaceholder": "Brève orientation d'investissement / biographie",
-      "websitePlaceholder": "Site web",
-      "linkedinPlaceholder": "URL LinkedIn",
-      "submitting": "Envoi...",
-      "submitButton": "S'inscrire comme investisseur",
-      "alreadyRegistered": "Déjà inscrit ?",
-      "loginLink": "Se connecter"
-    },
     "setupPassword": {
       "errorPasswordRequired": "Le mot de passe est requis.",
       "errorPasswordTooShort": "Le mot de passe doit contenir au moins 6 caractères.",
