@@ -125,6 +125,12 @@ export async function GET(req, { params }) {
       .flat()
       .map((milestone) => String(milestone.id));
     const deliverablesByMilestone = {};
+    // A failure here used to be swallowed as "this Venture has no deliverables",
+    // which is how evidence vanished from EVERY view at once with no explanation
+    // (a stale column, a type mismatch, a transient outage). The read stays
+    // tolerant so the roadmap still renders, but it no longer lies: the failure
+    // is logged and reported, and the surfaces show it instead of an empty list.
+    let deliverablesUnavailable = false;
     if (boundMilestoneIds.length > 0) {
       const deliverablesResult = await db
         .execute({
@@ -135,7 +141,11 @@ export async function GET(req, { params }) {
                 ORDER BY created_at ASC`,
           args: [boundMilestoneIds],
         })
-        .catch(() => ({ rows: [] }));
+        .catch((error) => {
+          deliverablesUnavailable = true;
+          console.error(`[journey] deliverable evidence read failed for venture ${id}:`, error?.message || error);
+          return { rows: [] };
+        });
       for (const deliverable of deliverablesResult.rows || []) {
         const key = String(deliverable.milestone_id);
         (deliverablesByMilestone[key] = deliverablesByMilestone[key] || []).push(deliverable);
@@ -208,10 +218,11 @@ export async function GET(req, { params }) {
         guided: true,
         template_source: templateSource,
         milestone_authority: milestoneAuthority,
+        deliverables_unavailable: deliverablesUnavailable,
       });
     }
 
-    return NextResponse.json({ success: true, stages: projected, access, template_source: templateSource, milestone_authority: milestoneAuthority });
+    return NextResponse.json({ success: true, stages: projected, access, template_source: templateSource, milestone_authority: milestoneAuthority, deliverables_unavailable: deliverablesUnavailable });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

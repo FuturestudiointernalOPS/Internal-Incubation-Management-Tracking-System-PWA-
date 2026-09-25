@@ -77,7 +77,15 @@ const pickMilestones = pickList("milestones");
 const pickCalendar = pickList("events");
 const pickProgress = pickThing("progress");
 const pickDocuments = pickList("documents");
-const pickJourney = pickList("stages");
+// The roadmap read also reports whether the deliverable (evidence) list could be
+// loaded. A failure there used to render as an empty roadmap, which is
+// indistinguishable from "this Venture has no evidence" — so the flag travels
+// with the stages and the journey tab says so instead of showing nothing.
+const EMPTY_ROADMAP = { stages: [], deliverablesUnavailable: false };
+const pickJourney = (payload) =>
+  payload?.success
+    ? { stages: payload.stages || [], deliverablesUnavailable: Boolean(payload.deliverables_unavailable) }
+    : EMPTY_ROADMAP;
 const pickInvestmentReadiness = (payload) =>
   payload?.success
     ? { ...payload.investment_readiness, roadmap_readiness: payload.roadmap_readiness }
@@ -247,12 +255,13 @@ export default function VentureDetail() {
     { defaultValue: [], transform: pickCalendar },
   );
 
-  const { data: journeyStages, refresh: fetchJourney } = useApi(
+  const { data: roadmap, refresh: fetchJourney } = useApi(
     ready && (activeTab === "dashboard" || activeTab === "journey")
       ? `/api/ventures/${params.id}/journey`
       : null,
-    { defaultValue: [], transform: pickJourney },
+    { defaultValue: EMPTY_ROADMAP, transform: pickJourney },
   );
+  const journeyStages = roadmap.stages;
 
   const { data: bmData, setData: setBmData, refresh: fetchBm } = useApi(
     onJourney && journeySub === "businessModel"
@@ -566,6 +575,7 @@ export default function VentureDetail() {
     actionPlans, tasks, standups, retros, blockers, calendarEvents,
     progressData, documents, advisors, coachingSessions,
     journeyStages, playbookEntries, investmentReadiness,
+    journeyDeliverablesUnavailable: roadmap.deliverablesUnavailable,
     currentWeekStandup, currentWeekRetro, currentWeekNum, currentWeekYear,
     showAddInterview, setShowAddInterview,
     showAddValidation, setShowAddValidation,

@@ -74,6 +74,7 @@ const EMPTY_JOURNEY = {
   access: { create: false, edit: false, manage: false },
   templateSource: null,
   milestoneAuthority: false,
+  deliverablesUnavailable: false,
 };
 
 const pickJourney = (payload) =>
@@ -83,6 +84,7 @@ const pickJourney = (payload) =>
         access: payload.access || EMPTY_JOURNEY.access,
         templateSource: payload.template_source || null,
         milestoneAuthority: Boolean(payload.milestone_authority),
+        deliverablesUnavailable: Boolean(payload.deliverables_unavailable),
       }
     : EMPTY_JOURNEY;
 
@@ -151,7 +153,7 @@ export default function JourneyManagerPanel({ ventureId }) {
     ventureId ? `/api/ventures/${ventureId}/journey?include_archived=1` : null,
     { defaultValue: EMPTY_JOURNEY, transform: pickJourney },
   );
-  const { stages, access, templateSource, milestoneAuthority } = journey;
+  const { stages, access, templateSource, milestoneAuthority, deliverablesUnavailable } = journey;
 
   const { data: ventureSessions, refresh: refreshSessions } = useApi(
     ventureId ? `/api/ventures/${ventureId}/sessions` : null,
@@ -684,15 +686,29 @@ export default function JourneyManagerPanel({ ventureId }) {
       if (payload.success) {
         // Deliverables drafted in the same form are created right after the
         // milestone, so the milestone is never saved without its evidence list.
+        // Each create is REPORTED: a failure here used to be discarded, leaving
+        // a milestone that looked complete while its deliverables silently
+        // never existed — reported as success all the same.
+        let deliverablesFailed = 0;
         for (const row of rows) {
           if (!payload.milestone_id) break;
-          await fetch(`/api/ventures/${ventureId}/deliverables`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...row, milestone_id: payload.milestone_id }),
-          }).catch(() => {});
+          try {
+            const deliverableResponse = await fetch(`/api/ventures/${ventureId}/deliverables`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...row, milestone_id: payload.milestone_id }),
+            });
+            const deliverablePayload = await deliverableResponse.json().catch(() => ({}));
+            if (!deliverablePayload.success) deliverablesFailed += 1;
+          } catch (_) {
+            deliverablesFailed += 1;
+          }
         }
-        notify(t("venture.manager.milestoneAdded"));
+        if (deliverablesFailed > 0) {
+          notify(t("venture.manager.milestoneAddedDeliverablesFailed", { n: deliverablesFailed }), "error");
+        } else {
+          notify(t("venture.manager.milestoneAdded"));
+        }
         setMilestoneForm(emptyMilestoneForm);
         setMilestoneDeliverables([]);
         setMilestoneAddFor(null);
@@ -862,11 +878,25 @@ export default function JourneyManagerPanel({ ventureId }) {
           evidenceName = uploadPayload.name || deliverableNewFile.name || null;
         }
         if (payload.id && evidenceUrl) {
-          await fetch(`/api/ventures/${ventureId}/deliverables`, {
+          // The uploaded file is only "attached" once the server has recorded it.
+          // The answer used to be thrown away, so a refused write left the file
+          // orphaned, the deliverable without evidence, and the manager told it
+          // had all worked. Read the answer, and say when it did not.
+          const attachResponse = await fetch(`/api/ventures/${ventureId}/deliverables`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ id: payload.id, action: "submit", attachment_url: evidenceUrl, attachment_name: evidenceName }),
-          }).catch(() => {});
+          });
+          const attachPayload = await attachResponse.json().catch(() => ({}));
+          if (!attachPayload.success) {
+            notify(t("venture.manager.evidenceAttachFailed"), "error");
+            setDeliverableForm(emptyDeliverableForm);
+            setDeliverableNewFile(null);
+            setDeliverableNewUrl("");
+            setDeliverableAddFor(null);
+            await refreshJourney();
+            return;
+          }
         }
         notify(t("venture.manager.deliverableAdded"));
         setDeliverableForm(emptyDeliverableForm);
@@ -1275,6 +1305,15 @@ export default function JourneyManagerPanel({ ventureId }) {
         <div className={`mb-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-bold ${toast.type === "error" ? "bg-rose-500/10 text-rose-400 border-rose-500/30" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"}`}>
           {toast.type === "error" ? <AlertTriangle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
           <span>{toast.msg}</span>
+        </div>
+      )}
+
+      {/* The deliverables could not be read — say so, rather than showing an
+          empty list that reads as "this Venture has no evidence". */}
+      {deliverablesUnavailable && (
+        <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs font-bold text-amber-400">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>{t("venture.manager.deliverablesUnavailable")}</span>
         </div>
       )}
 

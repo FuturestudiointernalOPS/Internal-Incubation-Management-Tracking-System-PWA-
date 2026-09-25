@@ -25,7 +25,7 @@ import { useVenture } from "../VentureContext";
    review each submission (approved / changes requested). */
 export function JourneyTab() {
   const { t, lang } = useI18n();
-  const { journeyStages, cardStyle, params, notifyMsg, fetchJourney } = useVenture();
+  const { journeyStages, cardStyle, params, notifyMsg, fetchJourney, journeyDeliverablesUnavailable } = useVenture();
   const [openId, setOpenId] = useState(null);
   const [tasksByMilestone, setTasksByMilestone] = useState({});
   const [subsByTask, setSubsByTask] = useState({});
@@ -291,6 +291,11 @@ export function JourneyTab() {
   return (
     <div className="space-y-4">
       <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('venture.journeyDesc') || 'Your journey is defined by the team supporting your Venture.'}</p>
+      {journeyDeliverablesUnavailable && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs font-bold text-amber-400">
+          {t('venture.evidenceUnavailable')}
+        </div>
+      )}
       {journeyStages.length === 0 ? (
         <div className="rounded-xl p-8 border text-center" style={cardStyle}>
           <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t('venture.noJourneyYet') || 'No journey milestones have been defined yet.'}</p>
