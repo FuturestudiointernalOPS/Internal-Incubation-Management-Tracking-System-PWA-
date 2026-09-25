@@ -56,6 +56,26 @@ function seedStructure(courseId) {
   ]);
 }
 
+function seedRun({
+  id = 7,
+  courseId,
+  slug = "bootcamp-run",
+  status = "active",
+  updatedAt = "2026-09-01T00:00:00Z",
+} = {}) {
+  mockFake.seed("platform_form_runs", [
+    {
+      id,
+      form_id: 3,
+      name: "Bootcamp",
+      status,
+      public_slug: slug,
+      lms_course_id: courseId,
+      updated_at: updatedAt,
+    },
+  ]);
+}
+
 beforeEach(() => {
   mockFake.reset();
 });
@@ -115,6 +135,64 @@ describe("public course detail", () => {
     seedCourse({ status: "draft", slug: "secret-draft" });
     const res = await detailGET(new Request("http://localhost/api/public/courses/x"), { params: { slug: "secret-draft" } });
     expect(res.status).toBe(404);
+  });
+});
+
+describe("public course detail — the Execution that sells a paid course", () => {
+  // The currency falls back to the environment default (XOF) when unset.
+  beforeEach(() => {
+    delete process.env.PAYMENT_CURRENCY;
+  });
+
+  const detail = (slug) =>
+    detailGET(new Request("http://localhost/api/public/courses/x"), { params: { slug } });
+
+  test("a paid course sold through an active Execution exposes its address and price", async () => {
+    seedCourse({ is_free: false, price: 15000 });
+    seedRun({ courseId: "crs-1", slug: "bootcamp-run" });
+
+    const data = await readJson(await detail("customer-discovery"));
+    expect(data.checkout).toEqual({
+      run_slug: "bootcamp-run",
+      amount: 15000,
+      currency: "XOF",
+      consent_text: null,
+    });
+  });
+
+  test("a paid course with no linked Execution has no checkout link", async () => {
+    seedCourse({ is_free: false, price: 15000 });
+    const data = await readJson(await detail("customer-discovery"));
+    expect(data.checkout).toBeNull();
+  });
+
+  test("an Execution that is not active is ignored", async () => {
+    seedCourse({ is_free: false, price: 15000 });
+    seedRun({ courseId: "crs-1", status: "draft" });
+    const data = await readJson(await detail("customer-discovery"));
+    expect(data.checkout).toBeNull();
+  });
+
+  test("an Execution without a public address is ignored", async () => {
+    seedCourse({ is_free: false, price: 15000 });
+    seedRun({ courseId: "crs-1", slug: null });
+    const data = await readJson(await detail("customer-discovery"));
+    expect(data.checkout).toBeNull();
+  });
+
+  test("the most recently linked Execution wins", async () => {
+    seedCourse({ is_free: false, price: 15000 });
+    seedRun({ id: 7, courseId: "crs-1", slug: "first-run", updatedAt: "2026-01-01T00:00:00Z" });
+    seedRun({ id: 8, courseId: "crs-1", slug: "second-run", updatedAt: "2026-02-01T00:00:00Z" });
+    const data = await readJson(await detail("customer-discovery"));
+    expect(data.checkout.run_slug).toBe("second-run");
+  });
+
+  test("a free course never exposes a checkout link", async () => {
+    seedCourse({ is_free: true });
+    seedRun({ courseId: "crs-1", slug: "bootcamp-run" });
+    const data = await readJson(await detail("customer-discovery"));
+    expect(data.checkout).toBeNull();
   });
 });
 

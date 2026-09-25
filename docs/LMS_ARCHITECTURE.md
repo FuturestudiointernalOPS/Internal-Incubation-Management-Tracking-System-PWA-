@@ -354,7 +354,7 @@ Follow existing ImpactOS conventions (see `docs/API.md`, `docs/MODULES.md`):
 | `/api/verify/certificate/[token]` | ✅ Phase 5 | PUBLIC verification — public fields only, no auth |
 | `/verify/certificate/[token]` (page) | ✅ Phase 5 | public verification page |
 | `/api/lms/program-requirements` + `[id]` | ✅ Phase 6 | Program → Course links (list/attach/update/detach) + auto-enrollment |
-| `/api/public/courses` + `[slug]` | ✅ Phase 7 | public catalogue + detail (marketing-safe) + free self-enrollment (`source 'self'`) |
+| `/api/public/courses` + `[slug]` | ✅ Phase 7 | public catalogue + detail (marketing-safe) + free self-enrollment (`source 'self'`). A paid course's detail also carries the public address of the active Execution that sells it (`checkout`), so the website's buy links follow the course ↔ Execution link |
 | `/api/contacts/[cid]/learning` | ✅ Phase 7 | CRM learning-journey trace (`contacts.view`) |
 | `/api/lms/section-resources` + `[id]` | ✅ Phase 8 | section material + recommendations (`lms.view` read, `lms.edit` write) |
 | `/api/lms/section-resources/upload` | ✅ Phase 8.1 | file upload + orphan cleanup for section material (`lms.edit`) |

@@ -135,15 +135,24 @@ curl -X POST "https://<domaine>/api/lms/registrations?action=link-run" \
 
 ## 7. Ce dont le SITE a besoin (raccordement)
 
-Le site n'a **qu'un seul travail** : pointer vers la bonne exécution.
+Le site n'a **qu'un seul travail** : suivre le cours jusqu'à l'exécution qui le
+vend, et y envoyer la personne. Le **prix** comme l'**adresse** viennent
+d'ImpactOS — le site ne code rien en dur.
 
 | Ce que le site utilise | Où le trouver |
 |---|---|
-| L'adresse publique de l'exécution du cours : `https://<domaine-impactos>/s/<public_slug>` | dans **Exécutions** (`/platform/runs`), sur la ligne de l'exécution ; également lisible par `GET /api/platform/form-runs` |
+| La fiche publique du cours : `GET /api/public/courses/<slug_du_cours>` | le bloc `checkout` donne l'adresse publique de l'exécution active (`run_slug`), le prix (`amount`), la devise (`currency`) et le texte de consentement (`consent_text`). Il vaut `null` quand le cours n'est pas vendu par une exécution |
 
-Le bouton « S'inscrire » d'une fiche cours pointe donc simplement vers cette
-adresse. Tout le reste — formulaire, prix, paiement, création du compte, accès au
-cours, reçu — se passe **dans ImpactOS**.
+Le bouton « S'inscrire » d'une fiche cours pointe donc vers
+`https://<domaine-impactos>/s/<run_slug>`. Dès que l'équipe **rattache une
+exécution à un cours** (Admin → LMS → Inscriptions, ou `?action=link-run`), le
+site suit ce rattachement tout seul : **plus aucune adresse à recopier**. Si
+plusieurs exécutions sont rattachées, la **plus récemment rattachée** qui est
+`active` gagne (le rattachement rafraîchit la date ; une exécution sans adresse
+publique, ou non active, est ignorée).
+
+Tout le reste — formulaire, prix, paiement, création du compte, accès au cours,
+reçu — se passe **dans ImpactOS**.
 
 **Ce que le site ne doit pas faire :**
 
