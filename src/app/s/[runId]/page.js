@@ -140,11 +140,6 @@ export default function PublicSubmitPage() {
   const [notification, setNotification] = useState(null);
   const [errors, setErrors] = useState({});
 
-  // ─── The paid Execution ───────────────────────────────────────────────────
-  // When this run sells a course, the same submission also captures the
-  // registration and the payment follows, here, in this page.
-  const checkout = raw.checkout;
-  const paidRun = Boolean(checkout && !checkout.misconfigured);
   const [consent, setConsent] = useState(false);
   const [payment, setPayment] = useState(null);
   const [payStage, setPayStage] = useState("idle");
@@ -286,6 +281,14 @@ export default function PublicSubmitPage() {
     { defaultValue: EMPTY_RUN, transform: pickRun },
   );
   const raw = runRead.data;
+
+  // ─── The paid Execution ───────────────────────────────────────────────────
+  // When this run sells a course, the same submission also captures the
+  // registration and the payment follows, here, in this page.
+  // Derived AFTER the read: `raw` is the read's own result.
+  const checkout = raw.checkout;
+  const paidRun = Boolean(checkout && !checkout.misconfigured);
+
   const run = raw.run;
   const loading = runRead.loading;
   const error = raw.failure
