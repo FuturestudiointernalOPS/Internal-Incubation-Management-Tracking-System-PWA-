@@ -8,8 +8,10 @@ import { useI18n } from "@/lib/i18n";
 
 /**
  * Shared course metadata form (create + editor details).
- * Controlled: value = { title, description, thumbnail_url, visibility, is_free, price }.
- * Price is captured as metadata only — checkout/payment is out of scope.
+ * Controlled: value = { title, description, thumbnail_url, visibility, is_free,
+ * price, payment_currency, payment_amount_unit, payment_consent_text }.
+ * The payment settings only matter for a paid course, and leaving them empty
+ * uses the platform defaults.
  */
 export default function CourseFormFields({ value, onChange, errors = {} }) {
   const { t } = useI18n();
@@ -76,16 +78,65 @@ export default function CourseFormFields({ value, onChange, errors = {} }) {
       />
 
       {!isFree && (
-        <AppInput
-          label={t("lms.fields.price")}
-          type="number"
-          min="0"
-          step="0.01"
-          value={value.price ?? ""}
-          onChange={set("price")}
-          placeholder={t("lms.fields.pricePlaceholder")}
-          error={errors.price ? t(errors.price) : undefined}
-        />
+        <>
+          <AppInput
+            label={t("lms.fields.price")}
+            type="number"
+            min="0"
+            step="0.01"
+            value={value.price ?? ""}
+            onChange={set("price")}
+            placeholder={t("lms.fields.pricePlaceholder")}
+            error={errors.price ? t(errors.price) : undefined}
+          />
+
+          {/* Checkout settings. Leaving them empty uses the platform defaults. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <AppInput
+              label={t("lms.fields.paymentCurrency")}
+              value={value.payment_currency || ""}
+              onChange={set("payment_currency")}
+              placeholder={t("lms.fields.paymentCurrencyPlaceholder")}
+            />
+            <AppSelect
+              label={t("lms.fields.paymentAmountUnit")}
+              value={value.payment_amount_unit || ""}
+              onChange={set("payment_amount_unit")}
+              placeholder={t("lms.fields.paymentAmountUnitDefault")}
+              options={[
+                { value: "major", label: t("lms.fields.paymentAmountUnitMajor") },
+                { value: "minor", label: t("lms.fields.paymentAmountUnitMinor") },
+              ]}
+            />
+          </div>
+          <p className="text-[10px] font-medium -mt-3 ml-1" style={{ color: "var(--text-tertiary)" }}>
+            {t("lms.fields.paymentUnitHint")}
+          </p>
+
+          <div className="space-y-2">
+            <label
+              className="text-[10px] font-bold uppercase tracking-wider ml-1"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              {t("lms.fields.paymentConsent")}
+            </label>
+            <textarea
+              rows={3}
+              value={value.payment_consent_text || ""}
+              onChange={set("payment_consent_text")}
+              placeholder={t("lms.fields.paymentConsentPlaceholder")}
+              className="w-full rounded-md py-3 px-4 text-sm font-medium outline-none transition-all border resize-none"
+              style={{
+                background: "var(--bg-primary)",
+                borderColor: "var(--border-primary)",
+                color: "var(--text-primary)",
+              }}
+            />
+            <p className="text-[10px] font-medium ml-1" style={{ color: "var(--text-tertiary)" }}>
+              {t("lms.fields.paymentConsentHint")}
+            </p>
+          </div>
+        </>
       )}
     </div>
   );

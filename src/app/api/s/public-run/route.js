@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
+import { defaultPaymentProvider } from "@/lib/integrations/payments";
+import { getPaidRunContext } from "@/lib/lms/checkout";
 import {
   getPublicRunBySlug,
   getSectionsByFormId,
@@ -47,11 +49,37 @@ export async function GET(req) {
 
     const runData = { ...run.rows[0], group_name: groupName };
 
+    // A PAID Execution: the price comes from the COURSE, server-side. A run with
+    // no course behaves exactly as before.
+    let checkout = null;
+    try {
+      const context = await getPaidRunContext(run.rows[0].id);
+      if (context?.hasCourse) {
+        const provider = defaultPaymentProvider();
+        checkout = context.course
+          ? {
+              course: {
+                title: context.course.title,
+                description: context.course.description,
+                amount: context.course.amount,
+                currency: context.course.currency,
+              },
+              // The wording the team wrote for this course, when there is one.
+              consent_text: context.course.consentText || null,
+              payment: { ...provider.publicConfig(), configured: provider.isConfigured() },
+            }
+          : { misconfigured: true };
+      }
+    } catch (error) {
+      console.warn("[Public Run] checkout context failed:", error.message);
+    }
+
     return NextResponse.json({
       success: true,
       run: runData,
       sections: sections.rows,
       fields: fields.rows,
+      checkout,
     });
   } catch (error) {
     console.error("[Public Run] Error:", error.message);

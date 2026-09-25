@@ -55,6 +55,9 @@ const formBase = (course) => ({
   visibility: course?.visibility || "public",
   is_free: course?.is_free !== false,
   price: course?.price,
+  payment_currency: course?.payment_currency || "",
+  payment_amount_unit: course?.payment_amount_unit || "",
+  payment_consent_text: course?.payment_consent_text || "",
 });
 
 export default function CourseEditor({ courseId, basePath = "/admin/lms/courses" }) {

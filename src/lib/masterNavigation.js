@@ -148,6 +148,7 @@ export const MASTER_NAVIGATION = [
     icon: "graduationCap",
     children: [
       { id: "lms_courses", name: "COURSES", href: "/admin/lms/courses" },
+      { id: "lms_registrations", name: "REGISTRATIONS", href: "/admin/lms/registrations" },
     ],
   },
 
@@ -217,7 +218,7 @@ export const ROLE_ACCESS = {
       operations: ["internal_ops_board", "all_projects", "create_project", "tasks", "blockers", "standup", "retro"],
       reports: ["program_reports", "internal_reports", "metrics"],
       knowledge: ["knowledge_base"],
-      lms: ["lms_courses"],
+      lms: ["lms_courses", "lms_registrations"],
       security: ["security", "audit_logs", "access_summary", "permissions"],
       settings: ["integrations", "system"],
     },

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
-import { Loader2, Send, CheckCircle2, AlertTriangle, Clock, Globe, Mail } from "lucide-react";
+import { Loader2, Send, CheckCircle2, AlertTriangle, Clock, Globe, Mail, CreditCard, Lock } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { sanitizeRichText } from "@/lib/lms/richText";
 import AppPhoneInput from "@/components/ui/AppPhoneInput";
@@ -29,6 +29,26 @@ async function translateBatch(strings, sourceLang, targetLang) {
   return results;
 }
 
+// ─── Kkiapay's PLAIN web SDK (not the React package) ─────────────────────────
+// Loaded once per page, and the widget is opened with `key` + `partnerId`.
+const KKIAPAY_SCRIPT_URL = "https://cdn.kkiapay.me/k.js";
+
+function loadKkiapayScript() {
+  if (typeof window === "undefined") return Promise.resolve(false);
+  if (window.openKkiapayWidget) return Promise.resolve(true);
+  if (!window.__kkiapayCheckoutScript) {
+    window.__kkiapayCheckoutScript = new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = KKIAPAY_SCRIPT_URL;
+      script.async = true;
+      script.onload = () => resolve(Boolean(window.openKkiapayWidget));
+      script.onerror = () => resolve(false);
+      document.head.appendChild(script);
+    });
+  }
+  return window.__kkiapayCheckoutScript;
+}
+
 // ─── What the screen starts from (module scope: built once per run) ──────────
 
 const EMPTY_RUN = {
@@ -39,6 +59,7 @@ const EMPTY_RUN = {
   originalLang: "en",
   draftData: {},
   draftSection: 0,
+  checkout: null,
   failure: null,
 };
 
@@ -99,6 +120,8 @@ const pickPublicRun = (slug) => (payload) => {
     ]),
     draftData,
     draftSection,
+    // A PAID Execution carries its course and its price (decided server-side).
+    checkout: payload.checkout || null,
     failure: null,
   };
 };
@@ -116,6 +139,143 @@ export default function PublicSubmitPage() {
   const [successConfig, setSuccessConfig] = useState(null);
   const [notification, setNotification] = useState(null);
   const [errors, setErrors] = useState({});
+
+  // ─── The paid Execution ───────────────────────────────────────────────────
+  // When this run sells a course, the same submission also captures the
+  // registration and the payment follows, here, in this page.
+  const checkout = raw.checkout;
+  const paidRun = Boolean(checkout && !checkout.misconfigured);
+  const [consent, setConsent] = useState(false);
+  const [payment, setPayment] = useState(null);
+  const [payStage, setPayStage] = useState("idle");
+  const [payEmail, setPayEmail] = useState(null);
+  const [payAccessUrl, setPayAccessUrl] = useState(null);
+  const payTimer = useRef(null);
+
+  const stopPayPolling = useCallback(() => {
+    if (payTimer.current) clearTimeout(payTimer.current);
+    payTimer.current = null;
+  }, []);
+
+  useEffect(() => () => stopPayPolling(), [stopPayPolling]);
+
+  /**
+   * The SERVER is the only thing that knows whether the money settled — the
+   * browser never decides. Polling starts as soon as the window opens, so a
+   * missing or renamed browser callback cannot strand the payer on "opening".
+   */
+  const pollPayment = useCallback((reference, email) => {
+    const startedAt = Date.now();
+    const tick = async () => {
+      try {
+        const response = await fetch(
+          `/api/public/checkout?reference=${encodeURIComponent(reference)}&email=${encodeURIComponent(email)}`,
+        );
+        const payload = await response.json();
+        if (payload.success && payload.payment === "paid") {
+          // Ask for the access link: served only inside the short window, so
+          // past it the email is the door (and we say so).
+          try {
+            const accessResponse = await fetch("/api/public/checkout", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "access", reference, email }),
+            });
+            const accessPayload = await accessResponse.json();
+            if (accessPayload.success && accessPayload.served && accessPayload.url) {
+              setPayAccessUrl(accessPayload.url);
+            }
+          } catch (_) {}
+          setPayStage("success");
+          return;
+        }
+        if (payload.success && ["failed", "cancelled"].includes(payload.payment)) {
+          setPayStage("failed");
+          return;
+        }
+      } catch (_) {
+        // A transient poll failure must not abort the wait.
+      }
+      if (Date.now() - startedAt >= 2 * 60 * 1000) {
+        setPayStage("pending");
+        return;
+      }
+      payTimer.current = setTimeout(tick, 3000);
+    };
+    tick();
+  }, []);
+
+  const openPaymentWindow = useCallback(
+    async (context, email) => {
+      const ready = await loadKkiapayScript();
+      if (!ready || !context.payment?.key) {
+        setPayStage("unavailable");
+        return;
+      }
+      setPayStage("opening");
+
+      // The plain SDK's own listeners. The server is asked regardless.
+      if (typeof window.addSuccessListener === "function") {
+        window.addSuccessListener((result) => {
+          const transactionId = result?.transactionId || result?.transaction_id || null;
+          if (transactionId && context.reference) {
+            // A HINT for later lookups. It never grants anything.
+            fetch("/api/public/checkout", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "hint", reference: context.reference, transactionId }),
+            }).catch(() => {});
+          }
+          stopPayPolling();
+          pollPayment(context.reference, email);
+        });
+      }
+      if (typeof window.addFailedListener === "function") {
+        window.addFailedListener(() => {
+          stopPayPolling();
+          setPayStage("failed");
+        });
+      }
+
+      window.openKkiapayWidget({
+        amount: context.amount,
+        key: context.payment.key,
+        sandbox: context.payment.sandbox,
+        email,
+        partnerId: context.reference,
+      });
+
+      stopPayPolling();
+      pollPayment(context.reference, email);
+    },
+    [pollPayment, stopPayPolling],
+  );
+
+  const [resendEmail, setResendEmail] = useState("");
+  const [resendNotice, setResendNotice] = useState(null);
+
+  /**
+   * The fallback door. The answer is always the same shape, whether or not a
+   * registration exists, so this cannot be used to discover who is registered.
+   */
+  const handleResend = async () => {
+    if (!resendEmail.trim()) return;
+    try {
+      await fetch("/api/public/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "resend", email: resendEmail.trim() }),
+      });
+    } catch (_) {
+      // The response is neutral by design; nothing to surface either way.
+    }
+    setResendNotice(t("forms.existingResendSent"));
+  };
+
+  const retryPayment = async () => {
+    if (!payment?.reference || !payEmail) return;
+    await openPaymentWindow(payment, payEmail);
+  };
 
   // The read goes through the shared hook, which owns the cache, the cache-first
   // paint and the discarding of a stale answer. One root value per run, built once
@@ -236,6 +396,9 @@ export default function PublicSubmitPage() {
 
   const handleSubmit = async () => {
     if (!validate()) { notify(t("forms.requiredFields")); return; }
+    // A paid registration records personal data, so consent is asked BEFORE the
+    // capture — and it is the server that enforces it too.
+    if (paidRun && !consent) { notify(t("forms.consentRequired")); return; }
     setSaving(true);
     try {
       const response = await fetch("/api/s/public-submit", {
@@ -244,13 +407,36 @@ export default function PublicSubmitPage() {
         body: JSON.stringify({
           slug: runId,
           data: formData,
+          consent: paidRun ? consent : undefined,
+          language: lang,
           invitation_token: new URLSearchParams(window.location.search).get("invitation") || undefined,
         }),
       });
       const payload = await response.json();
       if (payload.success) {
         localStorage.removeItem(`form_draft_${runId}`);
-        setSuccess(true);
+
+        // One submission = one registration. A paid Execution continues into
+        // payment; an EXISTING registration is answered NEUTRALLY (no reference)
+        // and offers the TWO exits: sign in, or be emailed a fresh link.
+        const next = payload.checkout;
+        if (next?.reference && next?.email) {
+          setPayment(next);
+          setPayEmail(next.email);
+          setSuccess(true);
+          await openPaymentWindow(next, next.email);
+        } else if (next?.existing) {
+          setPayment(next);
+          setPayStage("existing");
+          setSuccess(true);
+        } else if (next?.failed) {
+          setPayment({ failed: true });
+          setPayStage("unavailable");
+          setSuccess(true);
+        } else {
+          setSuccess(true);
+        }
+
         if (payload.success_message) {
           setSuccessConfig({ message: payload.success_message, redirect_url: payload.redirect_url });
         }
@@ -363,6 +549,149 @@ export default function PublicSubmitPage() {
     result = result.replace(/\{\{organization\}\}/gi, escapeHtml("ImpactOS"));
     return result;
   };
+
+  // ─── The payment step of a PAID Execution ─────────────────────────────────
+  if (payment) {
+    const displayAmount = payment.display_amount ?? checkout?.course?.amount ?? 0;
+    const amountLabel = `${Number(displayAmount).toLocaleString()} ${
+      payment.currency || checkout?.course?.currency || ""
+    }`.trim();
+
+    const panel = (icon, title, body, extra = null) => (
+      <div className="p-8 rounded-3xl bg-slate-900 border border-slate-800 text-center space-y-5">
+        <div className="flex justify-center">{icon}</div>
+        <h1 className="text-xl font-black text-white uppercase tracking-tight">{title}</h1>
+        {body ? <p className="text-sm text-slate-400 leading-relaxed">{body}</p> : null}
+        {extra}
+      </div>
+    );
+
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+        <div className="max-w-md w-full space-y-6">
+          <div className="flex flex-col items-center">
+            <Image
+              src="/brand/logo_full.png"
+              alt="Future Studio"
+              width={1018}
+              height={1024}
+              className="h-12 w-auto object-contain"
+            />
+          </div>
+
+          {payment.reference ? (
+            <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-4">
+              <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400">
+                <CreditCard className="w-4 h-4" /> {t("forms.paymentAmount")}
+              </span>
+              <span className="text-lg font-black text-orange-400">{amountLabel}</span>
+            </div>
+          ) : null}
+
+          {payStage === "opening" &&
+            panel(
+              <Loader2 className="w-9 h-9 animate-spin text-orange-500" />,
+              t("forms.paymentOpening"),
+            )}
+
+          {payStage === "verifying" &&
+            panel(
+              <Loader2 className="w-9 h-9 animate-spin text-orange-500" />,
+              t("forms.paymentVerifying"),
+              t("forms.paymentVerifyingHint"),
+            )}
+
+          {payStage === "success" &&
+            panel(
+              <CheckCircle2 className="w-10 h-10 text-emerald-500" />,
+              t("forms.paymentSuccess"),
+              t("forms.paymentSuccessBody"),
+              <div className="space-y-3">
+                {payAccessUrl ? (
+                  <a
+                    href={payAccessUrl}
+                    className="inline-block w-full px-8 py-3.5 rounded-xl bg-orange-500 text-black text-sm font-black uppercase tracking-wider hover:bg-orange-400 transition-colors"
+                  >
+                    {payAccessUrl.startsWith("/setup-password")
+                      ? t("forms.paymentChoosePassword")
+                      : t("forms.paymentGoToCourse")}
+                  </a>
+                ) : null}
+                <p className="text-[11px] text-slate-500 leading-relaxed">{t("forms.paymentEmailNote")}</p>
+              </div>,
+            )}
+
+          {payStage === "failed" &&
+            panel(
+              <AlertTriangle className="w-9 h-9 text-rose-500" />,
+              t("forms.paymentFailed"),
+              t("forms.paymentFailedBody"),
+              <button
+                onClick={retryPayment}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-800 text-slate-100 text-xs font-black uppercase tracking-wider hover:bg-slate-700 transition-colors"
+              >
+                <Lock className="w-4 h-4" /> {t("forms.paymentRetry")}
+              </button>,
+            )}
+
+          {payStage === "pending" &&
+            panel(
+              <Clock className="w-9 h-9 text-slate-500" />,
+              t("forms.paymentPending"),
+              t("forms.paymentPendingBody"),
+              <div className="space-y-3">
+                <button
+                  onClick={() => payment.reference && payEmail && pollPayment(payment.reference, payEmail)}
+                  className="px-6 py-3 rounded-xl bg-slate-800 text-slate-100 text-xs font-black uppercase tracking-wider hover:bg-slate-700 transition-colors"
+                >
+                  {t("forms.paymentCheckAgain")}
+                </button>
+                {/* NEVER a payment button once the money may have settled. */}
+                <p className="text-[11px] text-slate-500 leading-relaxed">{t("forms.paymentEmailNote")}</p>
+              </div>,
+            )}
+
+          {(payStage === "unavailable" || payment.failed) &&
+            panel(
+              <AlertTriangle className="w-9 h-9 text-slate-500" />,
+              t("forms.paymentUnavailable"),
+              t("forms.paymentUnavailableBody"),
+            )}
+
+          {payStage === "existing" &&
+            panel(
+              <Lock className="w-9 h-9 text-slate-500" />,
+              t("forms.existingTitle"),
+              t("forms.existingBody"),
+              <div className="space-y-3">
+                <a
+                  href="/login"
+                  className="inline-block w-full px-6 py-3 rounded-xl bg-slate-800 text-slate-100 text-xs font-black uppercase tracking-wider hover:bg-slate-700 transition-colors"
+                >
+                  {t("forms.existingSignIn")}
+                </a>
+                <input
+                  type="email"
+                  value={resendEmail}
+                  onChange={(event) => setResendEmail(event.target.value)}
+                  placeholder={t("forms.existingEmailPlaceholder")}
+                  className="w-full rounded-xl px-4 py-3 text-sm outline-none bg-slate-800 border border-slate-600 text-slate-100"
+                />
+                <button
+                  onClick={handleResend}
+                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-orange-500 text-black text-xs font-black uppercase tracking-wider hover:bg-orange-400 transition-colors"
+                >
+                  <Mail className="w-4 h-4" /> {t("forms.existingResend")}
+                </button>
+                {resendNotice ? (
+                  <p className="text-[11px] text-slate-400 leading-relaxed">{resendNotice}</p>
+                ) : null}
+              </div>,
+            )}
+        </div>
+      </div>
+    );
+  }
 
   if (success) {
     const successMessage = successConfig?.message 
@@ -543,6 +872,34 @@ export default function PublicSubmitPage() {
             </div>
           );
         })()}
+
+        {/* A PAID Execution: the price, and the consent the capture requires */}
+        {paidRun && run?.status === "active" && !success && (
+          <div className="p-6 rounded-2xl bg-slate-900 border border-orange-500/30 space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400">
+                <CreditCard className="w-4 h-4" /> {t("forms.paymentAmount")}
+              </span>
+              <span className="text-lg font-black text-orange-400">
+                {Number(checkout?.course?.amount || 0).toLocaleString()} {checkout?.course?.currency || ""}
+              </span>
+            </div>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={consent}
+                onChange={(event) => setConsent(event.target.checked)}
+                className="mt-0.5 w-4 h-4 shrink-0 accent-orange-500"
+              />
+              <span className="text-[11px] leading-relaxed text-slate-400">
+                {checkout?.consent_text || t("forms.consentLabel")}
+              </span>
+            </label>
+            {checkout?.misconfigured && (
+              <p className="text-[11px] font-bold text-rose-400">{t("forms.paymentMisconfigured")}</p>
+            )}
+          </div>
+        )}
 
         {/* Submit — only for forms with no sections (single-page layout) */}
         {!success && run?.status === "active" && sections.filter(sec => fields.some(field => String(field.section_id) === String(sec.id))).length <= 1 && (

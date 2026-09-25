@@ -77,6 +77,27 @@ const ACCOUNT_STATUS_STYLES = {
   deleted: { cls: "bg-rose-500/10 text-rose-400", label: "platformMisc.runs.accountDeleted", title: "platformMisc.runs.accountDeletedTitle" },
 };
 
+// The payment side of a response, when the Execution sells a course. The badge
+// shows the money; its title carries the other two states (access, receipt), so
+// one column answers "did this person pay, and did they get in?".
+const PAYMENT_STATUS_STYLES = {
+  pending: { cls: "bg-amber-500/10 text-amber-500", label: "platformMisc.runs.paymentPending" },
+  paid: { cls: "bg-emerald-500/10 text-emerald-500", label: "platformMisc.runs.paymentPaid" },
+  failed: { cls: "bg-rose-500/10 text-rose-400", label: "platformMisc.runs.paymentFailed" },
+  cancelled: { cls: "bg-slate-500/10 text-slate-400", label: "platformMisc.runs.paymentCancelled" },
+  refunded: { cls: "bg-slate-500/10 text-slate-400", label: "platformMisc.runs.paymentRefunded" },
+};
+const PAYMENT_ACCESS_LABELS = {
+  pending: "platformMisc.runs.paymentAccessPending",
+  granted: "platformMisc.runs.paymentAccessGranted",
+  failed: "platformMisc.runs.paymentAccessFailed",
+};
+const PAYMENT_EMAIL_LABELS = {
+  pending: "platformMisc.runs.paymentEmailPending",
+  sent: "platformMisc.runs.paymentEmailSent",
+  failed: "platformMisc.runs.paymentEmailFailed",
+};
+
 const TARGET_LABELS = {
   user: "platformMisc.runs.targetUser", group: "platformMisc.runs.targetGroup", program: "platformMisc.runs.targetProgram", cohort: "platformMisc.runs.targetCohort",
   team: "platformMisc.runs.targetTeam", organization: "platformMisc.runs.targetOrganization", all: "platformMisc.runs.targetAll",
@@ -442,6 +463,22 @@ function fmtAnswer(answer) {
 }
 
 /** A submitter's account state, derived from the flags the row carries. Pure. */
+/**
+ * Payment state per SUBMISSION, keyed by submission id, read from the LMS
+ * registrations of the selected Execution. Deliberately kept OUT of the run
+ * detail read: the platform surface renders without the LMS tables, and the
+ * run's own statement budget is untouched.
+ */
+const pickPaymentsBySubmission = (payload) => {
+  const bySubmission = {};
+  if (payload?.success) {
+    for (const row of payload.registrations || []) {
+      if (row.submission_id != null) bySubmission[String(row.submission_id)] = row;
+    }
+  }
+  return { bySubmission };
+};
+
 function accountStatusOf(submission) {
   return (
     submission.account_status ||
@@ -569,6 +606,15 @@ export default function FormRunsPage() {
     respSearch, scoreOp, scoreValue, scoreValue2, fieldFilters, subFilter,
     approvalEmailFilter, activationEmailFilter, reviewFilter, accountStatusFilter,
   ]);
+
+  // The payment side of the open Execution's responses. Separate read, so the
+  // platform surface never needs the LMS tables and the run's own read budget is
+  // unchanged; without the capability the column simply stays empty.
+  const paymentsRead = useApi(
+    selectedRun?.id ? `/api/lms/registrations?runId=${encodeURIComponent(selectedRun.id)}&perPage=200` : null,
+    { defaultValue: { bySubmission: {} }, transform: pickPaymentsBySubmission, deps: [selectedRun?.id] },
+  );
+  const paymentsBySubmission = paymentsRead.data.bySubmission;
   const [respPageState, setRespPageState] = useState({ key: respFilterKey, page: 1 });
   const respPage = respPageState.key === respFilterKey ? respPageState.page : 1; // respondent table pagination
   const setRespPage = useCallback(
@@ -3017,12 +3063,14 @@ export default function FormRunsPage() {
                         <th className="px-4 py-3">{t("platformMisc.runs.colStatus")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.colActivationEmail")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.colAccountStatus")}</th>
+                        <th className="px-4 py-3">{t("platformMisc.runs.colPayment")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.colActions")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--border-primary)]">
                       {pagedSubmissions.map((submission, rowIndex) => {
                         const statusConfig = SUB_STATUS[submission.status] || SUB_STATUS.draft;
+                        const payment = paymentsBySubmission[String(submission.id)] || null;
                         const submissionReviews = reviews.filter((review) => review.submission_id === submission.id);
                         const lastReview = submissionReviews[submissionReviews.length - 1];
                         const submissionData = submission.data || {};
@@ -3182,6 +3230,29 @@ export default function FormRunsPage() {
                                 return (
                                   <span title={historyTitle} className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", accountStatusConfig.cls)}>
                                     {t(accountStatusConfig.label)}
+                                  </span>
+                                );
+                              })()}
+                            </td>
+                            <td className="px-4 py-3">
+                              {(() => {
+                                if (!payment) {
+                                  return (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-500/10 text-slate-400">
+                                      {t("platformMisc.runs.paymentNone")}
+                                    </span>
+                                  );
+                                }
+                                const paymentStyle = PAYMENT_STATUS_STYLES[payment.status] || PAYMENT_STATUS_STYLES.pending;
+                                const paymentTitle = [
+                                  t("platformMisc.runs.paymentAmountTitle", { amount: `${Number(payment.amount || 0).toLocaleString()} ${payment.currency || ""}`.trim() }),
+                                  t("platformMisc.runs.paymentAccessTitle", { status: t(PAYMENT_ACCESS_LABELS[payment.access_status] || PAYMENT_ACCESS_LABELS.pending) }),
+                                  t("platformMisc.runs.paymentEmailTitle", { status: t(PAYMENT_EMAIL_LABELS[payment.email_status] || PAYMENT_EMAIL_LABELS.pending) }),
+                                  `${t("platformMisc.runs.colPaymentReference")}: ${payment.reference}`,
+                                ].join(" | ");
+                                return (
+                                  <span title={paymentTitle} className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap", paymentStyle.cls)}>
+                                    {t(paymentStyle.label)}
                                   </span>
                                 );
                               })()}

@@ -31,7 +31,11 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
+# `.env.example` is the documented, value-free template: it IS committed on
+# purpose, so anyone can see the settings a feature needs without touching
+# anybody's real values. Every other `.env*` file stays local.
 .env*
+!.env.example
 impactos_production_env_vars.txt
 
 # vercel
