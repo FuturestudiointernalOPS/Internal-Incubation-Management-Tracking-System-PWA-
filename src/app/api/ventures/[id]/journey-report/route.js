@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireVentureAccess, roleIsPrivileged, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { evidenceDownloadUrl, isExternalEvidenceLink } from "@/lib/ventureEvidence";
 import { TASK_COMPLETED_STATUSES, isMilestoneComplete, isJourneyStageComplete } from "@/lib/ventureStatuses";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +42,7 @@ export async function GET(req, { params }) {
     const owners = [id, dbId].filter(Boolean);
     const ownersSql = OWNERS_IN(owners);
 
-    const [stagesResult, milestonesResult, tasksResult, submissionsResult, sessionsResult, supportResult, deliverablesResult] = await Promise.all([
+    const [stagesResult, milestonesResult, tasksResult, submissionsResult, sessionsResult, supportResult, deliverablesResult, evidencedResult] = await Promise.all([
       // Archived journeys (soft-deleted) are excluded from the operating
       // report. Guarded: a pre-migration database without the archive column
       // falls back to the plain stage read.
@@ -59,7 +60,7 @@ export async function GET(req, { params }) {
         }).catch(() => ({ rows: [] })),
       ),
       db.execute({
-        sql: `SELECT journey_stage_id, status FROM venture_milestones
+        sql: `SELECT id, journey_stage_id, title, status, target_date FROM venture_milestones
               WHERE venture_id ${ownersSql} AND journey_stage_id IS NOT NULL`,
         args: owners,
       }).catch(() => ({ rows: [] })),
@@ -93,7 +94,37 @@ export async function GET(req, { params }) {
               WHERE venture_id ${ownersSql} AND status = 'submitted'`,
         args: owners,
       }).catch(() => ({ rows: [] })),
+      // Delivered evidence — the file the Venture attached, so the operating
+      // report can point at it instead of only counting it. Private: the stored
+      // value is a path, signed per read below for staff who already passed the
+      // Venture access gate above.
+      db.execute({
+        sql: `SELECT id, milestone_id, title, status, approval_status, attachment_url, attachment_name
+              FROM venture_deliverables
+              WHERE venture_id ${ownersSql} AND attachment_url IS NOT NULL
+              ORDER BY created_at ASC`,
+        args: owners,
+      }).catch(() => ({ rows: [] })),
     ]);
+
+    // Group the delivered evidence by milestone and mint a short-lived link for
+    // each private file. External links pass through untouched; a path that
+    // cannot be signed comes back with a null url, so the screen can say the
+    // evidence is unavailable rather than render a dead link.
+    const deliverablesByMilestone = {};
+    for (const deliverable of evidencedResult.rows || []) {
+      const key = String(deliverable.milestone_id);
+      (deliverablesByMilestone[key] = deliverablesByMilestone[key] || []).push(deliverable);
+    }
+    await Promise.all(
+      Object.values(deliverablesByMilestone)
+        .flat()
+        .map(async (deliverable) => {
+          deliverable.evidence_download_url = isExternalEvidenceLink(deliverable.attachment_url)
+            ? deliverable.attachment_url
+            : await evidenceDownloadUrl(deliverable.attachment_url);
+        }),
+    );
 
     const stages = (stagesResult.rows || []).map((stage) => {
       const stageMilestones = (milestonesResult.rows || []).filter((milestone) => String(milestone.journey_stage_id) === String(stage.id));
@@ -108,6 +139,15 @@ export async function GET(req, { params }) {
         completed_at: stage.completed_at || null,
         journey_complete: isJourneyStageComplete(stage.status),
         milestones: { total, completed, progress_pct: total > 0 ? Math.round((completed / total) * 100) : 0 },
+        // The stage's milestones, each with its delivered evidence — the Super
+        // Admin's summary can then open what was handed in, not only count it.
+        milestone_items: stageMilestones.map((milestone) => ({
+          id: milestone.id,
+          title: milestone.title,
+          status: milestone.status,
+          target_date: milestone.target_date || null,
+          deliverables: deliverablesByMilestone[String(milestone.id)] || [],
+        })),
       };
     });
 
