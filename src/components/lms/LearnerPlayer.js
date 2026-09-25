@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   HelpCircle,
   AlertCircle,
   ListVideo,
@@ -16,6 +17,7 @@ import EmbeddedVideo from "./EmbeddedVideo";
 import LessonStateIcon from "./LessonStateIcon";
 import LearnerProgressBar from "./LearnerProgressBar";
 import LearnerCoachingButton from "./LearnerCoachingButton";
+import SectionResourcesList from "./SectionResourcesList";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
 import RichTextContent from "@/components/ui/RichTextContent";
@@ -273,6 +275,31 @@ export default function LearnerPlayer({ courseId, lessonId }) {
             </div>
           </div>
 
+          {/* Section context — the description the author wrote for this
+              section and the material attached to it, so the learner reads and
+              opens what the section is about while they work through it. */}
+          {currentSection &&
+            (currentSection.description || (currentSection.resources || []).length > 0) && (
+              <div
+                className="rounded-xl border p-5 space-y-3"
+                style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}
+              >
+                <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-tertiary)" }}>
+                  {currentSection.title}
+                </p>
+                {currentSection.description && (
+                  <RichTextContent
+                    value={currentSection.description}
+                    className="text-xs"
+                    style={{ color: "var(--text-secondary)" }}
+                  />
+                )}
+                {(currentSection.resources || []).length > 0 && (
+                  <SectionResourcesList resources={currentSection.resources} />
+                )}
+              </div>
+            )}
+
           {/* Up-next assessment CTA (last lesson of a section / of the course) */}
           {upcomingAssessment && (
             <div
@@ -363,17 +390,55 @@ export default function LearnerPlayer({ courseId, lessonId }) {
 /** Course structure panel with lesson states + assessment links. */
 function CourseContent({ data, currentLessonId, onSelect, onOpenAssessment }) {
   const { t } = useI18n();
+
+  // The course description sits under the panel title, so the learner has the
+  // course context without leaving the lesson.
+  //
+  // Same fold rule as the course overview: a section's lessons stay hidden until
+  // asked for, except the section the learner is currently inside. The header
+  // becomes the toggle — this panel is a navigation list, so only the lesson
+  // list collapses.
+  const [sectionToggles, setSectionToggles] = useState({});
+  const currentSectionId = data.sections.find((section) =>
+    (section.lessons || []).some((lesson) => String(lesson.id) === String(currentLessonId)),
+  )?.id;
+  const isSectionOpen = (section) =>
+    sectionToggles[String(section.id)] ?? String(section.id) === String(currentSectionId);
+  const toggleSection = (section) => {
+    const key = String(section.id);
+    setSectionToggles((previous) => ({
+      ...previous,
+      [key]: !(previous[key] ?? key === String(currentSectionId)),
+    }));
+  };
+
   return (
     <div className="rounded-xl border overflow-hidden" style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}>
       <div className="px-4 py-3" style={{ background: "var(--surface-2)" }}>
         <p className="text-[10px] font-black uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
           {t("lms.player.courseContent")}
         </p>
+        {data.course?.description && (
+          <RichTextContent
+            value={data.course.description}
+            className="text-[11px] mt-1"
+            style={{ color: "var(--text-tertiary)" }}
+          />
+        )}
       </div>
       <div className="p-3 space-y-3 max-h-[70vh] overflow-y-auto">
         {data.sections.map((section, sectionIndex) => (
           <div key={section.id}>
-            <div className="flex items-center gap-2 mb-1 px-1">
+            <button
+              type="button"
+              onClick={() => toggleSection(section)}
+              aria-expanded={isSectionOpen(section)}
+              className="w-full flex items-center gap-2 mb-1 px-1 text-left"
+            >
+              <ChevronDown
+                className={`w-3 h-3 shrink-0 transition-transform ${isSectionOpen(section) ? "" : "-rotate-90"}`}
+                style={{ color: "var(--text-tertiary)" }}
+              />
               <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-tertiary)" }}>
                 {sectionIndex + 1}
               </span>
@@ -383,7 +448,8 @@ function CourseContent({ data, currentLessonId, onSelect, onOpenAssessment }) {
               <span className="text-[9px] font-bold" style={{ color: "var(--text-tertiary)" }}>
                 {section.progress.completed}/{section.progress.total}
               </span>
-            </div>
+            </button>
+            {isSectionOpen(section) && (
             <div className="space-y-0.5">
               {section.lessons.map((lesson) => {
                 const isCurrent = String(lesson.id) === String(currentLessonId);
@@ -412,6 +478,7 @@ function CourseContent({ data, currentLessonId, onSelect, onOpenAssessment }) {
                 />
               )}
             </div>
+            )}
           </div>
         ))}
         {data.courseAssessments?.map((assessment) => (
