@@ -1,5 +1,6 @@
 import db from "@/lib/db";
 import { LmsError } from "./errors";
+import { ensureCourseSlugs } from "./courses";
 
 /**
  * PUBLIC COURSE CATALOGUE (Phase 7)
@@ -76,6 +77,7 @@ function toPublicCourse(row, stats) {
 
 /** All publicly discoverable courses (published + public visibility). */
 export async function listPublicCourses() {
+  await ensureCourseSlugs();
   const res = await db.execute({
     sql: `${PUBLIC_COURSE_SELECT} WHERE status = ? AND visibility = ?
           ORDER BY updated_at DESC`,
@@ -91,18 +93,19 @@ export async function listPublicCourses() {
  *  marketing-safe course object plus the internal id (used server-side only
  *  for structure loading; never serialized). */
 export async function getPublicCourseBySlug(slug) {
+  await ensureCourseSlugs();
   const value = String(slug || "").trim();
   if (!value) throw new LmsError("lms.errors.courseNotFound", 404);
 
+  // The visibility rule lives IN THE QUERY: this SELECT is marketing-safe and
+  // deliberately carries no status/visibility column, so a draft or private row
+  // simply never comes back (checking those columns in code would always fail).
   const res = await db.execute({
-    sql: `${PUBLIC_COURSE_SELECT} WHERE slug = ?`,
-    args: [value],
+    sql: `${PUBLIC_COURSE_SELECT} WHERE slug = ? AND status = ? AND visibility = ?`,
+    args: [value, "published", "public"],
   });
   const row = res.rows[0];
   if (!row) throw new LmsError("lms.errors.courseNotFound", 404);
-  if (row.status !== "published" || row.visibility !== "public") {
-    throw new LmsError("lms.errors.courseNotFound", 404);
-  }
   const stats = await loadContentStats([String(row.id)]);
   return { course: toPublicCourse(row, stats), id: String(row.id) };
 }
@@ -158,6 +161,7 @@ export async function getPublicCourseStructure(courseId) {
 
 /** Resolve a published public course by slug for the enroll flow. */
 export async function getPublicCourseIdBySlug(slug) {
+  await ensureCourseSlugs();
   const value = String(slug || "").trim();
   if (!value) return null;
   const res = await db.execute({

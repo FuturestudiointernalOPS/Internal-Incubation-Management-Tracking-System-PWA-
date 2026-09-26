@@ -231,3 +231,19 @@ describe("public enrollment", () => {
     expect(mockFake.state.lms_enrollments.length).toBe(0);
   });
 });
+
+/**
+ * The visibility rule for ONE course must be part of the QUERY, not a check in
+ * code: the marketing-safe SELECT deliberately carries no status/visibility
+ * column, so reading those columns in code is always undefined against a real
+ * database — the fake one returns every column, which is exactly how the bug
+ * stayed invisible. This guard fails if the rule moves back into code.
+ */
+describe("the visibility rule is part of the query", () => {
+  test("the detail lookup filters published + public in SQL", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const src = fs.readFileSync(path.join(__dirname, "..", "models", "lms", "public.js"), "utf8");
+    expect(src).toMatch(/WHERE slug = \? AND status = \? AND visibility = \?/);
+  });
+});
