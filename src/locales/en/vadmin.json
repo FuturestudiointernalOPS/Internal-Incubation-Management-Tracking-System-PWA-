@@ -576,6 +576,9 @@
     "investment": {
       "backToDashboard": "Back to Dashboard",
       "investmentReadiness": "Investment Readiness",
+      "documentReadiness": "Document Readiness",
+      "documentReadinessDesc": "Acceptance computed live from the Venture's Data bank documents (required documents verified / rejected / pending / missing).",
+      "openDataBank": "Open Data Bank",
       "roadmapReadiness": "Roadmap readiness (derived)",
       "recordedAssessment": "Recorded assessment",
       "evaluating": "Evaluating...",
@@ -727,7 +730,11 @@
       "stageScaling": "Scaling",
       "statusActive": "Active",
       "statusPending": "Pending",
-      "statusArchived": "Archived"
+      "statusArchived": "Archived",
+      "readiness": "Readiness",
+      "ready": "Ready",
+      "notReady": "Not ready",
+      "readinessUndefined": "—"
     },
     "milestones": {
       "title": "Milestones & Deliverables",
@@ -992,6 +999,12 @@
       "startupVerification": "Startup Verification",
       "review": "Review",
       "progress": "Verification Progress",
+      "readiness": "Readiness",
+      "ventureReadiness": "Venture readiness",
+      "ready": "Ready",
+      "notReady": "Not ready",
+      "readinessUndefined": "No required documents",
+      "reviewedItem": "Document updated",
       "uploading": "Uploading...",
       "upload": "Upload",
       "emailVerifiedViaLink": "Verified via email confirmation link",
