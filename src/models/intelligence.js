@@ -11,6 +11,7 @@ import {
   countStaffContacts,
 } from "@/models/adminOps";
 import { getProgramKpiSummary } from "@/models/dashboard";
+import { getSpreadsheetData } from "@/models/spreadsheet";
 
 /**
  * src/models/intelligence.js — platform-wide aggregation engine behind the
@@ -88,9 +89,9 @@ export async function getVentureMetrics() {
   };
 }
 
-/** Investor OS: pipeline distribution + fundraising totals. */
+/** Investor OS: pipeline distribution + fundraising totals + external spreadsheet. */
 export async function getInvestorMetrics() {
-  const [pipelineRes, fundraisingRes, relationshipsRes] = await Promise.all([
+  const [pipelineRes, fundraisingRes, relationshipsRes, spreadsheet] = await Promise.all([
     db.execute({
       sql: `SELECT stage, COUNT(*)::int AS count
             FROM investment_pipeline
@@ -108,12 +109,14 @@ export async function getInvestorMetrics() {
       sql: `SELECT (SELECT COUNT(*)::int FROM relationship_workspaces WHERE status = 'active') AS active_relationships,
                    (SELECT COUNT(*)::int FROM investment_pipeline WHERE stage = 'invested') AS total_invested`,
     }),
+    getSpreadsheetData(),
   ]);
 
   return {
     pipeline: pipelineRes.rows,
     fundraising: fundraisingRes.rows[0] || {},
     relationships: relationshipsRes.rows[0] || {},
+    spreadsheet,
   };
 }
 
