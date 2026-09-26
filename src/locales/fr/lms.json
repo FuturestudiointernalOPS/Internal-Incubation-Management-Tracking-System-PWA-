@@ -296,6 +296,7 @@
       "paymentConsent": "Texte du consentement",
       "paymentConsentPlaceholder": "J'accepte que mes informations soient enregistrées pour gérer mon inscription, mon paiement et mon accès à ce cours.",
       "paymentConsentHint": "Affiché sur la page de paiement, au-dessus de la case que la personne doit cocher. Laisser vide pour utiliser le texte par défaut.",
+      "publicId": "Identifiant public",
       "updatedAt": "Mis à jour"
     },
     "richText": {

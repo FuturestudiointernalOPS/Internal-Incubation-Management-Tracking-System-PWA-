@@ -13,6 +13,26 @@ export async function nextPosition(table, parentColumn, parentId) {
   return res.rows[0]?.next ?? 0;
 }
 
+/**
+ * A course's PUBLIC NAME, built from its title: lowercased, accents folded to
+ * their plain letters, and anything that is not a letter or a digit collapsed
+ * to a single dash. This is the name the outside world addresses a course by
+ * (the public URLs the site follows), so it must read like the title while
+ * staying safe inside a web address.
+ */
+export function courseSlugFrom(title) {
+  const slug = String(title || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80)
+    .replace(/-+$/g, "");
+  // A title made only of symbols still needs a usable name.
+  return slug || "course";
+}
+
 /** Group rows by a column value (string keys). */
 export function groupBy(rows, column) {
   const map = new Map();

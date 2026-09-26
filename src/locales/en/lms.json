@@ -296,6 +296,7 @@
       "paymentConsent": "Consent wording",
       "paymentConsentPlaceholder": "I agree that my details are recorded to manage my registration, my payment and my access to this course.",
       "paymentConsentHint": "Shown on the checkout, above the checkbox the person must tick. Leave empty to use the default wording.",
+      "publicId": "Public ID",
       "updatedAt": "Updated"
     },
     "richText": {
