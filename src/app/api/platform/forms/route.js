@@ -173,6 +173,19 @@ export async function POST(req) {
       await ensureSingleVentureFormIndex();
     }
 
+    // Single-active Investor intake guard — the same rule as the Venture one.
+    if (settings?.investor_application === true) {
+      const { assertSingleInvestorForm, ensureSingleInvestorFormIndex } = await import("@/models/investorIntake");
+      const guard = await assertSingleInvestorForm(null);
+      if (!guard.ok) {
+        return NextResponse.json(
+          { success: false, code: "SINGLE_INVESTOR_FORM", error: `Investor registration is already assigned to form "${guard.owner.name}". Deactivate it there before assigning another form.` },
+          { status: 409 },
+        );
+      }
+      await ensureSingleInvestorFormIndex();
+    }
+
     if (!name || !name.trim()) {
       return NextResponse.json({ success: false, error: "Name is required" }, { status: 400 });
     }
@@ -220,6 +233,19 @@ export async function PUT(req) {
         );
       }
       await ensureSingleVentureFormIndex();
+    }
+
+    // Single-active Investor intake guard — the same rule as the Venture one.
+    if (body.settings?.investor_application === true) {
+      const { assertSingleInvestorForm, ensureSingleInvestorFormIndex } = await import("@/models/investorIntake");
+      const guard = await assertSingleInvestorForm(body.id || null);
+      if (!guard.ok) {
+        return NextResponse.json(
+          { success: false, code: "SINGLE_INVESTOR_FORM", error: `Investor registration is already assigned to form "${guard.owner.name}". Deactivate it there before assigning another form.` },
+          { status: 409 },
+        );
+      }
+      await ensureSingleInvestorFormIndex();
     }
 
     // SAVE FIELDS & SECTIONS (used by the builder)

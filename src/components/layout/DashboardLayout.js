@@ -151,6 +151,7 @@ const NAV_KEY_MAP = {
   register_venture: "navigation.registerVenture",
   document_types: "navigation.documentTypes",
   investors: "navigation.investors",
+  investor: "navigation.investor",
   investors_manage: "navigation.investorsManage",
   investors_dashboard: "navigation.investorsDashboard",
   investors_review: "navigation.investorsReview",
@@ -1337,6 +1338,8 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
       const rel = relationships || {
         isProgramParticipant: false,
         isVentureMember: false,
+        isFounder: false,
+        isInvestor: false,
         ventures: [],
       };
       // ONE dashboard per surface: the calendar page. "member" is the
@@ -1374,6 +1377,14 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
         } else {
           items.push(ventureDoor);
         }
+      }
+      // The investor context: an APPROVED investor profile is a relationship the
+      // baseline badge cannot carry, so a "member" who was taken as an investor
+      // gets their investor space here — exactly like the program and venture
+      // doors, driven by what the server resolved for this person, never by the
+      // role string.
+      if (rel.isInvestor) {
+        items.push({ id: "investor", name: "INVESTOR SPACE", icon: TrendingUp, href: "/investor/dashboard" });
       }
       return items;
     }

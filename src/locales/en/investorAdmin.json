@@ -82,7 +82,12 @@
       "title": "Investor Management",
       "subtitle": "Approve, reject, and manage investor access to Investor OS",
       "linkCopied": "Link Copied",
-      "copyRegistrationLink": "Copy Registration Link",
+      "addInvestor": "Add Investor",
+      "addInvestorHint": "Share this link with the investor. Their application is reviewed here, and approval creates their account and sends the activation email.",
+      "copyLink": "Copy Link",
+      "regenerateLink": "Regenerate Link",
+      "regenerateConfirm": "Regenerate the link?\nThe previous link will stop working immediately.",
+      "linkFailed": "Could not generate the investor link",
       "all": "All",
       "statusPendingReview": "Pending Review",
       "statusApproved": "Approved",
@@ -110,9 +115,7 @@
       "actionDone": "Investor {action}",
       "actionApproved": "approved",
       "actionRejected": "rejected",
-      "actionSuspended": "suspended",
-      "registrationLinkCopied": "Registration link copied!",
-      "failedToCopy": "Failed to copy"
+      "actionSuspended": "suspended"
     },
     "overview": {
       "investorActivity": "Investor Activity",

@@ -126,6 +126,29 @@ describe("the personal world follows what the person OWNS", () => {
   });
 });
 
+describe("an assigned investor context lands in the investor space", () => {
+  test("a baseline member who was made an investor belongs in their investor space", () => {
+    expect(resolveLanding({ role: "member", isInvestor: true })).toBe("/investor/dashboard");
+    expect(resolveLanding({ role: "participant", isInvestor: true })).toBe("/investor/dashboard");
+  });
+
+  test("no investor context leaves the personal landing untouched", () => {
+    expect(resolveLanding({ role: "member", isInvestor: false })).toBe("/participant");
+    expect(resolveLanding({ role: "participant" })).toBe("/participant");
+  });
+
+  test("an owned Venture keeps the Venture landing — the investor door remains in the sidebar", () => {
+    expect(
+      resolveLanding({ role: "member", ventures: [venture()], isInvestor: true }),
+    ).toBe("/participant/ventures/VNT-1");
+  });
+
+  test("a global identity is never moved by an investor context", () => {
+    expect(resolveLanding({ role: "staff", isInvestor: true })).toBe("/staff");
+    expect(resolveLanding({ role: "super_admin", isInvestor: true })).toBe("/admin");
+  });
+});
+
 describe("landingNeedsRelationships — who pays for the read", () => {
   test("a global identity and an entity account never do", () => {
     for (const role of ["super_admin", "staff", "program_manager", "facilitator", "investor", "team"]) {
@@ -167,6 +190,30 @@ describe("every caller uses that one rule", () => {
     const hub = src("src/app/api/workspaces/route.js");
     expect(hub).toContain("home: resolveLanding(");
     expect(hub).not.toContain("home: roleHomeHref(");
+  });
+
+  test("the login reads the investor context from the PROFILE and sends it with the identity", () => {
+    const login = src("src/app/api/auth/session-login/route.js");
+    expect(login).toContain("getApprovedInvestorProfileIdByUserId");
+    expect(login).toContain("isInvestor,");
+  });
+
+  test("the hub reads the same context, so its button cannot drift from the login", () => {
+    const hub = src("src/app/api/workspaces/route.js");
+    expect(hub).toContain("getApprovedInvestorProfileIdByUserId");
+    expect(hub).toContain("isInvestor,");
+  });
+
+  test("the personal sidebar offers the investor door from the profile, not the badge", () => {
+    const shell = src("src/components/layout/DashboardLayout.js");
+    expect(shell).toContain("rel.isInvestor");
+    expect(shell).toContain('href: "/investor/dashboard"');
+  });
+
+  test("the relationships read exposes the investor context the sidebar consumes", () => {
+    const relationships = src("src/app/api/me/relationships/route.js");
+    expect(relationships).toContain("getApprovedInvestorProfileIdByUserId");
+    expect(relationships).toContain("isInvestor,");
   });
 
   test("the root bounce prefers the answer that travelled with the identity", () => {

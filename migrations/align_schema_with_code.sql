@@ -219,6 +219,31 @@ ALTER TABLE v2_programs ADD CONSTRAINT v2_programs_grading_mode_check CHECK (gra
 
 
 -- =============================================================================
+-- SECTION 5B — INVESTOR PROFILES (investor_profiles)
+-- =============================================================================
+-- The investor intake (Admin → Investors → Add Investor) and the qualification
+-- review read and write these columns, but no versioned migration ever created
+-- them: they exist in the production database only. Without them, approving an
+-- Investor Application fails its profile write, and saving review notes fails
+-- too.
+--
+-- The app ALSO self-heals this table on demand (ensureInvestorProfileSchema,
+-- called from the investor provisioning path), so this section is the explicit
+-- belt-and-braces path: it makes the columns exist instead of waiting for an
+-- approval to trip them. Keep both.
+--
+-- Defaults follow the values the retired self-registration used, so an existing
+-- row keeps a sensible state when the column appears.
+-- -----------------------------------------------------------------------------
+ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS qualification_status TEXT DEFAULT 'pending_review';
+ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS investment_experience TEXT;
+ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS profile_completion INTEGER DEFAULT 0;
+ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS review_notes TEXT;
+ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS reviewed_by TEXT;
+
+
+-- =============================================================================
 -- SECTION 6 — RETIRED ROLE VALUE (REPORTING ONLY — NEVER EXECUTED)
 -- =============================================================================
 -- The teacher persona was retired from the product, but historical rows may still
@@ -299,6 +324,8 @@ ALTER TABLE v2_programs ADD CONSTRAINT v2_programs_grading_mode_check CHECK (gra
 -- SELECT m.pair FROM unnest(ARRAY['version_number','version','supporting_url','review_action','rejection_reason','document_id','team_id','score','evaluation_score','reviewed_by_role','evaluation_data','updated_at']) AS m(pair) WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns c WHERE c.table_name = 'v2_submissions' AND c.column_name = m.pair);
 --
 -- SELECT m.pair FROM unnest(ARRAY['concept_note','vision','objectives','program_type','visibility','registration_window','language','note_id','assigned_assistant_id','is_archived','materials','evaluation_config']) AS m(pair) WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns c WHERE c.table_name = 'v2_programs' AND c.column_name = m.pair);
+--
+-- SELECT m.pair FROM unnest(ARRAY['qualification_status','investment_experience','profile_completion','review_notes','reviewed_at','reviewed_by']) AS m(pair) WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns c WHERE c.table_name = 'investor_profiles' AND c.column_name = m.pair);
 --
 -- SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'v2_weekly_reports' AND indexname = 'idx_v2_weekly_reports_week_key';
 --

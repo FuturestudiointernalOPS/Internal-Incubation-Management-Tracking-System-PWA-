@@ -3,10 +3,12 @@ import { initDb } from "@/lib/db";
 import { requireAuth, getSession } from "@/lib/auth";
 import { insertSelfEnrollment } from "@/models/platformConfig";
 import {
+  getActiveCheckoutRunSlugForCourse,
   getPublicCourseBySlug,
   getPublicCourseStructure,
   getPublicCourseIdBySlug,
 } from "@/lib/lms/public";
+import { resolveCheckoutCourse } from "@/lib/lms/checkout";
 import { getEnrollment } from "@/lib/lms/learning";
 import { lmsErrorResponse } from "@/lib/lms/errors";
 
@@ -36,6 +38,24 @@ export async function GET(req, { params }) {
     const { course, id } = await getPublicCourseBySlug(slug);
     const structure = await getPublicCourseStructure(String(id));
 
+    // A PAID course sold through an Execution: hand the website the public
+    // address to send buyers to, plus the sale context the platform will charge.
+    // The website follows the course ↔ Execution link, so attaching an Execution
+    // to a course in ImpactOS is the only step — no link is copied by hand.
+    let checkout = null;
+    if (course.is_free === false) {
+      const runSlug = await getActiveCheckoutRunSlugForCourse(id);
+      const sale = runSlug ? await resolveCheckoutCourse(id) : null;
+      if (runSlug && sale) {
+        checkout = {
+          run_slug: runSlug,
+          amount: sale.amount,
+          currency: sale.currency,
+          consent_text: sale.consentText,
+        };
+      }
+    }
+
     // Optional auth: when the visitor is signed in, tell them whether they are
     // already enrolled (the internal course id is ONLY returned in that case,
     // so the client can route into the LMS).
@@ -48,7 +68,7 @@ export async function GET(req, { params }) {
       }
     }
 
-    return NextResponse.json({ success: true, course, structure, enrollment });
+    return NextResponse.json({ success: true, course, structure, enrollment, checkout });
   } catch (error) {
     return lmsErrorResponse(error);
   }

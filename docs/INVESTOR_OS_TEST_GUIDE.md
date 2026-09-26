@@ -137,52 +137,53 @@ L'investisseur ne duplique pas les données des ventures : il lit directement le
 
 ### Phase 1 — Onboarding des investisseurs
 
-Créer I2, I3 et I4 via le lien d'inscription, pour éprouver le matching avec des profils variés (I1 existe déjà).
+Créer I2, I3 et I4 via le **lien de candidature** (formulaire de la plateforme), pour éprouver le matching avec des profils variés (I1 existe déjà).
 
-1. Super Admin → `INVESTOR MANAGEMENT` (`/admin/investors`) → **Copy Registration Link**.
-2. Envoyer le lien `/investor/wizard` à Koffi, Amara et Marie.
+1. Super Admin → `INVESTOR MANAGEMENT` (`/admin/investors`) → **Ajouter un investisseur**.
+2. Copier le **lien de candidature** et l'envoyer à Koffi, Amara et Marie.
 
 **Création de I2 — AfriGreen Capital (Koffi Mensah)**
 
 | # | Qui | Action |
 |---|---|---|
-| 1 | Koffi | Ouvre `/investor/wizard` |
-| 2 | Koffi | Nom `Koffi Mensah`, email `koffi@afrigreen.test`, mot de passe `ImpactOS2026!` |
+| 1 | Koffi | Ouvre le lien de candidature |
+| 2 | Koffi | Nom `Koffi Mensah`, email `koffi@afrigreen.test` |
 | 3 | Koffi | Organisation `AfriGreen Capital`, bio « Impact fund investing in sustainable agriculture and clean energy across Francophone West Africa » |
 | 4 | Koffi | Industries → AgriTech, CleanTech, Renewable Energy ; pays → SN, CI, GH ; stages → Seed, Series A ; ticket → $25K–$150K |
 | 5 | Koffi | Expérience `5 years in impact investing, 8 portfolio companies in agri-tech` |
-| 6 | Koffi | Étape 5 → soumettre |
+| 6 | Koffi | Soumet le formulaire |
 
 **Création de I3 — Lagos Tech Angels (Amara Okafor)**
 
 | # | Qui | Action |
 |---|---|---|
-| 7 | Amara | Ouvre `/investor/wizard` |
-| 8 | Amara | Nom `Amara Okafor`, email `amara@lagostechangels.test`, mot de passe `ImpactOS2026!` |
+| 7 | Amara | Ouvre le lien de candidature |
+| 8 | Amara | Nom `Amara Okafor`, email `amara@lagostechangels.test` |
 | 9 | Amara | Organisation `Lagos Tech Angels`, bio « Angel network backing early-stage fintech and SaaS startups in Nigeria and East Africa » |
 | 10 | Amara | Industries → FinTech, SaaS, E-Commerce ; pays → NG, KE, ZA ; stages → Pre-Seed, Seed ; ticket → $10K–$100K |
 | 11 | Amara | Expérience `Angel investor since 2020, 15+ deals, focus on fintech infrastructure` |
-| 12 | Amara | Étape 5 → soumettre |
+| 12 | Amara | Soumet le formulaire |
 
 **Création de I4 — Santé Plus Invest (Dr. Marie Koné)**
 
 | # | Qui | Action |
 |---|---|---|
-| 13 | Marie | Ouvre `/investor/wizard` |
-| 14 | Marie | Nom `Dr. Marie Koné`, email `marie@santeplus.test`, mot de passe `ImpactOS2026!` |
+| 13 | Marie | Ouvre le lien de candidature |
+| 14 | Marie | Nom `Dr. Marie Koné`, email `marie@santeplus.test` |
 | 15 | Marie | Organisation `Santé Plus Invest`, bio « Healthcare-focused investment fund supporting digital health innovations across West Africa » |
 | 16 | Marie | Industries → HealthTech, AI/ML ; pays → CI, SN, ML ; stages → Pre-Seed, Seed, Series A ; ticket → $50K–$500K |
 | 17 | Marie | Expérience `15 years in healthcare, MD + MBA, 3 health-tech exits` |
-| 18 | Marie | Étape 5 → soumettre |
+| 18 | Marie | Soumet le formulaire |
 
 **Approbation**
 
 | # | Qui | Action |
 |---|---|---|
-| 19 | Super Admin | `/admin/investors/review` → les 3 profils sont *pending review* |
-| 20 | Super Admin | Pour chacun : notes de revue → **Recommend Approval** |
+| 19 | Super Admin | Examiner les 3 candidatures (soumissions) → **Approuver** |
+| 20 | Système | Crée le compte investisseur (profil + préférences) et envoie l'email d'activation |
+| 21 | Koffi / Amara / Marie | Ouvrent l'email → créent leur mot de passe |
 
-> ✅ Attendu : les 3 disparaissent de la liste en attente.
+> ✅ Attendu : les 3 apparaissent **Approuvé** dans `/admin/investors` après approbation de leur candidature.
 
 **Matching attendu sur NovaSpark (EdTech, CD)**
 
