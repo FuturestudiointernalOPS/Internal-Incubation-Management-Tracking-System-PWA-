@@ -3,6 +3,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import db from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { signEvidencePath } from "@/lib/ventureEvidence";
+import { computeVentureDocumentReadiness } from "@/models/ventureReadiness";
 import {
   getOrCreateVerification,
   submitVerification,
@@ -72,7 +73,11 @@ export const GET = createHandler(
       })),
     );
 
-    return NextResponse.json({ success: true, ...verificationResult, documents });
+    // Document-driven readiness gauge, computed live (engine in
+    // ventureReadiness.js) so the Data bank can show Ready / % instantly.
+    const readiness = await computeVentureDocumentReadiness(id);
+
+    return NextResponse.json({ success: true, ...verificationResult, documents, readiness });
   },
 );
 
