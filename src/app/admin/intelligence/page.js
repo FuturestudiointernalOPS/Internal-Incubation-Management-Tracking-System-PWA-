@@ -14,7 +14,9 @@ import {
   Loader2,
   RefreshCw,
   FileSpreadsheet,
+  ArrowRight,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import {
   ResponsiveContainer,
   BarChart,
@@ -27,20 +29,6 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { formatLabel } from "@/lib/constants";
-
-const LEVEL_STYLES = {
-  not_ready: "text-rose-400 bg-rose-500/10 border-rose-500/20",
-  early_ready: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  investment_ready: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  fundraising_ready: "text-[var(--brand-orange)] bg-brand-orange/10 border-brand-orange/20",
-};
-
-const LEVEL_BAR_CLASSES = {
-  not_ready: "bg-[var(--chart-danger)]",
-  early_ready: "bg-[var(--chart-warning)]",
-  investment_ready: "bg-[var(--chart-success)]",
-  fundraising_ready: "bg-[var(--brand-orange)]",
-};
 
 function MetricCard({ icon: Icon, label, value, hint, accentClass }) {
   return (
@@ -77,22 +65,6 @@ function SectionCard({ title, subtitle, children, className }) {
         </div>
       </div>
       {children}
-    </div>
-  );
-}
-
-function ReadinessLevel({ labelKey, level, count, assessed }) {
-  const pct = assessed > 0 ? Math.round((count / assessed) * 100) : 0;
-  return (
-    <div className="flex items-center gap-3">
-      <span className={`w-32 shrink-0 text-xs font-semibold ${LEVEL_STYLES[level]?.split(" ")[0] ?? "text-[var(--text-secondary)]"}`}>
-        {labelKey}
-      </span>
-      <div className="flex-1 h-2 rounded-full bg-surface-3 overflow-hidden">
-        <div className={`h-full rounded-full ${LEVEL_BAR_CLASSES[level]}`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="w-10 text-right text-xs font-bold text-[var(--text-primary)]">{count}</span>
-      <span className="w-12 text-right text-[11px] text-[var(--text-tertiary)]">{pct}%</span>
     </div>
   );
 }
@@ -146,6 +118,7 @@ function formatDuration(seconds, t) {
 }
 
 export default function IntelligencePage() {
+  const router = useRouter();
   const { t } = useI18n();
   const { data, loading, error, refresh } = useApi("/api/intelligence/metrics", {
     defaultValue: null,
@@ -180,29 +153,7 @@ export default function IntelligencePage() {
   const growthMonthly = contacts.growth?.monthly ?? [];
   const growthMax = Math.max(1, ...growthMonthly.map((m) => Number(m.created) || 0));
 
-  const readinessLevels =
-    ventures?.readiness?.by_level
-      ? [
-          { level: "not_ready", labelKey: t("adminMisc.intelligence.notReady"), count: ventures.readiness.by_level.not_ready },
-          { level: "early_ready", labelKey: t("adminMisc.intelligence.earlyReady"), count: ventures.readiness.by_level.early_ready },
-          { level: "investment_ready", labelKey: t("adminMisc.intelligence.investmentReady"), count: ventures.readiness.by_level.investment_ready },
-          { level: "fundraising_ready", labelKey: t("adminMisc.intelligence.fundraisingReady"), count: ventures.readiness.by_level.fundraising_ready },
-        ]
-      : [];
-
-  const readinessCategories = ventures?.readiness?.by_category ?? [];
-  const categoryKeys = {
-    startup_profile: "startupProfile",
-    legal: "legal",
-    financial: "financial",
-    product: "product",
-    traction: "traction",
-    market_validation: "marketValidation",
-    business_model: "businessModel",
-    team: "team",
-    technology: "technology",
-    pitch_readiness: "pitchReadiness",
-  };
+  const readiness = ventures?.readiness;
   const invitedCount = (crmStats.sent || 0) + (crmStats.expired || 0);
 
   return (
@@ -280,67 +231,36 @@ export default function IntelligencePage() {
                 title={t("adminMisc.intelligence.ventureReadiness")}
                 subtitle={t("adminMisc.intelligence.ventures")}
               >
-                <div className="flex flex-wrap gap-4 mb-5">
+                <button
+                  type="button"
+                  onClick={() => router.push("/admin/ventures")}
+                  className="group w-full rounded-xl bg-surface-3 p-4 text-left transition-colors hover:bg-surface-4 flex items-center justify-between gap-4"
+                >
                   <div className="flex-1 min-w-[140px]">
                     <p className="text-3xl font-black tracking-tighter text-[var(--text-primary)]">
-                      {ventures.readiness.avg_score}
-                      <span className="text-base font-bold text-[var(--text-tertiary)]">/100</span>
+                      {fmtCount(readiness?.ready_count)}
+                      <span className="text-base font-bold text-[var(--text-tertiary)]">
+                        /{fmtCount(readiness?.total)}
+                      </span>
                     </p>
                     <p className="mt-1 text-xs font-medium text-[var(--text-secondary)]">
-                      {t("adminMisc.intelligence.avgReadinessScore")}
+                      {t("adminMisc.intelligence.venturesReady")}
                     </p>
                   </div>
                   <div className="flex-1 min-w-[140px]">
-                    <p className="text-3xl font-black tracking-tighter text-[var(--text-primary)]">
-                      {fmtCount(ventures.readiness.assessed)}
+                    <p className="text-3xl font-black tracking-tighter text-[var(--brand-orange)]">
+                      {fmtCount(readiness?.ready_percent)}
+                      <span className="text-base font-bold text-[var(--text-tertiary)]">%</span>
                     </p>
                     <p className="mt-1 text-xs font-medium text-[var(--text-secondary)]">
-                      {t("adminMisc.intelligence.assessed")} · {fmtCount(ventures.readiness.unassessed)} {t("adminMisc.intelligence.unassessed")}
+                      {t("adminMisc.intelligence.readyPercent")}
                     </p>
                   </div>
-                </div>
-                <div className="rounded-xl bg-surface-3 p-4 mb-5">
-                  <p className="text-[11px] font-medium text-[var(--text-secondary)] mb-1">
-                    {t("adminMisc.intelligence.readinessBreakdown")}
-                  </p>
-                  <p className="text-[11px] text-[var(--text-tertiary)] mb-3">
-                    {t("adminMisc.intelligence.readinessHint")}
-                  </p>
-                  {readinessCategories.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
-                      {readinessCategories.map((c) => (
-                        <div key={c.category} className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] text-[var(--text-secondary)] truncate">
-                            {t(`adminMisc.intelligence.category.${categoryKeys[c.category] || c.category}`)}
-                          </span>
-                          <span className="flex items-center gap-2 shrink-0">
-                            <span className="h-1.5 w-14 rounded-full bg-[var(--surface-1)] overflow-hidden">
-                              <span
-                                className="block h-full rounded-full bg-[var(--brand-orange)]"
-                                style={{ width: `${Math.min(100, c.avg_score)}%` }}
-                              />
-                            </span>
-                            <span className="text-xs font-bold text-[var(--text-primary)] w-7 text-right">{fmtCount(c.avg_score)}</span>
-                            <span className="text-[10px] text-[var(--text-tertiary)] w-9 text-right">· {c.weight}%</span>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-[var(--text-tertiary)]">{t("adminMisc.intelligence.noData")}</p>
-                  )}
-                </div>
-                <div className="space-y-3">
-                  {readinessLevels.map((item) => (
-                    <ReadinessLevel
-                      key={item.level}
-                      labelKey={item.labelKey}
-                      level={item.level}
-                      count={item.count}
-                      assessed={ventures.readiness.assessed}
-                    />
-                  ))}
-                </div>
+                  <ArrowRight className="w-5 h-5 text-[var(--text-tertiary)] transition-transform group-hover:translate-x-1 group-hover:text-[var(--brand-orange)]" />
+                </button>
+                <p className="mt-3 text-[11px] text-[var(--text-tertiary)]">
+                  {t("adminMisc.intelligence.clickViewAll")}
+                </p>
               </SectionCard>
 
               <SectionCard
