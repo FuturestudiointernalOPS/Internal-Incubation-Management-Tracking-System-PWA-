@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { getAuthorizationContext, requireAuthorization } from "@/lib/authorization";
 import { isWithinScope, resolveVentureScopeId } from "@/lib/authorization/scope";
 import { updateVenture } from "@/lib/ventures";
+import { listVentureDocumentReadiness } from "@/models/ventureReadiness";
 import {
   listVenturesWithCounts,
   recordVentureUpdatedTimeline,
@@ -67,9 +68,31 @@ export const GET = createHandler(async (req) => {
     search,
   });
 
+  // Document-driven readiness (Ready / %), computed live — spread onto each
+  // Venture row so list screens can render it without a second round-trip.
+  let readinessByVenture = new Map();
+  try {
+    const readiness = await listVentureDocumentReadiness(
+      (result.rows || []).map((row) => row.venture_id),
+    );
+    readinessByVenture = new Map(readiness.map((row) => [row.venture_id, row]));
+  } catch (_) {
+    readinessByVenture = new Map();
+  }
+
+  const ventures = (result.rows || []).map((venture) => {
+    const readiness = readinessByVenture.get(venture.venture_id);
+    if (!readiness) return venture;
+    return {
+      ...venture,
+      readiness_percent: readiness.readiness_percent,
+      is_ready: readiness.is_ready,
+    };
+  });
+
   return NextResponse.json({
     success: true,
-    ventures: result.rows,
+    ventures,
   });
 });
 
