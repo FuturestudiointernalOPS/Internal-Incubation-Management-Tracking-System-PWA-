@@ -266,6 +266,25 @@ export default function VentureVerificationPage() {
     setReviewing(false);
   };
 
+  // Per-document review — the Super Admin validates or rejects ONE document at
+  // a time (decision Q6). The same PATCH the global review uses, scoped to a
+  // single item category; the global status above stays as a monitoring signal.
+  const handleReviewItem = async (category, status) => {
+    setReviewing(true);
+    try {
+      const response = await fetch(`/api/ventures/${id}/verification/status`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, category, notes: "" }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        notify(t("vadmin.verification.reviewedItem"));
+        fetchData(true);
+      } else { notify(t((result.error || t("vadmin.verification.reviewFailed")) || "") || (result.error || t("vadmin.verification.reviewFailed")), "error"); }
+    } catch { notify(t("vadmin.verification.networkError"), "error"); }
+    setReviewing(false);
+  };
+
   const handleSendComment = async () => {
     if (!comment.trim()) return;
     setSendingComment(true);
@@ -303,6 +322,19 @@ export default function VentureVerificationPage() {
   const documents = data?.documents || [];
   const history = data?.history || [];
   const comments = data?.comments || [];
+  const readiness = data?.readiness;
+
+  const readinessState = () => {
+    if (!readiness) return null;
+    if (readiness.is_ready) return { label: t("vadmin.verification.ready"), cls: "text-emerald-400 bg-emerald-500/10" };
+    if (readiness.readiness_percent != null) {
+      return {
+        label: `${t("vadmin.verification.notReady")} · ${readiness.readiness_percent}%`,
+        cls: "text-rose-400 bg-rose-500/10",
+      };
+    }
+    return { label: t("vadmin.verification.readinessUndefined"), cls: "text-slate-400 bg-slate-500/10" };
+  };
 
   const getDocsForCategory = (category) => documents.filter((payload) => payload.category === category);
   const getItemForCategory = (category) => items.find((item) => item.category === category);
@@ -353,6 +385,45 @@ export default function VentureVerificationPage() {
             )}
           </div>
         </div>
+
+        {/* Readiness gauge */}
+        {readiness && (
+          <div className="card">
+            <div className="flex items-center justify-between gap-4 mb-4">
+              <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">{t("vadmin.verification.readiness")}</h3>
+              {(() => { const state = readinessState(); return state ? (
+                <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase px-2.5 py-1 rounded ${state.cls}`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-current" /> {state.label}
+                </span>
+              ) : null; })()}
+            </div>
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="min-w-[120px]">
+                <p className="text-4xl font-black tracking-tighter text-[var(--brand-orange)]">
+                  {readiness.readiness_percent != null ? readiness.readiness_percent : "—"}
+                  {readiness.readiness_percent != null && <span className="text-base font-bold text-[var(--text-tertiary)]">%</span>}
+                </p>
+                <p className="mt-1 text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wide">
+                  {t("vadmin.verification.ventureReadiness")}
+                </p>
+              </div>
+              <div className="flex-1 min-w-[200px]">
+                <div className="h-2.5 rounded-full bg-surface-3 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-[var(--brand-orange)] transition-all"
+                    style={{ width: `${Math.min(100, readiness.readiness_percent ?? 0)}%` }}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">✓ {readiness.verified_count}</span>
+                <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-1 rounded">✕ {readiness.rejected_count}</span>
+                <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-1 rounded">◷ {readiness.pending_count}</span>
+                <span className="text-[10px] font-bold text-slate-400 bg-slate-500/10 px-2 py-1 rounded">… {readiness.missing_count}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Verification Progress */}
         <div className="card">
@@ -424,6 +495,35 @@ export default function VentureVerificationPage() {
                   {!isUpload && stepKey === "phone_verification" && <p className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.verification.phoneVerifiedViaSms")}</p>}
                   {!isUpload && stepKey !== "email_verification" && stepKey !== "phone_verification" && (
                     <p className="text-[10px] text-[var(--text-secondary)]">{t("venture.verificationTab.confirmedAnotherWay")}</p>
+                  )}
+
+                  {/* Per-document review (decision Q6): validate or reject ONE
+                      document at a time. Hidden for not_applicable items. */}
+                  {item && item.status !== "not_applicable" && (
+                    <div className="flex gap-2 mt-3">
+                      {item.status !== "verified" && (
+                        <button
+                          type="button"
+                          onClick={() => handleReviewItem(stepKey, "verified")}
+                          disabled={reviewing}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-500/20 transition-all disabled:opacity-30"
+                        >
+                          {reviewing ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                          {t("vadmin.verification.approve")}
+                        </button>
+                      )}
+                      {item.status !== "rejected" && (
+                        <button
+                          type="button"
+                          onClick={() => handleReviewItem(stepKey, "rejected")}
+                          disabled={reviewing}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-rose-500/20 transition-all disabled:opacity-30"
+                        >
+                          {reviewing ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+                          {t("vadmin.verification.reject")}
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               );
