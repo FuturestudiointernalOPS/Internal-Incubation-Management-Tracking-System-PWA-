@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Loader2,
   RefreshCw,
+  FileSpreadsheet,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -167,6 +168,9 @@ export default function IntelligencePage() {
     stage: formatLabel(row.stage || t("adminMisc.intelligence.total")),
     count: row.count,
   }));
+
+  const sheet = investor?.spreadsheet;
+  const sheetReady = Boolean(sheet?.ok) && (sheet?.rows?.length ?? 0) > 0;
 
   const tasks = operations?.tasks ?? {};
   const blockers = operations?.blockers ?? {};
@@ -369,26 +373,74 @@ export default function IntelligencePage() {
                 title={t("adminMisc.intelligence.fundraising")}
                 subtitle={t("adminMisc.intelligence.investor")}
               >
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-lg font-black tracking-tighter text-[var(--text-primary)]">
-                      {fmtCurrency(investor.fundraising.total_sought)}
+                {sheetReady ? (
+                  <>
+                    <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] text-[var(--text-secondary)]">
+                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-surface-3 px-2.5 py-1">
+                        <FileSpreadsheet className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+                        {t("adminMisc.intelligence.spreadsheetSource")} · {t("adminMisc.intelligence.spreadsheetViewOnly")}
+                      </span>
+                      <span>
+                        {t("adminMisc.intelligence.spreadsheetUpdatedAt")}:{" "}
+                        <strong className="text-[var(--text-primary)]">
+                          {new Date(sheet.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </strong>
+                      </span>
+                    </div>
+                    <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-[11px] uppercase tracking-wider text-[var(--text-tertiary)] border-b border-[var(--border-primary)]">
+                            {sheet.columns.map((col, i) => (
+                              <th key={i} className="py-2 px-3 font-semibold whitespace-nowrap max-w-[240px] truncate">{col}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sheet.rows.slice(1).map((row, r) => (
+                            <tr key={r} className="border-b border-divider/50 last:border-0">
+                              {sheet.columns.map((_, i) => (
+                                <td key={i} className="py-2 px-3 whitespace-nowrap max-w-[240px] truncate text-[var(--text-secondary)]">
+                                  {row[i] || "—"}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                ) : sheet && sheet.configured ? (
+                  <div className="rounded-xl bg-surface-3 px-4 py-6 text-center">
+                    <p className="text-sm text-[var(--text-tertiary)]">
+                      {sheet.ok ? t("adminMisc.intelligence.spreadsheetEmpty") : t("adminMisc.intelligence.spreadsheetUnavailable")}
                     </p>
-                    <p className="mt-1 text-xs text-[var(--text-secondary)]">{t("adminMisc.intelligence.totalSought")}</p>
+                    {!sheet.ok && sheet.error ? (
+                      <p className="mt-1 text-[11px] text-rose-400/80 break-words">{sheet.error}</p>
+                    ) : null}
                   </div>
-                  <div>
-                    <p className="text-lg font-black tracking-tighter text-[var(--text-primary)]">
-                      {fmtCurrency(investor.fundraising.total_raised)}
-                    </p>
-                    <p className="mt-1 text-xs text-[var(--text-secondary)]">{t("adminMisc.intelligence.totalRaised")}</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-lg font-black tracking-tighter text-[var(--text-primary)]">
+                        {fmtCurrency(investor.fundraising.total_sought)}
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--text-secondary)]">{t("adminMisc.intelligence.totalSought")}</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-black tracking-tighter text-[var(--text-primary)]">
+                        {fmtCurrency(investor.fundraising.total_raised)}
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--text-secondary)]">{t("adminMisc.intelligence.totalRaised")}</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-black tracking-tighter text-[var(--text-primary)]">
+                        {fmtCurrency(investor.fundraising.total_committed)}
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--text-secondary)]">{t("adminMisc.intelligence.totalCommitted")}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-lg font-black tracking-tighter text-[var(--text-primary)]">
-                      {fmtCurrency(investor.fundraising.total_committed)}
-                    </p>
-                    <p className="mt-1 text-xs text-[var(--text-secondary)]">{t("adminMisc.intelligence.totalCommitted")}</p>
-                  </div>
-                </div>
+                )}
                 <div className="mt-5 grid grid-cols-2 gap-4">
                   <div className="flex items-center gap-3">
                     <Handshake className="w-4 h-4 text-[var(--brand-orange)]" />
