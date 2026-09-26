@@ -1,6 +1,6 @@
 import db from "@/lib/db";
 import { getWeekNumber } from "@/lib/constants";
-import { calculateInvestmentReadiness, INVESTMENT_CATEGORIES } from "@/lib/ventures";
+import { listVentureDocumentReadiness } from "@/models/ventureReadiness";
 import {
   getTaskStatusStats,
   getBlockerStatusStats,
@@ -25,11 +25,11 @@ import { getSpreadsheetData } from "@/models/spreadsheet";
 /**
  * Venture READINESS aggregates.
  *
- * Readiness is COMPUTED LIVE with the same engine the Venture pages use
- * (calculateInvestmentReadiness: 10 weighted categories over the venture's
- * profile/legal/financial/product/traction/market/model/team/tech/pitch data),
- * NOT read from the investment_assessments cache table (which is only written
- * when a single venture is evaluated and stays empty otherwise).
+ * Readiness is COMPUTED LIVE from the Data bank (the Venture's required
+ * document types vs. per-document item status, engine in
+ * `src/models/ventureReadiness.js`), NOT from the legacy 10-category engine
+ * (calculateInvestmentReadiness) it replaced. A Venture with no required
+ * document renders « — » and is counted neither ready nor not-ready.
  */
 export async function getVentureMetrics() {
   const [totalRes, overdueRes, venturesRes] = await Promise.all([
@@ -46,45 +46,21 @@ export async function getVentureMetrics() {
   const totalVentures = totalRes.rows[0]?.total ?? 0;
   const ventureIds = (venturesRes.rows || []).map((row) => row.venture_id);
 
-  const readinessList = await Promise.all(
-    ventureIds.map((id) => calculateInvestmentReadiness(id).catch(() => null)),
-  );
-
-  const scores = readinessList.filter(Boolean).map((r) => r.overall_score);
-  const byLevel = { not_ready: 0, early_ready: 0, investment_ready: 0, fundraising_ready: 0 };
-  for (const r of readinessList) {
-    if (r && byLevel[r.investment_level] !== undefined) byLevel[r.investment_level] += 1;
-  }
-
-  const readinessResults = readinessList.filter(Boolean);
-  const byCategory = INVESTMENT_CATEGORIES.map((category) => {
-    const entries = readinessResults
-      .map((r) => (r.categories || []).find((c) => c.category === category))
-      .filter(Boolean);
-    return {
-      category,
-      weight: entries[0]?.weight ?? 0,
-      avg_score:
-        entries.length > 0
-          ? Math.round(entries.reduce((sum, c) => sum + c.score, 0) / entries.length)
-          : 0,
-    };
-  });
-
-  const assessed = scores.length;
+  const readinessList = await listVentureDocumentReadiness(ventureIds);
+  const readyCount = readinessList.filter((row) => row.is_ready).length;
 
   return {
     total_ventures: totalVentures,
     overdue_milestones: overdueRes.rows[0]?.overdue ?? 0,
     readiness: {
-      assessed,
-      unassessed: Math.max(0, totalVentures - assessed),
-      avg_score:
-        scores.length > 0
-          ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
-          : 0,
-      by_level: byLevel,
-      by_category: byCategory,
+      total: totalVentures,
+      ready_count: readyCount,
+      ready_percent: totalVentures > 0 ? Math.round((readyCount / totalVentures) * 100) : 0,
+      list: readinessList.map((row) => ({
+        venture_id: row.venture_id,
+        is_ready: row.is_ready,
+        readiness_percent: row.readiness_percent,
+      })),
     },
   };
 }
