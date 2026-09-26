@@ -576,6 +576,9 @@
     "investment": {
       "backToDashboard": "Retour au tableau de bord",
       "investmentReadiness": "Préparation à l'investissement",
+      "documentReadiness": "Readiness documentaire",
+      "documentReadinessDesc": "Admission calculée en direct depuis les documents de la Data bank de l'entreprise (documents requis validés / rejetés / en attente / manquants).",
+      "openDataBank": "Ouvrir la Data bank",
       "roadmapReadiness": "Préparation à l'investissement (dérivée)",
       "recordedAssessment": "Évaluation enregistrée",
       "evaluating": "Évaluation en cours...",
@@ -727,7 +730,11 @@
       "stageScaling": "Mise à l'échelle",
       "statusActive": "Actif",
       "statusPending": "En attente",
-      "statusArchived": "Archivé"
+      "statusArchived": "Archivé",
+      "readiness": "Préparation",
+      "ready": "Prête",
+      "notReady": "Pas prête",
+      "readinessUndefined": "—"
     },
     "milestones": {
       "title": "Jalons & Livrables",
@@ -992,6 +999,12 @@
       "startupVerification": "Vérification de la startup",
       "review": "Réviser",
       "progress": "Progression de la vérification",
+      "readiness": "Préparation",
+      "ventureReadiness": "Readiness de l'entreprise",
+      "ready": "Prête",
+      "notReady": "Pas prête",
+      "readinessUndefined": "Aucun document requis",
+      "reviewedItem": "Document mis à jour",
       "uploading": "Téléversement...",
       "upload": "Téléverser",
       "emailVerifiedViaLink": "Vérifié via le lien de confirmation par e-mail",
