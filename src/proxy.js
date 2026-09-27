@@ -23,6 +23,8 @@ import { NextResponse } from "next/server";
  *   - /verify/* (public certificate verification)
  *   - /api/contacts (POST - registration)
  *   - /api/public/* (group lookup + registration + public course catalogue)
+ *   - /api/webhooks/kkiapay (Kkiapay's own payment callback: the provider has
+ *     no session, and the x-kkiapay-secret signature is the credential)
  *   - /api/families (the ?registration_id= lookup is the public join path;
  *      every other branch requires a capability in-route)
  *   - /api/verify/* (public certificate verification)
@@ -64,6 +66,7 @@ const publicApiPaths = [
   "/api/contacts",
   "/api/invites",
   "/api/public",
+  "/api/webhooks/kkiapay",
   "/api/families",
   "/api/verify",
   "/api/venture-invites",
