@@ -1,6 +1,6 @@
 import db from "@/lib/db";
 import { LmsError } from "./errors";
-import { courseSlugFrom, groupBy } from "./helpers";
+import { groupBy } from "./helpers";
 import { validateCourseForPublish } from "./validation";
 import { listSectionResourcesByCourse } from "./sectionResources";
 
@@ -9,7 +9,7 @@ import { listSectionResourcesByCourse } from "./sectionResources";
  * Courses are standalone (not owned by any program) — Phase 6 connects them.
  */
 
-const COURSE_SELECT = `SELECT id, slug, title, description, thumbnail_url, status,
+const COURSE_SELECT = `SELECT id, title, description, thumbnail_url, status,
                               visibility, is_free, price, payment_currency,
                               payment_amount_unit, payment_consent_text,
                               created_by, created_at, updated_at
@@ -20,58 +20,7 @@ function parseCourse(row) {
   return { ...row, is_free: !!row.is_free };
 }
 
-/**
- * A PUBLIC NAME for a course, derived from its title and made unique across the
- * catalogue (a second "Customer Discovery" becomes "customer-discovery-2").
- * This is the name the outside world — the website, the public catalogue —
- * addresses the course by, so it is chosen ONCE, at creation.
- */
-async function uniqueCourseSlug(title) {
-  const base = courseSlugFrom(title);
-  const res = await db.execute({
-    sql: "SELECT slug FROM lms_courses WHERE slug = ? OR slug LIKE ?",
-    args: [base, `${base}-%`],
-  });
-  const taken = new Set(res.rows.map((row) => String(row.slug)));
-  if (!taken.has(base)) return base;
-  let suffix = 2;
-  while (taken.has(`${base}-${suffix}`)) suffix += 1;
-  return `${base}-${suffix}`;
-}
-
-/**
- * SELF-HEALING — give a public name to the courses created before one was
- * assigned. Runs ONCE per process, is idempotent (only rows without a name are
- * touched) and never fatal: a failure leaves the catalogue working.
- */
-let courseSlugBackfill = null;
-export function ensureCourseSlugs() {
-  if (!courseSlugBackfill) {
-    courseSlugBackfill = (async () => {
-      try {
-        const res = await db.execute({
-          sql: "SELECT id, title, slug FROM lms_courses WHERE slug IS NULL OR slug = ''",
-          args: [],
-        });
-        for (const row of res.rows) {
-          if (row.slug) continue;
-          const slug = await uniqueCourseSlug(row.title);
-          await db.execute({
-            sql: "UPDATE lms_courses SET slug = ? WHERE id = ?",
-            args: [slug, row.id],
-          });
-        }
-      } catch (error) {
-        console.warn("[LMS] course public-name backfill failed:", error?.message);
-      }
-      return true;
-    })();
-  }
-  return courseSlugBackfill;
-}
-
 export async function listCourses({ search, status } = {}) {
-  await ensureCourseSlugs();
   const clauses = [];
   const args = [];
   if (status) {
@@ -198,13 +147,11 @@ export async function createCourse({
       throw new LmsError("lms.errors.invalidPrice", 400);
     }
   }
-  const slug = await uniqueCourseSlug(String(title).trim());
   const res = await db.execute({
-    sql: `INSERT INTO lms_courses (slug, title, description, thumbnail_url, status, visibility, is_free, price,
+    sql: `INSERT INTO lms_courses (title, description, thumbnail_url, status, visibility, is_free, price,
                                    payment_currency, payment_amount_unit, payment_consent_text, created_by)
-          VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+          VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
     args: [
-      slug,
       String(title).trim(),
       description || null,
       thumbnail_url || null,
@@ -237,13 +184,6 @@ export async function updateCourse(courseId, fields = {}) {
 
   const sets = [];
   const args = [];
-
-  // A course without a public name (created before the rule) gets one here, so
-  // renaming/editing an old course fixes what the outside world can address.
-  if (!course.slug) {
-    sets.push("slug = ?");
-    args.push(await uniqueCourseSlug(course.title));
-  }
 
   if (fields.title !== undefined) {
     if (!String(fields.title).trim()) {

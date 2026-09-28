@@ -1,6 +1,5 @@
 import db from "@/lib/db";
 import { LmsError } from "./errors";
-import { ensureCourseSlugs } from "./courses";
 
 /**
  * PUBLIC COURSE CATALOGUE (Phase 7)
@@ -77,7 +76,6 @@ function toPublicCourse(row, stats) {
 
 /** All publicly discoverable courses (published + public visibility). */
 export async function listPublicCourses() {
-  await ensureCourseSlugs();
   const res = await db.execute({
     sql: `${PUBLIC_COURSE_SELECT} WHERE status = ? AND visibility = ?
           ORDER BY updated_at DESC`,
@@ -93,7 +91,6 @@ export async function listPublicCourses() {
  *  marketing-safe course object plus the internal id (used server-side only
  *  for structure loading; never serialized). */
 export async function getPublicCourseBySlug(slug) {
-  await ensureCourseSlugs();
   const value = String(slug || "").trim();
   if (!value) throw new LmsError("lms.errors.courseNotFound", 404);
 
@@ -161,7 +158,6 @@ export async function getPublicCourseStructure(courseId) {
 
 /** Resolve a published public course by slug for the enroll flow. */
 export async function getPublicCourseIdBySlug(slug) {
-  await ensureCourseSlugs();
   const value = String(slug || "").trim();
   if (!value) return null;
   const res = await db.execute({

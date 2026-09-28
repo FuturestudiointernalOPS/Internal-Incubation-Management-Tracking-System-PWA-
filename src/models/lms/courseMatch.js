@@ -1,5 +1,4 @@
 import db from "@/lib/db";
-import { ensureCourseSlugs } from "./courses";
 import { getActiveCheckoutRunSlugForCourse } from "./public";
 import { resolveCheckoutCourse } from "./checkout";
 
@@ -68,17 +67,14 @@ export async function findCourseMatch(name) {
   const query = String(name || "").trim();
   if (!query) return { match: null, checkout: null };
 
-  await ensureCourseSlugs();
-
   const res = await db.execute({
-    sql: "SELECT id, slug, title, updated_at FROM lms_courses WHERE status = ? AND visibility = ?",
+    sql: "SELECT id, title, updated_at FROM lms_courses WHERE status = ? AND visibility = ?",
     args: ["published", "public"],
   });
 
   const candidates = res.rows
     .map((row) => ({
       id: String(row.id),
-      slug: row.slug,
       title: row.title,
       score: nameScore(query, row.title),
       updatedAt: row.updated_at,
@@ -98,7 +94,7 @@ export async function findCourseMatch(name) {
     const sale = await resolveCheckoutCourse(candidate.id);
     if (!sale) continue;
     return {
-      match: { slug: candidate.slug, title: candidate.title, score: candidate.score },
+      match: { title: candidate.title, score: candidate.score },
       checkout: {
         run_slug: runSlug,
         amount: sale.amount,
@@ -110,7 +106,7 @@ export async function findCourseMatch(name) {
 
   const best = candidates[0];
   return {
-    match: { slug: best.slug, title: best.title, score: best.score },
+    match: { title: best.title, score: best.score },
     checkout: null,
   };
 }

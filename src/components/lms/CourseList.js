@@ -215,14 +215,6 @@ export default function CourseList({ basePath = "/admin/lms/courses" }) {
                   </p>
                   <CourseStatusBadge status={course.status} />
                 </div>
-                {course.slug ? (
-                  <p className="text-[10px] mt-1" style={{ color: "var(--text-tertiary)" }}>
-                    <span className="font-bold uppercase tracking-wider">
-                      {t("lms.fields.publicId")}:
-                    </span>{" "}
-                    <span className="font-mono">{course.slug}</span>
-                  </p>
-                ) : null}
                 <p className="text-[10px] font-bold uppercase tracking-wider mt-1" style={{ color: "var(--text-tertiary)" }}>
                   {t("lms.fields.updatedAt")}: {formatDate(course.updated_at)}
                 </p>
