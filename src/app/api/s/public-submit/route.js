@@ -46,13 +46,38 @@ async function ensurePublicSubmitSchema() {
   return submitSchemaPromise;
 }
 
-/**
- * Shape the checkout payload the public page reasons about.
- *
- * `neutralCheckoutPayload` is the answer for an EXISTING registration: it says
- * only that one exists and whether it is paid. No reference — the browser has no
- * business holding one it did not just create.
- */
+// The cookie that proves WHICH browser captured a registration. It carries a
+// one-way token (only its hash is stored server-side) and is httpOnly, so no
+// script and no stranger who merely knows the email can present it. It is what
+// lets an unpaid payment be RESUMED by its own browser while everyone else is
+// answered neutrally.
+const CHECKOUT_COOKIE = "impactos_checkout";
+const CHECKOUT_COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days
+
+function readBrowserToken(req) {
+  const fromCookies = req?.cookies?.get?.(CHECKOUT_COOKIE)?.value;
+  if (fromCookies) return fromCookies;
+  // Fallback for a plain Request (and for any runtime where `cookies` is absent).
+  const header = req?.headers?.get?.("cookie") || "";
+  const match = new RegExp(`(?:^|;\\s*)${CHECKOUT_COOKIE}=([^;]+)`).exec(header);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+/** Attach the capture cookie — but only when a fresh registration minted one. */
+function withBrowserCookie(response, browserToken) {
+  if (!browserToken) return response;
+  response.cookies.set({
+    name: CHECKOUT_COOKIE,
+    value: browserToken,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: CHECKOUT_COOKIE_MAX_AGE,
+  });
+  return response;
+}
+
 function courseSummary(course) {
   return { title: course.title, amount: course.amount, currency: course.currency };
 }
@@ -62,6 +87,12 @@ function paymentConfig() {
   return { ...provider.publicConfig(), configured: provider.isConfigured() };
 }
 
+/**
+ * The answer for an EXISTING registration: it says only that one exists and
+ * whether it is paid. No reference — the browser has no business holding one it
+ * did not just create. This is the NEUTRAL reply; a payable retry is built from
+ * `freshCheckoutPayload` instead.
+ */
 function neutralCheckoutPayload(paidContext, registration) {
   return {
     existing: Boolean(registration),
@@ -88,6 +119,49 @@ function freshCheckoutPayload(paidContext, registration) {
     course: courseSummary(paidContext.course),
     payment: paymentConfig(),
   };
+}
+
+/**
+ * Resolve the checkout for a paid Execution in ONE place.
+ *
+ * A FRESH (or a still-UNPAID one whose own browser is recognised by `browserToken`)
+ * registration gets a payable payload with the reference: a person whose payment
+ * failed must be able to pay again with the SAME record and the SAME reference.
+ * A PAID one, and an unpaid one claimed by a stranger who knows only the email,
+ * are answered NEUTRALLY — the reference is never handed back.
+ */
+async function preparePaidCheckout({ paidContext, submissionId, fullName, email, phone, language, browserToken }) {
+  try {
+    const started = await startCheckoutForSubmission({
+      run: paidContext.run,
+      course: paidContext.course,
+      submissionId,
+      fullName,
+      email,
+      phone,
+      language: language || "fr",
+      consent: true,
+      browserToken,
+    });
+    if (started.registration) {
+      return {
+        checkout: freshCheckoutPayload(paidContext, started.registration),
+        browserToken: started.browserToken || null,
+      };
+    }
+    return {
+      checkout: neutralCheckoutPayload(
+        paidContext,
+        await findRegistrationByCourseAndEmail(paidContext.course.id, email),
+      ),
+      browserToken: null,
+    };
+  } catch (error) {
+    // The submission is already saved, so nothing is lost — but the payer must be
+    // told the payment could not be prepared, not shown a blank end.
+    console.warn("[Public Submit] checkout capture failed:", error.message);
+    return { checkout: { failed: true, error: "lms.errors.checkoutUnavailable" }, browserToken: null };
+  }
 }
 
 /**
@@ -249,25 +323,34 @@ export async function POST(req) {
     if (submitterEmail) {
       const existing = await getSubmittedSubmissionBySubmitter(run_id, submitterEmail);
       if (existing.rows.length > 0) {
-        // A paid Execution: a repeat submission is not simply "already done" —
-        // the page must know whether to offer the TWO exits (sign in, or be
-        // emailed a fresh link). The reference is deliberately ABSENT here.
-        let repeatCheckout = null;
+        // A paid Execution: a repeat submission is NOT simply "already done".
+        // The SAME browser that captured the registration (its cookie) resumes
+        // the SAME record and reference — a failed payment must not block the
+        // person. Anyone else, and any PAID registration, is answered neutrally
+        // (the reference is deliberately ABSENT) so the page offers the TWO exits.
+        let prepared = { checkout: null, browserToken: null };
         if (paidContext?.hasCourse) {
-          const registration = await findRegistrationByCourseAndEmail(
-            paidContext.course.id,
-            submitterEmail,
-          );
-          repeatCheckout = neutralCheckoutPayload(paidContext, registration);
+          prepared = await preparePaidCheckout({
+            paidContext,
+            submissionId: existing.rows[0].id,
+            fullName: submitterName,
+            email: submitterEmail,
+            phone: submitterPhone,
+            language,
+            browserToken: readBrowserToken(req),
+          });
         }
-        return NextResponse.json({
-          success: true,
-          id: existing.rows[0].id,
-          already_submitted: true,
-          success_message: null,
-          redirect_url: null,
-          checkout: repeatCheckout,
-        });
+        return withBrowserCookie(
+          NextResponse.json({
+            success: true,
+            id: existing.rows[0].id,
+            already_submitted: true,
+            success_message: null,
+            redirect_url: null,
+            checkout: prepared.checkout,
+          }),
+          prepared.browserToken,
+        );
       }
     }
 
@@ -307,31 +390,24 @@ export async function POST(req) {
 
     // ── PAID EXECUTION: the SAME request captures the registration ──
     // One submission = one registration. Nothing about the money is trusted
-    // from the browser: the price and the reference are decided here, and an
-    // EXISTING registration is answered NEUTRALLY — its reference is never
-    // handed back, which is what made an account takeover possible.
+    // from the browser: the price and the reference are decided here. A FRESH or
+    // still-UNPAID registration is payable; a PAID one is answered neutrally —
+    // its reference is never handed back, which is what made an account takeover
+    // possible.
     let checkout = null;
+    let mintedBrowserToken = null;
     if (paidContext?.hasCourse) {
-      try {
-        const started = await startCheckoutForSubmission({
-          run: paidContext.run,
-          course: paidContext.course,
-          submissionId,
-          fullName: submitterName,
-          email: submitterEmail,
-          phone: submitterPhone,
-          language: language || "fr",
-          consent: true,
-        });
-        checkout = started.existing
-          ? neutralCheckoutPayload(paidContext, await findRegistrationByCourseAndEmail(paidContext.course.id, submitterEmail))
-          : freshCheckoutPayload(paidContext, started.registration);
-      } catch (error) {
-        // The submission is already saved, so nothing is lost — but the payer
-        // must be told the payment could not be prepared, not shown a blank end.
-        console.warn("[Public Submit] checkout capture failed:", error.message);
-        checkout = { failed: true, error: "lms.errors.checkoutUnavailable" };
-      }
+      const prepared = await preparePaidCheckout({
+        paidContext,
+        submissionId,
+        fullName: submitterName,
+        email: submitterEmail,
+        phone: submitterPhone,
+        language,
+        browserToken: readBrowserToken(req),
+      });
+      checkout = prepared.checkout;
+      mintedBrowserToken = prepared.browserToken;
     }
 
     // Fire post-submission automation (CRM contact, confirmation email, owner
@@ -361,15 +437,18 @@ export async function POST(req) {
       });
     } catch (_) {}
 
-    return NextResponse.json({
-      success: true,
-      id: submissionId,
-      success_message: successConfig?.message || null,
-      // A paid Execution must not be redirected away: the page has to open the
-      // payment window next.
-      redirect_url: paidContext?.hasCourse ? null : successConfig?.redirect_url || null,
-      checkout,
-    });
+    return withBrowserCookie(
+      NextResponse.json({
+        success: true,
+        id: submissionId,
+        success_message: successConfig?.message || null,
+        // A paid Execution must not be redirected away: the page has to open the
+        // payment window next.
+        redirect_url: paidContext?.hasCourse ? null : successConfig?.redirect_url || null,
+        checkout,
+      }),
+      mintedBrowserToken,
+    );
   } catch (error) {
     console.error("[Public Submit] Error:", error.message, error.stack);
     console.error("[Public Submit] Request body snippet:", JSON.stringify(body || {}).substring(0, 200));

@@ -28,7 +28,8 @@ const REGISTRATION_SELECT = `SELECT id, reference, run_id, submission_id, course
                                     language, amount, provider_amount, currency, status, provider, provider_transaction_id,
                                     partner_id, access_status, access_error, email_status, user_cid,
                                     consent_at, paid_at, failed_at, refunded_at,
-                                    resume_token_hash, resume_token_expires_at, created_at, updated_at
+                                    resume_token_hash, resume_token_expires_at, browser_token_hash,
+                                    created_at, updated_at
                              FROM lms_registrations`;
 
 export function paymentCurrency() {
@@ -164,9 +165,16 @@ export function ensureCheckoutSchema() {
           refunded_at TIMESTAMPTZ,
           resume_token_hash TEXT,
           resume_token_expires_at TIMESTAMPTZ,
+          browser_token_hash TEXT,
           created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
           updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
         )`,
+        // The browser that CAPTURED the registration gets a one-way token in an
+        // httpOnly cookie: it is the proof of ownership that lets that SAME browser
+        // resume an unpaid payment directly, while a stranger who merely knows the
+        // email is answered neutrally. HASH only, like the resume token.
+        "ALTER TABLE lms_registrations ADD COLUMN IF NOT EXISTS browser_token_hash TEXT",
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_lms_registrations_browser_token ON lms_registrations(browser_token_hash) WHERE browser_token_hash IS NOT NULL",
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_lms_registrations_reference ON lms_registrations(reference)",
         // A refund does not decide the access: revoking it is a SEPARATE, explicit
         // act (the team refunds first, then chooses). 'revoked' is that fourth
@@ -319,6 +327,39 @@ export async function updateRegistrationAttempt(
           WHERE id = ?`,
     args: [String(fullName || "").trim(), phone, language, runId, submissionId, id],
   });
+}
+
+/**
+ * A NEW attempt on an UNPAID registration. A 'failed' row would otherwise be read
+ * as a finished failure by the payer's own tab and stop its wait, so the retry
+ * puts it back to 'pending'. The stale transaction hint of the previous attempt
+ * is cleared so a fresh one can be recorded. A PAID registration is never reset.
+ */
+export async function resetRegistrationForRetry(id) {
+  return db.execute({
+    sql: "UPDATE lms_registrations SET status = 'pending', provider_transaction_id = NULL, updated_at = NOW() WHERE id = ?",
+    args: [id],
+  });
+}
+
+/**
+ * Record (or clear) the HASH of the cookie token for the browser that captured
+ * this registration. The raw token is never stored — only its hash.
+ */
+export async function setBrowserToken(id, { tokenHash = null } = {}) {
+  return db.execute({
+    sql: "UPDATE lms_registrations SET browser_token_hash = ?, updated_at = NOW() WHERE id = ?",
+    args: [tokenHash, id],
+  });
+}
+
+/**
+ * Whether the presented cookie token is the one this registration was captured
+ * with. A missing token, a missing hash, or a mismatch all answer false.
+ */
+export function matchesBrowserToken(registration, tokenHash) {
+  if (!registration?.browser_token_hash || !tokenHash) return false;
+  return String(registration.browser_token_hash) === String(tokenHash);
 }
 
 /** Mark the registration paid (the amount was already verified server-side). */
