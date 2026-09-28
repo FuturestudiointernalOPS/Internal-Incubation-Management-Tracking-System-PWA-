@@ -342,6 +342,28 @@ export function createFakeDb() {
     return { rows: found ? [{ ok: 1 }] : [] };
   }
 
+  /**
+   * The columns a SELECT asks for. A real driver returns ONLY those — the fake
+   * used to return the whole row, which hid every bug where code read a column
+   * its own query never selected. Returns null when the list is not a plain
+   * column list (a `*`, an expression, a function call): the caller then returns
+   * the whole row, exactly as the driver would.
+   */
+  function selectedColumns(sql) {
+    const match = /^\s*select\s+(.+?)\s+from\s/i.exec(sql);
+    if (!match) return null;
+    const list = match[1].trim().replace(/^distinct\s+/i, "");
+    if (list === "*" || list.includes("*") || list.includes("(")) return null;
+    return list.split(",").map((entry) => {
+      const cleaned = entry.trim();
+      // `x AS alias` names the result column through its alias; a plain
+      // (possibly table-qualified) column keeps its own name.
+      const alias = /\s+as\s+(\w+)$/i.exec(cleaned);
+      if (alias) return alias[1];
+      return cleaned.replace(/::\w+$/, "").split(".").pop().trim();
+    });
+  }
+
   function selectAll(sql, args) {
     const table = /from (\w+)/i.exec(sql)[1];
     let rows = state[table].filter((row) => evalWhere(sql, args, row));
@@ -355,7 +377,16 @@ export function createFakeDb() {
         return leftValue > rightValue ? 1 : leftValue < rightValue ? -1 : 0;
       });
     }
-    return { rows: rows.map((row) => ({ ...row })) };
+
+    const columns = selectedColumns(sql);
+    if (!columns) return { rows: rows.map((row) => ({ ...row })) };
+    return {
+      rows: rows.map((row) => {
+        const projected = {};
+        for (const column of columns) projected[column] = row[column];
+        return projected;
+      }),
+    };
   }
 
   function interpreter(sql, args) {
