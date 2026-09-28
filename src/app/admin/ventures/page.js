@@ -8,11 +8,14 @@ import {
   Search,
   ChevronRight,
   Loader2,
-  Link2,
+  Building2,
+  Mail,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
-import { useDialogs } from "@/components/ui/DialogProvider";
+import AppModal from "@/components/ui/AppModal";
+import AppInput from "@/components/ui/AppInput";
+import AppButton from "@/components/ui/AppButton";
 
 const VENTURE_STAGES = {
   idea: { label: "vadmin.list.stageIdea", color: "text-blue-400 bg-blue-500/10" },
@@ -35,13 +38,16 @@ const pickVentures = (payload) => (payload?.success ? payload.ventures || [] : [
 
 export default function VenturesPage() {
   const { t } = useI18n();
-  const { prompt } = useDialogs();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({ company_name: "", founder_email: "" });
+  const [addSubmitting, setAddSubmitting] = useState(false);
+  const [addError, setAddError] = useState("");
   // The loader's work — painting from the cache first, discarding a stale
   // response, the background refresh — belongs to the hook, so the screen keeps
-  // no list state of its own and never sets state from an effect. The approval
-  // action calls refresh(), which bypasses the cache like bypassCache did.
+  // no list state of its own and never sets state from an effect. Adding a
+  // venture calls refresh(), which bypasses the cache.
   const { data: ventures, loading, refresh } = useApi("/api/ventures", {
     defaultValue: [],
     transform: pickVentures,
@@ -60,26 +66,63 @@ export default function VenturesPage() {
   const stageConfig = (stage) => VENTURE_STAGES[stage] || VENTURE_STAGES.idea;
   const statusConfig = (status) => STATUS_CONFIG[status] || STATUS_CONFIG.active;
 
-  const approveVenture = async (venture) => {
+  const notify = (type, message, duration = 4000) => {
+    window.dispatchEvent(
+      new CustomEvent("impactos:notify", { detail: { type, message, duration } }),
+    );
+  };
+
+  const closeAddModal = () => {
+    setShowAddModal(false);
+    setAddError("");
+  };
+
+  // "Add a Venture": record the venture by name and invite its founder, who
+  // receives a link to create their account and access the venture.
+  const handleAddVenture = async (event) => {
+    event.preventDefault();
+    const companyName = addForm.company_name.trim();
+    const founderEmail = addForm.founder_email.trim();
+    if (companyName.length < 2) {
+      setAddError(t("vadmin.list.addVentureNameRequired"));
+      return;
+    }
+    if (!founderEmail) {
+      setAddError(t("vadmin.list.addVentureEmailRequired"));
+      return;
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(founderEmail)) {
+      setAddError(t("vadmin.list.addVentureEmailInvalid"));
+      return;
+    }
+
+    setAddSubmitting(true);
+    setAddError("");
     try {
-      const response = await fetch(`/api/ventures/${venture.venture_id}/approve`, { method: "POST" });
+      const response = await fetch("/api/admin/ventures/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ company_name: companyName, founder_email: founderEmail }),
+      });
       const payload = await response.json();
-      window.dispatchEvent(
-        new CustomEvent("impactos:notify", {
-          detail: {
-            type: payload.success ? "success" : "error",
-            message: payload.success ? t("vadmin.list.approveSuccess") : (t((payload.error || t("vadmin.list.approveFailed")) || "") || (payload.error || t("vadmin.list.approveFailed"))),
-            duration: 4000,
-          },
-        })
+      if (!response.ok || !payload.success) {
+        setAddError(t(payload.error || "vadmin.list.addVentureFailed"));
+        return;
+      }
+      // The venture is created either way; a transport failure only means the
+      // invitation email did not leave, which the admin must be told explicitly.
+      notify(
+        payload.email_sent === false ? "error" : "success",
+        t(payload.email_sent === false ? "vadmin.list.addVentureEmailFailed" : "vadmin.list.addVentureSuccess"),
+        5000,
       );
-      if (payload.success) refresh();
+      closeAddModal();
+      setAddForm({ company_name: "", founder_email: "" });
+      refresh();
     } catch {
-      window.dispatchEvent(
-        new CustomEvent("impactos:notify", {
-          detail: { type: "error", message: t("vadmin.list.approveFailed"), duration: 4000 },
-        })
-      );
+      setAddError(t("vadmin.list.addVentureFailed"));
+    } finally {
+      setAddSubmitting(false);
     }
   };
 
@@ -102,99 +145,10 @@ export default function VenturesPage() {
           </div>
           <div className="flex gap-3">
             <button
-              onClick={async () => {
-                try {
-                  const email = await prompt({ message: t("vadmin.list.inviteEmailPrompt") });
-                  if (!email) return;
-                  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
-                    window.dispatchEvent(
-                      new CustomEvent("impactos:notify", {
-                        detail: {
-                          type: "error",
-                          message: t("vadmin.list.inviteEmailInvalid"),
-                          duration: 4000,
-                        },
-                      })
-                    );
-                    return;
-                  }
-                  const response = await fetch("/api/platform/venture-invitations", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email: email.trim(), source_type: "external" }),
-                  });
-                  const payload = await response.json();
-                  if (payload.success && payload.run?.url) {
-                    await navigator.clipboard.writeText(payload.run.url);
-                    window.dispatchEvent(
-                      new CustomEvent("impactos:notify", {
-                        detail: {
-                          type: "success",
-                          message: t("vadmin.list.inviteCopied"),
-                          duration: 4000,
-                        },
-                      })
-                    );
-                  } else {
-                    window.dispatchEvent(
-                      new CustomEvent("impactos:notify", {
-                        detail: {
-                          type: "error",
-                          message: payload.error || t("vadmin.list.inviteFailed"),
-                          duration: 5000,
-                        },
-                      })
-                    );
-                  }
-                } catch {
-                  window.dispatchEvent(
-                    new CustomEvent("impactos:notify", {
-                      detail: {
-                        type: "error",
-                        message: t("vadmin.list.inviteFailed"),
-                        duration: 5000,
-                      },
-                    })
-                  );
-                }
-              }}
-              className="btn gap-2"
-            >
-              <Link2 className="w-4 h-4" /> {t("vadmin.list.copyInviteLink")}
-            </button>
-            <button
-              onClick={async () => {
-                try {
-                  const response = await fetch("/api/platform/venture-run");
-                  const payload = await response.json();
-                  if (payload.success && payload.url) {
-                    window.open(payload.url, "_blank", "noopener,noreferrer");
-                  } else {
-                    window.dispatchEvent(
-                      new CustomEvent("impactos:notify", {
-                        detail: {
-                          type: "error",
-                          message: payload.error || t("vadmin.list.noActiveVentureForm"),
-                          duration: 5000,
-                        },
-                      })
-                    );
-                  }
-                } catch {
-                  window.dispatchEvent(
-                    new CustomEvent("impactos:notify", {
-                      detail: {
-                        type: "error",
-                        message: t("vadmin.list.noActiveVentureForm"),
-                        duration: 5000,
-                      },
-                    })
-                  );
-                }
-              }}
+              onClick={() => setShowAddModal(true)}
               className="btn btn-primary gap-2"
             >
-              <Plus className="w-4 h-4" /> {t("vadmin.list.openVentureForm")}
+              <Plus className="w-4 h-4" /> {t("vadmin.list.addVenture")}
             </button>
           </div>
         </div>
@@ -289,14 +243,6 @@ export default function VenturesPage() {
                           {new Date(venture.created_at).toLocaleDateString()}
                         </td>
                         <td className="px-5 py-3 text-right whitespace-nowrap">
-                          {venture.status === "pending" && (
-                            <button
-                              onClick={(event) => { event.stopPropagation(); approveVenture(venture); }}
-                              className="mr-3 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
-                            >
-                              {t("vadmin.list.approve")}
-                            </button>
-                          )}
                           <ChevronRight className="w-4 h-4 text-slate-600 inline group-hover:text-[var(--brand-orange)] transition-colors" />
                         </td>
                       </tr>
@@ -308,6 +254,55 @@ export default function VenturesPage() {
           </div>
         )}
       </div>
+
+      <AppModal
+        isOpen={showAddModal}
+        onClose={closeAddModal}
+        title={t("vadmin.list.addVentureTitle")}
+        size="sm"
+      >
+        <form onSubmit={handleAddVenture} className="space-y-5">
+          <p className="text-xs leading-relaxed -mt-2" style={{ color: "var(--text-secondary)" }}>
+            {t("vadmin.list.addVentureSubtitle")}
+          </p>
+          <AppInput
+            autoFocus
+            icon={Building2}
+            label={t("vadmin.list.ventureNameLabel")}
+            placeholder={t("vadmin.list.ventureNamePlaceholder")}
+            value={addForm.company_name}
+            onChange={(event) => {
+              setAddForm((previous) => ({ ...previous, company_name: event.target.value }));
+              setAddError("");
+            }}
+          />
+          <AppInput
+            icon={Mail}
+            type="email"
+            label={t("vadmin.list.founderEmailLabel")}
+            placeholder={t("vadmin.list.founderEmailPlaceholder")}
+            value={addForm.founder_email}
+            onChange={(event) => {
+              setAddForm((previous) => ({ ...previous, founder_email: event.target.value }));
+              setAddError("");
+            }}
+          />
+          {addError && <p className="text-xs font-bold text-rose-500">{addError}</p>}
+          <div className="flex justify-end gap-3 pt-1">
+            <AppButton
+              type="button"
+              variant="ghost"
+              disabled={addSubmitting}
+              onClick={closeAddModal}
+            >
+              {t("vadmin.list.addVentureCancel")}
+            </AppButton>
+            <AppButton type="submit" variant="primary" icon={Plus} loading={addSubmitting}>
+              {t("vadmin.list.addVentureSubmit")}
+            </AppButton>
+          </div>
+        </form>
+      </AppModal>
     </>
   );
 }
