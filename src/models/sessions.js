@@ -27,11 +27,11 @@ export async function deleteSessionById(id) {
   });
 }
 
-export async function insertSession({ token, tokenHash, userCid, role, expiresAt, isImpersonation }) {
+export async function insertSession({ token, tokenHash, userCid, role, expiresAt }) {
   return db.execute({
-    sql: `INSERT INTO user_sessions (token, token_hash, user_cid, role, expires_at, is_impersonation)
-          VALUES (?, ?, ?, ?, ?, ?)`,
-    args: [token, tokenHash, userCid, role, expiresAt, isImpersonation === true],
+    sql: `INSERT INTO user_sessions (token, token_hash, user_cid, role, expires_at)
+          VALUES (?, ?, ?, ?, ?)`,
+    args: [token, tokenHash, userCid, role, expiresAt],
   });
 }
 
@@ -70,14 +70,4 @@ export async function deleteSessionByTokenOrHash(tokenHash, token) {
     sql: "DELETE FROM user_sessions WHERE token_hash = ? OR token = ?",
     args: [tokenHash, token],
   });
-}
-
-/**
- * Schema self-heal: an environment whose `user_sessions` predates the
- * impersonation column must not fail the login path.
- */
-export async function ensureImpersonationColumn() {
-  return db.execute(
-    "ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS is_impersonation BOOLEAN DEFAULT FALSE",
-  );
 }

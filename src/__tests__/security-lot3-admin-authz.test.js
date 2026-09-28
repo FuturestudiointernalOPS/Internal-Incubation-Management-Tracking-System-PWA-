@@ -14,13 +14,18 @@ const path = require("path");
 const ROOT = path.join(__dirname, "..", "..");
 const read = (file) => fs.readFileSync(path.join(ROOT, file), "utf8");
 
-describe("impersonation is a Super Admin act, not an env flag", () => {
+describe("staging impersonation is removed", () => {
   test.each([
     "src/app/api/auth/impersonate/route.js",
     "src/app/api/auth/quick-login/route.js",
-  ])("%s requires a Super Admin session", (file) => {
-    const src = read(file);
-    expect(src).toMatch(/requireAuth\(\["super_admin"\]\)/);
+  ])("%s no longer exists", (file) => {
+    expect(fs.existsSync(path.join(ROOT, file))).toBe(false);
+  });
+
+  test("the session layer no longer knows about impersonation", () => {
+    for (const file of ["src/server/auth/session.js", "src/models/sessions.js"]) {
+      expect(read(file)).not.toMatch(/impersonat/i);
+    }
   });
 });
 
