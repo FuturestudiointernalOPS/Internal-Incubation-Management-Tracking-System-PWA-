@@ -6,11 +6,12 @@
  *    signs them, so a material is never world-readable and a path that did not
  *    come from that route is refused at booking time.
  *
- * 2. WHO is booking decides WHERE: the Venture books strictly against the ONE
- *    milestone its chain has released; Future Studio staff plan ahead and may
+ * 2. WHO is booking decides WHERE: the Venture books against a milestone of
+ *    its active Journey (availability is set by the Journey — locked and
+ *    finished states are refused); Future Studio staff plan ahead and may
  *    book against any milestone. A refusal carries the REASON, because "you
- *    cannot book" without a why is the kind of dead end that generates support
- *    tickets.
+ *    cannot book" without a why is the kind of dead end that generates
+ *    support tickets.
  */
 const {
   SESSION_MATERIALS_MAX,
@@ -80,8 +81,8 @@ describe("normalizeSessionMaterials", () => {
   });
 });
 
-describe("assertBookableMilestone — strictly the current milestone", () => {
-  test("allows the milestone the chain has released", async () => {
+describe("assertBookableMilestone — availability follows the Journey", () => {
+  test("allows a milestone of the active Journey", async () => {
     const out = await assertBookableMilestone(makeDb({ milestone: MILESTONE, stage: STAGE, list: [MILESTONE] }), {
       dbId: 7,
       milestoneId: "MS-1",
@@ -125,31 +126,13 @@ describe("assertBookableMilestone — strictly the current milestone", () => {
     expect(out.reason).toMatch(/finished/i);
   });
 
-  test("refuses a later milestone and NAMES the one that is actually current", async () => {
-    const later = { id: "MS-2", title: "Business Plan", status: "locked", journey_stage_id: "ST-1" };
+  test("a later milestone in the same active Journey is bookable — position never restricts", async () => {
+    const later = { id: "MS-2", title: "Business Plan", status: "not_started", journey_stage_id: "ST-1" };
     const out = await assertBookableMilestone(
-      makeDb({
-        // The list is what the chain says is open; the milestone asked for is
-        // later in the same Journey.
-        milestone: later,
-        stage: STAGE,
-        list: [MILESTONE, later],
-      }),
+      makeDb({ milestone: later, stage: STAGE, list: [MILESTONE, later] }),
       { dbId: 7, milestoneId: "MS-2" },
     );
-    // Locked is refused first, and that reason is the most specific one.
-    expect(out.ok).toBe(false);
-    expect(out.reason).toMatch(/locked/i);
-  });
-
-  test("a released-but-not-first milestone is refused with the current one named", async () => {
-    const second = { id: "MS-2", title: "Business Plan", status: "not_started", journey_stage_id: "ST-1" };
-    const out = await assertBookableMilestone(
-      makeDb({ milestone: second, stage: STAGE, list: [MILESTONE, second] }),
-      { dbId: 7, milestoneId: "MS-2" },
-    );
-    expect(out.ok).toBe(false);
-    expect(out.reason).toContain("Pitch Deck");
+    expect(out.ok).toBe(true);
   });
 
   test("an archived milestone is refused", async () => {

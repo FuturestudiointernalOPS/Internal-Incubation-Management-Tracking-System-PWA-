@@ -14,7 +14,7 @@ import { notifyVentureCoach, notifyVentureLeadManagers } from "@/lib/ventureNoti
 import { isStaffActorForVenture } from "@/lib/ventureAuth";
 import { hasVentureCapability } from "@/lib/venturePermissions";
 import { resolveVentureCode } from "@/lib/ventureOperatingPlans";
-import { assertBookableMilestone } from "@/lib/ventureMilestoneEngine";
+import { assertBookableMilestone, activateDueStages } from "@/lib/ventureMilestoneEngine";
 import { signSessionMaterials } from "@/lib/ventureEvidence";
 
 // Venture-facing session changes notify founders (in-app + email). Sessions
@@ -195,6 +195,9 @@ export const POST = createHandler(async (req, { params }) => {
           .execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] })
           .catch(() => ({ rows: [] }));
         const ventureDbId = ventureLookup.rows?.[0]?.id || null;
+        // A Journey that starts today is already active when a founder books —
+        // activation is date-driven, not a manual step.
+        if (ventureDbId) await activateDueStages(db, { dbId: ventureDbId });
         const bookable = ventureDbId
           ? await assertBookableMilestone(db, { dbId: ventureDbId, milestoneId: milestoneRef })
           : { ok: false, reason: "This Venture could not be resolved, so the session was not booked." };

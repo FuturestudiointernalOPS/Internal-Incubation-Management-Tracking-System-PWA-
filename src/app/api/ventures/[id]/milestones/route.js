@@ -2,7 +2,7 @@ import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { computeInitialMilestoneStatus, completeMilestoneAndUnlockNext, isMilestoneLeadAuthority, canManageMilestones, completeStageIfAllMilestonesDone } from "@/lib/ventureMilestoneEngine";
+import { computeInitialMilestoneStatus, completeMilestone, isMilestoneLeadAuthority, canManageMilestones, completeStageIfAllMilestonesDone, activateDueStages } from "@/lib/ventureMilestoneEngine";
 import { dateOrNull, cidOrNull, isValidCid, isUnknownColumnError } from "@/lib/ventureInput";
 import { roleIsPrivileged } from "@/lib/ventureAuth";
 import { projectMilestonesForVenture } from "@/lib/ventureVisibility";
@@ -61,6 +61,10 @@ export const POST = createHandler(async (req, { params }) => {
   const ventureDbId = ventureResult.rows?.[0]?.id;
   if (!ventureDbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
+  // Date-driven activation first, so a Journey whose start_date has arrived
+  // counts as active when the status below is computed.
+  await activateDueStages(db, { dbId: ventureDbId });
+
   // Journey binding (Phase 2): a milestone may belong to a Journey stage.
   // The stage must exist on THIS Venture when provided.
   const { journey_stage_id } = body;
@@ -74,20 +78,11 @@ export const POST = createHandler(async (req, { params }) => {
     }
   }
 
-  // Sequential release (Phase 3): bound milestones start 'locked' unless they
-  // are the stage's first milestone or follow a completed one — and only an
-  // ACTIVE journey releases its milestones. In a locked (future) or completed
-  // journey every newly added milestone starts locked; activating the journey
-  // releases the first one.
-  let initialStatus = await computeInitialMilestoneStatus(db, { dbId: ventureDbId, stageId: journey_stage_id || null });
-  if (journey_stage_id) {
-    const stageResult = await db.execute({
-      sql: "SELECT status FROM venture_journey_stages WHERE id = ? AND venture_id = ?",
-      args: [journey_stage_id, ventureDbId],
-    }).catch(() => ({ rows: [] }));
-    const stageStatus = stageResult.rows?.[0]?.status;
-    if (stageStatus && stageStatus !== "active") initialStatus = "locked";
-  }
+  // Availability is set by the Journey, not by position: a milestone bound to
+  // an ACTIVE journey starts available; in a not-started or finished journey
+  // it waits 'locked'. (Explicit milestone dependencies are a separate, later
+  // layer and the only thing that will ever hold a milestone back.)
+  const initialStatus = await computeInitialMilestoneStatus(db, { dbId: ventureDbId, stageId: journey_stage_id || null });
 
   const randomUUID = crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => { const random = Math.random()*16|0; const value = char==='x'?random:(random&0x3|0x8); return value.toString(16); });
 
@@ -118,6 +113,10 @@ export const PATCH = createHandler(async (req, { params }) => {
   }).catch(() => ({ rows: [] }));
   const ventureDbIdForScope = scopeVentureResult.rows?.[0]?.id ?? null;
   if (!ventureDbIdForScope) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
+
+  // Date-driven activation first: a Journey whose start_date has arrived is
+  // active before this write decides anything.
+  await activateDueStages(db, { dbId: ventureDbIdForScope });
 
   const body = await req.json();
   const { progress, status, title, description, target_date } = body;
@@ -204,7 +203,7 @@ export const PATCH = createHandler(async (req, { params }) => {
     }).catch(() => ({ rows: [] }));
     const ventureDbId = ventureResult.rows?.[0]?.id || null;
     if (ventureDbId) {
-      const outcome = await completeMilestoneAndUnlockNext(db, { dbId: ventureDbId, milestoneId });
+      await completeMilestone(db, { dbId: ventureDbId, milestoneId });
       const milestoneResult = await db.execute({
         sql: "SELECT title, journey_stage_id FROM venture_milestones WHERE id = ?",
         args: [milestoneId],
@@ -221,11 +220,12 @@ export const PATCH = createHandler(async (req, { params }) => {
       } catch (_) {}
       try {
         const { addVentureHistory } = await import("@/lib/ventures");
-        await addVentureHistory({ venture_id: id, event_type: "MILESTONE_COMPLETED", description: `Milestone "${milestone?.title || milestoneId}" completed${outcome?.unlocked_milestone_id ? " — next milestone unlocked" : ""}` });
+        await addVentureHistory({ venture_id: id, event_type: "MILESTONE_COMPLETED", description: `Milestone "${milestone?.title || milestoneId}" completed` });
       } catch (_) {}
 
       // A Journey is never closed by hand: once EVERY milestone in it is
-      // completed it closes automatically and the next journey becomes current.
+      // completed it closes automatically. No other Journey is started here —
+      // they activate on their own start dates.
       const stageOutcome = await completeStageIfAllMilestonesDone(db, {
         dbId: ventureDbId,
         stageId: milestone?.journey_stage_id,
@@ -235,14 +235,13 @@ export const PATCH = createHandler(async (req, { params }) => {
         journeyOutcome = {
           id: milestone?.journey_stage_id ? String(milestone.journey_stage_id) : null,
           name: stageOutcome.stage_name || null,
-          next_stage_id: stageOutcome.next_stage_id || null,
         };
         try {
           const { addVentureHistory } = await import("@/lib/ventures");
           await addVentureHistory({
             venture_id: id,
             event_type: "JOURNEY_COMPLETED",
-            description: `Journey "${stageOutcome.stage_name || ""}" completed — all milestones are done${stageOutcome.next_stage_id ? "; the next journey is now active" : ""}`,
+            description: `Journey "${stageOutcome.stage_name || ""}" completed — all milestones are done`,
           });
         } catch (_) {}
         try {

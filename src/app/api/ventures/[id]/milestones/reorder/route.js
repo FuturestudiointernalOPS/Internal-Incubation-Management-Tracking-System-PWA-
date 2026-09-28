@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import db from "@/lib/db";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { canManageMilestones, releaseFirstMilestoneForStage } from "@/lib/ventureMilestoneEngine";
+import { canManageMilestones, releaseMilestonesForStage } from "@/lib/ventureMilestoneEngine";
 import { moveStageMilestone } from "@/lib/ventureMilestoneOrder";
 
 /**
@@ -48,8 +48,9 @@ export const POST = createHandler(async (req, { params }) => {
   if (result.error) {
     return NextResponse.json({ success: false, error: result.error }, { status: 400 });
   }
-  // Reordering changes which milestone is first — keep the release chain
-  // consistent (releases the new first unfinished one in an active journey).
-  await releaseFirstMilestoneForStage(db, { dbId, stageId });
+  // Reordering never changes availability — position releases nothing. The
+  // call stays as an idempotent safety net: any still-locked milestone of
+  // this active Journey is offered.
+  await releaseMilestonesForStage(db, { dbId, stageId });
   return NextResponse.json({ success: true });
 });

@@ -39,6 +39,9 @@ export async function ensureJourneyTable(db) {
   });
   await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS objective TEXT" });
   await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS target_date DATE" });
+  // Date-driven activation: a Journey becomes active when its own start_date
+  // arrives (NULL = never auto-activates; it starts only when staff say so).
+  await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS start_date DATE" });
   // Archive (soft delete): archived journeys stay in the database (history
   // preserved) but are hidden from the Venture and from default lists.
   await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE" });
@@ -75,7 +78,7 @@ export async function resolveVentureInternalId(db, ventureId) {
  * additive archive / template-provenance columns have not been migrated yet.
  */
 export async function listJourneyStages(db, dbId, { includeArchived = false } = {}) {
-  const coreCols = `id, name, description, objective, target_date, stage_order,
+  const coreCols = `id, name, description, objective, start_date, target_date, stage_order,
                  status, completed_at, created_at`;
   const templateCols = ", source_template_type, source_template_id";
   const archiveCols = ", is_archived, archived_at";

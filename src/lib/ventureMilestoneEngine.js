@@ -1,24 +1,30 @@
 /**
- * Milestone progression engine (Vinance 3 — Phase 3, doc §12).
+ * Milestone progression engine (Vinance 3 — Phase 3; updated: date-driven
+ * Journeys, no positional chain).
  *
- * Sequential gating inside each Journey stage:
- *   - the FIRST milestone of a stage starts available ('not_started');
- *   - every following milestone starts 'locked';
- *   - a milestone may ONLY be created, restructured or marked completed by a
- *     holder of the permission matrix cell `milestones.edit` — which the seeded
- *     Lead Manager holds and a Coach does not — or by a Super Admin;
- *   - completion automatically unlocks the next locked milestone in the
- *     same stage (first by display_order).
+ * How availability works now:
+ *   - a Journey starts on its OWN start_date (activateDueStages) — never by
+ *     waiting for another Journey to complete, so Journeys overlap freely;
+ *   - a milestone is available as soon as its Journey is: an active Journey's
+ *     milestones are all offered (locked -> not_started). Position releases
+ *     nothing — explicit dependencies between milestones are a separate,
+ *     later layer, and the only thing that ever holds a milestone back;
+ *   - a Journey completes automatically the moment every milestone in it is
+ *     completed; completing it does NOT start another one.
  *
- * Authority is read from the matrix and nowhere else. It used to be decided here
- * by querying `venture_staff_assignments` for a `lead_manager` responsibility —
- * a SECOND answer to a question the matrix already answered. Two answers is how
- * a Coach could rewrite a milestone while the matrix said they could not.
+ * Authority (unchanged): a milestone may ONLY be created, restructured or
+ * marked completed by a holder of the permission matrix cell `milestones.edit`
+ * — which the seeded Lead Manager holds and a Coach does not — or by a Super
+ * Admin. Authority is read from the matrix and nowhere else. It used to be
+ * decided here by querying `venture_staff_assignments` for a `lead_manager`
+ * responsibility — a SECOND answer to a question the matrix already answered.
+ * Two answers is how a Coach could rewrite a milestone while the matrix said
+ * they could not.
  *
- * Founders never see locked milestones (journey API filters them), so
- * unreleased work is invisible until the manager/coach progression reaches
- * it. Manual overrides by authorized actors are recorded through the normal
- * history/notification events.
+ * Founders see future work through the visibility projection (sealed, with its
+ * real status) rather than through a positional lock. Manual overrides by
+ * authorized actors are recorded through the normal history/notification
+ * events.
  */
 
 import { isMilestoneComplete } from "@/lib/ventureStatuses";
@@ -81,23 +87,22 @@ export async function canManageMilestones(db, { id, cid, role }) {
 }
 
 /**
- * Status for a newly created milestone bound to a Journey stage:
- * not_started when it is the stage's first milestone or the previous one is
- * completed; otherwise locked (sequential release).
+ * Status for a newly created milestone bound to a Journey stage.
+ *
+ * Availability is not positional: a milestone is offered as soon as its
+ * Journey is. It waits 'locked' only while the Journey itself has not
+ * started — never because another milestone happens to sit before it.
  */
 export async function computeInitialMilestoneStatus(db, { dbId, stageId }) {
   if (!stageId) return "not_started";
   try {
     const result = await db.execute({
-      sql: `SELECT status FROM venture_milestones
-            WHERE venture_id = ? AND journey_stage_id = ?
-            ORDER BY COALESCE(display_order, 0) DESC, created_at DESC
-            LIMIT 1`,
-      args: [dbId, stageId],
+      sql: "SELECT status FROM venture_journey_stages WHERE id = ? AND venture_id = ?",
+      args: [String(stageId), dbId],
     });
-    const last = rowsOf(result)[0];
-    if (!last) return "not_started";
-    return isMilestoneComplete(last.status) ? "not_started" : "locked";
+    const stage = rowsOf(result)[0];
+    if (!stage) return "not_started";
+    return stage.status === "active" ? "not_started" : "locked";
   } catch (_) {
     return "not_started";
   }
@@ -106,8 +111,10 @@ export async function computeInitialMilestoneStatus(db, { dbId, stageId }) {
 /**
  * A Journey can NEVER be closed manually. It completes automatically the
  * moment every milestone in it has been marked completed (by the Lead Manager
- * or a Super Admin), and that completion activates the next journey and
- * releases its first milestone.
+ * or a Super Admin).
+ *
+ * Completing a Journey does NOT activate the next one: Journeys start on
+ * their own start_date (activateDueStages), so several can run at once.
  *
  * A journey with NO milestones never auto-completes — there is nothing to
  * close on.
@@ -142,85 +149,132 @@ export async function completeStageIfAllMilestonesDone(db, { dbId, stageId, cid 
       args: [cid, String(stageId), dbId],
     });
 
-    // The next journey becomes current, and its first milestone is released.
-    const nextStageResult = await db
-      .execute({
-        sql: "SELECT id FROM venture_journey_stages WHERE venture_id = ? AND stage_order = ? AND status = 'locked'",
-        args: [dbId, stage.stage_order + 1],
-      })
-      .catch(() => ({ rows: [] }));
-    const nextStageId = rowsOf(nextStageResult)[0]?.id || null;
-    if (nextStageId) {
-      await db.execute({
-        sql: "UPDATE venture_journey_stages SET status = 'active' WHERE id = ? AND venture_id = ?",
-        args: [String(nextStageId), dbId],
-      });
-      await releaseFirstMilestoneForStage(db, { dbId, stageId: nextStageId });
-    }
-
-    return { completed: true, stage_name: stage.name || null, next_stage_id: nextStageId };
+    // No chain: the next Journey activates on its own start_date, so nothing
+    // is started from here.
+    return { completed: true, stage_name: stage.name || null };
   } catch (_) {
     return { completed: false };
   }
 }
 
 /**
- * Release the first unfinished milestone of an ACTIVE journey stage.
+ * Release the milestones of an ACTIVE journey stage.
  *
- * The chain is: the first milestone (by display order) that is not completed
- * becomes available (locked -> not_started). Everything after it stays locked,
- * and nothing is ever locked back or un-completed — so re-running this is safe.
- * Returns { released_milestone_id } (null when there is nothing to release).
+ * Availability inside a Journey is not a chain: when the Journey is active,
+ * every one of its unreleased milestones is offered (locked -> not_started).
+ * Position releases nothing — explicit dependencies between milestones, a
+ * separate layer, are the only thing that will ever hold one back. Nothing is
+ * ever locked back or un-completed, so re-running this is safe.
+ *
+ * Returns { released_milestone_ids } ([] when there is nothing to release).
  */
-export async function releaseFirstMilestoneForStage(db, { dbId, stageId }) {
-  if (!stageId) return { released_milestone_id: null };
+export async function releaseMilestonesForStage(db, { dbId, stageId }) {
+  if (!stageId) return { released_milestone_ids: [] };
   try {
     const stageResult = await db.execute({
       sql: "SELECT status FROM venture_journey_stages WHERE id = ? AND venture_id = ?",
       args: [String(stageId), dbId],
     }).catch(() => ({ rows: [] }));
     const stage = rowsOf(stageResult)[0];
-    if (!stage || stage.status !== "active") return { released_milestone_id: null };
+    if (!stage || stage.status !== "active") return { released_milestone_ids: [] };
 
-    // Archived milestones are not part of the chain (guarded for databases
+    // Archived milestones stay out of the roadmap (guarded for databases
     // whose schema predates the is_archived column).
-    const richSql = `SELECT id, status FROM venture_milestones
-                     WHERE venture_id = ? AND journey_stage_id = ? AND COALESCE(is_archived, FALSE) = FALSE
-                     ORDER BY COALESCE(display_order, 0) ASC, created_at ASC`;
-    const plainSql = `SELECT id, status FROM venture_milestones
-                      WHERE venture_id = ? AND journey_stage_id = ?
-                      ORDER BY COALESCE(display_order, 0) ASC, created_at ASC`;
-    const milestonesResult = await db
+    const richSql = `UPDATE venture_milestones SET status = 'not_started', updated_at = NOW()
+                     WHERE venture_id = ? AND journey_stage_id = ? AND status = 'locked'
+                       AND COALESCE(is_archived, FALSE) = FALSE
+                     RETURNING id`;
+    const plainSql = `UPDATE venture_milestones SET status = 'not_started', updated_at = NOW()
+                      WHERE venture_id = ? AND journey_stage_id = ? AND status = 'locked'
+                      RETURNING id`;
+    const result = await db
       .execute({ sql: richSql, args: [dbId, String(stageId)] })
       .catch(() => db.execute({ sql: plainSql, args: [dbId, String(stageId)] }).catch(() => ({ rows: [] })));
-    const list = rowsOf(milestonesResult);
-
-    const firstOpen = list.find((milestone) => !isMilestoneComplete(milestone.status));
-    if (!firstOpen || firstOpen.status !== "locked") return { released_milestone_id: null };
-
-    await db.execute({
-      sql: "UPDATE venture_milestones SET status = 'not_started', updated_at = NOW() WHERE id = ? AND status = 'locked'",
-      args: [firstOpen.id],
-    });
-    return { released_milestone_id: firstOpen.id };
+    return { released_milestone_ids: rowsOf(result).map((row) => row.id) };
   } catch (_) {
-    return { released_milestone_id: null };
+    return { released_milestone_ids: [] };
+  }
+}
+
+/**
+ * Date-driven Journey activation — the ONLY automatic way a Journey starts.
+ *
+ * A locked Journey becomes active when its own start_date arrives. It never
+ * waits for another Journey to complete, so Journeys overlap freely. A Journey
+ * with no start_date never auto-activates; a staff member starts it explicitly.
+ * Releasing follows in the same pass: the milestones of every active Journey
+ * are offered (locked -> not_started).
+ *
+ * Idempotent and cheap — safe to call from any read or write path that shows
+ * or changes Journey state, so the roadmap is never stale.
+ *
+ * Returns { activated_stage_ids, released_milestone_ids }.
+ */
+export async function activateDueStages(db, { dbId } = {}) {
+  if (!dbId) return { activated_stage_ids: [], released_milestone_ids: [] };
+  try {
+    const activateResult = await db
+      .execute({
+        sql: `UPDATE venture_journey_stages SET status = 'active'
+              WHERE venture_id = ? AND status = 'locked'
+                AND start_date IS NOT NULL AND start_date <= CURRENT_DATE
+                AND COALESCE(is_archived, FALSE) = FALSE
+              RETURNING id`,
+        args: [dbId],
+      })
+      .catch(() =>
+        db
+          .execute({
+            sql: `UPDATE venture_journey_stages SET status = 'active'
+                  WHERE venture_id = ? AND status = 'locked'
+                    AND start_date IS NOT NULL AND start_date <= CURRENT_DATE
+                  RETURNING id`,
+            args: [dbId],
+          })
+          .catch(() => ({ rows: [] })),
+      );
+    const activated = rowsOf(activateResult).map((row) => row.id);
+
+    const richSql = `UPDATE venture_milestones SET status = 'not_started', updated_at = NOW()
+                     WHERE venture_id = ? AND status = 'locked'
+                       AND COALESCE(is_archived, FALSE) = FALSE
+                       AND journey_stage_id IN (
+                         SELECT id FROM venture_journey_stages
+                         WHERE venture_id = ? AND status = 'active' AND COALESCE(is_archived, FALSE) = FALSE
+                       )
+                     RETURNING id`;
+    const plainSql = `UPDATE venture_milestones SET status = 'not_started', updated_at = NOW()
+                      WHERE venture_id = ? AND status = 'locked'
+                        AND journey_stage_id IN (
+                          SELECT id FROM venture_journey_stages
+                          WHERE venture_id = ? AND status = 'active'
+                        )
+                      RETURNING id`;
+    const releaseResult = await db
+      .execute({ sql: richSql, args: [dbId, dbId] })
+      .catch(() => db.execute({ sql: plainSql, args: [dbId, dbId] }).catch(() => ({ rows: [] })));
+
+    return {
+      activated_stage_ids: activated,
+      released_milestone_ids: rowsOf(releaseResult).map((row) => row.id),
+    };
+  } catch (_) {
+    return { activated_stage_ids: [], released_milestone_ids: [] };
   }
 }
 
 /**
  * May a Venture-side actor book a session against this milestone?
  *
- * STRICTLY the Venture's CURRENT milestone — the single one the chain has
- * released. The chain releases exactly one milestone per active Journey: the
- * first non-archived, non-completed one by display order; everything after it
- * stays 'locked' and is never shown to the Venture. Staff (Lead Manager, coach,
- * Super Admin) are not restricted by this — they plan ahead.
+ * Any milestone of the Venture's ACTIVE Journey is bookable — availability is
+ * set by the Journey, not by a milestone's position. A `locked` milestone (its
+ * Journey has not started) and a `completed` one are refused, and so is a
+ * milestone whose Journey is finished. Staff (Lead Manager, coach, Super
+ * Admin) are not restricted by this — they plan ahead.
  *
  * A refusal always carries a REASON the Venture can read, so nobody is left
  * guessing why their booking was rejected: the reason names the actual state
- * (locked / already completed / a different Journey is current) and, where it
- * helps, the milestone that has to be finished first.
+ * (locked / not started / already completed / a finished Journey).
  *
  * Returns { ok: true, milestone } or { ok: false, reason }.
  */
@@ -250,7 +304,7 @@ export async function assertBookableMilestone(db, { dbId, milestoneId }) {
       return { ok: false, reason: "This milestone is already completed." };
     }
     if (milestone.status === "locked") {
-      return { ok: false, reason: "This milestone is locked. It opens once the milestone before it is completed." };
+      return { ok: false, reason: "This milestone is locked. It opens once its Journey is under way." };
     }
 
     // The milestone must belong to the Journey that is actually current.
@@ -266,33 +320,15 @@ export async function assertBookableMilestone(db, { dbId, milestoneId }) {
       return { ok: false, reason: "This milestone is not part of a Journey, so no session can be booked against it." };
     }
     if (stage.status === "locked") {
-      return {
-        ok: false,
-        reason: `The Journey "${stage.name}" has not started yet. It opens once the previous Journey is completed.`,
-      };
+      return { ok: false, reason: `The Journey "${stage.name}" has not started yet.` };
     }
     if (stage.status !== "active") {
       return { ok: false, reason: `The Journey "${stage.name}" is finished, so its milestones take no new sessions.` };
     }
 
-    // ...and it must be the FIRST unfinished milestone of that Journey. Only one
-    // milestone is open at a time; the rest are hidden from the Venture.
-    const listResult = await db
-      .execute({
-        sql: `SELECT id, title, status FROM venture_milestones
-              WHERE venture_id = ? AND journey_stage_id = ? AND COALESCE(is_archived, FALSE) = FALSE
-              ORDER BY COALESCE(display_order, 0) ASC, created_at ASC`,
-        args: [dbId, String(milestone.journey_stage_id)],
-      })
-      .catch(() => ({ rows: [] }));
-    const current = rowsOf(listResult).find((milestone) => !isMilestoneComplete(milestone.status));
-    if (current && String(current.id) !== String(milestone.id)) {
-      return {
-        ok: false,
-        reason: `Your current milestone is "${current.title || "the open milestone"}". Finish it before booking against this one.`,
-      };
-    }
-
+    // Every milestone of the active Journey is bookable: availability is set
+    // by the Journey (and, later, by explicit dependencies) — never by the
+    // position a milestone happens to sit in.
     return { ok: true, milestone };
   } catch (_) {
     // Fail closed: an unresolvable chain is not a reason to allow the booking.
@@ -358,11 +394,11 @@ export function deriveMilestoneStatusFromDeliverables(deliverables = []) {
  *     evidence never reopens it.
  *
  * Completion keeps its AUTHORITY: when every deliverable is approved the
- * milestone closes — unlocking the next one and, if that was the last, closing
- * the Journey — but ONLY for an actor who may complete milestones (the Lead
- * Manager / a Super Admin). A scoped coach, who may REVIEW a deliverable but
- * holds no `milestones.edit`, moves the milestone to `in_progress` and leaves
- * the sign-off where it belongs.
+ * milestone closes — and, if that was the last one, the Journey closes too —
+ * but ONLY for an actor who may complete milestones (the Lead Manager / a
+ * Super Admin). A scoped coach, who may REVIEW a deliverable but holds no
+ * `milestones.edit`, moves the milestone to `in_progress` and leaves the
+ * sign-off where it belongs.
  *
  * Returns { changed, status, journey_completed?, journey? }.
  */
@@ -396,7 +432,7 @@ export async function syncMilestoneStatusFromDeliverables(db, { dbId, milestoneI
         // The work is done, but closing a milestone is not the reviewer's call.
         target = "in_progress";
       } else {
-        await completeMilestoneAndUnlockNext(db, { dbId, milestoneId });
+        await completeMilestone(db, { dbId, milestoneId });
         const stageOutcome = await completeStageIfAllMilestonesDone(db, {
           dbId,
           stageId: milestone.journey_stage_id,
@@ -411,7 +447,6 @@ export async function syncMilestoneStatusFromDeliverables(db, { dbId, milestoneI
             ? {
                 id: milestone.journey_stage_id ? String(milestone.journey_stage_id) : null,
                 name: stageOutcome.stage_name || null,
-                next_stage_id: stageOutcome.next_stage_id || null,
               }
             : null,
         };
@@ -429,40 +464,19 @@ export async function syncMilestoneStatusFromDeliverables(db, { dbId, milestoneI
 }
 
 /**
- * Mark a milestone completed and unlock the next locked milestone in the
- * same stage. Returns { unlocked_milestone_id } (null when none follows).
+ * Mark a milestone completed. There is no chain to advance: the other
+ * milestones of an active Journey are already available (explicit
+ * dependencies, a later layer, are the only thing that ever holds one back),
+ * and a Journey closes itself when its last milestone lands
+ * (completeStageIfAllMilestonesDone).
  * Assumes the caller already verified completion authority.
  */
-export async function completeMilestoneAndUnlockNext(db, { dbId, milestoneId }) {
-  const milestoneResult = await db.execute({
-    sql: `SELECT id, journey_stage_id FROM venture_milestones WHERE id = ? AND venture_id = ?`,
+export async function completeMilestone(db, { dbId, milestoneId }) {
+  await db.execute({
+    sql: "UPDATE venture_milestones SET status = 'completed', progress = 100, updated_at = NOW() WHERE id = ? AND venture_id = ?",
     args: [milestoneId, dbId],
   });
-  const milestone = rowsOf(milestoneResult)[0];
-  if (!milestone) return { error: "Milestone not found." };
-
-  await db.execute({
-    sql: "UPDATE venture_milestones SET status = 'completed', progress = 100, updated_at = NOW() WHERE id = ?",
-    args: [milestoneId],
-  });
-
-  if (!milestone.journey_stage_id) return { unlocked_milestone_id: null };
-
-  const nextResult = await db.execute({
-    sql: `SELECT id FROM venture_milestones
-          WHERE venture_id = ? AND journey_stage_id = ? AND status = 'locked'
-          ORDER BY COALESCE(display_order, 0), created_at ASC
-          LIMIT 1`,
-    args: [dbId, milestone.journey_stage_id],
-  });
-  const next = rowsOf(nextResult)[0];
-  if (!next) return { unlocked_milestone_id: null };
-
-  await db.execute({
-    sql: "UPDATE venture_milestones SET status = 'not_started', updated_at = NOW() WHERE id = ?",
-    args: [next.id],
-  });
-  return { unlocked_milestone_id: next.id };
+  return { ok: true };
 }
 
-export default { isMilestoneLeadAuthority, resolveVentureCode, canManageMilestones, computeInitialMilestoneStatus, releaseFirstMilestoneForStage, completeStageIfAllMilestonesDone, completeMilestoneAndUnlockNext, assertBookableMilestone, deriveMilestoneStatusFromDeliverables, syncMilestoneStatusFromDeliverables };
+export default { isMilestoneLeadAuthority, resolveVentureCode, canManageMilestones, computeInitialMilestoneStatus, activateDueStages, releaseMilestonesForStage, completeStageIfAllMilestonesDone, completeMilestone, assertBookableMilestone, deriveMilestoneStatusFromDeliverables, syncMilestoneStatusFromDeliverables };
