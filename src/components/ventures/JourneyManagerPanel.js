@@ -37,6 +37,7 @@ import {
   CalendarPlus,
 } from "lucide-react";
 import ScopedNotes from "@/components/ventures/ScopedNotes";
+import PlanImportPanel from "@/components/ventures/PlanImportPanel";
 import AppModal from "@/components/ui/AppModal";
 import AppMenu from "@/components/ui/AppMenu";
 import { useDialogs } from "@/components/ui/DialogProvider";
@@ -1353,6 +1354,11 @@ export default function JourneyManagerPanel({ ventureId }) {
         )}
       </div>
       <p className="text-[10px] text-slate-400 mb-3 -mt-1">{t("venture.manager.intro")}</p>
+
+      {/* Phase 1 of the programme import: read a tracker, show what the analysts
+          proposes. Guarded by the same authority that may define the journey —
+          importing a plan IS defining one. */}
+      {access.create && <PlanImportPanel ventureId={ventureId} />}
 
       {templateSource && (
         <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-brand-orange/25 bg-brand-orange/[0.04] px-4 py-2.5">
