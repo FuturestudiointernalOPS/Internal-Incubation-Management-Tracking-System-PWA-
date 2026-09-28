@@ -6,13 +6,14 @@ import { useI18n } from "@/lib/i18n";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { notify } from "@/lib/notify";
-import { Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote } from "lucide-react";
+import { Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote, Shield } from "lucide-react";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
 import OperatingPlanPanel from "@/components/ventures/OperatingPlanPanel";
 import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
 import DocumentTypeManager from "@/components/ventures/DocumentTypeManager";
+import DataBankPanel from "@/components/ventures/DataBankPanel";
 
 /**
  * Staff → Ventures → [Venture] — staff workspace (Phase 3).
@@ -32,6 +33,7 @@ const TABS = [
   { id: "journey", label: "venture.journey", icon: Route },
   { id: "sessions", label: "venture.sessions", icon: Calendar },
   { id: "notes", label: "venture.notes", icon: StickyNote },
+  { id: "dataBank", label: "venture.verification", icon: Shield },
   { id: "plan", label: "venture.operatingPlan", icon: FileText },
   { id: "documents", label: "venture.documentTypes.title", icon: FileText },
 ];
@@ -378,6 +380,16 @@ export default function StaffVentureWorkspace() {
       )}
 
       {activeTab === "journey" && <JourneyManagerPanel ventureId={id} />}
+
+      {activeTab === "dataBank" && (
+        <DataBankPanel
+          ventureId={id}
+          // The Data bank sign-off belongs to the Lead Manager — the same rule
+          // the server applies on the write (canManageVerification). A scoped
+          // coach sees the file read-only.
+          canReview={myRoles.some((role) => role.responsibility_code === "lead_manager")}
+        />
+      )}
 
       {activeTab === "notes" && <VentureNotesPanel ventureId={id} />}
 

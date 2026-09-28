@@ -68,6 +68,8 @@ export async function ensureVentureSchema() {
     "CREATE TABLE IF NOT EXISTS venture_verifications (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL UNIQUE REFERENCES ventures(venture_id) ON DELETE CASCADE, status TEXT NOT NULL DEFAULT 'draft', submitted_at TIMESTAMP, reviewed_by TEXT, reviewed_at TIMESTAMP, reviewer_notes TEXT, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())",
     "CREATE TABLE IF NOT EXISTS venture_verification_items (id SERIAL PRIMARY KEY, verification_id INTEGER NOT NULL REFERENCES venture_verifications(id) ON DELETE CASCADE, category TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', notes TEXT, reviewed_by TEXT, reviewed_at TIMESTAMP, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW(), UNIQUE(verification_id, category))",
     "CREATE TABLE IF NOT EXISTS venture_verification_documents (id SERIAL PRIMARY KEY, verification_id INTEGER NOT NULL REFERENCES venture_verifications(id) ON DELETE CASCADE, category TEXT NOT NULL, document_type TEXT NOT NULL, file_name TEXT NOT NULL, file_size BIGINT, file_type TEXT, file_url TEXT NOT NULL, uploaded_by TEXT, uploaded_at TIMESTAMP DEFAULT NOW())",
+    "CREATE TABLE IF NOT EXISTS venture_verification_document_versions (id SERIAL PRIMARY KEY, document_id INTEGER NOT NULL REFERENCES venture_verification_documents(id) ON DELETE CASCADE, version_number INTEGER NOT NULL, file_name TEXT NOT NULL, file_size BIGINT, file_type TEXT, file_url TEXT NOT NULL, version_notes TEXT, uploaded_by TEXT, uploaded_at TIMESTAMP DEFAULT NOW(), UNIQUE(document_id, version_number))",
+    "CREATE INDEX IF NOT EXISTS idx_venture_verification_document_versions_doc ON venture_verification_document_versions(document_id)",
     "CREATE TABLE IF NOT EXISTS venture_verification_history (id SERIAL PRIMARY KEY, verification_id INTEGER NOT NULL REFERENCES venture_verifications(id) ON DELETE CASCADE, action TEXT NOT NULL, previous_status TEXT, new_status TEXT, actor_cid TEXT, actor_name TEXT, notes TEXT, metadata JSONB DEFAULT '{}'::jsonb, created_at TIMESTAMP DEFAULT NOW())",
     "CREATE TABLE IF NOT EXISTS venture_verification_reviews (id SERIAL PRIMARY KEY, verification_id INTEGER NOT NULL REFERENCES venture_verifications(id) ON DELETE CASCADE, reviewer_cid TEXT NOT NULL, reviewer_name TEXT, decision TEXT NOT NULL, notes TEXT, created_at TIMESTAMP DEFAULT NOW())",
     "CREATE TABLE IF NOT EXISTS venture_verification_comments (id SERIAL PRIMARY KEY, verification_id INTEGER NOT NULL REFERENCES venture_verifications(id) ON DELETE CASCADE, author_type TEXT NOT NULL, author_cid TEXT, author_name TEXT, message TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())",
@@ -2238,11 +2240,24 @@ export async function uploadVerificationDocument({ ventureId, verificationId, ca
     throw new Error(`Invalid category: "${category}".`);
   }
 
-  await db.execute({
+  const inserted = await db.execute({
     sql: `INSERT INTO venture_verification_documents (verification_id, category, document_type, file_name, file_size, file_type, file_url, uploaded_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     args: [verificationId, category, documentType, fileName, fileSize, fileType, fileUrl, uploadedBy],
   });
+
+  // The first upload IS version 1 of the document, so the history always starts
+  // at the first file the Venture filed rather than at the first re-upload.
+  const documentId = inserted.rows?.[0]?.id;
+  if (documentId != null) {
+    await ensureVerificationVersionTable();
+    await db.execute({
+      sql: `INSERT INTO venture_verification_document_versions
+            (document_id, version_number, file_name, file_size, file_type, file_url, uploaded_by)
+            VALUES (?, 1, ?, ?, ?, ?, ?)`,
+      args: [documentId, fileName, fileSize, fileType, fileUrl, uploadedBy],
+    }).catch(() => {});
+  }
   return { success: true };
 }
 
@@ -2252,6 +2267,136 @@ export async function uploadVerificationDocument({ ventureId, verificationId, ca
 export async function deleteVerificationDocument({ documentId }) {
   await db.execute({ sql: "DELETE FROM venture_verification_documents WHERE id = ?", args: [documentId] });
   return { success: true };
+}
+
+// ─── Data bank document versions ────────────────────────────────────────────
+//
+// A Data bank document row is the LIVE pointer: it always holds the newest file.
+// Every upload — the first one included — is also recorded in
+// `venture_verification_document_versions`, so the history runs from version 1
+// (the first file the Venture filed) to the newest. Deleting the document
+// cascades to its versions.
+
+/**
+ * Create the versions table if it is missing. The canonical definition ships in
+ * `ensureVentureSchema` (which runs on Venture intake); this keeps read/write
+ * working on an environment whose schema predates that migration. Best-effort.
+ */
+async function ensureVerificationVersionTable() {
+  try {
+    await db.execute({
+      sql: `CREATE TABLE IF NOT EXISTS venture_verification_document_versions (
+              id SERIAL PRIMARY KEY,
+              document_id INTEGER NOT NULL REFERENCES venture_verification_documents(id) ON DELETE CASCADE,
+              version_number INTEGER NOT NULL,
+              file_name TEXT NOT NULL,
+              file_size BIGINT,
+              file_type TEXT,
+              file_url TEXT NOT NULL,
+              version_notes TEXT,
+              uploaded_by TEXT,
+              uploaded_at TIMESTAMP DEFAULT NOW(),
+              UNIQUE(document_id, version_number)
+            )`,
+      args: [],
+    });
+  } catch (_) {}
+}
+
+/** The verification document of ONE Venture, or null when it is not there. */
+async function findVerificationDocumentForVenture(ventureId, documentId) {
+  const result = await db.execute({
+    sql: `SELECT vvd.* FROM venture_verification_documents vvd
+          JOIN venture_verifications vv ON vv.id = vvd.verification_id
+          WHERE vvd.id = ? AND vv.venture_id = ?`,
+    args: [documentId, ventureId],
+  });
+  return result.rows?.[0] || null;
+}
+
+/**
+ * Every version of ONE Data bank document, oldest first (version 1 … newest).
+ * Returns null when the document is not part of this Venture. A document filed
+ * before versioning existed has no rows yet — its live file is reported as
+ * version 1 so the history is never empty.
+ */
+export async function listVerificationDocumentVersions({ ventureId, documentId }) {
+  const document = await findVerificationDocumentForVenture(ventureId, documentId);
+  if (!document) return null;
+
+  await ensureVerificationVersionTable();
+  const result = await db.execute({
+    sql: `SELECT * FROM venture_verification_document_versions
+          WHERE document_id = ? ORDER BY version_number ASC`,
+    args: [documentId],
+  });
+  const versions = result.rows || [];
+  if (versions.length > 0) return { document, versions };
+
+  return {
+    document,
+    versions: [
+      {
+        id: `current-${document.id}`,
+        document_id: document.id,
+        version_number: 1,
+        file_name: document.file_name,
+        file_size: document.file_size,
+        file_type: document.file_type,
+        file_url: document.file_url,
+        version_notes: null,
+        uploaded_by: document.uploaded_by,
+        uploaded_at: document.uploaded_at,
+      },
+    ],
+  };
+}
+
+/**
+ * File a NEW version of ONE Data bank document: record the upload as the next
+ * version and point the document at it. Returns null when the document is not
+ * part of this Venture. A pre-versioning document has its live file recorded as
+ * version 1 first, so nothing is lost from the history.
+ */
+export async function addVerificationDocumentVersion({
+  ventureId, documentId, fileUrl, fileName, fileSize, fileType, versionNotes, uploadedBy,
+}) {
+  const document = await findVerificationDocumentForVenture(ventureId, documentId);
+  if (!document) return null;
+
+  await ensureVerificationVersionTable();
+  const maxResult = await db.execute({
+    sql: `SELECT COALESCE(MAX(version_number), 0) AS max_version
+          FROM venture_verification_document_versions WHERE document_id = ?`,
+    args: [documentId],
+  });
+  let nextVersion = parseInt(maxResult.rows?.[0]?.max_version || 0, 10) + 1;
+
+  if (nextVersion === 1) {
+    await db.execute({
+      sql: `INSERT INTO venture_verification_document_versions
+            (document_id, version_number, file_name, file_size, file_type, file_url, uploaded_by)
+            VALUES (?, 1, ?, ?, ?, ?, ?)`,
+      args: [documentId, document.file_name, document.file_size, document.file_type, document.file_url, document.uploaded_by],
+    }).catch(() => {});
+    nextVersion = 2;
+  }
+
+  await db.execute({
+    sql: `INSERT INTO venture_verification_document_versions
+          (document_id, version_number, file_name, file_size, file_type, file_url, version_notes, uploaded_by)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [documentId, nextVersion, fileName, fileSize, fileType, fileUrl, versionNotes || null, uploadedBy],
+  });
+
+  await db.execute({
+    sql: `UPDATE venture_verification_documents
+          SET file_name = ?, file_size = ?, file_type = ?, file_url = ?, uploaded_by = ?, uploaded_at = NOW()
+          WHERE id = ?`,
+    args: [fileName, fileSize, fileType, fileUrl, uploadedBy, documentId],
+  });
+
+  return { success: true, version_number: nextVersion };
 }
 
 /**

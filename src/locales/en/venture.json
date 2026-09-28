@@ -355,6 +355,13 @@
       "stillRequired": "Still required: {items}",
       "noItems": "No verification items yet",
       "deleteDocument": "Delete document",
+      "deleteDocumentConfirm": "Delete “{name}”?\nThis removes the document and its whole version history from the Data bank.",
+      "versionHistory": "Version history",
+      "version": "Version {n}",
+      "versionCurrent": "Current",
+      "noVersions": "No versions recorded yet.",
+      "uploadVersion": "Upload a new version",
+      "versionsLoadFailed": "Could not load the version history.",
       "fromReviewer": "Review team",
       "confirmedAnotherWay": "Confirmed another way — nothing to upload"
     },

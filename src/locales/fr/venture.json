@@ -364,6 +364,13 @@
       "stillRequired": "Encore requis : {items}",
       "noItems": "Aucun élément de vérification pour le moment",
       "deleteDocument": "Supprimer le document",
+      "deleteDocumentConfirm": "Supprimer « {name} » ?\nCela retire le document et tout son historique de versions de la banque de données.",
+      "versionHistory": "Historique des versions",
+      "version": "Version {n}",
+      "versionCurrent": "Actuelle",
+      "noVersions": "Aucune version enregistrée pour le moment.",
+      "uploadVersion": "Téléverser une nouvelle version",
+      "versionsLoadFailed": "Impossible de charger l'historique des versions.",
       "fromReviewer": "Équipe de révision",
       "confirmedAnotherWay": "Confirmé autrement — rien à téléverser"
     },
