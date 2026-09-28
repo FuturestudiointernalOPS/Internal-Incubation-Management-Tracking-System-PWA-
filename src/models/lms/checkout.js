@@ -47,7 +47,7 @@ export async function resolveCheckoutCourse(courseId) {
   if (!courseId) return null;
   await ensureCheckoutSchema();
   const res = await db.execute({
-    sql: `SELECT id, slug, title, description, thumbnail_url, status, visibility, is_free, price,
+    sql: `SELECT id, title, description, thumbnail_url, status, visibility, is_free, price,
                  payment_currency, payment_amount_unit, payment_consent_text
           FROM lms_courses WHERE id = ?`,
     args: [courseId],
@@ -62,7 +62,6 @@ export async function resolveCheckoutCourse(courseId) {
 
   return {
     id: String(row.id),
-    slug: row.slug,
     title: row.title,
     description: row.description,
     thumbnail_url: row.thumbnail_url,
