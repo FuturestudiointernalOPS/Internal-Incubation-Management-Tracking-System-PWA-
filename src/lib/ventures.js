@@ -4,7 +4,10 @@ import { hashToken } from "@/lib/token-hashing";
 import { isUnknownColumnError } from "@/lib/ventureInput";
 import { SESSION_MIN_LEAD_MINUTES } from "@/lib/ventureSessionRules";
 import { listVentureMembers, summarizeVentureMembers } from "@/models/ventureMembers";
-import { listActiveVentureDocumentTypesOrDefaults } from "@/models/ventureDocumentTypes";
+import {
+  listActiveVentureDocumentTypesOrDefaults,
+  canManageVentureDocumentTypes,
+} from "@/models/ventureDocumentTypes";
 import { DEFAULT_VENTURE_DOCUMENT_TYPES } from "@/lib/ventureDocumentTypeDefaults";
 
 /**
@@ -1919,9 +1922,19 @@ export async function canManageVerification(ventureId, session) {
   if (!session) return { allowed: false };
   if (session.role === "super_admin") return { allowed: true, isReviewer: true };
   if (session.role === "verification_officer") return { allowed: true, isReviewer: true };
-  // Delegated staff (Phase 2): reviewing requires an explicit Venture assignment.
-  if (session.role === "staff" && (await hasDelegatedVentureAssignment(ventureId, session))) {
-    return { allowed: true, isReviewer: true };
+  // The Data bank sign-off belongs to whoever leads the WHOLE Venture — the
+  // Super Admin, or its Lead Manager. This is the same rule that lets them
+  // define the Venture's Data bank documents, so the two doors agree. A scoped
+  // coach reviews the milestones they were given, not the Venture's compliance
+  // file, so a milestone/task-scoped assignment is deliberately not enough.
+  if (session.role === "staff") {
+    // Assignments key on the VNT code; the rule above is asked of the code, so
+    // an internal id in the URL is resolved first.
+    const { resolveVentureCode } = await import("./ventureScope");
+    const code = await resolveVentureCode(db, ventureId);
+    if (code && (await canManageVentureDocumentTypes(session, code))) {
+      return { allowed: true, isReviewer: true };
+    }
   }
   return { allowed: false };
 }

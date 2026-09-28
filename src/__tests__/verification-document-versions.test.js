@@ -1,11 +1,19 @@
 /**
- * DATA BANK — document versions.
+ * DATA BANK — document versions and who may sign off.
  *
- * A Data bank document row is the LIVE pointer; every upload — the first one
- * included — is also recorded in venture_verification_document_versions, so the
- * history runs from version 1 to the newest. A document filed before versioning
- * existed reports its live file as version 1, and its next upload first
- * archives that file as version 1 so nothing is lost.
+ * Two contracts are pinned here:
+ *
+ *   1. VERSIONS. A Data bank document row is the LIVE pointer; every upload —
+ *      the first one included — is also recorded in
+ *      venture_verification_document_versions, so the history runs from version
+ *      1 to the newest. A document filed before versioning existed reports its
+ *      live file as version 1, and its next upload first archives that file as
+ *      version 1 so nothing is lost.
+ *
+ *   2. SIGN-OFF. Approve/reject belongs to whoever leads the WHOLE Venture: a
+ *      Super Admin (or verification officer), or a delegated LEAD MANAGER. A
+ *      milestone/task-scoped coach reviews their own milestones, not the
+ *      Venture's compliance file.
  */
 
 const inserts = [];
@@ -61,7 +69,9 @@ const {
   uploadVerificationDocument,
   listVerificationDocumentVersions,
   addVerificationDocumentVersion,
+  canManageVerification,
 } = require("@/lib/ventures");
+const { canManageVentureDocumentTypes } = require("@/models/ventureDocumentTypes");
 
 const DOCUMENT = {
   id: 11,
@@ -195,5 +205,29 @@ describe("addVerificationDocumentVersion", () => {
 
     expect(result).toBeNull();
     expect(updates).toHaveLength(0);
+  });
+});
+
+describe("canManageVerification — the sign-off belongs to the Venture lead", () => {
+  test("a Super Admin always may", async () => {
+    const result = await canManageVerification("VNT-1", { role: "super_admin", cid: "SA-1" });
+    expect(result).toMatchObject({ allowed: true, isReviewer: true });
+  });
+
+  test("a delegated Lead Manager may", async () => {
+    canManageVentureDocumentTypes.mockResolvedValue(true);
+    const result = await canManageVerification("VNT-1", { role: "staff", cid: "LM-1" });
+    expect(result).toMatchObject({ allowed: true, isReviewer: true });
+  });
+
+  test("a scoped coach who does not lead the Venture may not", async () => {
+    canManageVentureDocumentTypes.mockResolvedValue(false);
+    const result = await canManageVerification("VNT-1", { role: "staff", cid: "COACH-1" });
+    expect(result).toEqual({ allowed: false });
+  });
+
+  test("no session is refused outright", async () => {
+    const result = await canManageVerification("VNT-1", null);
+    expect(result).toEqual({ allowed: false });
   });
 });
