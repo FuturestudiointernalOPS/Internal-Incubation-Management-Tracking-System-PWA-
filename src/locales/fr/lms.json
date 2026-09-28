@@ -151,28 +151,8 @@
       }
     },
     "public": {
-      "catalogTitle": "Bibliothèque d'apprentissage",
-      "catalogSubtitle": "Cours publics de Future Studio",
-      "empty": "Aucun cours public disponible pour le moment",
-      "loadFailed": "Impossible de charger les cours.",
       "free": "Gratuit",
-      "paid": "Payant",
-      "startLearning": "Commencer",
-      "enrollNow": "S'inscrire",
-      "continueLearning": "Continuer",
-      "enrolled": "Inscrit",
-      "enrolling": "Inscription...",
-      "enrollFailed": "Impossible de vous inscrire. Veuillez réessayer.",
-      "sections": "Sections",
-      "lessons": "Leçons",
-      "durationMinutes": "{minutes} min",
-      "backToCourses": "Retour aux cours",
-      "whatYouWillLearn": "Ce que vous allez apprendre",
-      "assessmentsCount": "{count} évaluation(s)",
-      "loginRequired": "Connectez-vous ou créez un compte pour commencer",
-      "paymentUnavailable": "Le paiement en ligne n'est pas encore disponible — les cours payants exigent un paiement vérifié.",
-      "paidNote": "Cours payant — l'accès est accordé après un paiement vérifié.",
-      "loginToEnroll": "Connectez-vous pour vous inscrire"
+      "paid": "Payant"
     },
     "player": {
       "markComplete": "Marquer la leçon comme terminée",

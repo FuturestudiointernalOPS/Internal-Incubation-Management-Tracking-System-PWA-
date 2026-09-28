@@ -151,28 +151,8 @@
       }
     },
     "public": {
-      "catalogTitle": "Learning Library",
-      "catalogSubtitle": "Public courses from Future Studio",
-      "empty": "No public courses available yet",
-      "loadFailed": "We couldn't load the courses.",
       "free": "Free",
-      "paid": "Paid",
-      "startLearning": "Start Learning",
-      "enrollNow": "Enroll Now",
-      "continueLearning": "Continue Learning",
-      "enrolled": "Enrolled",
-      "enrolling": "Enrolling...",
-      "enrollFailed": "We couldn't enroll you. Please try again.",
-      "sections": "Sections",
-      "lessons": "Lessons",
-      "durationMinutes": "{minutes} min",
-      "backToCourses": "Back to courses",
-      "whatYouWillLearn": "What you will learn",
-      "assessmentsCount": "{count} assessment(s)",
-      "loginRequired": "Sign in or create an account to start",
-      "paymentUnavailable": "Checkout is not available yet — paid courses require a verified payment.",
-      "paidNote": "Paid course — access is granted after a verified payment.",
-      "loginToEnroll": "Sign in to enroll"
+      "paid": "Paid"
     },
     "player": {
       "markComplete": "Mark Lesson Complete",

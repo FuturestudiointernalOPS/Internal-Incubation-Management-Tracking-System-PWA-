@@ -20,7 +20,6 @@ import db from "@/lib/db";
  *  - `src/app/api/venture-kpi-definitions/route.js`    → venture KPI catalog reads/writes
  *  - `src/app/api/public/register/route.js`            → public participant registration
  *  - `src/app/api/public/group-info/route.js`          → public group lookup + registration window
- *  - `src/app/api/public/courses/[slug]/route.js`      → free self-enrollment insert
  *
  * Each function wraps exactly one SQL statement. SQL is byte-identical to the
  * queries that used to live inline in the controllers, so behavior is unchanged.
@@ -514,17 +513,5 @@ export async function getProgramRegistrationWindow(programId) {
   return db.execute({
     sql: "SELECT registration_window FROM v2_programs WHERE CAST(id AS TEXT) = ?",
     args: [String(programId)],
-  });
-}
-
-// ── POST /api/public/courses/[slug] (free self-enrollment) ───────────────────
-
-/** Insert an idempotent free ('self') course enrollment. */
-export async function insertSelfEnrollment(courseId, userCid) {
-  return db.execute({
-    sql: `INSERT INTO lms_enrollments (course_id, user_cid, source)
-            VALUES (?, ?, 'self')
-            ON CONFLICT (course_id, user_cid) DO NOTHING`,
-    args: [courseId, userCid],
   });
 }
