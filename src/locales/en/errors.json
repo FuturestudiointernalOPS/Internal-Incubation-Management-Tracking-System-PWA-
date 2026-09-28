@@ -10,7 +10,7 @@
     "somethingWrong": "Something went wrong. Please try again.",
     "taskCreateFailed": "Could not create the task.",
     "authRequired": "Authentication required.",
-    "insufficientPermissions": "Insufficient permissions.",
+    "insufficientPermissions": "You do not have the required permissions for this action. Please contact an administrator to request access.",
     "forbidden": "You are not allowed to do this.",
     "invalidEligibilityChanges": "Invalid eligibility configuration.",
     "invalidMembershipAction": "Invalid membership action.",

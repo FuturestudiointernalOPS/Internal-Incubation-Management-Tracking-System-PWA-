@@ -10,7 +10,7 @@
     "somethingWrong": "Une erreur est survenue. Veuillez réessayer.",
     "taskCreateFailed": "Impossible de créer la tâche.",
     "authRequired": "Authentification requise.",
-    "insufficientPermissions": "Permissions insuffisantes.",
+    "insufficientPermissions": "Vous n'avez pas les permissions nécessaires pour cette action. Veuillez contacter un administrateur pour obtenir l'accès.",
     "forbidden": "Vous n'êtes pas autorisé à effectuer cette action.",
     "invalidEligibilityChanges": "Configuration d'éligibilité invalide.",
     "invalidMembershipAction": "Action d'adhésion invalide.",

@@ -1,6 +1,41 @@
 "use client";
 
 import { useEffect } from "react";
+import { notify } from "@/lib/notify";
+
+/**
+ * The `error` codes an endpoint answers with when the caller IS authenticated
+ * but not allowed to do what they asked. Both the i18n key and the legacy
+ * English literal are listed, because a few guards still reply with the
+ * literal (see `getServerErrorKey` in src/lib/constants.js).
+ */
+const PERMISSION_DENIED_ERRORS = new Set([
+  "errors.insufficientPermissions",
+  "errors.forbidden",
+  "Insufficient permissions.",
+  "You are not allowed to do this.",
+]);
+
+/**
+ * A 403 carrying the authorization vocabulary is answered before any handler
+ * runs, so the screen that fired it has no error text to show: the request
+ * simply fails and the person is left with a button that does nothing. This
+ * reads the response body from a CLONE — the caller's own read is untouched —
+ * and raises the app's toast when the denial is a permission one. The
+ * translation KEY is posted, not the sentence, so the toast speaks the
+ * reader's own language.
+ */
+async function announcePermissionDenial(response) {
+  try {
+    const body = await response.clone().json();
+    if (PERMISSION_DENIED_ERRORS.has(body?.error)) {
+      notify("error", "errors.insufficientPermissions");
+    }
+  } catch (_) {
+    // A non-JSON 403 (an HTML error page, an empty body) carries no
+    // vocabulary to read: report nothing rather than guess.
+  }
+}
 
 /**
  * Browser-only error reporting, split out of the root layout.
@@ -97,6 +132,13 @@ export default function ClientErrorReporter() {
               body: payload,
             }).catch(() => {});
           }
+        }
+
+        // A refusal the server sent back on permission grounds must SAY SO, or
+        // the action just looks broken. Everything else about the call (the
+        // error report above) is unchanged.
+        if (response.status === 403) {
+          await announcePermissionDenial(response);
         }
 
         return response;
