@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useI18n, SUPPORTED_LANGUAGES } from "@/lib/i18n";
 import { roleHomeHref } from "@/lib/platform/roles";
+import { safeNextPath } from "@/lib/safeNextPath";
 
 // Hardcoded staging test users as fallback
 const FALLBACK_USERS = {
@@ -130,6 +131,18 @@ export default function LoginPage() {
         localStorage.setItem("user", JSON.stringify(data.user));
         setSuccess(true);
         setTimeout(async () => {
+          // An explicit destination from the URL WINS over the habitual home
+          // screen and over the profile-completion gate: this is how a payer
+          // lands straight in the course they just bought.
+          const requested =
+            typeof window !== "undefined"
+              ? safeNextPath(new URLSearchParams(window.location.search).get("next"))
+              : null;
+          if (requested) {
+            router.replace(requested);
+            return;
+          }
+
           // Where this person belongs was decided server-side, from the
           // relationships read at sign-in — a founder whose baseline badge is
           // "member" cannot be recognised from the badge, which is exactly why

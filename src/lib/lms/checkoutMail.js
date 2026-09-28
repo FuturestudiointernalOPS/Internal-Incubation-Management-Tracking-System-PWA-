@@ -183,7 +183,7 @@ export async function sendCheckoutEmail({
   const title = courseTitle || (await resolveCourseTitle(registration));
   const base = resolveAppUrl();
   const url = accessToken
-    ? `${base}/setup-password/${accessToken}`
+    ? `${base}/setup-password/${accessToken}?next=${encodeURIComponent(`/participant/learning/${registration.course_id}`)}`
     : isPaid
       ? `${base}/login?next=${encodeURIComponent(`/participant/learning/${registration.course_id}`)}`
       : `${base}/checkout/resume/${resumeToken}`;

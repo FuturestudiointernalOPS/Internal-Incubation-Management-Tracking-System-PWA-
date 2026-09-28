@@ -212,8 +212,18 @@ export function accessWindowOpen(registration) {
   return Date.now() - paidAt <= accessWindowMinutes() * 60 * 1000;
 }
 
+function learningPath(courseId) {
+  return `/participant/learning/${courseId}`;
+}
+
 function loginUrl(courseId) {
-  return `/login?next=${encodeURIComponent(`/participant/learning/${courseId}`)}`;
+  return `/login?next=${encodeURIComponent(learningPath(courseId))}`;
+}
+
+/** The one-time password link carries WHERE to land afterwards, so choosing a
+ * password drops the payer straight into their course instead of a home screen. */
+function setupPasswordUrl(token, courseId) {
+  return `/setup-password/${token}?next=${encodeURIComponent(learningPath(courseId))}`;
 }
 
 /**
@@ -307,12 +317,12 @@ export async function mintAccessLinkForPayer({ reference, email }) {
     return {
       ok: true,
       served: true,
-      url: `/setup-password/${fulfillment.accessToken}`,
+      url: setupPasswordUrl(fulfillment.accessToken, registration.course_id),
     };
   }
 
   const token = await issueAccessToken(cid);
-  return { ok: true, served: true, url: `/setup-password/${token}` };
+  return { ok: true, served: true, url: setupPasswordUrl(token, registration.course_id) };
 }
 
 /**

@@ -345,6 +345,8 @@ describe("the payment notification", () => {
     expect(sendStandaloneEmail).toHaveBeenCalledTimes(1);
     const mail = sendStandaloneEmail.mock.calls[0][0];
     expect(mail.html).toContain("/setup-password/");
+    // The one-time link carries WHERE to land, so the payer reaches the course.
+    expect(mail.html).toContain(`next=${encodeURIComponent("/participant/learning/crs-1")}`);
     expect(mail.html).not.toContain("password:");
   });
 
@@ -488,6 +490,8 @@ describe("the payer's own tab", () => {
     );
     expect(served.served).toBe(true);
     expect(served.url).toContain("/setup-password/");
+    // The password link points the person at their course, not a home screen.
+    expect(served.url).toContain(`next=${encodeURIComponent("/participant/learning/crs-1")}`);
 
     // Age the payment past the window.
     mockFake.state.lms_registrations[0].paid_at = new Date(Date.now() - 60 * 60 * 1000).toISOString();
