@@ -9,8 +9,10 @@
  *   notify("error", data.error || t("errors.taskCreateFailed"));
  *
  * `type` is "success" | "error" | "info" | "warning".
+ *
+ * `duration` defaults to 8s: a full sentence needs time to be read.
  */
-export function notify(type, message, duration = 4000) {
+export function notify(type, message, duration = 8000) {
   if (typeof window === "undefined") return;
   window.dispatchEvent(
     new CustomEvent("impactos:notify", {

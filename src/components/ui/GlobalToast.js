@@ -18,13 +18,38 @@ export default function GlobalToast() {
   // tick), which made React see duplicate list keys and could drop or duplicate
   // a toast.
   const nextId = useRef(0);
+  // The translator in force, read through a ref so the listener below can stay
+  // mounted once: a toast lives for several seconds and must be de-duplicated
+  // against the language current when it was raised.
+  const translateRef = useRef(t);
+  useEffect(() => {
+    translateRef.current = t;
+  });
 
   useEffect(() => {
     const handleNotify = (event) => {
-      const { type = "info", message, duration = 4000 } = event.detail;
+      // A longer default than before: a full sentence (a permission refusal, an
+      // error naming a field) needs time to be read, and the old 4s expired
+      // while the eyes were still arriving at it.
+      const { type = "info", message, duration = 8000 } = event.detail;
       const id = ++nextId.current;
 
-      setNotifications((prev) => [...prev, { id, type, message }]);
+      setNotifications((prev) => {
+        // The screen's own error toast and the global permission notice can
+        // carry the SAME sentence: a page reports the server's key, while the
+        // interceptor reports the permission key, and both resolve to one
+        // message. Showing it twice helps nobody, so a toast already on screen
+        // absorbs the newcomer and keeps its own timer.
+        const resolved = translateRef.current(message || "") || message;
+        const duplicate = prev.some(
+          (existing) =>
+            existing.type === type &&
+            (translateRef.current(existing.message || "") || existing.message) ===
+              resolved,
+        );
+        if (duplicate) return prev;
+        return [...prev, { id, type, message }];
+      });
 
       setTimeout(() => {
         setNotifications((prev) => prev.filter((notification) => notification.id !== id));
@@ -73,7 +98,7 @@ export default function GlobalToast() {
   };
 
   return (
-    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[2000] flex flex-col gap-4 pointer-events-none w-full max-w-sm">
+    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[2000] flex flex-col gap-4 pointer-events-none w-full max-w-md px-4">
       <AnimatePresence>
         {notifications.map((notification) => {
           const style = getTypeStyle(notification.type);
@@ -89,7 +114,7 @@ export default function GlobalToast() {
                 transition: { duration: 0.2 },
               }}
               layout
-              className={`pointer-events-auto flex items-center gap-4 px-6 py-5 rounded-[2rem] border backdrop-blur-3xl`}
+              className={`pointer-events-auto flex items-start gap-4 px-6 py-5 rounded-[2rem] border backdrop-blur-3xl`}
               style={{
                 background: "var(--surface-1)",
                 borderColor: "var(--border-primary)",
@@ -106,7 +131,7 @@ export default function GlobalToast() {
                   {style.label}
                 </p>
                 <p
-                  className="text-xs font-black tracking-tight leading-tight uppercase truncate"
+                  className="text-xs font-black tracking-tight leading-snug uppercase break-words whitespace-normal"
                   style={{ color: "var(--text-primary)" }}
                 >
                   {t(notification.message || "") || notification.message}
