@@ -41,10 +41,9 @@ describe("session hardening", () => {
     }
   });
 
-  test("impersonation is persisted on the session row and returned", () => {
-    expect(sessionSql).toMatch(/is_impersonation\)\s*\n?\s*VALUES \(\?, \?, \?, \?, \?, \?\)/);
-    expect(session).toMatch(/is_impersonation: session\.is_impersonation === true/);
-    expect(session).toMatch(/ensureSessionColumns/);
+  test("impersonation is fully removed from the session layer", () => {
+    expect(session).not.toMatch(/impersonat/i);
+    expect(sessionSql).not.toMatch(/impersonat/i);
   });
 });
 

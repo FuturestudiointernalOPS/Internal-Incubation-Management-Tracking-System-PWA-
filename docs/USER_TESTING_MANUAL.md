@@ -27,27 +27,28 @@
 
 ## PART 1 — How to Log In and Switch Users
 
-The staging environment includes a **Developer Tools** panel on the login page.
+Every sign-in uses the normal login form: **email + password**.
 
-### Steps to Switch Between Test Users
+### Steps to Log In
 
 1. Go to the **Login page**.
-2. Scroll to the bottom of the page.
-3. Look for the **Wrench icon** and click **"Developer Tools"**.
-4. A panel expands. You will see a dropdown that says **"Select Role"**.
-5. Pick the role you want (Super Admin, Staff, Participant, etc).
-6. A second dropdown appears — select the specific user.
-7. Click **"Impersonate"**.
+2. Enter the test account's **email** and **password**.
+3. Click **Log in**.
 
-> **IMPORTANT:** Always log out before switching users. Click your profile icon at the bottom-left of the sidebar → **Log Out**. Then return to the login page.
+### Switching Between Test Users
 
-### If Developer Tools Is Not Visible
+1. Log out first: profile icon at the bottom-left of the sidebar → **Log Out**.
+2. Sign in with the next account's email and password.
 
-The staging environment must have `NEXT_PUBLIC_ALLOW_IMPERSONATION=true` enabled. If you don't see the Developer Tools panel, ask your developer to enable it.
+> **Test account passwords** are held by the administrator. Ask for the password of each test account you need (Super Admin, Staff, Participant, Founder, Investor…). There is no longer a "log in as any user" panel — it was removed, so a password is always required.
+
+### If You Cannot Log In
+
+Check with the administrator that (a) the test account exists, and (b) its password has not been reset. An administrator can reset a test account's password from the Users screen, which sends a password-setup link to that address.
 
 ### If Users Don't Exist Yet
 
-Create them first (Part 2). If a role dropdown is empty, there are no users with that role. Create them from the Super Admin account first.
+Create them first (Part 2).
 
 ---
 
@@ -55,7 +56,7 @@ Create them first (Part 2). If a role dropdown is empty, there are no users with
 
 ### Step 1: Log In as Super Admin
 
-1. Go to **Login** → Developer Tools → **Super Admin** → pick a user → **Impersonate**.
+1. Go to **Login** and sign in with the Super Admin test account's email and password.
 2. You are now on the Super Admin Dashboard.
 
 ### Step 2: Navigate to People Management
@@ -231,7 +232,7 @@ John Staff and Sarah Staff are both in the "Future Studio Staff" group.
 ### Now, Log in as Sarah Staff
 
 1. **Log out** (sidebar bottom-left → Log Out).
-2. **Log in** as Sarah Staff via Developer Tools.
+2. **Log in** as Sarah Staff with that account's email and password.
 3. Go to the Dashboard and scroll to Operations.
 
 **Expected:**
@@ -397,7 +398,7 @@ Already tested in Part 3 Step 8. Verify again:
 
 ### Log in as David Venture (Founder)
 
-1. **Log out** and use Developer Tools to log in as David Venture.
+1. **Log out** and log in as David Venture with that account's email and password.
 2. You should land on a Founder/Participant dashboard.
 3. In the sidebar, click **MY VENTURES**.
 
@@ -443,7 +444,7 @@ Already tested in Part 3 Step 8. Verify again:
 
 ### Log in as Jane Participant
 
-1. Log out. Use Developer Tools to log in as Jane Participant.
+1. Log out. Log in as Jane Participant with that account's email and password.
 2. You land on the Participant Dashboard.
 
 ### Explore the Participant Dashboard
