@@ -221,7 +221,6 @@ function ProgramWorkspace() {
   const [emailInput, setEmailInput] = useState("");
   const [editingScoreFor, setEditingScoreFor] = useState(null); // participant id being edited
   const [scoreDraft, setScoreDraft] = useState(""); // in-progress marks value
-  const [promoteTarget, setPromoteTarget] = useState(null); // { team, action: 'approve' | 'promote' }
 
   // Load existing attendance when modal opens
   useEffect(() => {
@@ -1902,22 +1901,6 @@ function ProgramWorkspace() {
                         >
                           <ChevronRight className="w-3 h-3" /> {t("pmMisc.workspace.view")}
                         </button>
-                        {!team.is_venture_ready && (
-                          <button
-                            onClick={() => setPromoteTarget({ team, action: "approve" })}
-                            className="btn btn-primary btn-sm"
-                          >
-                            <CheckCircle2 className="w-3 h-3" /> {t("pmMisc.workspace.approve")}
-                          </button>
-                        )}
-                        {team.is_venture_ready && !team.venture_id && (
-                          <button
-                            onClick={() => setPromoteTarget({ team, action: "promote" })}
-                            className="btn btn-primary btn-sm"
-                          >
-                            <Zap className="w-3 h-3" /> {t("pmMisc.workspace.promote")}
-                          </button>
-                        )}
                         </div>
                       </div>
                     </div>
@@ -6678,122 +6661,6 @@ function ProgramWorkspace() {
             </div>
           </div>
         )}
-
-      {/* Confirmation Modal for Approve/Promote */}
-      {promoteTarget && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          onClick={() => setPromoteTarget(null)}
-          style={{ background: "rgba(0,0,0,0.6)" }}
-        >
-          <div
-            className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-md mx-4"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="p-6">
-              {promoteTarget.action === "approve" ? (
-                <>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 bg-emerald-500/10 rounded-xl">
-                      <CheckCircle2 className="w-6 h-6 text-emerald-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold">{t("pmMisc.workspace.approveTeam")}</h3>
-                      <p className="text-sm text-gray-400">
-                        {t("pmMisc.workspace.approveTeamConfirm", { teamName: promoteTarget.team.name })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setPromoteTarget(null)}
-                      className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b]"
-                    >
-                      {t("pmMisc.workspace.cancel")}
-                    </button>
-                    <button
-                      onClick={async () => {
-                        const team = promoteTarget.team;
-                        setPromoteTarget(null);
-                        try {
-                          const response = await fetch("/api/pm/teams", {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              team_id: team.id,
-                              action: "set_venture_ready",
-                              is_venture_ready: true,
-                            }),
-                          });
-                          const data = await response.json();
-                          if (data.success) {
-                            notify(t("pmMisc.workspace.teamApproved"));
-                            fetchProgramData(true);
-                          } else {
-                            notify(t((data.error || t("pmMisc.workspace.approvalFailed")) || "") || (data.error || t("pmMisc.workspace.approvalFailed")), "error");
-                          }
-                        } catch {
-                          notify(t("pmMisc.workspace.networkError"), "error");
-                        }
-                      }}
-                      className="flex-1 px-4 py-2.5 bg-emerald-500 rounded-lg text-sm font-medium hover:bg-emerald-600"
-                    >
-                      {t("pmMisc.workspace.approve")}
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 bg-brand-orange/10 rounded-xl">
-                      <Zap className="w-6 h-6 text-[var(--brand-orange)]" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold">{t("pmMisc.workspace.promoteToVenture")}</h3>
-                      <p className="text-sm text-gray-400">
-                        {t("pmMisc.workspace.promoteConfirm", { teamName: promoteTarget.team.name })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setPromoteTarget(null)}
-                      className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b]"
-                    >
-                      {t("pmMisc.workspace.cancel")}
-                    </button>
-                    <button
-                      onClick={async () => {
-                        const team = promoteTarget.team;
-                        setPromoteTarget(null);
-                        try {
-                          const response = await fetch("/api/ventures/promote", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ team_id: team.id }),
-                          });
-                          const data = await response.json();
-                          if (data.success) {
-                            notify(t("pmMisc.workspace.venturePromoted"));
-                            fetchProgramData(true);
-                          } else {
-                            notify(t((data.error || t("pmMisc.workspace.promotionFailed")) || "") || (data.error || t("pmMisc.workspace.promotionFailed")), "error");
-                          }
-                        } catch {
-                          notify(t("pmMisc.workspace.networkError"), "error");
-                        }
-                      }}
-                      className="flex-1 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-sm font-bold hover:opacity-90"
-                    >
-                      {t("pmMisc.workspace.promote")}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* CONFIRMATION MODAL */}
       {confirmTarget && (

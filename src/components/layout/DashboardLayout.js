@@ -148,7 +148,6 @@ const NAV_KEY_MAP = {
   ventures: "navigation.ventures",
   all_ventures: "navigation.allVentures",
   journey_reports: "navigation.journeyReports",
-  register_venture: "navigation.registerVenture",
   document_types: "navigation.documentTypes",
   investors: "navigation.investors",
   investor: "navigation.investor",

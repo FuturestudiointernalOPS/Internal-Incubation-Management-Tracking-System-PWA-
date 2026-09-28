@@ -24,9 +24,8 @@ import {
   getFormById,
 } from "@/models/publicFormRuns";
 
-// The pipeline adds platform_form_submissions.invitation_id lazily via
-// ensureVentureSchema() (seed/approval paths). Public submit inserts that
-// column too, so this route self-heals its own schema — cached once per
+// platform_form_submissions.invitation_id self-heal stays: the column is
+// written by the submission inserts below, so this route keeps it present —
 // process, idempotent, never destructive.
 let submitSchemaPromise = null;
 async function ensurePublicSubmitSchema() {
@@ -119,7 +118,7 @@ export async function POST(req) {
     }
 
     body = await req.json();
-    const { data, slug, invitation_token, consent, language } = body;
+    const { data, slug, consent, language } = body;
 
     if (!slug || !data || typeof data !== "object") {
       return NextResponse.json({ success: false, error: "slug and data required" }, { status: 400 });
@@ -169,19 +168,9 @@ export async function POST(req) {
       }
     }
 
-    // Optional Venture Run invitation: link the submission to the invitation
-    // so provenance (invitation → submission → Venture) is preserved.
-    let invitationId = null;
-    if (invitation_token) {
-      try {
-        const { getVentureInvitationByToken, markVentureInvitationStatus } = await import("@/lib/ventureInvitations");
-        const { invitation } = await getVentureInvitationByToken(invitation_token);
-        if (invitation && Number(invitation.run_id) === Number(run_id)) {
-          invitationId = invitation.id;
-          markVentureInvitationStatus(invitation.id, "submitted").catch(() => {});
-        }
-      } catch (_) {}
-    }
+    // Optional run invitation provenance is no longer resolved here: the
+    // Venture intake flow has been retired.
+    const invitationId = null;
 
     // IP-based rate limiting: max 5 submissions per IP per run per hour
     // Gracefully skip if rate table doesn't exist yet

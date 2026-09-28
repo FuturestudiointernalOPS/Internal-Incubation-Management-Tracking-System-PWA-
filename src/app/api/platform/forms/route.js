@@ -159,21 +159,7 @@ export async function POST(req) {
     // CREATE action
     const { name, description, collection_id, visibility, settings, tags } = body;
 
-    // Single-active Venture intake guard: creating a NEW form must not be
-    // able to become another active Venture form while one already exists.
-    if (settings?.venture_application === true) {
-      const { assertSingleVentureForm, ensureSingleVentureFormIndex } = await import("@/lib/ventureIntake");
-      const guard = await assertSingleVentureForm(null);
-      if (!guard.ok) {
-        return NextResponse.json(
-          { success: false, code: "SINGLE_VENTURE_FORM", error: `Venture registration is already assigned to form "${guard.owner.name}". Deactivate it there before assigning another form.` },
-          { status: 409 },
-        );
-      }
-      await ensureSingleVentureFormIndex();
-    }
-
-    // Single-active Investor intake guard — the same rule as the Venture one.
+    // Single-active Investor intake guard.
     if (settings?.investor_application === true) {
       const { assertSingleInvestorForm, ensureSingleInvestorFormIndex } = await import("@/models/investorIntake");
       const guard = await assertSingleInvestorForm(null);
@@ -221,21 +207,7 @@ export async function PUT(req) {
 
     const body = await req.json();
 
-    // Single-active Venture intake guard: no write path may set the Venture
-    // flag on a second form while another form already holds it.
-    if (body.settings?.venture_application === true) {
-      const { assertSingleVentureForm, ensureSingleVentureFormIndex } = await import("@/lib/ventureIntake");
-      const guard = await assertSingleVentureForm(body.id || null);
-      if (!guard.ok) {
-        return NextResponse.json(
-          { success: false, code: "SINGLE_VENTURE_FORM", error: `Venture registration is already assigned to form "${guard.owner.name}". Deactivate it there before assigning another form.` },
-          { status: 409 },
-        );
-      }
-      await ensureSingleVentureFormIndex();
-    }
-
-    // Single-active Investor intake guard — the same rule as the Venture one.
+    // Single-active Investor intake guard.
     if (body.settings?.investor_application === true) {
       const { assertSingleInvestorForm, ensureSingleInvestorFormIndex } = await import("@/models/investorIntake");
       const guard = await assertSingleInvestorForm(body.id || null);

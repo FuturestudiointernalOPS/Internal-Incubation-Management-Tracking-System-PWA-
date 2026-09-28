@@ -3,8 +3,7 @@ import db, { initDb } from "@/lib/db";
 /**
  * INVESTOR INTAKE GOVERNANCE
  *
- * Single-active Investor intake enforcement — the exact mirror of the Venture
- * intake (see `src/models/ventureIntake.js`).
+ * Single-active Investor intake enforcement.
  *
  * The Investor intake stays on the existing Forms/Runs architecture: a form is
  * designated the Investor Application via settings.investor_application = true.

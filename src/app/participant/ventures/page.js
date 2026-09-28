@@ -31,31 +31,6 @@ export default function ParticipantVentures() {
   );
   const loading = !cid || readLoading;
 
-  // Phase 2 pipeline: Venture creation goes through the Venture Application
-  // Form/Run. This button opens the configured Venture Run.
-  async function openVentureApplication() {
-    try {
-      const response = await fetch("/api/platform/venture-run");
-      const data = await response.json();
-      if (data.success && data.url) {
-        window.location.href = data.url;
-      } else {
-        window.dispatchEvent(
-          new CustomEvent("impactos:notify", {
-            detail: { type: "error", message: t("venture.loadError"), duration: 4000 },
-          })
-        );
-      }
-    } catch (error) {
-      console.error("Failed to resolve Venture Run", error);
-      window.dispatchEvent(
-        new CustomEvent("impactos:notify", {
-          detail: { type: "error", message: t("venture.loadError"), duration: 4000 },
-        })
-      );
-    }
-  }
-
   return (
     <>
       <div className="p-6 space-y-6">
@@ -64,14 +39,6 @@ export default function ParticipantVentures() {
             <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>{t("venture.myVentures")}</h1>
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.title")}</p>
           </div>
-          <button
-            onClick={openVentureApplication}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-white"
-            style={{ backgroundColor: "var(--brand-orange)" }}
-          >
-            <Briefcase size={18} />
-            {t("venture.applyAsVenture")}
-          </button>
         </div>
 
         {loading ? (
