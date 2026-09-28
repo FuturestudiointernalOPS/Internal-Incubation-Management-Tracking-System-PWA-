@@ -631,6 +631,8 @@
       "stageNamePlaceholder": "Nom du parcours — ex. Famille et amis, Prêt pour la mise sur le marché",
       "stageDescPlaceholder": "Ce qu'est ce parcours (affiché à l'entreprise)",
       "stageObjectivePlaceholder": "Objectif / résultat attendu (facultatif)",
+      "stageStartDate": "Date de début (automatique)",
+      "stageStartDateHint": "Le parcours devient actif à cette date de lui-même. Laissez vide pour le démarrer manuellement.",
       "noStages": "Aucun parcours défini pour le moment",
       "noStagesDesc": "Ajoutez des parcours pour cette entreprise ou générez le parcours depuis un modèle réutilisable. L'entreprise verra un état vide tant que vous n'aurez pas publié de parcours.",
       "milestones": "Jalons",

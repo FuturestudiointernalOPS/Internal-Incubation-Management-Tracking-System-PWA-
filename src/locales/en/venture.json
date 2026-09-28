@@ -631,6 +631,8 @@
       "stageNamePlaceholder": "Journey name — e.g. Family & Friends, Go-To-Market Readiness",
       "stageDescPlaceholder": "What this journey is (shown to the Venture)",
       "stageObjectivePlaceholder": "Objective / expected outcome (optional)",
+      "stageStartDate": "Start date (automatic)",
+      "stageStartDateHint": "The journey becomes active on this date on its own. Leave empty to start it manually.",
       "noStages": "No journey defined yet",
       "noStagesDesc": "Add journeys for this Venture or generate the journey from a reusable template. The Venture will see an empty state until you publish journeys.",
       "milestones": "Milestones",

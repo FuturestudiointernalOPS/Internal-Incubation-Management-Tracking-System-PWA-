@@ -6,9 +6,9 @@
  *   - a Journey starts on its OWN start_date (activateDueStages) — never by
  *     waiting for another Journey to complete, so Journeys overlap freely;
  *   - a milestone is available as soon as its Journey is: an active Journey's
- *     milestones are all offered (locked -> not_started). Position releases
- *     nothing — explicit dependencies between milestones are a separate,
- *     later layer, and the only thing that ever holds a milestone back;
+ *     milestones are all offered (locked -> not_started) EXCEPT one whose
+ *     explicit dependencies are unmet. Position releases nothing —
+ *     dependencies are the only thing that ever holds a milestone back;
  *   - a Journey completes automatically the moment every milestone in it is
  *     completed; completing it does NOT start another one.
  *
@@ -161,10 +161,11 @@ export async function completeStageIfAllMilestonesDone(db, { dbId, stageId, cid 
  * Release the milestones of an ACTIVE journey stage.
  *
  * Availability inside a Journey is not a chain: when the Journey is active,
- * every one of its unreleased milestones is offered (locked -> not_started).
- * Position releases nothing — explicit dependencies between milestones, a
- * separate layer, are the only thing that will ever hold one back. Nothing is
- * ever locked back or un-completed, so re-running this is safe.
+ * every one of its unreleased milestones is offered (locked -> not_started)
+ * EXCEPT one whose explicit dependencies are unmet — position releases
+ * nothing, and a blocked milestone stays locked until its prerequisites are
+ * completed. Nothing is ever locked back or un-completed, so re-running this
+ * is safe.
  *
  * Returns { released_milestone_ids } ([] when there is nothing to release).
  */
@@ -179,13 +180,31 @@ export async function releaseMilestonesForStage(db, { dbId, stageId }) {
     if (!stage || stage.status !== "active") return { released_milestone_ids: [] };
 
     // Archived milestones stay out of the roadmap (guarded for databases
-    // whose schema predates the is_archived column).
+    // whose schema predates the is_archived column). The dependency guard:
+    // an edge (source -> target) means the source BLOCKS the target, so a
+    // milestone is offered only when every milestone it depends on is done.
     const richSql = `UPDATE venture_milestones SET status = 'not_started', updated_at = NOW()
                      WHERE venture_id = ? AND journey_stage_id = ? AND status = 'locked'
                        AND COALESCE(is_archived, FALSE) = FALSE
+                       AND NOT EXISTS (
+                         SELECT 1 FROM venture_dependencies d
+                         JOIN venture_milestones blocker ON blocker.id::text = d.source_id
+                         WHERE d.venture_id::text = venture_milestones.venture_id::text
+                           AND d.target_type = 'milestone' AND d.target_id = venture_milestones.id::text
+                           AND d.source_type = 'milestone'
+                           AND blocker.status <> 'completed'
+                       )
                      RETURNING id`;
     const plainSql = `UPDATE venture_milestones SET status = 'not_started', updated_at = NOW()
                       WHERE venture_id = ? AND journey_stage_id = ? AND status = 'locked'
+                        AND NOT EXISTS (
+                          SELECT 1 FROM venture_dependencies d
+                          JOIN venture_milestones blocker ON blocker.id::text = d.source_id
+                          WHERE d.venture_id::text = venture_milestones.venture_id::text
+                            AND d.target_type = 'milestone' AND d.target_id = venture_milestones.id::text
+                            AND d.source_type = 'milestone'
+                            AND blocker.status <> 'completed'
+                        )
                       RETURNING id`;
     const result = await db
       .execute({ sql: richSql, args: [dbId, String(stageId)] })
@@ -242,12 +261,28 @@ export async function activateDueStages(db, { dbId } = {}) {
                          SELECT id FROM venture_journey_stages
                          WHERE venture_id = ? AND status = 'active' AND COALESCE(is_archived, FALSE) = FALSE
                        )
+                       AND NOT EXISTS (
+                         SELECT 1 FROM venture_dependencies d
+                         JOIN venture_milestones blocker ON blocker.id::text = d.source_id
+                         WHERE d.venture_id::text = venture_milestones.venture_id::text
+                           AND d.target_type = 'milestone' AND d.target_id = venture_milestones.id::text
+                           AND d.source_type = 'milestone'
+                           AND blocker.status <> 'completed'
+                       )
                      RETURNING id`;
     const plainSql = `UPDATE venture_milestones SET status = 'not_started', updated_at = NOW()
                       WHERE venture_id = ? AND status = 'locked'
                         AND journey_stage_id IN (
                           SELECT id FROM venture_journey_stages
                           WHERE venture_id = ? AND status = 'active'
+                        )
+                        AND NOT EXISTS (
+                          SELECT 1 FROM venture_dependencies d
+                          JOIN venture_milestones blocker ON blocker.id::text = d.source_id
+                          WHERE d.venture_id::text = venture_milestones.venture_id::text
+                            AND d.target_type = 'milestone' AND d.target_id = venture_milestones.id::text
+                            AND d.source_type = 'milestone'
+                            AND blocker.status <> 'completed'
                         )
                       RETURNING id`;
     const releaseResult = await db
@@ -264,13 +299,44 @@ export async function activateDueStages(db, { dbId } = {}) {
 }
 
 /**
+ * The unfinished milestones a milestone explicitly depends on — its blockers.
+ *
+ * An edge (source -> target) means the source blocks the target, so a
+ * milestone's blockers are the dependency rows where it is the target and
+ * the SOURCE milestone is not completed yet. Empty means nothing holds it
+ * back. Ids are compared as text: milestones are UUIDs.
+ */
+export async function getUnmetMilestoneDependencies(db, { dbId, milestoneId }) {
+  if (!dbId || !milestoneId) return [];
+  try {
+    const result = await db
+      .execute({
+        sql: `SELECT blocker.id, blocker.title, blocker.status
+              FROM venture_dependencies d
+              JOIN venture_milestones blocker ON blocker.id::text = d.source_id
+              WHERE d.venture_id::text = ?::text
+                AND d.target_type = 'milestone' AND d.target_id = ?
+                AND d.source_type = 'milestone'
+                AND blocker.status <> 'completed'
+              ORDER BY blocker.title`,
+        args: [String(dbId), String(milestoneId)],
+      })
+      .catch(() => ({ rows: [] }));
+    return rowsOf(result);
+  } catch (_) {
+    return [];
+  }
+}
+
+/**
  * May a Venture-side actor book a session against this milestone?
  *
  * Any milestone of the Venture's ACTIVE Journey is bookable — availability is
- * set by the Journey, not by a milestone's position. A `locked` milestone (its
- * Journey has not started) and a `completed` one are refused, and so is a
- * milestone whose Journey is finished. Staff (Lead Manager, coach, Super
- * Admin) are not restricted by this — they plan ahead.
+ * set by the Journey and its explicit dependencies, never by a milestone's
+ * position. A `locked` milestone (its Journey has not started, or a
+ * dependency is unmet), a `completed` one, and one whose Journey is finished
+ * are refused. Staff (Lead Manager, coach, Super Admin) are not restricted by
+ * this — they plan ahead.
  *
  * A refusal always carries a REASON the Venture can read, so nobody is left
  * guessing why their booking was rejected: the reason names the actual state
@@ -326,9 +392,14 @@ export async function assertBookableMilestone(db, { dbId, milestoneId }) {
       return { ok: false, reason: `The Journey "${stage.name}" is finished, so its milestones take no new sessions.` };
     }
 
-    // Every milestone of the active Journey is bookable: availability is set
-    // by the Journey (and, later, by explicit dependencies) — never by the
-    // position a milestone happens to sit in.
+    // Blocked only by an explicit dependency: a milestone it depends on that
+    // is not completed yet refuses the booking BY NAME.
+    const blockers = await getUnmetMilestoneDependencies(db, { dbId, milestoneId: milestone.id });
+    if (blockers.length > 0) {
+      const names = blockers.map((blocker) => `"${blocker.title || "an earlier milestone"}"`).join(", ");
+      return { ok: false, reason: `This milestone depends on ${names}, which is not completed yet.` };
+    }
+
     return { ok: true, milestone };
   } catch (_) {
     // Fail closed: an unresolvable chain is not a reason to allow the booking.
@@ -466,7 +537,7 @@ export async function syncMilestoneStatusFromDeliverables(db, { dbId, milestoneI
 /**
  * Mark a milestone completed. There is no chain to advance: the other
  * milestones of an active Journey are already available (explicit
- * dependencies, a later layer, are the only thing that ever holds one back),
+ * dependencies are the only thing that ever holds one back),
  * and a Journey closes itself when its last milestone lands
  * (completeStageIfAllMilestonesDone).
  * Assumes the caller already verified completion authority.
@@ -479,4 +550,4 @@ export async function completeMilestone(db, { dbId, milestoneId }) {
   return { ok: true };
 }
 
-export default { isMilestoneLeadAuthority, resolveVentureCode, canManageMilestones, computeInitialMilestoneStatus, activateDueStages, releaseMilestonesForStage, completeStageIfAllMilestonesDone, completeMilestone, assertBookableMilestone, deriveMilestoneStatusFromDeliverables, syncMilestoneStatusFromDeliverables };
+export default { isMilestoneLeadAuthority, resolveVentureCode, canManageMilestones, computeInitialMilestoneStatus, activateDueStages, releaseMilestonesForStage, completeStageIfAllMilestonesDone, completeMilestone, getUnmetMilestoneDependencies, assertBookableMilestone, deriveMilestoneStatusFromDeliverables, syncMilestoneStatusFromDeliverables };
