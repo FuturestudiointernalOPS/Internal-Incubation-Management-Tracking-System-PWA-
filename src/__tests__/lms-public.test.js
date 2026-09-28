@@ -27,6 +27,8 @@ jest.mock("@/lib/authorization", () => ({
 
 const { GET: catalogGET } = require("@/app/api/public/courses/route");
 const { GET: detailGET, POST: detailPOST } = require("@/app/api/public/courses/[slug]/route");
+const { GET: matchGET } = require("@/app/api/public/course-match/route");
+const { nameKey, nameScore } = require("@/lib/lms/courseMatch");
 
 const readJson = async (res) => res.json();
 
@@ -245,5 +247,59 @@ describe("the visibility rule is part of the query", () => {
     const path = require("path");
     const src = fs.readFileSync(path.join(__dirname, "..", "models", "lms", "public.js"), "utf8");
     expect(src).toMatch(/WHERE slug = \? AND status = \? AND visibility = \?/);
+  });
+});
+
+describe("find a course by the name the website gives", () => {
+  test("the whole name, a prefix, or shared words match; chance does not", () => {
+    expect(nameKey("Launch Lab")).toBe("launchlab");
+    expect(nameScore("launch lab bootcamp", "Launch Lab Bootcamp")).toBe(1000);
+    expect(nameScore("launchlab", "Launch Lab Bootcamp")).toBeGreaterThanOrEqual(800);
+    expect(nameScore("bootcamp", "Launch Lab Bootcamp")).toBeGreaterThan(0);
+    expect(nameScore("launchlab", "Clarté du problème")).toBe(0);
+  });
+
+  test("answers with the course and the Execution that sells it", async () => {
+    const courseId = seedCourse({
+      id: "crs-ll",
+      slug: "launch-lab-bootcamp",
+      title: "Launch Lab Bootcamp",
+      is_free: false,
+      price: 15000,
+    });
+    seedRun({ id: 9, courseId, slug: "bootcamp-run" });
+
+    const res = await matchGET(new Request("http://localhost/api/public/course-match?name=launchlab"));
+    const data = await readJson(res);
+
+    expect(data.success).toBe(true);
+    expect(data.match.title).toBe("Launch Lab Bootcamp");
+    expect(data.checkout).toMatchObject({ run_slug: "bootcamp-run", amount: 15000 });
+  });
+
+  test("a matching but unsold course yields no checkout", async () => {
+    seedCourse({ id: "crs-ll", slug: "launch-lab-bootcamp", title: "Launch Lab Bootcamp" });
+
+    const res = await matchGET(new Request("http://localhost/api/public/course-match?name=launchlab"));
+    const data = await readJson(res);
+
+    expect(data.match.title).toBe("Launch Lab Bootcamp");
+    expect(data.checkout).toBeNull();
+  });
+
+  test("answers with nothing when no course corresponds", async () => {
+    seedCourse({ title: "Design Thinking", slug: "design-thinking" });
+
+    const res = await matchGET(new Request("http://localhost/api/public/course-match?name=launchlab"));
+    const data = await readJson(res);
+
+    expect(data.success).toBe(true);
+    expect(data.match).toBeNull();
+    expect(data.checkout).toBeNull();
+  });
+
+  test("refuses a request with no name", async () => {
+    const res = await matchGET(new Request("http://localhost/api/public/course-match"));
+    expect(res.status).toBe(400);
   });
 });
