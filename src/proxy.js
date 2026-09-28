@@ -25,6 +25,10 @@ import { NextResponse } from "next/server";
  *   - /api/public/* (group lookup + registration + public course catalogue)
  *   - /api/webhooks/kkiapay (Kkiapay's own payment callback: the provider has
  *     no session, and the x-kkiapay-secret signature is the credential)
+ *   - /api/lms/checkout-reconcile (a scheduler's replay of unclosed Kkiapay
+ *     payments: the scheduler has no session, and the x-cron-secret shared
+ *     secret is the credential — every OTHER /api/lms/* route stays behind a
+ *     session)
  *   - /api/families (the ?registration_id= lookup is the public join path;
  *      every other branch requires a capability in-route)
  *   - /api/verify/* (public certificate verification)
@@ -67,6 +71,7 @@ const publicApiPaths = [
   "/api/invites",
   "/api/public",
   "/api/webhooks/kkiapay",
+  "/api/lms/checkout-reconcile",
   "/api/families",
   "/api/verify",
   "/api/venture-invites",
