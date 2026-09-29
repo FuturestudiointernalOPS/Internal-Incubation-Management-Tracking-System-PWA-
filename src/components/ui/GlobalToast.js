@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { CheckCircle, AlertCircle, X, Info, AlertTriangle } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 
 /**
@@ -98,66 +97,61 @@ export default function GlobalToast() {
   };
 
   return (
-    <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[2000] flex flex-col gap-4 pointer-events-none w-full max-w-md px-4">
-      <AnimatePresence>
-        {notifications.map((notification) => {
-          const style = getTypeStyle(notification.type);
-          return (
-            <motion.div
-              key={notification.id}
-              initial={{ opacity: 0, y: 50, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{
-                opacity: 0,
-                y: 20,
-                scale: 0.95,
-                transition: { duration: 0.2 },
-              }}
-              layout
-              className={`pointer-events-auto flex items-start gap-4 px-6 py-5 rounded-[2rem] border backdrop-blur-3xl`}
-              style={{
-                background: "var(--surface-1)",
-                borderColor: "var(--border-primary)",
-                boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
-              }}
-            >
-              <div className={`p-3 rounded-2xl ${style.bg} ${style.text}`}>
-                <style.icon className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p
-                  className={`text-[10px] font-bold uppercase tracking-widest mb-1 opacity-60 ${style.text}`}
-                >
-                  {style.label}
-                </p>
-                <p
-                  className="text-xs font-black tracking-tight leading-snug uppercase break-words whitespace-normal"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  {t(notification.message || "") || notification.message}
-                </p>
-              </div>
-              <button
-                onClick={() =>
-                  setNotifications((prev) =>
-                    prev.filter((otherNotification) => otherNotification.id !== notification.id),
-                  )
-                }
-                className="transition-colors p-2"
-                style={{ color: "var(--text-tertiary)" }}
-                onMouseEnter={(event) =>
-                  (event.currentTarget.style.color = "var(--text-primary)")
-                }
-                onMouseLeave={(event) =>
-                  (event.currentTarget.style.color = "var(--text-tertiary)")
-                }
+    <div
+      className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[2000] flex flex-col gap-4 pointer-events-none w-full max-w-md px-4"
+      aria-live="polite"
+      aria-atomic="false"
+    >
+      {notifications.map((notification) => {
+        const style = getTypeStyle(notification.type);
+        return (
+          <div
+            key={notification.id}
+            role={notification.type === "error" ? "alert" : "status"}
+            className={`toast-item pointer-events-auto flex items-start gap-4 px-6 py-5 rounded-[2rem] border backdrop-blur-3xl`}
+            style={{
+              background: "var(--surface-1)",
+              borderColor: "var(--border-primary)",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
+            }}
+          >
+            <div className={`p-3 rounded-2xl ${style.bg} ${style.text}`} aria-hidden="true">
+              <style.icon className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p
+                className={`text-[10px] font-bold uppercase tracking-widest mb-1 opacity-60 ${style.text}`}
               >
-                <X className="w-4 h-4" />
-              </button>
-            </motion.div>
-          );
-        })}
-      </AnimatePresence>
+                {style.label}
+              </p>
+              <p
+                className="text-xs font-black tracking-tight leading-snug uppercase break-words whitespace-normal"
+                style={{ color: "var(--text-primary)" }}
+              >
+                {t(notification.message || "") || notification.message}
+              </p>
+            </div>
+            <button
+              onClick={() =>
+                setNotifications((prev) =>
+                  prev.filter((otherNotification) => otherNotification.id !== notification.id),
+                )
+              }
+              aria-label={t("common.close")}
+              className="transition-colors p-2"
+              style={{ color: "var(--text-tertiary)" }}
+              onMouseEnter={(event) =>
+                (event.currentTarget.style.color = "var(--text-primary)")
+              }
+              onMouseLeave={(event) =>
+                (event.currentTarget.style.color = "var(--text-tertiary)")
+              }
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }
