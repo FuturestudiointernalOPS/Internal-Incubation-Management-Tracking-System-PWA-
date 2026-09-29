@@ -80,6 +80,7 @@ describe("CSRF-1 — state-changing GET routes are same-origin only", () => {
       "src/app/api/engineering/permissions/seed-access-profiles/route.js",
       "src/app/api/engineering/permissions/sync-context-grants/route.js",
       "src/app/api/engineering/permissions/context-roles/route.js",
+      "src/app/api/platform/seed/founder-assessment/route.js",
     ]) {
       expect(read(file)).toMatch(/requireSameOrigin\(req\)/);
     }

@@ -25,6 +25,7 @@ import {
   upsertFounderAssessmentCollection,
   upsertFounderAssessmentVersion,
 } from "@/models/platformAi";
+import { requireSameOrigin } from "@/lib/requestOrigin";
 
 /**
  * POST /api/platform/seed/founder-assessment
@@ -343,6 +344,11 @@ export async function POST() {
 }
 
 // Also allow GET for one-click browser access
-export async function GET() {
+export async function GET(req) {
+  // State-changing GET (CSRF-1): the seed runs on read, so a cross-site top-level
+  // navigation (a clicked link carries the SameSite=Lax cookie) must be refused.
+  // A same-origin call or a typed URL still passes. Prefer POST.
+  const originError = requireSameOrigin(req);
+  if (originError) return originError;
   return POST();
 }
