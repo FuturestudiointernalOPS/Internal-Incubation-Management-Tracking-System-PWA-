@@ -97,8 +97,22 @@ const softAuthPaths = [
   "/api/finance",
 ];
 
+// Static assets served from /public: a single root segment carrying a file
+// extension (manifest.json, favicon.ico, icons, robots.txt…). They are public by
+// nature and must never be answered with the login HTML. Without this guard an
+// anonymous request to /manifest.json is redirected to /login (application/json
+// expected, HTML returned) and the browser reports
+// "Manifest: Line: 1, column: 1, Syntax error."
+const STATIC_ASSET_RE =
+  /^\/[^/]+\.(?:ico|png|jpe?g|gif|svg|webp|avif|txt|xml|json|webmanifest|woff2?|ttf|otf|eot|map)$/i;
+
 export function proxy(request) {
   const { pathname } = request.nextUrl;
+
+  // Static assets never require a session.
+  if (STATIC_ASSET_RE.test(pathname)) {
+    return NextResponse.next();
+  }
 
   // Allow public paths
   for (const publicPath of publicPaths) {
