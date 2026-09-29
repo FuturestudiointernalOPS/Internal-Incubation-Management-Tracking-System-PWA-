@@ -20,6 +20,7 @@
     "consentRequired": "Veuillez accepter l'enregistrement de vos informations pour continuer.",
     "paymentMisconfigured": "Ce cours n'est pas ouvert au paiement en ligne. Veuillez nous contacter.",
     "paymentOpening": "Ouverture de la fenêtre de paiement…",
+    "paymentConfirming": "Confirmation du paiement…",
     "paymentVerifying": "Vérification de votre paiement…",
     "paymentVerifyingHint": "Cela peut prendre jusqu'à deux minutes. Gardez cette page ouverte.",
     "paymentSuccess": "Votre inscription est confirmée",

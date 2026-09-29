@@ -20,6 +20,7 @@
     "consentRequired": "Please accept the recording of your details to continue.",
     "paymentMisconfigured": "This course is not open for online payment. Please contact us.",
     "paymentOpening": "Opening the payment window…",
+    "paymentConfirming": "Confirming your payment…",
     "paymentVerifying": "Checking your payment…",
     "paymentVerifyingHint": "This can take up to two minutes. Keep this page open.",
     "paymentSuccess": "Your registration is confirmed",
