@@ -47,37 +47,6 @@ import enRootMisc from "@/locales/en/rootMisc.json";
 import enLms from "@/locales/en/lms.json";
 import enMembership from "@/locales/en/membership.json";
 
-import frCommon from "@/locales/fr/common.json";
-import frAuth from "@/locales/fr/auth.json";
-import frNav from "@/locales/fr/navigation.json";
-import frAdmin from "@/locales/fr/admin.json";
-import frReports from "@/locales/fr/reports.json";
-import frStatus from "@/locales/fr/status.json";
-import frErrors from "@/locales/fr/errors.json";
-import frStaff from "@/locales/fr/staff.json";
-import frPm from "@/locales/fr/pm.json";
-import frParticipant from "@/locales/fr/participant.json";
-import frTime from "@/locales/fr/time.json";
-import frFinance from "@/locales/fr/finance.json";
-import frMessaging from "@/locales/fr/messaging.json";
-import frVenture from "@/locales/fr/venture.json";
-import frInvestor from "@/locales/fr/investor.json";
-import frForms from "@/locales/fr/forms.json";
-import frCrm from "@/locales/fr/crm.json";
-import frVadmin from "@/locales/fr/vadmin.json";
-import frEngineering from "@/locales/fr/engineering.json";
-import frInvestorAdmin from "@/locales/fr/investorAdmin.json";
-import frAdminMisc from "@/locales/fr/adminMisc.json";
-import frTeam from "@/locales/fr/team.json";
-import frPlatformMisc from "@/locales/fr/platformMisc.json";
-import frPmMisc from "@/locales/fr/pmMisc.json";
-import frInvestorMisc from "@/locales/fr/investorMisc.json";
-import frParticipantMisc from "@/locales/fr/participantMisc.json";
-import frStaffMisc from "@/locales/fr/staffMisc.json";
-import frRootMisc from "@/locales/fr/rootMisc.json";
-import frLms from "@/locales/fr/lms.json";
-import frMembership from "@/locales/fr/membership.json";
-
 // ─── Deep merge: recursively merges objects ───
 // IMPORTANT: If the target already holds an object for a given key,
 // a primitive value in the source will NOT overwrite it. This prevents
@@ -108,7 +77,13 @@ function deepMerge(target, source) {
 }
 
 // ─── Language registry: each language = deep-merged JSON modules ───
-const EN = [
+//
+// English is bundled EAGERLY: it is the source of truth, the server/default
+// snapshot and the fallback for every missing key. Every other language is a
+// separate chunk, imported the moment it is actually selected — the merged
+// corpus of both languages is ~790 kB of client JavaScript, and shipping it
+// eagerly (as this module used to) put all of it on every route for every user.
+export const EN = [
   enCommon,
   enAuth,
   enNav,
@@ -141,42 +116,85 @@ const EN = [
   enMembership,
 ].reduce((merged, module) => deepMerge(merged, module), {});
 
-const FR = [
-  frCommon,
-  frAuth,
-  frNav,
-  frAdmin,
-  frReports,
-  frStatus,
-  frErrors,
-  frStaff,
-  frPm,
-  frParticipant,
-  frTime,
-  frFinance,
-  frMessaging,
-  frVenture,
-  frInvestor,
-  frForms,
-  frCrm,
-  frVadmin,
-  frEngineering,
-  frInvestorAdmin,
-  frAdminMisc,
-  frTeam,
-  frPlatformMisc,
-  frPmMisc,
-  frInvestorMisc,
-  frParticipantMisc,
-  frStaffMisc,
-  frRootMisc,
-  frLms,
-  frMembership,
-].reduce((merged, module) => deepMerge(merged, module), {});
-
-export const LOCALE_REGISTRY = {
+// Languages that HAVE arrived. `en` is there from the start; the others are
+// added by `loadLocale`, so `LOCALE_REGISTRY[lang]` is the readable view of what
+// is currently in memory.
+const loaded = {
   en: EN,
-  fr: FR,
 };
+
+export const LOCALE_REGISTRY = loaded;
+
+/** The merged corpus for `lang` if it is already in memory, else null. */
+export function getLoadedLocale(lang) {
+  return loaded[lang] || null;
+}
+
+// One entry per non-English language: nothing is fetched until it is asked for.
+const LOADERS = {
+  fr: () =>
+    Promise.all([
+      import("@/locales/fr/common.json"),
+      import("@/locales/fr/auth.json"),
+      import("@/locales/fr/navigation.json"),
+      import("@/locales/fr/admin.json"),
+      import("@/locales/fr/reports.json"),
+      import("@/locales/fr/status.json"),
+      import("@/locales/fr/errors.json"),
+      import("@/locales/fr/staff.json"),
+      import("@/locales/fr/pm.json"),
+      import("@/locales/fr/participant.json"),
+      import("@/locales/fr/time.json"),
+      import("@/locales/fr/finance.json"),
+      import("@/locales/fr/messaging.json"),
+      import("@/locales/fr/venture.json"),
+      import("@/locales/fr/investor.json"),
+      import("@/locales/fr/forms.json"),
+      import("@/locales/fr/crm.json"),
+      import("@/locales/fr/vadmin.json"),
+      import("@/locales/fr/engineering.json"),
+      import("@/locales/fr/investorAdmin.json"),
+      import("@/locales/fr/adminMisc.json"),
+      import("@/locales/fr/team.json"),
+      import("@/locales/fr/platformMisc.json"),
+      import("@/locales/fr/pmMisc.json"),
+      import("@/locales/fr/investorMisc.json"),
+      import("@/locales/fr/participantMisc.json"),
+      import("@/locales/fr/staffMisc.json"),
+      import("@/locales/fr/rootMisc.json"),
+      import("@/locales/fr/lms.json"),
+      import("@/locales/fr/membership.json"),
+    ]),
+};
+
+// In-flight loads, so several components asking for the same language in the
+// same tick share one fetch instead of each starting their own.
+const pendingLoads = {};
+
+/**
+ * Loads and merges one language's JSON modules on demand, memoising the result.
+ * Resolves null for a language that is unknown or has no loader of its own.
+ */
+export function loadLocale(lang) {
+  if (loaded[lang]) return Promise.resolve(loaded[lang]);
+  const loader = LOADERS[lang];
+  if (!loader) return Promise.resolve(null);
+  if (!pendingLoads[lang]) {
+    pendingLoads[lang] = loader()
+      .then((modules) =>
+        modules
+          .map((module) => module.default || module)
+          .reduce((merged, module) => deepMerge(merged, module), {}),
+      )
+      .then((merged) => {
+        loaded[lang] = merged;
+        return merged;
+      })
+      .finally(() => {
+        delete pendingLoads[lang];
+      });
+  }
+  return pendingLoads[lang];
+}
 
 export { deepMerge };
