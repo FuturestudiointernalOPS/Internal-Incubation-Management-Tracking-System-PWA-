@@ -934,7 +934,17 @@
       "archivedOk": "{n} task(s) archived",
       "restoredOk": "{n} task(s) restored",
       "blockedMsg": "{n} kept — they already have submitted work",
-      "emptyArchived": "No archived tasks."
+      "emptyArchived": "No archived tasks.",
+      "blockedBy": "Blocked by",
+      "blockedByHint": "This task cannot start until every task you pick here is completed.",
+      "blockedByNone": "No other task to depend on yet.",
+      "dependencyBlocked": "Blocked by {names}",
+      "dependencyRefused": "This task is held by a dependency and cannot move forward yet.",
+      "edit": "Edit task",
+      "titleRequired": "Title required",
+      "saveFailed": "Could not save the task",
+      "updated": "Task updated",
+      "created": "Task created"
     },
     "timeline": {
       "backToDashboard": "Back to Dashboard",

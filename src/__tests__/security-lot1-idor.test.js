@@ -91,6 +91,11 @@ describe("PATCH/DELETE /api/ventures/[id]/tasks — cross-venture ids are refuse
     listTaskAttachments: jest.fn().mockResolvedValue([]),
     addTaskAttachment: jest.fn(),
     deleteTaskAttachment: jest.fn(),
+    getUnmetTaskDependencies: jest.fn().mockResolvedValue([]),
+    setTaskDependencies: jest.fn().mockResolvedValue({ success: true, count: 0 }),
+    syncTaskBlockState: jest.fn().mockResolvedValue({ status: "todo" }),
+    releaseTasksBlockedBy: jest.fn().mockResolvedValue({ released: [] }),
+    listVentureTaskDependencyEdges: jest.fn().mockResolvedValue([]),
   }));
 
   const { PATCH, DELETE } = require("@/app/api/ventures/[id]/tasks/route");

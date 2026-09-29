@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import db from "@/lib/db";
-import { requireVentureAccess } from "@/lib/ventureAuth";
+import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { getUnmetTaskDependencies, releaseTasksBlockedBy } from "@/lib/ventures";
 import {
   isGlobalRole,
   resolveVentureCode,
@@ -87,6 +88,24 @@ export const POST = createHandler(async (req, { params }) => {
 
   const body = await req.json();
   if (body.action === "submit") {
+    // HARD dependency gate: a Venture-side actor cannot hand in work on a task
+    // that a dependency still holds back. Future Studio staff plan ahead and
+    // are exempt, exactly as for booking a session against a milestone.
+    const staffActor = await isStaffActorForVenture(db, id, session);
+    if (!staffActor && dbId) {
+      const blockers = await getUnmetTaskDependencies({ ventureId: dbId, taskId: task.id });
+      if (blockers.length > 0) {
+        const names = blockers.map((blocker) => `"${blocker.title || blocker.id}"`).join(", ");
+        return NextResponse.json(
+          {
+            success: false,
+            error: `This task is blocked by ${names}, which is not completed yet.`,
+            blocked_by: blockers.map((blocker) => blocker.title || blocker.id),
+          },
+          { status: 409 },
+        );
+      }
+    }
     const fileUrl = body.file_url ? String(body.file_url).trim() : "";
     const notes = body.notes ? String(body.notes).trim() : "";
     if (!fileUrl && !notes) {
@@ -163,6 +182,10 @@ export const POST = createHandler(async (req, { params }) => {
     // vocabulary used by the tasks route.
     const taskStatus = decision === "approved" ? "accepted" : "revision_requested";
     await db.execute({ sql: "UPDATE venture_tasks SET status = ? WHERE id = ?", args: [taskStatus, task.id] });
+    // An approved task is done — the tasks it was blocking are freed right away.
+    if (decision === "approved" && dbId) {
+      await releaseTasksBlockedBy({ ventureId: dbId, blockerTaskId: task.id });
+    }
     // Venture-facing notification + email (founders hear about review outcomes).
     // Entity context lets the platform inbox drill down venture → journey →
     // milestone → task (Vinance 3 Phase 1).

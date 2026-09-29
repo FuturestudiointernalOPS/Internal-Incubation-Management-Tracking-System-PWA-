@@ -934,7 +934,17 @@
       "archivedOk": "{n} tâche(s) archivée(s)",
       "restoredOk": "{n} tâche(s) restaurée(s)",
       "blockedMsg": "{n} conservées — elles ont déjà des travaux soumis",
-      "emptyArchived": "Aucune tâche archivée."
+      "emptyArchived": "Aucune tâche archivée.",
+      "blockedBy": "Bloquée par",
+      "blockedByHint": "Cette tâche ne peut pas démarrer tant que chaque tâche cochée ici n'est pas terminée.",
+      "blockedByNone": "Aucune autre tâche dont dépendre pour le moment.",
+      "dependencyBlocked": "Bloquée par {names}",
+      "dependencyRefused": "Cette tâche est retenue par une dépendance et ne peut pas avancer pour le moment.",
+      "edit": "Modifier la tâche",
+      "titleRequired": "Titre requis",
+      "saveFailed": "Impossible d'enregistrer la tâche",
+      "updated": "Tâche mise à jour",
+      "created": "Tâche créée"
     },
     "timeline": {
       "backToDashboard": "Retour au tableau de bord",

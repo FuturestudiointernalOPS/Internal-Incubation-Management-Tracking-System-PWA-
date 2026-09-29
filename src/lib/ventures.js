@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { hashToken } from "@/lib/token-hashing";
 import { isUnknownColumnError } from "@/lib/ventureInput";
 import { SESSION_MIN_LEAD_MINUTES } from "@/lib/ventureSessionRules";
+import { isTaskComplete, TASK_COMPLETED_STATUSES } from "@/lib/ventureStatuses";
 import { listVentureMembers, summarizeVentureMembers } from "@/models/ventureMembers";
 import {
   listActiveVentureDocumentTypesOrDefaults,
@@ -2580,6 +2581,190 @@ export async function updateTask(taskId, updates) {
 export async function deleteTask(taskId) {
   await db.execute({ sql: "DELETE FROM venture_tasks WHERE id = ?", args: [taskId] });
   return { success: true };
+}
+
+// ─── Task-to-task dependencies ────────────────────────────────────────────
+// One edge (source -> target) means the SOURCE task blocks the TARGET: the
+// target cannot start or be finished until the source is done. These helpers
+// read and write those edges — and keep a task's `blocked` state true to them,
+// so an explicit dependency is the ONLY thing that holds a task back.
+
+/** The completed-statuses SQL list, from the ONE vocabulary. */
+const TASK_DONE_SQL_LIST = TASK_COMPLETED_STATUSES.map((status) => `'${status}'`).join(", ");
+
+/** A source→targets adjacency of the edges, optionally skipping some rows. */
+function buildBlocksMap(rows, shouldIgnore = () => false) {
+  const blocks = new Map();
+  for (const row of rows || []) {
+    if (shouldIgnore(row)) continue;
+    const from = `${row.source_type}:${row.source_id}`;
+    const list = blocks.get(from) || [];
+    list.push(`${row.target_type}:${row.target_id}`);
+    blocks.set(from, list);
+  }
+  return blocks;
+}
+
+/** Whether `toKey` is reachable from `fromKey` along the edges (cycle probe). */
+function canReach(blocks, fromKey, toKey) {
+  const seen = new Set([fromKey]);
+  const queue = [fromKey];
+  while (queue.length > 0) {
+    const node = queue.shift();
+    if (node === toKey) return true;
+    for (const next of blocks.get(node) || []) {
+      if (!seen.has(next)) {
+        seen.add(next);
+        queue.push(next);
+      }
+    }
+  }
+  return false;
+}
+
+/** Every task→task edge of a Venture, as text ids [{ source_id, target_id }]. */
+export async function listVentureTaskDependencyEdges(ventureId) {
+  const res = await db.execute({
+    sql: `SELECT source_id, target_id FROM venture_dependencies
+          WHERE venture_id::text = ?::text AND source_type = 'task' AND target_type = 'task'`,
+    args: [String(ventureId)],
+  }).catch(() => ({ rows: [] }));
+  return (res.rows || []).map((row) => ({ source_id: String(row.source_id), target_id: String(row.target_id) }));
+}
+
+/**
+ * The blocker tasks of a task that are NOT done yet — empty means nothing
+ * holds it back. Ids are compared as text (edges store them that way).
+ */
+export async function getUnmetTaskDependencies({ ventureId, taskId }) {
+  const res = await db.execute({
+    sql: `SELECT blocker.id, blocker.title, blocker.status
+          FROM venture_dependencies d
+          JOIN venture_tasks blocker ON CAST(blocker.id AS TEXT) = d.source_id
+          WHERE d.venture_id::text = ?::text
+            AND d.target_type = 'task' AND d.target_id = ?
+            AND d.source_type = 'task'
+            AND blocker.status NOT IN (${TASK_DONE_SQL_LIST})`,
+    args: [String(ventureId), String(taskId)],
+  }).catch(() => ({ rows: [] }));
+  return res.rows || [];
+}
+
+/** How many tasks declare this task as their blocker (its inbound edges). */
+export async function countTaskBlockers({ ventureId, taskId }) {
+  const res = await db.execute({
+    sql: `SELECT COUNT(*)::int AS n FROM venture_dependencies
+          WHERE venture_id::text = ?::text AND source_type = 'task' AND target_type = 'task' AND target_id = ?`,
+    args: [String(ventureId), String(taskId)],
+  }).catch(() => ({ rows: [] }));
+  return Number(res.rows?.[0]?.n || 0);
+}
+
+/** The tasks this task blocks (its dependents) — used when it completes. */
+export async function listTasksBlockedBy({ ventureId, blockerTaskId }) {
+  const res = await db.execute({
+    sql: `SELECT DISTINCT target_id FROM venture_dependencies
+          WHERE venture_id::text = ?::text AND source_type = 'task' AND source_id = ? AND target_type = 'task'`,
+    args: [String(ventureId), String(blockerTaskId)],
+  }).catch(() => ({ rows: [] }));
+  return (res.rows || []).map((row) => String(row.target_id));
+}
+
+/**
+ * Replace a task's blockers with EXACTLY `blockedByTaskIds`.
+ *
+ * Refused AS A WHOLE when the set would close a loop (including a transitive
+ * one): nothing is written, so a task never ends up half-wired. The edge shape
+ * and the "source blocks target" direction are the ones the milestone layer
+ * already uses — one dependency writer, one meaning.
+ */
+export async function setTaskDependencies({ ventureId, taskId, blockedByTaskIds = [] }) {
+  const targetId = String(taskId);
+  const existing = await db.execute({
+    sql: "SELECT source_type, source_id, target_type, target_id FROM venture_dependencies WHERE venture_id::text = ?::text",
+    args: [String(ventureId)],
+  }).catch(() => ({ rows: [] }));
+
+  // The graph WITHOUT this task's current inbound task edges: they are being
+  // replaced. (A milestone edge that targets this task is left in place.)
+  const blocks = buildBlocksMap(existing.rows || [], (row) =>
+    row.source_type === "task" && row.target_type === "task" && String(row.target_id) === targetId);
+  const targetKey = `task:${targetId}`;
+  const sources = [...new Set(
+    (blockedByTaskIds || [])
+      .map((value) => String(value).trim())
+      .filter((value) => value && value !== targetId),
+  )];
+
+  for (const sourceId of sources) {
+    if (canReach(blocks, targetKey, `task:${sourceId}`)) throw new Error("Circular dependency detected.");
+  }
+
+  await db.transaction(async (query) => {
+    await query(
+      `DELETE FROM venture_dependencies
+       WHERE venture_id::text = ?::text AND source_type = 'task' AND target_type = 'task' AND target_id = ?`,
+      [String(ventureId), targetId],
+    );
+    for (const sourceId of sources) {
+      await query(
+        `INSERT INTO venture_dependencies (venture_id, source_type, source_id, target_type, target_id)
+         VALUES (?, 'task', ?, 'task', ?) ON CONFLICT DO NOTHING`,
+        [ventureId, sourceId, targetId],
+      );
+    }
+  });
+  return { success: true, count: sources.length };
+}
+
+/**
+ * Keep a task's `blocked` state true to its dependencies:
+ *   - an unmet blocker forces `blocked` (unless the task is finished/cancelled);
+ *   - once every blocker is done, a task that was held by a dependency (it has
+ *     inbound edges and reads `blocked`) returns to `todo`.
+ * A task with no dependency at all is never touched here, so a manual `blocked`
+ * stays the user's own choice.
+ */
+export async function syncTaskBlockState({ ventureId, taskId }) {
+  const numericId = Number.parseInt(String(taskId), 10);
+  if (!Number.isFinite(numericId)) return { status: null };
+  const res = await db.execute({ sql: "SELECT id, status FROM venture_tasks WHERE id = ?", args: [numericId] }).catch(() => ({ rows: [] }));
+  const task = res.rows?.[0];
+  if (!task) return { status: null };
+  if (isTaskComplete(task.status) || task.status === "cancelled" || task.status === "archived") return { status: task.status };
+
+  const unmet = await getUnmetTaskDependencies({ ventureId, taskId: numericId });
+  if (unmet.length > 0) {
+    if (task.status !== "blocked") await updateTask(numericId, { status: "blocked" });
+    return { status: "blocked", blockers: unmet };
+  }
+  const inbound = await countTaskBlockers({ ventureId, taskId: numericId });
+  if (inbound > 0 && task.status === "blocked") {
+    await updateTask(numericId, { status: "todo" });
+    return { status: "todo" };
+  }
+  return { status: task.status };
+}
+
+/**
+ * Release every task whose ONLY remaining blockers were this completed task:
+ * a dependency-held task returns to `todo` the moment nothing holds it back.
+ */
+export async function releaseTasksBlockedBy({ ventureId, blockerTaskId }) {
+  const dependents = await listTasksBlockedBy({ ventureId, blockerTaskId });
+  const released = [];
+  for (const targetId of dependents) {
+    const numericTarget = Number.parseInt(targetId, 10);
+    if (!Number.isFinite(numericTarget)) continue;
+    const unmet = await getUnmetTaskDependencies({ ventureId, taskId: numericTarget });
+    if (unmet.length > 0) continue;
+    const res = await db.execute({
+      sql: "UPDATE venture_tasks SET status = 'todo', updated_at = NOW() WHERE id = ? AND status = 'blocked' RETURNING id",
+      args: [numericTarget],
+    }).catch(() => ({ rows: [] }));
+    if ((res.rows || []).length > 0) released.push(numericTarget);
+  }
+  return { released };
 }
 
 // ─── Task Comments ────────────────────────────────────────────────────────

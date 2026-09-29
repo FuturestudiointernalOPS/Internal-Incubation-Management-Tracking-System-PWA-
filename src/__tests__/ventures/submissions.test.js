@@ -16,6 +16,9 @@ jest.mock("@/lib/db", () => ({
 
 jest.mock("@/lib/ventureAuth", () => ({
   requireVentureAccess: jest.fn(),
+  // These are Venture-side actors: the dependency gate reads the edges (none
+  // here), so submissions proceed exactly as before.
+  isStaffActorForVenture: jest.fn().mockResolvedValue(false),
 }));
 
 jest.mock("@/lib/api/createHandler", () => ({

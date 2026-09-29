@@ -4,7 +4,7 @@ import React, { useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Plus, Loader2, CheckCircle2, AlertCircle, X,
-  Calendar, User,
+  Calendar, User, Pencil, Lock,
   List, Columns, CopyPlus, Archive, RotateCcw,
 } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
@@ -33,6 +33,12 @@ const STATUS_CFG = {
   cancelled: { label: "Cancelled", color: "bg-slate-500/5 text-slate-500", dot: "bg-slate-500" },
 };
 
+/** The create/edit form's shape; `blocked_by` holds the ids this task depends on. */
+const EMPTY_TASK_FORM = {
+  title: "", description: "", priority: "medium", status: "todo", due_date: "",
+  estimated_hours: "", assigned_cid: "", assigned_name: "", labels: [], milestone_id: "", blocked_by: [],
+};
+
 const PRIORITY_CFG = { low: "text-slate-500", medium: "text-blue-400", high: "text-amber-400", critical: "text-rose-400" };
 
 export default function VentureTasksPage() {
@@ -51,7 +57,7 @@ export default function VentureTasksPage() {
   // Create/edit modal
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [editTask, setEditTask] = useState(null);
-  const [tForm, setTForm] = useState({ title: "", description: "", priority: "medium", status: "todo", due_date: "", estimated_hours: "", assigned_cid: "", assigned_name: "", labels: [], milestone_id: "" });
+  const [tForm, setTForm] = useState(() => ({ ...EMPTY_TASK_FORM }));
   const [saving, setSaving] = useState(false);
   const [dupBusy, setDupBusy] = useState(null);
   // Archive (soft delete): archived view + inline result banner.
@@ -109,11 +115,50 @@ export default function VentureTasksPage() {
     } catch {}
   };
 
+  const openCreateTask = () => {
+    setEditTask(null);
+    setTForm({ ...EMPTY_TASK_FORM });
+    setShowTaskModal(true);
+  };
+
+  // Editing an EXISTING task: the same form, pre-filled — including the tasks it
+  // currently depends on, so the editor starts from the truth.
+  const openEditTask = (task) => {
+    setEditTask(task);
+    setTForm({
+      title: task.title || "",
+      description: task.description || "",
+      priority: task.priority || "medium",
+      status: task.status || "todo",
+      due_date: task.due_date ? String(task.due_date).slice(0, 10) : "",
+      estimated_hours: task.estimated_hours ?? "",
+      assigned_cid: task.assigned_cid || "",
+      assigned_name: task.assigned_name || "",
+      labels: task.labels || [],
+      milestone_id: task.milestone_id ? String(task.milestone_id) : "",
+      blocked_by: (task.blocked_by_ids || []).map(String),
+    });
+    setShowTaskModal(true);
+  };
+
+  const toggleBlockedBy = (taskId) => {
+    const id = String(taskId);
+    setTForm((previous) => ({
+      ...previous,
+      blocked_by: previous.blocked_by.includes(id)
+        ? previous.blocked_by.filter((existing) => existing !== id)
+        : [...previous.blocked_by, id],
+    }));
+  };
+
   const updateTaskStatus = async (taskId, newStatus) => {
     try {
-      await fetch(`/api/ventures/${id}/tasks?id=${taskId}`, {
+      const response = await fetch(`/api/ventures/${id}/tasks?id=${taskId}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }),
       });
+      const payload = await response.json().catch(() => ({}));
+      // A dependency-held task refuses to move forward — say WHY, by name.
+      if (!payload.success) notify(payload.error || t("vadmin.tasks.dependencyRefused"), "error");
       reload();
     } catch {}
   };
@@ -154,25 +199,29 @@ export default function VentureTasksPage() {
   const handleDragLeave = () => setDragOver(null);
 
   const createOrUpdateTask = async () => {
-    if (!tForm.title.trim()) { notify("Title required", "error"); return; }
+    if (!tForm.title.trim()) { notify(t("vadmin.tasks.titleRequired"), "error"); return; }
     setSaving(true);
     try {
-      if (editTask) {
-        await fetch(`/api/ventures/${id}/tasks?id=${editTask.id}`, {
-          method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(tForm),
-        });
-        notify("Task updated");
-      } else {
-        await fetch(`/api/ventures/${id}/tasks`, {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...tForm, milestone_id: tForm.milestone_id || null }),
-        });
-        notify("Task created");
+      const response = editTask
+        ? await fetch(`/api/ventures/${id}/tasks?id=${editTask.id}`, {
+            method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(tForm),
+          })
+        : await fetch(`/api/ventures/${id}/tasks`, {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...tForm, milestone_id: tForm.milestone_id || null }),
+          });
+      const payload = await response.json().catch(() => ({}));
+      if (!payload.success) {
+        // A refused dependency set (a loop) names itself; the modal stays open.
+        notify(payload.error || t("vadmin.tasks.saveFailed"), "error");
+        setSaving(false);
+        return;
       }
+      notify(editTask ? t("vadmin.tasks.updated") : t("vadmin.tasks.created"));
       setShowTaskModal(false);
       setEditTask(null);
-      setTForm({ title: "", description: "", priority: "medium", status: "todo", due_date: "", estimated_hours: "", assigned_cid: "", assigned_name: "", labels: [], milestone_id: "" });
+      setTForm({ ...EMPTY_TASK_FORM });
       reload();
-    } catch { notify("Error saving task", "error"); }
+    } catch { notify(t("vadmin.tasks.saveFailed"), "error"); }
     setSaving(false);
   };
 
@@ -289,7 +338,7 @@ export default function VentureTasksPage() {
             <div className="relative">
               <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks..." className="w-40 bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] placeholder:text-slate-600" />
             </div>
-            <button onClick={() => { setEditTask(null); setTForm({ title: "", description: "", priority: "medium", status: "todo", due_date: "", estimated_hours: "", assigned_cid: "", assigned_name: "", labels: [], milestone_id: "" }); setShowTaskModal(true); }}
+            <button onClick={openCreateTask}
               className="px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2">
               <Plus className="w-3.5 h-3.5" /> Add Task
             </button>
@@ -458,10 +507,20 @@ export default function VentureTasksPage() {
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowDrawer(false)} />
           <div className="relative w-full max-w-lg bg-[var(--bg-tertiary)] border-l border-[var(--border-primary)] overflow-y-auto">
             <div className="p-6 space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-black text-[var(--text-primary)]">{selectedTask.title}</h2>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1 min-w-0">
+                  <h2 className="text-sm font-black text-[var(--text-primary)] truncate">{selectedTask.title}</h2>
+                  <button onClick={() => openEditTask(selectedTask)} title={t("vadmin.tasks.edit")} className="p-2 hover:bg-white/5 rounded-lg shrink-0"><Pencil className="w-3.5 h-3.5 text-slate-500" /></button>
+                </div>
                 <button onClick={() => setShowDrawer(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
               </div>
+
+              {selectedTask.dependency_blocked && (
+                <div className="flex items-start gap-2 rounded-xl px-3 py-2.5 bg-rose-500/10 border border-rose-500/30 text-rose-400">
+                  <Lock className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  <span className="text-[11px] font-bold">{t("vadmin.tasks.dependencyBlocked", { names: (selectedTask.blocked_by_titles || []).join(", ") })}</span>
+                </div>
+              )}
 
               {/* Status + Priority */}
               <div className="flex gap-3">
@@ -619,6 +678,25 @@ export default function VentureTasksPage() {
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Assignee</label>
                 <input value={tForm.assigned_name} onChange={(event) => setTForm((previous) => ({ ...previous, assigned_name: event.target.value, assigned_cid: event.target.value }))} placeholder="Team member name"
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+              </div>
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.tasks.blockedBy")}</label>
+                <p className="text-[10px] text-slate-500 mb-2">{t("vadmin.tasks.blockedByHint")}</p>
+                <div className="max-h-40 overflow-y-auto space-y-1 rounded-xl border border-[var(--border-primary)] bg-primary p-2">
+                  {activeTasks.filter((candidate) => String(candidate.id) !== String(editTask?.id)).length === 0 ? (
+                    <p className="text-[10px] text-slate-500 px-1 py-1">{t("vadmin.tasks.blockedByNone")}</p>
+                  ) : (
+                    activeTasks
+                      .filter((candidate) => String(candidate.id) !== String(editTask?.id))
+                      .map((candidate) => (
+                        <label key={candidate.id} className="flex items-center gap-2 px-1 py-1 rounded-lg hover:bg-tertiary cursor-pointer">
+                          <input type="checkbox" checked={tForm.blocked_by.includes(String(candidate.id))} onChange={() => toggleBlockedBy(candidate.id)}
+                            className="rounded border-slate-600 text-[var(--brand-orange)]" />
+                          <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">{candidate.title}</span>
+                        </label>
+                      ))
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex gap-3">
