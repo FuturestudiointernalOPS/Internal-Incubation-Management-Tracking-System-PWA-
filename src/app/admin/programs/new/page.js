@@ -267,6 +267,8 @@ export default function NewProgram() {
         } else {
           notify("success", t("adminMisc.newProgram.groupCreatedFillIn"));
         }
+      } else {
+        notify("error", t("adminMisc.newProgram.groupCreateFailed"));
       }
     } catch (error) {
       notify("error", t(error.message || "") || error.message);
@@ -295,6 +297,8 @@ export default function NewProgram() {
         ]);
         setIsCreatingKB(false);
         notify("success", t("adminMisc.newProgram.created"));
+      } else {
+        notify("error", t("adminMisc.newProgram.kbCreateFailed"));
       }
     } catch (error) {
       notify("error", t(error.message || "") || error.message);

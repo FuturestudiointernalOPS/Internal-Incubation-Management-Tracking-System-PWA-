@@ -173,6 +173,7 @@
     "registerFamily": {
       "syncSuccess": "Registration successfully synced with central database.",
       "databaseError": "Database error",
+      "networkError": "Network error. Please try again.",
       "registrationFailed": "Registration failed: {reason}",
       "registrationConfirmed": "Registration Confirmed",
       "addedToGroupPrefix": "You have been successfully added to the",

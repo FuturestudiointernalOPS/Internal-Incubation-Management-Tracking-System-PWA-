@@ -45,7 +45,7 @@ export default function PendingUsersPage() {
   // no list state of its own and never sets state from an effect. Approve,
   // archive, reject and the refresh button call refresh(), which bypasses the
   // cache exactly like the old bypassCache argument did.
-  const { data, loading, refresh } = useApi("/api/admin/pending-users", {
+  const { data, loading, error: loadError, status: loadStatus, refresh } = useApi("/api/admin/pending-users", {
     defaultValue: EMPTY_PENDING_USERS,
     transform: pickPendingUsers,
   });
@@ -324,6 +324,30 @@ export default function PendingUsersPage() {
           )}
         </AnimatePresence>
 
+        {/* Load failure. Without this a failed read fell through to the empty
+            state below and read as "nothing to review" — a green all-clear for
+            an expired session or a down server. */}
+        {!loading && loadError && (
+          <div className="card p-16 text-center">
+            <AlertCircle className="w-16 h-16 text-rose-500/40 mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-[var(--text-primary)] uppercase tracking-tight">
+              {t("adminMisc.pendingUsers.loadFailedTitle")}
+            </h3>
+            <p className="text-sm text-[var(--text-secondary)] mt-2 max-w-md mx-auto">
+              {loadStatus === 401
+                ? t("errors.authRequired")
+                : t("adminMisc.pendingUsers.loadFailedDesc")}
+            </p>
+            <button
+              onClick={() => refresh()}
+              className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary transition-all"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              {t("common.retry")}
+            </button>
+          </div>
+        )}
+
         {/* Loading state */}
         {loading && (
           <div className="flex items-center justify-center py-20">
@@ -332,7 +356,7 @@ export default function PendingUsersPage() {
         )}
 
         {/* Empty state */}
-        {!loading && Object.keys(displayGrouped).length === 0 && (
+        {!loading && !loadError && Object.keys(displayGrouped).length === 0 && (
           <div className="card p-16 text-center">
             <UserCheck className="w-16 h-16 text-emerald-500/30 mx-auto mb-4" />
             <h3 className="text-lg font-bold text-[var(--text-primary)] uppercase tracking-tight">
@@ -346,6 +370,7 @@ export default function PendingUsersPage() {
 
         {/* Grouped users */}
         {!loading &&
+          !loadError &&
           Object.entries(displayGrouped).map(([groupName, users]) => (
             <div key={groupName} className="card !p-0 overflow-hidden">
               {/* Group header */}

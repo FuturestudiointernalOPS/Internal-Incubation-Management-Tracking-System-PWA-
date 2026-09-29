@@ -88,13 +88,20 @@ export default function UserAccessSummary() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
   const [userData, setUserData] = useState(null);
+  const [summaryError, setSummaryError] = useState("");
   const [loading, setLoading] = useState(false);
   const PAGE_SIZE = 20;
 
   // The people and the module catalogue, read through the shared hook: it owns
   // the cache, the cache-first paint and the discarding of a stale answer, so
   // the page keeps no copy of its own and reads its data during render.
-  const { data: allUsers, refresh: refreshUsers } = useApi(CONTACTS_URL, {
+  const {
+    data: allUsers,
+    loading: usersLoading,
+    error: usersError,
+    status: usersStatus,
+    refresh: refreshUsers,
+  } = useApi(CONTACTS_URL, {
     defaultValue: [],
     transform: pickPeople,
   });
@@ -115,6 +122,7 @@ export default function UserAccessSummary() {
   const fetchUserSummary = async (user) => {
     setSelectedUser(user);
     setLoading(true);
+    setSummaryError("");
     try {
       // Fetch permissions + profile + groups + assignments in parallel
       const [permsRes, groupsRes, respRes, profileRes, rolesRes] =
@@ -148,6 +156,10 @@ export default function UserAccessSummary() {
       });
     } catch (error) {
       console.error("Failed to fetch user summary", error);
+      // The summary is five parallel reads; if any failed there is nothing to
+      // show. Say so rather than leaving the panel blank.
+      setUserData(null);
+      setSummaryError(t("adminMisc.access.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -288,14 +300,32 @@ export default function UserAccessSummary() {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder={t("adminMisc.access.searchPlaceholder")}
+                aria-label={t("adminMisc.access.searchPlaceholder")}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-brand-orange/50 text-sm font-bold transition-all"
               />
             </div>
 
-            {loading ? (
+            {usersLoading ? (
               <div className="flex items-center justify-center py-10">
                 <div className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
                   style={{ borderColor: "rgba(255,102,0,0.1)", borderTopColor: "var(--brand-orange)" }} />
+              </div>
+            ) : usersError ? (
+              <div className="card p-8 text-center max-w-md">
+                <AlertTriangle className="w-10 h-10 text-rose-500/40 mx-auto mb-3" />
+                <p className="text-sm text-[var(--text-secondary)]">
+                  {usersStatus === 401 ? t("errors.authRequired") : t("adminMisc.access.loadFailed")}
+                </p>
+                <button
+                  onClick={() => refreshUsers()}
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary transition-all"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> {t("common.retry")}
+                </button>
+              </div>
+            ) : paginatedUsers.length === 0 ? (
+              <div className="card p-8 text-center max-w-md">
+                <p className="text-sm text-[var(--text-secondary)]">{t("adminMisc.access.noResults")}</p>
               </div>
             ) : (
               <>
@@ -353,9 +383,10 @@ export default function UserAccessSummary() {
         )}
 
         {/* User Summary */}
-        {selectedUser && userData && (
+        {selectedUser && (
           <div className="space-y-6">
             {/* User Info Bar */}
+            {userData && (
             <div className="ios-card !p-5 border-[var(--border-primary)] flex items-center justify-between bg-secondary/50">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center">
@@ -393,13 +424,26 @@ export default function UserAccessSummary() {
               </div>
               <button
                 onClick={() => { setSelectedUser(null); setUserData(null); }}
+                aria-label={t("common.close")}
                 className="p-2 hover:bg-tertiary rounded-lg transition-all"
               >
                 <X className="w-4 h-4 text-[var(--text-secondary)]" />
               </button>
             </div>
+            )}
 
-            {loading ? (
+            {summaryError && !loading ? (
+              <div className="card p-10 text-center">
+                <AlertTriangle className="w-12 h-12 text-rose-500/40 mx-auto mb-3" />
+                <p className="text-sm text-[var(--text-secondary)]">{summaryError}</p>
+                <button
+                  onClick={() => fetchUserSummary(selectedUser)}
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary transition-all"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> {t("common.retry")}
+                </button>
+              </div>
+            ) : loading || !userData ? (
               <div className="flex items-center justify-center py-10">
                 <div className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
                   style={{ borderColor: "rgba(255,102,0,0.1)", borderTopColor: "var(--brand-orange)" }} />

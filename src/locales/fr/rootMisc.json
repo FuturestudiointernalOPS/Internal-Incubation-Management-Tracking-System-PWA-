@@ -173,6 +173,7 @@
     "registerFamily": {
       "syncSuccess": "Inscription synchronisée avec succès avec la base de données centrale.",
       "databaseError": "Erreur de base de données",
+      "networkError": "Erreur réseau. Veuillez réessayer.",
       "registrationFailed": "Échec de l'inscription : {reason}",
       "registrationConfirmed": "Inscription confirmée",
       "addedToGroupPrefix": "Vous avez été ajouté avec succès au",

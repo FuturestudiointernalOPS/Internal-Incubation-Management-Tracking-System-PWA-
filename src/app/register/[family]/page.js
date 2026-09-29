@@ -59,6 +59,11 @@ export default function FamilyRegistrationLink() {
         }
      } catch (err) {
         console.error(err);
+        // A network/JSON failure used to leave the form looking as if the click
+        // had done nothing. Report it the same way the server's own refusal is.
+        window.dispatchEvent(new CustomEvent('impactos:notify', {
+            detail: { type: 'error', message: t("rootMisc.registerFamily.networkError") }
+        }));
         setStatus('idle');
      }
   };
