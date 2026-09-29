@@ -18,6 +18,7 @@
 
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 import { getSession } from "@/server/auth/session";
 import { PERMISSION_MODULES, ACCESS_LEVELS } from "@/server/authz/capabilities";
 import {
@@ -540,6 +541,10 @@ export async function requireAuthorization(module, capability, minLevel = 1) {
   try {
     const session = await getSession();
     if (!session) {
+      logger.debug("authorization_unauthenticated", {
+        resourceType: module,
+        action: capability,
+      });
       return NextResponse.json(
         { success: false, error: "errors.authRequired" },
         { status: 401 },
@@ -547,6 +552,17 @@ export async function requireAuthorization(module, capability, minLevel = 1) {
     }
     const ctx = await getAuthorizationContext(session);
     if (!authorize(ctx, module, capability, minLevel)) {
+      // A denial is the security signal worth counting. It records WHO was
+      // refused, WHAT they tried and WHY as an enum — never the payload they
+      // sent, which is where business data lives.
+      logger.warn("authorization_denied", {
+        userId: session.cid,
+        role: session.role,
+        resourceType: module,
+        action: capability,
+        minLevel,
+        reason: "missing_permission",
+      });
       return NextResponse.json(
         { success: false, error: "errors.insufficientPermissions" },
         { status: 403 },
@@ -554,7 +570,11 @@ export async function requireAuthorization(module, capability, minLevel = 1) {
     }
     return null;
   } catch (error) {
-    console.error("[Authorization] requireAuthorization error:", error.message);
+    logger.error("authorization_error", {
+      resourceType: module,
+      action: capability,
+      error: error.message,
+    });
     return NextResponse.json(
       { success: false, error: "errors.authzSystemFailure" },
       { status: 500 },

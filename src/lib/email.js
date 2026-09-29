@@ -8,6 +8,7 @@
 import { normalizeToHtml } from "@/lib/platform/ai/email-personalize";
 import { resolveAppUrl } from "@/lib/appUrl";
 import { TEMPLATE_VARIABLE_PATTERN, templateVariableNames } from "@/lib/constants";
+import { logger } from "@/lib/logger";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "noreply@impactos.futurestudio.bj";
@@ -825,16 +826,39 @@ export async function sendEmail({ to, subject, html, provider, attachments, from
       ? sendViaGmail({ to, subject, html, attachments, fromName })
       : sendViaResend({ to, subject, html, fromName }); // Resend transport has no attachment support
 
+  // EXTERNAL BOUNDARY. The recipient address is deliberately NOT logged (it is
+  // personal data and the caller already knows who they emailed); the event,
+  // the provider attempted and the duration are what an outage is diagnosed
+  // with. A `requestId` is attached automatically when a request is in flight.
+  const started = Date.now();
+
   const primary = await sendWith(chosen);
-  if (primary.success) return primary;
+  if (primary.success) {
+    logger.info("email_sent", {
+      provider: primary.provider,
+      durationMs: Date.now() - started,
+    });
+    return primary;
+  }
 
   // One safe hand-off in the opposite direction so the recipient is still
   // reached when the primary transport fails or has no credentials.
   const secondary = await sendWith(fallback);
   if (secondary.success) {
+    logger.warn("email_sent_via_fallback", {
+      primary: chosen,
+      provider: secondary.provider,
+      durationMs: Date.now() - started,
+    });
     return { ...secondary, provider: secondary.provider, fallback_used: true };
   }
 
+  logger.error("email_send_failed", {
+    provider: chosen,
+    fallback,
+    durationMs: Date.now() - started,
+    error: primary.error || secondary.error || "Email send failed",
+  });
   return {
     success: false,
     provider: chosen,

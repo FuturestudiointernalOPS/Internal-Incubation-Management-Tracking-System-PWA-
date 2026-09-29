@@ -18,6 +18,8 @@ import {
   recordContactLoginActivityForLogin,
 } from "@/models/authFlows";
 import { auditLoginAttempt } from "@/lib/loginAudit";
+import { logger } from "@/lib/logger";
+import { withRequestContext } from "@/lib/request-context";
 
 // AUTH-4 — one generic message for every credential failure, so a caller cannot
 // tell "no such account" from "wrong password". The unknown-account path also
@@ -28,7 +30,7 @@ const INVALID_CREDENTIALS = "Invalid credentials or unauthorized access.";
 const TIMING_EQUALIZER_HASH =
   "$2b$10$fn1mJNjkFvAK/0ZRjg3mI.ESbkl87xtv22wPOzYPxjK6yAg0gcv3.";
 
-export async function POST(req) {
+export const POST = withRequestContext(async function POST(req) {
   try {
     await initDb();
 
@@ -38,7 +40,10 @@ export async function POST(req) {
       limit: 20,
       windowMs: 15 * 60 * 1000,
     });
-    if (ipLimited) return ipLimited;
+    if (ipLimited) {
+      logger.warn("auth_login_rate_limited", { scope: "ip" });
+      return ipLimited;
+    }
 
     const { email, password } = await req.json();
 
@@ -59,6 +64,7 @@ export async function POST(req) {
       windowMs: 15 * 60 * 1000,
     });
     if (accountLimited) {
+      logger.warn("auth_login_rate_limited", { scope: "account" });
       await auditLoginAttempt(req, {
         identifier: cleanEmail,
         action: "login_failed",
@@ -112,6 +118,10 @@ export async function POST(req) {
       // Pay the same bcrypt cost as the wrong-password path below, so account
       // existence is not revealed by response time (AUTH-4).
       await verifyPassword(cleanPassword, TIMING_EQUALIZER_HASH);
+      logger.warn("auth_login_failed", {
+        reason: "invalid_credentials",
+        accountKnown: false,
+      });
       await auditLoginAttempt(req, {
         identifier: cleanEmail,
         action: "login_failed",
@@ -140,6 +150,11 @@ export async function POST(req) {
       }
 
       if (!isMatch) {
+        logger.warn("auth_login_failed", {
+          reason: "invalid_credentials",
+          accountKnown: true,
+          userId: user.cid || user.id,
+        });
         await auditLoginAttempt(req, {
           user,
           identifier: cleanEmail,
@@ -157,6 +172,10 @@ export async function POST(req) {
     // --- STATUS VERIFICATION GATE ---
     if (!isTeamLogin && !isFamilyLogin) {
       if (user.status === "inactive") {
+        logger.warn("auth_login_failed", {
+          reason: "account_inactive",
+          userId: user.cid || user.id,
+        });
         await auditLoginAttempt(req, {
           user,
           identifier: cleanEmail,
@@ -173,6 +192,10 @@ export async function POST(req) {
         );
       }
       if (user.status === "pending") {
+        logger.warn("auth_login_failed", {
+          reason: "account_pending",
+          userId: user.cid || user.id,
+        });
         await auditLoginAttempt(req, {
           user,
           identifier: cleanEmail,
@@ -190,6 +213,10 @@ export async function POST(req) {
         );
       }
       if (user.status === "archived" || user.archived_at != null) {
+        logger.warn("auth_login_failed", {
+          reason: "account_archived",
+          userId: user.cid || user.id,
+        });
         await auditLoginAttempt(req, {
           user,
           identifier: cleanEmail,
@@ -209,6 +236,10 @@ export async function POST(req) {
       // etc.) must be rejected HERE so a session is never created that the
       // very next request would invalidate (login loop).
       if (!["active", "approved"].includes(user.status)) {
+        logger.warn("auth_login_failed", {
+          reason: "account_not_active",
+          userId: user.cid || user.id,
+        });
         await auditLoginAttempt(req, {
           user,
           identifier: cleanEmail,
@@ -322,6 +353,11 @@ export async function POST(req) {
         finalRole,
       );
       // Record the success only once a session actually started.
+      logger.info("auth_login_success", {
+        userId: responseUser.cid || responseUser.id,
+        role: finalRole,
+        kind: isFamilyLogin ? "family" : isTeamLogin ? "team" : "user",
+      });
       await auditLoginAttempt(req, {
         user: responseUser,
         identifier: cleanEmail,
@@ -341,7 +377,10 @@ export async function POST(req) {
         req.headers.get("host"),
       );
     } catch (sessionError) {
-      console.error("Session creation failed:", sessionError.message);
+      logger.error("auth_session_create_failed", {
+        userId: responseUser.cid || responseUser.id,
+        error: sessionError.message,
+      });
       // NEVER return success without a session cookie — that is what turns a
       // DB/schema failure into an endless login->redirect loop.
       return NextResponse.json(
@@ -354,10 +393,10 @@ export async function POST(req) {
       );
     }
   } catch (error) {
-    console.error("Auth V1 Error:", error);
+    logger.error("auth_login_error", { error: error.message });
     return NextResponse.json(
       { success: false, error: "Authentication system failure." },
       { status: 500 },
     );
   }
-}
+});
