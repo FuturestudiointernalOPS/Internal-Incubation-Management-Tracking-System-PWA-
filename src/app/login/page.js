@@ -7,6 +7,7 @@ import Image from "next/image";
 import { useI18n, SUPPORTED_LANGUAGES } from "@/lib/i18n";
 import { roleHomeHref } from "@/lib/platform/roles";
 import { safeNextPath } from "@/lib/safeNextPath";
+import { clearResponseCache } from "@/lib/hooks/useApi";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -34,6 +35,8 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (data.success) {
+        // A brand-new session must not read the previous one's cached answers.
+        clearResponseCache();
         localStorage.setItem("user", JSON.stringify(data.user));
         setSuccess(true);
         setTimeout(async () => {
@@ -105,6 +108,7 @@ export default function LoginPage() {
             alt="Future Studio"
             width={1018}
             height={1024}
+            priority
             className="h-20 w-auto object-contain animate-in fade-in zoom-in duration-700 mb-2"
           />
           <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em] mt-1">
@@ -115,8 +119,8 @@ export default function LoginPage() {
         <div className="card shadow-2xl border-[var(--border-primary)]">
           <form onSubmit={handleLogin} className="space-y-6">
             {errorMsg && (
-              <div className="p-3 rounded-md bg-rose-500/10 border border-rose-500/20 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-500" />
+              <div role="alert" className="p-3 rounded-md bg-rose-500/10 border border-rose-500/20 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-500" aria-hidden="true" />
                 <span className="text-[11px] font-bold text-rose-500 uppercase">
                   {errorMsg}
                 </span>
@@ -124,10 +128,11 @@ export default function LoginPage() {
             )}
 
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider ml-1">
+              <label htmlFor="login-email" className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider ml-1">
                 {t("auth.login.email")}
               </label>
               <input
+                id="login-email"
                 type="email"
                 required
                 value={email}
@@ -138,11 +143,12 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2 relative">
-              <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider ml-1">
+              <label htmlFor="login-password" className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider ml-1">
                 {t("auth.login.password")}
               </label>
               <div className="relative">
                 <input
+                  id="login-password"
                   type={showPassword ? "text" : "password"}
                   required
                   value={password}
@@ -153,6 +159,8 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? t("auth.login.hidePassword") : t("auth.login.showPassword")}
+                  aria-pressed={showPassword}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]"
                 >
                   {showPassword ? (
@@ -173,7 +181,7 @@ export default function LoginPage() {
                   className="w-3.5 h-3.5 accent-[var(--brand-orange)] cursor-pointer"
                 />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                  Remember Me
+                  {t("auth.login.rememberMe")}
                 </span>
               </label>
               <button
@@ -181,7 +189,7 @@ export default function LoginPage() {
                 onClick={() => router.push("/forgot-password")}
                 className="text-[10px] font-bold text-[var(--brand-orange)] hover:underline uppercase tracking-wide"
               >
-                Forgot Password?
+                {t("auth.login.forgotPassword")}
               </button>
             </div>
 

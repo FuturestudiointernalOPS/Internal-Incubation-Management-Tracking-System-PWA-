@@ -78,6 +78,16 @@ export function cacheSet(url, data) {
   responseCache.set(url, { data, ts: Date.now() });
 }
 
+/**
+ * Drops every cached response. The cache lives at module scope, so it outlives a
+ * sign-out — which only navigates client-side — and a no-identity URL such as
+ * `/api/me/permissions` would then be served to the NEXT account for up to the
+ * TTL. Called on sign-out and right after a successful sign-in.
+ */
+export function clearResponseCache() {
+  responseCache.clear();
+}
+
 // ─── In-flight GET sharing ──────────────────────────────────────────────────
 // The cache above only helps AFTER a response arrives. Several components (the
 // shell's badge chain and the page body) ask for the same endpoint in the same
