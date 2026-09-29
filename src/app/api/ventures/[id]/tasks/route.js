@@ -112,7 +112,7 @@ export const POST = createHandler(async (req, { params }) => {
 
   const result = await createTask({
     ventureId: dbId, milestoneId: body.milestone_id, title: body.title, description: body.description,
-    priority: body.priority, dueDate: body.due_date, estimatedHours: body.estimated_hours,
+    priority: body.priority, startDate: body.start_date, dueDate: body.due_date, estimatedHours: body.estimated_hours,
     assignedCid: body.assigned_cid, assignedName: body.assigned_name,
     reporterCid: req.session?.cid, reporterName: req.session?.name, labels: body.labels,
     parentTaskId: body.parent_task_id,

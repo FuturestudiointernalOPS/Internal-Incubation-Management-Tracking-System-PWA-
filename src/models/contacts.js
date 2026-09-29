@@ -121,6 +121,26 @@ export async function findContactCidByPhone(phone, excludeCid, excludeEmail) {
   });
 }
 
+/**
+ * The person an email address belongs to, or nothing.
+ *
+ * Email is UNIQUE on contacts, so this answers with one row or none — never a
+ * choice between two people. That is the whole reason it exists: a NAME is
+ * ambiguous (two people can share one) and an email is not, so the identity
+ * question "is this human already here?" is answered on the email.
+ */
+export async function findContactByEmail(email) {
+  const clean = String(email || "").trim().toLowerCase();
+  if (!clean) return { rows: [] };
+  return db.execute({
+    sql: `SELECT cid, name, email, phone, role, status
+            FROM contacts
+           WHERE LOWER(email) = ? AND deleted_at IS NULL
+           LIMIT 1`,
+    args: [clean],
+  });
+}
+
 /** Flag a phone-based duplicate pair (idempotent regardless of pair order). */
 export async function createDuplicatePhoneFlag(cidA, cidB) {
   return db.execute({

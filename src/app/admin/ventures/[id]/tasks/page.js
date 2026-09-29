@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import { useDialogs } from "@/components/ui/DialogProvider";
+import VenturePersonField from "@/components/ventures/VenturePersonField";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here
@@ -676,8 +677,16 @@ export default function VentureTasksPage() {
               </div>
               <div>
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Assignee</label>
-                <input value={tForm.assigned_name} onChange={(event) => setTForm((previous) => ({ ...previous, assigned_name: event.target.value, assigned_cid: event.target.value }))} placeholder="Team member name"
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                {/* ONE field for a platform member OR an external name. The box that
+                    was here wrote whatever you typed — a NAME — straight into
+                    `assigned_cid`, the slot reserved for a person's platform
+                    identity, so nothing downstream could ever match it. */}
+                <VenturePersonField
+                  value={{ cid: tForm.assigned_cid, name: tForm.assigned_name }}
+                  onChange={({ cid, name }) =>
+                    setTForm((previous) => ({ ...previous, assigned_cid: cid || "", assigned_name: name || "" }))
+                  }
+                />
               </div>
               <div>
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.tasks.blockedBy")}</label>

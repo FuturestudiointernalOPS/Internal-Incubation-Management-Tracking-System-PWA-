@@ -136,19 +136,27 @@ export async function saveJourneyAsTemplate(db, { dbId, name, description = null
 }
 
 /**
- * Apply a journey template to a Venture: fresh journey stages (first one
- * active, the rest upcoming) with fresh milestone + task rows. Fails if the
- * Venture already has journey stages. Returns { error } or
+ * Apply a journey template to a Venture: fresh journey stages with fresh
+ * milestone + task rows. Returns { error } or
  * { success, stages, milestones, tasks }.
+ *
+ * A Venture may already be under way, so applying ADDS a chapter rather than
+ * demanding a clean slate. Stage order is UNIQUE per Venture, so the new stages
+ * CONTINUE the numbering; the old refusal forced a manager to tear a running
+ * journey down to reuse a framework, which is never what they meant — the
+ * framework is the point, and so is the work already there.
+ *
+ * On a Venture with no journey yet the first stage opens active and the rest
+ * wait upcoming; on one already under way every new stage arrives upcoming, so
+ * nothing opens itself on top of work in flight.
  */
 export async function applyJourneyTemplate(db, { dbId, templateId, actorCid = null }) {
   const existing = await db.execute({
-    sql: "SELECT COUNT(*) AS n FROM venture_journey_stages WHERE venture_id = ?",
+    sql: "SELECT COALESCE(MAX(stage_order), 0) AS max_order FROM venture_journey_stages WHERE venture_id = ?",
     args: [dbId],
   });
-  if (Number(rowsOf(existing)[0]?.n || 0) > 0) {
-    return { error: "This Venture already has journey stages. Remove them first if you want to generate the journey from a template." };
-  }
+  const startingOrder = Number(rowsOf(existing)[0]?.max_order || 0);
+  const ventureAlreadyHasAJourney = startingOrder > 0;
 
   const templateMetaResult = await db.execute({
     sql: "SELECT id, name FROM venture_journey_templates WHERE id = ?",
@@ -158,6 +166,7 @@ export async function applyJourneyTemplate(db, { dbId, templateId, actorCid = nu
   if (!template) return { error: "Template not found." };
 
   let stageCount = 0;
+  let stageOrder = startingOrder;
   let milestoneCount = 0;
   let taskCount = 0;
 
@@ -173,12 +182,18 @@ export async function applyJourneyTemplate(db, { dbId, templateId, actorCid = nu
     for (let i = 0; i < templateStages.length; i++) {
       const templateStage = templateStages[i];
       stageCount += 1;
+      stageOrder += 1;
+      // Only a FIRST application opens its first journey. Adding to a Venture
+      // already under way brings the new stages in UPCOMING: a journey opens
+      // when its own start date arrives (or a manager activates it), never
+      // because it happened to be first in a template.
+      const stageStatus = !ventureAlreadyHasAJourney && i === 0 ? "active" : "upcoming";
       const stageInsertResult = await query(
         `INSERT INTO venture_journey_stages
            (venture_id, name, description, objective, stage_order, status,
             source_template_type, source_template_id)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-        [dbId, templateStage.name, templateStage.description || null, templateStage.objective || null, stageCount, i === 0 ? "active" : "upcoming", "journey", String(templateId)],
+        [dbId, templateStage.name, templateStage.description || null, templateStage.objective || null, stageOrder, stageStatus, "journey", String(templateId)],
       );
       const newStageId = rowsOf(stageInsertResult)[0]?.id;
 
@@ -191,10 +206,12 @@ export async function applyJourneyTemplate(db, { dbId, templateId, actorCid = nu
       for (const templateMilestone of templateMilestones) {
         milestoneCount += 1;
         const newMilestoneId = newUuid();
-        // Availability follows the Journey: the active stage's milestones are
-        // offered; an upcoming stage holds all of its own. Position releases
-        // nothing — only an explicit dependency ever holds work back.
-        const msStatus = i === 0 ? "not_started" : "upcoming";
+        // Availability is set by the JOURNEY, never by a milestone's position:
+        // a stage that has not opened offers nothing, and an active one offers
+        // all of its milestones so the work can start. (Position-based release
+        // went with the sequential chain; this template path had not caught up,
+        // so a held stage was handing out its own first milestone.)
+        const msStatus = stageStatus === "active" ? "not_started" : "upcoming";
         await query(
           `INSERT INTO venture_milestones
              (id, venture_id, title, description, objective, status, progress,

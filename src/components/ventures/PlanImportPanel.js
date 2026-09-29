@@ -235,9 +235,53 @@ function PlanReview({ ventureId, draft, onSaved }) {
   const [asking, setAsking] = useState(false);
   const [suggestion, setSuggestion] = useState(null);
   const [applying, setApplying] = useState(false);
+  // Which external name the reviewer is resolving, and the address they typed.
+  //
+  // ONE field. The reviewer previously had to CHOOSE between "select a member"
+  // and "add a person" before they had any way of knowing which applied — a
+  // question the interface should answer, not ask. The email answers it: an
+  // address is unique, a name is not, so the address decides.
+  const [resolving, setResolving] = useState(null); // { name, email }
+  const [lookup, setLookup] = useState({ email: "", state: "idle", contact: null });
+  const [inviting, setInviting] = useState(false);
   const searchTimer = useRef(null);
 
   useEffect(() => () => clearTimeout(searchTimer.current), []);
+
+  // The address being checked, and whether it is even a question worth asking.
+  const typedEmail = String(resolving?.email || "").trim();
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(typedEmail);
+
+  /**
+   * Ask the server whether the typed address is already a member.
+   *
+   * The ANSWER decides what the row offers — nothing here infers it. A typed
+   * address is never assumed to be new, and never assumed to exist.
+   *
+   * Nothing is written to state before the answer arrives: an in-flight check is
+   * DERIVED below (`lookup.email` does not match the typed address yet), which
+   * also means a stale answer for an address the reviewer has since changed is
+   * ignored rather than shown.
+   */
+  useEffect(() => {
+    if (!emailValid) return undefined;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/people?email=${encodeURIComponent(typedEmail)}`);
+        const payload = await response.json().catch(() => ({}));
+        if (cancelled) return;
+        setLookup({
+          email: typedEmail,
+          state: !payload.success ? "error" : payload.found ? "member" : "new",
+          contact: payload.contact || null,
+        });
+      } catch (_) {
+        if (!cancelled) setLookup({ email: typedEmail, state: "error", contact: null });
+      }
+    }, 350);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [typedEmail, emailValid]);
 
   /** Display-only counts for the confirmation text. The SERVER computes the
    *  real numbers on apply — this exists so the reviewer is told what they are
@@ -407,6 +451,98 @@ function PlanReview({ ventureId, draft, onSaved }) {
     }
   };
 
+  const removeMilestone = async (ji, mi) => {
+    const milestone = proposal.journeys?.[ji]?.milestones?.[mi];
+    if (!milestone) return;
+    // Removing a milestone removes its tasks — the count is stated BEFORE the
+    // confirmation, so the cost of the action is visible while it can still be
+    // refused.
+    const ok = await confirm({
+      message: t("venture.planImport.removeMilestoneConfirm", {
+        name: milestone.name,
+        n: (milestone.tasks || []).length,
+      }),
+      tone: "danger",
+    });
+    if (!ok) return;
+    setProposal((prev) => ({
+      ...prev,
+      journeys: prev.journeys.map((journey, index) =>
+        index !== ji
+          ? journey
+          : { ...journey, milestones: journey.milestones.filter((_, mIndex) => mIndex !== mi) },
+      ),
+    }));
+  };
+
+  /**
+   * Point every assignment standing on a name at a real ImpactOS person.
+   *
+   * The NAME IS KEPT — it is the record of what the tracker said, and clearing it
+   * would erase where the assignment came from. Only the identity is filled in.
+   * One decision covers every row carrying that name.
+   */
+  const applyContactToName = (name, contactId) => {
+    const key = String(name || "").trim().toLowerCase();
+    let touched = 0;
+    const journeys = (proposal.journeys || []).map((journey) => ({
+      ...journey,
+      milestones: (journey.milestones || []).map((milestone) => ({
+        ...milestone,
+        tasks: (milestone.tasks || []).map((task) => {
+          if (!task.owner_cid && String(task.owner_name || "").trim().toLowerCase() === key) {
+            touched += 1;
+            return { ...task, owner_cid: contactId };
+          }
+          return task;
+        }),
+      })),
+    }));
+    setProposal((prev) => ({ ...prev, journeys }));
+    return touched;
+  };
+
+  /** Link this name to a member the platform ALREADY has. No person is created,
+   *  and nothing but the identity in this working copy changes. */
+  const linkExisting = (entry, contact) => {
+    const touched = applyContactToName(entry.name, contact.cid);
+    setNotice(t("venture.planImport.assignedToMember", { name: contact.name || entry.name, n: touched }));
+    setResolving(null);
+  };
+
+  /** Add a real ImpactOS person and invite them — Name + Email, by email.
+   *  This is the ONLY path that creates an account; importing a name never did. */
+  const addAndInvite = async (name) => {
+    setInviting(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/people", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email: resolving?.email || "" }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!payload.success) {
+        setError(payload.error || t("venture.planImport.addPersonFailed"));
+        return;
+      }
+      const touched = applyContactToName(name, payload.cid);
+      setNotice(
+        payload.existing
+          ? t("venture.planImport.personAlreadyExists", { name })
+          : payload.invited
+            ? t("venture.planImport.personInvited", { name, n: touched })
+            : t("venture.planImport.personAddedNotInvited", { name }),
+      );
+      setResolving(null);
+    } catch (_) {
+      setError(t("venture.planImport.addPersonFailed"));
+    } finally {
+      setInviting(false);
+    }
+  };
+
   const save = async () => {
     setSaving(true);
     setError(null);
@@ -434,6 +570,24 @@ function PlanReview({ ventureId, draft, onSaved }) {
   const stats = draft.stats || {};
   const unplaced = proposal.unplaced || [];
   const alreadyCovered = proposal.already_covered || [];
+
+  // The names the plan is tracking with no platform identity — derived from the
+  // WORKING COPY, so resolving one updates this list immediately rather than
+  // waiting for a save.
+  const externalPeople = (() => {
+    const found = new Map();
+    for (const journey of proposal.journeys || []) {
+      for (const milestone of journey.milestones || []) {
+        for (const task of milestone.tasks || []) {
+          const name = String(task.owner_name || "").trim();
+          if (!name || task.owner_cid) continue;
+          const key = name.toLowerCase();
+          found.set(key, { name, count: (found.get(key)?.count || 0) + 1 });
+        }
+      }
+    }
+    return [...found.values()].sort((left, right) => left.name.localeCompare(right.name));
+  })();
 
   const inputClass =
     "w-full px-2 py-1 rounded-lg outline-none border bg-[var(--surface-1)] text-[11px] text-[var(--text-primary)]";
@@ -472,6 +626,15 @@ function PlanReview({ ventureId, draft, onSaved }) {
       </div>
 
       <p className="text-[10px] text-slate-400">{t("venture.planImport.reviewIntro")}</p>
+
+      {/* The analyst had to infer the task references, and references are what
+          dependencies point at — so this is said plainly, once. */}
+      {draft.proposal?.refs_derived && (
+        <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <HelpCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+          <span className="text-[11px] font-bold text-amber-300">{t("venture.planImport.refsDerived")}</span>
+        </div>
+      )}
 
       {error && (
         <div className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs font-bold text-rose-400">
@@ -572,15 +735,30 @@ function PlanReview({ ventureId, draft, onSaved }) {
               <input
                 type="date"
                 value={journey.target_date || ""}
-                onChange={(event) => patchJourney(ji, { target_date: event.target.value || null })}
+                onChange={(event) =>
+                  patchJourney(ji, { target_date: event.target.value || null, dates_derived: null })
+                }
                 className={inputClass}
               />
             </label>
+            {journey.dates_derived && (
+              <p className="text-[9px] text-sky-400 sm:col-span-2">{t("venture.planImport.suggestedDates")}</p>
+            )}
           </div>
 
           <div className="space-y-2 pl-4">
             {(journey.milestones || []).map((milestone, mi) => (
               <div key={`${milestone.name}-${mi}`} className="rounded-lg border border-divider/60 p-2.5 space-y-2">
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => removeMilestone(ji, mi)}
+                    className="text-[9px] font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/10 px-2 py-1 rounded-lg flex items-center gap-1.5"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    {t("venture.planImport.removeMilestone")}
+                  </button>
+                </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <label className="space-y-1">
                     <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
@@ -601,7 +779,9 @@ function PlanReview({ ventureId, draft, onSaved }) {
                     <input
                       type="date"
                       value={milestone.target_date || ""}
-                      onChange={(event) => patchMilestone(ji, mi, { target_date: event.target.value || null })}
+                      onChange={(event) =>
+                        patchMilestone(ji, mi, { target_date: event.target.value || null, dates_derived: null })
+                      }
                       className={inputClass}
                     />
                   </label>
@@ -669,6 +849,28 @@ function PlanReview({ ventureId, draft, onSaved }) {
                           </span>
                         )}
                       </div>
+                      {/* What the tracker carried beyond the task itself. Shown
+                          because it is ABOUT to be folded into the task's labels
+                          and description — nothing is stored invisibly. */}
+                      {(task.support || task.phase || task.definition_of_done) && (
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] text-slate-500">
+                          {task.support && (
+                            <span>
+                              {t("venture.planImport.supportLabel")}: {task.support}
+                            </span>
+                          )}
+                          {task.phase && (
+                            <span>
+                              {t("venture.planImport.phaseLabel")}: {task.phase}
+                            </span>
+                          )}
+                          {task.definition_of_done && (
+                            <span className="truncate max-w-md">
+                              {t("venture.planImport.dodLabel")}: {task.definition_of_done}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       {(task.deliverables || []).length > 0 && (
                         <div className="space-y-1">
                           {(task.deliverables || []).map((deliverable, di) => (
@@ -698,20 +900,97 @@ function PlanReview({ ventureId, draft, onSaved }) {
         </div>
       ))}
 
-      {(draft.unmatched_owners || []).length > 0 && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
-          <p className="text-[9px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5 mb-1.5">
+      {/* §6 — EXTERNAL ASSIGNMENTS ARE NOT AN ERROR. The plan is complete without
+          these people ever becoming members; adding them is an option, not a
+          repair. Derived from the WORKING COPY, so resolving a name updates this
+          list on the spot. */}
+      {externalPeople.length > 0 && (
+        <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3">
+          <p className="text-[9px] font-black uppercase tracking-widest text-sky-400 flex items-center gap-1.5">
             <UserX className="w-3.5 h-3.5" />
-            {t("venture.planImport.unmatchedOwners", { n: (draft.unmatched_owners || []).length })}
+            {t("venture.planImport.externalDetected", { n: externalPeople.length })}
           </p>
-          <div className="flex flex-wrap gap-1.5 mb-1.5">
-            {(draft.unmatched_owners || []).map((name) => (
-              <span key={name} className="text-[10px] px-2 py-0.5 rounded bg-white/10 text-[var(--text-primary)]">
-                {name}
-              </span>
-            ))}
-          </div>
-          <p className="text-[10px] text-slate-400">{t("venture.planImport.unmatchedOwnersHint")}</p>
+          <p className="text-[10px] text-slate-400 mt-1">{t("venture.planImport.externalDetectedHint")}</p>
+
+          <ul className="mt-2 space-y-2">
+            {externalPeople.map((entry) => {
+              const isOpen = resolving?.name === entry.name;
+              // Derived, never stored: an address with no answer yet is simply
+              // "still checking", so there is no window in which a row shows a
+              // verdict it has not actually received.
+              const state = !isOpen || !emailValid ? "idle" : lookup.email === typedEmail ? lookup.state : "searching";
+              return (
+                <li key={entry.name} className="rounded-lg border border-[var(--border-primary)] p-2 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-bold text-[var(--text-primary)]">{entry.name}</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-white/5 text-slate-400">
+                      {t("venture.planImport.externalBadge")}
+                    </span>
+                    <span className="text-[9px] text-slate-500">
+                      {t("venture.planImport.externalAssignments", { n: entry.count })}
+                    </span>
+                  </div>
+
+                  {/* ONE field. The address decides which of the two things this
+                      row offers — the reviewer does not have to know first. */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="email"
+                      value={isOpen ? resolving.email || "" : ""}
+                      onChange={(event) => setResolving({ name: entry.name, email: event.target.value })}
+                      placeholder={t("venture.planImport.emailLookupPlaceholder")}
+                      className={`${inputClass} flex-1 min-w-[200px]`}
+                    />
+
+                    {state === "searching" && (
+                      <span className="text-[9px] text-slate-400 flex items-center gap-1.5">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        {t("venture.planImport.checkingEmail")}
+                      </span>
+                    )}
+                    {state === "member" && (
+                      <span className="text-[9px] font-bold text-emerald-400">
+                        {t("venture.planImport.emailIsMember", { name: lookup.contact?.name || "" })}
+                      </span>
+                    )}
+                    {state === "new" && (
+                      <span className="text-[9px] font-bold text-amber-400">
+                        {t("venture.planImport.emailNotMember")}
+                      </span>
+                    )}
+                    {state === "error" && (
+                      <span className="text-[9px] font-bold text-rose-400">
+                        {t("venture.planImport.lookupFailed")}
+                      </span>
+                    )}
+
+                    {state === "member" && (
+                      <button
+                        type="button"
+                        onClick={() => linkExisting(entry, lookup.contact)}
+                        className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-[var(--brand-orange)] text-black"
+                      >
+                        {t("venture.planImport.linkMember")}
+                      </button>
+                    )}
+                    {state === "new" && (
+                      <button
+                        type="button"
+                        disabled={inviting}
+                        onClick={() => addAndInvite(entry.name)}
+                        className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        {inviting && <Loader2 className="w-3 h-3 animate-spin" />}
+                        {t("venture.planImport.invitePerson")}
+                      </button>
+                    )}
+                  </div>
+
+                  {isOpen && <p className="text-[10px] text-slate-400">{t("venture.planImport.emailDecidesHint")}</p>}
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 

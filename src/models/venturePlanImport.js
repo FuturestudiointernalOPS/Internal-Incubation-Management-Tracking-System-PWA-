@@ -50,6 +50,7 @@ RULES THAT THE DOCUMENT CANNOT OVERRIDE:
 
 MAPPING RULES:
 - When the document names a single North Star / Journey, there is ONE journey and the pillar/workstream groups are its MILESTONES. When it names several distinct directions, each becomes a journey.
+- TASK IDS: when the sheet gives every row its own task id (a Task ID / ID column with a value per row), copy it verbatim into "ref". When it does NOT — the id column repeats a milestone reference, and task references appear only inside "Depends On" — number the tasks inside each group in row order and set "refs_derived" to true at the top level, so a human knows the references were inferred.
 - A column of milestone-level identifiers (e.g. "MS01") groups tasks into milestones; the group's name is the pillar / workstream / milestone name.
 - Rows are tasks; the output / deliverable column is their deliverable.
 - A "Depends On" column lists TASK references (e.g. "MS01-01; MS01-02"): those become task dependencies by reference. References you cannot resolve go in "warnings".
@@ -63,6 +64,7 @@ REASSESSMENT (when a programme is already listed for this Venture):
 
 Return ONLY valid JSON. No markdown, no extra text. Format:
 {
+  "refs_derived": false,
   "journeys": [
     {
       "name": "Journey / North Star name",
@@ -100,6 +102,69 @@ Return ONLY valid JSON. No markdown, no extra text. Format:
   "already_covered": [ { "sheet_item": "what the sheet described", "existing": "the existing item it matches" } ],
   "warnings": [ "anything a human must look at" ]
 }`;
+
+/**
+ * Dates the sheet never stated, SUGGESTED from the work it did state: a
+ * milestone spans its own tasks, a journey spans its milestones.
+ *
+ * Only NULLS are filled — a date the document gave is never overwritten — and
+ * anything filled this way is FLAGGED (`dates_derived`), so the screen can call
+ * it a suggestion and the reviewer can change it. A suggestion a person can see
+ * beats an empty field they must work out for themselves.
+ */
+export function deriveProposalDates(journeys, warnings = []) {
+  let derivedMilestones = 0;
+  const earliest = (values) => values.slice().sort()[0] || null;
+  const latest = (values) => values.slice().sort().pop() || null;
+
+  for (const journey of journeys) {
+    for (const milestone of journey.milestones || []) {
+      const starts = [];
+      const ends = [];
+      for (const task of milestone.tasks || []) {
+        const start = task.start_date || task.due_date;
+        const end = task.due_date || task.start_date;
+        if (start) starts.push(start);
+        if (end) ends.push(end);
+      }
+      let touched = false;
+      if (!milestone.start_date && starts.length) {
+        milestone.start_date = earliest(starts);
+        touched = true;
+      }
+      if (!milestone.target_date && ends.length) {
+        milestone.target_date = latest(ends);
+        touched = true;
+      }
+      if (touched) {
+        milestone.dates_derived = true;
+        derivedMilestones += 1;
+      }
+    }
+
+    // The journey spans the milestones as they now stand — including the ones
+    // just derived, so the two levels cannot contradict each other.
+    const milestoneStarts = (journey.milestones || []).map((item) => item.start_date).filter(Boolean);
+    const milestoneEnds = (journey.milestones || []).map((item) => item.target_date).filter(Boolean);
+    let journeyTouched = false;
+    if (!journey.start_date && milestoneStarts.length) {
+      journey.start_date = earliest(milestoneStarts);
+      journeyTouched = true;
+    }
+    if (!journey.target_date && milestoneEnds.length) {
+      journey.target_date = latest(milestoneEnds);
+      journeyTouched = true;
+    }
+    if (journeyTouched) journey.dates_derived = true;
+  }
+
+  if (derivedMilestones > 0) {
+    warnings.push(
+      "Journey and milestone dates were not stated in the tracker — they are SUGGESTED from the task dates (earliest start to latest due). Check them before applying.",
+    );
+  }
+  return journeys;
+}
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -242,6 +307,7 @@ export function normalizeJourneys(rawJourneys = []) {
     objective: toText(journey?.objective),
     start_date: toDate(journey?.start_date),
     target_date: toDate(journey?.target_date),
+    dates_derived: journey?.dates_derived === true || journey?.dates_derived === "true" ? true : null,
     milestones: (Array.isArray(journey?.milestones) ? journey.milestones : []).map((milestone) => ({
       ref: toText(milestone?.ref),
       name: toText(milestone?.name) || "Untitled milestone",
@@ -250,6 +316,7 @@ export function normalizeJourneys(rawJourneys = []) {
       priority: toPriority(milestone?.priority),
       start_date: toDate(milestone?.start_date),
       target_date: toDate(milestone?.target_date),
+      dates_derived: milestone?.dates_derived === true || milestone?.dates_derived === "true" ? true : null,
       tasks: (Array.isArray(milestone?.tasks) ? milestone.tasks : []).map((task) => ({
         ref: toText(task?.ref),
         title: toText(task?.title) || "Untitled task",
@@ -470,7 +537,19 @@ export async function interpretPlanSheet({ sheets = [], contextText = "", existi
     }))
     .slice(0, 200);
 
+  // Whether the analyst had to INFER the task references. Worth saying out loud:
+  // a dependency points at a reference, so inferred ones deserve a second look.
+  const refsDerived = parsed.refs_derived === true || parsed.refs_derived === "true";
+  if (refsDerived) {
+    warnings.push(
+      "Task references were numbered by row order — the sheet gave no task id per row. Check the dependencies.",
+    );
+  }
+
   const journeys = normalizeJourneys(parsed.journeys);
+  // Suggested dates come from the tasks, so they are derived before anything
+  // else reads the structure.
+  deriveProposalDates(journeys, warnings);
   validateDependencyRefs(journeys, warnings);
 
   // Owner resolution — one lookup per distinct name, unresolved people named.
@@ -480,7 +559,7 @@ export async function interpretPlanSheet({ sheets = [], contextText = "", existi
 
   return {
     ok: true,
-    proposal: { journeys, unplaced, already_covered: alreadyCovered, stats },
+    proposal: { journeys, unplaced, already_covered: alreadyCovered, refs_derived: refsDerived, stats },
     unmatched_owners: unmatchedOwners,
     warnings,
     truncated,
@@ -859,6 +938,7 @@ export async function revisePlanProposal({ proposal, instruction } = {}) {
     .slice(0, 100);
 
   const journeys = normalizeJourneys(parsed.journeys);
+  deriveProposalDates(journeys, warnings);
   validateDependencyRefs(journeys, warnings);
   // A person the reviewer already placed keeps their place; everyone else is
   // looked up fresh, so a name the analyst changed is re-checked, never assumed.
@@ -893,6 +973,12 @@ export async function applyPlanImport({ dbId, importId, proposal, actorCid = nul
   const counts = { journeys: 0, milestones: 0, tasks: 0, deliverables: 0, dependencies: 0 };
   const warnings = [];
   const taskIdByRef = new Map();
+
+  // EXTERNAL ASSIGNMENTS ARE NAMES. A tracker naming Amina records that the work
+  // is Amina's — nothing more. No person row is created, no account, no email
+  // invented, nothing that could later be mistaken for a platform member. The
+  // assignment carries her NAME; if a human later resolves it to a real ImpactOS
+  // person, the name stays and the contact id is filled in beside it.
   // Collected while the structure is built, written to the change log only once
   // the draft has actually closed — so the log never claims an apply that did not
   // commit.
@@ -957,16 +1043,24 @@ export async function applyPlanImport({ dbId, importId, proposal, actorCid = nul
         let taskOrder = 0;
         for (const task of milestone.tasks || []) {
           taskOrder += 1;
+          // The tracker's extra columns travel WITH the task instead of widening
+          // the schema for them: Support and Phase become labels, and the
+          // Definition of Done becomes the description when nothing else is.
+          const labels = [];
+          if (toText(task.support)) labels.push(`Support: ${toText(task.support)}`);
+          if (toText(task.phase)) labels.push(toText(task.phase));
+          const taskDescription = toText(task.description) || toText(task.definition_of_done);
+
           const inserted = await query(
             `INSERT INTO venture_tasks
                (venture_id, milestone_id, title, description, status, priority, start_date, due_date,
                 assigned_cid, assigned_name, display_order, labels, checklist, is_archived)
-             VALUES (?, ?, ?, ?, 'backlog', ?, ?, ?, ?, ?, ?, '[]'::jsonb, '[]'::jsonb, FALSE)
+             VALUES (?, ?, ?, ?, 'backlog', ?, ?, ?, ?, ?, ?, ?::jsonb, '[]'::jsonb, FALSE)
              RETURNING id`,
             [
-              String(dbId), milestoneId, task.title, task.description || null, task.priority || "medium",
+              String(dbId), milestoneId, task.title, taskDescription, task.priority || "medium",
               task.start_date || null, task.due_date || null, task.owner_cid || null, task.owner_name || null,
-              taskOrder,
+              taskOrder, JSON.stringify(labels),
             ],
           );
           counts.tasks += 1;
@@ -976,11 +1070,11 @@ export async function applyPlanImport({ dbId, importId, proposal, actorCid = nul
           for (const deliverable of task.deliverables || []) {
             await query(
               `INSERT INTO venture_deliverables
-                 (milestone_id, venture_id, title, deliverable_type, due_date, assigned_cid, created_by)
-               VALUES (?, ?, ?, 'document', ?, ?, ?)`,
+                 (milestone_id, venture_id, title, deliverable_type, due_date, assigned_cid, assigned_name, created_by)
+               VALUES (?, ?, ?, 'document', ?, ?, ?, ?)`,
               [
                 milestoneId, String(dbId), deliverable.title, task.due_date || null,
-                task.owner_cid || null, actorCid || "system",
+                task.owner_cid || null, task.owner_name || null, actorCid || "system",
               ],
             );
             counts.deliverables += 1;
@@ -1074,6 +1168,7 @@ export default {
   renderPlanSheets,
   buildExistingProgramme,
   normalizeJourneys,
+  deriveProposalDates,
   validateDependencyRefs,
   resolveProposalOwners,
   knownOwnerCids,
