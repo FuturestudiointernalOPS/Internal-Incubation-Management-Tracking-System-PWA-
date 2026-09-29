@@ -39,6 +39,7 @@ import {
 import ScopedNotes from "@/components/ventures/ScopedNotes";
 import PlanImportPanel from "@/components/ventures/PlanImportPanel";
 import VentureChangeLogPanel from "@/components/ventures/VentureChangeLogPanel";
+import VenturePersonField from "@/components/ventures/VenturePersonField";
 import AppModal from "@/components/ui/AppModal";
 import AppMenu from "@/components/ui/AppMenu";
 import { useDialogs } from "@/components/ui/DialogProvider";
@@ -198,7 +199,7 @@ export default function JourneyManagerPanel({ ventureId }) {
   // structure controls are shown only when the server says the viewer is the
   // Lead Manager or a Super Admin (milestone_authority on the journey read).
   const [milestoneAddFor, setMilestoneAddFor] = useState(null);
-  const [milestoneForm, setMilestoneForm] = useState({ title: "", description: "", objective: "", target_date: "" });
+  const [milestoneForm, setMilestoneForm] = useState({ title: "", description: "", objective: "", target_date: "", owner_cid: "", owner_name: "" });
   // Deliverables drafted while creating the milestone (created right after it).
   const [milestoneDeliverables, setMilestoneDeliverables] = useState([]);
   const [milestoneSaving, setMilestoneSaving] = useState(false);
@@ -212,7 +213,7 @@ export default function JourneyManagerPanel({ ventureId }) {
   // Super Admin), submit evidence, approve / request changes.
   const [deliverableAddFor, setDeliverableAddFor] = useState(null);
   const [deliverableAction, setDeliverableAction] = useState(null); // { id, mode: edit|submit|review }
-  const [deliverableForm, setDeliverableForm] = useState({ title: "", description: "", deliverable_type: "document", due_date: "" });
+  const [deliverableForm, setDeliverableForm] = useState({ title: "", description: "", deliverable_type: "document", due_date: "", assigned_cid: "", assigned_name: "" });
   const [deliverableText, setDeliverableText] = useState("");
   const [deliverableFile, setDeliverableFile] = useState(null);
   const [deliverableSaving, setDeliverableSaving] = useState(false);
@@ -500,7 +501,7 @@ export default function JourneyManagerPanel({ ventureId }) {
     setConfirmState({ kind: "delete", ids: [String(stage.id)], n: 1, name: stage.name, step: 1 });
 
   // ── Milestones inside a journey ─────────────────────────────────────────
-  const emptyMilestoneForm = { title: "", description: "", objective: "", target_date: "" };
+  const emptyMilestoneForm = { title: "", description: "", objective: "", target_date: "", owner_cid: "", owner_name: "" };
 
   const toggleMilestoneOpen = (id) => {
     const next = String(milestoneOpenId) === String(id) ? null : String(id);
@@ -749,6 +750,9 @@ export default function JourneyManagerPanel({ ventureId }) {
       description: milestone.description || "",
       objective: milestone.objective || "",
       target_date: dateOnly(milestone.target_date),
+      // The owner in both halves: an identity if there is one, a name if not.
+      owner_cid: milestone.owner_cid || "",
+      owner_name: milestone.owner_name || "",
     });
   };
 
@@ -824,7 +828,7 @@ export default function JourneyManagerPanel({ ventureId }) {
   // ── Deliverables inside a milestone ──────────────────────────────────────
   // Evidence is a document or a URL — only these two types exist.
   const DELIVERABLE_TYPES = ["document", "link"];
-  const emptyDeliverableForm = { title: "", description: "", deliverable_type: "document", due_date: "" };
+  const emptyDeliverableForm = { title: "", description: "", deliverable_type: "document", due_date: "", assigned_cid: "", assigned_name: "" };
 
   const patchDeliverable = async (body) => {
     const res = await fetch(`/api/ventures/${ventureId}/deliverables`, {
@@ -924,6 +928,8 @@ export default function JourneyManagerPanel({ ventureId }) {
       description: deliverable.description || "",
       deliverable_type: deliverable.deliverable_type || "document",
       due_date: dateOnly(deliverable.due_date),
+      assigned_cid: deliverable.assigned_cid || "",
+      assigned_name: deliverable.assigned_name || "",
     });
   };
 
@@ -1867,6 +1873,16 @@ export default function JourneyManagerPanel({ ventureId }) {
                                           placeholder={t("venture.manager.stageObjectivePlaceholder")}
                                           className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                                         />
+                                        <div className="space-y-1">
+                                          <label className="text-[10px] font-bold text-[var(--text-secondary)]">{t("venture.manager.milestoneOwner")}</label>
+                                          <VenturePersonField
+                                            value={{ cid: milestoneEditForm.owner_cid, name: milestoneEditForm.owner_name }}
+                                            onChange={({ cid, name }) =>
+                                              setMilestoneEditForm({ ...milestoneEditForm, owner_cid: cid || "", owner_name: name || "" })
+                                            }
+                                            listId="milestone-owner-options"
+                                          />
+                                        </div>
                                         <input
                                           type="date"
                                           value={milestoneEditForm.target_date || ""}
@@ -2008,6 +2024,16 @@ export default function JourneyManagerPanel({ ventureId }) {
                                                       placeholder={t("venture.manager.deliverableDescPlaceholder")}
                                                       className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                                                     />
+                                                    <div className="space-y-1 mt-2">
+                                                      <label className="text-[10px] font-bold text-[var(--text-secondary)]">{t("venture.manager.deliverableAssignee")}</label>
+                                                      <VenturePersonField
+                                                        value={{ cid: deliverableForm.assigned_cid, name: deliverableForm.assigned_name }}
+                                                        onChange={({ cid, name }) =>
+                                                          setDeliverableForm({ ...deliverableForm, assigned_cid: cid || "", assigned_name: name || "" })
+                                                        }
+                                                        listId="deliverable-assignee-options"
+                                                      />
+                                                    </div>
                                                     <div className="flex flex-wrap items-center gap-2">
                                                       <input
                                                         type="date"
@@ -2129,6 +2155,16 @@ export default function JourneyManagerPanel({ ventureId }) {
                                                   placeholder={t("venture.manager.deliverableDescPlaceholder")}
                                                   className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                                                 />
+                                                <div className="space-y-1 mt-2">
+                                                  <label className="text-[10px] font-bold text-[var(--text-secondary)]">{t("venture.manager.deliverableAssignee")}</label>
+                                                  <VenturePersonField
+                                                    value={{ cid: deliverableForm.assigned_cid, name: deliverableForm.assigned_name }}
+                                                    onChange={({ cid, name }) =>
+                                                      setDeliverableForm({ ...deliverableForm, assigned_cid: cid || "", assigned_name: name || "" })
+                                                    }
+                                                    listId="deliverable-assignee-options"
+                                                  />
+                                                </div>
                                                 <div className="flex flex-wrap items-center gap-2">
                                                   <input
                                                     type="date"
@@ -2448,6 +2484,16 @@ export default function JourneyManagerPanel({ ventureId }) {
                                   placeholder={t("venture.manager.stageObjectivePlaceholder")}
                                   className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                                 />
+                                <div className="space-y-1">
+                                  <label className="text-[10px] font-bold text-[var(--text-secondary)]">{t("venture.manager.milestoneOwner")}</label>
+                                  <VenturePersonField
+                                    value={{ cid: milestoneForm.owner_cid, name: milestoneForm.owner_name }}
+                                    onChange={({ cid, name }) =>
+                                      setMilestoneForm({ ...milestoneForm, owner_cid: cid || "", owner_name: name || "" })
+                                    }
+                                    listId="milestone-owner-options"
+                                  />
+                                </div>
                                 <input
                                   type="date"
                                   value={milestoneForm.target_date}

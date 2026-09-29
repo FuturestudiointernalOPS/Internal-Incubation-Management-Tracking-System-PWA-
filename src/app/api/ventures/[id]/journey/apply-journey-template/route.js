@@ -9,10 +9,11 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/ventures/[id]/journey/apply-journey-template
- * { template_id } — generate this Venture's journey from a saved Journey
- * template (structure only). The first stage starts active; the rest are
- * locked until the manager activates them. Fails (409) if the Venture
- * already has journey stages.
+ * { template_id } — generate journey stages from a saved Journey template
+ * (structure only). On a Venture with no journey yet, the first stage starts
+ * active and the rest are locked; on a Venture already under way, the new
+ * stages CONTINUE the numbering and all arrive locked, so nothing opens itself
+ * on top of work in flight.
  *
  * Auth: same as journey authoring — `operating_plan` create capability.
  */
@@ -39,7 +40,7 @@ export async function POST(req, { params }) {
 
     const result = await applyJourneyTemplate(db, { dbId, templateId: String(body.template_id), actorCid: session.cid || null });
     if (result.error) {
-      return NextResponse.json({ success: false, error: result.error }, { status: result.error.startsWith("This Venture already") ? 409 : 400 });
+      return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     }
 
     try {

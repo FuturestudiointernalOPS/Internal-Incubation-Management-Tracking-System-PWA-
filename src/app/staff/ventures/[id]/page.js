@@ -9,6 +9,7 @@ import { notify } from "@/lib/notify";
 import { Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote } from "lucide-react";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
+import VentureTasksPanel from "@/components/ventures/VentureTasksPanel";
 import OperatingPlanPanel from "@/components/ventures/OperatingPlanPanel";
 import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
@@ -24,12 +25,17 @@ import DocumentTypeManager from "@/components/ventures/DocumentTypeManager";
 /**
  * The Venture Manager workspace, organized into tabs exactly like the Super
  * Admin venture hub (same tab bar pattern, same order of ideas): the manager
- * lands on Overview and switches to Journey / Sessions / Notes / Plan without
- * scrolling through one long page.
+ * lands on Overview and switches to Journey / Tasks / Sessions / Notes / Plan
+ * without scrolling through one long page.
+ *
+ * Tasks sits directly after Journey because it IS the next level down —
+ * Journey → Milestone → Task — and because assignment is a manager's act: the
+ * person running the Venture is the person who knows who should do the work.
  */
 const TABS = [
   { id: "overview", label: "venture.overview", icon: Rocket },
   { id: "journey", label: "venture.journey", icon: Route },
+  { id: "tasks", label: "venture.tasks", icon: ListTodo },
   { id: "sessions", label: "venture.sessions", icon: Calendar },
   { id: "notes", label: "venture.notes", icon: StickyNote },
   { id: "plan", label: "venture.operatingPlan", icon: FileText },
@@ -378,6 +384,8 @@ export default function StaffVentureWorkspace() {
       )}
 
       {activeTab === "journey" && <JourneyManagerPanel ventureId={id} />}
+
+      {activeTab === "tasks" && <VentureTasksPanel ventureId={id} />}
 
       {activeTab === "notes" && <VentureNotesPanel ventureId={id} />}
 

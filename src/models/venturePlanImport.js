@@ -973,6 +973,12 @@ export async function applyPlanImport({ dbId, importId, proposal, actorCid = nul
   const counts = { journeys: 0, milestones: 0, tasks: 0, deliverables: 0, dependencies: 0 };
   const warnings = [];
   const taskIdByRef = new Map();
+
+  // EXTERNAL ASSIGNMENTS ARE NAMES. A tracker naming Amina records that the work
+  // is Amina's — nothing more. No person row is created, no account, no email
+  // invented, nothing that could later be mistaken for a platform member. The
+  // assignment carries her NAME; if a human later resolves it to a real ImpactOS
+  // person, the name stays and the contact id is filled in beside it.
   // Collected while the structure is built, written to the change log only once
   // the draft has actually closed — so the log never claims an apply that did not
   // commit.
@@ -1064,11 +1070,11 @@ export async function applyPlanImport({ dbId, importId, proposal, actorCid = nul
           for (const deliverable of task.deliverables || []) {
             await query(
               `INSERT INTO venture_deliverables
-                 (milestone_id, venture_id, title, deliverable_type, due_date, assigned_cid, created_by)
-               VALUES (?, ?, ?, 'document', ?, ?, ?)`,
+                 (milestone_id, venture_id, title, deliverable_type, due_date, assigned_cid, assigned_name, created_by)
+               VALUES (?, ?, ?, 'document', ?, ?, ?, ?)`,
               [
                 milestoneId, String(dbId), deliverable.title, task.due_date || null,
-                task.owner_cid || null, actorCid || "system",
+                task.owner_cid || null, task.owner_name || null, actorCid || "system",
               ],
             );
             counts.deliverables += 1;

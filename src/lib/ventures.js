@@ -1,7 +1,7 @@
 import db from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { hashToken } from "@/lib/token-hashing";
-import { isUnknownColumnError } from "@/lib/ventureInput";
+import { isUnknownColumnError, dateOrNull, textOrNull, cidOrNull } from "@/lib/ventureInput";
 import { SESSION_MIN_LEAD_MINUTES } from "@/lib/ventureSessionRules";
 import { listVentureMembers, summarizeVentureMembers } from "@/models/ventureMembers";
 import { listActiveVentureDocumentTypesOrDefaults } from "@/models/ventureDocumentTypes";
@@ -2297,11 +2297,11 @@ export async function getDeliverable(deliverableId) {
   return res.rows[0] || null;
 }
 
-export async function createDeliverable({ milestoneId, ventureId, title, description, deliverableType, dueDate, assignedCid, createdBy }) {
+export async function createDeliverable({ milestoneId, ventureId, title, description, deliverableType, dueDate, assignedCid, assignedName, createdBy }) {
   const res = await db.execute({
-    sql: `INSERT INTO venture_deliverables (milestone_id, venture_id, title, description, deliverable_type, due_date, assigned_cid, created_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-    args: [milestoneId, ventureId, title.trim(), description?.trim() || null, deliverableType || "document", dueDate || null, assignedCid || null, createdBy || "system"],
+    sql: `INSERT INTO venture_deliverables (milestone_id, venture_id, title, description, deliverable_type, due_date, assigned_cid, assigned_name, created_by)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+    args: [milestoneId, ventureId, title.trim(), description?.trim() || null, deliverableType || "document", dueDate || null, assignedCid || null, assignedName ? String(assignedName).trim() : null, createdBy || "system"],
   });
   return { id: res.rows[0]?.id || res.lastInsertRowid };
 }
@@ -2394,27 +2394,38 @@ export async function getTask(taskId) {
   return task;
 }
 
-export async function createTask({ ventureId, milestoneId, title, description, priority, dueDate, estimatedHours, assignedCid, assignedName, reporterCid, reporterName, labels, displayOrder, parentTaskId }) {
+export async function createTask({ ventureId, milestoneId, title, description, priority, startDate, dueDate, estimatedHours, assignedCid, assignedName, reporterCid, reporterName, labels, displayOrder, parentTaskId }) {
   if (!displayOrder) {
     const orderResult = await db.execute({ sql: "SELECT COALESCE(MAX(display_order), 0) + 1 as n FROM venture_tasks WHERE venture_id = ?", args: [ventureId] });
     displayOrder = orderResult.rows[0]?.n || 1;
   }
   const res = await db.execute({
-    sql: `INSERT INTO venture_tasks (venture_id, milestone_id, title, description, priority, due_date, estimated_hours, assigned_cid, assigned_name, reporter_cid, reporter_name, labels, display_order, parent_task_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?) RETURNING id`,
-    args: [ventureId, milestoneId || null, title.trim(), description?.trim() || null, priority || "medium", dueDate || null, estimatedHours || null, assignedCid || null, assignedName || null, reporterCid || null, reporterName || null, JSON.stringify(labels || []), displayOrder, parentTaskId || null],
+    sql: `INSERT INTO venture_tasks (venture_id, milestone_id, title, description, priority, start_date, due_date, estimated_hours, assigned_cid, assigned_name, reporter_cid, reporter_name, labels, display_order, parent_task_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?) RETURNING id`,
+    args: [ventureId, milestoneId || null, title.trim(), description?.trim() || null, priority || "medium", dateOrNull(startDate) ?? null, dateOrNull(dueDate) ?? null, estimatedHours || null, cidOrNull(assignedCid), textOrNull(assignedName), reporterCid || null, reporterName || null, JSON.stringify(labels || []), displayOrder, parentTaskId || null],
   });
   return { id: res.rows[0]?.id || res.lastInsertRowid };
 }
 
+/**
+ * Task updates, with the two normalizations every form depends on:
+ *
+ *  - dates: a cleared date field arrives as "", which Postgres rejects outright.
+ *  - person halves: `assigned_cid` holds an IDENTITY and `assigned_name` a name.
+ *    An empty string in the identity slot is not an identity, so it becomes NULL,
+ *    and the write paths agree on what "cleared" means.
+ */
 export async function updateTask(taskId, updates) {
-  const allowed = ["title", "description", "status", "priority", "due_date", "estimated_hours", "actual_hours", "assigned_cid", "assigned_name", "labels", "checklist", "display_order"];
+  const allowed = ["title", "description", "status", "priority", "start_date", "due_date", "estimated_hours", "actual_hours", "assigned_cid", "assigned_name", "labels", "checklist", "display_order"];
+  const DATE_COLUMNS = ["start_date", "due_date"];
   const sets = []; const args = [];
   for (const column of allowed) {
-    if (updates[column] !== undefined) {
-      if (column === "labels" || column === "checklist") { sets.push(`${column} = ?::jsonb`); args.push(JSON.stringify(updates[column])); }
-      else { sets.push(`${column} = ?`); args.push(updates[column]); }
-    }
+    if (updates[column] === undefined) continue;
+    if (column === "labels" || column === "checklist") { sets.push(`${column} = ?::jsonb`); args.push(JSON.stringify(updates[column])); }
+    else if (DATE_COLUMNS.includes(column)) { sets.push(`${column} = ?`); args.push(dateOrNull(updates[column])); }
+    else if (column === "assigned_cid") { sets.push(`${column} = ?`); args.push(cidOrNull(updates[column])); }
+    else if (column === "assigned_name") { sets.push(`${column} = ?`); args.push(textOrNull(updates[column])); }
+    else { sets.push(`${column} = ?`); args.push(updates[column]); }
   }
   if (sets.length === 0) return { updated: false };
   sets.push("updated_at = NOW()");

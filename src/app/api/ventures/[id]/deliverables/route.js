@@ -100,6 +100,7 @@ export const POST = createHandler(async (req, { params }) => {
     deliverableType: body?.deliverable_type || "document",
     dueDate: body?.due_date || null,
     assignedCid: body?.assigned_cid || null,
+    assignedName: body?.assigned_name || null,
     createdBy: session?.cid || null,
   });
 
@@ -299,7 +300,7 @@ export const PATCH = createHandler(async (req, { params }) => {
   }
 
   const updates = {};
-  for (const field of ["title", "description", "deliverable_type", "due_date", "assigned_cid"]) {
+  for (const field of ["title", "description", "deliverable_type", "due_date", "assigned_cid", "assigned_name"]) {
     if (body?.[field] === undefined) continue;
     // A cleared date arrives as "" — Postgres rejects that in a date column.
     if (field === "due_date") updates[field] = dateOrNull(body[field]);

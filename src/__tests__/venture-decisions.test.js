@@ -174,6 +174,8 @@ describe("4B — the tracker's extra columns travel with the task", () => {
     await applyPlanImport({ dbId: "v-1", importId: "d-1", proposal });
 
     const taskInsert = state.queries.find((entry) => /INSERT INTO venture_tasks/.test(entry.sql));
+    // args: 0 venture, 1 milestone, 2 title, 3 description, 4 priority, 5 start, 6 due,
+    // 7 owner_cid, 8 owner_name, 9 display_order, 10 labels
     expect(JSON.parse(taskInsert.args[10])).toEqual(["Support: David", "Phase 1"]);
     expect(taskInsert.args[3]).toBe("10 interviews completed");
     // No schema grew for it.

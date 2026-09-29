@@ -88,8 +88,8 @@ export const POST = createHandler(async (req, { params }) => {
   const randomUUID = crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => { const random = Math.random()*16|0; const value = char==='x'?random:(random&0x3|0x8); return value.toString(16); });
 
   await db.execute({
-    sql: `INSERT INTO venture_milestones (id, venture_id, title, description, target_date, status, progress, created_by, journey_stage_id, objective, start_date, priority, owner_cid, display_order) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)`,
-    args: [randomUUID, ventureDbId, title, description || null, target_date || null, initialStatus, req.session?.cid || null, journey_stage_id || null, body.objective || null, body.start_date || null, body.priority || null, cidOrNull(body.owner_cid), body.display_order ?? null],
+    sql: `INSERT INTO venture_milestones (id, venture_id, title, description, target_date, status, progress, created_by, journey_stage_id, objective, start_date, priority, owner_cid, owner_name, display_order) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [randomUUID, ventureDbId, title, description || null, target_date || null, initialStatus, req.session?.cid || null, journey_stage_id || null, body.objective || null, body.start_date || null, body.priority || null, cidOrNull(body.owner_cid), body.owner_name ? String(body.owner_name).trim() : null, body.display_order ?? null],
   });
   // milestone_id is returned so callers can attach deliverables in the same
   // flow (the journey panel creates the milestone and its deliverables at once).
@@ -123,7 +123,7 @@ export const PATCH = createHandler(async (req, { params }) => {
   // WAS, not only what it became.
   const milestoneBeforeResult = await db.execute({
     sql: `SELECT title, description, objective, status, progress, target_date, start_date,
-                 priority, owner_cid, journey_stage_id, display_order
+                 priority, owner_cid, owner_name, journey_stage_id, display_order
             FROM venture_milestones WHERE id = ? AND venture_id = ?`,
     args: [milestoneId, ventureDbIdForScope],
   }).catch(() => ({ rows: [] }));
@@ -164,6 +164,12 @@ export const PATCH = createHandler(async (req, { params }) => {
       return NextResponse.json({ success: false, error: "Invalid milestone owner." }, { status: 400 });
     }
     updates.push("owner_cid = ?"); args.push(cidOrNull(body.owner_cid));
+  }
+  // The NAME half of the assignment: a milestone can be owned by someone with no
+  // account, and the name is kept even after the owner is resolved to a person.
+  if (body.owner_name !== undefined) {
+    updates.push("owner_name = ?");
+    args.push(body.owner_name ? String(body.owner_name).trim() : null);
   }
   if (body.display_order !== undefined) { updates.push("display_order = ?"); args.push(body.display_order); }
   if (body.journey_stage_id !== undefined) {
@@ -207,7 +213,7 @@ export const PATCH = createHandler(async (req, { params }) => {
   try {
     const AUDITED_MILESTONE_FIELDS = [
       "title", "description", "objective", "status", "progress",
-      "target_date", "start_date", "priority", "owner_cid", "journey_stage_id", "display_order",
+      "target_date", "start_date", "priority", "owner_cid", "owner_name", "journey_stage_id", "display_order",
     ];
     const milestoneChanges = diffFields(milestoneBefore, body, AUDITED_MILESTONE_FIELDS);
     if (milestoneChanges.length) {

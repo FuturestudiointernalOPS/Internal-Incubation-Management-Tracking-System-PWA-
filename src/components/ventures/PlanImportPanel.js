@@ -235,6 +235,10 @@ function PlanReview({ ventureId, draft, onSaved }) {
   const [asking, setAsking] = useState(false);
   const [suggestion, setSuggestion] = useState(null);
   const [applying, setApplying] = useState(false);
+  // Which external name the reviewer is resolving, and how.
+  const [resolving, setResolving] = useState(null); // { name, mode: "member" | "invite", email, phone }
+  const [memberQuery, setMemberQuery] = useState("");
+  const [inviting, setInviting] = useState(false);
   const searchTimer = useRef(null);
 
   useEffect(() => () => clearTimeout(searchTimer.current), []);
@@ -431,6 +435,66 @@ function PlanReview({ ventureId, draft, onSaved }) {
     }));
   };
 
+  /**
+   * Point every assignment standing on a name at a real ImpactOS person.
+   *
+   * The NAME IS KEPT — it is the record of what the tracker said, and clearing it
+   * would erase where the assignment came from. Only the identity is filled in.
+   * One decision covers every row carrying that name.
+   */
+  const applyContactToName = (name, contactId) => {
+    const key = String(name || "").trim().toLowerCase();
+    let touched = 0;
+    const journeys = (proposal.journeys || []).map((journey) => ({
+      ...journey,
+      milestones: (journey.milestones || []).map((milestone) => ({
+        ...milestone,
+        tasks: (milestone.tasks || []).map((task) => {
+          if (!task.owner_cid && String(task.owner_name || "").trim().toLowerCase() === key) {
+            touched += 1;
+            return { ...task, owner_cid: contactId };
+          }
+          return task;
+        }),
+      })),
+    }));
+    setProposal((prev) => ({ ...prev, journeys }));
+    return touched;
+  };
+
+  /** Add a real ImpactOS person and invite them — Name + Email + Phone, by email.
+   *  This is the ONLY path that creates an account; importing a name never did. */
+  const addAndInvite = async (name) => {
+    setInviting(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/people", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email: resolving?.email || "", phone: resolving?.phone || "" }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!payload.success) {
+        setError(payload.error || t("venture.planImport.addPersonFailed"));
+        return;
+      }
+      const touched = applyContactToName(name, payload.cid);
+      setNotice(
+        payload.existing
+          ? t("venture.planImport.personAlreadyExists", { name })
+          : payload.invited
+            ? t("venture.planImport.personInvited", { name, n: touched })
+            : t("venture.planImport.personAddedNotInvited", { name }),
+      );
+      setResolving(null);
+    } catch (_) {
+      setError(t("venture.planImport.addPersonFailed"));
+    } finally {
+      setInviting(false);
+    }
+  };
+
   const save = async () => {
     setSaving(true);
     setError(null);
@@ -458,6 +522,24 @@ function PlanReview({ ventureId, draft, onSaved }) {
   const stats = draft.stats || {};
   const unplaced = proposal.unplaced || [];
   const alreadyCovered = proposal.already_covered || [];
+
+  // The names the plan is tracking with no platform identity — derived from the
+  // WORKING COPY, so resolving one updates this list immediately rather than
+  // waiting for a save.
+  const externalPeople = (() => {
+    const found = new Map();
+    for (const journey of proposal.journeys || []) {
+      for (const milestone of journey.milestones || []) {
+        for (const task of milestone.tasks || []) {
+          const name = String(task.owner_name || "").trim();
+          if (!name || task.owner_cid) continue;
+          const key = name.toLowerCase();
+          found.set(key, { name, count: (found.get(key)?.count || 0) + 1 });
+        }
+      }
+    }
+    return [...found.values()].sort((left, right) => left.name.localeCompare(right.name));
+  })();
 
   const inputClass =
     "w-full px-2 py-1 rounded-lg outline-none border bg-[var(--surface-1)] text-[11px] text-[var(--text-primary)]";
@@ -770,20 +852,122 @@ function PlanReview({ ventureId, draft, onSaved }) {
         </div>
       ))}
 
-      {(draft.unmatched_owners || []).length > 0 && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
-          <p className="text-[9px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5 mb-1.5">
+      {/* §6 — EXTERNAL ASSIGNMENTS ARE NOT AN ERROR. The plan is complete without
+          these people ever becoming members; adding them is an option, not a
+          repair. Derived from the WORKING COPY, so resolving a name updates this
+          list on the spot. */}
+      {externalPeople.length > 0 && (
+        <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3">
+          <p className="text-[9px] font-black uppercase tracking-widest text-sky-400 flex items-center gap-1.5">
             <UserX className="w-3.5 h-3.5" />
-            {t("venture.planImport.unmatchedOwners", { n: (draft.unmatched_owners || []).length })}
+            {t("venture.planImport.externalDetected", { n: externalPeople.length })}
           </p>
-          <div className="flex flex-wrap gap-1.5 mb-1.5">
-            {(draft.unmatched_owners || []).map((name) => (
-              <span key={name} className="text-[10px] px-2 py-0.5 rounded bg-white/10 text-[var(--text-primary)]">
-                {name}
-              </span>
+          <p className="text-[10px] text-slate-400 mt-1">{t("venture.planImport.externalDetectedHint")}</p>
+
+          <ul className="mt-2 space-y-2">
+            {externalPeople.map((entry) => (
+              <li key={entry.name} className="rounded-lg border border-[var(--border-primary)] p-2 space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-bold text-[var(--text-primary)]">{entry.name}</span>
+                  <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-white/5 text-slate-400">
+                    {t("venture.planImport.externalBadge")}
+                  </span>
+                  <span className="text-[9px] text-slate-500">
+                    {t("venture.planImport.externalAssignments", { n: entry.count })}
+                  </span>
+                  <div className="ml-auto flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setResolving({ name: entry.name, mode: "member" })}
+                      className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-[var(--border-primary)] text-slate-400 hover:text-[var(--text-primary)]"
+                    >
+                      {t("venture.planImport.selectMember")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setResolving({ name: entry.name, mode: "invite", email: "", phone: "" })}
+                      className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-brand-orange/40 text-[var(--brand-orange)] hover:bg-brand-orange/10"
+                    >
+                      {t("venture.planImport.addAndInvite")}
+                    </button>
+                  </div>
+                </div>
+
+                {resolving?.name === entry.name && resolving.mode === "member" && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      list="plan-import-owner-options"
+                      value={memberQuery}
+                      onChange={(event) => {
+                        setMemberQuery(event.target.value);
+                        searchContacts(event.target.value);
+                      }}
+                      placeholder={t("venture.planImport.memberSearchPlaceholder")}
+                      className={`${inputClass} flex-1 min-w-[160px]`}
+                    />
+                    <button
+                      type="button"
+                      disabled={!matchContact(memberQuery)}
+                      onClick={() => {
+                        const contact = matchContact(memberQuery);
+                        if (!contact) return;
+                        const touched = applyContactToName(entry.name, contact.cid);
+                        setNotice(t("venture.planImport.assignedToMember", { name: contact.name || entry.name, n: touched }));
+                        setResolving(null);
+                        setMemberQuery("");
+                      }}
+                      className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-[var(--brand-orange)] text-black disabled:opacity-50"
+                    >
+                      {t("venture.planImport.assignTo")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setResolving(null); setMemberQuery(""); }}
+                      className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500"
+                    >
+                      {t("common.cancel")}
+                    </button>
+                  </div>
+                )}
+
+                {resolving?.name === entry.name && resolving.mode === "invite" && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] text-slate-400">{t("venture.planImport.addPersonHint")}</p>
+                    <input
+                      value={resolving.email || ""}
+                      onChange={(event) => setResolving({ ...resolving, email: event.target.value })}
+                      placeholder={t("venture.planImport.emailPlaceholder")}
+                      className={inputClass}
+                    />
+                    <input
+                      value={resolving.phone || ""}
+                      onChange={(event) => setResolving({ ...resolving, phone: event.target.value })}
+                      placeholder={t("venture.planImport.phonePlaceholder")}
+                      className={inputClass}
+                    />
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setResolving(null)}
+                        className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500"
+                      >
+                        {t("common.cancel")}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={inviting || !resolving.email?.trim() || !resolving.phone?.trim()}
+                        onClick={() => addAndInvite(entry.name)}
+                        className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        {inviting && <Loader2 className="w-3 h-3 animate-spin" />}
+                        {t("venture.planImport.addAndInvite")}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </li>
             ))}
-          </div>
-          <p className="text-[10px] text-slate-400">{t("venture.planImport.unmatchedOwnersHint")}</p>
+          </ul>
         </div>
       )}
 
