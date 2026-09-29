@@ -7,6 +7,7 @@ import { dateOrNull, cidOrNull, isValidCid, isUnknownColumnError } from "@/lib/v
 import { roleIsPrivileged } from "@/lib/ventureAuth";
 import { projectMilestonesForVenture } from "@/lib/ventureVisibility";
 import { notifyVentureFounders } from "@/lib/ventures";
+import { diffFields, recordVentureChange } from "@/models/ventureChangeLog";
 import {
   getVentureDbIdForMilestoneCreate,
   getVentureDbIdForMilestoneList,
@@ -118,6 +119,16 @@ export const PATCH = createHandler(async (req, { params }) => {
   // active before this write decides anything.
   await activateDueStages(db, { dbId: ventureDbIdForScope });
 
+  // The BEFORE state, read once: field-level history has to know what a value
+  // WAS, not only what it became.
+  const milestoneBeforeResult = await db.execute({
+    sql: `SELECT title, description, objective, status, progress, target_date, start_date,
+                 priority, owner_cid, journey_stage_id, display_order
+            FROM venture_milestones WHERE id = ? AND venture_id = ?`,
+    args: [milestoneId, ventureDbIdForScope],
+  }).catch(() => ({ rows: [] }));
+  const milestoneBefore = milestoneBeforeResult.rows?.[0] || null;
+
   const body = await req.json();
   const { progress, status, title, description, target_date } = body;
   const completing = status === "completed";
@@ -190,6 +201,28 @@ export const PATCH = createHandler(async (req, { params }) => {
       args: [...valueArgs, milestoneId, ventureDbIdForScope],
     });
   }
+
+  // Field-level history of this save. Non-fatal by contract — the write above
+  // already succeeded and must not be undone by a logging failure.
+  try {
+    const AUDITED_MILESTONE_FIELDS = [
+      "title", "description", "objective", "status", "progress",
+      "target_date", "start_date", "priority", "owner_cid", "journey_stage_id", "display_order",
+    ];
+    const milestoneChanges = diffFields(milestoneBefore, body, AUDITED_MILESTONE_FIELDS);
+    if (milestoneChanges.length) {
+      await recordVentureChange({
+        dbId: ventureDbIdForScope,
+        entityType: "milestone",
+        entityId: milestoneId,
+        entityLabel: milestoneBefore?.title || body.title || null,
+        action: "updated",
+        actorCid: session?.cid || null,
+        actorName: session?.name || null,
+        changes: milestoneChanges,
+      });
+    }
+  } catch (_) {}
 
   // Approval cascade (Phase 3): completing a milestone unlocks the next
   // locked milestone in the same Journey stage, then founders are notified.

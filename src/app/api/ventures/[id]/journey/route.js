@@ -16,6 +16,7 @@ import {
   moveJourneyStage,
   deleteJourneyStage,
 } from "@/lib/ventureJourneys";
+import { diffFields, recordVentureChange } from "@/models/ventureChangeLog";
 
 export const dynamic = "force-dynamic";
 
@@ -325,6 +326,25 @@ export async function PATCH(req, { params }) {
           stageId, dbId,
         ],
       });
+      // Field-level history of the edit. Non-fatal by contract — the write above
+      // already succeeded and must not be undone by a logging failure.
+      try {
+        const JOURNEY_FIELDS = ["name", "description", "objective", "target_date", "start_date"];
+        const journeyChanges = diffFields(stage, body, JOURNEY_FIELDS);
+        if (journeyChanges.length) {
+          await recordVentureChange({
+            dbId,
+            entityType: "journey",
+            entityId: stageId,
+            entityLabel: stage.name || name || null,
+            action: "updated",
+            actorCid: session?.cid || null,
+            actorName: session?.name || null,
+            changes: journeyChanges,
+          });
+        }
+      } catch (_) {}
+
       const canManage = await allowsPlanAction(db, access, "manage");
       const stages = await listJourneyStages(db, dbId, { includeArchived: canManage });
       return NextResponse.json({ success: true, stages });
@@ -396,6 +416,32 @@ export async function PATCH(req, { params }) {
       const moved = await moveJourneyStage(db, { dbId, stageId, direction });
       if (moved.error) return NextResponse.json({ success: false, error: moved.error }, { status: 400 });
     }
+
+    // The transition itself is the change. Recorded after the gate above, so a
+    // refused action never leaves a row claiming it happened.
+    try {
+      const ACTION_NAMES = { activate: "activated", lock: "locked", reset: "reopened", delete: "deleted", move: "moved" };
+      const actionName = ACTION_NAMES[action];
+      if (actionName) {
+        const nextStatus =
+          action === "activate" ? "active" : action === "lock" ? "locked" : action === "reset" ? "active" : null;
+        const changes =
+          nextStatus && stage?.status && stage.status !== nextStatus
+            ? [{ field: "status", from: stage.status, to: nextStatus }]
+            : [];
+        await recordVentureChange({
+          dbId,
+          entityType: "journey",
+          entityId: stageId,
+          entityLabel: stage?.name || null,
+          action: actionName,
+          actorCid: session?.cid || null,
+          actorName: session?.name || null,
+          changes,
+          metadata: action === "move" ? { direction: String(body.direction || "") } : null,
+        });
+      }
+    } catch (_) {}
 
     // Reached only after the manage gate above — safe to include archived rows.
     const stages = await listJourneyStages(db, dbId, { includeArchived: true });
