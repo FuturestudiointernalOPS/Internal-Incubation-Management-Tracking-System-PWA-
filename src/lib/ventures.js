@@ -878,6 +878,10 @@ export async function updateVenture(ventureId, updates) {
     "country_code",
     "registration_status",
     "north_star",
+    // How the engagement is being run (Incubation / Acceleration / Hybrid) — a
+    // label on the Venture, never a level in the hierarchy. Its values live in
+    // venture_option_values so they can be renamed without a code change.
+    "programme_type",
   ];
 
   const setClauses = [];

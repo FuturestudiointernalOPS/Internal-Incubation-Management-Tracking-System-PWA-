@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import ScopedNotes from "@/components/ventures/ScopedNotes";
 import PlanImportPanel from "@/components/ventures/PlanImportPanel";
+import VentureChangeLogPanel from "@/components/ventures/VentureChangeLogPanel";
 import AppModal from "@/components/ui/AppModal";
 import AppMenu from "@/components/ui/AppMenu";
 import { useDialogs } from "@/components/ui/DialogProvider";
@@ -1359,6 +1360,9 @@ export default function JourneyManagerPanel({ ventureId }) {
           proposes. Guarded by the same authority that may define the journey —
           importing a plan IS defining one. */}
       {access.create && <PlanImportPanel ventureId={ventureId} />}
+
+      {/* History answers a question, so it sits with the thing it describes. */}
+      <VentureChangeLogPanel ventureId={ventureId} />
 
       {templateSource && (
         <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-brand-orange/25 bg-brand-orange/[0.04] px-4 py-2.5">
