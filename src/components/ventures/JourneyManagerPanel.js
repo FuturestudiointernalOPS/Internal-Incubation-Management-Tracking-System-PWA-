@@ -37,6 +37,7 @@ import {
   CalendarPlus,
 } from "lucide-react";
 import ScopedNotes from "@/components/ventures/ScopedNotes";
+import PlanImportPanel from "@/components/ventures/PlanImportPanel";
 import AppModal from "@/components/ui/AppModal";
 import AppMenu from "@/components/ui/AppMenu";
 import { useDialogs } from "@/components/ui/DialogProvider";
@@ -171,7 +172,7 @@ export default function JourneyManagerPanel({ ventureId }) {
   const [toast, setToast] = useState(null);
 
   const [addOpen, setAddOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "", objective: "" });
+  const [form, setForm] = useState({ name: "", description: "", objective: "", start_date: "" });
   const [saving, setSaving] = useState(false);
 
   const [applyOpen, setApplyOpen] = useState(false);
@@ -287,7 +288,7 @@ export default function JourneyManagerPanel({ ventureId }) {
       const payload = await res.json();
       if (payload.success) {
         notify(t("venture.manager.stageAdded"));
-        setForm({ name: "", description: "", objective: "" });
+        setForm({ name: "", description: "", objective: "", start_date: "" });
         setAddOpen(false);
         setStages(payload.stages || []);
       } else {
@@ -353,6 +354,7 @@ export default function JourneyManagerPanel({ ventureId }) {
       name: stage.name || "",
       description: stage.description || "",
       objective: stage.objective || "",
+      start_date: dateOnly(stage.start_date),
     });
   };
 
@@ -1353,6 +1355,11 @@ export default function JourneyManagerPanel({ ventureId }) {
       </div>
       <p className="text-[10px] text-slate-400 mb-3 -mt-1">{t("venture.manager.intro")}</p>
 
+      {/* Phase 1 of the programme import: read a tracker, show what the analysts
+          proposes. Guarded by the same authority that may define the journey —
+          importing a plan IS defining one. */}
+      {access.create && <PlanImportPanel ventureId={ventureId} />}
+
       {templateSource && (
         <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-brand-orange/25 bg-brand-orange/[0.04] px-4 py-2.5">
           <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
@@ -1485,6 +1492,16 @@ export default function JourneyManagerPanel({ ventureId }) {
             placeholder={t("venture.manager.stageObjectivePlaceholder")}
             className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
           />
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-[var(--text-secondary)]">{t("venture.manager.stageStartDate")}</label>
+            <input
+              type="date"
+              value={form.start_date || ""}
+              onChange={(event) => setForm({ ...form, start_date: event.target.value })}
+              className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
+            />
+            <p className="text-[10px] text-[var(--text-secondary)]">{t("venture.manager.stageStartDateHint")}</p>
+          </div>
           <div className="flex justify-end">
             <button type="submit" disabled={saving} className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} {t("venture.manager.addStage")}
@@ -1559,6 +1576,16 @@ export default function JourneyManagerPanel({ ventureId }) {
                         placeholder={t("venture.manager.stageObjectivePlaceholder")}
                         className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                       />
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-[var(--text-secondary)]">{t("venture.manager.stageStartDate")}</label>
+                        <input
+                          type="date"
+                          value={editForm.start_date || ""}
+                          onChange={(event) => setEditForm({ ...editForm, start_date: event.target.value })}
+                          className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                        />
+                        <p className="text-[10px] text-[var(--text-secondary)]">{t("venture.manager.stageStartDateHint")}</p>
+                      </div>
                       <div className="flex justify-end gap-2">
                         <button type="button" onClick={() => { setEditId(null); setEditForm({}); }} className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:bg-tertiary">
                           {t("common.cancel")}

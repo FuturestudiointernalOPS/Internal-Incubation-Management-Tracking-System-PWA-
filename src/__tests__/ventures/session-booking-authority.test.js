@@ -80,6 +80,8 @@ jest.mock("@/lib/ventureOperatingPlans", () => ({
 
 jest.mock("@/lib/ventureMilestoneEngine", () => ({
   assertBookableMilestone: jest.fn(async () => mockBookable),
+  // The route sweeps due Journeys before the booking gate; nothing to do here.
+  activateDueStages: jest.fn(async () => ({ activated_stage_ids: [], released_milestone_ids: [] })),
 }));
 
 jest.mock("@/lib/ventureCoach", () => ({

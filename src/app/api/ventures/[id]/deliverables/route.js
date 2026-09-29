@@ -269,7 +269,7 @@ export const PATCH = createHandler(async (req, { params }) => {
           await addVentureHistory({
             venture_id: id,
             event_type: "JOURNEY_COMPLETED",
-            description: `Journey "${milestoneSync.journey?.name || ""}" completed — all milestones are done${milestoneSync.journey?.next_stage_id ? "; the next journey is now active" : ""}`,
+            description: `Journey "${milestoneSync.journey?.name || ""}" completed — all milestones are done`,
           });
         } catch (_) {}
       }

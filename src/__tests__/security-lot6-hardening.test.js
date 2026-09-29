@@ -122,7 +122,7 @@ describe("person references are validated", () => {
   });
 });
 
-describe("legacy dependencies are typed and integer-keyed", () => {
+describe("legacy dependency endpoints are typed and shape-checked", () => {
   const src = read("src/app/api/ventures/[id]/timeline/route.js");
 
   test("only milestone/task dependencies are accepted", () => {
@@ -131,11 +131,14 @@ describe("legacy dependencies are typed and integer-keyed", () => {
     expect(src).toMatch(/DEPENDENCY_TYPES\.has\(targetType\)/);
   });
 
-  test("both add and remove require positive integer ids", () => {
-    expect(src).toMatch(/Number\.isInteger\(sourceId\) \|\| sourceId <= 0/);
-    expect(src).toMatch(/Number\.isInteger\(targetId\) \|\| targetId <= 0/);
-    expect(src).toMatch(/Number\.isInteger\(dependencyId\) \|\| dependencyId <= 0/);
+  test("both add and remove require the id shape the entity really has", () => {
+    // Milestones are UUIDs, tasks are integers — validated by shape, so a
+    // malformed body cannot insert a row no reader can resolve.
+    expect(src).toMatch(/isValidEntityId\(sourceType, sourceId\)/);
+    expect(src).toMatch(/isValidEntityId\(targetType, targetId\)/);
+    expect(src).toMatch(/UUID_ID\.test\(dependencyId\)/);
     expect(src).not.toMatch(/parseInt\(body\.source_id\)/);
+    expect(src).not.toMatch(/Number\.parseInt\(body\.dependency_id/);
   });
 });
 

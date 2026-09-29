@@ -4,19 +4,18 @@
  * POST/PATCH /api/ventures/[id]/milestones guards:
  *   - only the assigned Lead Manager or a Super Admin may mark a milestone
  *     completed (decision locked earlier); coaches/staff/founders get 403
- *   - completing a milestone unlocks the NEXT locked milestone in the same
- *     Journey stage (sequential release)
- *   - new milestones bound to a stage start 'locked' unless they are the
- *     stage's first milestone or follow a completed one
+ *   - completing a milestone unlocks NOTHING by position: an active Journey's
+ *     milestones are already all available
+ *   - new milestones bound to an ACTIVE Journey start available; in a
+ *     not-started or finished Journey they wait 'locked'
  */
 
 const executed = [];
 const VENTURE_DB_ID = "11111111-1111-4111-8111-111111111111";
 const MILESTONE_1 = "33333333-3333-4333-8333-333333333333";
-const MILESTONE_2 = "44444444-4444-4444-8444-444444444444";
 
 function makeFakeDb() {
-  const flags = { lastStatus: null, nextLocked: true, assignment: "none", stageCloses: false };
+  const flags = { stageStatus: "active", assignment: "none", stageCloses: false };
   const execute = jest.fn(async ({ sql, args = [] }) => {
     executed.push({ sql, args });
     // The stage that a completed milestone might CLOSE (the closing report is
@@ -60,16 +59,9 @@ function makeFakeDb() {
     if (sql.includes("venture_permission_matrix")) {
       return { rows: [{ allowed: args[0] === "lead_manager" ? 1 : 0 }] };
     }
-    // computeInitialMilestoneStatus: latest milestone in the stage
-    if (sql.includes("ORDER BY COALESCE(display_order, 0) DESC, created_at DESC")) {
-      return { rows: flags.lastStatus ? [{ status: flags.lastStatus }] : [] };
-    }
-    // completeMilestoneAndUnlockNext: source milestone + next locked
-    if (sql.includes("SELECT id, journey_stage_id FROM venture_milestones WHERE id = ? AND venture_id = ?")) {
-      return { rows: [{ id: MILESTONE_1, journey_stage_id: "s1" }] };
-    }
-    if (sql.includes("status = 'locked'") && sql.includes("ORDER BY COALESCE(display_order, 0), created_at ASC")) {
-      return { rows: flags.nextLocked ? [{ id: MILESTONE_2 }] : [] };
+    // computeInitialMilestoneStatus: the Journey the milestone will join
+    if (sql.includes("SELECT status FROM venture_journey_stages WHERE id = ? AND venture_id = ?")) {
+      return { rows: [{ status: flags.stageStatus }] };
     }
     // title lookup after completion
     if (sql.includes("SELECT title, journey_stage_id FROM venture_milestones WHERE id = ?")) {
@@ -117,8 +109,7 @@ const ctx = { params: { id: "VNT-TEST" } };
 beforeEach(() => {
   executed.length = 0;
   jest.clearAllMocks();
-  mockDb.flags.lastStatus = null;
-  mockDb.flags.nextLocked = true;
+  mockDb.flags.stageStatus = "active";
   mockDb.flags.assignment = "none";
   mockDb.flags.stageCloses = false;
 });
@@ -148,7 +139,7 @@ describe("a completion that CLOSES a journey says so", () => {
 });
 
 describe("milestone completion authority (Lead Manager / Super Admin only)", () => {
-  test("super_admin may complete a milestone and unlocks the next locked one", async () => {
+  test("super_admin may complete a milestone — and nothing is unlocked by position", async () => {
     const res = await PATCH(
       new Request("http://localhost/x?id=MS_1", { method: "PATCH", body: JSON.stringify({ status: "completed" }) }),
       ctx,
@@ -159,9 +150,14 @@ describe("milestone completion authority (Lead Manager / Super Admin only)", () 
 
     const completedUpdate = executed.find((query) => query.sql.includes("UPDATE venture_milestones SET status = 'completed'"));
     expect(completedUpdate).toBeDefined();
-    const unlockUpdate = executed.find((query) => query.sql.includes("UPDATE venture_milestones SET status = 'not_started'"));
-    expect(unlockUpdate).toBeDefined();
-    expect(unlockUpdate.args[0]).toBe(MILESTONE_2);
+    // The activation sweep may release milestones (it filters by Journey), but
+    // no POSITIONAL unlock may fire: completion advances nothing by order.
+    const positionalUnlock = executed.find(
+      (query) =>
+        query.sql.includes("UPDATE venture_milestones SET status = 'not_started'") &&
+        !query.sql.includes("journey_stage_id IN"),
+    );
+    expect(positionalUnlock).toBeUndefined();
 
     const { notifyVentureFounders } = require("@/lib/ventures");
     expect(notifyVentureFounders).toHaveBeenCalledWith(
@@ -204,8 +200,8 @@ describe("milestone completion authority (Lead Manager / Super Admin only)", () 
   });
 });
 
-describe("milestone creation — sequential release", () => {
-  test("first milestone of a stage starts available", async () => {
+describe("milestone creation — availability follows the Journey", () => {
+  test("a milestone in an active Journey starts available", async () => {
     const res = await POST(
       new Request("http://localhost/x", { method: "POST", body: JSON.stringify({ title: "Pitch Deck", journey_stage_id: "s1" }) }),
       ctx,
@@ -215,8 +211,8 @@ describe("milestone creation — sequential release", () => {
     expect(data.status).toBe("not_started");
   });
 
-  test("a milestone following an unfinished one starts locked", async () => {
-    mockDb.flags.lastStatus = "in_progress";
+  test("a milestone in a not-started Journey waits locked", async () => {
+    mockDb.flags.stageStatus = "locked";
     const res = await POST(
       new Request("http://localhost/x", { method: "POST", body: JSON.stringify({ title: "Business Plan", journey_stage_id: "s1" }) }),
       ctx,
@@ -226,14 +222,14 @@ describe("milestone creation — sequential release", () => {
     expect(data.status).toBe("locked");
   });
 
-  test("a milestone following a completed one starts available (new chain)", async () => {
-    mockDb.flags.lastStatus = "completed";
+  test("a milestone in a finished Journey waits locked", async () => {
+    mockDb.flags.stageStatus = "completed";
     const res = await POST(
-      new Request("http://localhost/x", { method: "POST", body: JSON.stringify({ title: "Next", journey_stage_id: "s1" }) }),
+      new Request("http://localhost/x", { method: "POST", body: JSON.stringify({ title: "Extra", journey_stage_id: "s1" }) }),
       ctx,
     );
     const data = await readJson(res);
-    expect(data.status).toBe("not_started");
+    expect(data.status).toBe("locked");
   });
 
   test("unbound milestones keep the legacy default", async () => {

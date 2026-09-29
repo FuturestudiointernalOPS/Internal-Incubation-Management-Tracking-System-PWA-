@@ -2843,18 +2843,50 @@ export async function getDelaySummary(ventureId) {
 
 // ─── Dependencies ──────────────────────────────────────────────────────────
 
+/**
+ * Add a dependency edge: the SOURCE blocks the TARGET (finish_to_start — the
+ * target only frees up once the source is completed). Entity ids are stored as
+ * TEXT on purpose: milestones are UUIDs and tasks are integers, and one edge
+ * shape has to hold both. `ventureId` is the ventures(id) UUID.
+ *
+ * A cycle is refused, including a TRANSITIVE one (A blocks B, B blocks C,
+ * then C blocks A): the legacy check compared one hop back, which let longer
+ * loops through. The walk follows the edges the rows already describe.
+ */
 export async function addDependency({ ventureId, sourceType, sourceId, targetType, targetId }) {
-  // Check for circular dependency
-  const circular = await db.execute({
-    sql: `SELECT id FROM venture_dependencies WHERE venture_id = ? AND source_type = ? AND source_id = ? AND target_type = ? AND target_id = ?`,
-    args: [ventureId, targetType, targetId, sourceType, sourceId],
+  const existing = await db.execute({
+    sql: "SELECT source_type, source_id, target_type, target_id FROM venture_dependencies WHERE venture_id::text = ?::text",
+    args: [String(ventureId)],
   });
-  if (circular.rows.length > 0) throw new Error("Circular dependency detected.");
+
+  const keyOf = (type, id) => `${type}:${id}`;
+  const blocks = new Map();
+  for (const row of existing.rows || []) {
+    const from = keyOf(row.source_type, row.source_id);
+    const list = blocks.get(from) || [];
+    list.push(keyOf(row.target_type, row.target_id));
+    blocks.set(from, list);
+  }
+
+  const start = keyOf(targetType, String(targetId));
+  const goal = keyOf(sourceType, String(sourceId));
+  const seen = new Set([start]);
+  const queue = [start];
+  while (queue.length > 0) {
+    const node = queue.shift();
+    if (node === goal) throw new Error("Circular dependency detected.");
+    for (const next of blocks.get(node) || []) {
+      if (!seen.has(next)) {
+        seen.add(next);
+        queue.push(next);
+      }
+    }
+  }
 
   await db.execute({
     sql: `INSERT INTO venture_dependencies (venture_id, source_type, source_id, target_type, target_id)
           VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
-    args: [ventureId, sourceType, sourceId, targetType, targetId],
+    args: [ventureId, sourceType, String(sourceId), targetType, String(targetId)],
   });
   return { success: true };
 }
@@ -2864,12 +2896,13 @@ export async function removeDependency(dependencyId, ventureIds = []) {
     (ventureId) => ventureId !== null && ventureId !== undefined,
   );
   if (ids.length === 0) return { success: false };
-  // A dependency is removed only when it belongs to one of the accepted
-  // venture identifiers (the path code and/or the resolved numeric id).
-  const scope = ids.map(() => "venture_id = ?").join(" OR ");
+  // The dependency id comes from the request: the DELETE is scoped to the
+  // accepted venture ids (the resolved ventures(id) UUID), so it can never
+  // reach another Venture's rows. Ids are compared as text — they are UUIDs.
+  const scope = ids.map(() => "venture_id::text = ?::text").join(" OR ");
   await db.execute({
-    sql: `DELETE FROM venture_dependencies WHERE id = ? AND (${scope})`,
-    args: [dependencyId, ...ids],
+    sql: `DELETE FROM venture_dependencies WHERE id::text = ?::text AND (${scope})`,
+    args: [String(dependencyId), ...ids.map((ventureId) => String(ventureId))],
   });
   return { success: true };
 }
