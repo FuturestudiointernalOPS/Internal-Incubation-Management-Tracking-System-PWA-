@@ -15,6 +15,7 @@
     "db:align": "node scripts/db-audit/apply-align-migration.mjs",
     "backfill:founder-ledger": "node scripts/backfill-founder-ledger.mjs",
     "backfill:milestone-status": "node scripts/backfill-milestone-status.mjs",
+    "migrate:journey-held-states": "node scripts/migrate-journey-held-states.mjs",
     "verify:alignment": "node scripts/verify-feature-alignment.mjs",
     "sync-finance": "node scripts/sync-finance.js --syncAll"
   },

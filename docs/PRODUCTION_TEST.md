@@ -167,6 +167,33 @@ VALUES ('ventures','role','founder',1)
 ON CONFLICT (feature_key, identity_type, identity_value) DO NOTHING;
 ```
 
+### 4.7 Venture held states — `locked` → `upcoming` / `blocked`
+
+**Run BEFORE the code that reads the new states is deployed.** `locked` used to
+mean two different things at once — a Journey that had not started, and a
+milestone a dependency was holding back. The code now writes and reads two
+separate states, so a database that still holds `locked` rows shows the raw
+value instead of a word.
+
+One migration, already committed:
+`src/migrations/20260929_venture_journey_upcoming.sql`. It is idempotent, never
+touches `completed` work and never deletes. Run it through the guarded script,
+which executes the migration file's own SQL:
+
+```bash
+node scripts/migrate-journey-held-states.mjs .env.staging            # dry run — rolls back, writes nothing
+node scripts/migrate-journey-held-states.mjs .env.staging --apply    # write
+```
+
+- The env file is passed **by name on purpose**: the script never falls back to
+`.env.local`, which points at **production**.
+- Dry run first, on **staging**, then the same two commands against production.
+- After the apply, re-run the dry run: it must report `0` rows that would change.
+
+Expected effect: journey stages that read `locked` become `upcoming`; milestones
+read `upcoming` (Journey not started), `blocked` (an explicit dependency is
+unmet) or `not_started` (Journey active, nothing holds it back).
+
 ---
 
 ## 5. Database schema steps
