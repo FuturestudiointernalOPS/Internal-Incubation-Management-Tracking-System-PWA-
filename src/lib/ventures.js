@@ -5020,11 +5020,17 @@ export async function getLoginStats(hoursAgo = 24) {
     db.execute({ sql: "SELECT COUNT(*) as c FROM venture_login_history WHERE is_success=FALSE AND created_at > NOW() - INTERVAL '1 hour' * ?", args: [hoursAgo] }).catch(() => ({ rows: [{ c: 0 }] })),
     db.execute({ sql: "SELECT COUNT(DISTINCT user_cid) as c FROM venture_login_history WHERE created_at > NOW() - INTERVAL '1 hour' * ?", args: [hoursAgo] }).catch(() => ({ rows: [{ c: 0 }] })),
   ]);
+  const successCount = parseInt(successes.rows[0]?.c || 0);
+  const failureCount = parseInt(failures.rows[0]?.c || 0);
   return {
     total: parseInt(total.rows[0]?.c || 0),
-    successes: parseInt(successes.rows[0]?.c || 0),
-    failures: parseInt(failures.rows[0]?.c || 0),
+    successes: successCount,
+    failures: failureCount,
     unique_users: parseInt(unique.rows[0]?.c || 0),
+    // The admin Security console's "Login Success"/"Login Failures" cards read
+    // these names; without them the cards stayed at a permanent zero.
+    login_successes: successCount,
+    login_failures: failureCount,
   };
 }
 

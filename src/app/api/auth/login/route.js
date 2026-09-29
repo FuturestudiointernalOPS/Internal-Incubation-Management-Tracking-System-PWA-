@@ -17,6 +17,7 @@ import {
   ensureContactsLoginCountColumnForLogin,
   recordContactLoginActivityForLogin,
 } from "@/models/authFlows";
+import { auditLoginAttempt } from "@/lib/loginAudit";
 
 // AUTH-4 — one generic message for every credential failure, so a caller cannot
 // tell "no such account" from "wrong password". The unknown-account path also
@@ -57,7 +58,15 @@ export async function POST(req) {
       limit: 10,
       windowMs: 15 * 60 * 1000,
     });
-    if (accountLimited) return accountLimited;
+    if (accountLimited) {
+      await auditLoginAttempt(req, {
+        identifier: cleanEmail,
+        action: "login_failed",
+        isSuccess: false,
+        failureReason: "rate_limited",
+      });
+      return accountLimited;
+    }
 
     // Fetch user language preference
     let userLanguage = "en";
@@ -103,6 +112,12 @@ export async function POST(req) {
       // Pay the same bcrypt cost as the wrong-password path below, so account
       // existence is not revealed by response time (AUTH-4).
       await verifyPassword(cleanPassword, TIMING_EQUALIZER_HASH);
+      await auditLoginAttempt(req, {
+        identifier: cleanEmail,
+        action: "login_failed",
+        isSuccess: false,
+        failureReason: "invalid_credentials",
+      });
       return NextResponse.json(
         {
           success: false,
@@ -125,6 +140,13 @@ export async function POST(req) {
       }
 
       if (!isMatch) {
+        await auditLoginAttempt(req, {
+          user,
+          identifier: cleanEmail,
+          action: "login_failed",
+          isSuccess: false,
+          failureReason: "invalid_credentials",
+        });
         return NextResponse.json(
           { success: false, error: INVALID_CREDENTIALS },
           { status: 401 },
@@ -135,6 +157,13 @@ export async function POST(req) {
     // --- STATUS VERIFICATION GATE ---
     if (!isTeamLogin && !isFamilyLogin) {
       if (user.status === "inactive") {
+        await auditLoginAttempt(req, {
+          user,
+          identifier: cleanEmail,
+          action: "login_failed",
+          isSuccess: false,
+          failureReason: "account_inactive",
+        });
         return NextResponse.json(
           {
             success: false,
@@ -144,6 +173,13 @@ export async function POST(req) {
         );
       }
       if (user.status === "pending") {
+        await auditLoginAttempt(req, {
+          user,
+          identifier: cleanEmail,
+          action: "login_failed",
+          isSuccess: false,
+          failureReason: "account_pending",
+        });
         return NextResponse.json(
           {
             success: false,
@@ -154,6 +190,13 @@ export async function POST(req) {
         );
       }
       if (user.status === "archived" || user.archived_at != null) {
+        await auditLoginAttempt(req, {
+          user,
+          identifier: cleanEmail,
+          action: "login_failed",
+          isSuccess: false,
+          failureReason: "account_archived",
+        });
         return NextResponse.json(
           {
             success: false,
@@ -166,6 +209,13 @@ export async function POST(req) {
       // etc.) must be rejected HERE so a session is never created that the
       // very next request would invalidate (login loop).
       if (!["active", "approved"].includes(user.status)) {
+        await auditLoginAttempt(req, {
+          user,
+          identifier: cleanEmail,
+          action: "login_failed",
+          isSuccess: false,
+          failureReason: "account_not_active",
+        });
         return NextResponse.json(
           {
             success: false,
@@ -271,6 +321,17 @@ export async function POST(req) {
         responseUser.cid || responseUser.id,
         finalRole,
       );
+      // Record the success only once a session actually started.
+      await auditLoginAttempt(req, {
+        user: responseUser,
+        identifier: cleanEmail,
+        action: isFamilyLogin
+          ? "family_login_success"
+          : isTeamLogin
+            ? "team_login_success"
+            : "login_success",
+        isSuccess: true,
+      });
       // Build response and set cookie directly on it
       const response = NextResponse.json({ success: true, user: responseUser });
       return setSessionCookieOnResponse(

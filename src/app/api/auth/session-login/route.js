@@ -16,6 +16,7 @@ import {
   ensureContactsLoginCountColumn,
   recordContactLoginActivity,
 } from "@/models/authFlows";
+import { auditLoginAttempt } from "@/lib/loginAudit";
 
 export async function POST(req) {
   try {
@@ -44,7 +45,15 @@ export async function POST(req) {
       limit: 10,
       windowMs: 15 * 60 * 1000,
     });
-    if (accountLimited) return accountLimited;
+    if (accountLimited) {
+      await auditLoginAttempt(req, {
+        identifier: cleanEmail,
+        action: "login_failed",
+        isSuccess: false,
+        failureReason: "rate_limited",
+      });
+      return accountLimited;
+    }
 
     // --- 1. SEARCH CONTACTS ---
     let user = null;
@@ -85,6 +94,12 @@ export async function POST(req) {
     }
 
     if (!user) {
+      await auditLoginAttempt(req, {
+        identifier: cleanEmail,
+        action: "login_failed",
+        isSuccess: false,
+        failureReason: "invalid_credentials",
+      });
       return NextResponse.json(
         { success: false, error: "Invalid credentials." },
         { status: 401 },
@@ -103,6 +118,13 @@ export async function POST(req) {
       }
 
       if (!isMatch) {
+        await auditLoginAttempt(req, {
+          user,
+          identifier: cleanEmail,
+          action: "login_failed",
+          isSuccess: false,
+          failureReason: "invalid_credentials",
+        });
         return NextResponse.json(
           { success: false, error: "Invalid credentials." },
           { status: 401 },
@@ -113,6 +135,13 @@ export async function POST(req) {
     // --- 5. STATUS CHECK (not for teams/families) ---
     if (!isTeamLogin && !isFamilyLogin) {
       if (user.status === "pending") {
+        await auditLoginAttempt(req, {
+          user,
+          identifier: cleanEmail,
+          action: "login_failed",
+          isSuccess: false,
+          failureReason: "account_pending",
+        });
         return NextResponse.json(
           {
             success: false,
@@ -123,6 +152,13 @@ export async function POST(req) {
         );
       }
       if (user.status === "inactive" || user.status === "suspended") {
+        await auditLoginAttempt(req, {
+          user,
+          identifier: cleanEmail,
+          action: "login_failed",
+          isSuccess: false,
+          failureReason: "account_inactive",
+        });
         return NextResponse.json(
           {
             success: false,
@@ -136,6 +172,13 @@ export async function POST(req) {
       // null, etc.) is rejected HERE so a session is never created that the
       // very next request would invalidate (login loop).
       if (!["active", "approved"].includes(user.status)) {
+        await auditLoginAttempt(req, {
+          user,
+          identifier: cleanEmail,
+          action: "login_failed",
+          isSuccess: false,
+          failureReason: "account_not_active",
+        });
         return NextResponse.json(
           {
             success: false,
@@ -307,6 +350,18 @@ export async function POST(req) {
       isTeamLogin ? "team" : isFamilyLogin ? "participant" : finalRole,
       remember_me || false,
     );
+
+    // Record the success only once a session actually started.
+    await auditLoginAttempt(req, {
+      user: responseUser,
+      identifier: cleanEmail,
+      action: isFamilyLogin
+        ? "family_login_success"
+        : isTeamLogin
+          ? "team_login_success"
+          : "login_success",
+      isSuccess: true,
+    });
 
     const response = NextResponse.json({
       success: true,
