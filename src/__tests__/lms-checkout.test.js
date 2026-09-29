@@ -18,7 +18,9 @@
  *   - the receipt goes out as soon as the payment is confirmed;
  *   - the access link is served only inside the short window, and the account is
  *     created pending (the password is chosen by the person) with a HASH-only
- *     one-time code.
+ *     one-time code;
+ *   - a MISSED notification is not a dead end: the payer's own tab can ask the
+ *     server to re-verify with the provider, and the SERVER still decides.
  */
 
 const { createFakeDb } = require("./helpers/fakeLmsDb");
@@ -670,6 +672,88 @@ describe("the payer's own tab", () => {
     // …and the payment is still NOT confirmed.
     expect(mockFake.state.lms_registrations[0].status).toBe("pending");
     expect(mockFake.state.lms_enrollments.length).toBe(0);
+  });
+
+  test("a MISSED notification is still closed when the payer's own tab re-verifies", async () => {
+    configureKkiapay();
+    const courseId = seedCourse();
+    seedRun({ courseId });
+    const created = await readJson(await submitRequest({ slug: "run-slug", data: FORM_DATA, consent: true }));
+    expect(mockFake.state.lms_registrations[0].status).toBe("pending");
+
+    // No webhook ever arrived. The provider, asked again, says the money moved.
+    global.fetch = jest.fn(async () => verifiedResponse(25000));
+
+    const res = await checkoutPOST(
+      new Request("http://localhost/api/public/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "verify",
+          reference: created.checkout.reference,
+          email: "john@example.com",
+          transactionId: "TX-FROM-BROWSER",
+        }),
+      }),
+    );
+    const data = await readJson(res);
+
+    expect(data.success).toBe(true);
+    expect(data.payment).toBe("paid");
+    expect(mockFake.state.lms_registrations[0].status).toBe("paid");
+    // The access is finished too, exactly as the notification path would.
+    expect(mockFake.state.lms_registrations[0].access_status).toBe("granted");
+  });
+
+  test("the tab's re-verify grants NOTHING while the provider has not settled", async () => {
+    configureKkiapay();
+    const courseId = seedCourse();
+    seedRun({ courseId });
+    const created = await readJson(await submitRequest({ slug: "run-slug", data: FORM_DATA, consent: true }));
+
+    global.fetch = jest.fn(async () => verifiedResponse(25000, "PENDING"));
+
+    const data = await readJson(
+      await checkoutPOST(
+        new Request("http://localhost/api/public/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "verify",
+            reference: created.checkout.reference,
+            email: "john@example.com",
+            transactionId: "TX-FROM-BROWSER",
+          }),
+        }),
+      ),
+    );
+
+    expect(data.payment).toBe("pending");
+    expect(mockFake.state.lms_registrations[0].status).toBe("pending");
+  });
+
+  test("the tab's re-verify refuses an email that does not match the registration", async () => {
+    configureKkiapay();
+    const courseId = seedCourse();
+    seedRun({ courseId });
+    const created = await readJson(await submitRequest({ slug: "run-slug", data: FORM_DATA, consent: true }));
+    global.fetch = jest.fn(async () => verifiedResponse(25000));
+
+    const res = await checkoutPOST(
+      new Request("http://localhost/api/public/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "verify",
+          reference: created.checkout.reference,
+          email: "someone-else@example.com",
+          transactionId: "TX-FROM-BROWSER",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(404);
+    expect(mockFake.state.lms_registrations[0].status).toBe("pending");
   });
 });
 

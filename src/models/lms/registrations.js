@@ -725,3 +725,22 @@ export async function listPaidRegistrationsPendingAccess() {
   });
   return res.rows.map(parseRegistration);
 }
+
+/**
+ * Pending registrations that carry a transaction id — a browser reported one, or
+ * a notification did, but nothing ever settled them. The reconciliation sweep
+ * re-asks the PROVIDER for these, so a MISSED Kkiapay notification is not a dead
+ * end even after the payer has closed their tab.
+ */
+export async function listPendingRegistrationsWithTransactionId(limit = 25) {
+  await ensureCheckoutSchema();
+  const take = Math.max(1, Math.min(Number(limit) || 25, 100));
+  const res = await db.execute({
+    sql: `${REGISTRATION_SELECT}
+          WHERE status = 'pending' AND provider_transaction_id IS NOT NULL
+          ORDER BY updated_at DESC
+          LIMIT ?`,
+    args: [take],
+  });
+  return res.rows.map(parseRegistration);
+}

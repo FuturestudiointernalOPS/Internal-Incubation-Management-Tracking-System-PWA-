@@ -127,9 +127,16 @@ curl -X POST "https://<domaine>/api/lms/registrations?action=link-run" \
   ensuite — réservé aux inscriptions **remboursées**. L'état d'accès passe alors à
   **Retiré** (`revoked`) et l'inscription de cours est suspendue : le cours
   disparaît de **My Learning**, mais le paiement et sa trace restent.
+- **Notification manquée** : la confirmation ne dépend pas de la seule
+  notification Kkiapay. L'onglet du payeur demande lui-même au serveur de
+  **r/vérifier** la transaction auprès de Kkiapay (mêmes garanties : vérification
+  serveur + contrôle du montant). Un paiement réel ne reste donc pas bloqué
+  « en cours » quand le webhook n'arrive pas — et la **réconciliation** reprend le
+  cas où l'onglet est déjà fermé.
 - **Réconciliation** : `POST /api/lms/registrations?action=reconcile`
-  (capacité `lms.edit`) rejoue les accès échoués et revérifie les succès non
-  confirmés.
+  (capacité `lms.edit`) rejoue les accès échoués, revérifie les succès non
+  confirmés, et revient sur les inscriptions encore « en cours » qui portent un
+  identifiant de transaction.
 
 ## 7. Ce dont le SITE a besoin (raccordement)
 

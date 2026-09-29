@@ -3,6 +3,7 @@ import {
   getRegistrationById,
   listPaidRegistrationsNeedingAccess,
   listPaymentEvents,
+  listPendingRegistrationsWithTransactionId,
   markRegistrationPaid,
   providerAmountOf,
   recordPaymentEvent,
@@ -20,7 +21,9 @@ import { deliverCheckoutEmail } from "@/lib/lms/checkoutMail";
  *
  *   1. a confirmed payment whose ACCESS step failed   -> replay the step;
  *   2. a success we could not verify (or an amount we  -> re-verify, and if it
- *      refused) that is still unpaid                     now settles, finish it.
+ *      refused) that is still unpaid                     now settles, finish it;
+ *   3. a transaction somebody reported (the browser    -> re-verify, even after
+ *      or a notification) that nothing ever settled        the payer's tab is gone.
  *
  * A registration that is already paid is never touched, so a sweep can run as
  * often as we like. Returns a summary the caller can log or show.
@@ -47,28 +50,41 @@ export async function reconcileRegistrations({ limit = 25 } = {}) {
     seen.add(key);
 
     const registration = await getRegistrationById(event.registration_id);
-    if (!registration || registration.status === "paid") continue;
+    await recoverPayment(provider, registration, event.provider_transaction_id, summary);
+  }
 
-    summary.checked += 1;
-
-    const verified = await provider.verifyTransaction(event.provider_transaction_id);
-    if (!verified.ok || !verified.isSuccess) continue;
-    // The provider reports in ITS unit; the price is stored in whole units, and
-    // the amount actually asked for is remembered on the registration.
-    const expected = providerAmountOf(registration);
-    if (verified.amount != null && Number(verified.amount) !== Number(expected)) continue;
-
-    await markRegistrationPaid(registration.id, {
-      provider: provider.name,
-      transactionId: event.provider_transaction_id,
-      partnerId: verified.partnerId,
-    });
-    summary.recovered += 1;
-
-    await completeAccess({ ...registration, status: "paid" }, summary, "recovered");
+  // ── 3. A transaction somebody reported, but nothing ever settled ──
+  // The payer's tab may be long closed; the id it recorded is still evidence, so
+  // the provider is asked again. This is what makes a MISSED notification
+  // recoverable for a person who is no longer sitting on the page.
+  const pendingWithId = await listPendingRegistrationsWithTransactionId(limit);
+  for (const registration of pendingWithId) {
+    await recoverPayment(provider, registration, registration.provider_transaction_id, summary);
   }
 
   return summary;
+}
+
+/** Re-verify ONE transaction and, if the money really moved, settle it. */
+async function recoverPayment(provider, registration, transactionId, summary) {
+  if (!registration || !transactionId || registration.status === "paid") return;
+  summary.checked += 1;
+
+  const verified = await provider.verifyTransaction(transactionId);
+  if (!verified.ok || !verified.isSuccess) return;
+  // The provider reports in ITS unit; the price is stored in whole units, and
+  // the amount actually asked for is remembered on the registration.
+  const expected = providerAmountOf(registration);
+  if (verified.amount != null && Number(verified.amount) !== Number(expected)) return;
+
+  await markRegistrationPaid(registration.id, {
+    provider: provider.name,
+    transactionId,
+    partnerId: verified.partnerId,
+  });
+  summary.recovered += 1;
+
+  await completeAccess({ ...registration, status: "paid" }, summary, "recovered");
 }
 
 /** Finish the access + receipt for one paid registration, recording the outcome. */
