@@ -128,6 +128,37 @@ adding a venture membership — which therefore appear on the next mount after t
 window instead of immediately. Both the cached call and the post-invalidation
 call are asserted, so neither the cache nor its invalidation can be lost quietly.
 
+## Client payload — what the first load ships
+
+The database is not the only latency budget. `next build` writes one line per
+route to `.next/diagnostics/route-bundle-stats.json`, with
+`firstLoadUncompressedJsBytes` for that route. That file is the harness for this
+section: build, then read it.
+
+| Average first-load JS per route | Before | After | Saved |
+| ------------------------------- | -----: | ----: | ----: |
+| (182 routes)                    | 1513 kB | 996 kB | **−517 kB (−34%)** |
+
+Two changes account for it, both measured on the same routes:
+
+- **The translation corpus is no longer shipped for both languages.** `src/lib/locales.js`
+  imported every English *and* French JSON file and deep-merged them at module
+  scope, so a single ~790 kB chunk sat on **all 182 routes**. English — the source
+  of truth, the server/SSR snapshot and the fallback — stays bundled; every other
+  language is now a dynamic import loaded the first time it is selected (see
+  `loadLocale`). `src/lib/i18n.js` renders the English fallback until the chunk
+  lands, then re-renders in the chosen language. A French reader therefore never
+  blocks the first paint on the French corpus.
+- **`framer-motion` left the shared shell.** `GlobalToast` (mounted by every
+  section layout) and `AppModal` used it for a one-shot entrance animation, which
+  put the library in the initial JavaScript of every authenticated page. Both now
+  use CSS keyframes (`globals.css`); the library is only loaded by the screens
+  that still animate with it. Measured effect: **−121 kB on 172 of 182 routes**.
+
+When adding a shared component, ask whether its animation or its data can be
+made lazy the same way: a library imported by the shell is paid for on every
+page, a library imported by one screen is paid for on one.
+
 ## Runtime schema maintenance
 
 About forty `ensure*` helpers keep older databases usable by issuing idempotent
