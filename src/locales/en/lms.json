@@ -552,6 +552,7 @@
       "assessmentTitleRequired": "Assessment title is required.",
       "assessmentQuestionsRequired": "An assessment needs at least one question.",
       "publishValidationFailed": "This course cannot be published yet.",
+      "validationItem": "{kind} \"{title}\": {message}",
       "notDraft": "Only draft courses can be published.",
       "notPublished": "Only published courses can be archived.",
       "loadFailed": "Failed to load courses.",

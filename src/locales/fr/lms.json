@@ -552,6 +552,7 @@
       "assessmentTitleRequired": "Le titre de l'évaluation est requis.",
       "assessmentQuestionsRequired": "Une évaluation doit comporter au moins une question.",
       "publishValidationFailed": "Ce cours ne peut pas encore être publié.",
+      "validationItem": "{kind} « {title} » : {message}",
       "notDraft": "Seuls les brouillons peuvent être publiés.",
       "notPublished": "Seuls les cours publiés peuvent être archivés.",
       "loadFailed": "Échec du chargement des cours.",
