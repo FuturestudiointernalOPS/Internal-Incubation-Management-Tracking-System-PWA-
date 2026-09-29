@@ -14,8 +14,8 @@
  *   - idempotent: it writes only where the derived status differs from the
  *     current one, so re-running proposes nothing
  *   - derived, never invented: the target comes from the deliverables' own rows
- *   - `locked` and `completed` milestones are never touched, and nothing is
- *     deleted
+ *   - held milestones (`upcoming` / `blocked`, and the retired `locked`) and
+ *     `completed` ones are never touched, and nothing is deleted
  *
  * Usage:
  *   node scripts/backfill-milestone-status.mjs           -> dry run (preview)

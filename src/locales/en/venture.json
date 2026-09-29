@@ -451,7 +451,7 @@
     },
     "manager": {
       "duplicateStageConfirm": "Duplicate stage \"{name}\"? Milestones and tasks are copied into a new independent stage — submissions, reviews and history are not copied.",
-      "duplicateStageSuccess": "Stage duplicated ({milestones} milestones, {tasks} tasks). The copy starts locked — activate it when ready.",
+      "duplicateStageSuccess": "Stage duplicated ({milestones} milestones, {tasks} tasks). The copy starts upcoming — it becomes active on its start date, or when you activate it.",
       "duplicateStageFailed": "Duplicate failed.",
       "duplicateStageTitle": "Duplicate stage (milestones + tasks, structure only)",
       "duplicateStageBusy": "Duplicating stage…",
@@ -659,7 +659,7 @@
       "reopenStage": "Reopen from this stage",
       "deleteStage": "Delete stage",
       "deleteStageConfirm": "Delete stage \"{name}\"? This does not delete Venture data — only the journey stage.",
-      "stageAdded": "Journey added. It stays locked until you activate it.",
+      "stageAdded": "Journey added. It stays upcoming until its start date arrives, or until you activate it.",
       "addFailed": "Add failed.",
       "actionFailed": "Action failed.",
       "stageUpdated": "Stage updated.",
@@ -667,7 +667,8 @@
       "applyFailed": "Apply failed.",
       "stageDeleted": "Stage deleted.",
       "milestoneStatuses": {
-        "locked": "Locked",
+        "upcoming": "Upcoming",
+        "blocked": "Blocked",
         "not_started": "Not started",
         "in_progress": "In progress",
         "under_review": "Under review",

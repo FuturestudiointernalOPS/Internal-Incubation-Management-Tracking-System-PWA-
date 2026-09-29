@@ -80,9 +80,9 @@ export const POST = createHandler(async (req, { params }) => {
   }
 
   // Availability is set by the Journey, not by position: a milestone bound to
-  // an ACTIVE journey starts available; in a not-started or finished journey
-  // it waits 'locked'. (Explicit milestone dependencies are a separate, later
-  // layer and the only thing that will ever hold a milestone back.)
+  // an ACTIVE journey starts available; in a journey that has not started it
+  // waits `upcoming`, and in a finished one it stays held. An explicit
+  // dependency is the only other thing that ever holds a milestone back.
   const initialStatus = await computeInitialMilestoneStatus(db, { dbId: ventureDbId, stageId: journey_stage_id || null });
 
   const randomUUID = crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => { const random = Math.random()*16|0; const value = char==='x'?random:(random&0x3|0x8); return value.toString(16); });
@@ -224,10 +224,12 @@ export const PATCH = createHandler(async (req, { params }) => {
     }
   } catch (_) {}
 
-  // Approval cascade (Phase 3): completing a milestone unlocks the next
-  // locked milestone in the same Journey stage, then founders are notified.
-  // The Journey outcome is carried out of the block below so the caller can be
-  // TOLD a journey just closed — that is the moment its closing report is owed.
+  // Completing a milestone settles the Journey's whole availability in one
+  // pass: the milestones whose ONLY remaining blocker was this one become
+  // available right away (a dependency-held one becomes `blocked`), and a due
+  // Journey opens. The Journey outcome is carried out below so the caller can
+  // be TOLD a journey just closed — that is the moment its closing report is
+  // owed.
   let journeyOutcome = null;
   if (completing) {
     const ventureResult = await db.execute({
@@ -237,6 +239,9 @@ export const PATCH = createHandler(async (req, { params }) => {
     const ventureDbId = ventureResult.rows?.[0]?.id || null;
     if (ventureDbId) {
       await completeMilestone(db, { dbId: ventureDbId, milestoneId });
+      // Immediate release: work held back only by THIS milestone is offered
+      // now, instead of waiting for the next time the roadmap is read.
+      await activateDueStages(db, { dbId: ventureDbId });
       const milestoneResult = await db.execute({
         sql: "SELECT title, journey_stage_id FROM venture_milestones WHERE id = ?",
         args: [milestoneId],

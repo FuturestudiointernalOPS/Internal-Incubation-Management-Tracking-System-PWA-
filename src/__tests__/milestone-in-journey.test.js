@@ -205,27 +205,30 @@ describe("milestone structure authority (matrix `milestones.edit` / Super Admin 
 });
 
 describe("release — an active journey offers every milestone", () => {
-  function releaseDb({ stageStatus = "active", stageMissing = false, milestones = [] } = {}) {
+  function releaseDb({ stageStatus = "active", stageMissing = false, milestones = [], blockedIds = [] } = {}) {
     const state = milestones.map((milestone) => ({ ...milestone }));
+    const blocked = new Set(blockedIds);
     const handler = async (sql) => {
       if (sql.includes("SELECT status FROM venture_journey_stages")) {
         return { rows: stageMissing ? [] : [{ status: stageStatus }] };
       }
-      if (sql.includes("UPDATE venture_milestones SET status = 'not_started'")) {
-        const released = state.filter((candidate) => candidate.status === "locked");
-        for (const row of released) row.status = "not_started";
-        return { rows: released.map((row) => ({ id: row.id })) };
+      if (sql.includes("UPDATE venture_milestones") && sql.includes("SET status = CASE WHEN")) {
+        const touched = state.filter((candidate) => ["upcoming", "blocked", "locked"].includes(candidate.status));
+        for (const row of touched) {
+          row.status = blocked.has(row.id) ? "blocked" : "not_started";
+        }
+        return { rows: touched.map((row) => ({ id: row.id, status: row.status })) };
       }
       return { rows: [] };
     };
     return { state, execute: async ({ sql, args = [] }) => handler(sql, args) };
   }
 
-  test("releases every locked milestone when the journey is active", async () => {
+  test("releases every held milestone when the journey is active", async () => {
     const db = releaseDb({
       milestones: [
-        { id: "m1", status: "locked", display_order: 1 },
-        { id: "m2", status: "locked", display_order: 2 },
+        { id: "m1", status: "upcoming", display_order: 1 },
+        { id: "m2", status: "upcoming", display_order: 2 },
       ],
     });
     const out = await releaseMilestonesForStage(db, { dbId: "v1", stageId: "s1" });
@@ -233,11 +236,11 @@ describe("release — an active journey offers every milestone", () => {
     expect(db.state.map((milestone) => milestone.status)).toEqual(["not_started", "not_started"]);
   });
 
-  test("releases a locked milestone even while an earlier one is still open — position releases nothing", async () => {
+  test("releases a held milestone even while an earlier one is still open — position releases nothing", async () => {
     const db = releaseDb({
       milestones: [
         { id: "m1", status: "in_progress", display_order: 1 },
-        { id: "m2", status: "locked", display_order: 2 },
+        { id: "m2", status: "upcoming", display_order: 2 },
       ],
     });
     const out = await releaseMilestonesForStage(db, { dbId: "v1", stageId: "s1" });
@@ -246,11 +249,25 @@ describe("release — an active journey offers every milestone", () => {
     expect(db.state[1].status).toBe("not_started");
   });
 
+  test("a milestone whose explicit dependency is unmet becomes BLOCKED, never released", async () => {
+    const db = releaseDb({
+      milestones: [
+        { id: "m1", status: "completed", display_order: 1 },
+        { id: "m2", status: "upcoming", display_order: 2 },
+      ],
+      blockedIds: ["m2"],
+    });
+    const out = await releaseMilestonesForStage(db, { dbId: "v1", stageId: "s1" });
+    expect(out.released_milestone_ids).toEqual([]);
+    expect(db.state[0].status).toBe("completed");
+    expect(db.state[1].status).toBe("blocked");
+  });
+
   test("leaves completed milestones untouched", async () => {
     const db = releaseDb({
       milestones: [
         { id: "m1", status: "completed", display_order: 1 },
-        { id: "m2", status: "locked", display_order: 2 },
+        { id: "m2", status: "upcoming", display_order: 2 },
       ],
     });
     const out = await releaseMilestonesForStage(db, { dbId: "v1", stageId: "s1" });
@@ -259,14 +276,14 @@ describe("release — an active journey offers every milestone", () => {
   });
 
   test("does nothing while the journey is not active", async () => {
-    const db = releaseDb({ stageStatus: "locked", milestones: [{ id: "m1", status: "locked", display_order: 1 }] });
+    const db = releaseDb({ stageStatus: "upcoming", milestones: [{ id: "m1", status: "upcoming", display_order: 1 }] });
     const out = await releaseMilestonesForStage(db, { dbId: "v1", stageId: "s1" });
     expect(out.released_milestone_ids).toEqual([]);
-    expect(db.state[0].status).toBe("locked");
+    expect(db.state[0].status).toBe("upcoming");
   });
 
   test("does nothing when the journey cannot be resolved", async () => {
-    const db = releaseDb({ stageMissing: true, milestones: [{ id: "m1", status: "locked", display_order: 1 }] });
+    const db = releaseDb({ stageMissing: true, milestones: [{ id: "m1", status: "upcoming", display_order: 1 }] });
     const out = await releaseMilestonesForStage(db, { dbId: "v1", stageId: "s1" });
     expect(out.released_milestone_ids).toEqual([]);
   });
@@ -303,20 +320,6 @@ describe("a journey closes ONLY when every milestone is completed", () => {
         if (stage) { stage.status = "completed"; stage.approved_by = args[0]; }
         return { rows: [] };
       }
-      if (sql.includes("SELECT id FROM venture_journey_stages WHERE venture_id = ? AND stage_order = ? AND status = 'locked'")) {
-        const stage = stageRows.find((candidate) => Number(candidate.stage_order) === Number(args[1]) && candidate.status === "locked");
-        return { rows: stage ? [{ id: stage.id }] : [] };
-      }
-      if (sql.includes("UPDATE venture_journey_stages SET status = 'active' WHERE id = ?")) {
-        const stage = stageRows.find((candidate) => String(candidate.id) === String(args[0]));
-        if (stage) stage.status = "active";
-        return { rows: [] };
-      }
-      if (sql.includes("UPDATE venture_milestones SET status = 'not_started'")) {
-        const milestone = milestoneRows.find((candidate) => String(candidate.id) === String(args[0]));
-        if (milestone && milestone.status === "locked") milestone.status = "not_started";
-        return { rows: [] };
-      }
       return { rows: [] };
     };
     return { stages: stageRows, milestones: milestoneRows, execute: async ({ sql, args = [] }) => handler(sql, args) };
@@ -326,12 +329,12 @@ describe("a journey closes ONLY when every milestone is completed", () => {
     const db = stageDb({
       stages: [
         { id: "s1", name: "Family & Friends", status: "active", stage_order: 1 },
-        { id: "s2", name: "GTM", status: "locked", stage_order: 2 },
+        { id: "s2", name: "GTM", status: "upcoming", stage_order: 2 },
       ],
       milestones: [
         { id: "m1", status: "completed", journey_stage_id: "s1", display_order: 1 },
         { id: "m2", status: "completed", journey_stage_id: "s1", display_order: 2 },
-        { id: "m3", status: "locked", journey_stage_id: "s2", display_order: 1 },
+        { id: "m3", status: "upcoming", journey_stage_id: "s2", display_order: 1 },
       ],
     });
     const out = await completeStageIfAllMilestonesDone(db, { dbId: "v1", stageId: "s1", cid: "lm-1" });
@@ -339,8 +342,8 @@ describe("a journey closes ONLY when every milestone is completed", () => {
     expect(out.next_stage_id).toBeUndefined();
     expect(db.stages.find((stage) => stage.id === "s1").status).toBe("completed");
     // The next Journey is NOT started from here — its own start_date will.
-    expect(db.stages.find((stage) => stage.id === "s2").status).toBe("locked");
-    expect(db.milestones.find((milestone) => milestone.id === "m3").status).toBe("locked");
+    expect(db.stages.find((stage) => stage.id === "s2").status).toBe("upcoming");
+    expect(db.milestones.find((milestone) => milestone.id === "m3").status).toBe("upcoming");
   });
 
   test("does not close while any milestone is still open", async () => {
@@ -365,7 +368,7 @@ describe("a journey closes ONLY when every milestone is completed", () => {
 
   test("only an active journey can close", async () => {
     const db = stageDb({
-      stages: [{ id: "s1", name: "A", status: "locked", stage_order: 1 }],
+      stages: [{ id: "s1", name: "A", status: "upcoming", stage_order: 1 }],
       milestones: [{ id: "m1", status: "completed", journey_stage_id: "s1", display_order: 1 }],
     });
     const out = await completeStageIfAllMilestonesDone(db, { dbId: "v1", stageId: "s1" });

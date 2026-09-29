@@ -72,7 +72,7 @@ export const POST = createHandler(
       await db.execute({
         sql: `INSERT INTO venture_journey_stages (venture_id, name, description, stage_order, status, source_template_type, source_template_id)
               VALUES (?,?,?,?,?,?,?)`,
-        args: [dbId, sections[i].title, sections[i].objective || null, order, i === 0 ? "active" : "locked", "plan", String(template.id)],
+        args: [dbId, sections[i].title, sections[i].objective || null, order, i === 0 ? "active" : "upcoming", "plan", String(template.id)],
       });
       order += 1;
     }

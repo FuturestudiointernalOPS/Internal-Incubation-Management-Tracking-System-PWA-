@@ -11,8 +11,8 @@ export const dynamic = "force-dynamic";
  * POST /api/ventures/[id]/journey/apply-journey-template
  * { template_id } — generate this Venture's journey from a saved Journey
  * template (structure only). The first stage starts active; the rest are
- * locked until the manager activates them. Fails (409) if the Venture
- * already has journey stages.
+ * upcoming until their start date arrives (or the manager activates them).
+ * Fails (409) if the Venture already has journey stages.
  *
  * Auth: same as journey authoring — `operating_plan` create capability.
  */

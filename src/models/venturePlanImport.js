@@ -914,14 +914,14 @@ export async function applyPlanImport({ dbId, importId, proposal, actorCid = nul
     // The first journey of a FIRST import starts active (a programme has to begin
     // somewhere); any other journey waits for its own start date, which the
     // engine promotes when that date arrives. So a journey with no start date
-    // stays Locked until someone gives it one — never silently opened.
+    // stays Upcoming until someone gives it one — never silently opened.
     let stageOrder = startingOrder;
     let stageIndex = 0;
     for (const journey of proposal.journeys || []) {
       stageOrder += 1;
       stageIndex += 1;
       const stageId = newUuid();
-      const stageStatus = !ventureAlreadyHasAJourney && stageIndex === 1 ? "active" : "locked";
+      const stageStatus = !ventureAlreadyHasAJourney && stageIndex === 1 ? "active" : "upcoming";
       await query(
         `INSERT INTO venture_journey_stages
            (id, venture_id, name, description, objective, target_date, stage_order, status, start_date,
@@ -947,7 +947,7 @@ export async function applyPlanImport({ dbId, importId, proposal, actorCid = nul
            VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, FALSE)`,
           [
             milestoneId, dbId, milestone.name, milestone.description || null, milestone.objective || null,
-            stageStatus === "active" ? "not_started" : "locked", milestone.priority || "medium", milestoneOrder,
+            stageStatus === "active" ? "not_started" : "upcoming", milestone.priority || "medium", milestoneOrder,
             stageId, milestone.start_date || null, milestone.target_date || null, actorCid,
           ],
         );

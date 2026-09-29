@@ -7,7 +7,7 @@
  *   - completing a milestone unlocks NOTHING by position: an active Journey's
  *     milestones are already all available
  *   - new milestones bound to an ACTIVE Journey start available; in a
- *     not-started or finished Journey they wait 'locked'
+ *     not-started or finished Journey they wait 'upcoming'
  */
 
 const executed = [];
@@ -150,14 +150,15 @@ describe("milestone completion authority (Lead Manager / Super Admin only)", () 
 
     const completedUpdate = executed.find((query) => query.sql.includes("UPDATE venture_milestones SET status = 'completed'"));
     expect(completedUpdate).toBeDefined();
-    // The activation sweep may release milestones (it filters by Journey), but
-    // no POSITIONAL unlock may fire: completion advances nothing by order.
-    const positionalUnlock = executed.find(
-      (query) =>
-        query.sql.includes("UPDATE venture_milestones SET status = 'not_started'") &&
-        !query.sql.includes("journey_stage_id IN"),
-    );
-    expect(positionalUnlock).toBeUndefined();
+    // No sweep may assign `not_started` outright: every release decides between
+    // `not_started` and `blocked` from the dependency edges.
+    const unguardedRelease = executed.find((query) => query.sql.includes("SET status = 'not_started'"));
+    expect(unguardedRelease).toBeUndefined();
+    const guardedSweeps = executed.filter((query) => query.sql.includes("SET status = CASE WHEN"));
+    expect(guardedSweeps.length).toBeGreaterThan(0);
+    for (const sweep of guardedSweeps) {
+      expect(sweep.sql).toContain("FROM venture_dependencies");
+    }
 
     const { notifyVentureFounders } = require("@/lib/ventures");
     expect(notifyVentureFounders).toHaveBeenCalledWith(
@@ -211,25 +212,25 @@ describe("milestone creation — availability follows the Journey", () => {
     expect(data.status).toBe("not_started");
   });
 
-  test("a milestone in a not-started Journey waits locked", async () => {
-    mockDb.flags.stageStatus = "locked";
+  test("a milestone in a not-started Journey waits upcoming", async () => {
+    mockDb.flags.stageStatus = "upcoming";
     const res = await POST(
       new Request("http://localhost/x", { method: "POST", body: JSON.stringify({ title: "Business Plan", journey_stage_id: "s1" }) }),
       ctx,
     );
     expect(res.status).toBe(200);
     const data = await readJson(res);
-    expect(data.status).toBe("locked");
+    expect(data.status).toBe("upcoming");
   });
 
-  test("a milestone in a finished Journey waits locked", async () => {
+  test("a milestone in a finished Journey waits upcoming", async () => {
     mockDb.flags.stageStatus = "completed";
     const res = await POST(
       new Request("http://localhost/x", { method: "POST", body: JSON.stringify({ title: "Extra", journey_stage_id: "s1" }) }),
       ctx,
     );
     const data = await readJson(res);
-    expect(data.status).toBe("locked");
+    expect(data.status).toBe("upcoming");
   });
 
   test("unbound milestones keep the legacy default", async () => {

@@ -13,7 +13,7 @@ export function DashboardTab() {
   // Overview helpers: current/next Journey milestone + upcoming Venture events.
   const journeyList = journeyStages || [];
   const activeStage = journeyList.find((stage) => stage.status === "active") || journeyList.find((stage) => stage.status !== "completed");
-  const nextStage = journeyList.find((stage) => stage.status === "locked" && stage.stage_order > (activeStage?.stage_order || 0));
+  const nextStage = journeyList.find((stage) => stage.status === "upcoming" && stage.stage_order > (activeStage?.stage_order || 0));
   const todayISO = new Date().toISOString().slice(0, 10);
   const upcomingEvents = (calendarEvents || [])
     .filter((event) => event.date && String(event.date) >= todayISO)

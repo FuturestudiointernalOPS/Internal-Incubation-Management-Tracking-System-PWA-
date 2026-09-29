@@ -16,7 +16,7 @@ import {
   projectJourneyStagesForVenture,
 } from "@/lib/ventureVisibility";
 
-const lockedMilestone = () => ({
+const upcomingMilestone = () => ({
   id: "m3",
   title: "Financial Model",
   description: "Build the model",
@@ -45,11 +45,11 @@ const openMilestone = () => ({
 
 describe("projectMilestoneForVenture", () => {
   test("a member gets a not-yet-released milestone sealed down to the map", () => {
-    const sealed = projectMilestoneForVenture(lockedMilestone());
+    const sealed = projectMilestoneForVenture(upcomingMilestone());
     expect(sealed).toEqual({
       id: "m3",
       title: "Financial Model",
-      status: "locked",
+      status: "upcoming",
       display_order: 2,
       target_date: "2026-06-30",
       journey_stage_id: "s2",
@@ -64,7 +64,7 @@ describe("projectMilestoneForVenture", () => {
   });
 
   test("a staff actor sees the same milestone whole", () => {
-    const open = projectMilestoneForVenture(lockedMilestone(), { unsealed: true });
+    const open = projectMilestoneForVenture(upcomingMilestone(), { unsealed: true });
     expect(open.sealed).toBe(false);
     expect(open.description).toBe("Build the model");
     expect(open.deliverables).toHaveLength(1);
@@ -78,8 +78,10 @@ describe("projectMilestoneForVenture", () => {
     expect(open.deliverables).toHaveLength(1);
   });
 
-  test("only 'locked' seals — every other status is reachable work", () => {
-    for (const status of ["not_started", "in_progress", "under_review", "completed"]) {
+  test("only an unreleased milestone seals — a BLOCKED one is reachable work", () => {
+    // `blocked` (a dependency is unmet) is a known piece of the roadmap the
+    // Venture simply cannot start yet: its detail stays visible.
+    for (const status of ["blocked", "not_started", "in_progress", "under_review", "completed"]) {
       const projected = projectMilestoneForVenture({ id: "x", status, description: "kept" });
       expect(projected.sealed).toBe(false);
       expect(projected.description).toBe("kept");
@@ -92,7 +94,7 @@ describe("projectMilestoneForVenture", () => {
   });
 
   test("the list form maps every row", () => {
-    const rows = projectMilestonesForVenture([openMilestone(), lockedMilestone()]);
+    const rows = projectMilestonesForVenture([openMilestone(), upcomingMilestone()]);
     expect(rows.map((row) => row.sealed)).toEqual([false, true]);
   });
 });
@@ -105,7 +107,7 @@ describe("projectJourneyStageForVenture", () => {
     objective: "Repeatable sales",
     status: "active",
     stage_order: 2,
-    milestones: [openMilestone(), lockedMilestone()],
+    milestones: [openMilestone(), upcomingMilestone()],
   });
 
   test("counts are computed over EVERY milestone, not just the visible ones", () => {
@@ -119,7 +121,7 @@ describe("projectJourneyStageForVenture", () => {
   test("a completed milestone is counted as completed", () => {
     const projected = projectJourneyStageForVenture({
       ...stage(),
-      milestones: [{ id: "m1", status: "completed" }, lockedMilestone()],
+      milestones: [{ id: "m1", status: "completed" }, upcomingMilestone()],
     });
     expect(projected.milestone_counts).toEqual({ total: 2, completed: 1 });
   });
@@ -127,8 +129,8 @@ describe("projectJourneyStageForVenture", () => {
   test("an unreleased Journey is named but its planning is withheld", () => {
     const projected = projectJourneyStageForVenture({
       ...stage(),
-      status: "locked",
-      milestones: [lockedMilestone()],
+      status: "upcoming",
+      milestones: [upcomingMilestone()],
     });
     expect(projected.name).toBe("Go-To-Market");
     expect(projected.sealed).toBe(true);
@@ -153,7 +155,7 @@ describe("projectJourneyStageForVenture", () => {
   });
 
   test("the stages form maps every stage", () => {
-    const rows = projectJourneyStagesForVenture([stage(), { id: "s3", status: "locked", milestones: [] }]);
+    const rows = projectJourneyStagesForVenture([stage(), { id: "s3", status: "upcoming", milestones: [] }]);
     expect(rows.map((stageRow) => stageRow.sealed)).toEqual([false, true]);
   });
 });

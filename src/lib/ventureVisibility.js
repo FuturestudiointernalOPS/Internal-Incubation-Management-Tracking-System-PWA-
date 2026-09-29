@@ -5,15 +5,19 @@
  *
  * A member's read therefore lists EVERY Journey and EVERY Milestone with its
  * real status — nothing silently disappears from the roadmap — while the work
- * inside a not-yet-released (`locked`) item is WITHHELD:
+ * inside a not-yet-released (`upcoming`) item is WITHHELD:
  *
  *   sealed milestone  →  id, title, status, order, target date   (the map)
  *   open milestone    →  the above + description, objective, tasks, deliverables
  *
- * A sealed row carries `sealed: true` so a surface can render it AS locked
+ * A sealed row carries `sealed: true` so a surface can render it AS upcoming
  * rather than pretending it does not exist, and its `deliverables` is an empty
  * array rather than absent, so a reader never has to tell "hidden" apart from
  * "none".
+ *
+ * A `blocked` milestone (its Journey is under way, but a dependency it declares
+ * is not completed) is NOT sealed: it is a known piece of the roadmap the
+ * Venture simply cannot start yet, so its detail stays visible.
  *
  * `milestone_counts` is recomputed over EVERY milestone, so a member's "3 of 8"
  * is the real figure. A progress number computed over a filtered list is a lie,
@@ -29,7 +33,16 @@
  */
 
 /** The one status that means "defined by staff, not yet released to the Venture". */
-export const SEALED_MILESTONE_STATUS = "locked";
+export const SEALED_MILESTONE_STATUS = "upcoming";
+
+/**
+ * True when a milestone is unreleased planning: its Journey has not started.
+ * The retired stored value `locked` is tolerated for rows written before the
+ * vocabulary migration — it is NEVER written any more.
+ */
+function isUnreleased(status) {
+  return status === SEALED_MILESTONE_STATUS || status === "locked";
+}
 
 /** A sealed milestone keeps its place on the map — and nothing about the work. */
 const MILESTONE_MAP_FIELDS = [
@@ -65,7 +78,7 @@ function openMilestone(milestone) {
  */
 export function projectMilestoneForVenture(milestone, { unsealed = false } = {}) {
   if (!milestone) return milestone;
-  const sealed = !unsealed && milestone.status === SEALED_MILESTONE_STATUS;
+  const sealed = !unsealed && isUnreleased(milestone.status);
   return sealed ? sealMilestone(milestone) : openMilestone(milestone);
 }
 
@@ -76,7 +89,7 @@ export function projectMilestonesForVenture(milestones, { unsealed = false } = {
 
 /**
  * Project a Journey stage — and the milestones bound to it — for a Venture
- * reader. A stage that is still `locked` is the future roadmap: its NAME and
+ * reader. A stage that is still `upcoming` is the future roadmap: its NAME and
  * status belong to the map the Venture is working towards, while its
  * description and objective are internal planning and are withheld.
  */
@@ -90,7 +103,7 @@ export function projectJourneyStageForVenture(stage, { unsealed = false } = {}) 
       total: all.length,
       completed: all.filter((milestone) => milestone.status === "completed").length,
     },
-    sealed: !unsealed && stage.status === "locked",
+    sealed: !unsealed && isUnreleased(stage.status),
   };
   if (projected.sealed) {
     for (const field of STAGE_HELD_FIELDS) delete projected[field];

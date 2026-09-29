@@ -1041,7 +1041,7 @@ export default function JourneyManagerPanel({ ventureId }) {
   ].filter(Boolean);
 
   const journeyMenuItems = (stage, index) => [
-    stage.status === "locked" && {
+    stage.status === "upcoming" && {
       key: "activate", label: t("venture.manager.activateStage"), icon: Play,
       onSelect: () => patch({ action: "activate", stage_id: stage.id }),
     },
@@ -1287,7 +1287,7 @@ export default function JourneyManagerPanel({ ventureId }) {
   const milestoneDotClass = (status) => statusDotClass(milestoneStatusWord(status));
 
   // ONE vocabulary (lib/ventureStatuses): the same words the founder and Super
-  // Admin see for the same state. Stage: Locked → In Progress → Completed.
+  // Admin see for the same state. Stage: Upcoming → In Progress → Completed.
   const statusPill = (stage) => {
     const word = stageStatusWord(stage.status);
     return (
@@ -1535,7 +1535,7 @@ export default function JourneyManagerPanel({ ventureId }) {
             const pct = total > 0 ? Math.round((done / total) * 100) : 0;
             const isDone = stage.status === "completed";
             const isActive = stage.status === "active";
-            const isLocked = stage.status === "locked";
+            const isLocked = stage.status === "upcoming";
             // A journey that has CLOSED without its closing report: the gap is
             // shown in place and the button above writes exactly that report.
             const closingMissing =

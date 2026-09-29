@@ -7,8 +7,10 @@
  *
  *   - a member receives EVERY Journey and EVERY Milestone with its real status
  *     (the map is honest — nothing silently disappears and progress counts are
- *     real), but the WORK inside a not-yet-released (`locked`) item is withheld
- *     and the row is stamped `sealed: true`
+ *     real), but the WORK inside a not-yet-released (`upcoming`) item is
+ *     withheld and the row is stamped `sealed: true`
+ *   - a `blocked` milestone (its Journey is under way, a dependency is unmet) is
+ *     NOT sealed: it is a known piece of the roadmap the Venture can see
  *   - staff and global roles keep receiving the FULL roadmap, unsealed
  *   - the author flags are still never handed to a member
  */
@@ -19,17 +21,17 @@ const VENTURE_DB_ID = "11111111-1111-4111-8111-111111111111";
 const STAGES_FIXTURE = [
   { id: "s1", name: "Family & Friends", description: "Raise from the network", objective: "First cheque", target_date: "2026-01-31", stage_order: 1, status: "completed", completed_at: "2026-02-01", created_at: null },
   { id: "s2", name: "Go-To-Market", description: "Find the first ten customers", objective: "Repeatable sales", target_date: "2026-05-31", stage_order: 2, status: "active", completed_at: null, created_at: null },
-  { id: "s3", name: "Investment Prep", description: "Raise a seed round", objective: "Signed term sheet", target_date: "2026-09-30", stage_order: 3, status: "locked", completed_at: null, created_at: null },
+  { id: "s3", name: "Investment Prep", description: "Raise a seed round", objective: "Signed term sheet", target_date: "2026-09-30", stage_order: 3, status: "upcoming", completed_at: null, created_at: null },
 ];
 
 const MILESTONES_FIXTURE = [
   { id: "m1", title: "Pitch Deck", description: "Build the deck", objective: "Tell the story", status: "completed", progress: 100, target_date: "2025-11-30", priority: "high", display_order: 1, created_at: null, journey_stage_id: "s1" },
   { id: "m2", title: "Customer Validation", description: "Twenty interviews", objective: "Prove demand", status: "in_progress", progress: 40, target_date: "2026-04-30", priority: "high", display_order: 1, created_at: null, journey_stage_id: "s2" },
-  { id: "m3", title: "Financial Model", description: "Build the model", objective: "Know the numbers", status: "locked", progress: 0, target_date: "2026-06-30", priority: "medium", display_order: 2, created_at: null, journey_stage_id: "s2" },
-  { id: "m4", title: "Term Sheet", description: "Negotiate terms", objective: "Close the round", status: "locked", progress: 0, target_date: "2026-09-30", priority: "medium", display_order: 1, created_at: null, journey_stage_id: "s3" },
+  { id: "m3", title: "Financial Model", description: "Build the model", objective: "Know the numbers", status: "blocked", progress: 0, target_date: "2026-06-30", priority: "medium", display_order: 2, created_at: null, journey_stage_id: "s2" },
+  { id: "m4", title: "Term Sheet", description: "Negotiate terms", objective: "Close the round", status: "upcoming", progress: 0, target_date: "2026-09-30", priority: "medium", display_order: 1, created_at: null, journey_stage_id: "s3" },
 ];
 
-// d1 hangs off the OPEN milestone, d2 off a LOCKED one — d2 is the leak this
+// d1 hangs off the OPEN milestone, d2 off a BLOCKED one — d2 is the leak this
 // test exists to prevent.
 const DELIVERABLES_FIXTURE = [
   { id: "d1", milestone_id: "m2", title: "Validation report", description: null, deliverable_type: "document", status: "submitted", approval_status: "pending", due_date: null, attachment_url: null, attachment_name: null, rejection_reason: null, reviewer_name: null },
@@ -111,7 +113,7 @@ describe("GET /api/ventures/[id]/journey — the member's map is complete", () =
     const data = await readJson(await fetchJourney());
     expect(data.success).toBe(true);
     expect(data.guided).toBe(true);
-    expect((data.stages || []).map((stage) => stage.status)).toEqual(["completed", "active", "locked"]);
+    expect((data.stages || []).map((stage) => stage.status)).toEqual(["completed", "active", "upcoming"]);
     expect(data.stages.length).toBe(3);
   });
 
@@ -150,17 +152,29 @@ describe("GET /api/ventures/[id]/journey — the work is sealed, not the map", (
     expect(current.deliverables.map((deliverable) => deliverable.id)).toEqual(["d1"]);
   });
 
-  test("a future milestone keeps its title and target date but no work", async () => {
+  test("a blocked milestone in an active Journey keeps its title and its work", async () => {
     const data = await readJson(await fetchJourney());
-    const future = milestoneById(stageById(data, "s2"), "m3");
-    expect(future.title).toBe("Financial Model");
-    expect(future.status).toBe("locked");
-    expect(future.target_date).toBe("2026-06-30");
+    const blocked = milestoneById(stageById(data, "s2"), "m3");
+    expect(blocked.title).toBe("Financial Model");
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.target_date).toBe("2026-06-30");
+    // Dependency-held, NOT unreleased planning: the detail stays visible.
+    expect(blocked.sealed).toBe(false);
+    expect(blocked.description).toBe("Build the model");
+    expect(blocked.objective).toBe("Know the numbers");
+    expect(blocked.deliverables.map((deliverable) => deliverable.id)).toEqual(["d2"]);
+  });
+
+  test("a milestone inside an unreleased Journey keeps its title but no work", async () => {
+    const data = await readJson(await fetchJourney());
+    const future = milestoneById(stageById(data, "s3"), "m4");
+    expect(future.title).toBe("Term Sheet");
+    expect(future.status).toBe("upcoming");
+    expect(future.target_date).toBe("2026-09-30");
     expect(future.sealed).toBe(true);
     expect(future.description).toBeUndefined();
     expect(future.objective).toBeUndefined();
     expect(future.progress).toBeUndefined();
-    // The deliverable attached to it is NOT handed over.
     expect(future.deliverables).toEqual([]);
   });
 
@@ -191,7 +205,7 @@ describe("GET /api/ventures/[id]/journey — staff keep the whole roadmap unseal
     const future = milestoneById(stageById(data, "s2"), "m3");
     expect(future.sealed).toBe(false);
     expect(future.description).toBe("Build the model");
-    // The deliverable of a locked milestone IS visible to staff.
+    // The deliverable of a blocked milestone IS visible to staff.
     expect(future.deliverables.map((deliverable) => deliverable.id)).toEqual(["d2"]);
   });
 });

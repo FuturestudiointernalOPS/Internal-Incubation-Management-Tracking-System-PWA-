@@ -12,30 +12,57 @@
  */
 
 // ─── Journey stages (venture_journey_stages.status) ───────────────────────
-export const JOURNEY_STAGE_STATUSES = ["locked", "active", "completed"];
+// date-driven: a Journey is `upcoming` until its own start_date arrives, then
+// `active`, then `completed` once all its milestones are done. Journeys never
+// wait for one another, so several can be `active` at the same time.
+export const JOURNEY_STAGE_STATUSES = ["upcoming", "active", "completed"];
+export const JOURNEY_STAGE_UPCOMING = "upcoming";
 export const JOURNEY_STAGE_COMPLETED = "completed";
+
+/** A Journey whose start date has not arrived yet (planning, not yet released). */
+export function isJourneyStageUpcoming(status) {
+  return status === JOURNEY_STAGE_UPCOMING;
+}
 
 export function isJourneyStageComplete(status) {
   return status === JOURNEY_STAGE_COMPLETED;
 }
 
 // ─── Milestones (venture_milestones.status) ────────────────────────────────
-// "locked" (Vinance 3 Phase 3): milestone is part of the roadmap but not yet
-// released — the previous milestone in its Journey stage must be completed
-// (approved by the Lead Manager / Super Admin) before it unlocks.
+// Two HELD states sit before real work, and they mean different things:
+//   `upcoming` — its Journey has not started yet (unreleased planning);
+//   `blocked`  — its Journey is under way, but an explicit dependency it
+//                declares is not completed yet. Position never holds work back:
+//                only a dependency does.
 export const MILESTONE_STATUSES = [
-  "locked",
+  "upcoming",
+  "blocked",
   "not_started",
   "in_progress",
   "under_review",
   "changes_requested",
   "completed",
 ];
+export const MILESTONE_UPCOMING = "upcoming";
+export const MILESTONE_BLOCKED = "blocked";
 export const MILESTONE_COMPLETED = "completed";
 
 export function isMilestoneComplete(status) {
   return status === MILESTONE_COMPLETED;
 }
+
+/** A milestone the Venture cannot work on yet — unreleased, or dependency-held. */
+export function isMilestoneHeld(status) {
+  return status === MILESTONE_UPCOMING || status === MILESTONE_BLOCKED;
+}
+
+// The stored value `locked` predates the split above (it meant both "not
+// started" and "dependency-held"). It is no longer written anywhere; these two
+// constants exist so the read/release layers tolerate rows written before the
+// vocabulary migration ran.
+export const LEGACY_MILESTONE_LOCKED = "locked";
+/** Every value a release sweep may still hold back (new + legacy). */
+export const HELD_MILESTONE_STATUSES = [MILESTONE_UPCOMING, MILESTONE_BLOCKED, LEGACY_MILESTONE_LOCKED];
 
 // ─── Tasks (venture_tasks.status) ──────────────────────────────────────────
 // Board columns: the statuses the Kanban groups by (order = column order).
@@ -101,7 +128,8 @@ export function isSubmissionApproved(submission) {
 
 /** Display word ids — the vocabulary itself. */
 export const STATUS_WORD_IDS = [
-  "locked",
+  "upcoming",
+  "blocked",
   "not_started",
   "in_progress",
   "awaiting_review",
@@ -112,7 +140,8 @@ export const STATUS_WORD_IDS = [
 
 /** word id → i18n key + tone (tone drives the colour, identical everywhere). */
 export const STATUS_WORDS = {
-  locked: { key: "status.locked", tone: "locked" },
+  upcoming: { key: "status.upcoming", tone: "upcoming" },
+  blocked: { key: "status.blocked", tone: "blocked" },
   not_started: { key: "status.notStarted", tone: "not_started" },
   in_progress: { key: "status.inProgress", tone: "in_progress" },
   awaiting_review: { key: "status.awaitingReview", tone: "awaiting_review" },
@@ -123,7 +152,8 @@ export const STATUS_WORDS = {
 
 /** tone → the ONE set of classes used by every surface (chip + dot). */
 export const STATUS_TONE_CLASSES = {
-  locked: { chip: "bg-slate-500/10 text-slate-400", dot: "bg-slate-600" },
+  upcoming: { chip: "bg-slate-500/10 text-slate-400", dot: "bg-slate-600" },
+  blocked: { chip: "bg-rose-500/10 text-rose-400", dot: "bg-rose-400" },
   not_started: { chip: "bg-slate-500/10 text-slate-400", dot: "bg-slate-500" },
   in_progress: { chip: "bg-sky-500/10 text-sky-400", dot: "bg-sky-400" },
   awaiting_review: { chip: "bg-amber-500/10 text-amber-400", dot: "bg-amber-400" },
@@ -135,10 +165,13 @@ export const STATUS_TONE_CLASSES = {
 /** Known stored value → word id. Anything absent is UNKNOWN (never guessed). */
 const STORED_TO_WORD = {
   // journey stages
-  locked: "locked",
+  upcoming: "upcoming",
   active: "in_progress",
   completed: "completed",
+  // legacy "locked" (retired stored value): a Journey that had not started.
+  locked: "upcoming",
   // milestones
+  blocked: "blocked",
   not_started: "not_started",
   in_progress: "in_progress",
   under_review: "awaiting_review",
@@ -165,12 +198,12 @@ export function storedStatusWord(stored) {
   return statusWord(id);
 }
 
-/** Journey stage (locked | active | completed) → word. */
+/** Journey stage (upcoming | active | completed) → word. */
 export function stageStatusWord(status) {
   return storedStatusWord(status);
 }
 
-/** Milestone (locked | not_started | in_progress | under_review | changes_requested | completed) → word. */
+/** Milestone (upcoming | blocked | not_started | in_progress | under_review | changes_requested | completed) → word. */
 export function milestoneStatusWord(status) {
   return storedStatusWord(status);
 }

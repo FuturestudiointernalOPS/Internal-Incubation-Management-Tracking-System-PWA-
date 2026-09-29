@@ -137,7 +137,7 @@ export async function saveJourneyAsTemplate(db, { dbId, name, description = null
 
 /**
  * Apply a journey template to a Venture: fresh journey stages (first one
- * active, rest locked) with fresh milestone + task rows. Fails if the
+ * active, the rest upcoming) with fresh milestone + task rows. Fails if the
  * Venture already has journey stages. Returns { error } or
  * { success, stages, milestones, tasks }.
  */
@@ -178,7 +178,7 @@ export async function applyJourneyTemplate(db, { dbId, templateId, actorCid = nu
            (venture_id, name, description, objective, stage_order, status,
             source_template_type, source_template_id)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-        [dbId, templateStage.name, templateStage.description || null, templateStage.objective || null, stageCount, i === 0 ? "active" : "locked", "journey", String(templateId)],
+        [dbId, templateStage.name, templateStage.description || null, templateStage.objective || null, stageCount, i === 0 ? "active" : "upcoming", "journey", String(templateId)],
       );
       const newStageId = rowsOf(stageInsertResult)[0]?.id;
 
@@ -188,13 +188,13 @@ export async function applyJourneyTemplate(db, { dbId, templateId, actorCid = nu
         [templateStage.id],
       );
       const templateMilestones = rowsOf(templateMilestonesResult);
-      for (let mi = 0; mi < templateMilestones.length; mi++) {
-        const templateMilestone = templateMilestones[mi];
+      for (const templateMilestone of templateMilestones) {
         milestoneCount += 1;
         const newMilestoneId = newUuid();
-        // Sequential release (Phase 3): first milestone of each fresh stage is
-        // available; the rest start locked until the previous one completes.
-        const msStatus = mi === 0 ? "not_started" : "locked";
+        // Availability follows the Journey: the active stage's milestones are
+        // offered; an upcoming stage holds all of its own. Position releases
+        // nothing — only an explicit dependency ever holds work back.
+        const msStatus = i === 0 ? "not_started" : "upcoming";
         await query(
           `INSERT INTO venture_milestones
              (id, venture_id, title, description, objective, status, progress,

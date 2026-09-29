@@ -36,7 +36,7 @@ const ROW_COLORS = {
 const STATUS_COLORS = {
   completed: "bg-emerald-500", done: "bg-emerald-500", approved: "bg-emerald-500",
   in_progress: "bg-amber-500", review: "bg-purple-500",
-  delayed: "bg-rose-500", blocked: "bg-rose-500",
+  delayed: "bg-rose-500", blocked: "bg-rose-500", upcoming: "bg-slate-500/30",
   backlog: "bg-slate-500", todo: "bg-blue-500", pending: "bg-slate-500",
   cancelled: "bg-slate-500/30",
 };

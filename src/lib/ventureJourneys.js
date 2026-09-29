@@ -30,7 +30,7 @@ export async function ensureJourneyTable(db) {
       objective TEXT,
       target_date DATE,
       stage_order INTEGER NOT NULL,
-      status TEXT NOT NULL DEFAULT 'locked',
+      status TEXT NOT NULL DEFAULT 'upcoming',
       completed_at TIMESTAMPTZ,
       approved_by TEXT REFERENCES contacts(cid),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -42,6 +42,9 @@ export async function ensureJourneyTable(db) {
   // Date-driven activation: a Journey becomes active when its own start_date
   // arrives (NULL = never auto-activates; it starts only when staff say so).
   await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS start_date DATE" });
+  // The held state before a Journey starts is `upcoming` (the retired `locked`
+  // is migrated away in migrations/20260929_venture_journey_upcoming.sql).
+  await db.execute({ sql: "ALTER TABLE venture_journey_stages ALTER COLUMN status SET DEFAULT 'upcoming'" });
   // Archive (soft delete): archived journeys stay in the database (history
   // preserved) but are hidden from the Venture and from default lists.
   await db.execute({ sql: "ALTER TABLE venture_journey_stages ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE" });

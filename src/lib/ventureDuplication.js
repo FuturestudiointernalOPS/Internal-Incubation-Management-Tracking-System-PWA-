@@ -13,8 +13,8 @@
  *     the manager can customize and re-run; it inherits no history.
  *
  * Statuses reset on copy:
- *   - journey stage  → 'locked'  (manager activates it deliberately)
- *   - milestone      → 'not_started', progress 0
+ *   - journey stage  → 'upcoming'  (manager activates it, or its start_date does)
+ *   - milestone      → 'upcoming', progress 0
  *   - task           → 'backlog'
  * Assignees/assigner metadata are cleared (reporter = actor when provided).
  * Structure fields (name, description, objective, dates, priorities, labels,
@@ -148,7 +148,7 @@ export async function duplicateJourneyStage(db, { dbId, stageId, actorCid }) {
     const maxOrder = ordered.reduce((maxSoFar, row) => Math.max(maxSoFar, Number(row.stage_order) || 0), 0);
     await query(
       `INSERT INTO venture_journey_stages (id, venture_id, name, description, objective, target_date, stage_order, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'locked')`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'upcoming')`,
       [newStageId, dbId, name, stage.description || null, stage.objective || null, stage.target_date || null, maxOrder + 1],
     );
 
@@ -168,12 +168,12 @@ export async function duplicateJourneyStage(db, { dbId, stageId, actorCid }) {
       [stageId],
     );
     const stageMilestones = rowsOf(milestonesResult);
-    for (let milestoneIndex = 0; milestoneIndex < stageMilestones.length; milestoneIndex++) {
-      const milestone = stageMilestones[milestoneIndex];
+    for (const milestone of stageMilestones) {
       const newMilestoneId = newUuid();
-      // Sequential release (Phase 3): the first milestone of the copied stage
-      // is available; the rest start locked until the previous one completes.
-      const milestoneStatus = milestoneIndex === 0 ? "not_started" : "locked";
+      // The copy is `upcoming`: it holds all its milestones until the copy is
+      // activated (its own start date, or staff). Position releases nothing —
+      // only an explicit dependency ever holds work back.
+      const milestoneStatus = "upcoming";
       await query(
         `INSERT INTO venture_milestones
            (id, venture_id, title, description, objective, target_date, start_date,
@@ -200,7 +200,7 @@ export async function duplicateJourneyStage(db, { dbId, stageId, actorCid }) {
         description: stage.description || null,
         objective: stage.objective || null,
         target_date: stage.target_date || null,
-        status: "locked",
+        status: "upcoming",
       },
       milestones_copied: milestonesCopied,
       tasks_copied: tasksCopied,

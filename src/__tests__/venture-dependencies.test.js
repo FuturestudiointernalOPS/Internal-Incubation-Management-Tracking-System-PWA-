@@ -135,13 +135,19 @@ describe("booking gate — an unmet dependency refuses BY NAME", () => {
 });
 
 describe("engine contract — every release sweep carries the dependency guard", () => {
-  test("releaseMilestonesForStage and activateDueStages never free blocked work", () => {
+  test("the ONE guard is defined, and both release sweeps decide through it", () => {
     const source = fs.readFileSync(path.join(ROOT, "src/lib/ventureMilestoneEngine.js"), "utf8");
-    // Four guarded release statements: rich + plain in each of the two sweeps.
-    const releaseStatements = source.split("UPDATE venture_milestones SET status = 'not_started'");
-    expect(releaseStatements.length).toBe(5);
-    expect(source).toContain("NOT EXISTS");
+    // The guard itself: an edge (source -> target) means the source blocks the
+    // target, so a milestone is free only when every blocker is completed.
     expect(source).toContain("FROM venture_dependencies d");
     expect(source).toContain("blocker.status <> 'completed'");
+    // Both sweeps (stage-scoped + Venture-wide) pick `not_started` vs `blocked`
+    // through that ONE guard — never a bare release.
+    const sweeps = source.split("SET status = CASE WHEN");
+    expect(sweeps.length).toBe(3);
+    for (const sweep of sweeps.slice(1)) {
+      expect(sweep).toContain("${NO_UNMET_BLOCKER}");
+      expect(sweep).toContain("MILESTONE_BLOCKED");
+    }
   });
 });

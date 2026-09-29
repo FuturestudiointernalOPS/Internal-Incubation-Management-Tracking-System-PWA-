@@ -35,7 +35,6 @@ function fakeDb({ milestoneStatus = "not_started", journeyStageId = STAGE, deliv
     if (sql.includes("SELECT id, journey_stage_id FROM venture_milestones")) {
       return { rows: [{ id: MS, journey_stage_id: journeyStageId }] };
     }
-    if (sql.includes("SELECT id FROM venture_milestones") && sql.includes("status = 'locked'")) return { rows: [] };
     if (sql.includes("SELECT id, name, status, stage_order FROM venture_journey_stages")) {
       return { rows: stageStatus ? [{ id: STAGE, name: "Ideation", status: stageStatus, stage_order: 1 }] : [] };
     }
@@ -110,10 +109,17 @@ describe("syncMilestoneStatusFromDeliverables", () => {
     expect(calls.some((call) => call.sql.includes("status = 'completed'"))).toBe(false);
   });
 
-  test("a locked milestone is unreleased planning — the work never releases it", async () => {
-    const { db, calls } = fakeDb({ milestoneStatus: "locked", deliverables: [{ status: "submitted" }] });
+  test("an upcoming milestone is unreleased planning — the work never releases it", async () => {
+    const { db, calls } = fakeDb({ milestoneStatus: "upcoming", deliverables: [{ status: "submitted" }] });
     const out = await syncMilestoneStatusFromDeliverables(db, { dbId: DB, milestoneId: MS, canComplete: true });
-    expect(out).toEqual({ changed: false, status: "locked" });
+    expect(out).toEqual({ changed: false, status: "upcoming" });
+    expect(statusUpdate(calls)).toBeUndefined();
+  });
+
+  test("a blocked milestone stays blocked — evidence never clears a dependency", async () => {
+    const { db, calls } = fakeDb({ milestoneStatus: "blocked", deliverables: [{ approval_status: "approved" }] });
+    const out = await syncMilestoneStatusFromDeliverables(db, { dbId: DB, milestoneId: MS, canComplete: true });
+    expect(out).toEqual({ changed: false, status: "blocked" });
     expect(statusUpdate(calls)).toBeUndefined();
   });
 

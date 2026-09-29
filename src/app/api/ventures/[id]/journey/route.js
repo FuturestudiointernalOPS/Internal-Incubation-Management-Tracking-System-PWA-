@@ -256,7 +256,7 @@ export async function POST(req, { params }) {
     });
     const count = Number(existing.rows?.[0]?.n || 0);
     const stageOrder = await nextJourneyStageOrder(db, dbId);
-    const status = count === 0 ? "active" : "locked";
+    const status = count === 0 ? "active" : "upcoming";
     const targetDate = body.target_date ? String(body.target_date).slice(0, 10) : null;
     // Optional: when the Journey starts on its own (NULL = it starts only when
     // a staff member activates it). No ordering is imposed on it.
@@ -380,11 +380,18 @@ export async function PATCH(req, { params }) {
     } else if (action === "lock") {
       if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
       if (stage.status === "completed") {
-        return NextResponse.json({ success: false, error: "Completed stages cannot be locked — reset the stage first." }, { status: 400 });
+        return NextResponse.json({ success: false, error: "Completed stages cannot be paused — reset the stage first." }, { status: 400 });
       }
       await db.execute({
-        sql: "UPDATE venture_journey_stages SET status = 'locked', completed_at = NULL, approved_by = NULL WHERE id = ? AND venture_id = ?",
+        sql: "UPDATE venture_journey_stages SET status = 'upcoming', completed_at = NULL, approved_by = NULL WHERE id = ? AND venture_id = ?",
         args: [stageId, dbId],
+      });
+      // A Journey that is no longer active holds its unreleased work again.
+      // Work already under way is left where it is.
+      await db.execute({
+        sql: `UPDATE venture_milestones SET status = 'upcoming', updated_at = NOW()
+              WHERE venture_id = ? AND journey_stage_id = ? AND status IN ('blocked', 'not_started', 'locked')`,
+        args: [dbId, stageId],
       });
     } else if (action === "complete") {
       // A journey is NEVER closed by hand: it completes automatically once all
@@ -395,12 +402,12 @@ export async function PATCH(req, { params }) {
       );
     } else if (action === "reset") {
       if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
-      await db.transaction(async (query) => {
-        await query(
-          "UPDATE venture_journey_stages SET status = 'locked', completed_at = NULL, approved_by = NULL WHERE venture_id = ? AND stage_order >= ?",
-          [dbId, stage.stage_order],
-        );
-        await query("UPDATE venture_journey_stages SET status = 'active' WHERE id = ? AND venture_id = ?", [stageId, dbId]);
+      // Reopening touches THIS Journey only. Journeys overlap, so what the
+      // others are is decided by their own dates (and by staff), never by a
+      // neighbour's state — the old positional re-lock is gone.
+      await db.execute({
+        sql: "UPDATE venture_journey_stages SET status = 'active', completed_at = NULL, approved_by = NULL WHERE id = ? AND venture_id = ?",
+        args: [stageId, dbId],
       });
       // Reopened journey is active again — its milestones are offered.
       await releaseMilestonesForStage(db, { dbId, stageId });
@@ -424,7 +431,7 @@ export async function PATCH(req, { params }) {
       const actionName = ACTION_NAMES[action];
       if (actionName) {
         const nextStatus =
-          action === "activate" ? "active" : action === "lock" ? "locked" : action === "reset" ? "active" : null;
+          action === "activate" ? "active" : action === "lock" ? "upcoming" : action === "reset" ? "active" : null;
         const changes =
           nextStatus && stage?.status && stage.status !== nextStatus
             ? [{ field: "status", from: stage.status, to: nextStatus }]

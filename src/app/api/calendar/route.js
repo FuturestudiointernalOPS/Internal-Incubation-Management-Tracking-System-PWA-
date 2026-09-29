@@ -422,7 +422,7 @@ export async function GET(req) {
               date: stage.target_date,
               type: "venture_journey_target",
               source: "venture_journey",
-              status: stage.status || "locked",
+              status: stage.status || "upcoming",
               description: null,
               related_id: stage.id,
               project_id: null,

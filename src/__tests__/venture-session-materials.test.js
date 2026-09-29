@@ -90,13 +90,22 @@ describe("assertBookableMilestone — availability follows the Journey", () => {
     expect(out.ok).toBe(true);
   });
 
-  test("refuses a locked milestone and says it is locked", async () => {
+  test("refuses an upcoming milestone and says it is upcoming", async () => {
     const out = await assertBookableMilestone(
-      makeDb({ milestone: { ...MILESTONE, status: "locked" }, stage: STAGE }),
+      makeDb({ milestone: { ...MILESTONE, status: "upcoming" }, stage: STAGE }),
       { dbId: 7, milestoneId: "MS-1" },
     );
     expect(out.ok).toBe(false);
-    expect(out.reason).toMatch(/locked/i);
+    expect(out.reason).toMatch(/upcoming/i);
+  });
+
+  test("refuses a blocked milestone and names the dependency", async () => {
+    const out = await assertBookableMilestone(
+      makeDb({ milestone: { ...MILESTONE, status: "blocked" }, stage: STAGE }),
+      { dbId: 7, milestoneId: "MS-1" },
+    );
+    expect(out.ok).toBe(false);
+    expect(out.reason).toMatch(/blocked/i);
   });
 
   test("refuses a completed milestone and says it is completed", async () => {
@@ -110,7 +119,7 @@ describe("assertBookableMilestone — availability follows the Journey", () => {
 
   test("refuses a milestone in a Journey that has not started", async () => {
     const out = await assertBookableMilestone(
-      makeDb({ milestone: MILESTONE, stage: { ...STAGE, status: "locked" } }),
+      makeDb({ milestone: MILESTONE, stage: { ...STAGE, status: "upcoming" } }),
       { dbId: 7, milestoneId: "MS-1" },
     );
     expect(out.ok).toBe(false);

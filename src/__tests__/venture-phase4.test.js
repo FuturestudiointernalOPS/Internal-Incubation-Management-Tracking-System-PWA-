@@ -155,7 +155,7 @@ describe("buildExistingProgramme — what a reassessment must be told", () => {
         return {
           rows: [
             { journey_stage_id: "j-1", title: "Target customer defined", status: "completed", task_count: "4" },
-            { journey_stage_id: "j-2", title: "Someone else's", status: "locked", task_count: "9" },
+            { journey_stage_id: "j-2", title: "Someone else's", status: "upcoming", task_count: "9" },
           ],
         };
       }

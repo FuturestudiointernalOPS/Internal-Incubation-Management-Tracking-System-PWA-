@@ -5,7 +5,7 @@
  *   → entire Venture journey (stages + bound milestones + top-level tasks)
  *     becomes an independent, structure-only library template
  * POST /api/ventures/[id]/journey/apply-journey-template
- *   → fresh journey stages (first active, rest locked) + fresh milestones and
+ *   → fresh journey stages (first active, rest upcoming) + fresh milestones and
  *     tasks; 409 when the Venture already has stages
  * GET /api/journey-templates — library listing with structural counts
  */
@@ -38,7 +38,7 @@ function makeFakeDb() {
         ? {
             rows: [
               { id: STAGE_1, venture_id: VENTURE_DB_ID, name: "Family & Friends", description: "d1", objective: "o1", stage_order: 1, status: "active" },
-              { id: STAGE_2, venture_id: VENTURE_DB_ID, name: "GTM", description: null, objective: null, stage_order: 2, status: "locked" },
+              { id: STAGE_2, venture_id: VENTURE_DB_ID, name: "GTM", description: null, objective: null, stage_order: 2, status: "upcoming" },
             ],
           }
         : { rows: [] };
@@ -203,7 +203,7 @@ describe("POST /journey/apply-journey-template — generate journey from saved t
     const stageInserts = insertsMatching("INSERT INTO venture_journey_stages");
     expect(stageInserts.length).toBe(2);
     expect(stageInserts[0].args[5]).toBe("active");
-    expect(stageInserts[1].args[5]).toBe("locked");
+    expect(stageInserts[1].args[5]).toBe("upcoming");
     // Milestones bound to the freshly returned stage ids
     const msInserts = insertsMatching("INSERT INTO venture_milestones");
     expect(msInserts.length).toBe(2);

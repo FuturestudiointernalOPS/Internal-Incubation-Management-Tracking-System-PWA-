@@ -15,10 +15,11 @@ export const dynamic = "force-dynamic";
  * POST /api/ventures/[id]/journey/duplicate
  * { stage_id } — duplicate a Journey stage as an independent structure copy.
  *
- * The copy is inserted directly after the source stage, starts 'locked'
- * (the manager activates it deliberately) and carries fresh milestone/task
- * copies. Execution history (submissions, reviews, comments, activity) is
- * NEVER copied — the source keeps its history, the copy starts clean.
+ * The copy is inserted directly after the source stage, starts 'upcoming'
+ * (its own start date activates it, or the manager does) and carries fresh
+ * milestone/task copies. Execution history (submissions, reviews, comments,
+ * activity) is NEVER copied — the source keeps its history, the copy starts
+ * clean.
  *
  * Auth: same as journey management — `operating_plan` manage capability on
  * a venture-wide assignment (or a global role). Members get 404.

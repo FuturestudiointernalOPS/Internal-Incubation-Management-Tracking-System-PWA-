@@ -17,7 +17,8 @@
  *   nothing started             → not_started
  *
  * Two lines are never crossed, exactly as at runtime:
- *   - a `locked` milestone is unreleased planning and is left alone, and
+ *   - a HELD milestone (`upcoming` — its Journey has not started — or `blocked`
+ *     — a dependency it declares is unmet) is unreleased planning, and
  *   - a `completed` milestone is a decision already taken and is never reopened.
  *
  * SAFE BY CONSTRUCTION
@@ -68,7 +69,7 @@ const PROPOSED_SQL = `
       END AS target_status
     FROM venture_milestones m
     JOIN aggregated a ON a.milestone_id::text = m.id::text
-    WHERE m.status NOT IN ('locked', 'completed')
+    WHERE m.status NOT IN ('upcoming', 'blocked', 'locked', 'completed')
   )
   SELECT id, venture_id, title, current_status, target_status
   FROM proposed

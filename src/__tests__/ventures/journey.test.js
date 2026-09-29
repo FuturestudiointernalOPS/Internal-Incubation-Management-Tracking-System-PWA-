@@ -33,13 +33,15 @@ describe("ensureJourneyTable", () => {
     db.execute.mockResolvedValue({ rows: [] });
     await ensureJourneyTable(db);
 
-    expect(db.execute).toHaveBeenCalledTimes(9); // CREATE + 8 ALTERs (objective, target_date, start_date, archive ×3, template provenance ×2)
-    const [create, alterObjective, alterDate, alterStartDate, alterArchived, alterArchivedAt, alterArchivedBy, alterSourceType, alterSourceId] = db.execute.mock.calls.map((call) => call[0].sql);
+    expect(db.execute).toHaveBeenCalledTimes(10); // CREATE + 9 ALTERs (objective, target_date, start_date, held-state default, archive ×3, template provenance ×2)
+    const [create, alterObjective, alterDate, alterStartDate, alterStatusDefault, alterArchived, alterArchivedAt, alterArchivedBy, alterSourceType, alterSourceId] = db.execute.mock.calls.map((call) => call[0].sql);
     expect(create).toContain("CREATE TABLE IF NOT EXISTS venture_journey_stages");
     expect(alterObjective).toContain("ADD COLUMN IF NOT EXISTS objective");
     expect(alterDate).toContain("ADD COLUMN IF NOT EXISTS target_date");
     // Date-driven activation: a Journey starts on its own start_date.
     expect(alterStartDate).toContain("ADD COLUMN IF NOT EXISTS start_date");
+    // The held state before a Journey starts is `upcoming`.
+    expect(alterStatusDefault).toContain("ALTER COLUMN status SET DEFAULT 'upcoming'");
     // Soft delete (archive) columns — added additively so existing rows keep working.
     expect(alterArchived).toContain("ADD COLUMN IF NOT EXISTS is_archived");
     expect(alterArchivedAt).toContain("ADD COLUMN IF NOT EXISTS archived_at");

@@ -49,8 +49,8 @@ export const POST = createHandler(async (req, { params }) => {
     return NextResponse.json({ success: false, error: result.error }, { status: 400 });
   }
   // Reordering never changes availability — position releases nothing. The
-  // call stays as an idempotent safety net: any still-locked milestone of
-  // this active Journey is offered.
+  // call stays as an idempotent safety net: any still-held milestone of this
+  // active Journey is offered (or reads `blocked` when a dependency is unmet).
   await releaseMilestonesForStage(db, { dbId, stageId });
   return NextResponse.json({ success: true });
 });

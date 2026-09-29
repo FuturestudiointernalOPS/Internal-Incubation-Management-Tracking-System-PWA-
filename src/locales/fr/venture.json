@@ -451,7 +451,7 @@
     },
     "manager": {
       "duplicateStageConfirm": "Dupliquer l’étape « {name} » ? Les jalons et les tâches seront copiés dans une nouvelle étape indépendante — soumissions, avis et historique ne sont pas copiés.",
-      "duplicateStageSuccess": "Étape dupliquée ({milestones} jalons, {tasks} tâches). La copie démarre verrouillée — activez-la quand vous le souhaitez.",
+      "duplicateStageSuccess": "Étape dupliquée ({milestones} jalons, {tasks} tâches). La copie démarre à venir — elle devient active à sa date de début, ou quand vous l'activez.",
       "duplicateStageFailed": "Échec de la duplication.",
       "duplicateStageTitle": "Dupliquer l’étape (jalons + tâches, structure uniquement)",
       "duplicateStageBusy": "Duplication en cours…",
@@ -659,7 +659,7 @@
       "reopenStage": "Rouvrir à partir de cette étape",
       "deleteStage": "Supprimer l'étape",
       "deleteStageConfirm": "Supprimer l'étape « {name} » ? Cela ne supprime pas les données de l'entreprise — seulement l'étape du parcours.",
-      "stageAdded": "Parcours ajouté. Il reste verrouillé jusqu'à son activation.",
+      "stageAdded": "Parcours ajouté. Il reste à venir jusqu'à sa date de début, ou jusqu'à son activation.",
       "addFailed": "Échec de l'ajout.",
       "actionFailed": "Échec de l'action.",
       "stageUpdated": "Étape mise à jour.",
@@ -667,7 +667,8 @@
       "applyFailed": "Échec de l'application.",
       "stageDeleted": "Étape supprimée.",
       "milestoneStatuses": {
-        "locked": "Verrouillé",
+        "upcoming": "À venir",
+        "blocked": "Bloqué",
         "not_started": "Non commencé",
         "in_progress": "En cours",
         "under_review": "En revue",
