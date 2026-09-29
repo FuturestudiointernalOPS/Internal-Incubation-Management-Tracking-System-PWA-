@@ -235,13 +235,53 @@ function PlanReview({ ventureId, draft, onSaved }) {
   const [asking, setAsking] = useState(false);
   const [suggestion, setSuggestion] = useState(null);
   const [applying, setApplying] = useState(false);
-  // Which external name the reviewer is resolving, and how.
-  const [resolving, setResolving] = useState(null); // { name, mode: "member" | "invite", email, phone }
-  const [memberQuery, setMemberQuery] = useState("");
+  // Which external name the reviewer is resolving, and the address they typed.
+  //
+  // ONE field. The reviewer previously had to CHOOSE between "select a member"
+  // and "add a person" before they had any way of knowing which applied — a
+  // question the interface should answer, not ask. The email answers it: an
+  // address is unique, a name is not, so the address decides.
+  const [resolving, setResolving] = useState(null); // { name, email }
+  const [lookup, setLookup] = useState({ email: "", state: "idle", contact: null });
   const [inviting, setInviting] = useState(false);
   const searchTimer = useRef(null);
 
   useEffect(() => () => clearTimeout(searchTimer.current), []);
+
+  // The address being checked, and whether it is even a question worth asking.
+  const typedEmail = String(resolving?.email || "").trim();
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(typedEmail);
+
+  /**
+   * Ask the server whether the typed address is already a member.
+   *
+   * The ANSWER decides what the row offers — nothing here infers it. A typed
+   * address is never assumed to be new, and never assumed to exist.
+   *
+   * Nothing is written to state before the answer arrives: an in-flight check is
+   * DERIVED below (`lookup.email` does not match the typed address yet), which
+   * also means a stale answer for an address the reviewer has since changed is
+   * ignored rather than shown.
+   */
+  useEffect(() => {
+    if (!emailValid) return undefined;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/people?email=${encodeURIComponent(typedEmail)}`);
+        const payload = await response.json().catch(() => ({}));
+        if (cancelled) return;
+        setLookup({
+          email: typedEmail,
+          state: !payload.success ? "error" : payload.found ? "member" : "new",
+          contact: payload.contact || null,
+        });
+      } catch (_) {
+        if (!cancelled) setLookup({ email: typedEmail, state: "error", contact: null });
+      }
+    }, 350);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [typedEmail, emailValid]);
 
   /** Display-only counts for the confirmation text. The SERVER computes the
    *  real numbers on apply — this exists so the reviewer is told what they are
@@ -462,7 +502,15 @@ function PlanReview({ ventureId, draft, onSaved }) {
     return touched;
   };
 
-  /** Add a real ImpactOS person and invite them — Name + Email + Phone, by email.
+  /** Link this name to a member the platform ALREADY has. No person is created,
+   *  and nothing but the identity in this working copy changes. */
+  const linkExisting = (entry, contact) => {
+    const touched = applyContactToName(entry.name, contact.cid);
+    setNotice(t("venture.planImport.assignedToMember", { name: contact.name || entry.name, n: touched }));
+    setResolving(null);
+  };
+
+  /** Add a real ImpactOS person and invite them — Name + Email, by email.
    *  This is the ONLY path that creates an account; importing a name never did. */
   const addAndInvite = async (name) => {
     setInviting(true);
@@ -472,7 +520,7 @@ function PlanReview({ ventureId, draft, onSaved }) {
       const res = await fetch("/api/people", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email: resolving?.email || "", phone: resolving?.phone || "" }),
+        body: JSON.stringify({ name, email: resolving?.email || "" }),
       });
       const payload = await res.json().catch(() => ({}));
       if (!payload.success) {
@@ -865,108 +913,83 @@ function PlanReview({ ventureId, draft, onSaved }) {
           <p className="text-[10px] text-slate-400 mt-1">{t("venture.planImport.externalDetectedHint")}</p>
 
           <ul className="mt-2 space-y-2">
-            {externalPeople.map((entry) => (
-              <li key={entry.name} className="rounded-lg border border-[var(--border-primary)] p-2 space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[11px] font-bold text-[var(--text-primary)]">{entry.name}</span>
-                  <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-white/5 text-slate-400">
-                    {t("venture.planImport.externalBadge")}
-                  </span>
-                  <span className="text-[9px] text-slate-500">
-                    {t("venture.planImport.externalAssignments", { n: entry.count })}
-                  </span>
-                  <div className="ml-auto flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setResolving({ name: entry.name, mode: "member" })}
-                      className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-[var(--border-primary)] text-slate-400 hover:text-[var(--text-primary)]"
-                    >
-                      {t("venture.planImport.selectMember")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setResolving({ name: entry.name, mode: "invite", email: "", phone: "" })}
-                      className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-brand-orange/40 text-[var(--brand-orange)] hover:bg-brand-orange/10"
-                    >
-                      {t("venture.planImport.addAndInvite")}
-                    </button>
+            {externalPeople.map((entry) => {
+              const isOpen = resolving?.name === entry.name;
+              // Derived, never stored: an address with no answer yet is simply
+              // "still checking", so there is no window in which a row shows a
+              // verdict it has not actually received.
+              const state = !isOpen || !emailValid ? "idle" : lookup.email === typedEmail ? lookup.state : "searching";
+              return (
+                <li key={entry.name} className="rounded-lg border border-[var(--border-primary)] p-2 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-bold text-[var(--text-primary)]">{entry.name}</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-white/5 text-slate-400">
+                      {t("venture.planImport.externalBadge")}
+                    </span>
+                    <span className="text-[9px] text-slate-500">
+                      {t("venture.planImport.externalAssignments", { n: entry.count })}
+                    </span>
                   </div>
-                </div>
 
-                {resolving?.name === entry.name && resolving.mode === "member" && (
+                  {/* ONE field. The address decides which of the two things this
+                      row offers — the reviewer does not have to know first. */}
                   <div className="flex flex-wrap items-center gap-2">
                     <input
-                      list="plan-import-owner-options"
-                      value={memberQuery}
-                      onChange={(event) => {
-                        setMemberQuery(event.target.value);
-                        searchContacts(event.target.value);
-                      }}
-                      placeholder={t("venture.planImport.memberSearchPlaceholder")}
-                      className={`${inputClass} flex-1 min-w-[160px]`}
+                      type="email"
+                      value={isOpen ? resolving.email || "" : ""}
+                      onChange={(event) => setResolving({ name: entry.name, email: event.target.value })}
+                      placeholder={t("venture.planImport.emailLookupPlaceholder")}
+                      className={`${inputClass} flex-1 min-w-[200px]`}
                     />
-                    <button
-                      type="button"
-                      disabled={!matchContact(memberQuery)}
-                      onClick={() => {
-                        const contact = matchContact(memberQuery);
-                        if (!contact) return;
-                        const touched = applyContactToName(entry.name, contact.cid);
-                        setNotice(t("venture.planImport.assignedToMember", { name: contact.name || entry.name, n: touched }));
-                        setResolving(null);
-                        setMemberQuery("");
-                      }}
-                      className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-[var(--brand-orange)] text-black disabled:opacity-50"
-                    >
-                      {t("venture.planImport.assignTo")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setResolving(null); setMemberQuery(""); }}
-                      className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500"
-                    >
-                      {t("common.cancel")}
-                    </button>
-                  </div>
-                )}
 
-                {resolving?.name === entry.name && resolving.mode === "invite" && (
-                  <div className="space-y-1.5">
-                    <p className="text-[10px] text-slate-400">{t("venture.planImport.addPersonHint")}</p>
-                    <input
-                      value={resolving.email || ""}
-                      onChange={(event) => setResolving({ ...resolving, email: event.target.value })}
-                      placeholder={t("venture.planImport.emailPlaceholder")}
-                      className={inputClass}
-                    />
-                    <input
-                      value={resolving.phone || ""}
-                      onChange={(event) => setResolving({ ...resolving, phone: event.target.value })}
-                      placeholder={t("venture.planImport.phonePlaceholder")}
-                      className={inputClass}
-                    />
-                    <div className="flex items-center justify-end gap-2">
+                    {state === "searching" && (
+                      <span className="text-[9px] text-slate-400 flex items-center gap-1.5">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        {t("venture.planImport.checkingEmail")}
+                      </span>
+                    )}
+                    {state === "member" && (
+                      <span className="text-[9px] font-bold text-emerald-400">
+                        {t("venture.planImport.emailIsMember", { name: lookup.contact?.name || "" })}
+                      </span>
+                    )}
+                    {state === "new" && (
+                      <span className="text-[9px] font-bold text-amber-400">
+                        {t("venture.planImport.emailNotMember")}
+                      </span>
+                    )}
+                    {state === "error" && (
+                      <span className="text-[9px] font-bold text-rose-400">
+                        {t("venture.planImport.lookupFailed")}
+                      </span>
+                    )}
+
+                    {state === "member" && (
                       <button
                         type="button"
-                        onClick={() => setResolving(null)}
-                        className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500"
+                        onClick={() => linkExisting(entry, lookup.contact)}
+                        className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-[var(--brand-orange)] text-black"
                       >
-                        {t("common.cancel")}
+                        {t("venture.planImport.linkMember")}
                       </button>
+                    )}
+                    {state === "new" && (
                       <button
                         type="button"
-                        disabled={inviting || !resolving.email?.trim() || !resolving.phone?.trim()}
+                        disabled={inviting}
                         onClick={() => addAndInvite(entry.name)}
                         className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5 disabled:opacity-50"
                       >
                         {inviting && <Loader2 className="w-3 h-3 animate-spin" />}
-                        {t("venture.planImport.addAndInvite")}
+                        {t("venture.planImport.invitePerson")}
                       </button>
-                    </div>
+                    )}
                   </div>
-                )}
-              </li>
-            ))}
+
+                  {isOpen && <p className="text-[10px] text-slate-400">{t("venture.planImport.emailDecidesHint")}</p>}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
