@@ -78,6 +78,10 @@ const publicApiPaths = [
   "/api/s",
   "/api/investor/register",
   "/api/investor/setup-password",
+  // Health probes: a load balancer / uptime monitor holds no session cookie.
+  // They expose no data (see the routes), only liveness / readiness.
+  "/api/health",
+  "/api/ready",
 ];
 
 // Soft-auth paths: let client-side handle auth via localStorage fallback.
@@ -106,32 +110,66 @@ const softAuthPaths = [
 const STATIC_ASSET_RE =
   /^\/[^/]+\.(?:ico|png|jpe?g|gif|svg|webp|avif|txt|xml|json|webmanifest|woff2?|ttf|otf|eot|map)$/i;
 
+/**
+ * A correlation id for the request, reused from the caller when present.
+ * Bounded so a hostile client cannot smuggle an unbounded header value into
+ * every downstream log line.
+ */
+function correlationId(request) {
+  try {
+    const incoming = request?.headers?.get?.("x-request-id");
+    if (incoming && incoming.trim()) return incoming.trim().slice(0, 128);
+  } catch {
+    // A request shape without headers (middleware unit tests) — generate one.
+  }
+  try {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  } catch {
+    // fall through to a time-based id
+  }
+  return `req_${Date.now().toString(36)}`;
+}
+
+/** A `next()` pass-through carrying the correlation id to the route and back. */
+function nextWithId(request, requestId) {
+  try {
+    const headers = new Headers(request?.headers);
+    headers.set("x-request-id", requestId);
+    const response = NextResponse.next({ request: { headers } });
+    response.headers.set("x-request-id", requestId);
+    return response;
+  } catch {
+    return NextResponse.next();
+  }
+}
+
 export function proxy(request) {
   const { pathname } = request.nextUrl;
+  const requestId = correlationId(request);
 
   // Static assets never require a session.
   if (STATIC_ASSET_RE.test(pathname)) {
-    return NextResponse.next();
+    return nextWithId(request, requestId);
   }
 
   // Allow public paths
   for (const publicPath of publicPaths) {
     if (pathname === publicPath || pathname.startsWith(publicPath + "/")) {
-      return NextResponse.next();
+      return nextWithId(request, requestId);
     }
   }
 
   // Allow public API paths
   for (const publicPath of publicApiPaths) {
     if (pathname === publicPath || pathname.startsWith(publicPath + "/")) {
-      return NextResponse.next();
+      return nextWithId(request, requestId);
     }
   }
 
   // Soft-auth paths: allow through even without cookie; client-side handles auth
   for (const softPath of softAuthPaths) {
     if (pathname === softPath || pathname.startsWith(softPath + "/")) {
-      return NextResponse.next();
+      return nextWithId(request, requestId);
     }
   }
 
@@ -141,10 +179,12 @@ export function proxy(request) {
   if (!sessionCookie) {
     // For API routes, return 401
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { success: false, error: "Authentication required." },
         { status: 401 },
       );
+      response.headers.set("x-request-id", requestId);
+      return response;
     }
 
     // For page routes, redirect to login
@@ -153,7 +193,7 @@ export function proxy(request) {
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  return nextWithId(request, requestId);
 }
 
 export const config = {
