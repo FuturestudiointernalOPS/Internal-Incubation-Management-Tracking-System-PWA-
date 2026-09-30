@@ -11,6 +11,7 @@ import {
 import { archiveTask } from "@/lib/ventureArchive";
 import { TASK_BOARD_COLUMNS, TASK_REVIEW_GATED_COMPLETION_STATUSES, isTaskComplete, TASK_COMPLETED_STATUSES } from "@/lib/ventureStatuses";
 import { isStaffActorForVenture } from "@/lib/ventureAuth";
+import { canManageMilestones, syncMilestoneFromWork } from "@/lib/ventureMilestoneEngine";
 import { ventureOwned, ventureNotFound } from "@/lib/ventureOwnership";
 import db from "@/lib/db";
 import {
@@ -28,6 +29,27 @@ const TASK_PROCEED_STATUSES = ["in_progress", "review", ...TASK_COMPLETED_STATUS
 async function resolveVentureDbId(ventureId) {
   const ventureResult = await getVentureDbIdForTasks(ventureId);
   return ventureResult.rows?.[0]?.id || null;
+}
+
+/**
+ * After a task's STATUS changes, the milestone it sits under follows — through
+ * the same sync the deliverable route runs, so the work and the evidence can
+ * never give a milestone two different answers.
+ *
+ * Only a status change calls this: renaming a task, moving its dates or
+ * reassigning it is not progress. Completion authority is resolved once, here,
+ * because it is the authority — not the tasks — that decides whether finished
+ * work may close a milestone.
+ */
+async function syncMilestoneForTask(task, { id, dbId, session }) {
+  if (!task?.milestone_id) return { changed: false, status: null };
+  const canComplete = await canManageMilestones(db, { id, cid: session?.cid, role: session?.role });
+  return syncMilestoneFromWork(db, {
+    dbId,
+    milestoneId: String(task.milestone_id),
+    cid: session?.cid || null,
+    canComplete,
+  });
 }
 
 /**
@@ -200,14 +222,17 @@ export const PATCH = createHandler(async (req, { params }) => {
     if (!["accepted", "rejected", "revision_requested"].includes(decision)) {
       return NextResponse.json({ success: false, error: "Decision must be accepted, rejected or revision_requested." }, { status: 400 });
     }
-    if (!(await taskInVenture())) return ventureNotFound();
+    const reviewedTask = await taskInVenture();
+    if (!reviewedTask) return ventureNotFound();
     await insertVentureTaskReview({ task_id: taskId, reviewer_cid: session?.cid, reviewer_name: session?.name, decision, comments });
     await updateTask(parseInt(taskId), { status: decision });
     // An accepted task is done — the tasks it was blocking are freed right away.
     if (decision === "accepted") {
       await releaseTasksBlockedBy({ ventureId: dbId, blockerTaskId: parseInt(taskId) });
     }
-    return NextResponse.json({ success: true });
+    // The milestone follows the work: an accepted task is finished work.
+    const reviewMilestone = await syncMilestoneForTask(reviewedTask, { id, dbId, session });
+    return NextResponse.json({ success: true, milestone: reviewMilestone });
   }
 
   // Default: update task fields — completion authority (D5). When a task is
@@ -272,8 +297,16 @@ export const PATCH = createHandler(async (req, { params }) => {
     await syncTaskBlockState({ ventureId: dbId, taskId: numericTaskId });
   }
 
+  // The milestone follows a STATUS change — and nothing else. This is the
+  // "execution half" of the milestone: the work is visible to the outcome it
+  // serves, while closing that outcome stays with the completion authority.
+  let milestone = null;
+  if (body.status !== undefined) {
+    milestone = await syncMilestoneForTask(existingTask, { id, dbId, session });
+  }
+
   const task = await getTask(parseInt(taskId));
-  return NextResponse.json({ success: true, task });
+  return NextResponse.json({ success: true, task, milestone });
 });
 
 export const DELETE = createHandler(async (req, { params }) => {

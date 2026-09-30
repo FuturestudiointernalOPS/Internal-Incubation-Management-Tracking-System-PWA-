@@ -7,6 +7,7 @@ import { roleIsPrivileged } from "@/lib/ventureAuth";
 import { canManageMilestones, releaseMilestonesForStage, activateDueStages } from "@/lib/ventureMilestoneEngine";
 import { evidenceDownloadUrl, isExternalEvidenceLink } from "@/lib/ventureEvidence";
 import { projectJourneyStagesForVenture } from "@/lib/ventureVisibility";
+import { TASK_COMPLETED_STATUSES } from "@/lib/ventureStatuses";
 import {
   ensureJourneyTable,
   resolveVentureInternalId,
@@ -171,6 +172,29 @@ export async function GET(req, { params }) {
       );
     }
 
+    // Task EXECUTION counts per milestone: the badge says what the outcome is,
+    // this says how much of the work under it is done ("12 / 17 tasks done").
+    // Display only — it never touches `progress`, which stays evidence-driven,
+    // so no dashboard, report or export changes meaning because of this read.
+    const taskCountsByMilestone = {};
+    if (boundMilestoneIds.length > 0) {
+      const taskCountSql = (archiveClause) =>
+        `SELECT milestone_id, status FROM venture_tasks WHERE milestone_id::text = ANY(?)${archiveClause}`;
+      const tasksResult = await db
+        .execute({ sql: taskCountSql(" AND COALESCE(is_archived, FALSE) = FALSE"), args: [boundMilestoneIds] })
+        .catch(() =>
+          db.execute({ sql: taskCountSql(""), args: [boundMilestoneIds] }).catch(() => ({ rows: [] })),
+        );
+      for (const task of tasksResult.rows || []) {
+        const key = String(task.milestone_id);
+        const counts = (taskCountsByMilestone[key] = taskCountsByMilestone[key] || { total: 0, done: 0 });
+        counts.total += 1;
+        if (TASK_COMPLETED_STATUSES.includes(String(task.status || "").trim().toLowerCase())) {
+          counts.done += 1;
+        }
+      }
+    }
+
     // Template provenance: stages generated from a reusable template carry a
     // (type, id) stamp — resolve the current template name for the UI banner.
     const stamped = stages.find((stage) => stage.source_template_id);
@@ -193,6 +217,7 @@ export async function GET(req, { params }) {
       stage.milestones = stageMilestones;
       for (const milestone of stageMilestones) {
         milestone.deliverables = deliverablesByMilestone[String(milestone.id)] || [];
+        milestone.task_counts = taskCountsByMilestone[String(milestone.id)] || { total: 0, done: 0 };
       }
       stage.milestone_counts = {
         total: stageMilestones.length,
