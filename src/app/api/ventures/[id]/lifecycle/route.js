@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth, getSession } from "@/lib/auth";
 import { logVentureActivity, addVentureHistory } from "@/lib/ventures";
 import {
@@ -49,7 +49,7 @@ export async function POST(req, { params }) {
       // Delegated staff (Phase 2): lifecycle changes require an explicit
       // Venture assignment — never the staff role alone.
       const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
-      if (!(await hasActiveVentureAssignment(ventureId, session.cid, db))) {
+      if (!(await hasActiveVentureAssignment(ventureId, session.cid))) {
         return NextResponse.json(
           { success: false, error: "Unauthorized. Only assigned Venture staff can change a Venture's lifecycle." },
           { status: 403 },

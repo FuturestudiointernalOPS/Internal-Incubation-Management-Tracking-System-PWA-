@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { getAuthorizationContext, requireAuthorization } from "@/lib/authorization";
 import { isWithinScope, resolveVentureScopeId } from "@/lib/authorization/scope";
@@ -38,7 +37,7 @@ export const GET = createHandler(
     // privileged members lose active access (Phase 3).
     if (session) {
       const { requireOperationalVentureAccess } = await import("@/lib/ventureAuth");
-      const gate = await requireOperationalVentureAccess({ ventureId: id, db, session, mutate: false });
+      const gate = await requireOperationalVentureAccess({ ventureId: id, session, mutate: false });
       if (!gate.ok && gate.code === "archived") {
         return NextResponse.json(
           { success: false, code: "VENTURE_ARCHIVED", error: gate.reason, venture_id: id, status: "archived" },
@@ -53,7 +52,7 @@ export const GET = createHandler(
     // the client is not acceptable. Staff surfaces (admin hub) keep full payloads.
     {
       const { isStaffActorForVenture } = await import("@/lib/ventureAuth");
-      const staffView = await isStaffActorForVenture(db, id, session);
+      const staffView = await isStaffActorForVenture(id, session);
       if (!staffView) {
         venture.activity = [];
         venture.history = [];
@@ -117,7 +116,7 @@ export const PATCH = createHandler(async (req, { params }) => {
       const { getSession } = await import("@/lib/auth");
       const { requireOperationalVentureAccess } = await import("@/lib/ventureAuth");
       const session = await getSession();
-      const gate = await requireOperationalVentureAccess({ ventureId: id, db, session, mutate: true });
+      const gate = await requireOperationalVentureAccess({ ventureId: id, session, mutate: true });
       if (!gate.ok && gate.code === "archived") {
         return NextResponse.json(
           { success: false, code: "VENTURE_ARCHIVED", error: gate.reason },

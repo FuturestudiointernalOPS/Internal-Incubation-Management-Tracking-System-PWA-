@@ -261,7 +261,7 @@ export const PATCH = createHandler(async (req, { params }) => {
   // ahead and are exempt (the same rule as booking a session against a
   // milestone), so the block bites where it should: on the Venture's own work.
   if (body.status !== undefined && TASK_PROCEED_STATUSES.includes(body.status)) {
-    const staffActor = await isStaffActorForVenture(db, id, session);
+    const staffActor = await isStaffActorForVenture(id, session);
     if (!staffActor) {
       const blockers = await getUnmetTaskDependencies({ ventureId: dbId, taskId: numericTaskId });
       if (blockers.length > 0) {

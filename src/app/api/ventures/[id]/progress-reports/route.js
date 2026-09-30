@@ -37,7 +37,7 @@ export async function GET(req, { params }) {
     const code = await resolveVentureCode(db, id);
     if (!code) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const staff = roleIsPrivileged(session.role) || (session.cid ? await isStaffActorForVenture(db, id, session) : false);
+    const staff = roleIsPrivileged(session.role) || (session.cid ? await isStaffActorForVenture(id, session) : false);
     if (!staff) {
       return NextResponse.json({ success: false, error: "Staff access required." }, { status: 403 });
     }

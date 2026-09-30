@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { isStaffActorForVenture } from "@/lib/ventureAuth";
@@ -38,7 +38,7 @@ export async function GET(req, { params }) {
     const dbId = ventureResult.rows?.[0]?.id || null;
     const owners = [id, dbId].filter(Boolean);
 
-    const staff = await isStaffActorForVenture(db, id, session);
+    const staff = await isStaffActorForVenture(id, session);
 
     const [eventsResult, notesResult, reviewsResult, sessionNotesResult] = await Promise.all([
       listVentureHistoryEvents(owners).catch(() => ({ rows: [] })),

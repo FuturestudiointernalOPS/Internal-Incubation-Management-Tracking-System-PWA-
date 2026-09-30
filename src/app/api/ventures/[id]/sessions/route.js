@@ -146,7 +146,7 @@ export const POST = createHandler(async (req, { params }) => {
 
   /** The same check for the bare management actions below. */
   const deniedSessionManagement = async () =>
-    sessionManagementDenial(await isStaffActorForVenture(db, id, actor));
+    sessionManagementDenial(await isStaffActorForVenture(id, actor));
 
   if (action === "create_session") {
     try {
@@ -187,7 +187,7 @@ export const POST = createHandler(async (req, { params }) => {
       // Future Studio staff plan ahead and may book against any milestone. The
       // refusal carries the reason (locked / already completed / a different
       // milestone is current), so the founder is never left guessing.
-      const staffActor = await isStaffActorForVenture(db, id, actor);
+      const staffActor = await isStaffActorForVenture(id, actor);
       const denied = await sessionManagementDenial(staffActor);
       if (denied) return denied;
 

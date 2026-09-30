@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
@@ -19,7 +19,7 @@ export async function GET(req, { params }) {
     const authError = await requireAuth(ROLES);
     if (authError) return authError;
     const { id, docId } = await params;
-    const { session } = await requireVentureAccess(id, db);
+    const { session } = await requireVentureAccess(id);
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = (await getVentureIdByCodeForReviews(id)).rows?.[0]?.id;
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
@@ -40,7 +40,7 @@ export async function POST(req, { params }) {
     const authError = await requireAuth(REVIEWER_ROLES);
     if (authError) return authError;
     const { id, docId } = await params;
-    const { session } = await requireVentureAccess(id, db);
+    const { session } = await requireVentureAccess(id);
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = (await getVentureIdByCodeForReviewsSubmit(id)).rows?.[0]?.id;
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });

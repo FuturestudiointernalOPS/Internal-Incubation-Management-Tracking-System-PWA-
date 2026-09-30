@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { signEvidencePath } from "@/lib/ventureEvidence";
 import { isActiveVentureMember } from "@/models/ventureWorkspace";
@@ -25,7 +24,7 @@ async function canAccessVerification(id, session) {
   const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
   const member = await isActiveVentureMember(id, session.cid).catch(() => ({ rows: [] }));
   if (member.rows?.length) return true;
-  return Boolean(await hasActiveVentureAssignment(id, session.cid, db));
+  return Boolean(await hasActiveVentureAssignment(id, session.cid));
 }
 
 /**
@@ -44,7 +43,7 @@ export const GET = createHandler(
     if (!["super_admin"].includes(session.role)) {
       const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
       const member = await isActiveVentureMember(id, session.cid).catch(() => ({ rows: [] }));
-      const assigned = await hasActiveVentureAssignment(id, session.cid, db);
+      const assigned = await hasActiveVentureAssignment(id, session.cid);
       if (!member.rows?.length && !assigned) {
         return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
       }

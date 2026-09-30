@@ -74,7 +74,7 @@ async function listSubmissions(taskId) {
 
 export const GET = createHandler(async (req, { params }) => {
   const { id, taskId } = await params;
-  const { session } = await requireVentureAccess(id, db);
+  const { session } = await requireVentureAccess(id);
   if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   const dbId = await resolveVentureDbId(id);
   const task = await resolveTask(parseInt(taskId), id, dbId);
@@ -85,7 +85,7 @@ export const GET = createHandler(async (req, { params }) => {
 
 export const POST = createHandler(async (req, { params }) => {
   const { id, taskId } = await params;
-  const { session } = await requireVentureAccess(id, db);
+  const { session } = await requireVentureAccess(id);
   if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   const dbId = await resolveVentureDbId(id);
   const task = await resolveTask(parseInt(taskId), id, dbId);
@@ -96,7 +96,7 @@ export const POST = createHandler(async (req, { params }) => {
     // HARD dependency gate: a Venture-side actor cannot hand in work on a task
     // that a dependency still holds back. Future Studio staff plan ahead and
     // are exempt, exactly as for booking a session against a milestone.
-    const staffActor = await isStaffActorForVenture(db, id, session);
+    const staffActor = await isStaffActorForVenture(id, session);
     if (!staffActor && dbId) {
       const blockers = await getUnmetTaskDependencies({ ventureId: dbId, taskId: task.id });
       if (blockers.length > 0) {

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import db from "@/lib/db";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { uploadSessionMaterial } from "@/lib/storage";
 
@@ -22,7 +21,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req, { params }) {
   try {
     const { id } = await params;
-    const { session } = await requireVentureAccess(id, db);
+    const { session } = await requireVentureAccess(id);
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
     const formData = await req.formData();

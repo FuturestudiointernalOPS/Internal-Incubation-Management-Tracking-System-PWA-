@@ -63,7 +63,7 @@ export async function GET(req, { params }) {
     try {
       const { requireOperationalVentureAccess, roleIsPrivileged } = await import("@/lib/ventureAuth");
       if (!roleIsPrivileged(userRole)) {
-        const gate = await requireOperationalVentureAccess({ ventureId: id, db, session: { role: userRole }, mutate: false });
+        const gate = await requireOperationalVentureAccess({ ventureId: id, session: { role: userRole }, mutate: false });
         if (!gate.ok && gate.code === "archived") {
           return NextResponse.json({ success: false, code: "VENTURE_ARCHIVED", error: gate.reason }, { status: 403 });
         }
@@ -115,7 +115,7 @@ export async function POST(req, { params }) {
     // Archived Ventures are immutable (Phase 3) — no member mutations.
     try {
       const { requireOperationalVentureAccess } = await import("@/lib/ventureAuth");
-      const gate = await requireOperationalVentureAccess({ ventureId: id, db, session: { role: userRole }, mutate: true });
+      const gate = await requireOperationalVentureAccess({ ventureId: id, session: { role: userRole }, mutate: true });
       if (!gate.ok && gate.code === "archived") {
         return NextResponse.json({ success: false, code: "VENTURE_ARCHIVED", error: gate.reason }, { status: 409 });
       }
@@ -270,7 +270,7 @@ export async function PATCH(req, { params }) {
     // Archived Ventures are immutable (Phase 3) — no member mutations.
     try {
       const { requireOperationalVentureAccess } = await import("@/lib/ventureAuth");
-      const gate = await requireOperationalVentureAccess({ ventureId: id, db, session: { role: userRole }, mutate: true });
+      const gate = await requireOperationalVentureAccess({ ventureId: id, session: { role: userRole }, mutate: true });
       if (!gate.ok && gate.code === "archived") {
         return NextResponse.json({ success: false, code: "VENTURE_ARCHIVED", error: gate.reason }, { status: 409 });
       }

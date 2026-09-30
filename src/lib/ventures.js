@@ -1465,7 +1465,7 @@ async function hasDelegatedVentureAssignment(ventureId, session) {
       const byId = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id::text = ?", args: [ventureId] });
       if (byId.rows?.[0]) code = byId.rows[0].venture_id;
     }
-    return await hasActiveVentureAssignment(code, session.cid, db);
+    return await hasActiveVentureAssignment(code, session.cid);
   } catch (_) {
     return false;
   }

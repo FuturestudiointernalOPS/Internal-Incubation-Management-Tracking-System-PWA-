@@ -35,7 +35,7 @@ export const GET = createHandler(async (req, { params }) => {
 
   // The same gate the Data bank itself uses, so a screen can never be told more
   // than the reader is allowed to see.
-  const { session } = await requireVentureAccess(id, db);
+  const { session } = await requireVentureAccess(id);
   if (!session) {
     return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   }

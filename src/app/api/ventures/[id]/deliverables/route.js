@@ -41,7 +41,7 @@ async function loadMilestoneForVenture(dbId, milestoneId) {
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id, db);
+  const { session } = await requireVentureAccess(id);
   if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
   const milestoneId = new URL(req.url).searchParams.get("milestone_id");
@@ -129,7 +129,7 @@ export const PATCH = createHandler(async (req, { params }) => {
 
   // ── submit: the Venture side supplies the evidence ───────────────────────
   if (action === "submit") {
-    const { session } = await requireVentureAccess(id, db);
+    const { session } = await requireVentureAccess(id);
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const evidenceUrl = String(body?.attachment_url || "").trim();
     if (!evidenceUrl) {

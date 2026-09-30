@@ -72,7 +72,7 @@ async function resolveDbId(id) {
 export async function GET(req, { params }) {
   try {
     const { id } = await params;
-    const { session } = await requireVentureAccess(id, db);
+    const { session } = await requireVentureAccess(id);
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
     const dbId = await resolveDbId(id);

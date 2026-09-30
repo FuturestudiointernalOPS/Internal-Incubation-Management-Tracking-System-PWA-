@@ -8,73 +8,88 @@
  *  - plain staff WITHOUT an assignment never pass;
  *  - delegated staff WITH an active assignment pass;
  *  - internal-UUID ids resolve to the VNT code before the assignment check.
+ *
+ * The gate now reads through a store that owns its db, so the table shape is
+ * driven by the module mock rather than an injected double.
  */
 
 jest.mock("@/lib/auth", () => ({ getSession: jest.fn() }));
 
-const { isStaffActorForVenture } = require("@/lib/ventureAuth");
-const { resetVentureAccessCache } = require("@/lib/ventureAccessFacts");
-
-// The relationship is remembered process-wide for a real 10 s window: empty it
-// per test so one test's assignment cannot answer the next one's question.
-beforeEach(() => resetVentureAccessCache());
-
-function makeDb({ assigned = false, rowsFor = () => null } = {}) {
-  const calls = [];
+jest.mock("@/lib/db", () => {
+  const state = { calls: [], assigned: false };
   const execute = jest.fn(async ({ sql, args = [] }) => {
-    calls.push({ sql, args });
+    state.calls.push({ sql, args });
     // The Venture's own facts, whatever shape of id the caller named it by.
     if (sql.includes("FROM ventures")) {
       return { rows: [{ code: "VNT-RESOLVED", status: "active", is_archived: 0 }] };
     }
     // Membership and the delegated assignment are asked in ONE statement.
     if (sql.includes("FROM venture_members") || sql.includes("venture_staff_assignments")) {
-      return { rows: [{ is_member: false, is_assigned: assigned }] };
-    }
-    if (rowsFor) {
-      const custom = rowsFor(sql, args);
-      if (custom !== null) return { rows: custom };
+      return { rows: [{ is_member: false, is_assigned: state.assigned }] };
     }
     return { rows: [] };
   });
-  return { execute, calls };
+  return {
+    __esModule: true,
+    default: { execute },
+    initDb: jest.fn().mockResolvedValue(true),
+    __state: state,
+  };
+});
+
+const mockDb = require("@/lib/db").default;
+const { __state: state } = require("@/lib/db");
+const { isStaffActorForVenture } = require("@/lib/ventureAuth");
+const { resetVentureAccessCache } = require("@/lib/ventureAccessFacts");
+
+// The relationship is remembered process-wide for a real 10 s window: empty it
+// per test so one test's assignment cannot answer the next one's question.
+beforeEach(() => {
+  resetVentureAccessCache();
+  state.calls.length = 0;
+  state.assigned = false;
+});
+
+function makeDb({ assigned = false } = {}) {
+  state.assigned = assigned;
+  return { execute: mockDb.execute, calls: state.calls };
 }
 
 describe("isStaffActorForVenture", () => {
   it("grants global Venture authority without any DB lookup", async () => {
     const db = makeDb();
-    const allowed = await isStaffActorForVenture(db, "VNT-ABC", { role: "super_admin", cid: "sa" });
+    const allowed = await isStaffActorForVenture("VNT-ABC", { role: "super_admin", cid: "sa" });
     expect(allowed).toBe(true);
     expect(db.execute).not.toHaveBeenCalled();
   });
 
   it("no longer grants the retired developer/admin roles (they resolve to staff/none)", async () => {
-    const db = makeDb();
-    expect(await isStaffActorForVenture(db, "VNT-ABC", { role: "developer", cid: "d1" })).toBe(false);
-    expect(await isStaffActorForVenture(db, "VNT-ABC", { role: "admin", cid: "a1" })).toBe(false);
+    makeDb();
+    expect(await isStaffActorForVenture("VNT-ABC", { role: "developer", cid: "d1" })).toBe(false);
+    expect(await isStaffActorForVenture("VNT-ABC", { role: "admin", cid: "a1" })).toBe(false);
   });
 
   it("denies a member (founder) with no assignment", async () => {
-    const db = makeDb({ assigned: false });
-    const allowed = await isStaffActorForVenture(db, "VNT-ABC", { role: "founder", cid: "F-1" });
+    makeDb({ assigned: false });
+    const allowed = await isStaffActorForVenture("VNT-ABC", { role: "founder", cid: "F-1" });
     expect(allowed).toBe(false);
   });
 
   it("denies plain staff WITHOUT an assignment", async () => {
-    const db = makeDb({ assigned: false });
-    const allowed = await isStaffActorForVenture(db, "VNT-ABC", { role: "staff", cid: "S-1" });
+    makeDb({ assigned: false });
+    const allowed = await isStaffActorForVenture("VNT-ABC", { role: "staff", cid: "S-1" });
     expect(allowed).toBe(false);
   });
 
   it("grants delegated staff WITH an active assignment", async () => {
-    const db = makeDb({ assigned: true });
-    const allowed = await isStaffActorForVenture(db, "VNT-ABC", { role: "staff", cid: "S-1" });
+    makeDb({ assigned: true });
+    const allowed = await isStaffActorForVenture("VNT-ABC", { role: "staff", cid: "S-1" });
     expect(allowed).toBe(true);
   });
 
   it("resolves an internal UUID before checking the assignment", async () => {
     const db = makeDb({ assigned: true });
-    const allowed = await isStaffActorForVenture(db, "11111111-1111-1111-1111-111111111111", { role: "staff", cid: "S-1" });
+    const allowed = await isStaffActorForVenture("11111111-1111-1111-1111-111111111111", { role: "staff", cid: "S-1" });
     expect(allowed).toBe(true);
     expect(db.calls[0].args[0]).toBe("11111111-1111-1111-1111-111111111111");
     // Second call is the assignment lookup against the resolved VNT code.
@@ -83,7 +98,7 @@ describe("isStaffActorForVenture", () => {
   });
 
   it("denies when there is no session", async () => {
-    const db = makeDb();
-    expect(await isStaffActorForVenture(db, "VNT-ABC", null)).toBe(false);
+    makeDb();
+    expect(await isStaffActorForVenture("VNT-ABC", null)).toBe(false);
   });
 });

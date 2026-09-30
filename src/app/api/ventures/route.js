@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import db from "@/lib/db";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/lib/auth";
 import { getAuthorizationContext, requireAuthorization } from "@/lib/authorization";
@@ -138,7 +137,7 @@ export const PUT = createHandler(async (req) => {
         const globalRoles = ["super_admin"];
         if (!session || !globalRoles.includes(session.role)) {
           const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
-          const assigned = session?.cid ? await hasActiveVentureAssignment(id, session.cid, db) : false;
+          const assigned = session?.cid ? await hasActiveVentureAssignment(id, session.cid) : false;
           if (!assigned) delete updates.status;
         }
       } catch (_) {}

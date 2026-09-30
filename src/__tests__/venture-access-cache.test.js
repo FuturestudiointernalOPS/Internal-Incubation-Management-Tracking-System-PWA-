@@ -51,8 +51,6 @@ jest.mock("@/lib/auth", () => ({
 const { requireVentureAccess, resolveVentureLifecycle } = require("@/lib/ventureAuth");
 const { invalidateVentureAccess, resetVentureAccessCache } = require("@/lib/ventureAccessFacts");
 
-const db = require("@/lib/db").default;
-
 const CODE = "VNT-1";
 const ACCESS_SQL = (sql) => sql.includes("FROM ventures") || sql.includes("FROM venture_members");
 
@@ -70,24 +68,24 @@ beforeEach(() => {
 
 describe("one answer, every screen", () => {
   test("the first check costs two round trips, the screens after it cost none", async () => {
-    const first = await requireVentureAccess(CODE, db);
+    const first = await requireVentureAccess(CODE);
     expect(first.session).toBeTruthy();
     // The Venture's facts, then the viewer's relationship: the two questions a
     // screen cannot answer locally.
     expect(mockDb.execute).toHaveBeenCalledTimes(2);
     expect(queries.every(ACCESS_SQL)).toBe(true);
 
-    await requireVentureAccess(CODE, db);
-    await requireVentureAccess(CODE, db);
-    await requireVentureAccess(CODE, db);
+    await requireVentureAccess(CODE);
+    await requireVentureAccess(CODE);
+    await requireVentureAccess(CODE);
     expect(mockDb.execute).toHaveBeenCalledTimes(2);
   });
 
   test("screens that load in parallel share one query instead of racing their own", async () => {
     const results = await Promise.all([
-      requireVentureAccess(CODE, db),
-      requireVentureAccess(CODE, db),
-      requireVentureAccess(CODE, db),
+      requireVentureAccess(CODE),
+      requireVentureAccess(CODE),
+      requireVentureAccess(CODE),
     ]);
 
     expect(mockDb.execute).toHaveBeenCalledTimes(2);
@@ -95,13 +93,13 @@ describe("one answer, every screen", () => {
   });
 
   test("what one surface learned about the Venture serves the lifecycle gate too", async () => {
-    const lifecycle = await resolveVentureLifecycle(CODE, db);
+    const lifecycle = await resolveVentureLifecycle(CODE);
     expect(lifecycle).toEqual({ status: "active", is_archived: false });
     expect(mockDb.execute).toHaveBeenCalledTimes(1);
 
     // The lifecycle already resolved the code: the access check only has to ask
     // about the viewer.
-    await requireVentureAccess(CODE, db);
+    await requireVentureAccess(CODE);
     expect(mockDb.execute).toHaveBeenCalledTimes(2);
   });
 
@@ -109,7 +107,7 @@ describe("one answer, every screen", () => {
     const uuid = "2b7feb6c-763a-48e1-84a0-d768cd4abfbf";
     state.venture = { code: CODE, status: "active", is_archived: false };
 
-    const result = await requireVentureAccess(uuid, db);
+    const result = await requireVentureAccess(uuid);
     expect(result.session).toBeTruthy();
     expect(queries[0]).toContain("WHERE id = ?");
 
@@ -121,60 +119,60 @@ describe("one answer, every screen", () => {
 
 describe("who gets in", () => {
   test("a member is admitted, a stranger is turned away", async () => {
-    expect((await requireVentureAccess(CODE, db)).session).toBeTruthy();
+    expect((await requireVentureAccess(CODE)).session).toBeTruthy();
 
     resetVentureAccessCache();
     state.isMember = false;
     state.isAssigned = false;
-    expect((await requireVentureAccess(CODE, db)).session).toBeNull();
+    expect((await requireVentureAccess(CODE)).session).toBeNull();
   });
 
   test("a delegated staff assignment is enough", async () => {
     state.isMember = false;
     state.isAssigned = true;
-    expect((await requireVentureAccess(CODE, db)).session).toBeTruthy();
+    expect((await requireVentureAccess(CODE)).session).toBeTruthy();
   });
 
   test("an unknown Venture grants nothing", async () => {
     state.venture = null;
-    expect((await requireVentureAccess(CODE, db)).session).toBeNull();
+    expect((await requireVentureAccess(CODE)).session).toBeNull();
   });
 });
 
 describe("a failure is never an answer", () => {
   test("a dropped connection is not remembered, and never admits anyone", async () => {
     state.failVentureRead = true;
-    await expect(requireVentureAccess(CODE, db)).rejects.toThrow();
+    await expect(requireVentureAccess(CODE)).rejects.toThrow();
 
     // Recovered: the very next check re-asks instead of replaying the failure.
     state.failVentureRead = false;
-    expect((await requireVentureAccess(CODE, db)).session).toBeTruthy();
+    expect((await requireVentureAccess(CODE)).session).toBeTruthy();
   });
 
   test("a relationship the database cannot answer denies rather than admits", async () => {
     state.relationshipUnavailable = true;
-    expect((await requireVentureAccess(CODE, db)).session).toBeNull();
+    expect((await requireVentureAccess(CODE)).session).toBeNull();
   });
 });
 
 describe("the window", () => {
   test("expires, so a stale answer cannot outlive it", async () => {
     process.env.VENTURE_ACCESS_CACHE_TTL_MS = "1";
-    await requireVentureAccess(CODE, db);
+    await requireVentureAccess(CODE);
     expect(mockDb.execute).toHaveBeenCalledTimes(2);
 
     await new Promise((resolve) => setTimeout(resolve, 5));
-    await requireVentureAccess(CODE, db);
+    await requireVentureAccess(CODE);
     expect(mockDb.execute).toHaveBeenCalledTimes(4);
   });
 
   test("a removal drops the answer immediately, well inside the window", async () => {
-    expect((await requireVentureAccess(CODE, db)).session).toBeTruthy();
+    expect((await requireVentureAccess(CODE)).session).toBeTruthy();
 
     // The person is removed from the roster.
     state.isMember = false;
     invalidateVentureAccess(CODE);
 
-    expect((await requireVentureAccess(CODE, db)).session).toBeNull();
+    expect((await requireVentureAccess(CODE)).session).toBeNull();
   });
 });

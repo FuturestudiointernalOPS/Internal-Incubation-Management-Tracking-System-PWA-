@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import {
@@ -33,7 +33,7 @@ export async function GET(req, { params }) {
 
     if (session && !["super_admin"].includes(session.role)) {
       const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
-      const assigned = await hasActiveVentureAssignment(id, session.cid, db);
+      const assigned = await hasActiveVentureAssignment(id, session.cid);
       const member = await isActiveVentureMember(id, session.cid);
       if (!assigned && !member.rows?.length) {
         return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });

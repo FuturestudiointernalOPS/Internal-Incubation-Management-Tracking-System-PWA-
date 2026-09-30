@@ -8,9 +8,10 @@
 > decision helpers, 23 the first controller sweep, 24 the Journey
 > stage/archive/template engine, 25 the archive + duplication engines, 26 the
 > controller leftovers the first sweep's grep missed (multiline `db\n.execute`
-> chains, `runSafeQuery`/`runQuery` wrappers) + milestone ordering. The remaining
-> mixed model modules are itemised in §4. This document is the running log.
-> Update it at the end of every slice.
+> chains, `runSafeQuery`/`runQuery` wrappers) + milestone ordering, 27 the access
+> facts (service + store; `ventureAuth` is left with no SQL and no `db`
+> parameter). The remaining mixed model modules are itemised in §4. This
+> document is the running log. Update it at the end of every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
 [`SERVER_LAYERS.md`](SERVER_LAYERS.md) (the request path as it stands),
@@ -519,6 +520,28 @@ executive-dashboard response shape.
 
 ---
 
+### Domain 14 — the Venture access facts (slice 27)
+
+`src/lib/ventureAccessFacts.js` answered (and cached) the two questions every
+Venture screen asks — the Venture's own row and the viewer's relationship to it —
+while running its SQL inline. The cache decision (share the PROMISE, never
+remember a failure, a 10 s window) now lives in
+`src/services/ventures/accessFacts.js`; the two statements in
+`src/models/ventureAccessStore.js`; the `src/lib` file a facade.
+
+**`src/lib/ventureAuth.js` is now SQL-free.** It had no statement of its own —
+everything went through the access facts — so once those moved, its five
+`db` parameters had nothing left to feed. They are gone: `requireVentureAccess(id)`,
+`isStaffActorForVenture(id, session)`, `hasActiveVentureAssignment(code, cid)`,
+`resolveVentureLifecycle(id)` and `requireOperationalVentureAccess({ ventureId,
+… })` no longer take a db, and the ~107 call sites across 36 route files dropped
+it (leaving an unused `db` import behind in 30 of them, now removed).
+
+**Unchanged:** the SQL (byte-identical), the cached-promise semantics, the
+permission answers, and every guard's verdict.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -697,14 +720,15 @@ Two source-pinning suites were repointed (same assertion, new home):
 - `src/lib/ventureJourneys.js`, `ventureJourneyArchive.js`,
   `ventureJourneyTemplates.js` (slice 24), `ventureArchive.js`,
   `ventureDuplication.js` (slice 25) and `ventureMilestoneOrder.js` (slice 26) are
-  done — all facades over `services/ventures/*`. A long tail of `src/lib` modules
+  done — all facades over `services/ventures/*` — as is `ventureAccessFacts.js`
+  (slice 27, which left `ventureAuth.js` pure). A long tail of `src/lib` modules
   still holds SQL (the biggest: `ventures.js`, `ventureMilestoneEngine.js`,
   `ventureReports.js`, `ventureOperatingPlans.js`, `ventureReadiness.js`,
   `venturePermissions.js`, `ventureCoach.js`, `ventureNotify.js`,
-  `ventureScope.js`, `ventureAccessFacts.js`) — the next repository-extraction
-  targets, one module at a time, tracked in `MVC_REFACTOR.md`. Dependency order
-  worth respecting: `ventureAccessFacts` → `venturePermissions` →
-  `ventureMilestoneEngine` (the engine reads the matrix through permissions).
+  `ventureScope.js`) — the next repository-extraction targets, one module at a
+  time, tracked in `MVC_REFACTOR.md`. Dependency order worth respecting:
+  `venturePermissions` → `ventureMilestoneEngine` (the engine reads the matrix
+  through permissions).
 - Giant page files (>600 LOC) still need splitting into feature components.
 
 ### Deferred decision: typing
