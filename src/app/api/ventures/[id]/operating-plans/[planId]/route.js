@@ -3,22 +3,22 @@ import { createHandler } from "@/lib/api/createHandler";
 import db, { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans";
+import {
+  getVentureOperatingPlan,
+  listVenturePlanSections,
+  listVenturePlanLinks,
+  updateVentureOperatingPlan,
+  ventureOperatingPlanExists,
+  archiveVentureOperatingPlan,
+} from "@/models/ventureWorkspace";
 
 async function loadPlan(db, access, planId) {
-  const planResult = await db.execute({ sql: "SELECT * FROM venture_operating_plans WHERE id = ? AND venture_id = ?", args: [planId, access.code] });
+  const planResult = await getVentureOperatingPlan(planId, access.code);
   const plan = planResult.rows?.[0];
   if (!plan) return null;
-  const sectionsResult = await db.execute({
-    sql: "SELECT * FROM venture_plan_sections WHERE plan_id = ? ORDER BY sort_order, id",
-    args: [planId],
-  });
+  const sectionsResult = await listVenturePlanSections(planId);
   const sections = sectionsResult.rows || [];
-  const linksResult = await db.execute({
-    sql: `SELECT l.* FROM venture_plan_links l
-          JOIN venture_plan_sections s ON s.id = l.section_id
-          WHERE s.plan_id = ? ORDER BY l.id`,
-    args: [planId],
-  });
+  const linksResult = await listVenturePlanLinks(planId);
   const linksBySection = {};
   for (const link of linksResult.rows || []) {
     (linksBySection[link.section_id] = linksBySection[link.section_id] || []).push(link);
@@ -59,12 +59,15 @@ export const PATCH = createHandler(
         (fieldAction && !(await allowsPlanAction(db, access, "edit")))) {
       return NextResponse.json({ success: false, error: "Not allowed to update this plan." }, { status: 403 });
     }
-    const updateResult = await db.execute({
-      sql: "UPDATE venture_operating_plans SET name = COALESCE(?, name), objective = COALESCE(?, objective), status = COALESCE(?, status), updated_at = NOW() WHERE id = ? AND venture_id = ?",
-      args: [body.name ? String(body.name).trim() : null, body.objective !== undefined ? (body.objective || null) : null, body.status || null, params.planId, access.code],
+    const updateResult = await updateVentureOperatingPlan({
+      planId: params.planId,
+      ventureCode: access.code,
+      name: body.name ? String(body.name).trim() : null,
+      objective: body.objective !== undefined ? (body.objective || null) : null,
+      status: body.status || null,
     });
     if (!updateResult.rows?.length && updateResult.changes === 0) {
-      const existsResult = await db.execute({ sql: "SELECT id FROM venture_operating_plans WHERE id = ? AND venture_id = ?", args: [params.planId, access.code] });
+      const existsResult = await ventureOperatingPlanExists(params.planId, access.code);
       if (!existsResult.rows?.length) return NextResponse.json({ success: false, error: "Plan not found." }, { status: 404 });
     }
     const plan = await loadPlan(db, access, params.planId);
@@ -87,7 +90,7 @@ export const DELETE = createHandler(
     if (!(await allowsPlanAction(db, access, "manage"))) {
       return NextResponse.json({ success: false, error: "Not allowed to archive this plan." }, { status: 403 });
     }
-    await db.execute({ sql: "UPDATE venture_operating_plans SET status = 'archived', updated_at = NOW() WHERE id = ? AND venture_id = ?", args: [params.planId, access.code] });
+    await archiveVentureOperatingPlan(params.planId, access.code);
     try {
       const { addVentureHistory } = await import("@/lib/ventures");
       await addVentureHistory({ venture_id: access.code, event_type: "OPERATING_PLAN_ARCHIVED", description: `Operating plan archived` });
