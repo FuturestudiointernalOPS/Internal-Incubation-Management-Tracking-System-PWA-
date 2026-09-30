@@ -1,9 +1,10 @@
 # Layer split — View → Controller → Service → Repository
 
-> Status: **authorization domain complete**. Slices 1–9 delivered: every module
-> split, and the service layer is now HTTP-free (see §2, slice 9). This document
-> is the running log: what is done, what was left aside on purpose, and what
-> remains. Update it at the end of every slice.
+> Status: **authorization domain complete; finance started**. Slices 1–9 split
+> and finished the authorization domain (service layer now HTTP-free); slice 10
+> is the first finance module. This document is the running log: what is done,
+> what was left aside on purpose, and what remains. Update it at the end of every
+> slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
 [`SERVER_LAYERS.md`](SERVER_LAYERS.md) (the request path as it stands),
@@ -204,10 +205,26 @@ structure, the merge semantics, the fail-closed rules, and every returned field.
 
 | Check | Result |
 |---|---|
-| Full suite `npm test` | **228 suites, 2982 tests, all passed** |
+| Full suite `npm test` | **228 suites, 2986 tests, all passed** |
 | `npx eslint .` | 0 errors (6 pre-existing warnings elsewhere) |
 | `npm run build` | green |
 | Cold-resolution round trips | unchanged (3 waves — pinned by `db-sequencing.test.js`) |
+
+### Domain 2 — finance (slice 10)
+
+The first slice outside authorization. `src/models/finance/ingest.js` (415 LOC)
+brought the finance sheets in: it **parsed** them (sheet → budget lines and
+transactions) *and* ran the sync's SQL (the data-source lookup, BEGIN/COMMIT/
+ROLLBACK, the upserts, the status/log writes). Now:
+
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/finance/ingest.js` | The three sheet parsers and the sync orchestration (`ingestFromSheet`, `syncDataSource`). No SQL. |
+| **Repository** | `src/models/finance/ingestStore.js` | Every statement: the lookups, the transaction control, the upserts, the sync-log and data-source status updates. |
+| **Facade** | `src/models/finance/ingest.js` | `export * from "@/services/…"` (the sync route reaches it via `@/lib/finance/ingest`). |
+
+**Unchanged:** the SQL (byte-identical), the parsing rules, the transaction
+boundaries and the returned counts.
 
 ---
 
@@ -245,7 +262,7 @@ cleanup, not layering:
 
 | Domain | Service to create | Notes |
 |---|---|---|
-| Finance | `services/finance/*` | logic currently in `lib/finance*` + `models/finance/*` |
+| Finance | `services/finance/*` | ⏳ **started** — ingestion split (slice 10); queries/summary next |
 | Ventures | `services/ventures/*` | largest domain (`lib/ventures.js`, ~5.6k LOC) |
 | Tasks / projects / programs | `services/tasks/*`, `services/projects/*` | orchestration currently in controllers |
 | LMS / platform / integrations | `services/<domain>/*` | |

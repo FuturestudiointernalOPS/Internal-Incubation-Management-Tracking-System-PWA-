@@ -93,6 +93,7 @@ or a membership check — and runs after an identity exists.
 | Context-grant reconcile (plan, justification, sync) + every statement | `services/authorization/contextGrants.js` + `models/authorization/contextGrantsStore.js` | ✅ moved (slice 7) — model file is a re-export facade; the store both reads and writes |
 | Program-assignment derivation (levels, expiry) + its reads | `services/authorization/programAssignments.js` + `models/authorization/programAssignmentReads.js` | ✅ moved (slice 8 — authorization domain complete) |
 | Refusal responses (`requireAuthorization` / `requireScopedAccess`) | `server/authz/responses.js` (decisions stay in `services/authorization/*`) | ✅ moved (slice 9) — services are HTTP-free |
+| Finance ingestion (sheet parsing + sync) | `services/finance/ingest.js` + `models/finance/ingestStore.js` | ✅ moved (slice 10 — first slice outside authorization) |
 | Effective access-profile resolution, responsibilities domain | still `src/lib/auth.js` (6 functions, 8 SQL statements) | ⏸ **blocked on a decision** — see below |
 
 Two overlaps are **known and deliberately left alone** until a decision is made,
