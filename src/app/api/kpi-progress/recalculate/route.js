@@ -12,11 +12,16 @@ export const POST = createHandler(
         { status: 400 },
       );
     const entries = await recalculateKpiProgress(program_id);
+    // Objectives weigh the same: the programme figure is their plain average.
+    // Non-measurable objectives (no linked deliverable) are left out.
+    const measurableEntries = entries.filter((entry) => entry.measurable !== false);
     const overallProgress =
-      entries.length > 0
+      measurableEntries.length > 0
         ? Math.round(
-            entries.reduce((sum, entry) => sum + (entry.progress || 0), 0) /
-              entries.length,
+            measurableEntries.reduce(
+              (sum, entry) => sum + (parseFloat(entry.completion_rate) || 0),
+              0,
+            ) / measurableEntries.length,
           )
         : 0;
     return NextResponse.json({

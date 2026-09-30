@@ -5,7 +5,7 @@ import {
   recalculateKpiProgress,
   refreshKpiProgressIfStale,
 } from "@/lib/kpi-progress";
-import { weightedKpiProgress } from "@/lib/constants";
+import { averageKpiProgress } from "@/lib/constants";
 import { toDayString } from "@/lib/programProgress";
 import {
   getAssistantContactsByCids,
@@ -210,11 +210,7 @@ export async function GET(req) {
       // kpi_progress. There is no per-screen provisional formula — when the
       // cache is empty the canonical recalculation runs and its result is used
       // immediately, so the first paint already matches the persisted numbers.
-      const sessionList = sessionsResult.rows || [];
       const docList = documentsResult.rows || [];
-      const kpiWeight = (kpi) =>
-        parseFloat(kpi.weight) ||
-        (kpiList.length > 0 ? Math.round(100 / kpiList.length) : 0);
 
       let progressEntries = [];
       try {
@@ -238,17 +234,6 @@ export async function GET(req) {
         const persisted = progressEntries.find(
           (progressRow) => String(progressRow.kpi_id) === kpiId,
         );
-        const linkedSessions = sessionList.filter((session) => {
-          try {
-            const ids =
-              typeof session.kpi_ids === "string"
-                ? JSON.parse(session.kpi_ids)
-                : session.kpi_ids || [];
-            return ids.map(String).includes(kpiId);
-          } catch {
-            return false;
-          }
-        });
         const linkedDocs = docList.filter((documentRow) => {
           try {
             const ids =
@@ -260,18 +245,17 @@ export async function GET(req) {
             return false;
           }
         });
+        // An objective with no linked deliverable has nothing to measure: it is
+        // flagged so the screen can say so instead of showing a bare 0 %.
+        const measurable = linkedDocs.length > 0;
         return {
           ...kpi,
           progress: persisted
             ? Math.round(parseFloat(persisted.completion_rate) || 0)
             : 0,
-          weight: kpiWeight(kpi),
-          linkedSessions: linkedSessions.length,
-          completedSessions: linkedSessions.filter(
-            (session) => session.status === "completed",
-          ).length,
           linkedDocs: linkedDocs.length,
           completedDocs: linkedDocs.filter((documentRow) => documentRow.is_completed).length,
+          measurable,
         };
       });
 
@@ -294,15 +278,12 @@ export async function GET(req) {
         actualSubmissions > 0
           ? Math.round((approvedSubmissions / actualSubmissions) * 100)
           : 0;
-      // Operational progress is the KPI progress, using the same weighted
-      // definition as the PM dashboard (equal weights when none is set).
+      // Programme progress is the plain average of its measurable objectives
+      // (every objective weighs the same). Non-measurable objectives are left
+      // out; a programme with none has no objective progress to report.
+      const measurableKpis = kpisWithProgress.filter((kpi) => kpi.measurable);
       operationalProgress =
-        kpisWithProgress.length > 0
-          ? weightedKpiProgress(kpisWithProgress)
-          : // The value this used to fall back to was the removed second definition
-            // of programme progress. A programme with no KPI has no operational
-            // progress to report.
-            0;
+        measurableKpis.length > 0 ? averageKpiProgress(measurableKpis) : 0;
       overallHealth = Math.round((operationalProgress + approvalRate) / 2);
     }
 
@@ -353,7 +334,7 @@ export async function GET(req) {
                 id: kpi.id,
                 title: kpi.title,
                 progress: kpi.progress,
-                weight: kpi.weight,
+                measurable: kpi.measurable,
               })),
             },
             student: {

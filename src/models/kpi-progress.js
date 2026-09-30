@@ -1,8 +1,10 @@
 // =============================================================================
-// KPI PROGRESS UTILITY — APPROVED-ONLY, PARTICIPANT-WEIGHTED
+// OBJECTIVE PROGRESS UTILITY — APPROVED-ONLY, DELIVERABLE-WEIGHTED
 // =============================================================================
-// Only approved submissions count toward KPI completion.
-// Results cached in kpi_progress table for fast dashboard reads.
+// Only approved submissions count toward an objective. An objective's rate is
+// the share of its linked deliverables that the programme's active participants
+// had approved, each (participant × deliverable) pair counting once. Results are
+// cached in kpi_progress for fast dashboard reads.
 // =============================================================================
 import db from "@/lib/db";
 
@@ -33,13 +35,28 @@ export async function listKpiNamesForPrograms(programIds) {
 }
 
 /**
- * Recalculate KPI progress for a program.
- * Counts unique participants with APPROVED submissions per KPI-linked deliverable.
- * Caches results in kpi_progress table.
+ * Recalculate objective progress for a programme.
+ *
+ * An objective's rate is the share of its expected approved deliverables that
+ * participants actually had approved:
+ *
+ *   approved (participant × deliverable) pairs, counted once each
+ *   ─────────────────────────────────────────────────────────────── × 100
+ *             active participants × linked deliverables
+ *
+ * A participant who got 2 of an objective's 3 linked deliverables approved
+ * therefore contributes 2/3 — not 0, not 1. Only approved submissions count;
+ * sessions never do. An objective with no linked deliverable has no expected
+ * work to measure: it is reported as not measurable and is never cached, so it
+ * is left out of the programme average rather than reading as 0 %.
+ *
+ * The cache always reflects the latest calculation, including a drop back to
+ * zero, and is replaced wholesale on each run so a removed objective cannot
+ * leave a stale row behind.
  */
 export async function recalculateKpiProgress(programId, participantId) {
   try {
-    // 1. Fetch KPIs with weights
+    // 1. Objectives of the programme
     const kpiRes = await db.execute({
       sql: "SELECT * FROM v2_kpis WHERE program_id::text = ?",
       args: [programId],
@@ -47,7 +64,7 @@ export async function recalculateKpiProgress(programId, participantId) {
     const kpis = kpiRes.rows || [];
     if (kpis.length === 0) return [];
 
-    // 2. Total participant count — canonical source: participant_programs
+    // 2. Active participant base — canonical source: participant_programs
     // membership + active contacts, matching /api/participants and the PM
     // full-state. v2_participants is intake/history only and may be empty or
     // hold duplicates, which made the rate collapse to 0 / inflate wrongly.
@@ -67,19 +84,23 @@ export async function recalculateKpiProgress(programId, participantId) {
       args: [String(programId), String(programId)],
     });
     const totalParticipants = parseInt(partRes.rows[0]?.count) || 0;
+    // A single-participant recalculation (participantId given) measures one
+    // person against the objective, so its base is 1 rather than the roster.
+    const participantBase = participantId ? 1 : totalParticipants;
 
-    // 3. All deliverables for this program
+    // 3. Deliverables of the programme
     const docRes = await db.execute({
       sql: "SELECT * FROM v2_document_requirements WHERE program_id::text = ?",
       args: [programId],
     });
 
-    // 4. Approved submissions (only these count). Submissions may store the
-    // requirement id in EITHER deliverable_id or document_id (the participant
-    // form writes both; older flows wrote only one), so join on both.
-    let approvedQuery = `SELECT s.*, d.kpi_ids FROM v2_submissions s
-      JOIN v2_document_requirements d
-        ON s.deliverable_id::text = d.id::text OR s.document_id::text = d.id::text
+    // 4. Approved submissions. A submission may store the requirement id in
+    // EITHER deliverable_id or document_id (the participant form writes both;
+    // older flows wrote only one), so each row is reduced to a single
+    // deliverable reference before counting — otherwise one approval could be
+    // counted twice.
+    let approvedQuery = `SELECT s.participant_id, s.deliverable_id, s.document_id
+      FROM v2_submissions s
       WHERE s.program_id::text = ? AND s.status = 'approved'`;
     const approvedArgs = [programId];
     if (participantId) {
@@ -89,7 +110,7 @@ export async function recalculateKpiProgress(programId, participantId) {
     const approvedRes = await db.execute({ sql: approvedQuery, args: approvedArgs });
     const approvedSubs = approvedRes.rows || [];
 
-    // 5. Per KPI: count unique participants with approved work
+    // 5. Per objective: count the approved (participant × deliverable) pairs.
     const results = kpis.map((kpi) => {
       const kpiIdStr = String(kpi.id);
       const linkedDocIds = docRes.rows
@@ -101,66 +122,69 @@ export async function recalculateKpiProgress(programId, participantId) {
         })
         .map((documentRequirement) => String(documentRequirement.id));
 
-      const approvedForKpi = approvedSubs.filter(
-        (submission) =>
-          linkedDocIds.includes(String(submission.deliverable_id)) ||
-          linkedDocIds.includes(String(submission.document_id)),
-      );
-      const uniqueApproved = new Set(approvedForKpi.map((submission) => submission.participant_id)).size;
+      const measurable = linkedDocIds.length > 0;
+      let approvedCount = 0;
+      if (measurable) {
+        const countedPairs = new Set();
+        for (const submission of approvedSubs) {
+          const deliverableId = String(
+            submission.deliverable_id ?? submission.document_id ?? "",
+          );
+          if (!deliverableId || !linkedDocIds.includes(deliverableId)) continue;
+          const pairKey = `${submission.participant_id}::${deliverableId}`;
+          if (countedPairs.has(pairKey)) continue;
+          countedPairs.add(pairKey);
+          approvedCount += 1;
+        }
+      }
+      const expected = participantBase * linkedDocIds.length;
       const completionRate =
-        totalParticipants > 0
-          ? Math.min(100, Math.round((uniqueApproved / totalParticipants) * 100))
+        measurable && expected > 0
+          ? Math.min(100, Math.round((approvedCount / expected) * 100))
           : 0;
 
       return {
         kpi_id: kpi.id,
         program_id: programId,
         title: kpi.title,
-        weight: parseFloat(kpi.weight) || 0,
         completion_rate: completionRate,
-        approved_count: uniqueApproved,
-        participant_count: totalParticipants,
+        approved_count: approvedCount,
+        participant_count: participantBase,
+        measurable,
       };
     });
 
-    // 6. Cache to kpi_progress table. Never downgrade a previously recorded
-    // non-zero rate to 0 because a recalc ran at a moment when no approved
-    // submission was found (e.g. mid-week, before reviews) — that wiped good
-    // progress for the PM and super admin dashboards.
+    // 6. Replace the cache. Rows are written exactly as computed — no "never
+    // downgrade to zero" guard: a rate that truly falls must be able to fall.
+    // Non-measurable objectives are not written, and the previous rows are
+    // cleared first so a removed objective (or one that lost its last
+    // deliverable) cannot linger and skew the programme average.
     if (!participantId) {
-      let prevRates = new Map();
+      const measurableEntries = results.filter((entry) => entry.measurable);
+
       try {
-        const prevRes = await db.execute({
-          sql: "SELECT kpi_id, completion_rate FROM kpi_progress WHERE program_id = ?",
+        await db.execute({
+          sql: "DELETE FROM kpi_progress WHERE program_id = ?",
           args: [String(programId)],
         });
-        prevRates = new Map(
-          (prevRes.rows || []).map((cachedRow) => [
-            String(cachedRow.kpi_id),
-            parseFloat(cachedRow.completion_rate) || 0,
-          ]),
-        );
-      } catch (_) {}
+      } catch (error) {
+        console.warn("kpi_progress cache clear:", error.message);
+      }
 
-      // ONE multi-row upsert instead of one statement per indicator. The values
-      // are still computed per indicator above, so the "never downgrade to 0"
-      // rule is unchanged; only the number of round trips changes (N → 1).
-      const cacheArgs = [];
-      const values = results.map((progressEntry) => {
-        const prevRate = prevRates.get(String(progressEntry.kpi_id)) || 0;
-        const rate = progressEntry.completion_rate > 0 || prevRate <= 0 ? progressEntry.completion_rate : prevRate;
-        cacheArgs.push(
-          String(programId),
-          String(progressEntry.kpi_id),
-          progressEntry.title.substring(0, 255),
-          rate,
-          totalParticipants,
-          progressEntry.approved_count,
-        );
-        return "(?, ?, ?, ?, ?, ?, NOW())";
-      });
+      if (measurableEntries.length > 0) {
+        const cacheArgs = [];
+        const values = measurableEntries.map((entry) => {
+          cacheArgs.push(
+            String(programId),
+            String(entry.kpi_id),
+            entry.title.substring(0, 255),
+            entry.completion_rate,
+            entry.participant_count,
+            entry.approved_count,
+          );
+          return "(?, ?, ?, ?, ?, ?, NOW())";
+        });
 
-      if (values.length > 0) {
         try {
           await db.execute({
             sql: `INSERT INTO kpi_progress (program_id, kpi_id, kpi_name, completion_rate, participant_count, approved_count, calculated_at)
@@ -175,7 +199,7 @@ export async function recalculateKpiProgress(programId, participantId) {
           });
         } catch (error) {
           // The cache write is best-effort: the freshly computed values are still
-          // returned to the caller (the original behaviour, kept deliberately).
+          // returned to the caller.
           console.warn("kpi_progress cache write:", error.message);
         }
       }
