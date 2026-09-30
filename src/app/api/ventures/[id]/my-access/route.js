@@ -3,6 +3,10 @@ import db, { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { resolveVentureScopedDecision } from "@/lib/ventureScopedAccess";
 import { hasVentureCapability } from "@/lib/venturePermissions";
+import {
+  getVentureCodeByIdOrCode,
+  listActiveVentureAssignmentsForAccess,
+} from "@/models/ventureWorkspace";
 
 /**
  * GET /api/ventures/[id]/my-access — "what may I do HERE?"
@@ -63,10 +67,7 @@ const ENFORCED_MATRIX_CELLS = ["calendar.schedule", "milestones.edit"];
 
 /** Resolve the canonical code, or null when no such Venture exists. */
 async function findVentureCode(id) {
-  const ventureResult = await db.execute({
-    sql: "SELECT venture_id FROM ventures WHERE venture_id = ? OR id::text = ? LIMIT 1",
-    args: [id, id],
-  });
+  const ventureResult = await getVentureCodeByIdOrCode(id);
   return ventureResult.rows?.[0]?.venture_id || null;
 }
 
@@ -137,14 +138,9 @@ export async function GET(req, { params }) {
     // empty for them rather than pretending otherwise.
     let assignments = [];
     if (session.cid) {
-      const assignmentsResult = await db
-        .execute({
-          sql: `SELECT responsibility_code, scope_type, scope_ref_type, scope_ref_id
-                FROM venture_staff_assignments
-                WHERE venture_id = ? AND staff_contact_id = ? AND status = 'active'`,
-          args: [code, session.cid],
-        })
-        .catch(() => ({ rows: [] }));
+      const assignmentsResult = await listActiveVentureAssignmentsForAccess(code, session.cid).catch(
+        () => ({ rows: [] }),
+      );
       assignments = assignmentsResult.rows || [];
     }
 

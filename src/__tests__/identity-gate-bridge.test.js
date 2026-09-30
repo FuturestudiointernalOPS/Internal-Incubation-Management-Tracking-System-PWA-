@@ -105,7 +105,10 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(bareAuthCount(file)).toBe(1);
     expect(authBlocks(file)).toHaveLength(0);
     expect(src).toMatch(/hasActiveVentureAssignment/);
-    expect(src).toMatch(/venture_members WHERE venture_id/);
+    // The membership probe moved to the model; the route keeps the gate.
+    expect(src).toMatch(/isActiveVentureMember/);
+    const model = fs.readFileSync(path.join(ROOT, "src/models/ventureWorkspace.js"), "utf8");
+    expect(model).toMatch(/venture_members WHERE venture_id/);
   });
 
   test("phase 1.1: pm/teams GET — bare + program-context gate (management/capability/assignment)", () => {

@@ -448,3 +448,113 @@ export async function updateVentureActionPlanFields(updates, args) {
     args,
   });
 }
+
+// ── GET /api/ventures/assigned ───────────────────────────────────────────────
+
+/** A staff member's active Venture assignments, optionally filtered to one Venture. */
+export async function listVenturesAssignedToStaff(staffCid, ventureFilter) {
+  let sql = `
+      SELECT a.id, a.responsibility_code, vr.name AS responsibility_name,
+             a.scope_type, a.scope_ref_type, a.scope_ref_id, a.notes, a.created_at AS assigned_at,
+             v.venture_id, v.company_name, v.name, v.status, v.business_stage, v.industry, v.country
+      FROM venture_staff_assignments a
+      JOIN ventures v ON v.venture_id = a.venture_id
+      LEFT JOIN venture_responsibilities vr ON vr.code = a.responsibility_code
+      WHERE a.staff_contact_id = ? AND a.status = 'active'
+    `;
+  const args = [staffCid];
+  if (ventureFilter) {
+    sql += " AND a.venture_id = ?";
+    args.push(ventureFilter);
+  }
+  sql += " ORDER BY v.company_name NULLS LAST, v.name NULLS LAST, a.id DESC";
+
+  return db.execute({ sql, args });
+}
+
+// ── GET /api/ventures/[id]/my-access ─────────────────────────────────────────
+
+/** The canonical VNT code for a code-or-uuid id, or none. */
+export async function getVentureCodeByIdOrCode(id) {
+  return db.execute({
+    sql: "SELECT venture_id FROM ventures WHERE venture_id = ? OR id::text = ? LIMIT 1",
+    args: [id, id],
+  });
+}
+
+/** A contact's active assignment rows for one Venture (my-access facts). */
+export async function listActiveVentureAssignmentsForAccess(ventureCode, cid) {
+  return db.execute({
+    sql: `SELECT responsibility_code, scope_type, scope_ref_type, scope_ref_id
+                FROM venture_staff_assignments
+                WHERE venture_id = ? AND staff_contact_id = ? AND status = 'active'`,
+    args: [ventureCode, cid],
+  });
+}
+
+// ── GET /api/ventures/[id]/history ───────────────────────────────────────────
+
+/** Whether a contact is an active member of a Venture (by code or either cid column). */
+export async function isActiveVentureMember(ventureId, cid) {
+  return db.execute({
+    sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND (contact_id = ? OR user_cid = ?) AND removed_at IS NULL LIMIT 1",
+    args: [ventureId, cid || "", cid || ""],
+  });
+}
+
+// ── GET /api/ventures/[id]/venture-history ───────────────────────────────────
+
+/** Internal ventures.id for a code-or-uuid id, or none. */
+export async function getVentureDbIdByCodeOrId(id) {
+  return db.execute({
+    sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?",
+    args: [id, id],
+  });
+}
+
+/** Venture history events for the given owner ids (code + internal id). */
+export async function listVentureHistoryEvents(owners) {
+  return db.execute({
+    sql: `SELECT event_type, description, metadata, created_by, created_at
+              FROM venture_history WHERE venture_id IN (${owners.map(() => "?").join(", ")})
+              ORDER BY created_at ASC LIMIT 300`,
+    args: owners,
+  });
+}
+
+/** A Venture's readable internal notes (venture-history, staff only). */
+export async function listVentureHistoryNotes(owners) {
+  return db.execute({
+    sql: `SELECT id, title, body, author_name, scope_ref_type, scope_ref_id, created_at
+                  FROM venture_notes WHERE venture_id IN (${owners.map(() => "?").join(", ")}) AND is_archived = FALSE
+                  ORDER BY created_at DESC LIMIT 50`,
+    args: owners,
+  });
+}
+
+/** A Venture's submission review decisions (venture-history). */
+export async function listVentureHistoryReviewDecisions(owners) {
+  return db.execute({
+    sql: `SELECT s.version, s.status, s.review_decision, s.review_comment, s.reviewed_at,
+                     s.submitted_by_name, s.reviewed_by, s.created_at,
+                     t.title AS task_title
+              FROM venture_task_submissions s
+              JOIN venture_tasks t ON t.id = s.task_id
+              WHERE t.venture_id IN (${owners.map(() => "?").join(", ")}) AND s.review_decision IS NOT NULL
+              ORDER BY s.reviewed_at DESC NULLS LAST LIMIT 100`,
+    args: owners,
+  });
+}
+
+/** A Venture's session notes (venture-history, staff only). */
+export async function listVentureHistorySessionNotes(owners) {
+  return db.execute({
+    sql: `SELECT sn.id, sn.note_type, sn.content, sn.author_name, sn.created_at,
+                         s.title AS session_title, s.start_time, s.journey_stage_id, s.milestone_ref
+                  FROM venture_session_notes sn
+                  JOIN venture_sessions s ON s.id = sn.session_id
+                  WHERE s.venture_id IN (${owners.map(() => "?").join(", ")})
+                  ORDER BY sn.created_at DESC LIMIT 50`,
+    args: owners,
+  });
+}
