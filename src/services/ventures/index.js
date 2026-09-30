@@ -6,6 +6,8 @@
  * (enforced by `src/__tests__/server/services-boundaries.test.js`).
  *
  *   ventureDocumentTypes.js — a Venture's Data-bank document list
+ *   planImport.js — interpreting a tracker into a proposed programme
  */
 
 export * from "./ventureDocumentTypes";
+export * from "./planImport";
