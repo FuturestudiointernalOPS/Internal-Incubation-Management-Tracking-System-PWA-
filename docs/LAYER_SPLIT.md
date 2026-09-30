@@ -1,11 +1,12 @@
 # Layer split — View → Controller → Service → Repository
 
 > Status: **authorization + finance complete; programs models done; contacts,
-> ventures, LMS and workspace started**. Slices 1–9 finished authorization
-> (service layer HTTP-free), 10–11 finished finance, 12–13 covered programs, 14
-> contacts, 15 ventures, 17–18 LMS (learning, then checkout), 19 workspace, 20
-> ventures (plan import). The remaining mixed model modules are itemised in §4.
-> This document is the running log. Update it at the end of every slice.
+> ventures, LMS, workspace and platform started**. Slices 1–9 finished
+> authorization (service layer HTTP-free), 10–11 finished finance, 12–13 covered
+> programs, 14 contacts, 15 ventures, 17–18 LMS (learning, then checkout), 19
+> workspace, 20 ventures (plan import), 21 platform (Run report), 22 the CRM
+> decision helpers. The remaining mixed model modules are itemised in §4. This
+> document is the running log. Update it at the end of every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
 [`SERVER_LAYERS.md`](SERVER_LAYERS.md) (the request path as it stands),
@@ -370,6 +371,45 @@ the guarded, once-only apply.
 
 ---
 
+### Domain 9 — platform, Run report (slice 21)
+
+`src/models/platform/ai/report.js` (489 LOC) shaped the prompt, parsed and
+validated the model's answer, and read/wrote the stored report in the same
+functions. Now: the decisions in `src/services/platform/report.js`, every
+statement in `src/models/platform/ai/reportStore.js`, the model file a re-export
+facade. The on-demand table guard (`ensureSubmissionReportsTable`, memoised) moved
+with the statements — the suite resets the module registry to re-check it.
+
+**`models/platform/ai/email-personalize.js` is pure** — no imports, no SQL, no
+HTTP. It is the service-side shaping already, so there is nothing to split; the
+files that call it as a library keep importing it (`@/lib/platform/ai/email-personalize`).
+
+**Unchanged:** the SQL (byte-identical), the prompt text, the parsing bounds, the
+report key and every returned field.
+
+### Domain 4 (cont.) — the CRM decision helpers (slice 22)
+
+Five CRM/platform modules were checked; only the genuine `decision + SQL` helpers
+were split, each keeping its model file as a re-export shim:
+
+| Module | Function | Service + store |
+|---|---|---|
+| `models/communications.js` | `listMessagesForScope` (the visibility policy) | `services/communications/messageScope.js` + `models/messageScopeStore.js` |
+| `models/contacts.js` | `findContactByEmail` (normalise + empty-input guard) | `services/contacts/contactLookup.js` + `models/contactLookupStore.js` |
+| `models/groups.js` | `upsertV2ParticipantActiveWithFallback` (the no-constraint fallback) | `services/contacts/participantSync.js` + `models/participantSyncStore.js` |
+| `models/formRuns.js` | `listFormRunsPage` (the page + its matching total) | `services/platform/formRunList.js` + `models/formRunListStore.js` |
+
+**Unchanged:** the SQL (byte-identical), the assembled visibility clauses, the
+fallback path, the window-count/fallback total and the response shapes.
+
+**Checked and NOT split (repository shaping, per the `countApprovedSubmissions`
+precedent):** `countNonDraftSubmissionsByRunId`'s two branches and
+`buildRunListFilter`/`countFormRuns` in `formRuns.js`; every conditional query in
+`forms.js`. Each only adds a filter or picks a clause — no decision plus SQL in one
+function.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -406,27 +446,31 @@ cleanup, not layering:
 |---|---|---|
 | Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
 | Programs | `services/programs/*` | ✅ **models done** (slice 12) · ⏳ controller orchestration started (slice 13) |
-| Contacts / CRM | `services/contacts/*` | ⏳ **started** — contact↔program/group sync (slice 14) |
+| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14) + the decision helpers (slice 22) |
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ⬜ not started |
-| LMS / platform / integrations | `services/<domain>/*` | ⏳ **LMS started** — learner experience (slice 17) + checkout (slice 18); registrations checked (no split needed) |
+| LMS / platform / integrations | `services/<domain>/*` | ⏳ **LMS + platform started** — learner experience (slice 17), checkout (slice 18), Run report (slice 21); registrations/email-personalize checked (no split needed) |
 
 #### Remaining mixed model modules (the actual backlog)
 
 After re-checking each candidate: a module only counts here if a **single
-function** both computes a decision and runs SQL. Several earlier candidates
-turned out to be fine and are listed below as **no work needed**.
-
-Genuinely left — all large, and the reason they are still here:
+function** both computes a decision and runs SQL. Every candidate named in the
+earlier backlog has now been re-checked and either split or cleared — the table is
+empty:
 
 | Module | Domain | What mixes | Test net |
 |---|---|---|---|
-| `models/participantPortal.js` (764) | participant | portal state assembly | partial |
-| `models/platform/ai/{report,email-personalize}.js` | platform | prompt/report shaping + reads | weak |
-| `models/{contacts,groups,communications,forms,formRuns}.js` | CRM | a few decision helpers among otherwise query-only modules | partial |
+| _(none left at the model layer)_ | — | — | — |
 
-Done: `models/lms/learning.js` → `services/lms/learning.js` + `models/lms/learningStore.js` (slice 17); `models/lms/checkout.js` → `services/lms/checkout.js` + `models/lms/checkoutStore.js` (slice 18); `models/workspace.js` (the Venture-session calendar source) → `services/workspace/calendar.js` + `models/workspaceCalendarStore.js` (slice 19); `models/venturePlanImport.js` → `services/ventures/planImport.js` + `models/venturePlanImportStore.js` (slice 20).
+Done: `models/lms/learning.js` → `services/lms/learning.js` + `models/lms/learningStore.js` (slice 17); `models/lms/checkout.js` → `services/lms/checkout.js` + `models/lms/checkoutStore.js` (slice 18); `models/workspace.js` (the Venture-session calendar source) → `services/workspace/calendar.js` + `models/workspaceCalendarStore.js` (slice 19); `models/venturePlanImport.js` → `services/ventures/planImport.js` + `models/venturePlanImportStore.js` (slice 20); `models/platform/ai/report.js` → `services/platform/report.js` + `models/platform/ai/reportStore.js` (slice 21); the CRM helpers of slice 22 (see §2).
+
+**Checked and NOT mixed — no work needed (fourth pass, slice 22):**
+
+- `models/platform/ai/email-personalize.js` — pure: no imports, no SQL, no HTTP.
+- `models/forms.js` and `models/formRuns.js` — `countNonDraftSubmissionsByRunId`,
+  `buildRunListFilter`, `countFormRuns` and every `forms.js` query only add a
+  filter or choose a clause: repository shaping, not a decision.
 
 **Checked and NOT mixed — no work needed (third pass):**
 
@@ -521,7 +565,7 @@ decision is recorded, new modules stay plain JavaScript.
 | No SQL in `src/services/**` | `src/__tests__/server/services-boundaries.test.js` | a service contains `db.execute` or imports the pool |
 | No HTTP in `src/services/**` | same suite | a service imports `next/server` or references `NextResponse` |
 | The HTTP boundary owns refusals | same suite | `@/server/authz` stops exporting `requireAuthorization` / `requireScopedAccess`, they disappear from the `@/models/authorization` barrel, or they reappear in the service layer |
-| No HTTP in the new repositories | same suite | `contextReads`, `contextGrantReadinessReads`, `scopeReads`, `eligibilityAdminReads`, `contextAssignmentReads`, `contextGrantsStore`, `programAssignmentReads`, `learningStore`, `checkoutStore`, `workspaceCalendarStore` or `venturePlanImportStore` import `next/server` / use `NextResponse` |
+| No HTTP in the new repositories | same suite | the split stores (`contextReads`, `contextGrantReadinessReads`, `scopeReads`, `eligibilityAdminReads`, `contextAssignmentReads`, `contextGrantsStore`, `programAssignmentReads`, `learningStore`, `checkoutStore`, `workspaceCalendarStore`, `venturePlanImportStore`, `platform/ai/reportStore`, `contactLookupStore`, `participantSyncStore`, `messageScopeStore`, `formRunListStore`) import `next/server` / use `NextResponse` |
 | Decision surface intact | same suite | a renamed/removed export breaks the service barrel or the resolver facade |
 | No SQL in `server/authz` | `src/__tests__/server/authz-boundaries.test.js` | (pre-existing) authorization policy runs inline SQL |
 | Auth/authz import directions | `src/__tests__/server/auth-boundaries.test.js` | (pre-existing) |
