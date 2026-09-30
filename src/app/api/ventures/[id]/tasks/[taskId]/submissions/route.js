@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db from "@/lib/db";
 import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
 import { getUnmetTaskDependencies, releaseTasksBlockedBy } from "@/lib/ventures";
 import {
@@ -197,7 +196,7 @@ export const POST = createHandler(async (req, { params }) => {
           stageId = stageResult.rows?.[0]?.journey_stage_id || null;
         } catch (_) {}
       }
-      await notifyAndEmailVentureFounders(db, {
+      await notifyAndEmailVentureFounders({
         dbId,
         title: approved ? "Submission approved" : "Changes requested",
         message: `Your submission for "${task.title}" was ${approved ? "approved" : "requested changes"}.`,

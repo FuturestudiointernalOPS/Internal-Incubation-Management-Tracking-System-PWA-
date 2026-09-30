@@ -28,7 +28,7 @@ async function emailVentureAboutSession(ventureParam, sessionRecord, { inAppTitl
     const ventureDbIdResult = await getVentureByCode(ventureParam);
     const dbId = ventureDbIdResult.rows?.[0]?.id;
     if (!dbId) return;
-    await notifyAndEmailVentureFounders(db, {
+    await notifyAndEmailVentureFounders({
       dbId, title: inAppTitle, message: inAppMsg, emailSubject: subject, emailLines: lines,
       context: {
         journey_stage_id: sessionRecord.journey_stage_id || null,
@@ -40,7 +40,7 @@ async function emailVentureAboutSession(ventureParam, sessionRecord, { inAppTitl
     // Coach delivery (Phase 1): the platform user attached as coach gets the
     // same event in-app + by email (Future Studio staff or invited external).
     if (sessionRecord.coach_contact_id) {
-      await notifyVentureCoach(db, {
+      await notifyVentureCoach({
         dbId, coachContactId: sessionRecord.coach_contact_id,
         title: inAppTitle, message: inAppMsg, emailSubject: subject, emailLines: lines,
         context: {
@@ -252,7 +252,7 @@ export const POST = createHandler(async (req, { params }) => {
           const dbId = ventureDbIdResult.rows?.[0]?.id;
           if (dbId) {
             const when = body.start_time ? new Date(body.start_time).toLocaleString() : "";
-            await notifyVentureCoach(db, {
+            await notifyVentureCoach({
               dbId, coachContactId,
               title: "Session scheduled",
               message: `You have been added to the Venture session "${body.title}"${when ? ` for ${when}` : ""}. Memo: ${sessionNote}`,
@@ -285,7 +285,7 @@ export const POST = createHandler(async (req, { params }) => {
           const dbId = ventureDbIdResult.rows?.[0]?.id;
           if (dbId) {
             const when = body.start_time ? new Date(body.start_time).toLocaleString() : "";
-            await notifyAndEmailVentureFounders(db, {
+            await notifyAndEmailVentureFounders({
               dbId,
               title: "Session scheduled",
               message: `A session "${body.title}" has been scheduled${when ? ` for ${when}` : ""}. Memo: ${sessionNote}`,
@@ -320,7 +320,7 @@ export const POST = createHandler(async (req, { params }) => {
         const ventureCode = leadManagerVenture.rows?.[0]?.venture_id || id;
         if (dbId) {
           const when = body.start_time ? new Date(body.start_time).toLocaleString() : "";
-          await notifyVentureLeadManagers(db, {
+          await notifyVentureLeadManagers({
             dbId, ventureCode,
             title: "Session scheduled",
             message: `You have been added to the Venture session "${body.title}"${when ? ` for ${when}` : ""}. Memo: ${sessionNote}`,
@@ -430,7 +430,7 @@ export const POST = createHandler(async (req, { params }) => {
         const dbId = leadManagerVenture.rows?.[0]?.id;
         const ventureCode = leadManagerVenture.rows?.[0]?.venture_id || id;
         if (dbId) {
-          await notifyVentureLeadManagers(db, {
+          await notifyVentureLeadManagers({
             dbId, ventureCode,
             title: "Session cancelled",
             message: `Venture session "${session.title}" has been cancelled${session.start_time ? ` (was ${fmtWhen(session.start_time)})` : ""}.`,
@@ -485,7 +485,7 @@ export const POST = createHandler(async (req, { params }) => {
           const dbId = leadManagerVenture.rows?.[0]?.id;
           const ventureCode = leadManagerVenture.rows?.[0]?.venture_id || id;
           if (dbId) {
-            await notifyVentureLeadManagers(db, {
+            await notifyVentureLeadManagers({
               dbId, ventureCode,
               title: "Session rescheduled",
               message: `Venture session "${session.title}" has been rescheduled${session.start_time ? ` to ${fmtWhen(session.start_time)}` : ""}.`,

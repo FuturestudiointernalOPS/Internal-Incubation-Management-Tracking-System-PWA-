@@ -13,8 +13,9 @@
 > parameter), 28 the permission engine and the milestone progression engine
 > (service + store; the `db` threading through `canManageMilestones` /
 > `syncMilestoneFromWork` is gone), 29 the assignment-scope layer and the
-> operating-plan access helpers. The remaining mixed model modules are itemised
-> in §4. This document is the running log. Update it at the end of every slice.
+> operating-plan access helpers, 30 the roadmap readiness engine and the Venture
+> notification helpers. The remaining mixed model modules are itemised in §4.
+> This document is the running log. Update it at the end of every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
 [`SERVER_LAYERS.md`](SERVER_LAYERS.md) (the request path as it stands),
@@ -597,6 +598,26 @@ structure-only template copy.
 
 ---
 
+### Domain 17 — readiness + notifications (slice 30)
+
+`src/lib/ventureReadiness.js` (the weighted roadmap score) and
+`src/lib/ventureNotify.js` (founder / coach / Lead-Manager delivery) decided and
+ran their reads inline. Now: `services/ventures/readiness.js` over
+`models/ventureReadinessStore.js`, and `services/ventures/notify.js` over
+`models/ventureNotifyStore.js`; both `src/lib` files are re-export facades.
+
+`computeRoadmapReadiness`, `notifyAndEmailVentureFounders`, `notifyVentureCoach`
+and `notifyVentureLeadManagers` take no db, so the three importing routes
+dropped it (`investment-readiness`, `sessions`, `…/submissions`). The three
+notify functions share one `renderEmailHtml` instead of three copies of the same
+markup — the only behavioural-neutral tidy-up in the move.
+
+**Unchanged:** the SQL (byte-identical), the readiness weights and the
+renormalisation, the audience rules (founders / one coach / every active Lead
+Manager), the dedupe suffixes and the per-recipient isolation.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -777,11 +798,11 @@ Two source-pinning suites were repointed (same assertion, new home):
   `ventureDuplication.js` (slice 25), `ventureMilestoneOrder.js` (slice 26),
   `ventureAccessFacts.js` (slice 27, which left `ventureAuth.js` pure),
   `venturePermissions.js`, `ventureMilestoneEngine.js` (slice 28),
-  `ventureScope.js` and `ventureOperatingPlans.js` (slice 29) are done — all
-  facades over `services/ventures/*`. A long tail of `src/lib` modules still
-  holds SQL (the biggest: `ventures.js` (5.8k lines), `ventureReports.js`,
-  `ventureReadiness.js`, `ventureCoach.js`, `ventureNotify.js`, plus the
-  non-venture ones `auth.js`, `email.js`, `audit.js`, `token-hashing.js`,
+  `ventureScope.js` and `ventureOperatingPlans.js` (slice 29), `ventureReadiness.js`
+  and `ventureNotify.js` (slice 30) are done — all facades over
+  `services/ventures/*`. A long tail of `src/lib` modules still holds SQL (the
+  biggest: `ventures.js` (5.8k lines), `ventureReports.js`, `ventureCoach.js`,
+  plus the non-venture ones `auth.js`, `email.js`, `audit.js`, `token-hashing.js`,
   `request-context.js`, `lms/coaching.js`) — the next repository-extraction
   targets, one module at a time, tracked in `MVC_REFACTOR.md`.
 - Giant page files (>600 LOC) still need splitting into feature components.
