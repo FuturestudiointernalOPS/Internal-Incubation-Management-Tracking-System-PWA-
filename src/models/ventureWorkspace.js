@@ -283,6 +283,33 @@ export async function getMilestoneJourneyStageId(milestoneId) {
   });
 }
 
+// ── GET /api/ventures/[id]/submissions/review-queue ──────────────────────────
+
+// Base queue query (no LIMIT). The full-access path appends LIMIT 20 so its
+// behavior stays byte-identical to the pre-scoping route.
+const VENTURE_REVIEW_QUEUE_SQL = `SELECT s.id AS submission_id, s.task_id, s.version, s.file_url, s.file_name, s.notes,
+                 s.submitted_by_name, s.created_at,
+                 t.title AS task_title,
+                 t.milestone_id,
+                 m.title AS milestone_title
+          FROM venture_task_submissions s
+          JOIN venture_tasks t ON t.id = s.task_id
+          LEFT JOIN venture_milestones m ON m.id::text = t.milestone_id::text
+          WHERE t.venture_id = ?
+            AND s.review_decision IS NULL
+            AND s.version = (SELECT MAX(s2.version) FROM venture_task_submissions s2 WHERE s2.task_id = s.task_id)
+          ORDER BY s.created_at DESC`;
+const VENTURE_REVIEW_QUEUE_SQL_FULL = `${VENTURE_REVIEW_QUEUE_SQL}
+          LIMIT 20`;
+
+/** The latest unreviewed submission per task; restricted omits the SQL LIMIT. */
+export function selectVentureReviewQueue(dbId, restricted) {
+  return db.execute({
+    sql: restricted ? VENTURE_REVIEW_QUEUE_SQL : VENTURE_REVIEW_QUEUE_SQL_FULL,
+    args: [dbId],
+  });
+}
+
 // ── GET/POST/PATCH /api/ventures/[id]/blockers ───────────────────────────────
 
 /** Internal ventures.id by VNT code — blockers resolveVentureDbId helper. */

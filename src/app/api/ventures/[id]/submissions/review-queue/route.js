@@ -10,6 +10,7 @@ import {
   isTaskInScope,
   listTaskScopeContexts,
 } from "@/lib/ventureScope";
+import { getVentureByCode, selectVentureReviewQueue } from "@/models/ventureWorkspace";
 
 /**
  * GET /api/ventures/[id]/submissions/review-queue
@@ -28,23 +29,6 @@ import {
  * queue. The LIMIT-20 is applied AFTER the scope filter.
  */
 
-// Base queue query (no LIMIT). The full-access path appends LIMIT 20 so its
-// behavior stays byte-identical to the pre-scoping route.
-const QUEUE_SQL_NO_LIMIT = `SELECT s.id AS submission_id, s.task_id, s.version, s.file_url, s.file_name, s.notes,
-                 s.submitted_by_name, s.created_at,
-                 t.title AS task_title,
-                 t.milestone_id,
-                 m.title AS milestone_title
-          FROM venture_task_submissions s
-          JOIN venture_tasks t ON t.id = s.task_id
-          LEFT JOIN venture_milestones m ON m.id::text = t.milestone_id::text
-          WHERE t.venture_id = ?
-            AND s.review_decision IS NULL
-            AND s.version = (SELECT MAX(s2.version) FROM venture_task_submissions s2 WHERE s2.task_id = s.task_id)
-          ORDER BY s.created_at DESC`;
-const FULL_QUEUE_SQL = `${QUEUE_SQL_NO_LIMIT}
-          LIMIT 20`;
-
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
   const { session } = await requireVentureAccess(id, db);
@@ -53,7 +37,7 @@ export const GET = createHandler(async (req, { params }) => {
     return NextResponse.json({ success: false, error: "This operation requires staff access to the Venture." }, { status: 403 });
   }
 
-  const ventureResult = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+  const ventureResult = await getVentureByCode(id);
   const dbId = ventureResult.rows?.[0]?.id;
   if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
@@ -75,10 +59,7 @@ export const GET = createHandler(async (req, { params }) => {
   }
 
   const restricted = scopedTaskIds !== null;
-  const queueResult = await db.execute({
-    sql: restricted ? QUEUE_SQL_NO_LIMIT : FULL_QUEUE_SQL,
-    args: [dbId],
-  }).catch(() => ({ rows: [] }));
+  const queueResult = await selectVentureReviewQueue(dbId, restricted).catch(() => ({ rows: [] }));
 
   let items = queueResult.rows || [];
   if (restricted) {
