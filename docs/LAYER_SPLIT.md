@@ -1,11 +1,9 @@
 # Layer split — View → Controller → Service → Repository
 
-> Status: **in progress**. Slices 1–8 delivered: the **authorization domain is
-> now fully split** — the access decision, the readiness report, the scope engine,
-> eligibility, membership, eligibility administration, the scoped-access guard,
-> the context-grant reconcile and the program-assignment derivation (2026-09-30).
-> This document is the running log: what is done, what was left aside on purpose,
-> and what remains. Update it at the end of every slice.
+> Status: **authorization domain complete**. Slices 1–9 delivered: every module
+> split, and the service layer is now HTTP-free (see §2, slice 9). This document
+> is the running log: what is done, what was left aside on purpose, and what
+> remains. Update it at the end of every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
 [`SERVER_LAYERS.md`](SERVER_LAYERS.md) (the request path as it stands),
@@ -181,6 +179,24 @@ capability derivation and expiry next to its SQL. Now:
 decision from the service explicitly, and the two services that consume the
 derivation split their imports across the reads and the service.
 
+### Slice 9 — the HTTP boundary (finishing the domain)
+
+The last thing tying the domain to HTTP: `requireAuthorization` and
+`requireScopedAccess` lived in the services and built `NextResponse` objects
+themselves. They now return a **decision value**, and one boundary module owns
+the response:
+
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/authorization/context.js` → `evaluateAuthorization` | `{ allowed, status, errorKey }` — no HTTP. |
+| **Service** | `src/services/authorization/scopedAccess.js` → `evaluateScopedAccess` | the scoped decision, built on `evaluateAuthorization`. |
+| **HTTP boundary** | `src/server/authz/responses.js` | `requireAuthorization` / `requireScopedAccess`: map a decision to `null \| NextResponse`. This is the **only** place left where an authorization decision meets HTTP. |
+
+Every existing caller keeps its exact contract (`if (authError) return
+ authError;`) — the barrel re-exports the boundary functions from their new
+ home, so no route changed. The services are now provably HTTP-free: a guard
+ test fails if any file under `src/services/**` imports `next/server`.
+
 **Unchanged throughout:** the SQL (byte-identical), the wave/round-trip
 structure, the merge semantics, the fail-closed rules, and every returned field.
 
@@ -188,7 +204,7 @@ structure, the merge semantics, the fail-closed rules, and every returned field.
 
 | Check | Result |
 |---|---|
-| Full suite `npm test` | **228 suites, 2969 tests, all passed** |
+| Full suite `npm test` | **228 suites, 2982 tests, all passed** |
 | `npx eslint .` | 0 errors (6 pre-existing warnings elsewhere) |
 | `npm run build` | green |
 | Cold-resolution round trips | unchanged (3 waves — pinned by `db-sequencing.test.js`) |
@@ -197,21 +213,17 @@ structure, the merge semantics, the fail-closed rules, and every returned field.
 
 ## 3. Left aside on purpose (deferred, with reasons)
 
-1. **`requireAuthorization` still builds the HTTP refusal response.** Returning
-   a 401/403 answer is controller work. Changing it now would touch the return
-   shape every gated endpoint depends on. Called out in a comment at the top of
-   `services/authorization/context.js`.
-2. **`src/server/authz/guards.js`** shapes HTTP answers in the policy layer; the
-   response shaping belongs in controllers.
-3. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
+1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
    `eligibility-admin`, `context`, `contextGrants`, `programAssignments`) create
    shim-only model→service edges; they are deleted once nothing imports them.
-4. **`requireScopedAccess` still builds the HTTP refusal answers** in the service
-   — same deferral as `requireAuthorization` (§3.1).
-5. **`models/authorization/programAssignmentBackfill.js` imports the level
+2. **`models/authorization/programAssignmentBackfill.js` imports the level
    decision from the service** — a backfill (data work) that needs a decision;
    it stays in models for now.
-6. **No type layer** (see §4).
+3. **`server/authz/guards.js`** (`requireProjectAccess`, `requireProgramFacilitator`,
+   `requireAssignmentAccess`, …) still queries models and builds its own
+   responses. It is the *other* authorization boundary; splitting it the same way
+   is follow-up work, not a mixed module.
+4. **No type layer** (see §4).
 
 ---
 
@@ -219,14 +231,15 @@ structure, the merge semantics, the fail-closed rules, and every returned field.
 
 ### Authorization domain — done
 
-Every module that mixed a decision with its queries has been split (§2, slices
-1–8). What is left here is **not** a mixed module:
+Every module that mixed a decision with its queries is split (slices 1–8), and
+the domain is now HTTP-free at the service layer (slice 9). What is left is
+cleanup, not layering:
 
-| Item | Problem | Planned home |
-|---|---|---|
-| `server/authz/guards.js` | guards shape HTTP answers in the policy layer | response shaping → controllers |
-| Refusal shaping inside the services | `requireAuthorization` / `requireScopedAccess` build the 401/403/500 answers | controllers |
-| Facades (§3.3) | shim-only re-exports | deleted when unused |
+| Item | Status |
+|---|---|
+| Facades (§3.1) | shim-only re-exports, deleted when unused |
+| `server/authz/guards.js` (§3.3) | its own boundary work, same recipe |
+| Decision tests | `authorize`, `evaluateAuthorization` and the derivation are now testable without a database or HTTP |
 
 ### Other domains — not started
 
@@ -295,6 +308,8 @@ decision is recorded, new modules stay plain JavaScript.
 | Guard | File | Fails when |
 |---|---|---|
 | No SQL in `src/services/**` | `src/__tests__/server/services-boundaries.test.js` | a service contains `db.execute` or imports the pool |
+| No HTTP in `src/services/**` | same suite | a service imports `next/server` or references `NextResponse` |
+| The HTTP boundary owns refusals | same suite | `@/server/authz` stops exporting `requireAuthorization` / `requireScopedAccess`, they disappear from the `@/models/authorization` barrel, or they reappear in the service layer |
 | No HTTP in the new repositories | same suite | `contextReads`, `contextGrantReadinessReads`, `scopeReads`, `eligibilityAdminReads`, `contextAssignmentReads`, `contextGrantsStore` or `programAssignmentReads` import `next/server` / use `NextResponse` |
 | Decision surface intact | same suite | a renamed/removed export breaks the service barrel or the resolver facade |
 | No SQL in `server/authz` | `src/__tests__/server/authz-boundaries.test.js` | (pre-existing) authorization policy runs inline SQL |
