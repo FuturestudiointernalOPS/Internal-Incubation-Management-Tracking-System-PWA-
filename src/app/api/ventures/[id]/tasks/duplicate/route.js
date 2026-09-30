@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { duplicateTask } from "@/lib/ventureDuplication";
@@ -29,7 +29,7 @@ export async function POST(req, { params }) {
     const dbId = ventureRes.rows?.[0]?.id || (id.includes("-") && !id.startsWith("VNT-") ? id : null);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const result = await duplicateTask(db, { dbId, code: id, taskId, actorCid: session.cid || null });
+    const result = await duplicateTask({ dbId, code: id, taskId, actorCid: session.cid || null });
     if (result.error) {
       return NextResponse.json({ success: false, error: result.error }, { status: result.error === "Task not found." ? 404 : 400 });
     }

@@ -44,7 +44,7 @@ export async function POST(req, { params }) {
     const dbId = await resolveVentureInternalId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const result = await duplicateJourneyStage(db, { dbId, stageId, actorCid: session.cid || null });
+    const result = await duplicateJourneyStage({ dbId, stageId, actorCid: session.cid || null });
     if (result.error) {
       return NextResponse.json({ success: false, error: result.error }, { status: result.error === "Stage not found." ? 404 : 400 });
     }

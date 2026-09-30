@@ -23,7 +23,6 @@
  */
 
 import db from "@/lib/db";
-import { milestoneHasFiledWork as milestoneHasFiledWorkProbe } from "@/lib/ventureArchive";
 
 // ── Transaction control ──────────────────────────────────────────────────────
 
@@ -254,15 +253,6 @@ export function deleteTasksForMilestone(query, milestoneId) {
 /** Delete one milestone, scoped to its Venture (cursor form). */
 export function deleteMilestoneRow(query, milestoneId, dbId) {
   return query("DELETE FROM venture_milestones WHERE id = ? AND venture_id = ?", [String(milestoneId), dbId]);
-}
-
-/**
- * Filed-work probe for one milestone. The milestone archive engine
- * (`@/lib/ventureArchive`) owns the three statements and is not migrated yet, so
- * the store borrows its db — the probe is a repository concern either way.
- */
-export function milestoneHasFiledWork(milestoneId) {
-  return milestoneHasFiledWorkProbe(db, milestoneId);
 }
 
 // ── Template library ─────────────────────────────────────────────────────────

@@ -41,7 +41,7 @@ export async function POST(req, { params }) {
     const dbId = ventureResult.rows?.[0]?.id || (id.includes("-") && !id.startsWith("VNT-") ? id : null);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const result = await duplicateMilestone(db, { dbId, code: id, milestoneId, actorCid: session.cid || null });
+    const result = await duplicateMilestone({ dbId, code: id, milestoneId, actorCid: session.cid || null });
     if (result.error) {
       return NextResponse.json({ success: false, error: result.error }, { status: result.error === "Milestone not found." ? 404 : 400 });
     }

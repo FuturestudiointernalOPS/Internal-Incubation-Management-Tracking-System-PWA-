@@ -46,7 +46,7 @@ export const POST = createHandler(async (req, { params }) => {
     return { rows: [] };
   });
 
-  const summary = await applyBulk(db, {
+  const summary = await applyBulk({
     rows: rowsResult.rows || [],
     actorCid: session.cid || null,
     action,

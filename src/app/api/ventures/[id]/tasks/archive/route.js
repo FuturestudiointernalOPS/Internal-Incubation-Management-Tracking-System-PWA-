@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db from "@/lib/db";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { applyBulk } from "@/lib/ventureArchive";
 import { listTasksForArchive } from "@/models/ventureWorkspace";
@@ -35,7 +34,7 @@ export const POST = createHandler(async (req, { params }) => {
     return { rows: [] };
   });
 
-  const summary = await applyBulk(db, {
+  const summary = await applyBulk({
     rows: rowsResult.rows || [],
     actorCid: session.cid || null,
     action,

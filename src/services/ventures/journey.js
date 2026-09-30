@@ -47,7 +47,6 @@ import {
   deleteDeliverablesForMilestone,
   deleteTasksForMilestone,
   deleteMilestoneRow,
-  milestoneHasFiledWork,
   selectJourneyTemplatesWithCounts,
   selectJourneyStagesForTemplate,
   insertJourneyTemplateRow,
@@ -65,6 +64,9 @@ import {
   selectTemplateTasksForMilestone,
   insertTaskFromTemplateRow,
 } from "@/models/ventureJourneyStore";
+
+// The filed-work guard is the archive engine's decision — reused, never copied.
+import { milestoneHasFiledWork } from "@/services/ventures/archive";
 
 function rowsOf(result) {
   return (result && result.rows) || [];

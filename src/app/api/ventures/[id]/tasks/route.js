@@ -323,7 +323,7 @@ export const DELETE = createHandler(async (req, { params }) => {
 
   // Soft delete (archive): a task that already has filed work (submissions or
   // reviews) is part of the Venture's record and can never be removed.
-  const archiveResult = await archiveTask(db, { taskId, actorCid: session.cid || null });
+  const archiveResult = await archiveTask({ taskId, actorCid: session.cid || null });
   if (archiveResult?.error) {
     return NextResponse.json({ success: false, error: archiveResult.error }, { status: 409 });
   }
