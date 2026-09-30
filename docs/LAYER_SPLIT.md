@@ -1,10 +1,11 @@
 # Layer split — View → Controller → Service → Repository
 
-> Status: **authorization + finance complete; programs models done; contacts and
-> ventures started**. Slices 1–9 finished authorization (service layer HTTP-free),
-> 10–11 finished finance, 12–13 covered programs, 14 contacts, 15 ventures. The
-> remaining mixed model modules are itemised in §4. This document is the running
-> log. Update it at the end of every slice.
+> Status: **authorization + finance complete; programs models done; contacts,
+> ventures, LMS and workspace started**. Slices 1–9 finished authorization
+> (service layer HTTP-free), 10–11 finished finance, 12–13 covered programs, 14
+> contacts, 15 ventures, 17–18 LMS (learning, then checkout), 19 workspace, 20
+> ventures (plan import). The remaining mixed model modules are itemised in §4.
+> This document is the running log. Update it at the end of every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
 [`SERVER_LAYERS.md`](SERVER_LAYERS.md) (the request path as it stands),
@@ -293,6 +294,80 @@ injectable fake database the suite uses still drives both layers.
 One suite pinned the payload's SOURCE file (`lms-section-resource-learner-files`);
 it now reads the service instead of the model — same assertion, new home.
 
+**LMS slice 18 — the paid checkout.** `src/models/lms/checkout.js` (514 LOC)
+resolved the price, decided what a run sells, captured the registration, granted
+the course access and minted the access/resume links — all in the same functions
+that ran the SQL. Now: the decisions in `src/services/lms/checkout.js`, every
+statement in `src/models/lms/checkoutStore.js`, the model file a re-export
+facade (reached by the LMS routes and the public checkout through
+`@/lib/lms/checkout`).
+
+The public surface is preserved: the pure insert/read wrappers
+(`findContactForPurchase`, `insertPurchaseContact`, `insertPurchaseEnrollment`) and
+the re-exported registration writes (`recordPaymentEvent`, `markRegistrationPaid`,
+`setEmailState`, `setAccessState`) keep their names.
+
+Two suites pinned the SOURCE file and were repointed, same assertion, new home:
+`lms-access-token-schema` now reads the store (it asserts the access INSERT omits
+the invite-only `token_type`), and `login-next-redirect` reads the service (it
+asserts the setup-password link carries `next`).
+
+**Unchanged:** the SQL (byte-identical), the server-side price, the neutral
+answers to strangers, the window/link rules, and every returned field.
+
+---
+
+### Domain 7 — workspace (slice 19)
+
+`src/models/workspace.js` (792 LOC) is largely a repository: one statement per
+function. Exactly one function mixed a decision with its SQL —
+`getCalendarVentureSessions`, which DERIVED a person's Venture scope (membership
+∪ active staff assignment), expanded the codes to the internal ids and chose the
+"no scope" sentinel, then ran three statements in the same body. Now: the
+derivation in `src/services/workspace/calendar.js`, the three statements in
+`src/models/workspaceCalendarStore.js`. The `workspace.js` file keeps its
+repository functions and re-exports the moved one — the model-level shim device,
+because the file is not otherwise a facade.
+
+The characterisation suite (`venture-session-calendar`) drives the function
+through the fake database unchanged; it now reads the service in its header.
+
+**Unchanged:** the SQL (byte-identical), the scope semantics, the sentinel and
+the coach leg.
+
+---
+
+### Domain 8 — ventures, plan import (slice 20)
+
+`src/models/venturePlanImport.js` (1225 LOC) is the biggest mixed module left:
+it interpreted an uploaded tracker into a proposal, validated it against the
+platform, kept the draft and turned an approved draft into journey rows —
+resolving owners, choosing the first-journey status and running the SQL in the
+same functions.
+
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/ventures/planImport.js` | The prompt shaping, `normalizeJourneys`, `deriveProposalDates`, `validateDependencyRefs`, owner resolution, the interpretation and the plain-language correction, the draft decisions (supersede, recompute stats) and the whole `applyPlanImport` orchestration (first-journey rule, orders, labels, edges, change log). |
+| **Repository** | `src/models/venturePlanImportStore.js` | Every statement: the owner lookups, the existing-programme reads, the draft CRUD, and the structural writes. |
+| **Facade** | `src/models/venturePlanImport.js` | `export * from` + `export { default } from` the service. |
+
+**Keeping the transaction in service hands without running SQL there.** The two
+multi-statement operations must stay in ONE transaction, and one of them (apply)
+needs the in-transaction `MAX(stage_order)` to decide the first journey's status.
+Rather than move that decision into a store that owns the transaction (which the
+rule forbids), the store exposes `runInTransaction(fn)` — the same
+"`db` as a parameter" device `src/lib/ventureJourneys.js` already uses — and every
+statement that runs inside a transaction takes its `query` runner as the first
+argument. The service still writes no SQL: it calls store functions.
+
+The `initDb()` the module used to call defensively is gone: the plan-import
+controller already initialises the database, like every other migrated service's
+controller.
+
+**Unchanged:** the SQL (byte-identical, same statement order), the transaction
+boundaries, the single statement per structure write, every returned field, and
+the guarded, once-only apply.
+
 ---
 
 ## 3. Left aside on purpose (deferred, with reasons)
@@ -332,9 +407,10 @@ cleanup, not layering:
 | Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
 | Programs | `services/programs/*` | ✅ **models done** (slice 12) · ⏳ controller orchestration started (slice 13) |
 | Contacts / CRM | `services/contacts/*` | ⏳ **started** — contact↔program/group sync (slice 14) |
-| Ventures | `services/ventures/*` | ⏳ **started** — document types (slice 15); `ventureAssets`/`ventureMemberAccess` checked and fine |
+| Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
+| Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ⬜ not started |
-| LMS / platform / integrations | `services/<domain>/*` | ⏳ **LMS started** — learner experience (slice 17); registrations checked (no split needed), checkout next |
+| LMS / platform / integrations | `services/<domain>/*` | ⏳ **LMS started** — learner experience (slice 17) + checkout (slice 18); registrations checked (no split needed) |
 
 #### Remaining mixed model modules (the actual backlog)
 
@@ -346,14 +422,20 @@ Genuinely left — all large, and the reason they are still here:
 
 | Module | Domain | What mixes | Test net |
 |---|---|---|---|
-| `models/lms/checkout.js` | LMS | checkout/reconcile decisions + reads | ✅ |
-| `models/workspace.js` (792) | workspace | campaign-contact completion + full-state assembly | partial |
 | `models/participantPortal.js` (764) | participant | portal state assembly | partial |
-| `models/venturePlanImport.js` (1225) | ventures | plan interpretation/validation + writes | partial |
 | `models/platform/ai/{report,email-personalize}.js` | platform | prompt/report shaping + reads | weak |
 | `models/{contacts,groups,communications,forms,formRuns}.js` | CRM | a few decision helpers among otherwise query-only modules | partial |
 
-Done: `models/lms/learning.js` → `services/lms/learning.js` + `models/lms/learningStore.js` (slice 17).
+Done: `models/lms/learning.js` → `services/lms/learning.js` + `models/lms/learningStore.js` (slice 17); `models/lms/checkout.js` → `services/lms/checkout.js` + `models/lms/checkoutStore.js` (slice 18); `models/workspace.js` (the Venture-session calendar source) → `services/workspace/calendar.js` + `models/workspaceCalendarStore.js` (slice 19); `models/venturePlanImport.js` → `services/ventures/planImport.js` + `models/venturePlanImportStore.js` (slice 20).
+
+**Checked and NOT mixed — no work needed (third pass):**
+
+- `models/participantPortal.js` (764) — re-checked function by function: every one
+  wraps exactly one statement. The conditional getters
+  (`getParticipantProgramAssignments`, `getSubmissionsByParticipantOrTeam`, the
+  ritual `…ByUserAndWeek` reads) only add a WHERE filter — repository shaping, not
+  a decision. The "portal state assembly" named in the backlog lives in the
+  participant controllers (the new frontier), not in this module.
 
 **Checked and NOT mixed — no work needed (second pass):**
 
@@ -439,7 +521,7 @@ decision is recorded, new modules stay plain JavaScript.
 | No SQL in `src/services/**` | `src/__tests__/server/services-boundaries.test.js` | a service contains `db.execute` or imports the pool |
 | No HTTP in `src/services/**` | same suite | a service imports `next/server` or references `NextResponse` |
 | The HTTP boundary owns refusals | same suite | `@/server/authz` stops exporting `requireAuthorization` / `requireScopedAccess`, they disappear from the `@/models/authorization` barrel, or they reappear in the service layer |
-| No HTTP in the new repositories | same suite | `contextReads`, `contextGrantReadinessReads`, `scopeReads`, `eligibilityAdminReads`, `contextAssignmentReads`, `contextGrantsStore` or `programAssignmentReads` import `next/server` / use `NextResponse` |
+| No HTTP in the new repositories | same suite | `contextReads`, `contextGrantReadinessReads`, `scopeReads`, `eligibilityAdminReads`, `contextAssignmentReads`, `contextGrantsStore`, `programAssignmentReads`, `learningStore`, `checkoutStore`, `workspaceCalendarStore` or `venturePlanImportStore` import `next/server` / use `NextResponse` |
 | Decision surface intact | same suite | a renamed/removed export breaks the service barrel or the resolver facade |
 | No SQL in `server/authz` | `src/__tests__/server/authz-boundaries.test.js` | (pre-existing) authorization policy runs inline SQL |
 | Auth/authz import directions | `src/__tests__/server/auth-boundaries.test.js` | (pre-existing) |
