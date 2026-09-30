@@ -6,9 +6,10 @@
 > 15 ventures, 17–18 LMS (learning, then checkout), 19 workspace, 20 ventures
 > (plan import), 21 platform (Run report), 22 the CRM decision helpers, 23 the
 > controller frontier: every route file that still ran inline SQL now reads
-> through its model, so **no `src/app/api/**/route.js` executes SQL**. The
-> remaining mixed model modules are itemised in §4. This document is the running
-> log. Update it at the end of every slice.
+> through its model, so **no `src/app/api/**/route.js` executes SQL**, 24 the
+> Journey stage/archive/template engine (service + store, its three `src/lib`
+> modules now facades). The remaining mixed model modules are itemised in §4.
+> This document is the running log. Update it at the end of every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
 [`SERVER_LAYERS.md`](SERVER_LAYERS.md) (the request path as it stands),
@@ -441,6 +442,39 @@ author flags and the sealed/unsealed projection.
 
 ---
 
+### Domain 11 — the Journey stage/archive/template engine (slice 24)
+
+`src/lib/ventureJourneys.js`, `src/lib/ventureJourneyArchive.js` and
+`src/lib/ventureJourneyTemplates.js` decided **and** ran their own SQL, behind a
+`db`-as-first-argument API. The decisions now live in
+`src/services/ventures/journey.js`; every statement in
+`src/models/ventureJourneyStore.js`; the three `src/lib` files are re-export
+facades. The `db` argument is gone from the call sites (the store imports its
+own db), so the eight journey routes dropped it — nothing else changed.
+
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/ventures/journey.js` | The stage read fallback, the ordered swap, the re-serialised delete, the filed-work guard, the template naming/first-stage/continued-numbering decisions and the counters. |
+| **Repository** | `src/models/ventureJourneyStore.js` | The stage table guard + CRUD, the archive/restore/cascade-delete statements, and the template library save/apply statements — the transaction `query` runner as first argument. |
+| **Facades** | `src/lib/ventureJourneys.js`, `src/lib/ventureJourneyArchive.js`, `src/lib/ventureJourneyTemplates.js` | `export` from the service, unchanged names. |
+
+**Keeping the transaction in service hands without running SQL there.** The
+swap, the cascade delete and the template copies must each stay in ONE
+transaction; the store exposes `runInTransaction(fn)` and every statement inside
+it takes its `query` runner as the first argument — the same device the plan
+import established (slice 20). The service still writes no SQL.
+
+**One documented cross-layer edge:** the store's `milestoneHasFiledWork` borrows
+the db for `@/lib/ventureArchive`'s probe (that module is not migrated yet), the
+same kind of temporary edge as `models/authorization/contextGrantReadiness`.
+
+**Unchanged:** the SQL (byte-identical, statement order, argument order — two
+suites pin the exact insert arg positions), the transaction boundaries, the
+`Template has no stages.` behaviour inside the apply transaction, the archive
+"never blocked" rule and the delete block reason.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -586,9 +620,14 @@ Two source-pinning suites were repointed (same assertion, new home):
 
 - The "0 inline SQL in controllers" gate now holds: 30 route files once ran inline
   SQL, all 30 read through their models. Both `/admin` and the API suite stay green.
-- `src/lib/ventureJourneys.js` (and its `ventureJourneyArchive`/`ventureJourneyTemplates`
-  siblings) still hold SQL behind a `db`-parameter API rather than the model layer —
-  the next repository-extraction target, tracked in `MVC_REFACTOR.md`, not here.
+- `src/lib/ventureJourneys.js` and its `ventureJourneyArchive`/`ventureJourneyTemplates`
+  siblings are done (slice 24) — they are facades over `services/ventures/journey`.
+  A long tail of `src/lib` modules still holds SQL (the biggest: `ventures.js`,
+  `ventureMilestoneEngine.js`, `ventureDuplication.js`, `ventureArchive.js`,
+  `ventureReports.js`, `ventureOperatingPlans.js`, `ventureReadiness.js`,
+  `venturePermissions.js`, `ventureCoach.js`, `ventureNotify.js`) — the next
+  repository-extraction targets, one module at a time, tracked in
+  `MVC_REFACTOR.md`.
 - Giant page files (>600 LOC) still need splitting into feature components.
 
 ### Deferred decision: typing
