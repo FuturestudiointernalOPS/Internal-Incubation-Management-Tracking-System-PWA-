@@ -1,5 +1,5 @@
-import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
@@ -7,6 +7,10 @@ import { resolveSubmissionEmail } from "@/lib/email";
 import {
   getFormRunByIdForImport,
   getFormFieldLabels,
+  findContactByCidForImport,
+  findContactByLowerEmailForImport,
+  findContactByPhoneForImport,
+  selectAllContactsForImport,
   ensureImportBatchesTable,
   ensureImportReviewFlagsTable,
   findPreviousImportBatch,
@@ -77,15 +81,12 @@ function resolveRowEmail(row, mapping, fieldLabels) {
   });
 }
 
-async function resolveContact(dbClient, row, mapping, email) {
+async function resolveContact(row, mapping, email) {
   // 1. CRM ID (degrade gracefully if column missing)
   const crmIdField = Object.keys(mapping).find((key) => mapping[key] === "_crm_id");
   if (crmIdField && row[crmIdField]) {
     try {
-      const contactResult = await dbClient.execute({
-        sql: "SELECT * FROM contacts WHERE cid = ? LIMIT 1",
-        args: [String(row[crmIdField])],
-      });
+      const contactResult = await findContactByCidForImport(row[crmIdField]);
       if (contactResult.rows.length > 0) return { contact: contactResult.rows[0], method: "crm_id", uncertain: false };
     } catch (_) {}
   }
@@ -94,10 +95,7 @@ async function resolveContact(dbClient, row, mapping, email) {
   // placeholder-safe logic as the Run view, so it matches whether the column
   // was mapped to _email or to the form's email question.
   if (email) {
-    const contactResult = await dbClient.execute({
-      sql: "SELECT * FROM contacts WHERE LOWER(email) = ? LIMIT 1",
-      args: [String(email).toLowerCase().trim()],
-    });
+    const contactResult = await findContactByLowerEmailForImport(email);
     if (contactResult.rows.length > 0) return { contact: contactResult.rows[0], method: "email", uncertain: false };
   }
 
@@ -112,10 +110,7 @@ async function resolveContact(dbClient, row, mapping, email) {
   if (phoneField && row[phoneField]) {
     const phone = String(row[phoneField]).replace(/[^\d+]/g, "");
     if (phone.length >= 7) {
-      const contactResult = await dbClient.execute({
-        sql: "SELECT * FROM contacts WHERE phone = ? LIMIT 1",
-        args: [phone],
-      });
+      const contactResult = await findContactByPhoneForImport(phone);
       if (contactResult.rows.length > 0) return { contact: contactResult.rows[0], method: "phone", uncertain: false };
     }
   }
@@ -133,7 +128,7 @@ async function resolveContact(dbClient, row, mapping, email) {
     if (sorted) {
       let allContacts;
       try {
-        allContacts = await dbClient.execute({ sql: "SELECT * FROM contacts", args: [] });
+        allContacts = await selectAllContactsForImport();
       } catch (_) {
         allContacts = { rows: [] };
       }
@@ -257,7 +252,7 @@ export async function POST(req) {
         // "" means the row has no real email — only then is a placeholder used.
         const email = resolveRowEmail(row, mapping, fieldLabels);
 
-        const resolved = await resolveContact(db, row, mapping, email);
+        const resolved = await resolveContact(row, mapping, email);
         let contact = resolved?.contact || null;
         const uncertain = resolved?.uncertain || false;
         const matchMethod = resolved?.method || null;

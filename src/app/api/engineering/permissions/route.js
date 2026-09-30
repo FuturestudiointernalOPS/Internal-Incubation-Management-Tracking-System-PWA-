@@ -21,7 +21,16 @@ import {
 } from "@/lib/authorization";
 import { CAPABILITY_CATALOG } from "@/lib/authorization/capability-catalog";
 import {
-  runSafeQuery,
+  listUserGroupNames,
+  listUserResponsibilitiesForTable,
+  listActiveAccessProfiles,
+  listRoleAccessProfileDefaultsForTable,
+  listUserCapabilitiesForUser,
+  listUserCapabilityRestrictionsForUser,
+  listRoleCapabilities,
+  listGroupCapabilities,
+  listRoleCapabilitiesForRole,
+  listGroupCapabilitiesForGroup,
   listPermissionTableContacts,
   listAccessProfileDefinitions,
   getRoleDefaultProfileMappings,
@@ -59,11 +68,9 @@ import {
  *   ?role=staff  — get role defaults for a specific role
  *   ?group=Development — get group defaults for a specific group
  */
-// Resilient query helper: a missing table (migration not yet applied) must
-// never 500 the whole permissions page — it degrades to an empty list.
-async function safeQuery(sql, args = []) {
-  return runSafeQuery(sql, args);
-}
+// Resilient reads: a missing table (migration not yet applied) must never 500
+// the whole permissions page — the model's list helpers degrade to an empty
+// list (see runSafeQuery in @/models/authorization).
 
 export async function GET(req) {
   try {
@@ -86,7 +93,7 @@ export async function GET(req) {
       const contactsResult = await listPermissionTableContacts();
 
       // Fetch all user_groups
-      const groupsResult = await safeQuery("SELECT user_cid, group_name FROM user_groups");
+      const groupsResult = await listUserGroupNames();
       const groupMap = {};
       for (const row of groupsResult.rows) {
         if (!groupMap[row.user_cid]) groupMap[row.user_cid] = [];
@@ -94,10 +101,7 @@ export async function GET(req) {
       }
 
       // Fetch all user responsibilities
-      const responsibilitiesResult = await safeQuery(`SELECT ur.user_cid, r.id, r.name, r.key, r.icon
-              FROM user_responsibilities ur
-              JOIN responsibilities r ON r.id = ur.responsibility_id
-              WHERE r.is_active = 1`);
+      const responsibilitiesResult = await listUserResponsibilitiesForTable();
       const respMap = {};
       for (const row of responsibilitiesResult.rows) {
         if (!respMap[row.user_cid]) respMap[row.user_cid] = [];
@@ -105,16 +109,14 @@ export async function GET(req) {
       }
 
       // Fetch all access profiles
-      const profilesResult = await safeQuery("SELECT id, name, description FROM access_profiles WHERE is_active = 1");
+      const profilesResult = await listActiveAccessProfiles();
       const profileMap = {};
       for (const row of profilesResult.rows) {
         profileMap[row.id] = row;
       }
 
       // Fetch role-to-profile defaults
-      const roleProfileDefaultsResult = await safeQuery(`SELECT rpd.role_name, ap.id as profile_id, ap.name as profile_name
-              FROM role_access_profile_defaults rpd
-              JOIN access_profiles ap ON ap.id = rpd.access_profile_id`);
+      const roleProfileDefaultsResult = await listRoleAccessProfileDefaultsForTable();
       const roleProfileMap = {};
       for (const row of roleProfileDefaultsResult.rows) {
         roleProfileMap[row.role_name] = { id: row.profile_id, name: row.profile_name };
@@ -164,9 +166,9 @@ export async function GET(req) {
     // Return full modules definition
     if (!userCid && !role && !group) {
       // Get all role defaults
-      const roleCapabilities = await safeQuery("SELECT * FROM role_capabilities ORDER BY role, module, capability");
+      const roleCapabilities = await listRoleCapabilities();
       // Get all group defaults
-      const groupCapabilities = await safeQuery("SELECT * FROM group_capabilities ORDER BY group_name, module, capability");
+      const groupCapabilities = await listGroupCapabilities();
 
       // Get access profile defaults
       let accessProfiles = [];
@@ -221,16 +223,10 @@ export async function GET(req) {
       const explanation = buildPermissionExplanation(authorizationContext);
 
       // Get individual grants
-      const grants = await safeQuery(
-        "SELECT * FROM user_capabilities WHERE user_cid = ? AND (expires_at IS NULL OR expires_at > NOW())",
-        [userCid],
-      );
+      const grants = await listUserCapabilitiesForUser(userCid);
 
       // Get individual restrictions
-      const restrictions = await safeQuery(
-        "SELECT * FROM user_capability_restrictions WHERE user_cid = ? AND (expires_at IS NULL OR expires_at > NOW())",
-        [userCid],
-      );
+      const restrictions = await listUserCapabilityRestrictionsForUser(userCid);
 
       // Get access profile info
       const effectiveProfile = await getUserEffectiveProfile(
@@ -269,7 +265,7 @@ export async function GET(req) {
 
     // Get role defaults
     if (role) {
-      const capabilitiesResult = await safeQuery("SELECT * FROM role_capabilities WHERE role = ? ORDER BY module, capability", [role]);
+      const capabilitiesResult = await listRoleCapabilitiesForRole(role);
       return NextResponse.json({
         success: true,
         role,
@@ -279,7 +275,7 @@ export async function GET(req) {
 
     // Get group defaults
     if (group) {
-      const capabilitiesResult = await safeQuery("SELECT * FROM group_capabilities WHERE group_name = ? ORDER BY module, capability", [group]);
+      const capabilitiesResult = await listGroupCapabilitiesForGroup(group);
       return NextResponse.json({
         success: true,
         group,

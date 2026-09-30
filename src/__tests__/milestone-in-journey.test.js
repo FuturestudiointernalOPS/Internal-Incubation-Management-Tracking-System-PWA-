@@ -5,17 +5,32 @@
  *   1. milestone ordering (display_order normalization + up/down swap)
  *   2. milestone STRUCTURE authority (Lead Manager / Super Admin only)
  *
- * Pure functions with injected db doubles — no module mocking needed.
+ * Ordering now reaches a store that owns its db, so its table double is the
+ * module mock; the engine tests below keep injecting their own doubles.
  */
+jest.mock("@/lib/db", () => {
+  const state = { handler: async () => ({ rows: [] }), calls: [] };
+  return {
+    __esModule: true,
+    default: {
+      execute: jest.fn(async ({ sql, args = [] }) => state.handler(sql, args)),
+      transaction: jest.fn(async (runInTransaction) => runInTransaction((sql, args = []) => state.handler(sql, args))),
+    },
+    initDb: jest.fn().mockResolvedValue(true),
+    __state: state,
+  };
+});
+
+const { __state: mockState } = require("@/lib/db");
 const { moveStageMilestone, listStageMilestones } = require("@/lib/ventureMilestoneOrder");
 const { canManageMilestones, releaseMilestonesForStage, completeStageIfAllMilestonesDone } = require("@/lib/ventureMilestoneEngine");
 
-/** db double with an in-memory venture_milestones table. */
+/** Install an in-memory venture_milestones table into the db double. */
 function fakeDb(rows) {
   const state = rows.map((row) => ({ ...row }));
-  const calls = [];
-  const handler = async (sql, args = []) => {
-    calls.push({ sql, args });
+  mockState.calls.length = 0;
+  mockState.handler = async (sql, args = []) => {
+    mockState.calls.push({ sql, args });
     if (sql.includes("SELECT id, display_order FROM venture_milestones")) {
       return {
         rows: [...state].sort(
@@ -36,12 +51,7 @@ function fakeDb(rows) {
     }
     return { rows: [] };
   };
-  return {
-    state,
-    calls,
-    execute: async ({ sql, args = [] }) => handler(sql, args),
-    transaction: async (runInTransaction) => runInTransaction((sql, args = []) => handler(sql, args)),
-  };
+  return { state };
 }
 
 const orderOf = (db) => {
@@ -58,7 +68,7 @@ describe("milestone ordering inside a journey", () => {
       { id: "m2", display_order: 2, created_at: "2026-01-02" },
       { id: "m3", display_order: 3, created_at: "2026-01-03" },
     ]);
-    const res = await moveStageMilestone(db, { dbId: "v1", stageId: "s1", milestoneId: "m3", direction: "up" });
+    const res = await moveStageMilestone({ dbId: "v1", stageId: "s1", milestoneId: "m3", direction: "up" });
     expect(res.success).toBe(true);
     expect(orderOf(db)).toEqual(["m1", "m3", "m2"]);
   });
@@ -68,7 +78,7 @@ describe("milestone ordering inside a journey", () => {
       { id: "m1", display_order: 1, created_at: "2026-01-01" },
       { id: "m2", display_order: 2, created_at: "2026-01-02" },
     ]);
-    const res = await moveStageMilestone(db, { dbId: "v1", stageId: "s1", milestoneId: "m1", direction: "down" });
+    const res = await moveStageMilestone({ dbId: "v1", stageId: "s1", milestoneId: "m1", direction: "down" });
     expect(res.success).toBe(true);
     expect(orderOf(db)).toEqual(["m2", "m1"]);
   });
@@ -78,7 +88,7 @@ describe("milestone ordering inside a journey", () => {
       { id: "m1", display_order: null, created_at: "2026-01-01" },
       { id: "m2", display_order: null, created_at: "2026-01-02" },
     ]);
-    const res = await moveStageMilestone(db, { dbId: "v1", stageId: "s1", milestoneId: "m2", direction: "up" });
+    const res = await moveStageMilestone({ dbId: "v1", stageId: "s1", milestoneId: "m2", direction: "up" });
     expect(res.success).toBe(true);
     expect(orderOf(db)).toEqual(["m2", "m1"]);
     expect(db.state.find((row) => row.id === "m2").display_order).toBe(1);
@@ -89,20 +99,20 @@ describe("milestone ordering inside a journey", () => {
       { id: "m1", display_order: 1, created_at: "2026-01-01" },
       { id: "m2", display_order: 2, created_at: "2026-01-02" },
     ]);
-    const res = await moveStageMilestone(db, { dbId: "v1", stageId: "s1", milestoneId: "m1", direction: "up" });
+    const res = await moveStageMilestone({ dbId: "v1", stageId: "s1", milestoneId: "m1", direction: "up" });
     expect(res.error).toBe("Already at the edge.");
     expect(orderOf(db)).toEqual(["m1", "m2"]);
   });
 
   test("reports an unknown milestone", async () => {
-    const db = fakeDb([{ id: "m1", display_order: 1, created_at: "2026-01-01" }]);
-    const res = await moveStageMilestone(db, { dbId: "v1", stageId: "s1", milestoneId: "nope", direction: "up" });
+    fakeDb([{ id: "m1", display_order: 1, created_at: "2026-01-01" }]);
+    const res = await moveStageMilestone({ dbId: "v1", stageId: "s1", milestoneId: "nope", direction: "up" });
     expect(res.error).toBe("Milestone not found in this journey.");
   });
 
   test("listStageMilestones returns an empty list when the read fails", async () => {
-    const db = { execute: async () => { throw new Error("missing column"); } };
-    expect(await listStageMilestones(db, { dbId: "v1", stageId: "s1" })).toEqual([]);
+    mockState.handler = async () => { throw new Error("missing column"); };
+    expect(await listStageMilestones({ dbId: "v1", stageId: "s1" })).toEqual([]);
   });
 });
 

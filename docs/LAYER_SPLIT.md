@@ -1,16 +1,16 @@
 # Layer split — View → Controller → Service → Repository
 
-> Status: **authorization + finance complete; programs models done; the
-> controller frontier complete**. Slices 1–9 finished authorization (service
-> layer HTTP-free), 10–11 finished finance, 12–13 covered programs, 14 contacts,
-> 15 ventures, 17–18 LMS (learning, then checkout), 19 workspace, 20 ventures
-> (plan import), 21 platform (Run report), 22 the CRM decision helpers, 23 the
-> controller frontier: every route file that still ran inline SQL now reads
-> through its model, so **no `src/app/api/**/route.js` executes SQL**, 24 the
-> Journey stage/archive/template engine, 25 the archive + duplication engines
-> (service + store, their `src/lib` modules now facades). The remaining mixed
-> model modules are itemised in §4. This document is the running log. Update it
-> at the end of every slice.
+> Status: **authorization + finance complete; programs models done; controller
+> frontier complete (after a correction — see slice 26)**. Slices 1–9 finished
+> authorization (service layer HTTP-free), 10–11 finished finance, 12–13 covered
+> programs, 14 contacts, 15 ventures, 17–18 LMS (learning, then checkout), 19
+> workspace, 20 ventures (plan import), 21 platform (Run report), 22 the CRM
+> decision helpers, 23 the first controller sweep, 24 the Journey
+> stage/archive/template engine, 25 the archive + duplication engines, 26 the
+> controller leftovers the first sweep's grep missed (multiline `db\n.execute`
+> chains, `runSafeQuery`/`runQuery` wrappers) + milestone ordering. The remaining
+> mixed model modules are itemised in §4. This document is the running log.
+> Update it at the end of every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
 [`SERVER_LAYERS.md`](SERVER_LAYERS.md) (the request path as it stands),
@@ -500,6 +500,25 @@ the transaction boundaries, the status resets (`upcoming` / `not_started` /
 
 ---
 
+### Domain 13 — milestone ordering + the controller leftovers (slice 26)
+
+Two things in one slice. **Milestone ordering**: `src/lib/ventureMilestoneOrder.js`
+moved to `src/services/ventures/milestoneOrder.js` (the normalise-then-swap
+decision) over `src/models/ventureMilestoneOrderStore.js` (the read + the two
+writes), the `src/lib` file a facade and the reorder route no longer passing `db`.
+
+**The controller leftovers** the slice-23 sweep missed are extracted too — see
+"Controller frontier" in §4 for the correction, the eleven call sites and the
+audit command that finds them. `models/authorization.js` and `models/investor.js`
+gained named list functions where a route used to hand raw SQL to
+`runSafeQuery` / `runQuery`.
+
+**Unchanged:** the SQL (byte-identical), the ordered-swap semantics, the
+resilient degrade-to-empty behaviour of the permissions reads, and the
+executive-dashboard response shape.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -595,18 +614,44 @@ Done: `models/lms/learning.js` → `services/lms/learning.js` + `models/lms/lear
 > route, move the decision into `services/<domain>/`, keep the route's existing
 > test mocks working.
 
-#### Controller frontier — the inline-SQL inventory (slice 23) — COMPLETE
+#### Controller frontier — the inline-SQL inventory (slices 23 + 26)
 
-Measured at the start: **30 route files** ran `db.execute`/`db.transaction`
-inline (the ~290 that only import `@/lib/db` for `initDb` are *not* SQL); 22 of
-the 30 sat under `src/app/api/ventures/`. **All are extracted; a route file runs
-no SQL today.** Verify with
-`grep -rn "db\\.execute\\|db\\.transaction" src/app/api --include=route.js`:
-the only hit left is a comment in `platform/form-runs` recording the removed
-raw-SQL `migrate` action.
+**A correction on the slice-23 audit.** Slice 23 concluded "no route runs SQL"
+from a grep for `db\.execute` — which does not match a call chained across lines
+(`await db\n  .execute(...)`), nor a wrapper such as `runSafeQuery(sql)` /
+`runQuery(sql)` with the SQL text in the route. Slice 26 re-audited with patterns
+that catch both and found **eleven more call sites in eight routes**, all now
+extracted. The reliable audit is:
 
-SQL is byte-identical, one function per query, the controller keeping its
-auth/validation/shaping. Most functions live in `models/ventureWorkspace.js`;
+```sh
+grep -rnE "\.(execute|transaction|batch)\(" src/app/api --include=route.js
+grep -rnE "(runSafeQuery|runQuery|safeQuery)\(" src/app/api --include=route.js
+grep -rlnE "(SELECT|INSERT INTO|UPDATE [a-z_]+ SET|DELETE FROM)" src/app/api --include=route.js
+```
+
+The first two must be empty. The third still fires on three deliberate items:
+`campaigns/route.js` + `campaigns/[id]/route.js` (inline SQL in **RETIRED,
+unreachable** code — `RETIRED = true` 403s first, and it calls `db.batch`, which
+the db module does not define, so re-enabling would throw); `attendance` and
+`submissions` (a controller-assembled WHERE **fragment** handed to a model — the
+same repository-shaping class as `buildRunListFilter`, slice 22); and
+`migrate/phase5` (the sanctioned migration endpoint, which executes the
+statements of a `.sql` file, like the other `/api/migrate/phaseN` routes).
+
+Slice 26 extracted: `ventures/[id]/deliverables` (2) → `getVentureDbIdByCodeOrId`,
+`getVentureMilestoneForDeliverables`; `milestones/reorder` (1) →
+`getVentureDbIdByCodeOrId`; `verification` (2) and
+`verification/documents/[docId]/versions` (1) → `isActiveVentureMember`;
+`platform/import/execute` (4) → `findContactByCidForImport`,
+`findContactByLowerEmailForImport`, `findContactByPhoneForImport`,
+`selectAllContactsForImport`; `engineering/permissions` (10) → eight named list
+functions in `models/authorization.js`; `investor/executive-dashboard` (8) →
+eight named functions in `models/investor.js`. SQL byte-identical throughout.
+
+Slice 23 extracted **30 route files** (22 under `src/app/api/ventures/`); these
+are the ones it covered, SQL byte-identical, one function per query, the
+controller keeping its auth/validation/shaping. Most functions live in
+`models/ventureWorkspace.js`;
 
 | Route | Model functions |
 |---|---|
@@ -643,18 +688,23 @@ Two source-pinning suites were repointed (same assertion, new home):
 
 ### Project-wide, still open (from `MVC_REFACTOR.md`)
 
-- The "0 inline SQL in controllers" gate now holds: 30 route files once ran inline
-  SQL, all 30 read through their models. Both `/admin` and the API suite stay green.
+- The "0 inline SQL in controllers" gate holds again after the slice-26
+  correction: the first sweep (slice 23) missed chained/wrapper call sites; those
+  are extracted too. The only SQL-shaped text left in routes is the RETIRED
+  (unreachable) campaign code, the two controller-assembled WHERE fragments, and
+  the sanctioned `/api/migrate/phaseN` endpoint — see the frontier section, with
+  the audit command that actually finds them.
 - `src/lib/ventureJourneys.js`, `ventureJourneyArchive.js`,
-  `ventureJourneyTemplates.js` (slice 24) and `ventureArchive.js`,
-  `ventureDuplication.js` (slice 25) are done — all facades over
-  `services/ventures/*`. A long tail of `src/lib` modules still holds SQL (the
-  biggest: `ventures.js`, `ventureMilestoneEngine.js`,
-  `ventureMilestoneOrder.js`, `ventureReports.js`, `ventureOperatingPlans.js`,
-  `ventureReadiness.js`, `venturePermissions.js`, `ventureCoach.js`,
-  `ventureNotify.js`, `ventureScope.js`, `ventureAccessFacts.js`) — the next
-  repository-extraction targets, one module at a time, tracked in
-  `MVC_REFACTOR.md`.
+  `ventureJourneyTemplates.js` (slice 24), `ventureArchive.js`,
+  `ventureDuplication.js` (slice 25) and `ventureMilestoneOrder.js` (slice 26) are
+  done — all facades over `services/ventures/*`. A long tail of `src/lib` modules
+  still holds SQL (the biggest: `ventures.js`, `ventureMilestoneEngine.js`,
+  `ventureReports.js`, `ventureOperatingPlans.js`, `ventureReadiness.js`,
+  `venturePermissions.js`, `ventureCoach.js`, `ventureNotify.js`,
+  `ventureScope.js`, `ventureAccessFacts.js`) — the next repository-extraction
+  targets, one module at a time, tracked in `MVC_REFACTOR.md`. Dependency order
+  worth respecting: `ventureAccessFacts` → `venturePermissions` →
+  `ventureMilestoneEngine` (the engine reads the matrix through permissions).
 - Giant page files (>600 LOC) still need splitting into feature components.
 
 ### Deferred decision: typing

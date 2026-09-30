@@ -165,6 +165,14 @@ export async function countVenturePmfAssessments(dbId) {
 // ── GET/POST/PATCH/DELETE /api/ventures/[id]/tasks ───────────────────────────
 
 /** Internal ventures.id by VNT code — tasks resolveVentureDbId helper. */
+/** Milestone row (id + stage) verified to belong to one Venture. */
+export async function getVentureMilestoneForDeliverables(dbId, milestoneId) {
+  return db.execute({
+    sql: "SELECT id, journey_stage_id FROM venture_milestones WHERE id::text = ? AND venture_id = ?",
+    args: [String(milestoneId), dbId],
+  });
+}
+
 export async function getVentureDbIdForTasks(venture_id) {
   return db.execute({
     sql: "SELECT id FROM ventures WHERE venture_id = ?",

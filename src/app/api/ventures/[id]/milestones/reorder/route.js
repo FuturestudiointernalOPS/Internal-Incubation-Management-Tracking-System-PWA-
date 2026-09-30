@@ -4,6 +4,7 @@ import db from "@/lib/db";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { canManageMilestones, releaseMilestonesForStage } from "@/lib/ventureMilestoneEngine";
 import { moveStageMilestone } from "@/lib/ventureMilestoneOrder";
+import { getVentureDbIdByCodeOrId } from "@/models/ventureWorkspace";
 
 /**
  * POST /api/ventures/[id]/milestones/reorder
@@ -38,13 +39,11 @@ export const POST = createHandler(async (req, { params }) => {
     );
   }
 
-  const ventureResult = await db
-    .execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] })
-    .catch(() => ({ rows: [] }));
+  const ventureResult = await getVentureDbIdByCodeOrId(id).catch(() => ({ rows: [] }));
   const dbId = ventureResult.rows?.[0]?.id;
   if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-  const result = await moveStageMilestone(db, { dbId, stageId, milestoneId, direction });
+  const result = await moveStageMilestone({ dbId, stageId, milestoneId, direction });
   if (result.error) {
     return NextResponse.json({ success: false, error: result.error }, { status: 400 });
   }
