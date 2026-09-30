@@ -3,6 +3,18 @@ import { NextResponse } from "next/server";
 import { requireVentureAccess, roleIsPrivileged, isStaffActorForVenture } from "@/lib/ventureAuth";
 import { evidenceDownloadUrl, isExternalEvidenceLink } from "@/lib/ventureEvidence";
 import { TASK_COMPLETED_STATUSES, isMilestoneComplete, isJourneyStageComplete } from "@/lib/ventureStatuses";
+import {
+  getVentureDbIdByCodeOrId,
+  listVentureStagesForReport,
+  listVentureStagesForReportLegacy,
+  listVentureMilestonesForReport,
+  listVentureTaskDeadlinesForReport,
+  listVentureReviewedSubmissionsForReport,
+  listVentureSessionsForReport,
+  listVentureStaffAssignmentsForReport,
+  listVentureSubmitedDeliverablesForReport,
+  listVentureEvidencedDeliverablesForReport,
+} from "@/models/ventureWorkspace";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +23,6 @@ const OPEN_TASK_STATUSES = [
   "backlog", "todo", "in_progress", "review",
   "revision_requested", "rejected", "blocked",
 ];
-
-const OWNERS_IN = (owners) => `IN (${owners.map(() => "?").join(", ")})`;
 
 /**
  * GET /api/ventures/[id]/journey-report — operating report over the defined
@@ -37,74 +47,29 @@ export async function GET(req, { params }) {
       return NextResponse.json({ success: false, error: "Staff access required." }, { status: 403 });
     }
 
-    const ventureResult = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] }).catch(() => ({ rows: [] }));
+    const ventureResult = await getVentureDbIdByCodeOrId(id).catch(() => ({ rows: [] }));
     const dbId = ventureResult.rows?.[0]?.id || null;
     const owners = [id, dbId].filter(Boolean);
-    const ownersSql = OWNERS_IN(owners);
 
     const [stagesResult, milestonesResult, tasksResult, submissionsResult, sessionsResult, supportResult, deliverablesResult, evidencedResult] = await Promise.all([
       // Archived journeys (soft-deleted) are excluded from the operating
       // report. Guarded: a pre-migration database without the archive column
       // falls back to the plain stage read.
-      db.execute({
-        sql: `SELECT id, name, status, stage_order, target_date, completed_at
-              FROM venture_journey_stages WHERE venture_id = ? AND COALESCE(is_archived, FALSE) = FALSE
-              ORDER BY stage_order ASC`,
-        args: [dbId],
-      }).catch(() =>
-        db.execute({
-          sql: `SELECT id, name, status, stage_order, target_date, completed_at
-                FROM venture_journey_stages WHERE venture_id = ?
-                ORDER BY stage_order ASC`,
-          args: [dbId],
-        }).catch(() => ({ rows: [] })),
+      listVentureStagesForReport(dbId).catch(() =>
+        listVentureStagesForReportLegacy(dbId).catch(() => ({ rows: [] })),
       ),
-      db.execute({
-        sql: `SELECT id, journey_stage_id, title, status, target_date FROM venture_milestones
-              WHERE venture_id ${ownersSql} AND journey_stage_id IS NOT NULL`,
-        args: owners,
-      }).catch(() => ({ rows: [] })),
-      db.execute({
-        sql: `SELECT status, due_date FROM venture_tasks WHERE venture_id ${ownersSql}`,
-        args: owners,
-      }).catch(() => ({ rows: [] })),
-      db.execute({
-        sql: `SELECT s.review_decision, s.reviewed_at
-              FROM venture_task_submissions s
-              JOIN venture_tasks t ON t.id = s.task_id
-              WHERE t.venture_id ${ownersSql} AND s.review_decision IS NOT NULL`,
-        args: owners,
-      }).catch(() => ({ rows: [] })),
-      db.execute({
-        sql: `SELECT status, venture_facing, journey_stage_id, start_time
-              FROM venture_sessions WHERE venture_id ${ownersSql}`,
-        args: owners,
-      }).catch(() => ({ rows: [] })),
-      db.execute({
-        sql: `SELECT responsibility_code, staff_contact_id, scope_type
-              FROM venture_staff_assignments WHERE venture_id = ? AND status = 'active'`,
-        args: [id],
-      }).catch(() => ({ rows: [] })),
+      listVentureMilestonesForReport(owners).catch(() => ({ rows: [] })),
+      listVentureTaskDeadlinesForReport(owners).catch(() => ({ rows: [] })),
+      listVentureReviewedSubmissionsForReport(owners).catch(() => ({ rows: [] })),
+      listVentureSessionsForReport(owners).catch(() => ({ rows: [] })),
+      listVentureStaffAssignmentsForReport(id).catch(() => ({ rows: [] })),
       // Deliverables the Venture has submitted and staff have not reviewed yet
       // ('submitted' is the awaiting-review state — a review writes
-      // 'approved' / 'changes_requested'). Scoped to the Venture exactly like
-      // the task / milestone / session counts above.
-      db.execute({
-        sql: `SELECT status FROM venture_deliverables
-              WHERE venture_id ${ownersSql} AND status = 'submitted'`,
-        args: owners,
-      }).catch(() => ({ rows: [] })),
+      // 'approved' / 'changes_requested').
+      listVentureSubmitedDeliverablesForReport(owners).catch(() => ({ rows: [] })),
       // Delivered evidence — the file the Venture attached, so the operating
-      // report can point at it instead of only counting it. Private: the stored
-      // value is a path, signed per read below for staff who already passed the
-      // Venture access gate above.
-      db.execute({
-        sql: `SELECT id, milestone_id, title, status, approval_status, attachment_url, attachment_name
-              FROM venture_deliverables
-              WHERE venture_id ${ownersSql} AND attachment_url IS NOT NULL
-              ORDER BY created_at ASC`,
-        args: owners,
-      }).catch(() => ({ rows: [] })),
+      // report can point at it instead of only counting it.
+      listVentureEvidencedDeliverablesForReport(owners).catch(() => ({ rows: [] })),
     ]);
 
     // Group the delivered evidence by milestone and mint a short-lived link for
