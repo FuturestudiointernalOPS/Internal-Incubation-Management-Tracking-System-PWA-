@@ -10,8 +10,11 @@
 > controller leftovers the first sweep's grep missed (multiline `db\n.execute`
 > chains, `runSafeQuery`/`runQuery` wrappers) + milestone ordering, 27 the access
 > facts (service + store; `ventureAuth` is left with no SQL and no `db`
-> parameter). The remaining mixed model modules are itemised in §4. This
-> document is the running log. Update it at the end of every slice.
+> parameter), 28 the permission engine and the milestone progression engine
+> (service + store; the `db` threading through `canManageMilestones` /
+> `syncMilestoneFromWork` is gone). The remaining mixed model modules are
+> itemised in §4. This document is the running log. Update it at the end of
+> every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
 [`SERVER_LAYERS.md`](SERVER_LAYERS.md) (the request path as it stands),
@@ -542,6 +545,36 @@ permission answers, and every guard's verdict.
 
 ---
 
+### Domain 15 — the permission engine + the milestone engine (slice 28)
+
+`src/lib/venturePermissions.js` evaluated capability against the matrix while
+running its SQL, and `src/lib/ventureMilestoneEngine.js` decided availability,
+authority and milestone status the same way. Both are now service + store:
+`services/ventures/permissions.js` over `models/venturePermissionStore.js`, and
+`services/ventures/milestoneEngine.js` over
+`models/ventureMilestoneEngineStore.js` (which also owns the dependency guard
+and the held-statuses constants, right beside the SQL they belong to). The two
+`src/lib` files are re-export facades.
+
+**The db threading is gone.** `hasVentureCapability`, `canManageMilestones`,
+`syncMilestoneFromWork`, `activateDueStages`, `completeStageIfAllMilestonesDone`,
+`assertBookableMilestone` — none take a db any more, and neither does the engine's
+`resolveVentureCode`. `canDefineDeliverables` lost its (unused) db too; the
+permission service reads the identity store, and the engine service reads the
+permission service (service → service, no store→lib edge).
+
+**Two source-pinning suites were repointed** (same assertion, new home): the
+dependency-guard check in `venture-dependencies` and in
+`staging-venture-progression` now read `models/ventureMilestoneEngineStore.js`.
+The suites that injected a db double into the engine or the permission checks
+now drive the module mock instead — the same pattern the plan-import suites use.
+
+**Unchanged:** every statement (byte-identical, including the guard and the
+sweep ordering), the authority answer, the availability rules and the status
+derivations.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -719,16 +752,16 @@ Two source-pinning suites were repointed (same assertion, new home):
   the audit command that actually finds them.
 - `src/lib/ventureJourneys.js`, `ventureJourneyArchive.js`,
   `ventureJourneyTemplates.js` (slice 24), `ventureArchive.js`,
-  `ventureDuplication.js` (slice 25) and `ventureMilestoneOrder.js` (slice 26) are
-  done — all facades over `services/ventures/*` — as is `ventureAccessFacts.js`
-  (slice 27, which left `ventureAuth.js` pure). A long tail of `src/lib` modules
-  still holds SQL (the biggest: `ventures.js`, `ventureMilestoneEngine.js`,
-  `ventureReports.js`, `ventureOperatingPlans.js`, `ventureReadiness.js`,
-  `venturePermissions.js`, `ventureCoach.js`, `ventureNotify.js`,
-  `ventureScope.js`) — the next repository-extraction targets, one module at a
-  time, tracked in `MVC_REFACTOR.md`. Dependency order worth respecting:
-  `venturePermissions` → `ventureMilestoneEngine` (the engine reads the matrix
-  through permissions).
+  `ventureDuplication.js` (slice 25), `ventureMilestoneOrder.js` (slice 26),
+  `ventureAccessFacts.js` (slice 27, which left `ventureAuth.js` pure),
+  `venturePermissions.js` and `ventureMilestoneEngine.js` (slice 28) are done —
+  all facades over `services/ventures/*`. A long tail of `src/lib` modules still
+  holds SQL (the biggest: `ventures.js` (5.8k lines), `ventureReports.js`,
+  `ventureOperatingPlans.js`, `ventureReadiness.js`, `ventureCoach.js`,
+  `ventureNotify.js`, `ventureScope.js`, plus the non-venture ones `auth.js`,
+  `email.js`, `audit.js`, `token-hashing.js`, `request-context.js`,
+  `lms/coaching.js`) — the next repository-extraction targets, one module at a
+  time, tracked in `MVC_REFACTOR.md`.
 - Giant page files (>600 LOC) still need splitting into feature components.
 
 ### Deferred decision: typing

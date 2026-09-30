@@ -62,11 +62,20 @@ function makeRouteDb() {
 
 const mockRouteDb = makeRouteDb();
 
-jest.mock("@/lib/db", () => ({
-  __esModule: true,
-  default: mockRouteDb,
-  initDb: jest.fn().mockResolvedValue(true),
-}));
+jest.mock("@/lib/db", () => {
+  const state = { executeImpl: null };
+  return {
+    __esModule: true,
+    default: { execute: jest.fn(async (arg) => state.executeImpl(arg)) },
+    initDb: jest.fn().mockResolvedValue(true),
+    __state: state,
+  };
+});
+
+const { __state: mockState } = require("@/lib/db");
+// Route-level tests run against the route double; `ventureWorld` below swaps in
+// its own stateful table for the engine tests.
+mockState.executeImpl = (arg) => mockRouteDb.execute(arg);
 
 jest.mock("@/lib/auth", () => ({ requireAuth: jest.fn().mockResolvedValue(null), getSession: jest.fn() }));
 
@@ -105,6 +114,8 @@ beforeEach(() => {
   flags.matrixAllows = false;
   flags.stageStatus = "active";
   flags.stageCloses = false;
+  // Route-level tests read the route double; an engine test swaps its own in.
+  mockState.executeImpl = (arg) => mockRouteDb.execute(arg);
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -168,7 +179,8 @@ function ventureWorld({ milestoneStatus = "not_started", tasks = [], deliverable
 
     return { rows: [] };
   });
-  return { execute, calls, state };
+  mockState.executeImpl = execute;
+  return { calls, state };
 }
 
 const wroteMilestoneStatus = (calls) => calls.find((call) => call.sql.startsWith("UPDATE venture_milestones SET status = ?"));
@@ -178,14 +190,14 @@ const closedMilestone = (calls) => calls.some((call) => call.sql.includes("SET s
 describe("CHECK 1 — task completion advances the milestone, and cannot bypass authority", () => {
   test("work starting moves the milestone to In Progress", async () => {
     const world = ventureWorld({ tasks: [{ status: "backlog" }, { status: "in_progress" }] });
-    const out = await syncMilestoneFromWork(world, { dbId: VENTURE_DB_ID, milestoneId: MILESTONE_ID });
+    const out = await syncMilestoneFromWork({ dbId: VENTURE_DB_ID, milestoneId: MILESTONE_ID });
     expect(out).toEqual({ changed: true, status: "in_progress" });
     expect(world.state.milestone.status).toBe("in_progress");
   });
 
   test("every task done with NO authority stops at In Progress — never completed", async () => {
     const world = ventureWorld({ tasks: [{ status: "done" }, { status: "done" }] });
-    const out = await syncMilestoneFromWork(world, {
+    const out = await syncMilestoneFromWork({
       dbId: VENTURE_DB_ID,
       milestoneId: MILESTONE_ID,
       canComplete: false,
@@ -216,7 +228,7 @@ describe("CHECK 2 — all tasks done + approved deliverable + authority → comp
       stage: { id: STAGE_ID, name: "Market Readiness", status: "active", stage_order: 1 },
       siblings: [{ id: MILESTONE_ID, status: "not_started" }],
     });
-    const out = await syncMilestoneFromWork(world, {
+    const out = await syncMilestoneFromWork({
       dbId: VENTURE_DB_ID,
       milestoneId: MILESTONE_ID,
       cid: "USR-LEW",
@@ -232,7 +244,7 @@ describe("CHECK 2 — all tasks done + approved deliverable + authority → comp
       tasks: [{ status: "done" }, { status: "todo" }],
       deliverables: [{ approval_status: "approved" }],
     });
-    const out = await syncMilestoneFromWork(world, {
+    const out = await syncMilestoneFromWork({
       dbId: VENTURE_DB_ID,
       milestoneId: MILESTONE_ID,
       canComplete: true,
@@ -243,7 +255,7 @@ describe("CHECK 2 — all tasks done + approved deliverable + authority → comp
 
   test("finished work with no evidence does NOT close it", async () => {
     const world = ventureWorld({ tasks: [{ status: "done" }] });
-    const out = await syncMilestoneFromWork(world, {
+    const out = await syncMilestoneFromWork({
       dbId: VENTURE_DB_ID,
       milestoneId: MILESTONE_ID,
       canComplete: true,
@@ -253,8 +265,8 @@ describe("CHECK 2 — all tasks done + approved deliverable + authority → comp
   });
 
   test("a milestone with no tasks still closes on evidence alone (unchanged behaviour)", async () => {
-    const world = ventureWorld({ deliverables: [{ approval_status: "approved" }] });
-    const out = await syncMilestoneFromWork(world, {
+    ventureWorld({ deliverables: [{ approval_status: "approved" }] });
+    const out = await syncMilestoneFromWork({
       dbId: VENTURE_DB_ID,
       milestoneId: MILESTONE_ID,
       canComplete: true,
@@ -271,7 +283,7 @@ describe("CHECK 3 — tasks under an Upcoming milestone never activate it", () =
       tasks: [{ status: "done" }, { status: "done" }],
       deliverables: [{ approval_status: "approved" }],
     });
-    const out = await syncMilestoneFromWork(world, {
+    const out = await syncMilestoneFromWork({
       dbId: VENTURE_DB_ID,
       milestoneId: MILESTONE_ID,
       canComplete: true,
@@ -286,7 +298,7 @@ describe("CHECK 3 — tasks under an Upcoming milestone never activate it", () =
       milestoneStatus: "upcoming",
       deliverables: [{ status: "submitted" }],
     });
-    const out = await syncMilestoneFromWork(world, { dbId: VENTURE_DB_ID, milestoneId: MILESTONE_ID, canComplete: true });
+    const out = await syncMilestoneFromWork({ dbId: VENTURE_DB_ID, milestoneId: MILESTONE_ID, canComplete: true });
     expect(out.status).toBe("upcoming");
     expect(wroteMilestoneStatus(world.calls)).toBeUndefined();
   });
@@ -300,7 +312,7 @@ describe("CHECK 4 — dependency blocking is not cleared by task completion", ()
       tasks: [{ status: "done" }, { status: "accepted" }, { status: "done" }],
       deliverables: [{ approval_status: "approved" }],
     });
-    const out = await syncMilestoneFromWork(world, {
+    const out = await syncMilestoneFromWork({
       dbId: VENTURE_DB_ID,
       milestoneId: MILESTONE_ID,
       canComplete: true,
@@ -315,7 +327,7 @@ describe("CHECK 4 — dependency blocking is not cleared by task completion", ()
     // means the source blocks the target, and nothing but the source COMPLETING
     // frees it. `venture-dependencies.test.js` proves this behaviourally.
     const source = require("fs").readFileSync(
-      require("path").join(__dirname, "..", "lib", "ventureMilestoneEngine.js"),
+      require("path").join(__dirname, "..", "models", "ventureMilestoneEngineStore.js"),
       "utf8",
     );
     expect(source).toContain("FROM venture_dependencies d");
@@ -335,7 +347,7 @@ describe("CHECK 5 — the Milestone → Journey transition uses the existing lif
       stage: { id: STAGE_ID, name: "Market Readiness", status: "active", stage_order: 1 },
       siblings: [{ id: MILESTONE_ID, status: "not_started" }],
     });
-    const out = await syncMilestoneFromWork(world, {
+    const out = await syncMilestoneFromWork({
       dbId: VENTURE_DB_ID,
       milestoneId: MILESTONE_ID,
       cid: "USR-LEW",
@@ -353,7 +365,7 @@ describe("CHECK 5 — the Milestone → Journey transition uses the existing lif
       stage: { id: STAGE_ID, name: "Market Readiness", status: "active", stage_order: 1 },
       siblings: [{ id: MILESTONE_ID, status: "not_started" }, { id: "other-ms", status: "in_progress" }],
     });
-    const out = await syncMilestoneFromWork(world, {
+    const out = await syncMilestoneFromWork({
       dbId: VENTURE_DB_ID,
       milestoneId: MILESTONE_ID,
       cid: "USR-LEW",
@@ -371,7 +383,7 @@ describe("CHECK 5 — the Milestone → Journey transition uses the existing lif
       stage: { id: STAGE_ID, name: "Market Readiness", status: "upcoming", stage_order: 2 },
       siblings: [{ id: MILESTONE_ID, status: "not_started" }],
     });
-    const out = await syncMilestoneFromWork(world, {
+    const out = await syncMilestoneFromWork({
       dbId: VENTURE_DB_ID,
       milestoneId: MILESTONE_ID,
       cid: "USR-LEW",

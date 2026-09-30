@@ -13,7 +13,6 @@ import { TASK_BOARD_COLUMNS, TASK_REVIEW_GATED_COMPLETION_STATUSES, isTaskComple
 import { isStaffActorForVenture } from "@/lib/ventureAuth";
 import { canManageMilestones, syncMilestoneFromWork } from "@/lib/ventureMilestoneEngine";
 import { ventureOwned, ventureNotFound } from "@/lib/ventureOwnership";
-import db from "@/lib/db";
 import {
   getVentureDbIdForTasks,
   hasApprovedTaskSubmission,
@@ -44,8 +43,8 @@ async function resolveVentureDbId(ventureId) {
  */
 async function syncMilestoneForTask(task, { id, dbId, session }) {
   if (!task?.milestone_id) return { changed: false, status: null };
-  const canComplete = await canManageMilestones(db, { id, cid: session?.cid, role: session?.role });
-  return syncMilestoneFromWork(db, {
+  const canComplete = await canManageMilestones({ id, cid: session?.cid, role: session?.role });
+  return syncMilestoneFromWork({
     dbId,
     milestoneId: String(task.milestone_id),
     cid: session?.cid || null,

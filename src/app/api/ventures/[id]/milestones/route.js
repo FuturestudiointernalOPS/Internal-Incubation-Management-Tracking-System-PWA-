@@ -1,4 +1,3 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
@@ -51,7 +50,7 @@ export const POST = createHandler(async (req, { params }) => {
   if (access.error) return access.error;
 
   // Adding a milestone is a STRUCTURE action: Lead Manager or Super Admin.
-  const allowed = await canManageMilestones(db, { id, cid: access.session?.cid, role: access.session?.role });
+  const allowed = await canManageMilestones({ id, cid: access.session?.cid, role: access.session?.role });
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: "Only the Venture's Lead Manager or a Super Admin can add milestones." },
@@ -74,7 +73,7 @@ export const POST = createHandler(async (req, { params }) => {
 
   // Date-driven activation first, so a Journey whose start_date has arrived
   // counts as active when the status below is computed.
-  await activateDueStages(db, { dbId: ventureDbId });
+  await activateDueStages({ dbId: ventureDbId });
 
   // Journey binding (Phase 2): a milestone may belong to a Journey stage.
   // The stage must exist on THIS Venture when provided.
@@ -90,7 +89,7 @@ export const POST = createHandler(async (req, { params }) => {
   // an ACTIVE journey starts available; in a journey that has not started it
   // waits `upcoming`, and in a finished one it stays held. An explicit
   // dependency is the only other thing that ever holds a milestone back.
-  const initialStatus = await computeInitialMilestoneStatus(db, { dbId: ventureDbId, stageId: journey_stage_id || null });
+  const initialStatus = await computeInitialMilestoneStatus({ dbId: ventureDbId, stageId: journey_stage_id || null });
 
   const randomUUID = crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => { const random = Math.random()*16|0; const value = char==='x'?random:(random&0x3|0x8); return value.toString(16); });
 
@@ -133,7 +132,7 @@ export const PATCH = createHandler(async (req, { params }) => {
 
   // Date-driven activation first: a Journey whose start_date has arrived is
   // active before this write decides anything.
-  await activateDueStages(db, { dbId: ventureDbIdForScope });
+  await activateDueStages({ dbId: ventureDbIdForScope });
 
   // The BEFORE state, read once: field-level history has to know what a value
   // WAS, not only what it became.
@@ -151,7 +150,7 @@ export const PATCH = createHandler(async (req, { params }) => {
     const ventureDbId = ventureResult.rows?.[0]?.id;
     const code = ventureResult.rows?.[0]?.venture_id || (typeof id === "string" && id.startsWith("VNT-") ? id : null);
     if (!ventureDbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
-    const authorized = await isMilestoneLeadAuthority(db, { code, cid: session.cid, role: session.role });
+    const authorized = await isMilestoneLeadAuthority({ code, cid: session.cid, role: session.role });
     if (!authorized) {
       return NextResponse.json({ success: false, error: "Only the assigned Lead Manager or a Super Admin can complete milestones." }, { status: 403 });
     }
@@ -243,10 +242,10 @@ export const PATCH = createHandler(async (req, { params }) => {
     const ventureResult = await getVentureDbIdByCodeOrId(id).catch(() => ({ rows: [] }));
     const ventureDbId = ventureResult.rows?.[0]?.id || null;
     if (ventureDbId) {
-      await completeMilestone(db, { dbId: ventureDbId, milestoneId });
+      await completeMilestone({ dbId: ventureDbId, milestoneId });
       // Immediate release: work held back only by THIS milestone is offered
       // now, instead of waiting for the next time the roadmap is read.
-      await activateDueStages(db, { dbId: ventureDbId });
+      await activateDueStages({ dbId: ventureDbId });
       const milestoneResult = await getVentureMilestoneTitleAndStage(milestoneId).catch(() => ({ rows: [] }));
       const milestone = milestoneResult.rows?.[0];
       try {
@@ -266,7 +265,7 @@ export const PATCH = createHandler(async (req, { params }) => {
       // A Journey is never closed by hand: once EVERY milestone in it is
       // completed it closes automatically. No other Journey is started here —
       // they activate on their own start dates.
-      const stageOutcome = await completeStageIfAllMilestonesDone(db, {
+      const stageOutcome = await completeStageIfAllMilestonesDone({
         dbId: ventureDbId,
         stageId: milestone?.journey_stage_id,
         cid: session.cid,

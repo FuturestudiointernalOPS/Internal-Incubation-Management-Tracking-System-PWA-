@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { hasVentureCapability } from "@/lib/venturePermissions";
 import {
@@ -119,7 +119,7 @@ export const GET = createHandler(
       ? allNotes
       : allNotes.filter((note) => assignments.some((assignment) => scopeMatchesAssignment(assignment, note)));
 
-    const canPost = global || (await hasVentureCapability(db, { ventureId: code, contactId: session.cid, area: "internal_notes", action: "create" }));
+    const canPost = global || (await hasVentureCapability({ ventureId: code, contactId: session.cid, area: "internal_notes", action: "create" }));
 
     return NextResponse.json({ success: true, notes: visible, can_post: !!canPost, is_global: global });
   },
@@ -171,7 +171,7 @@ export const POST = createHandler(
           return NextResponse.json({ success: false, error: "This note is outside your assigned scope." }, { status: 403 });
         }
       }
-      const allowed = await hasVentureCapability(db, { ventureId: code, contactId: session.cid, area: "internal_notes", action: "create", scopeRefType, scopeRefId });
+      const allowed = await hasVentureCapability({ ventureId: code, contactId: session.cid, area: "internal_notes", action: "create", scopeRefType, scopeRefId });
       if (!allowed) {
         return NextResponse.json({ success: false, error: "Your assignment does not allow creating internal notes." }, { status: 403 });
       }
@@ -217,7 +217,7 @@ export const DELETE = createHandler(
     if (!isGlobal(session)) {
       // Author may retract their own note; otherwise the matrix must grant delete.
       const isAuthor = String(note.author_cid || "") === String(session.cid);
-      const allowed = isAuthor || (await hasVentureCapability(db, { ventureId: code, contactId: session.cid, area: "internal_notes", action: "delete" }));
+      const allowed = isAuthor || (await hasVentureCapability({ ventureId: code, contactId: session.cid, area: "internal_notes", action: "delete" }));
       if (!allowed) {
         return NextResponse.json({ success: false, error: "Not allowed to delete this note." }, { status: 403 });
       }

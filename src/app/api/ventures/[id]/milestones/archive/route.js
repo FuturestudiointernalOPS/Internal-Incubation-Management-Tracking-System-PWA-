@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db from "@/lib/db";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { applyBulk } from "@/lib/ventureArchive";
 import { canManageMilestones, completeStageIfAllMilestonesDone } from "@/lib/ventureMilestoneEngine";
@@ -23,7 +22,7 @@ export const POST = createHandler(async (req, { params }) => {
 
   // Removing/restoring a milestone is a STRUCTURE action: Lead Manager or
   // Super Admin only.
-  const allowed = await canManageMilestones(db, { id, cid: session?.cid, role: session?.role });
+  const allowed = await canManageMilestones({ id, cid: session?.cid, role: session?.role });
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: "Only the Venture's Lead Manager or a Super Admin can remove milestones." },
@@ -60,7 +59,7 @@ export const POST = createHandler(async (req, { params }) => {
     const stageIds = [...new Set((rowsResult.rows || []).map((row) => row.journey_stage_id).filter(Boolean))];
     if (dbId) {
       for (const stageId of stageIds) {
-        await completeStageIfAllMilestonesDone(db, { dbId, stageId, cid: session.cid });
+        await completeStageIfAllMilestonesDone({ dbId, stageId, cid: session.cid });
       }
     }
   }

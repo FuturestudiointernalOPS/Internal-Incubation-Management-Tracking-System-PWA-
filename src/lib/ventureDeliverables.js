@@ -18,8 +18,8 @@ import { getAssignmentScopes, hasVentureWideReach, isTaskInScope } from "@/lib/v
 import { canManageMilestones } from "@/lib/ventureMilestoneEngine";
 
 /** Create / edit a deliverable's definition — Lead Manager or Super Admin. */
-export async function canDefineDeliverables(db, { id, cid, role }) {
-  return canManageMilestones(db, { id, cid, role });
+export async function canDefineDeliverables({ id, cid, role }) {
+  return canManageMilestones({ id, cid, role });
 }
 
 /**

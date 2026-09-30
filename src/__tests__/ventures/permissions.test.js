@@ -6,9 +6,23 @@
  *   - delegated staff act only through assignments;
  *   - scoped assignments can view/comment but never author or manage;
  *   - runtime capability resolution honours scope references.
- * Pure unit tests with fake db — no environment, no external modules.
+ *
+ * `hasVentureCapability` now reads through a store that owns its db, so its
+ * table shape is driven by the module mock; `allowsPlanAction` still takes an
+ * injected db and keeps its local double.
  */
 
+jest.mock("@/lib/db", () => {
+  const state = { handler: async () => ({ rows: [] }) };
+  return {
+    __esModule: true,
+    default: { execute: jest.fn(async ({ sql, args = [] }) => state.handler(sql, args)) },
+    initDb: jest.fn().mockResolvedValue(true),
+    __state: state,
+  };
+});
+
+const { __state: mockState } = require("@/lib/db");
 const { hasVentureCapability } = require("@/lib/venturePermissions");
 const { allowsPlanAction } = require("@/lib/ventureOperatingPlans");
 
@@ -69,33 +83,33 @@ describe("allowsPlanAction (operating_plan area policy)", () => {
 });
 
 describe("hasVentureCapability (runtime scope resolution)", () => {
-  function scopedDb() {
-    return {
-      execute: async ({ sql, args }) => {
-        if (sql.includes("venture_staff_assignments")) {
-          return {
-            rows: [
-              {
-                responsibility_code: "coach",
-                scope_type: "milestone",
-                scope_ref_type: "milestone",
-                scope_ref_id: "42",
-              },
-            ],
-          };
-        }
-        if (sql.includes("venture_permission_overrides")) return { rows: [] };
-        if (sql.includes("venture_permission_matrix")) {
-          const action = args && args.length >= 3 ? args[2] : "view";
-          return { rows: [{ allowed: action === "view" ? 1 : 0 }] };
-        }
-        return { rows: [] };
-      },
+  /** A coach scoped to milestone 42, granting only the `view` cell. */
+  function installScopedDb() {
+    mockState.handler = async (sql, args) => {
+      if (sql.includes("venture_staff_assignments")) {
+        return {
+          rows: [
+            {
+              responsibility_code: "coach",
+              scope_type: "milestone",
+              scope_ref_type: "milestone",
+              scope_ref_id: "42",
+            },
+          ],
+        };
+      }
+      if (sql.includes("venture_permission_overrides")) return { rows: [] };
+      if (sql.includes("venture_permission_matrix")) {
+        const action = args && args.length >= 3 ? args[2] : "view";
+        return { rows: [{ allowed: action === "view" ? 1 : 0 }] };
+      }
+      return { rows: [] };
     };
   }
 
   it("denies scoped access when no scope reference is supplied", async () => {
-    const allowed = await hasVentureCapability(scopedDb(), {
+    installScopedDb();
+    const allowed = await hasVentureCapability({
       ventureId: "VNT-A",
       contactId: "staff-1",
       area: "internal_notes",
@@ -105,7 +119,8 @@ describe("hasVentureCapability (runtime scope resolution)", () => {
   });
 
   it("grants the capability when the object is inside the assignment scope", async () => {
-    const allowed = await hasVentureCapability(scopedDb(), {
+    installScopedDb();
+    const allowed = await hasVentureCapability({
       ventureId: "VNT-A",
       contactId: "staff-1",
       area: "internal_notes",
@@ -117,7 +132,8 @@ describe("hasVentureCapability (runtime scope resolution)", () => {
   });
 
   it("denies capabilities the matrix does not grant (edit)", async () => {
-    const allowed = await hasVentureCapability(scopedDb(), {
+    installScopedDb();
+    const allowed = await hasVentureCapability({
       ventureId: "VNT-A",
       contactId: "staff-1",
       area: "internal_notes",
@@ -129,11 +145,8 @@ describe("hasVentureCapability (runtime scope resolution)", () => {
   });
 
   it("denies when the user has no assignment at all", async () => {
-    const noAssignmentDb = {
-      execute: async ({ sql }) =>
-        sql.includes("venture_staff_assignments") ? { rows: [] } : { rows: [] },
-    };
-    const allowed = await hasVentureCapability(noAssignmentDb, {
+    mockState.handler = async () => ({ rows: [] });
+    const allowed = await hasVentureCapability({
       ventureId: "VNT-A",
       contactId: "nobody",
       area: "internal_notes",

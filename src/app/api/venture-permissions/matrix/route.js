@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import {
@@ -31,7 +31,7 @@ export async function GET(req) {
     if (!responsibilityCode) {
       return NextResponse.json({ success: false, error: "responsibility is required." }, { status: 400 });
     }
-    const matrix = await getGlobalMatrix(db, { responsibilityCode });
+    const matrix = await getGlobalMatrix({ responsibilityCode });
     return NextResponse.json({ success: true, matrix });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -48,7 +48,7 @@ export async function POST(req) {
     if (!validArea(area) || !validAction(action) || !responsibility) {
       return NextResponse.json({ success: false, error: "Invalid area, action or responsibility." }, { status: 400 });
     }
-    await setMatrixCell(db, {
+    await setMatrixCell({
       responsibilityCode: responsibility,
       area,
       action,

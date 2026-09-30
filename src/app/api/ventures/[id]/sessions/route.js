@@ -127,7 +127,7 @@ export const POST = createHandler(async (req, { params }) => {
     // Assignments store the VNT code; the route may receive the UUID. Zeroing
     // this conversion would deny every delegated manager on a UUID route.
     const ventureCode = await resolveVentureCode(db, id);
-    const canSchedule = await hasVentureCapability(db, {
+    const canSchedule = await hasVentureCapability({
       ventureId: ventureCode,
       contactId: actor?.cid,
       area: "calendar",
@@ -196,9 +196,9 @@ export const POST = createHandler(async (req, { params }) => {
         const ventureDbId = ventureLookup.rows?.[0]?.id || null;
         // A Journey that starts today is already active when a founder books —
         // activation is date-driven, not a manual step.
-        if (ventureDbId) await activateDueStages(db, { dbId: ventureDbId });
+        if (ventureDbId) await activateDueStages({ dbId: ventureDbId });
         const bookable = ventureDbId
-          ? await assertBookableMilestone(db, { dbId: ventureDbId, milestoneId: milestoneRef })
+          ? await assertBookableMilestone({ dbId: ventureDbId, milestoneId: milestoneRef })
           : { ok: false, reason: "This Venture could not be resolved, so the session was not booked." };
         if (!bookable.ok) {
           return NextResponse.json({ success: false, error: bookable.reason }, { status: 403 });

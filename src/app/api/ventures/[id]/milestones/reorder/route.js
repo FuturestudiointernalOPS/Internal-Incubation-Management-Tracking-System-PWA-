@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db from "@/lib/db";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { canManageMilestones, releaseMilestonesForStage } from "@/lib/ventureMilestoneEngine";
 import { moveStageMilestone } from "@/lib/ventureMilestoneOrder";
@@ -20,7 +19,7 @@ export const POST = createHandler(async (req, { params }) => {
   if (access.error) return access.error;
   const { session } = access;
 
-  const allowed = await canManageMilestones(db, { id, cid: session?.cid, role: session?.role });
+  const allowed = await canManageMilestones({ id, cid: session?.cid, role: session?.role });
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: "Only the Venture's Lead Manager or a Super Admin can reorder milestones." },
@@ -50,6 +49,6 @@ export const POST = createHandler(async (req, { params }) => {
   // Reordering never changes availability — position releases nothing. The
   // call stays as an idempotent safety net: any still-held milestone of this
   // active Journey is offered (or reads `blocked` when a dependency is unmet).
-  await releaseMilestonesForStage(db, { dbId, stageId });
+  await releaseMilestonesForStage({ dbId, stageId });
   return NextResponse.json({ success: true });
 });

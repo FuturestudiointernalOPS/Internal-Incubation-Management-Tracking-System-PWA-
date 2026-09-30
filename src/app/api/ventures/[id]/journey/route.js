@@ -81,7 +81,7 @@ export async function GET(req, { params }) {
     // Date-driven activation: a Journey whose start_date has arrived becomes
     // active — and its milestones are offered — right here. Journeys never
     // wait for another Journey to complete, so no one presses "activate".
-    await activateDueStages(db, { dbId });
+    await activateDueStages({ dbId });
 
     // Management surfaces (staff) may request archived journeys; the
     // Venture-facing read never includes them.
@@ -111,7 +111,7 @@ export async function GET(req, { params }) {
     // this is false. Never granted to members.
     let milestoneAuthority = false;
     if (viewer) {
-      milestoneAuthority = await canManageMilestones(db, { id, cid: viewer.cid, role: viewer.role });
+      milestoneAuthority = await canManageMilestones({ id, cid: viewer.cid, role: viewer.role });
     }
 
     // Phase 2 spine: attach the milestones bound to each stage so the Journey
@@ -373,7 +373,7 @@ export async function PATCH(req, { params }) {
       await activateJourneyStage(stageId, dbId);
       // The journey is now active — its milestones are offered (availability
       // is set by the Journey, never by a milestone's position).
-      await releaseMilestonesForStage(db, { dbId, stageId });
+      await releaseMilestonesForStage({ dbId, stageId });
     } else if (action === "lock") {
       if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
       if (stage.status === "completed") {
@@ -397,7 +397,7 @@ export async function PATCH(req, { params }) {
       // neighbour's state — the old positional re-lock is gone.
       await resetJourneyStage(stageId, dbId);
       // Reopened journey is active again — its milestones are offered.
-      await releaseMilestonesForStage(db, { dbId, stageId });
+      await releaseMilestonesForStage({ dbId, stageId });
     } else if (action === "delete") {
       if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
       await deleteJourneyStage({ dbId, stageId });

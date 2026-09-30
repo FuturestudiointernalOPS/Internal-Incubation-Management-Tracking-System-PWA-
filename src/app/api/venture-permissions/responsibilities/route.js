@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { listResponsibilities, getResponsibility } from "@/lib/venturePermissions";
@@ -26,7 +26,7 @@ export async function GET(req) {
     const authError = await requireAuth(READ_ROLES);
     if (authError) return authError;
     const includeInactive = new URL(req.url).searchParams.get("include_inactive") === "1";
-    const responsibilities = await listResponsibilities(db, { includeInactive });
+    const responsibilities = await listResponsibilities({ includeInactive });
     return NextResponse.json({ success: true, responsibilities });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -47,7 +47,7 @@ export async function POST(req) {
     if (!finalCode) {
       return NextResponse.json({ success: false, error: "A valid code could not be derived." }, { status: 400 });
     }
-    const existing = await getResponsibility(db, finalCode);
+    const existing = await getResponsibility(finalCode);
     if (existing) {
       return NextResponse.json({ success: false, error: "A responsibility with this code already exists." }, { status: 409 });
     }
@@ -57,7 +57,7 @@ export async function POST(req) {
       description: description || null,
       createdBy: session?.cid || null,
     });
-    return NextResponse.json({ success: true, responsibility: await getResponsibility(db, finalCode) });
+    return NextResponse.json({ success: true, responsibility: await getResponsibility(finalCode) });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -69,7 +69,7 @@ export async function PATCH(req) {
     const authError = await requireAuth(WRITE_ROLES);
     if (authError) return authError;
     const { code, name, description, is_active } = await req.json();
-    const existing = await getResponsibility(db, code);
+    const existing = await getResponsibility(code);
     if (!existing) {
       return NextResponse.json({ success: false, error: "Responsibility not found." }, { status: 404 });
     }
@@ -79,7 +79,7 @@ export async function PATCH(req) {
       description: description ?? null,
       isActive: typeof is_active === "boolean" ? (is_active ? 1 : 0) : null,
     });
-    return NextResponse.json({ success: true, responsibility: await getResponsibility(db, code) });
+    return NextResponse.json({ success: true, responsibility: await getResponsibility(code) });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

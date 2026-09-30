@@ -42,7 +42,6 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-const dbMock = require("@/lib/db").default;
 const { addDependency } = require("@/lib/ventures");
 const { getUnmetMilestoneDependencies, assertBookableMilestone } = require("@/lib/ventureMilestoneEngine");
 
@@ -104,13 +103,13 @@ describe("addDependency — canonical ids and transitive cycles", () => {
 describe("getUnmetMilestoneDependencies", () => {
   test("returns the unfinished blockers", async () => {
     mockState.blockers = [{ id: A, title: "Pitch Deck", status: "in_progress" }];
-    const blockers = await getUnmetMilestoneDependencies(dbMock, { dbId: "v-1", milestoneId: B });
+    const blockers = await getUnmetMilestoneDependencies({ dbId: "v-1", milestoneId: B });
     expect(blockers).toHaveLength(1);
     expect(blockers[0].title).toBe("Pitch Deck");
   });
 
   test("no rows means nothing holds the milestone back", async () => {
-    const blockers = await getUnmetMilestoneDependencies(dbMock, { dbId: "v-1", milestoneId: B });
+    const blockers = await getUnmetMilestoneDependencies({ dbId: "v-1", milestoneId: B });
     expect(blockers).toEqual([]);
   });
 });
@@ -120,7 +119,7 @@ describe("booking gate — an unmet dependency refuses BY NAME", () => {
     mockState.milestone = { id: B, title: "Business Plan", status: "not_started", journey_stage_id: "s1" };
     mockState.stage = { id: "s1", name: "GTM", status: "active" };
     mockState.blockers = [{ id: A, title: "Pitch Deck", status: "in_progress" }];
-    const out = await assertBookableMilestone(dbMock, { dbId: 7, milestoneId: B });
+    const out = await assertBookableMilestone({ dbId: 7, milestoneId: B });
     expect(out.ok).toBe(false);
     expect(out.reason).toContain("Pitch Deck");
     expect(out.reason).toMatch(/not completed/i);
@@ -129,14 +128,16 @@ describe("booking gate — an unmet dependency refuses BY NAME", () => {
   test("no blockers on an active Journey — bookable", async () => {
     mockState.milestone = { id: B, title: "Business Plan", status: "not_started", journey_stage_id: "s1" };
     mockState.stage = { id: "s1", name: "GTM", status: "active" };
-    const out = await assertBookableMilestone(dbMock, { dbId: 7, milestoneId: B });
+    const out = await assertBookableMilestone({ dbId: 7, milestoneId: B });
     expect(out.ok).toBe(true);
   });
 });
 
 describe("engine contract — every release sweep carries the dependency guard", () => {
   test("the ONE guard is defined, and both release sweeps decide through it", () => {
-    const source = fs.readFileSync(path.join(ROOT, "src/lib/ventureMilestoneEngine.js"), "utf8");
+    // The guard and its two sweeps moved to the engine's store (slice 28); the
+    // assertion is unchanged, only its home.
+    const source = fs.readFileSync(path.join(ROOT, "src/models/ventureMilestoneEngineStore.js"), "utf8");
     // The guard itself: an edge (source -> target) means the source blocks the
     // target, so a milestone is free only when every blocker is completed.
     expect(source).toContain("FROM venture_dependencies d");

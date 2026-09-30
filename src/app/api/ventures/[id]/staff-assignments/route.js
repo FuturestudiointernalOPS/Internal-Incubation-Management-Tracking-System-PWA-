@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { listAssignments, createAssignment, removeAssignment } from "@/lib/venturePermissions";
@@ -19,7 +19,7 @@ export async function GET(req, { params }) {
     if (authError) return authError;
     const { id } = await params;
     const includeRemoved = new URL(req.url).searchParams.get("include_removed") === "1";
-    const assignments = await listAssignments(db, id, { includeRemoved });
+    const assignments = await listAssignments(id, { includeRemoved });
     return NextResponse.json({ success: true, assignments });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -61,7 +61,7 @@ export async function POST(req, { params }) {
       return NextResponse.json({ success: false, error: "This staff member already has this assignment." }, { status: 409 });
     }
 
-    const result = await createAssignment(db, {
+    const result = await createAssignment({
       ventureId: id,
       staffContactId: staff_contact_id,
       responsibilityCode: responsibility_code,
@@ -72,7 +72,7 @@ export async function POST(req, { params }) {
       notes: notes || null,
     });
     if (result.error) return NextResponse.json({ success: false, error: result.error }, { status: 400 });
-    const assignments = await listAssignments(db, id);
+    const assignments = await listAssignments(id);
     return NextResponse.json({ success: true, assignments });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -89,8 +89,8 @@ export async function PATCH(req, { params }) {
     if (!assignment_id || action !== "remove") {
       return NextResponse.json({ success: false, error: "assignment_id and action='remove' are required." }, { status: 400 });
     }
-    await removeAssignment(db, { id: assignment_id });
-    const assignments = await listAssignments(db, id);
+    await removeAssignment({ id: assignment_id });
+    const assignments = await listAssignments(id);
     return NextResponse.json({ success: true, assignments });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

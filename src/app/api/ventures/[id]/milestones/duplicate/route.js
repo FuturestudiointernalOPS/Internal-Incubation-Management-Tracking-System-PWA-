@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { duplicateMilestone } from "@/lib/ventureDuplication";
@@ -24,7 +24,7 @@ export async function POST(req, { params }) {
     const { session } = access;
 
     // Duplicating creates a milestone — Lead Manager or Super Admin only.
-    const allowed = await canManageMilestones(db, { id, cid: session?.cid, role: session?.role });
+    const allowed = await canManageMilestones({ id, cid: session?.cid, role: session?.role });
     if (!allowed) {
       return NextResponse.json(
         { success: false, error: "Only the Venture's Lead Manager or a Super Admin can add milestones." },

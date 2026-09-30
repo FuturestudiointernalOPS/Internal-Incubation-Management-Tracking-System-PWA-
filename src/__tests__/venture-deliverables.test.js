@@ -9,51 +9,71 @@
  */
 const { canDefineDeliverables, canReviewDeliverable } = require("@/lib/ventureDeliverables");
 
+jest.mock("@/lib/db", () => {
+  const state = { executeImpl: async () => ({ rows: [] }) };
+  return {
+    __esModule: true,
+    default: { execute: jest.fn(async (arg) => state.executeImpl(arg)) },
+    initDb: jest.fn().mockResolvedValue(true),
+    __state: state,
+  };
+});
+
+const { __state: mockState } = require("@/lib/db");
+
 const VENTURE = "VNT-1";
 const MILESTONE = "MS-1";
 const STAGE = "ST-1";
 
+/**
+ * Install a db double and hand it back. `canReviewDeliverable` still reads
+ * through the injected handle (its scope lookup is not migrated yet);
+ * `canDefineDeliverables` reaches the same double through the module mock.
+ */
 function db({ assignments = [], lead = false, failAssignments = false } = {}) {
-  return {
-    execute: async ({ sql, args = [] }) => {
-      if (sql.includes("FROM venture_staff_assignments")) {
-        if (failAssignments) throw new Error("assignments unavailable");
-        if (lead) {
-          return {
-            rows: [
-              {
-                scope_type: "venture_wide",
-                scope_ref_type: null,
-                scope_ref_id: null,
-                responsibility_code: "lead_manager",
-              },
-            ],
-          };
-        }
-        return { rows: assignments };
+  const execute = async ({ sql, args = [] }) => {
+    if (sql.includes("FROM venture_staff_assignments")) {
+      if (failAssignments) throw new Error("assignments unavailable");
+      if (lead) {
+        return {
+          rows: [
+            {
+              scope_type: "venture_wide",
+              scope_ref_type: null,
+              scope_ref_id: null,
+              responsibility_code: "lead_manager",
+            },
+          ],
+        };
       }
-      // Definition authority is the matrix cell `milestones.edit`: the Lead
-      // Manager holds it; nobody else in the seeded set does.
-      if (sql.includes("venture_permission_matrix")) {
-        return { rows: [{ allowed: args[0] === "lead_manager" ? 1 : 0 }] };
-      }
-      if (sql.includes("FROM ventures WHERE")) return { rows: [{ venture_id: VENTURE }] };
-      return { rows: [] };
-    },
+      return { rows: assignments };
+    }
+    // Definition authority is the matrix cell `milestones.edit`: the Lead
+    // Manager holds it; nobody else in the seeded set does.
+    if (sql.includes("venture_permission_matrix")) {
+      return { rows: [{ allowed: args[0] === "lead_manager" ? 1 : 0 }] };
+    }
+    if (sql.includes("FROM ventures WHERE")) return { rows: [{ venture_id: VENTURE }] };
+    return { rows: [] };
   };
+  mockState.executeImpl = execute;
+  return { execute };
 }
 
 describe("deliverable definition authority (Lead Manager / Super Admin)", () => {
   test("super_admin may define", async () => {
-    expect(await canDefineDeliverables(db(), { id: VENTURE, cid: "u1", role: "super_admin" })).toBe(true);
+    db();
+    expect(await canDefineDeliverables({ id: VENTURE, cid: "u1", role: "super_admin" })).toBe(true);
   });
 
   test("an assigned Lead Manager may define", async () => {
-    expect(await canDefineDeliverables(db({ lead: true }), { id: VENTURE, cid: "lm-1", role: "staff" })).toBe(true);
+    db({ lead: true });
+    expect(await canDefineDeliverables({ id: VENTURE, cid: "lm-1", role: "staff" })).toBe(true);
   });
 
   test("other staff may not define", async () => {
-    expect(await canDefineDeliverables(db(), { id: VENTURE, cid: "coach-1", role: "staff" })).toBe(false);
+    db();
+    expect(await canDefineDeliverables({ id: VENTURE, cid: "coach-1", role: "staff" })).toBe(false);
   });
 });
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { resolveVentureScopedDecision } from "@/lib/ventureScopedAccess";
 import { hasVentureCapability } from "@/lib/venturePermissions";
@@ -123,7 +123,7 @@ export async function GET(req, { params }) {
       if (isSuperAdmin) {
         allowed = true; // unscoped authority
       } else if (session.cid) {
-        allowed = await hasVentureCapability(db, {
+        allowed = await hasVentureCapability({
           ventureId: code,
           contactId: session.cid,
           area,

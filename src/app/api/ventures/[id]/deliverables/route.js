@@ -64,7 +64,7 @@ export const POST = createHandler(async (req, { params }) => {
   if (access.error) return access.error;
   const { session } = access;
 
-  const allowed = await canDefineDeliverables(db, { id, cid: session?.cid, role: session?.role });
+  const allowed = await canDefineDeliverables({ id, cid: session?.cid, role: session?.role });
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: "Only the Venture's Lead Manager or a Super Admin can add deliverables." },
@@ -150,7 +150,7 @@ export const PATCH = createHandler(async (req, { params }) => {
     // (a submission moves it to "awaiting review"). A submission is the
     // founder's act, so it can never COMPLETE the milestone — `canComplete` is
     // false and the sign-off stays with the Lead Manager.
-    const milestoneSync = await syncMilestoneStatusFromDeliverables(db, {
+    const milestoneSync = await syncMilestoneStatusFromDeliverables({
       dbId,
       milestoneId: milestone.id,
       cid: session?.cid || null,
@@ -218,8 +218,8 @@ export const PATCH = createHandler(async (req, { params }) => {
     // and the LAST approval closes it — but closing a milestone stays the Lead
     // Manager / Super Admin's decision (the same authority the manual complete
     // action requires); a scoped coach's approval stops at In Progress.
-    const canCompleteMilestone = await canManageMilestones(db, { id, cid: session?.cid, role: session?.role });
-    const milestoneSync = await syncMilestoneStatusFromDeliverables(db, {
+    const canCompleteMilestone = await canManageMilestones({ id, cid: session?.cid, role: session?.role });
+    const milestoneSync = await syncMilestoneStatusFromDeliverables({
       dbId,
       milestoneId: milestone.id,
       cid: session?.cid || null,
@@ -285,7 +285,7 @@ export const PATCH = createHandler(async (req, { params }) => {
   if (access.error) return access.error;
   const { session } = access;
 
-  const allowed = await canDefineDeliverables(db, { id, cid: session?.cid, role: session?.role });
+  const allowed = await canDefineDeliverables({ id, cid: session?.cid, role: session?.role });
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: "Only the Venture's Lead Manager or a Super Admin can edit deliverables." },
