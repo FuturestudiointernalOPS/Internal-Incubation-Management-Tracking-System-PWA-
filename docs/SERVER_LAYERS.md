@@ -69,9 +69,9 @@ or a membership check — and runs after an identity exists.
 
    *Known exceptions while the layer split is in progress* (tracked in
    [LAYER_SPLIT.md](LAYER_SPLIT.md)): the `resolver`, `scope`,
-   `contextGrantReadiness` and `eligibility-admin` model files are **temporary
-   re-export facades** to `services/authorization/*`. They hold no logic and are
-   removed as the split completes.
+   `contextGrantReadiness`, `eligibility-admin` and `context` model files are
+   **temporary re-export facades** to `services/authorization/*`. They hold no
+   logic and are removed as the split completes.
 
 ## State of the migration
 
@@ -88,6 +88,7 @@ or a membership check — and runs after an identity exists.
 | Eligibility decision | `services/authorization/eligibility.js` | ✅ moved (slice 4) — schema/seeds/vocabulary stay in `models/authorization/eligibility.js` |
 | Membership decisions (effective groups, lifecycle) | `services/authorization/membership.js` | ✅ moved (slice 4) — schema/bootstrap/raw reads/vocabulary stay in `models/authorization/membership.js` |
 | Eligibility-change validation (`eligibility-admin`) | `services/authorization/eligibilityAdmin.js` + `models/authorization/eligibilityAdminReads.js` | ✅ moved (slice 5) — model file is a re-export facade |
+| Scoped-access guard (`requireScopedAccess`) + its 4 assignment reads | `services/authorization/scopedAccess.js` + `models/authorization/contextAssignmentReads.js` | ✅ moved (slice 6) — model file is a re-export facade |
 | Effective access-profile resolution, responsibilities domain | still `src/lib/auth.js` (6 functions, 8 SQL statements) | ⏸ **blocked on a decision** — see below |
 
 Two overlaps are **known and deliberately left alone** until a decision is made,
