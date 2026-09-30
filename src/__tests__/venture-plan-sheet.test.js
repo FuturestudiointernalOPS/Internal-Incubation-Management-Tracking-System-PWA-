@@ -7,6 +7,9 @@ const {
   planSheetKind,
   parsePlanCsv,
   detectDelimiter,
+  selectPlanSheet,
+  normalizeSheetName,
+  AUTHORITATIVE_SHEET_NAME,
   PLAN_SHEET_OK,
   PLAN_SHEET_EMPTY,
   PLAN_SHEET_FAILED,
@@ -68,6 +71,51 @@ describe("CSV reading", () => {
     expect(out.status).toBe(PLAN_SHEET_OK);
     expect(out.truncated).toBe(true);
     expect(out.sheets[0].rows.length).toBe(MAX_PLAN_ROWS);
+  });
+});
+
+describe("selectPlanSheet — which tab carries the work", () => {
+  const names = (...list) => list.map((name) => ({ name, rows: [] }));
+  const psplytics = names("Dashboard", "Tracker", "Milestones", "Owner load", "Reference");
+
+  test("the sheet named Tracker is the plan, wherever it sits", () => {
+    const out = selectPlanSheet(psplytics);
+    expect(out.status).toBe("named");
+    expect(out.index).toBe(1);
+    expect(out.name).toBe("Tracker");
+    expect(AUTHORITATIVE_SHEET_NAME).toBe("tracker");
+  });
+
+  test("the name is matched without case or stray whitespace", () => {
+    expect(normalizeSheetName("  TRACKER ")).toBe("tracker");
+    expect(selectPlanSheet(names("Dashboard", " tracker ")).status).toBe("named");
+    expect(selectPlanSheet(names("Dashboard", " tracker ")).index).toBe(1);
+  });
+
+  test("one sheet is not a choice — the file has already answered", () => {
+    const out = selectPlanSheet(names("Whatever"));
+    expect(out.status).toBe("single");
+    expect(out.index).toBe(0);
+    expect(out.name).toBe("Whatever");
+  });
+
+  test("several sheets and none named Tracker is a question, never a guess", () => {
+    const out = selectPlanSheet(names("Dashboard", "Milestones", "Owner load", "Reference"));
+    expect(out.status).toBe("ambiguous");
+    expect(out.index).toBe(-1);
+    expect(out.name).toBe(null);
+    expect(out.names).toEqual(["Dashboard", "Milestones", "Owner load", "Reference"]);
+  });
+
+  test("a workbook with no sheets cannot be answered either", () => {
+    const out = selectPlanSheet([]);
+    expect(out.status).toBe("ambiguous");
+    expect(out.names).toEqual([]);
+  });
+
+  test("a CSV reads as one sheet, so it needs no choice", () => {
+    const out = readPlanSheet({ name: "tracker.csv", buffer: csvBuffer("ID,Activity\nMS01,Do the thing") });
+    expect(selectPlanSheet(out.sheets).status).toBe("single");
   });
 });
 

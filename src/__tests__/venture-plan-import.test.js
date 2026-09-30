@@ -91,6 +91,20 @@ describe("buildPlanPrompt — guardrails sit in the system message", () => {
     expect(messages[1].content).toContain("r1: A=MS01");
     expect(messages[1].content).not.toMatch(/never instructions/i);
   });
+
+  test("the chosen sheet is named in the prompt and the rule is in the system message", () => {
+    const { messages } = buildPlanPrompt({ sheetText: "sheet text", sheetName: "Tracker" });
+    expect(messages[1].content).toContain("ACTIVITY PLAN SHEET:");
+    expect(messages[1].content).toContain('"Tracker"');
+    expect(messages[1].content).toMatch(/never map work from it/i);
+    expect(messages[0].content).toMatch(/AUTHORITATIVE ACTIVITY PLAN/);
+    expect(messages[0].content).toMatch(/never merge two sheets/i);
+  });
+
+  test("without a chosen sheet the prompt says so instead of implying one", () => {
+    const { messages } = buildPlanPrompt({ sheetText: "sheet text" });
+    expect(messages[1].content).toMatch(/not stated/i);
+  });
 });
 
 describe("interpretPlanSheet — validate, never guess", () => {
@@ -189,5 +203,55 @@ describe("renderPlanSheets", () => {
     expect(text).toContain("=== Sheet: Tracker ===");
     expect(text).toContain("r1: A=ID | C=Task");
     expect(text).toContain("r2: B=x");
+  });
+
+  test("one sheet is authoritative and the others say they are reference only", () => {
+    const text = renderPlanSheets(
+      [
+        { name: "Dashboard", rows: [["Total", "12"]] },
+        { name: "Tracker", rows: [["ID", "Activity"]] },
+        { name: "Reference", rows: [["Note", "x"]] },
+      ],
+      "Tracker",
+    );
+    // Segment by header so the assertion names the sheet it is talking about.
+    const segment = (name) =>
+      text.split("=== Sheet: ").find((part) => part.startsWith(`${name} `)) || "";
+    expect(text).not.toBe("");
+    expect(segment("Dashboard")).toMatch(/reference only/i);
+    expect(segment("Tracker")).toMatch(/AUTHORITATIVE ACTIVITY PLAN/);
+    expect(segment("Reference")).toMatch(/reference only/i);
+    // Exactly one sheet is marked as the plan.
+    expect(text.match(/AUTHORITATIVE ACTIVITY PLAN/g)).toHaveLength(1);
+    // The reference tabs are still readable — they are how the plan is understood.
+    expect(segment("Reference")).toContain("Note");
+  });
+
+  test("matching the authoritative name ignores case", () => {
+    const text = renderPlanSheets([{ name: "TRACKER", rows: [["A"]] }], "tracker");
+    expect(text).toMatch(/AUTHORITATIVE ACTIVITY PLAN/);
+  });
+
+  test("with no name given, nothing is marked — the sheet arrives as it is", () => {
+    const text = renderPlanSheets([{ name: "Tracker", rows: [["ID"]] }]);
+    expect(text).not.toMatch(/AUTHORITATIVE/);
+    expect(text).not.toMatch(/reference only/i);
+  });
+});
+
+describe("interpretPlanSheet — the sheet the route chose reaches the model", () => {
+  const sheets = [
+    { name: "Dashboard", rows: [["Activity count", "99"]] },
+    { name: "Tracker", rows: [["ID", "Activity"], ["MS01-01", "Do the thing"]] },
+  ];
+
+  test("the plan sheet is marked and named in the call, the other is reference", async () => {
+    await interpretPlanSheet({ sheets, sheetName: "Tracker" });
+    const [messages] = mockChat.mock.calls[0];
+    const userMessage = messages.find((message) => message.role === "user").content;
+    expect(userMessage).toContain("ACTIVITY PLAN SHEET:");
+    expect(userMessage).toContain('"Tracker"');
+    expect(userMessage).toMatch(/Sheet: Dashboard\s+\(reference only/);
+    expect(userMessage).toMatch(/Sheet: Tracker\s+<<< AUTHORITATIVE ACTIVITY PLAN/);
   });
 });

@@ -115,6 +115,21 @@ describe("person references are validated", () => {
     expect(isValidCid({})).toBe(false);
   });
 
+  // A cleared owner arrives as "", not null — that is what a form sends. It
+  // normalizes to NULL, so it is ABSENT, not malformed. Rejecting it made a
+  // milestone with an EXTERNAL owner (a name and no platform identity)
+  // impossible to save: the panel sends `owner_cid: ""` beside
+  // `owner_name: "Amina"`, and the route answered 400 "Invalid milestone owner."
+  test("a cleared owner is absent, not malformed", () => {
+    expect(isValidCid("")).toBe(true);
+    expect(isValidCid("   ")).toBe(true);
+    expect(cidOrNull("")).toBeNull();
+    // Still refused: values that are not bounded strings at all.
+    expect(isValidCid(42)).toBe(false);
+    expect(isValidCid(["CNT-1"])).toBe(false);
+    expect(isValidCid("x".repeat(65))).toBe(false);
+  });
+
   test("the milestone routes validate the owner before writing", () => {
     const src = read("src/app/api/ventures/[id]/milestones/route.js");
     expect(src).toMatch(/isValidCid\(body\.owner_cid\)/);

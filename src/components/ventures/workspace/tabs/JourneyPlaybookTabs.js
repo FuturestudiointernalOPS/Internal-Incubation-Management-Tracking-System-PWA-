@@ -370,6 +370,15 @@ export function JourneyTab() {
                                 <div className="flex items-center gap-2">
                                   {milestone.status && <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${statusChipClass(normalizedMilestoneStatus)}`}>{statusLabel(normalizedMilestoneStatus, t)}</span>}
                                   {milestone.progress > 0 && <span className="text-[10px] font-bold" style={{ color: 'var(--brand-orange)' }}>{milestone.progress}%</span>}
+                                  {/* The WORK under the outcome, shown beside it: the badge
+                                      says what the milestone is, this says how much of it is
+                                      done. Deliberately separate from the % — that stays
+                                      evidence-driven, so nothing downstream changes meaning. */}
+                                  {milestone.task_counts?.total > 0 && (
+                                    <span className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>
+                                      {t('venture.manager.tasksDone', { done: milestone.task_counts.done, total: milestone.task_counts.total })}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                               {milestone.target_date && <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.targetDate') || 'Target Date'}: {new Date(`${milestone.target_date}T00:00:00`).toLocaleDateString()}</p>}

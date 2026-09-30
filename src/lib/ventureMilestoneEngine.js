@@ -30,6 +30,7 @@
 
 import {
   isMilestoneComplete,
+  isTaskComplete,
   MILESTONE_UPCOMING,
   MILESTONE_BLOCKED,
 } from "@/lib/ventureStatuses";
@@ -54,6 +55,10 @@ const NO_UNMET_BLOCKER = `
 /** The held statuses a sweep may move: the two live states, plus the retired
  *  `locked` for rows written before the vocabulary migration ran. */
 const HELD_STATUSES_SQL = `('upcoming', 'blocked', 'locked')`;
+
+/** A milestone's tasks, read for their status alone. */
+const milestoneTaskSql = (archiveClause) =>
+  `SELECT status FROM venture_tasks WHERE milestone_id::text = ?${archiveClause}`;
 
 function rowsOf(result) {
   return (result && result.rows) || [];
@@ -452,27 +457,95 @@ export function deriveMilestoneStatusFromDeliverables(deliverables = []) {
   return "not_started";
 }
 
+/** Task states that mean work has BEGUN. A review outcome counts: a task that
+ *  was submitted and sent back (`rejected`, `revision_requested`) has plainly
+ *  started, even though its status is no longer "in progress". */
+const TASK_UNDER_WAY_STATUSES = ["in_progress", "review", "rejected", "revision_requested"];
+
 /**
- * Move a milestone to the status its deliverables imply, after evidence was
- * submitted or reviewed.
+ * A milestone's EXECUTION signal, derived purely from its tasks' states.
+ *
+ *   null           — no tasks: there is no execution component to reflect
+ *   "not_started"  — nothing has begun
+ *   "in_progress"  — work is under way, or partly done
+ *   "all_done"     — every task is finished
+ *
+ * "all_done" is deliberately NOT a milestone status. Finishing the work is one
+ * half of the outcome; approved evidence is the other. So this reports a
+ * SIGNAL, and `combineMilestoneStatus` decides what it means together with the
+ * evidence — tasks alone never close a milestone.
+ *
+ * Cancelled work is not required work, so it is left out entirely (a milestone
+ * whose tasks were all cancelled has no execution component left to wait for).
+ * A task whose completion was REJECTED in review is not done — it is back in
+ * the team's hands, counted as under way rather than untouched.
+ */
+export function deriveMilestoneStatusFromTasks(tasks = []) {
+  const list = (tasks || [])
+    .filter(Boolean)
+    .filter((task) => String(task.status || "").trim().toLowerCase() !== "cancelled");
+  if (list.length === 0) return null;
+
+  const statuses = list.map((task) => String(task.status || "").trim().toLowerCase());
+  if (statuses.every((status) => isTaskComplete(status))) return "all_done";
+  if (statuses.some((status) => TASK_UNDER_WAY_STATUSES.includes(status))) return "in_progress";
+  // Only reached when nothing is under way: then a finished task beside an
+  // untouched one is partial execution.
+  if (statuses.some((status) => isTaskComplete(status))) return "in_progress";
+  return "not_started";
+}
+
+/**
+ * The ONE place the two halves of a milestone are combined.
+ *
+ *   Tasks        = execution — did the work happen?
+ *   Deliverables = evidence  — is there approved proof?
+ *   Milestone    = outcome   — only when BOTH hold, and an authority signs off.
+ *
+ * A decision the evidence is waiting on outranks progress: a milestone sent
+ * back is sent back, however much work is under way.
+ */
+export function combineMilestoneStatus({ fromDeliverables = null, fromTasks = null } = {}) {
+  // 1. Something is waiting on a person — say so, ahead of any progress.
+  if (fromDeliverables === "changes_requested") return "changes_requested";
+  if (fromDeliverables === "under_review") return "under_review";
+
+  // 2. Completion needs BOTH halves. Approved evidence with work still open is
+  //    not an achieved outcome — the execution component is outstanding.
+  if (fromDeliverables === "completed") {
+    return fromTasks === null || fromTasks === "all_done" ? "completed" : "in_progress";
+  }
+
+  // 3. Anything under way — the work, or the evidence — is In Progress.
+  if (fromTasks === "in_progress" || fromTasks === "all_done") return "in_progress";
+  if (fromDeliverables === "in_progress") return "in_progress";
+
+  // 4. Nothing has begun.
+  return "not_started";
+}
+
+/**
+ * Move a milestone to the status the work inside it implies, after a TASK or a
+ * DELIVERABLE changed. This is the one sync: the deliverable route and the task
+ * route both come through here, so a milestone can never hold two opinions.
  *
  * Two lines are never crossed:
  *   - a HELD milestone (`upcoming` — its Journey has not started — or `blocked`
  *     — a dependency it declares is unmet) is unreleased planning; the work
  *     inside it cannot be what releases it, and
  *   - a `completed` milestone is the manager's decision already taken; later
- *     evidence never reopens it.
+ *     work never reopens it.
  *
- * Completion keeps its AUTHORITY: when every deliverable is approved the
- * milestone closes — and, if that was the last one, the Journey closes too —
- * but ONLY for an actor who may complete milestones (the Lead Manager / a
- * Super Admin). A scoped coach, who may REVIEW a deliverable but holds no
- * `milestones.edit`, moves the milestone to `in_progress` and leaves the
- * sign-off where it belongs.
+ * Completion keeps its AUTHORITY and its CONDITIONS: it takes every task
+ * finished AND every deliverable approved, and then only an actor who may
+ * complete milestones (the Lead Manager / a Super Admin) closes it — with the
+ * usual consequence that closing the last one closes the Journey. A scoped
+ * coach, who may REVIEW a deliverable but holds no `milestones.edit`, can move
+ * the milestone as far as `in_progress` and no further.
  *
  * Returns { changed, status, journey_completed?, journey? }.
  */
-export async function syncMilestoneStatusFromDeliverables(db, { dbId, milestoneId, cid = null, canComplete = false }) {
+export async function syncMilestoneFromWork(db, { dbId, milestoneId, cid = null, canComplete = false }) {
   if (!milestoneId || !dbId) return { changed: false, status: null };
   try {
     const milestoneResult = await db
@@ -499,12 +572,30 @@ export async function syncMilestoneStatusFromDeliverables(db, { dbId, milestoneI
       })
       .catch(() => ({ rows: [] }));
 
-    let target = deriveMilestoneStatusFromDeliverables(rowsOf(deliverablesResult));
+    // Archived tasks are the Venture's record, not its workload. `is_archived`
+    // is added by the Venture schema self-heal, so a database that predates it
+    // must still answer — the plain read is the fallback.
+    const tasksResult = await db
+      .execute({ sql: milestoneTaskSql(" AND COALESCE(is_archived, FALSE) = FALSE"), args: [String(milestoneId)] })
+      .catch(() =>
+        db.execute({ sql: milestoneTaskSql(""), args: [String(milestoneId)] }).catch(() => ({ rows: [] })),
+      );
+
+    const fromDeliverables = deriveMilestoneStatusFromDeliverables(rowsOf(deliverablesResult));
+    const fromTasks = deriveMilestoneStatusFromTasks(rowsOf(tasksResult));
+
+    // A milestone with nothing inside it has nothing to reflect — the status a
+    // person gave it stands, exactly as before tasks were consulted.
+    if (fromDeliverables === null && fromTasks === null) {
+      return { changed: false, status: milestone.status };
+    }
+
+    let target = combineMilestoneStatus({ fromDeliverables, fromTasks });
     if (!target || target === milestone.status) return { changed: false, status: milestone.status };
 
     if (target === "completed") {
       if (!canComplete) {
-        // The work is done, but closing a milestone is not the reviewer's call.
+        // The conditions are met, but closing a milestone is not the reviewer's call.
         target = "in_progress";
       } else {
         await completeMilestone(db, { dbId, milestoneId });
@@ -542,6 +633,15 @@ export async function syncMilestoneStatusFromDeliverables(db, { dbId, milestoneI
 }
 
 /**
+ * The deliverable-facing name for the same sync. The deliverable route calls
+ * this; keeping the name (and one implementation) is what stops the task path
+ * and the evidence path from drifting into two different opinions.
+ */
+export async function syncMilestoneStatusFromDeliverables(db, options = {}) {
+  return syncMilestoneFromWork(db, options);
+}
+
+/**
  * Mark a milestone completed. There is no chain to advance: the other
  * milestones of an active Journey are already available (explicit
  * dependencies are the only thing that ever holds one back),
@@ -557,4 +657,4 @@ export async function completeMilestone(db, { dbId, milestoneId }) {
   return { ok: true };
 }
 
-export default { isMilestoneLeadAuthority, resolveVentureCode, canManageMilestones, computeInitialMilestoneStatus, activateDueStages, releaseMilestonesForStage, completeStageIfAllMilestonesDone, completeMilestone, getUnmetMilestoneDependencies, assertBookableMilestone, deriveMilestoneStatusFromDeliverables, syncMilestoneStatusFromDeliverables };
+export default { isMilestoneLeadAuthority, resolveVentureCode, canManageMilestones, computeInitialMilestoneStatus, activateDueStages, releaseMilestonesForStage, completeStageIfAllMilestonesDone, completeMilestone, getUnmetMilestoneDependencies, assertBookableMilestone, deriveMilestoneStatusFromDeliverables, deriveMilestoneStatusFromTasks, combineMilestoneStatus, syncMilestoneStatusFromDeliverables, syncMilestoneFromWork };

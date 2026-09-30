@@ -62,12 +62,34 @@ export async function getStaffAssignmentsForUser(cid, emailOrCid) {
 }
 
 /** Active participant enrollments (program id + name) for a user. */
+/**
+ * ACTIVE program enrollments — active membership AND a program still running.
+ *
+ * BOTH halves are required, and for different reasons:
+ *
+ *   pp.status — the person's own membership. A participant whose membership is
+ *     closed (`completed`) is an alumnus of that program even while the program
+ *     itself runs on.
+ *   p.status  — the program. A program that is no longer `active` is view-only,
+ *     so nobody may act inside it — including a participant whose own membership
+ *     row was never closed.
+ *
+ * Either one ending is enough to end the entitlement. This mirrors the rule the
+ * submissions route already enforces via `getSubmissionProgramStatus` ("a
+ * program that is no longer active is view-only"), so uploads and submissions
+ * cannot disagree about who is still taking part.
+ *
+ * Sole caller: POST /api/upload — the gate that decides whether a participant
+ * may attach a file. Alumni must not, in the programs they have finished.
+ */
 export async function getActiveParticipantEnrollments(cid) {
   return db.execute({
     sql: `SELECT CAST(pp.program_id AS TEXT) AS program_id, p.name AS program_name
             FROM participant_programs pp
             JOIN v2_programs p ON CAST(p.id AS TEXT) = CAST(pp.program_id AS TEXT)
-            WHERE pp.participant_id = ? AND (pp.status IS NULL OR pp.status = 'active')
+            WHERE pp.participant_id = ?
+              AND (pp.status IS NULL OR pp.status = 'active')
+              AND (p.status IS NULL OR LOWER(p.status) = 'active')
             ORDER BY p.name ASC`,
     args: [cid],
   });
