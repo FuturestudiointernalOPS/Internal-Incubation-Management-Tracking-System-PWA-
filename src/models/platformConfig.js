@@ -6,7 +6,7 @@ import db from "@/lib/db";
  * extraction).
  *
  * Controllers → function groups:
- *  - `src/app/api/v2/kpis/route.js`                    → V2 KPI CRUD + weight redistribution
+ *  - `src/app/api/v2/kpis/route.js`                    → V2 KPI CRUD
  *  - `src/app/api/kpis/route.js`                       → (V1) strategic KPI CRUD on v2_kpis
  *  - `src/app/api/kpi-progress/route.js`               → persisted KPI progress reads
  *  - `src/app/api/superadmin/standard-types/route.js`  → standard types catalog
@@ -32,7 +32,7 @@ import db from "@/lib/db";
  *    intentionally repeat the same SQL across functions.
  */
 
-// ── GET/POST/PUT/DELETE /api/v2/kpis (V2 KPI CRUD + weights) ─────────────────
+// ── GET/POST/DELETE /api/v2/kpis (V2 KPI CRUD) ───────────────────────────────
 
 /** Full KPI list for a program (GET /api/v2/kpis). */
 export async function getV2KpisByProgramId(programId) {
@@ -42,55 +42,15 @@ export async function getV2KpisByProgramId(programId) {
   });
 }
 
-/** Insert a KPI with auto_weight enabled (POST /api/v2/kpis). */
-export async function insertV2KpiWithAutoWeight(programId, title, targetValue) {
+/** Insert a KPI (POST /api/v2/kpis). */
+export async function insertV2Kpi(programId, title, targetValue) {
   return db.execute({
-    sql: "INSERT INTO v2_kpis (program_id, title, target_value, auto_weight) VALUES (?, ?, ?, TRUE) RETURNING *",
+    sql: "INSERT INTO v2_kpis (program_id, title, target_value) VALUES (?, ?, ?) RETURNING *",
     args: [programId, title, targetValue],
   });
 }
 
-/** KPI list re-fetched to return alongside the freshly inserted KPI (POST /api/v2/kpis). */
-export async function getV2KpisAfterCreate(programId) {
-  return db.execute({
-    sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
-    args: [programId],
-  });
-}
-
-/** Apply a manually entered weight to one KPI (PUT /api/v2/kpis, manual mode). */
-export async function updateV2KpiManualWeight(weight, id) {
-  return db.execute({
-    sql: "UPDATE v2_kpis SET weight = ?, auto_weight = FALSE WHERE id = ?",
-    args: [weight, id],
-  });
-}
-
-/** KPI list re-fetched after weight redistribution (PUT /api/v2/kpis). */
-export async function getV2KpisAfterWeightUpdate(programId) {
-  return db.execute({
-    sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
-    args: [programId],
-  });
-}
-
-/** KPI ids for a program, used to redistribute weights equally. */
-export async function getV2KpiIdsByProgramId(programId) {
-  return db.execute({
-    sql: "SELECT id FROM v2_kpis WHERE program_id = ?",
-    args: [programId],
-  });
-}
-
-/** Apply an equally redistributed weight to one KPI. */
-export async function updateV2KpiAutoWeight(weight, id) {
-  return db.execute({
-    sql: "UPDATE v2_kpis SET weight = ?, auto_weight = TRUE WHERE id = ?",
-    args: [weight, id],
-  });
-}
-
-/** Program id owning a KPI — read before deleting so weights can be rebalanced. */
+/** Program id owning a KPI — read before a scoped create/update/delete. */
 export async function getV2KpiProgramId(id) {
   return db.execute({
     sql: "SELECT program_id FROM v2_kpis WHERE id = ?",
