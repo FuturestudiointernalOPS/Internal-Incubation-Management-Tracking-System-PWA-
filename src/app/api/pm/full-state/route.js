@@ -127,34 +127,15 @@ export async function GET(req) {
           ? program.knowledge_assets
           : [];
 
-        const sessions = sessionsResult.rows || [];
-        const documents = documentsResult.rows || [];
-        const reports = reportsResult.rows || [];
-
-        const totalSessions = sessions.length;
-        const completedSessions = sessions.filter(
-          (session) => session.status === "completed",
-        ).length;
-        const totalDocs = documents.length;
-        const completedDocs = documents.filter((documentRow) => documentRow.is_completed).length;
-        const uniqueReportWeeks = new Set(reports.map((report) => report.week_number))
-          .size;
-
-        const totalPoints =
-          totalSessions * 5.0 +
-          totalDocs * 2.0 +
-          (program.duration_weeks || 13) * 10.0;
-        const completedPoints =
-          completedSessions * 5.0 +
-          completedDocs * 2.0 +
-          uniqueReportWeeks * 10.0;
-
-        program.completion_index =
-          totalPoints > 0 ? (completedPoints / totalPoints) * 100.0 : 0;
+        // A second, inconsistent programme-progress figure was computed here
+        // (sessions held × 5, deliverables checked × 2, report weeks filed × 10,
+        // over a duration that fell back to 13 weeks). It ignored submissions
+        // entirely and disagreed with the other two definitions, and no screen read
+        // it — the screens that show a completion figure take it from the programme
+        // LIST endpoint. The programme's figure is now computed in one place only.
       } catch {
         program.materials = [];
         program.knowledge_assets = [];
-        program.completion_index = 0;
       }
     }
 
@@ -210,7 +191,8 @@ export async function GET(req) {
     // --- OPTIONAL METRICS (only when ?metrics=true) ---
     let kpisWithProgress = kpisResult.rows || [];
     let uniqueParticipants = mergedParticipants;
-    let operationalProgress = program?.completion_index || 0;
+    // The previous initialiser read the removed second definition of programme progress; the metrics branch reassigns this before any use.
+    let operationalProgress = 0;
     let submissionRate = 0,
       approvalRate = 0;
     let expectedSubmissions = 0,
@@ -317,7 +299,10 @@ export async function GET(req) {
       operationalProgress =
         kpisWithProgress.length > 0
           ? weightedKpiProgress(kpisWithProgress)
-          : program?.completion_index || 0;
+          : // The value this used to fall back to was the removed second definition
+            // of programme progress. A programme with no KPI has no operational
+            // progress to report.
+            0;
       overallHealth = Math.round((operationalProgress + approvalRate) / 2);
     }
 
