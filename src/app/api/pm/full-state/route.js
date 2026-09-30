@@ -322,6 +322,10 @@ export async function GET(req) {
       asDay(session, "end_date");
     });
     (deliverablesResult.rows || []).forEach((deliverable) => asDay(deliverable, "due_date"));
+    // The deliverables the panel actually scores come from the document-requirements
+    // table, so its due date leaves as a plain day too — the fix must not depend on
+    // how the field happens to be stored in another database.
+    (documentsResult.rows || []).forEach((documentRow) => asDay(documentRow, "due_date"));
     (uniqueParticipants || []).forEach((participant) => asDay(participant, "enrolled_at"));
 
     return NextResponse.json({
