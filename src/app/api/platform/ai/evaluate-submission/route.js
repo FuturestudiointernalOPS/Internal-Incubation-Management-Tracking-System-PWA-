@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import { evaluateSubmission, formHasAiEvaluation, getEvaluation } from "@/lib/platform/ai/evaluate";
+import { maybeAutoApprove } from "@/models/platform/ai/autoApprove";
 import {
-  approveSubmissionAndReturn,
   claimEvaluationSubmission,
   countApprovalDecisionsForForm,
   countProgressEvaluatedSubmissions,
@@ -15,15 +15,6 @@ import {
   deleteEvaluationsForSubmission,
   deleteExpiredEvaluationClaims,
   findEvaluationBatchCandidates,
-  findHigherScoredDuplicateSubmissions,
-  getContactNameByCid,
-  getFieldLabelsForApprovalEmail,
-  getFieldLabelsForDuplicateGuard,
-  getFormForAutoApprove,
-  getGroupNameForRun,
-  getRunForAutoApprove,
-  getSubmissionForAutoApprove,
-  insertAutoApprovalReview,
   recordEvaluationFailure,
   releaseEvaluationClaim,
   resetEvaluationFailuresForSubmission,
@@ -125,187 +116,6 @@ async function processSubmission(submissionId) {
       await recordEvaluationFailure(submissionId, errorMessage);
     } catch (_) {}
     return { ok: false, error: errorMessage };
-  }
-}
-
-/**
- * Look up the group linked to a run (used for approval email templates).
- */
-async function getRunGroupName(runId) {
-  try {
-    const groupResult = await getGroupNameForRun(runId);
-    return groupResult.rows[0]?.name || null;
-  } catch (_) {
-    return null;
-  }
-}
-
-/**
- * Auto-approve a submission when its score meets the form's configured
- * cutoff. Reuses the existing review automation (group assignment,
- * approval email, activation) — no parallel system.
- */
-async function maybeAutoApprove(submissionId, evaluation) {
-  try {
-    const submissionResult = await getSubmissionForAutoApprove(submissionId);
-    if (submissionResult.rows.length === 0) return;
-    const submission = submissionResult.rows[0];
-    if (submission.status !== "submitted") return; // never override existing decision
-
-    const runResult = await getRunForAutoApprove(submission.run_id);
-    if (runResult.rows.length === 0) return;
-
-    const formResult = await getFormForAutoApprove(runResult.rows[0].form_id);
-    if (formResult.rows.length === 0) return;
-
-    const automation = (formResult.rows[0].settings || {}).automation;
-    const cutoff = automation?.auto_approve_cutoff;
-    const autoApproveEnabled = automation?.auto_approve === true;
-    if (!autoApproveEnabled || cutoff == null || isNaN(parseFloat(cutoff))) return;
-
-    const score = parseFloat(evaluation?.overall_score);
-    if (isNaN(score) || score < parseFloat(cutoff)) return;
-
-    // ── DUPLICATE GUARD: when the same email appears in multiple submissions
-    // of this run, only the HIGHEST-scored one is auto-approved — lower-scored
-    // duplicates stay submitted and never receive an email.
-    const subData = submission.data || {};
-    // Fetch the form's field labels once — the real applicant email is
-    // resolved label-aware (EN/FR), never from placeholder values.
-    let labels = {};
-    try {
-      const fieldLabelsResult = await getFieldLabelsForDuplicateGuard(formResult.rows[0].id);
-      for (const fieldRow of fieldLabelsResult.rows) labels[String(fieldRow.id)] = fieldRow.label;
-    } catch (_) {}
-    const { resolveSubmissionEmail } = await import("@/lib/email");
-    const applicantEmail = resolveSubmissionEmail({
-      submissionData: subData,
-      fieldLabels: labels,
-      contactEmail: submission.submitter_id && submission.submitter_id.includes("@") ? submission.submitter_id : "",
-    });
-    if (applicantEmail) {
-      try {
-        const siblings = await findHigherScoredDuplicateSubmissions(submission.run_id, submissionId, applicantEmail);
-        const better = siblings.rows.find((sibling) => {
-          const siblingScore = parseFloat(sibling.overall_score);
-          return !isNaN(siblingScore) && siblingScore > score;
-        });
-        if (better) {
-          const { recordEmailStatus } = await import("@/lib/email");
-          await recordEmailStatus({
-            submission_id: submissionId,
-            contact_cid: submission.submitter_id || null,
-            email_type: "approval",
-            status: "skipped",
-            error: "Skipped — duplicate email: a higher-scored submission with the same email exists in this run",
-            to: applicantEmail,
-          });
-          console.log("[Auto-Approve] Skipped (lower-scored duplicate):", applicantEmail, "vs submission", better.id);
-          return;
-        }
-      } catch (_) {}
-    }
-
-    // Approve through the same path a human reviewer uses
-    const { onReview } = await import("@/lib/platform/automation");
-    const comment = `Auto-approved: AI score ${score} meets cutoff ${cutoff}`;
-
-    // Record review row (system reviewer)
-    await insertAutoApprovalReview(submissionId, comment);
-
-    // Update submission status
-    const updated = await approveSubmissionAndReturn(submissionId);
-    if (updated.rows.length === 0) return; // raced with another decision
-
-    // Send the TRACKED approval email (Gmail transport) with template variables
-    // so auto-approved applicants receive the personalized approval template.
-    try {
-      const subData = updated.rows[0].data || {};
-      const { sendDecisionEmail, sendTrackedEmail, getTemplate, resolvePersonName, recordEmailStatus, resolveSubmissionEmail } = await import("@/lib/email");
-      // Fetch the form's field labels once — used for the real applicant
-      // email (label-aware, EN/FR) and the name resolution below.
-      let labels = {};
-      try {
-        const fieldLabelsResult = await getFieldLabelsForApprovalEmail(formResult.rows[0].id);
-        for (const fieldRow of fieldLabelsResult.rows) labels[String(fieldRow.id)] = fieldRow.label;
-      } catch (_) {}
-      const applicantEmail = resolveSubmissionEmail({
-        submissionData: subData,
-        fieldLabels: labels,
-        contactEmail: updated.rows[0].submitter_id && updated.rows[0].submitter_id.includes("@") ? updated.rows[0].submitter_id : "",
-      });
-      if (applicantEmail) {
-        const decisionTemplate = getTemplate(formResult.rows[0].settings || {}, "approval", runResult.rows[0].settings || {});
-        const formName = formResult.rows[0].name || "";
-        const groupName = await getRunGroupName(runResult.rows[0].id);
-
-        // Approval email requires a group. With no group, the person stays in
-        // the platform/CRM but no approval email is sent.
-        if (groupName) {
-          // Best real name — resolved deterministically with the form's actual
-          // question labels; never "Unknown" when a real name exists.
-          let applicantName = "";
-          try {
-            const contactResult = await getContactNameByCid(updated.rows[0].submitter_id);
-            applicantName = resolvePersonName({
-              contactName: contactResult.rows[0]?.name || "",
-              submitterName: updated.rows[0].submitter_name || "",
-              submissionData: subData,
-              fieldLabels: labels,
-            });
-          } catch (_) {}
-
-          await sendTrackedEmail({
-            submission_id: submissionId,
-            contact_cid: updated.rows[0].submitter_id || null,
-            email_type: "approval",
-            provider: "gmail",
-            to: applicantEmail,
-            sendFn: () =>
-              sendDecisionEmail({
-                to: applicantEmail,
-                applicantName,
-                formName,
-                decision: "approved",
-                comment,
-                template: decisionTemplate,
-                templateVars: {
-                  form_name: formName,
-                  score: String(score),
-                  group_name: groupName || "",
-                  name: applicantName,
-                },
-              }),
-          });
-        } else {
-          await recordEmailStatus({
-            submission_id: submissionId,
-            contact_cid: updated.rows[0].submitter_id || null,
-            email_type: "approval",
-            status: "skipped",
-            error: "Skipped — No group assigned; approval email not sent",
-            to: applicantEmail,
-          });
-        }
-      }
-    } catch (error) {
-      console.error("[Auto-Approve] Approval email error:", error.message);
-    }
-
-    // Fire the same REVIEW_COMPLETED automation (group + emails)
-    try {
-      await onReview(
-        { id: null, submission_id: submissionId, decision: "approved", comment, reviewer_name: "System Auto-Approval" },
-        updated.rows[0],
-        runResult.rows[0],
-        { cid: "system", role: "system" },
-        formResult.rows[0]
-      );
-    } catch (error) {
-      console.error("[Auto-Approve] Automation error:", error.message);
-    }
-  } catch (error) {
-    console.error("[Auto-Approve] Error:", error.message);
   }
 }
 
