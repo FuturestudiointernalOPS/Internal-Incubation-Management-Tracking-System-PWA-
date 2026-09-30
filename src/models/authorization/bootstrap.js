@@ -284,7 +284,12 @@ export async function seedDefaultAccessProfiles() {
           reports: { view: 1, create: 2, export: 3 },
           messaging: { view: 1, send: 2 },
           contacts: { view: 1, create: 2 },
-          lms: { view: 1 },
+          // D1 (production promotion decision): a Program Manager MAY keep
+          // publishing courses and enrolling people. The retired
+          // `lms.publish` / `lms.enroll` / `lms.assign` capabilities were folded
+          // into `lms.edit`, which no seeded profile held — so the answer is to
+          // grant it here. Level 3 matches `programs.edit` in this same block.
+          lms: { view: 1, edit: 3 },
         },
       },
       // ASSIGNMENT-DERIVED program management.
