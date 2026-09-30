@@ -77,6 +77,11 @@ or a membership check — and runs after an identity exists.
 | Authorization reads (project membership, assignment probes, team scope, supervision) + the permission audit write | `models/authorization/accessQueries.js` | ✅ moved |
 | Runtime schema self-heal + default grants (role capabilities, Access Profiles, responsibilities catalogue) | `models/authorization/bootstrap.js` | ✅ moved |
 | Authorization context decision (resolve/merge/authorize) + its 8 reads | `services/authorization/context.js` + `models/authorization/contextReads.js` | ✅ moved (slice 1 of the layer split — see [LAYER_SPLIT.md](LAYER_SPLIT.md)) |
+| Readiness / impact report + its 2 reads | `services/authorization/contextGrantReadiness.js` + `models/authorization/contextGrantReadinessReads.js` | ✅ moved (slice 2) |
+| Scope engine (policy dispatch, `isWithinScope`) + its 6 reads | `services/authorization/scope.js` + `models/authorization/scopeReads.js` | ✅ moved (slice 3) |
+| Eligibility decision | `services/authorization/eligibility.js` | ✅ moved (slice 4) — schema/seeds/vocabulary stay in `models/authorization/eligibility.js` |
+| Membership decisions (effective groups, lifecycle) | `services/authorization/membership.js` | ✅ moved (slice 4) — schema/bootstrap/raw reads/vocabulary stay in `models/authorization/membership.js` |
+| Eligibility-change validation (`eligibility-admin`) | still `models/authorization/eligibility-admin.js` | ⏳ next (mixes decision + reads; imports the eligibility decision from the service) |
 | Effective access-profile resolution, responsibilities domain | still `src/lib/auth.js` (6 functions, 8 SQL statements) | ⏸ **blocked on a decision** — see below |
 
 Two overlaps are **known and deliberately left alone** until a decision is made,

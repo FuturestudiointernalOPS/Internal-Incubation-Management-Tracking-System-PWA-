@@ -1,8 +1,10 @@
 # Layer split — View → Controller → Service → Repository
 
-> Status: **in progress**. First slice delivered: the authorization context
-> (2026-09-30). This document is the running log: what is done, what was left
-> aside on purpose, and what remains. Update it at the end of every slice.
+> Status: **in progress**. Slices 1–4 delivered: the authorization decision, the
+> readiness report, the scope engine, the eligibility decision and the
+> membership decisions (2026-09-30). This document is the running log: what is
+> done, what was left aside on purpose, and what remains. Update it at the end of
+> every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
 [`SERVER_LAYERS.md`](SERVER_LAYERS.md) (the request path as it stands),
@@ -48,79 +50,120 @@ beside all of this and is not a domain layer.
 
 If a service runs SQL, its decision cannot be tested without a database, and it
 becomes the module this split exists to break up. This is enforced by a test
-(§5), not by convention.
+(§6), not by convention.
+
+### Two compatibility mechanisms
+
+When a symbol moves, existing importers must keep working. Two devices are used,
+both temporary and both deleted once `grep` finds no importer:
+
+- **Model facades** — `src/models/authorization/<module>.js` becomes
+  `export * from "@/services/…"`. Used for `resolver`, `scope`,
+  `contextGrantReadiness`. Cost: a documented (shim-only) model→service edge.
+- **Aggregating lib facades** — `src/lib/authorization/<module>.js` re-exports
+  **both** the repository and the service (e.g. `eligibility`, `membership`).
+  Used where the SQL stays in `models` and only the decision moved. This one
+  creates **no** cross-layer edge, so it is preferred.
 
 ---
 
-## 2. What is done — slice 1: the authorization context
+## 2. What is done
 
-The authorization decision module was the clearest violation in the codebase: it
-decided access **and** ran SQL **and** imported HTTP
-(`src/models/authorization/resolver.js`, 583 LOC). It is now split.
+### Slice 1 — the authorization context
+
+The decision module decided access **and** ran SQL **and** imported HTTP
+(`src/models/authorization/resolver.js`, 583 LOC). Now split:
 
 | Layer | File | What it holds |
 |---|---|---|
-| **Service** (new) | `src/services/authorization/context.js` | The decision: resolve a person's effective access, merge grants/groups/profile/restrictions, gate on eligibility, `authorize`, `can`, `requireAuthorization`, the context cache, and the pure row-shaping helpers. |
-| **Service barrel** (new) | `src/services/authorization/index.js` | Public entry point of the authorization service. |
-| **Repository** (new) | `src/models/authorization/contextReads.js` | The 8 reads the decision needs, one function per query, SQL byte-identical to what was inline before. No decisions, no HTTP. |
-| **Facade** (kept) | `src/models/authorization/resolver.js` | Now `export * from "@/services/authorization/context"`. Keeps every existing import path and every `jest.mock` on that path working. Delete once `grep` finds no importer. |
+| **Service** | `src/services/authorization/context.js` | Resolve effective access, merge grants/groups/profile/restrictions, gate on eligibility, `authorize`, `can`, `requireAuthorization`, the context cache, the row-shaping helpers. |
+| **Service barrel** | `src/services/authorization/index.js` | Public entry point of the authorization service. |
+| **Repository** | `src/models/authorization/contextReads.js` | The 8 reads, one function per query, SQL byte-identical. No decisions, no HTTP. |
+| **Facade** | `src/models/authorization/resolver.js` | `export * from "@/services/authorization/context"`. |
 
-**Unchanged on purpose:** the SQL, the wave/round-trip structure (still three
-waves for a cold resolution), the merge semantics, the super-admin rules, the
-cache TTL, and every returned field.
+### Slice 2 — the readiness report
 
-**Why this module first:** it is the most load-bearing decision in the product,
-it already had the strongest test net, and it was the worst layering offender.
+`buildContextGrantReadiness` decided, ran two inline statements, and reached
+into the resolver (the model→service edge slice 1 created). Now:
 
-### Verification of slice 1
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/authorization/contextGrantReadiness.js` | The report — drift and impact computation. Asks the context service, not the model. |
+| **Repository** | `src/models/authorization/contextGrantReadinessReads.js` | The two reads (contact row, sentinel-granted capabilities). |
+| **Facade** | `src/models/authorization/contextGrantReadiness.js` | `export * from "@/services/…"`. |
+
+### Slice 3 — the scope engine
+
+`src/models/authorization/scope.js` decided record scope and ran six statements.
+Now:
+
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/authorization/scope.js` | `resolveScopeIds` (policy dispatch), `resolveVentureScopeId`, `isWithinScope`, `isContactWithinStaffedPrograms`, the fail-closed rules. Re-exports the pure catalogue. |
+| **Repository** | `src/models/authorization/scopeReads.js` | The four policy reads + the venture-id lookup + the shared-programme probe. |
+| **Facade** | `src/models/authorization/scope.js` | `export * from "@/services/…"`. The pure catalogue stays in `./scope-catalog`. |
+
+### Slice 4 — eligibility and membership decisions
+
+Both modules mixed a pure decision with their queries. Now:
+
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/authorization/eligibility.js` | `evaluateEligibility` (the pure eligibility decision). |
+| **Repository** | `src/models/authorization/eligibility.js` | The schema, the one-time seeds, the vocabulary (`MODULE_TO_FEATURE`, defaults). |
+| **Service** | `src/services/authorization/membership.js` | `isEffectiveMembership`, `selectEffectiveGroups`, `applyMembershipAction`, `getEffectiveGroupsAndHistory`, `getEffectiveGroupsForUser`. |
+| **Repository** | `src/models/authorization/membership.js` | Schema, one-time bootstrap, raw reads (`getMembershipRowsForUser`, `getMembership`, `isGroupProtected`, …), vocabulary (`INTERNAL_GROUP`, `MEMBERSHIP_ACTIONS`, `normalizeGroupName`). |
+
+`src/lib/authorization/{eligibility,membership}.js` aggregate both layers, so
+**no** cross-layer edge was created for these two.
+
+**Unchanged throughout:** the SQL (byte-identical), the wave/round-trip
+structure, the merge semantics, the fail-closed rules, and every returned field.
+
+### Verification
 
 | Check | Result |
 |---|---|
-| Targeted suites (9 suites: resolver, sequencing, gates, boundaries…) | 257 passed |
-| Full suite `npm test` | **228 suites, 2955 tests, all passed** |
+| Full suite `npm test` | **228 suites, 2960 tests, all passed** |
 | `npx eslint .` | 0 errors (6 pre-existing warnings elsewhere) |
 | `npm run build` | green |
-| Round-trip count for a cold resolution | unchanged (3 waves — pinned by `db-sequencing.test.js`) |
+| Cold-resolution round trips | unchanged (3 waves — pinned by `db-sequencing.test.js`) |
 
 ---
 
 ## 3. Left aside on purpose (deferred, with reasons)
 
-These are known and intentionally **not** done in slice 1:
-
 1. **`requireAuthorization` still builds the HTTP refusal response.** Returning
    a 401/403 answer is controller work. Changing it now would touch the return
-   shape every gated endpoint depends on, so it is deferred until controllers
-   are split. It is called out in a comment at the top of the service module.
-2. **One real model→service edge was created:**
-   `src/models/authorization/contextGrantReadiness.js` asks the service for a
-   resolved context. Before the split this was model→model. It is a facade-free
-   direct dependency and should be resolved by migrating that readiness report
-   into the service layer (it is decision logic) — next slice.
-3. **`src/models/authorization/{eligibility,scope,membership,context}.js` still
-   mix decisions with reads.** They are the next candidates; see §4.
-4. **No type layer.** See §4.
+   shape every gated endpoint depends on. Called out in a comment at the top of
+   `services/authorization/context.js`.
+2. **`src/models/authorization/eligibility-admin.js` still mixes a decision with
+   its queries** and now imports the eligibility decision from the service. It is
+   the next eligibility-domain candidate (§4).
+3. **`src/server/authz/guards.js`** shapes HTTP answers in the policy layer; the
+   response shaping belongs in controllers.
+4. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`) create
+   shim-only model→service edges; they are deleted once nothing imports them.
+5. **No type layer** (see §4).
 
 ---
 
 ## 4. What remains
 
-### Authorization domain — remaining slices
+### Authorization domain
 
 | Module | Problem | Planned home |
 |---|---|---|
-| `models/authorization/contextGrantReadiness.js` | decision + reads; imports the service | `services/authorization/contextGrantReadiness.js` |
-| `models/authorization/eligibility.js` | eligibility evaluation (decision) + schema/seed reads | `services/authorization/eligibility.js` + `models/authorization/eligibilityReads.js` |
-| `models/authorization/scope.js` | scope resolution (decision) + reads | `services/authorization/scope.js` + reads |
+| `models/authorization/eligibility-admin.js` | decision (`validateEligibilityChanges`, `assertTemplateCapsEligible`) + reads | `services/authorization/eligibilityAdmin.js` + reads |
 | `models/authorization/context.js` | `requireScopedAccess` (guard) lives in models | `services/authorization/context.js` |
-| `models/authorization/membership.js` | group resolution rules + reads | `services/authorization/membership.js` + reads |
-| `server/authz/guards.js` | guard shapes HTTP answers | move response shaping to controllers; keep the decision in the service |
+| `models/authorization/contextGrants.js` (626 LOC) | grant sync decisions + reads | service + reads |
+| `models/authorization/programAssignments.js` (371 LOC) | `deriveFacilitatorDesiredCaps`, `deriveAssignmentsExpiry` + reads | service + reads |
+| `server/authz/guards.js` | guards shape HTTP answers | response shaping → controllers |
 
 ### Other domains — not started
 
 | Domain | Service to create | Notes |
 |---|---|---|
-| Permissions (roles / profiles / eligibility UI) | `services/authorization/*` | same domain as above; the UI already sits in one place (`components/permissions/`) |
 | Finance | `services/finance/*` | logic currently in `lib/finance*` + `models/finance/*` |
 | Ventures | `services/ventures/*` | largest domain (`lib/ventures.js`, ~5.6k LOC) |
 | Tasks / projects / programs | `services/tasks/*`, `services/projects/*` | orchestration currently in controllers |
@@ -145,17 +188,19 @@ decision is recorded, new modules stay plain JavaScript.
 ## 5. Rules (the contract for every new slice)
 
 1. **Services decide; repositories read/write.** No SQL outside `src/models/**`
-   (existing rule, unchanged). No decisions inside `src/models/**`.
+   (existing rule, unchanged). No decisions inside a new repository module.
 2. **Services never run SQL** — enforced by
    `src/__tests__/server/services-boundaries.test.js`.
-3. **Repositories never import HTTP** (`next/server`, `NextResponse`) — pinned
-   for the new repository module by the same suite.
+3. **New repositories never import HTTP** (`next/server`, `NextResponse`) —
+   pinned by the same suite.
 4. **Behaviour is invariant.** SQL stays byte-identical (the endpoint suites
    match on query text). Round-trip/wave counts stay identical (pinned by
    `db-sequencing.test.js`).
-5. **Public surfaces only grow.** Moving a symbol leaves a re-export facade at
-   its old path for one release; delete it only once `grep` finds no importer.
-6. **No new dependency** to reach a layer.
+5. **Public surfaces only grow.** Moving a symbol leaves a facade at its old
+   path for one release; delete it only once `grep` finds no importer.
+6. **Prefer the aggregating lib facade** over a model facade when the SQL stays
+   in `models` — it creates no cross-layer edge.
+7. **No new dependency** to reach a layer.
 
 ---
 
@@ -164,14 +209,16 @@ decision is recorded, new modules stay plain JavaScript.
 1. Pick one module that mixes decisions with reads.
 2. Write/extend the characterisation test first — the decision paths, not the
    implementation.
-3. Copy the SQL **verbatim** into a new repository module (one function per
-   query, named after the data). Do not reformat, reorder or "improve" it.
+3. Copy the SQL **verbatim** into a repository module (one function per query,
+   named after the data). Do not reformat, reorder or "improve" it.
 4. Move the decision logic into the matching service module; import the
    repository reads; delete the SQL from the original.
-5. Replace the original file with `export * from "<new path>"` (facade).
-6. Run `npm test`, `npx eslint .`, `npm run build`.
-7. Update §2/§3/§4 of this document, then delete the facade once nothing imports
-   it.
+5. Keep every old import path working — model facade or aggregating lib facade.
+6. Run `npm test`, `npx eslint .`, `npm run build`. **The build catches direct
+   imports the unit suites miss** (a route importing a moved symbol directly
+   fails only at build time).
+7. Update §2/§3/§4 of this document, then delete the facades once nothing
+   imports them.
 
 ---
 
@@ -180,7 +227,7 @@ decision is recorded, new modules stay plain JavaScript.
 | Guard | File | Fails when |
 |---|---|---|
 | No SQL in `src/services/**` | `src/__tests__/server/services-boundaries.test.js` | a service contains `db.execute` or imports the pool |
-| No HTTP in the new repository | same suite | the repository imports `next/server` / uses `NextResponse` |
-| Decision surface intact | same suite | a renamed/removed export breaks the service barrel or the facade |
+| No HTTP in the new repositories | same suite | `contextReads`, `contextGrantReadinessReads` or `scopeReads` import `next/server` / use `NextResponse` |
+| Decision surface intact | same suite | a renamed/removed export breaks the service barrel or the resolver facade |
 | No SQL in `server/authz` | `src/__tests__/server/authz-boundaries.test.js` | (pre-existing) authorization policy runs inline SQL |
 | Auth/authz import directions | `src/__tests__/server/auth-boundaries.test.js` | (pre-existing) |
