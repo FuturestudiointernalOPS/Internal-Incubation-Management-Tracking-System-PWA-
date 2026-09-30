@@ -16,7 +16,9 @@
 
 import db from "@/lib/db";
 
-import { MODULE_TO_FEATURE, FEATURE_ELIGIBILITY_DEFAULTS, evaluateEligibility } from "./eligibility";
+import { MODULE_TO_FEATURE, FEATURE_ELIGIBILITY_DEFAULTS } from "./eligibility";
+// The eligibility decision moved to the service layer (docs/LAYER_SPLIT.md).
+import { evaluateEligibility } from "@/services/authorization/eligibility";
 import { FEATURE_ORDER } from "./eligibility-defaults";
 
 const CONFIGURABLE_FEATURES = [

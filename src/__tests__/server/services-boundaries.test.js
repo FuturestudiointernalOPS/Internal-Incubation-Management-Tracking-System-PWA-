@@ -46,6 +46,7 @@ describe("repositories stay HTTP-free", () => {
   it.each([
     "models/authorization/contextReads.js",
     "models/authorization/contextGrantReadinessReads.js",
+    "models/authorization/scopeReads.js",
   ])("%s imports no HTTP layer", (rel) => {
     const source = fs.readFileSync(path.join(SRC, rel), "utf8");
     expect(source).not.toMatch(/from\s+["']next\/server["']/);

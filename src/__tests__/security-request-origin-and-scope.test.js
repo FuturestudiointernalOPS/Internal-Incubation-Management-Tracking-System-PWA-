@@ -140,9 +140,10 @@ describe("AUTHZ-CRM-1 — contact emails are bound to a shared programme", () =>
   });
 
   test("the predicate is the data-layer rule, keyed to the caller", () => {
-    const source = read("src/models/authorization/scope.js");
-    expect(source).toMatch(/export async function isContactWithinStaffedPrograms/);
-    expect(source).toMatch(/v2_program_staff/);
+    const service = read("src/services/authorization/scope.js");
+    const reads = read("src/models/authorization/scopeReads.js");
+    expect(service).toMatch(/export async function isContactWithinStaffedPrograms/);
+    expect(reads).toMatch(/v2_program_staff/);
   });
 });
 

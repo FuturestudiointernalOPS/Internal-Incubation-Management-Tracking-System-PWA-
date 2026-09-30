@@ -42,11 +42,11 @@ import {
   seedVenturesFounderEligibility,
   seedTemplateCeilingEligibility,
   seedProgramAssignmentEligibility,
-  evaluateEligibility,
 } from "@/models/authorization/eligibility";
+import { evaluateEligibility } from "./eligibility";
 import { ensureCapabilityBackfills } from "@/models/authorization/backfill";
 import { runAuthzMigration } from "@/models/authorization/migrations";
-import { getEffectiveGroupsForUser } from "@/models/authorization/membership";
+import { getEffectiveGroupsForUser } from "./membership";
 import {
   dropWorkspaceContext,
   dropAllWorkspaceContexts,

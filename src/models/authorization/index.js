@@ -25,13 +25,16 @@ export {
 } from "./resolver";
 
 export {
-  evaluateEligibility,
   ensureEligibilitySchema,
   seedDefaultEligibility,
   MODULE_TO_FEATURE,
   FEATURE_ELIGIBILITY_DEFAULTS,
   FEATURE_ORDER,
 } from "./eligibility";
+
+// The eligibility DECISION lives in the service layer; re-exported here so this
+// barrel keeps the surface it always had.
+export { evaluateEligibility } from "@/services/authorization/eligibility";
 
 export { runAuthzMigration } from "./migrations";
 
