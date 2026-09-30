@@ -211,8 +211,10 @@ export async function GET(_req) {
       );
 
       // ─── KPI Achievement — per participant ───
-      // Each KPI counts as "achieved" only if the participant has an APPROVED
-      // submission on a deliverable linked to that KPI.
+      // Each objective contributes the participant's own share of its linked
+      // deliverables that were approved: 2 of 3 approved counts as two thirds,
+      // not 0 and not 1. An objective with no linked deliverable cannot be
+      // measured, so it is left out of the average rather than counted as 0.
       const approvedSubmissionRows = submissions.filter((submission) => submission.status === "approved");
       const deliverableIdsByKpi = new Map();
       for (const deliverable of deliverables) {
@@ -233,19 +235,28 @@ export async function GET(_req) {
           deliverableIdsByKpi.get(kpiKey).add(String(deliverable.id));
         }
       }
-      const perKpiAchieved = kpis.map((kpi) => {
-        const linkedDeliverableIds = deliverableIdsByKpi.get(String(kpi.id)) || new Set();
-        return approvedSubmissionRows.some(
-          (submission) =>
-            linkedDeliverableIds.has(String(submission.deliverable_id)) ||
-            linkedDeliverableIds.has(String(submission.document_id)),
-        );
-      });
+      const measurableKpiRates = kpis
+        .map((kpi) => {
+          const linkedDeliverableIds = deliverableIdsByKpi.get(String(kpi.id)) || new Set();
+          if (linkedDeliverableIds.size === 0) return null;
+          const approvedDeliverableIds = new Set();
+          for (const submission of approvedSubmissionRows) {
+            const deliverableId = String(submission.deliverable_id || "");
+            const documentId = String(submission.document_id || "");
+            if (deliverableId && linkedDeliverableIds.has(deliverableId)) {
+              approvedDeliverableIds.add(deliverableId);
+            } else if (documentId && linkedDeliverableIds.has(documentId)) {
+              approvedDeliverableIds.add(documentId);
+            }
+          }
+          return Math.round((approvedDeliverableIds.size / linkedDeliverableIds.size) * 100);
+        })
+        .filter((rate) => rate !== null);
       const totalKpis = kpis.length;
-      const targetMetKpis = perKpiAchieved.filter(Boolean).length;
+      const targetMetKpis = measurableKpiRates.filter((rate) => rate >= 100).length;
       // Attendance counts as an extra factor in KPI achievement when the
       // program actually tracks attendance (at least one record exists).
-      const kpiFactors = perKpiAchieved.map((isAchieved) => (isAchieved ? 100 : 0));
+      const kpiFactors = [...measurableKpiRates];
       if (attendanceTracked) kpiFactors.push(markedAttendanceRate);
       const kpiCompletion =
         kpiFactors.length > 0
@@ -269,8 +280,10 @@ export async function GET(_req) {
       overallSessions += totalSessions;
       overallAttended += attendedSessions;
       overallKpiPoints +=
-        targetMetKpis * 100 + (attendanceTracked ? markedAttendanceRate : 0);
-      overallKpiMax += totalKpis * 100 + (attendanceTracked ? 100 : 0);
+        measurableKpiRates.reduce((sum, rate) => sum + rate, 0) +
+        (attendanceTracked ? markedAttendanceRate : 0);
+      overallKpiMax +=
+        measurableKpiRates.length * 100 + (attendanceTracked ? 100 : 0);
       overallDeliverables += totalDeliverables;
       overallCompletedDeliverables += completedDeliverables;
 

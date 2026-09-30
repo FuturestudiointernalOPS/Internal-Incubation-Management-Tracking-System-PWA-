@@ -164,9 +164,10 @@ export async function GET(_req) {
       }
 
       // ─── KPI Progress — per participant ───
-      // Average across the program's KPIs, where each KPI counts as "achieved"
-      // only if the participant has an APPROVED submission on a deliverable
-      // linked to that KPI.
+      // Average across the program's measurable objectives, each contributing
+      // the participant's own share of its linked deliverables that were
+      // approved (2 of 3 counts as two thirds). An objective with no linked
+      // deliverable is left out.
       let kpiCompletion = 0;
       const approvedSubmissionRows = (submissions || []).filter(
         (submission) => submission.status === "approved",
@@ -192,13 +193,23 @@ export async function GET(_req) {
       }
       // Attendance counts as an extra factor in KPI achievement when the
       // program actually tracks attendance (at least one record exists).
-      const kpiFactors = (kpis || []).map((kpi) => {
-        const linkedDeliverableIds = deliverableIdsByKpi.get(String(kpi.id)) || new Set();
-        const isAchieved = approvedSubmissionRows.some((submission) =>
-          linkedDeliverableIds.has(String(submission.deliverable_id)),
-        );
-        return isAchieved ? 100 : 0;
-      });
+      const kpiFactors = (kpis || [])
+        .map((kpi) => {
+          const linkedDeliverableIds = deliverableIdsByKpi.get(String(kpi.id)) || new Set();
+          if (linkedDeliverableIds.size === 0) return null;
+          const approvedDeliverableIds = new Set();
+          for (const submission of approvedSubmissionRows) {
+            const deliverableId = String(submission.deliverable_id || "");
+            const documentId = String(submission.document_id || "");
+            if (deliverableId && linkedDeliverableIds.has(deliverableId)) {
+              approvedDeliverableIds.add(deliverableId);
+            } else if (documentId && linkedDeliverableIds.has(documentId)) {
+              approvedDeliverableIds.add(documentId);
+            }
+          }
+          return Math.round((approvedDeliverableIds.size / linkedDeliverableIds.size) * 100);
+        })
+        .filter((rate) => rate !== null);
       if (attendanceTracked) kpiFactors.push(attendanceRate);
       kpiCompletion =
         kpiFactors.length > 0
