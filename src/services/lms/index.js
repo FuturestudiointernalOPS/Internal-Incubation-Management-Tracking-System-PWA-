@@ -7,6 +7,9 @@
  *
  *   learning.js — the learner experience: progress, completion, access,
  *                 assessment submission and certificate finalisation
+ *   checkout.js — the paid-course checkout: price resolution, registration
+ *                 capture, access grant and the one-time access/resume links
  */
 
 export * from "./learning";
+export * from "./checkout";

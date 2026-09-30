@@ -20,13 +20,15 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const CHECKOUT_MODEL = "src/models/lms/checkout.js";
+// The statement itself moved to the repository; the decision to omit `token_type`
+// is what this pins, so the store is the file under test.
+const CHECKOUT_STORE = "src/models/lms/checkoutStore.js";
 
 /** The values the invite/reset constraint accepts (the ONLY safe ones to write). */
 const ALLOWED_TOKEN_TYPES = ["staff_invite", "participant_invite", "password_reset", "family_invite"];
 
 test("the paid-course access token writes NO invite-only token type", () => {
-  const src = fs.readFileSync(CHECKOUT_MODEL, "utf8");
+  const src = fs.readFileSync(CHECKOUT_STORE, "utf8");
   const insert = src.match(/INSERT INTO password_setup_tokens[\s\S]*?`/);
   expect(insert).not.toBeNull();
   // The column belongs to another flow; the access token is validated by its own

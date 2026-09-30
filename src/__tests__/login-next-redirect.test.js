@@ -51,7 +51,8 @@ describe("an explicit `next` is only ever an INTERNAL path", () => {
 
 describe("the server mints links that carry the course destination", () => {
   test("the setup-password link carries an encoded `next`", () => {
-    const src = read("src/models/lms/checkout.js");
+    // The link builder moved to the service with the checkout decision.
+    const src = read("src/services/lms/checkout.js");
     // One shared builder, reused by both setup-password exits.
     expect(src).toMatch(/function setupPasswordUrl\(token, courseId\)/);
     expect(src).toContain("?next=${encodeURIComponent(learningPath(courseId))}");
