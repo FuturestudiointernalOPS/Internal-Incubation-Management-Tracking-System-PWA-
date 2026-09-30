@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { resolveVentureDbId } from "@/lib/ventureOwnership";
-import { readPlanSheet, PLAN_SHEET_OK } from "@/lib/venturePlanSheet";
+import { readPlanSheet, selectPlanSheet, normalizeSheetName, PLAN_SHEET_OK } from "@/lib/venturePlanSheet";
 import { MAX_PLAN_UPLOAD_BYTES } from "@/lib/venturePlanSheetRules";
 import {
   interpretPlanSheet,
@@ -112,6 +112,46 @@ export async function POST(req, { params }) {
       );
     }
 
+    // ── WHICH SHEET CARRIES THE WORK ────────────────────────────────────────
+    // A workbook is not one table. Reading the wrong tab does not fail — it
+    // produces a confident, wrong programme. So the choice is made HERE, by
+    // name: the caller's answer wins, else a sheet called "Tracker", else the
+    // only sheet there is. Several sheets and none named is a QUESTION for the
+    // person who made the file, never a guess.
+    const requestedSheet = String(formData.get("sheet") || "").trim();
+    const choice = selectPlanSheet(sheet.sheets);
+    const picked = requestedSheet
+      ? sheet.sheets.find((item) => normalizeSheetName(item.name) === normalizeSheetName(requestedSheet)) || null
+      : null;
+
+    if (requestedSheet && !picked) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `This workbook has no sheet named "${requestedSheet}".`,
+          needsSheetChoice: true,
+          sheets: choice.names,
+        },
+        { status: 400 },
+      );
+    }
+
+    if (!picked && choice.status === "ambiguous") {
+      // Nothing is stored: no draft, no proposal, no call to the model. The
+      // answer to "which sheet?" is the only thing that can decide the plan.
+      return NextResponse.json(
+        {
+          success: false,
+          error: "This workbook has several sheets and none of them is named \"Tracker\". Choose the sheet that holds the activities.",
+          needsSheetChoice: true,
+          sheets: choice.names,
+        },
+        { status: 400 },
+      );
+    }
+
+    const planSheetName = picked ? picked.name : choice.name;
+
     // A reassessment must know what the Venture already has, or the analyst will
     // happily propose the same programme a second time.
     const existing = await buildExistingProgramme({ dbId });
@@ -119,12 +159,17 @@ export async function POST(req, { params }) {
       sheets: sheet.sheets,
       contextText,
       existingProgrammeText: existing.text,
+      sheetName: planSheetName,
     });
     if (!interpretation.ok) {
       return NextResponse.json({ success: false, error: interpretation.error }, { status: 422 });
     }
 
-    const sheetSummary = sheet.sheets.map((item) => ({ name: item.name, rows: item.rows.length }));
+    const sheetSummary = sheet.sheets.map((item) => ({
+      name: item.name,
+      rows: item.rows.length,
+      plan: item.name === planSheetName,
+    }));
     const saved = await createPlanImport({
       ventureId: dbId,
       fileName: file.name || null,
@@ -140,6 +185,7 @@ export async function POST(req, { params }) {
       draft_id: saved.id,
       superseded: saved.superseded,
       kind: sheet.kind,
+      plan_sheet: planSheetName,
       sheets: sheetSummary,
       truncated: sheet.truncated || interpretation.truncated,
       proposal: interpretation.proposal,

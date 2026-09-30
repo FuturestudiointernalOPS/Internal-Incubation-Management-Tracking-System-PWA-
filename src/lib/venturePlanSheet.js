@@ -213,6 +213,45 @@ export function readPlanXlsx(buffer) {
 }
 
 /**
+ * SHEET SELECTION — which tab carries the work.
+ *
+ * A workbook is not one table. PSPlytics' file holds "Dashboard", "Tracker",
+ * "Milestones", "Owner load" and "Reference": only ONE of them is the plan, and
+ * the others describe it. Reading the wrong tab does not fail — it produces a
+ * confident, wrong programme — so the choice is made HERE, by name, and stated
+ * in the prompt. The model is never asked to work out which sheet is the plan.
+ */
+export const AUTHORITATIVE_SHEET_NAME = "tracker";
+
+/** Case- and whitespace-insensitive, so " Tracker " and "TRACKER" both count. */
+export const normalizeSheetName = (name) => String(name ?? "").trim().toLowerCase();
+
+/**
+ * Which sheet carries the activity plan?
+ *
+ *   { status: "single",    index, name }    one sheet — there is nothing to choose
+ *   { status: "named",     index, name }    a sheet is called "Tracker"
+ *   { status: "ambiguous", names }          several sheets, none named — ASK
+ *
+ * The last case is the point of this function. A workbook with several sheets
+ * and no "Tracker" is a QUESTION for the person who made it, not a decision for
+ * us: guessing would decide, on their behalf, which of their tabs is the work.
+ */
+export function selectPlanSheet(sheets = []) {
+  const list = Array.isArray(sheets) ? sheets : [];
+  const names = list.map((sheet) => String(sheet?.name ?? "").trim());
+  if (list.length === 0) return { status: "ambiguous", index: -1, name: null, names: [] };
+
+  const named = names.findIndex((name) => normalizeSheetName(name) === AUTHORITATIVE_SHEET_NAME);
+  if (named !== -1) return { status: "named", index: named, name: names[named], names };
+
+  // One sheet is not a choice; the file has already answered.
+  if (list.length === 1) return { status: "single", index: 0, name: names[0] || "Sheet", names };
+
+  return { status: "ambiguous", index: -1, name: null, names };
+}
+
+/**
  * Read an uploaded tracker into `{ status, kind, sheets, truncated, error }`.
  * `buffer` is the file's bytes.
  */
@@ -263,4 +302,4 @@ export function readPlanSheet({ name, mime, buffer } = {}) {
   }
 }
 
-export default { readPlanSheet, planSheetKind, parsePlanCsv, detectDelimiter, readPlanXlsx };
+export default { readPlanSheet, planSheetKind, parsePlanCsv, detectDelimiter, readPlanXlsx, selectPlanSheet };

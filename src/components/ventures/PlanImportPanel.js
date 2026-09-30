@@ -108,9 +108,14 @@ function PlanUpload({ ventureId, onUploaded }) {
   const [context, setContext] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // Set only when the workbook holds several sheets and none is the tracker:
+  // the route refuses to choose, and the choice is put to the person who made
+  // the file. The file is kept, so answering costs one click, not a re-upload.
+  const [sheetNames, setSheetNames] = useState(null);
 
   const pick = (chosen) => {
     setError(null);
+    setSheetNames(null);
     if (!chosen) {
       setFile(null);
       return;
@@ -131,7 +136,7 @@ function PlanUpload({ ventureId, onUploaded }) {
     setFile(chosen);
   };
 
-  const analyse = async () => {
+  const analyse = async (sheetName = null) => {
     if (!file) {
       setError(t("venture.planImport.noFile"));
       return;
@@ -142,12 +147,19 @@ function PlanUpload({ ventureId, onUploaded }) {
       const formData = new FormData();
       formData.append("file", file);
       if (context.trim()) formData.append("context", context.trim());
+      if (sheetName) formData.append("sheet", sheetName);
 
       const res = await fetch(`/api/ventures/${ventureId}/plan-import`, { method: "POST", body: formData });
       const payload = await res.json().catch(() => ({}));
 
       if (res.status === 403) {
         setError(t("venture.planImport.notAllowed"));
+        return;
+      }
+      // "Which sheet?" is not a failure — it is the file asking a question. The
+      // names become buttons and the same file is re-sent with the answer.
+      if (payload.needsSheetChoice) {
+        setSheetNames(Array.isArray(payload.sheets) ? payload.sheets : []);
         return;
       }
       if (!res.ok || !payload.success) {
@@ -157,6 +169,7 @@ function PlanUpload({ ventureId, onUploaded }) {
       if (fileInput.current) fileInput.current.value = "";
       setFile(null);
       setContext("");
+      setSheetNames(null);
       await onUploaded();
     } catch (_) {
       setError(t("venture.planImport.failed"));
@@ -173,6 +186,29 @@ function PlanUpload({ ventureId, onUploaded }) {
         <div className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs font-bold text-rose-400">
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {sheetNames && (
+        <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <p className="text-[9px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            {t("venture.planImport.chooseSheet")}
+          </p>
+          <p className="text-[10px] text-slate-400">{t("venture.planImport.chooseSheetHint")}</p>
+          <div className="flex flex-wrap gap-2">
+            {sheetNames.map((name) => (
+              <button
+                key={name}
+                type="button"
+                disabled={busy}
+                onClick={() => analyse(name)}
+                className="px-3 py-1.5 rounded-lg border border-[var(--border-primary)] bg-[var(--surface-1)] text-[10px] font-bold text-[var(--text-primary)] hover:border-[var(--brand-orange)] disabled:opacity-50"
+              >
+                {name}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -202,7 +238,7 @@ function PlanUpload({ ventureId, onUploaded }) {
       <div className="flex justify-end">
         <button
           type="button"
-          onClick={analyse}
+          onClick={() => analyse()}
           disabled={busy || !file}
           className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50"
         >
@@ -668,6 +704,18 @@ function PlanReview({ ventureId, draft, onSaved }) {
             names: (draft.sheets || []).map((sheet) => sheet.name).join(", "),
           })}
         </span>
+        {/* Which sheet the analyst TOOK the work from. The choice is made in the
+            route, not by the model, so the reviewer can see it and check it. */}
+        {(draft.sheets || [])
+          .filter((sheet) => sheet.plan)
+          .map((sheet) => (
+            <span
+              key={sheet.name}
+              className="px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 normal-case tracking-normal"
+            >
+              {t("venture.planImport.planSheet", { name: sheet.name })}
+            </span>
+          ))}
       </div>
 
       {alreadyCovered.length > 0 && (
