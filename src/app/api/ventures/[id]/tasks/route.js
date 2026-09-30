@@ -16,6 +16,7 @@ import { ventureOwned, ventureNotFound } from "@/lib/ventureOwnership";
 import db from "@/lib/db";
 import {
   getVentureDbIdForTasks,
+  hasApprovedTaskSubmission,
   insertVentureTaskReview,
 } from "@/models/ventureWorkspace";
 
@@ -278,10 +279,7 @@ export const PATCH = createHandler(async (req, { params }) => {
   }
 
   if (body.status && TASK_REVIEW_GATED_COMPLETION_STATUSES.includes(body.status) && existingTask.review_required) {
-    const submissionResult = await db.execute({
-      sql: "SELECT 1 FROM venture_task_submissions WHERE task_id = ? AND review_decision = 'approved' ORDER BY version DESC LIMIT 1",
-      args: [parseInt(taskId)],
-    }).catch(() => ({ rows: [] }));
+    const submissionResult = await hasApprovedTaskSubmission(parseInt(taskId)).catch(() => ({ rows: [] }));
     if (!(submissionResult.rows || []).length) {
       return NextResponse.json({ success: false, error: "This task requires an approved submission before it can be completed." }, { status: 403 });
     }

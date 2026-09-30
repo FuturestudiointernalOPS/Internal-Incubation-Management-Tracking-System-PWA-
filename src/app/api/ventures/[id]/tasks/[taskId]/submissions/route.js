@@ -11,6 +11,18 @@ import {
   isTaskInScope,
   resolveTaskContext,
 } from "@/lib/ventureScope";
+import {
+  getVentureByCode,
+  getVentureTaskById,
+  listVentureTaskSubmissions,
+  getNextTaskSubmissionVersion,
+  insertTaskSubmission,
+  setVentureTaskInProgress,
+  getTaskSubmission,
+  reviewTaskSubmission,
+  setVentureTaskStatus,
+  getMilestoneJourneyStageId,
+} from "@/models/ventureWorkspace";
 
 /**
  * Task submissions (Phase 2, D5) — founder submits work, staff review it.
@@ -37,12 +49,12 @@ import {
 const REVIEWER_ROLES = ["staff", "program_manager", "super_admin"];
 
 async function resolveVentureDbId(ventureId) {
-  const ventureResult = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+  const ventureResult = await getVentureByCode(ventureId);
   return ventureResult.rows?.[0]?.id || null;
 }
 
 async function resolveTask(taskId, ventureParam, dbId) {
-  const taskResult = await db.execute({ sql: "SELECT * FROM venture_tasks WHERE id = ?", args: [taskId] });
+  const taskResult = await getVentureTaskById(taskId);
   const task = taskResult.rows?.[0];
   if (!task) return null;
   const belongs =
@@ -52,14 +64,7 @@ async function resolveTask(taskId, ventureParam, dbId) {
 }
 
 async function listSubmissions(taskId) {
-  const queryResult = await db.execute({
-    sql: `SELECT id, task_id, version, status, file_url, file_name, file_type, file_size,
-                 notes, submitted_by, submitted_by_name, reviewed_by, review_decision,
-                 review_comment, reviewed_at, created_at
-          FROM venture_task_submissions WHERE task_id = ?
-          ORDER BY version ASC`,
-    args: [taskId],
-  });
+  const queryResult = await listVentureTaskSubmissions(taskId);
   const rows = queryResult.rows || [];
   return {
     submissions: rows,
@@ -111,26 +116,22 @@ export const POST = createHandler(async (req, { params }) => {
     if (!fileUrl && !notes) {
       return NextResponse.json({ success: false, error: "Provide a file URL and/or notes for the submission." }, { status: 400 });
     }
-    const versionResult = await db.execute({
-      sql: "SELECT COALESCE(MAX(version), 0) + 1 AS next_version FROM venture_task_submissions WHERE task_id = ?",
-      args: [task.id],
-    });
+    const versionResult = await getNextTaskSubmissionVersion(task.id);
     const version = Number(versionResult.rows?.[0]?.next_version || 1);
-    const insertResult = await db.execute({
-      sql: `INSERT INTO venture_task_submissions
-            (task_id, version, status, file_url, file_name, file_type, file_size, notes, submitted_by, submitted_by_name)
-            VALUES (?,?,?,?,?,?,?,?,?,?) RETURNING id`,
-      args: [
-        task.id, version, "submitted", fileUrl || null,
-        body.file_name ? String(body.file_name).slice(0, 255) : null,
-        body.file_type ? String(body.file_type).slice(0, 50) : null,
-        body.file_size ? parseInt(body.file_size) : null,
-        notes || null, session?.cid || null, session?.name || null,
-      ],
+    const insertResult = await insertTaskSubmission({
+      taskId: task.id,
+      version,
+      fileUrl: fileUrl || null,
+      fileName: body.file_name ? String(body.file_name).slice(0, 255) : null,
+      fileType: body.file_type ? String(body.file_type).slice(0, 50) : null,
+      fileSize: body.file_size ? parseInt(body.file_size) : null,
+      notes: notes || null,
+      submittedBy: session?.cid || null,
+      submittedByName: session?.name || null,
     });
     // A submission means work is happening: move backlog/todo tasks forward.
     if (["backlog", "todo", "not_started"].includes(task.status)) {
-      await db.execute({ sql: "UPDATE venture_tasks SET status = 'in_progress' WHERE id = ?", args: [task.id] });
+      await setVentureTaskInProgress(task.id);
     }
     const submissionData = await listSubmissions(task.id);
     return NextResponse.json({ success: true, submission_id: insertResult.rows?.[0]?.id || null, ...submissionData });
@@ -164,24 +165,21 @@ export const POST = createHandler(async (req, { params }) => {
     if (!["approved", "changes_requested"].includes(decision)) {
       return NextResponse.json({ success: false, error: "Decision must be approved or changes_requested." }, { status: 400 });
     }
-    const submissionResult = await db.execute({
-      sql: "SELECT * FROM venture_task_submissions WHERE id = ? AND task_id = ?",
-      args: [submissionId, task.id],
-    });
+    const submissionResult = await getTaskSubmission(submissionId, task.id);
     const submission = submissionResult.rows?.[0];
     if (!submission) return NextResponse.json({ success: false, error: "Submission not found." }, { status: 404 });
 
-    await db.execute({
-      sql: `UPDATE venture_task_submissions
-            SET review_decision = ?, review_comment = ?, reviewed_by = ?, reviewed_at = NOW()
-            WHERE id = ?`,
-      args: [decision, body.comment ? String(body.comment) : null, session?.cid || null, submissionId],
+    await reviewTaskSubmission({
+      submissionId,
+      decision,
+      comment: body.comment ? String(body.comment) : null,
+      reviewedBy: session?.cid || null,
     });
     // Approval satisfies review_required completion; changes_requested sends
     // the task back for another iteration. Statuses mirror the task review
     // vocabulary used by the tasks route.
     const taskStatus = decision === "approved" ? "accepted" : "revision_requested";
-    await db.execute({ sql: "UPDATE venture_tasks SET status = ? WHERE id = ?", args: [taskStatus, task.id] });
+    await setVentureTaskStatus(task.id, taskStatus);
     // An approved task is done — the tasks it was blocking are freed right away.
     if (decision === "approved" && dbId) {
       await releaseTasksBlockedBy({ ventureId: dbId, blockerTaskId: task.id });
@@ -195,10 +193,7 @@ export const POST = createHandler(async (req, { params }) => {
       let stageId = null;
       if (task.milestone_id) {
         try {
-          const stageResult = await db.execute({
-            sql: "SELECT journey_stage_id FROM venture_milestones WHERE id = ? AND journey_stage_id IS NOT NULL",
-            args: [task.milestone_id],
-          });
+          const stageResult = await getMilestoneJourneyStageId(task.milestone_id);
           stageId = stageResult.rows?.[0]?.journey_stage_id || null;
         } catch (_) {}
       }

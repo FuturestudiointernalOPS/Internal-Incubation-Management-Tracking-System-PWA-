@@ -3,6 +3,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import db from "@/lib/db";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { applyBulk } from "@/lib/ventureArchive";
+import { listTasksForArchive } from "@/models/ventureWorkspace";
 
 /**
  * POST /api/ventures/[id]/tasks/archive
@@ -29,13 +30,7 @@ export const POST = createHandler(async (req, { params }) => {
   // not exist: uuid = text" on staging (this statement was the failing one there)
   // and "integer = text" on production, and the catch below turned both into a
   // silent "archived 0 of N" with a success response.
-  const rowsResult = await db.execute({
-    sql: `SELECT t.id, t.title FROM venture_tasks t
-          JOIN ventures v ON (t.venture_id::text = v.id::text OR t.venture_id::text = v.venture_id)
-          WHERE (v.venture_id = ? OR v.id::text = ?)
-            AND t.id::text = ANY(?)`,
-    args: [id, id, ids],
-  }).catch((error) => {
+  const rowsResult = await listTasksForArchive(id, ids).catch((error) => {
     console.error("[tasks/archive] lookup failed:", error?.message);
     return { rows: [] };
   });

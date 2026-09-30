@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { duplicateTask } from "@/lib/ventureDuplication";
+import { getVentureDbIdByCodeOrId } from "@/models/ventureWorkspace";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export async function POST(req, { params }) {
     const taskId = body.task_id ? String(body.task_id) : null;
     if (!taskId) return NextResponse.json({ success: false, error: "task_id is required." }, { status: 400 });
 
-    const ventureRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] }).catch(() => ({ rows: [] }));
+    const ventureRes = await getVentureDbIdByCodeOrId(id).catch(() => ({ rows: [] }));
     const dbId = ventureRes.rows?.[0]?.id || (id.includes("-") && !id.startsWith("VNT-") ? id : null);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
