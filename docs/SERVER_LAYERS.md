@@ -6,11 +6,11 @@ The request path, and what each layer is allowed to know about:
 app/**/route.js  (controllers: auth, validation, orchestration, response shape)
         │
         ▼
-server/**        (application layer — policy, no SQL)
-   ├── auth/     authentication: "who is calling?"
-   ├── authz/    authorization:  "may they do this, to this?"
-   └── <feature> business services (created per feature as they migrate)
-        │
+application layer — decisions and policy, no SQL
+   ├── server/auth/**   authentication: "who is calling?"
+   ├── server/authz/**  authorization guards: "may they do this, to this?"
+   └── services/**      use-case / decision code — the new service layer
+        │               (one folder per domain as it migrates)
         ▼
 models/**        data access: one named function per query, all SQL lives here
         │
@@ -18,12 +18,17 @@ models/**        data access: one named function per query, all SQL lives here
 lib/db.js        the pool (pg); no ORM
 ```
 
+**Where a new decision goes:** `src/services/<domain>/`. It may read through
+`models/**`; it must never run SQL and never import `lib/db`. The split is
+documented — and its backlog tracked — in [LAYER_SPLIT.md](LAYER_SPLIT.md).
+
 ## Import rules
 
 | Layer | May import | Must never import |
 |---|---|---|
 | `app/**` (pages, components) | `server/**`, `models/**` via controllers, `lib/**` | `lib/db` directly |
-| `app/api/**/route.js` | `server/**`, `models/**`, `lib/api` | — (still no inline SQL) |
+| `app/api/**/route.js` | `server/**`, `services/**`, `models/**`, `lib/api` | — (still no inline SQL) |
+| `services/**` | `models/**`, `server/auth/**`, `lib/**` (infra) | `lib/db` directly, `app/**`, `components/**` |
 | `server/auth/**` | `lib/**` (infra), `models/**` | `server/authz/**`, `app/**`, `components/**` |
 | `server/authz/**` | `server/auth/**`, `models/**`, `lib/**` | `server/auth/**` is *not* allowed to import it back |
 | `models/**` | `lib/db`, other models, pure helpers | `next/server`, `NextResponse`, `server/**`, UI |
@@ -71,6 +76,7 @@ or a membership check — and runs after an identity exists.
 | Program access resolution + resource guards | `server/authz/{programAccess,guards}.js` + `models/authorization/accessQueries.js` | ✅ moved |
 | Authorization reads (project membership, assignment probes, team scope, supervision) + the permission audit write | `models/authorization/accessQueries.js` | ✅ moved |
 | Runtime schema self-heal + default grants (role capabilities, Access Profiles, responsibilities catalogue) | `models/authorization/bootstrap.js` | ✅ moved |
+| Authorization context decision (resolve/merge/authorize) + its 8 reads | `services/authorization/context.js` + `models/authorization/contextReads.js` | ✅ moved (slice 1 of the layer split — see [LAYER_SPLIT.md](LAYER_SPLIT.md)) |
 | Effective access-profile resolution, responsibilities domain | still `src/lib/auth.js` (6 functions, 8 SQL statements) | ⏸ **blocked on a decision** — see below |
 
 Two overlaps are **known and deliberately left alone** until a decision is made,
