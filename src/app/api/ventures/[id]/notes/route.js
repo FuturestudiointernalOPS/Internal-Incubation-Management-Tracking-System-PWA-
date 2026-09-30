@@ -3,6 +3,15 @@ import { createHandler } from "@/lib/api/createHandler";
 import db, { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { hasVentureCapability } from "@/lib/venturePermissions";
+import {
+  getVentureCodeByDbId,
+  getInternalNotesViewPermission,
+  listActiveStaffAssignmentsByCode,
+  listVentureNotes,
+  insertVentureNote,
+  getVentureNote,
+  archiveVentureNote,
+} from "@/models/ventureWorkspace";
 
 /**
  * Internal Venture Notes — staff-only (Phase 4).
@@ -27,7 +36,7 @@ async function resolveCode(ventureId) {
   let code = ventureId;
   if (typeof ventureId === "string" && ventureId.includes("-") && !ventureId.startsWith("VNT-")) {
     try {
-      const ventureByUuid = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id::text = ?", args: [ventureId] });
+      const ventureByUuid = await getVentureCodeByDbId(ventureId);
       if (ventureByUuid.rows?.[0]) code = ventureByUuid.rows[0].venture_id;
     } catch (_) {}
   }
@@ -56,10 +65,7 @@ async function scopeMatchesAssignment(assignment, note) {
 // then note-level visibility is applied per assignment scope.
 async function responsibilityAllowsNoteView(responsibilityCode) {
   try {
-    const definition = await db.execute({
-      sql: "SELECT allowed FROM venture_permission_matrix WHERE responsibility_code = ? AND area = 'internal_notes' AND action = 'view'",
-      args: [responsibilityCode],
-    });
+    const definition = await getInternalNotesViewPermission(responsibilityCode);
     return !!definition.rows?.[0]?.allowed;
   } catch (_) {
     return false;
@@ -68,10 +74,7 @@ async function responsibilityAllowsNoteView(responsibilityCode) {
 
 async function resolveStaffAssignment(ventureCode, cid) {
   if (!cid) return null;
-  const assignmentsResult = await db.execute({
-    sql: "SELECT id, scope_type, scope_ref_type, scope_ref_id, responsibility_code FROM venture_staff_assignments WHERE venture_id = ? AND staff_contact_id = ? AND status = 'active' ORDER BY id DESC",
-    args: [ventureCode, cid],
-  });
+  const assignmentsResult = await listActiveStaffAssignmentsByCode(ventureCode, cid);
   return assignmentsResult.rows || [];
 }
 
@@ -105,20 +108,9 @@ export const GET = createHandler(
     const { searchParams } = new URL(req.url);
     const scopeType = searchParams.get("scope_type");
     const scopeId = searchParams.get("scope_id");
-    let notesSql = "SELECT * FROM venture_notes WHERE venture_id = ? AND is_archived = FALSE";
-    const notesArgs = [code];
     // Contextual reads (Phase 2): object views (journey stage / milestone /
     // task) load exactly their own notes. Additive — no param = all notes.
-    if (scopeType) {
-      notesSql += " AND scope_ref_type = ?";
-      notesArgs.push(String(scopeType));
-    }
-    if (scopeId) {
-      notesSql += " AND scope_ref_id = ?";
-      notesArgs.push(String(scopeId));
-    }
-    notesSql += " ORDER BY created_at DESC";
-    const notesResult = await db.execute({ sql: notesSql, args: notesArgs });
+    const notesResult = await listVentureNotes({ ventureCode: code, scopeType, scopeId });
     const allNotes = notesResult.rows || [];
 
     // Scope filtering: global sees everything; delegated staff see notes
@@ -185,10 +177,15 @@ export const POST = createHandler(
       }
     }
 
-    const insertResult = await db.execute({
-      sql: `INSERT INTO venture_notes (venture_id, author_cid, author_name, title, body, scope_ref_type, scope_ref_id${attachments ? ", attachments" : ""})
-            VALUES (?,?,?,?,?,?,?${attachments ? ", ?::jsonb" : ""}) RETURNING id`,
-      args: attachments ? [code, session.cid, session.name || null, title, text, scopeRefType, scopeRefId, JSON.stringify(attachments)] : [code, session.cid, session.name || null, title, text, scopeRefType, scopeRefId],
+    const insertResult = await insertVentureNote({
+      ventureCode: code,
+      authorCid: session.cid,
+      authorName: session.name || null,
+      title,
+      body: text,
+      scopeRefType,
+      scopeRefId,
+      attachments,
     });
     try {
       const { addVentureHistory } = await import("@/lib/ventures");
@@ -213,7 +210,7 @@ export const DELETE = createHandler(
     const noteId = body.note_id;
     if (!noteId) return NextResponse.json({ success: false, error: "note_id is required." }, { status: 400 });
 
-    const noteResult = await db.execute({ sql: "SELECT * FROM venture_notes WHERE id = ? AND venture_id = ?", args: [noteId, code] });
+    const noteResult = await getVentureNote(noteId, code);
     const note = noteResult.rows?.[0];
     if (!note) return NextResponse.json({ success: false, error: "Note not found." }, { status: 404 });
 
@@ -226,7 +223,7 @@ export const DELETE = createHandler(
       }
     }
 
-    await db.execute({ sql: "UPDATE venture_notes SET is_archived = TRUE, updated_at = NOW() WHERE id = ?", args: [noteId] });
+    await archiveVentureNote(noteId);
     try {
       const { addVentureHistory } = await import("@/lib/ventures");
       await addVentureHistory({ venture_id: code, event_type: "INTERNAL_NOTE_ARCHIVED", description: `Internal note archived` });
