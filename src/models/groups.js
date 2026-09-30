@@ -750,25 +750,13 @@ export async function getAssignmentContactsByGroupName(groupName) {
 }
 
 /**
- * Sync a contact into v2_participants as Active; on a missing unique
- * constraint (email, program_id) fall back to a plain status UPDATE.
+ * Sync a contact into v2_participants as Active.
+ *
+ * The fallback policy moved to `@/services/contacts/participantSync` (the
+ * decision), with its two statements in `@/models/participantSyncStore`.
+ * Re-exported here so existing importers keep working — see docs/LAYER_SPLIT.md.
  */
-export async function upsertV2ParticipantActiveWithFallback(programId, name, email, phone) {
-  try {
-    return await db.execute({
-      sql: `INSERT INTO v2_participants (program_id, name, email, phone, status)
-            VALUES (?, ?, ?, ?, 'Active')
-            ON CONFLICT(email, program_id) DO UPDATE SET status = 'Active'`,
-      args: [programId, name, email, phone],
-    });
-  } catch (_) {
-    // Fallback if unique constraint (email, program_id) is not there
-    return db.execute({
-      sql: "UPDATE v2_participants SET status = 'Active' WHERE email = ? AND program_id = ?",
-      args: [email, programId],
-    });
-  }
-}
+export { upsertV2ParticipantActiveWithFallback } from "@/services/contacts/participantSync";
 
 /** Sync the participant_programs junction row for an assigned contact. */
 export async function insertParticipantProgramMembership(participantId, programId) {

@@ -7,6 +7,8 @@
  *
  *   report.js — composing a Run's AI report from its Output Instruction and
  *               attached reference document
+ *   formRunList.js — one page of runs and its matching total
  */
 
 export * from "./report";
+export * from "./formRunList";

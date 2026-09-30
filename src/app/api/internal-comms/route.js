@@ -250,7 +250,8 @@ export async function GET(req) {
       await ensureMessagesIsDeletedColumn();
     } catch (_) {}
 
-    // Message visibility SQL assembled in listMessagesForScope (model):
+    // Message visibility policy lives in listMessagesForScope
+    // (@/services/communications/messageScope):
     // SA sees everything (individual + broadcasts); everyone else sees their
     // own messages + group/program messages for the groups/programs they
     // belong to. Broadcasts stay SA-only.

@@ -156,65 +156,14 @@ export async function ensureMessagesIsDeletedColumn() {
 }
 
 /**
- * GET /api/internal-comms — inbox rows for the requester's visibility scope.
- * SA sees everything (individual + broadcasts); other users see their own
- * individual messages plus group/program messages for the groups/programs
- * they belong to. Broadcasts stay SA-only.
+ * GET /api/internal-comms — the inbox rows for the requester's visibility scope.
+ *
+ * The policy moved to `@/services/communications/messageScope` (the decision),
+ * with its statement in `@/models/messageScopeStore`. Re-exported here so
+ * existing importers (the internal-comms route) keep working — see
+ * docs/LAYER_SPLIT.md.
  */
-export async function listMessagesForScope({
-  isSuperAdmin,
-  targetCid,
-  groupIds,
-  programIds,
-  isFutureStudioStaff,
-}) {
-  let query = "SELECT * FROM v2_messages";
-  let args = [];
-
-  if (isSuperAdmin) {
-    // SA sees everything (individual + broadcasts)
-    query = "SELECT * FROM v2_messages";
-    args = [];
-    if (targetCid) {
-      query +=
-        " WHERE (recipient_id = ? OR sender_id = ? OR target_type = 'all')";
-      args = [targetCid, targetCid];
-    }
-  } else {
-    // Users see their own individual messages + group/program messages
-    // for the groups/programs they belong to. Broadcasts stay SA-only.
-    const visibility = ["(recipient_id = ? OR sender_id = ?)"];
-    const visArgs = [targetCid, targetCid];
-
-    if (isFutureStudioStaff) {
-      visibility.push("(target_type = 'role' AND target_id = '__staff__')");
-    }
-    if (groupIds.length > 0) {
-      visibility.push(
-        `(target_type = 'role' AND target_id IN (${groupIds
-          .map(() => "?")
-          .join(",")}))`,
-      );
-      visArgs.push(...groupIds);
-    }
-    if (programIds.length > 0) {
-      visibility.push(
-        `(target_type = 'program' AND target_id IN (${programIds
-          .map(() => "?")
-          .join(",")}))`,
-      );
-      visArgs.push(...programIds);
-    }
-
-    query = `SELECT * FROM v2_messages WHERE (${visibility.join(" OR ")})`;
-    args = visArgs;
-  }
-
-  query +=
-    " AND (is_deleted IS NULL OR is_deleted = 0) ORDER BY created_at DESC";
-
-  return db.execute({ sql: query, args });
-}
+export { listMessagesForScope } from "@/services/communications/messageScope";
 
 // POST /api/internal-comms
 
