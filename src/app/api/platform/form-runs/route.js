@@ -1635,6 +1635,10 @@ export async function POST(req) {
       if (run.rows.length === 0) return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
       if (run.rows[0].status !== "active") return NextResponse.json({ success: false, error: "Run is not active" }, { status: 400 });
       const gateSettings = run.rows[0].settings || {};
+      // A PAID Execution captures a registration and nothing else until the money
+      // is confirmed, so its responses are never scored or auto-approved here —
+      // the checkout flow is what grants access, after payment.
+      const sellsCourse = Boolean(run.rows[0].lms_course_id);
       if (run.rows[0].closes_at && new Date(run.rows[0].closes_at) < new Date()) {
         // "Auto-Close" makes the run close ITSELF at its deadline instead of only
         // refusing late answers — the status the operator would set by hand.
@@ -1711,7 +1715,7 @@ export async function POST(req) {
           // answer a question that is already answered; the new row carries no
           // human values, so it would also hide whatever a human had entered.
           // If we cannot tell whether it was evaluated, we do NOT evaluate.
-          if (formAiEnabled) {
+          if (formAiEnabled && !sellsCourse) {
             const newSubmissionId = result.rows[0].id;
             try {
               const { submissionHasEvaluation, evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
@@ -1752,7 +1756,7 @@ export async function POST(req) {
           onSubmission(result.rows[0], runRow || { id: parseInt(run_id) }, formRow, session);
           // A brand-new response cannot already have an evaluation, so the
           // form-level switch is the whole question here.
-          if (formAiEnabled) {
+          if (formAiEnabled && !sellsCourse) {
             const newSubmissionId = result.rows[0].id;
             try {
               const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
@@ -1856,7 +1860,7 @@ export async function POST(req) {
           formRow = formResult.rows[0] || null;
         }
         onSubmission(result.rows[0], runRow || { id: parseInt(run_id) }, formRow, session);
-        if (formAiEnabled) {
+        if (formAiEnabled && !runRow?.lms_course_id) {
           const newSubmissionId = result.rows[0].id;
           try {
             const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate");

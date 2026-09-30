@@ -622,7 +622,7 @@ export async function updateRunStatusById(id, status) {
  * identity is hidden from reviewers.
  */
 export async function getRunSubmissionGateById(runId) {
-  return db.execute({ sql: "SELECT status, closes_at, settings FROM platform_form_runs WHERE id = ?", args: [parseInt(runId)] });
+  return db.execute({ sql: "SELECT status, closes_at, settings, lms_course_id FROM platform_form_runs WHERE id = ?", args: [parseInt(runId)] });
 }
 
 /** Existing submission id for a run + submitter (submit upsert guard). */
