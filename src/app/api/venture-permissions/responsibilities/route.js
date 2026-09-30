@@ -2,6 +2,10 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { listResponsibilities, getResponsibility } from "@/lib/venturePermissions";
+import {
+  insertVentureResponsibility,
+  updateVentureResponsibility,
+} from "@/models/ventureWorkspace";
 
 // Permission configuration is Super Admin territory (delegated staff access
 // is defined here). Reads also serve the admin console.
@@ -47,9 +51,11 @@ export async function POST(req) {
     if (existing) {
       return NextResponse.json({ success: false, error: "A responsibility with this code already exists." }, { status: 409 });
     }
-    await db.execute({
-      sql: "INSERT INTO venture_responsibilities (code, name, description, created_by) VALUES (?,?,?,?)",
-      args: [finalCode, String(name).trim(), description || null, session?.cid || null],
+    await insertVentureResponsibility({
+      code: finalCode,
+      name: String(name).trim(),
+      description: description || null,
+      createdBy: session?.cid || null,
     });
     return NextResponse.json({ success: true, responsibility: await getResponsibility(db, finalCode) });
   } catch (error) {
@@ -67,9 +73,11 @@ export async function PATCH(req) {
     if (!existing) {
       return NextResponse.json({ success: false, error: "Responsibility not found." }, { status: 404 });
     }
-    await db.execute({
-      sql: "UPDATE venture_responsibilities SET name = COALESCE(?, name), description = COALESCE(?, description), is_active = COALESCE(?, is_active), updated_at = NOW() WHERE code = ?",
-      args: [name ? String(name).trim() : null, description ?? null, typeof is_active === "boolean" ? (is_active ? 1 : 0) : null, code],
+    await updateVentureResponsibility({
+      code,
+      name: name ? String(name).trim() : null,
+      description: description ?? null,
+      isActive: typeof is_active === "boolean" ? (is_active ? 1 : 0) : null,
     });
     return NextResponse.json({ success: true, responsibility: await getResponsibility(db, code) });
   } catch (error) {

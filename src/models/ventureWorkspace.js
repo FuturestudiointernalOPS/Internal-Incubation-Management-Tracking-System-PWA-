@@ -514,6 +514,36 @@ export async function insertJourneyStageFromTemplate({ dbId, name, description, 
   });
 }
 
+// ── /api/venture-permissions/responsibilities ────────────────────────────────
+
+/** Insert a Venture responsibility definition. */
+export async function insertVentureResponsibility({ code, name, description, createdBy }) {
+  return db.execute({
+    sql: "INSERT INTO venture_responsibilities (code, name, description, created_by) VALUES (?,?,?,?)",
+    args: [code, name, description, createdBy],
+  });
+}
+
+/** Update a Venture responsibility (COALESCE: absent = unchanged). */
+export async function updateVentureResponsibility({ code, name, description, isActive }) {
+  return db.execute({
+    sql: "UPDATE venture_responsibilities SET name = COALESCE(?, name), description = COALESCE(?, description), is_active = COALESCE(?, is_active), updated_at = NOW() WHERE code = ?",
+    args: [name, description, isActive, code],
+  });
+}
+
+// ── /api/venture-plan-templates ──────────────────────────────────────────────
+
+/** A plan's Venture id + name (template save guard). */
+export async function getPlanVentureIdAndName(planId) {
+  return db.execute({ sql: "SELECT venture_id, name FROM venture_operating_plans WHERE id = ?", args: [planId] });
+}
+
+/** Activate/deactivate a plan template. */
+export async function setVenturePlanTemplateActive(id, isActive) {
+  return db.execute({ sql: "UPDATE venture_plan_templates SET is_active = ?, updated_at = NOW() WHERE id = ?", args: [isActive, id] });
+}
+
 // ── GET/POST/PATCH /api/ventures/[id]/blockers ───────────────────────────────
 
 /** Internal ventures.id by VNT code — blockers resolveVentureDbId helper. */

@@ -3,6 +3,10 @@ import { createHandler } from "@/lib/api/createHandler";
 import db, { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { listPlanTemplates, createTemplateFromPlan } from "@/lib/ventureOperatingPlans";
+import {
+  getPlanVentureIdAndName,
+  setVenturePlanTemplateActive,
+} from "@/models/ventureWorkspace";
 
 const READ_ROLES = ["staff", "program_manager", "super_admin"];
 const WRITE_ROLES = ["super_admin"];
@@ -32,7 +36,7 @@ export const POST = createHandler(
 
     // Guard: only someone who manages the plan's Venture may save it as a
     // platform template. Resolve the Venture from the plan row.
-    const planResult = await db.execute({ sql: "SELECT venture_id, name FROM venture_operating_plans WHERE id = ?", args: [planId] });
+    const planResult = await getPlanVentureIdAndName(planId);
     const plan = planResult.rows?.[0];
     if (!plan) return NextResponse.json({ success: false, error: "Plan not found." }, { status: 404 });
 
@@ -61,7 +65,7 @@ export const PATCH = createHandler(
     if (!body.id || typeof body.is_active !== "boolean") {
       return NextResponse.json({ success: false, error: "id and is_active are required." }, { status: 400 });
     }
-    await db.execute({ sql: "UPDATE venture_plan_templates SET is_active = ?, updated_at = NOW() WHERE id = ?", args: [body.is_active ? 1 : 0, body.id] });
+    await setVenturePlanTemplateActive(body.id, body.is_active ? 1 : 0);
     return NextResponse.json({ success: true });
   },
 );
