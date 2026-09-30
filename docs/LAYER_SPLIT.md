@@ -1,10 +1,9 @@
 # Layer split — View → Controller → Service → Repository
 
-> Status: **authorization complete; finance complete; programs started**. Slices
-> 1–9 finished authorization (service layer HTTP-free), 10–11 finished finance,
-> 12 opened the programs domain. This document is the running log: what is done,
-> what was left aside on purpose, and what remains. Update it at the end of every
-> slice.
+> Status: **authorization + finance complete; programs models done; contacts
+> started**. Slices 1–9 finished authorization (service layer HTTP-free), 10–11
+> finished finance, 12–13 covered the programs domain, 14 opened contacts/CRM.
+> This document is the running log. Update it at the end of every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
 [`SERVER_LAYERS.md`](SERVER_LAYERS.md) (the request path as it stands),
@@ -205,7 +204,7 @@ structure, the merge semantics, the fail-closed rules, and every returned field.
 
 | Check | Result |
 |---|---|
-| Full suite `npm test` | **228 suites, 2995 tests, all passed** |
+| Full suite `npm test` | **228 suites, 3002 tests, all passed** |
 | `npx eslint .` | 0 errors (6 pre-existing warnings elsewhere) |
 | `npm run build` | green |
 | Cold-resolution round trips | unchanged (3 waves — pinned by `db-sequencing.test.js`) |
@@ -242,6 +241,30 @@ participants, deliverables, approved submissions, cache clear/rewrite, last-
 calculated read) in `src/models/kpiProgressStore.js`. The rate is unchanged:
 approved (participant × deliverable) pairs, counted once each, over active
 participants × linked deliverables.
+
+The rest of the programs domain was already repository-shaped: `programs.js`,
+`programMembership.js`, `curriculum.js`, `teams.js` and `programWorkspace.js` are
+one-function-per-query modules with no decision mixed in. What still carries
+programs logic is the **controllers**.
+
+**Programs slice 13 — the manager-change controller.**
+`PUT /api/pm/programs/[id]/manager` did the domain work itself (the unchanged
+check, the dangling-cid guard, the write, the reconciliation of both sides).
+That work moved to `src/services/programs/programManager.js`
+(`changeProgramManager` → `{ status, errorKey, body }`). The route keeps what a
+controller owns: the `programs.edit` gate, the two-ways-in repair policy,
+validation and response shaping.
+
+### Domain 4 — contacts / CRM (slice 14)
+
+`src/models/contact-group-sync.js` (304 LOC) resolved the contact, decided the
+fill-only writes and ran three reconciliation statements. The decisions now live
+in `src/services/contacts/contactGroupSync.js`; every statement in
+`src/models/contactGroupSyncStore.js`. The file is a re-export facade (the
+full-state route reaches it via `@/lib/contact-group-sync`).
+
+**Not changed:** the idempotent, additive, fill-only semantics; the one-run-per-
+window reconciliation guard; the byte-identical SQL.
 
 ---
 
@@ -280,10 +303,17 @@ cleanup, not layering:
 | Domain | Service to create | Notes |
 |---|---|---|
 | Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
-| Programs | `services/programs/*` | ⏳ **started** — objective progress split (slice 12); more program modules next |
+| Programs | `services/programs/*` | ✅ **models done** (slice 12; the model modules were already repositories) · ⏳ controller orchestration started (slice 13) |
+| Contacts / CRM | `services/contacts/*` | ⏳ **started** — contact↔program/group sync (slice 14) |
 | Ventures | `services/ventures/*` | largest domain (`lib/ventures.js`, ~5.6k LOC) |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | orchestration currently in controllers |
 | LMS / platform / integrations | `services/<domain>/*` | |
+
+> **Controllers are the new frontier.** Once the model modules are split, the
+> remaining domain logic is the orchestration inside `src/app/api/**/route.js`.
+> The recipe is the same, one route at a time: keep auth/validation/shaping in the
+> route, move the decision into `services/<domain>/`, keep the route's existing
+> test mocks working.
 
 ### Project-wide, still open (from `MVC_REFACTOR.md`)
 

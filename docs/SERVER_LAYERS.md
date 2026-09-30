@@ -96,6 +96,8 @@ or a membership check — and runs after an identity exists.
 | Finance ingestion (sheet parsing + sync) | `services/finance/ingest.js` + `models/finance/ingestStore.js` | ✅ moved (slice 10 — first slice outside authorization) |
 | Finance reads/aggregation (summary, monthly, transactions, budget lines) | `services/finance/queries.js` + `models/finance/queriesStore.js` | ✅ moved (slice 11 — finance domain complete) |
 | Objective (KPI) progress rate + cache policy | `services/programs/kpiProgress.js` + `models/kpiProgressStore.js` | ✅ moved (slice 12 — first programs module) |
+| Program manager change (repair action) | `services/programs/programManager.js` | ✅ moved (slice 13 — controller orchestration) |
+| Contact ↔ program/group sync + reconciliation | `services/contacts/contactGroupSync.js` + `models/contactGroupSyncStore.js` | ✅ moved (slice 14 — first contacts module) |
 | Effective access-profile resolution, responsibilities domain | still `src/lib/auth.js` (6 functions, 8 SQL statements) | ⏸ **blocked on a decision** — see below |
 
 Two overlaps are **known and deliberately left alone** until a decision is made,
