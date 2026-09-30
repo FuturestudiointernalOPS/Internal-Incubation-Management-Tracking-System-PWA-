@@ -671,7 +671,10 @@ export default function PublicSubmitPage() {
             panel(
               <CheckCircle2 className="w-10 h-10 text-emerald-500" />,
               t("forms.paymentSuccess"),
-              t("forms.paymentSuccessBody"),
+              // With a link in hand, access is genuinely ready. Without one (the
+              // short window has closed), the link travels by email — saying
+              // "your access is ready" with no button would be a dead end.
+              t(payAccessUrl ? "forms.paymentSuccessBody" : "forms.paymentSuccessByEmail"),
               <div className="space-y-3">
                 {payAccessUrl ? (
                   <a
