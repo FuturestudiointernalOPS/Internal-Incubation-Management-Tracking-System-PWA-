@@ -42,6 +42,18 @@ describe("services never touch the database directly", () => {
   });
 });
 
+describe("services are HTTP-free", () => {
+  const serviceFiles = walk(path.join(SRC, "services"));
+
+  // The decision is a value ({ allowed, status, errorKey }); turning it into a
+  // response is the HTTP boundary's job (@/server/authz/responses).
+  it.each(serviceFiles.map(relative))("%s imports no HTTP layer", (rel) => {
+    const source = fs.readFileSync(path.join(SRC, rel), "utf8");
+    expect(source).not.toMatch(/from\s+["']next\/server["']/);
+    expect(source).not.toMatch(/\bNextResponse\b/);
+  });
+});
+
 describe("repositories stay HTTP-free", () => {
   it.each([
     "models/authorization/contextReads.js",
@@ -66,7 +78,6 @@ describe("the decision surface survives the move", () => {
     "resolveAuthorizationContext",
     "invalidateAuthorizationContext",
     "invalidateAllAuthorizationContexts",
-    "requireAuthorization",
     "mergeEffectiveCapabilities",
     "effectivePermissionsFromContext",
     "buildPermissionExplanation",
@@ -83,5 +94,27 @@ describe("the decision surface survives the move", () => {
   it.each(DECISION_EXPORTS)("is still exported by the model facade (%s)", (name) => {
     const facade = require("@/models/authorization/resolver");
     expect(facade[name]).toBeDefined();
+  });
+});
+
+describe("the HTTP boundary owns the refusal responses", () => {
+  it.each(["requireAuthorization", "requireScopedAccess"])(
+    "is exported by @/server/authz (%s)",
+    (name) => {
+      expect(require("@/server/authz")[name]).toBeDefined();
+    },
+  );
+
+  it.each(["requireAuthorization", "requireScopedAccess"])(
+    "stays reachable from the authorization barrel (%s)",
+    (name) => {
+      expect(require("@/models/authorization/index")[name]).toBeDefined();
+    },
+  );
+
+  it("is no longer implemented in the service layer", () => {
+    const service = require("@/services/authorization");
+    expect(service.requireAuthorization).toBeUndefined();
+    expect(service.requireScopedAccess).toBeUndefined();
   });
 });

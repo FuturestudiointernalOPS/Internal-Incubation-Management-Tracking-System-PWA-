@@ -22,14 +22,12 @@
  * that path) keep working unchanged. Behaviour is identical — only the code
  * moved and the reads were named.
  *
- * NOTE (known, deferred): `requireAuthorization` still builds the refusal
- * response here. Shaping an HTTP answer is controller work; extracting it is
- * tracked in docs/LAYER_SPLIT.md and left out of this first slice so the
- * decision surface is not disturbed.
+ * NOTE: this service is HTTP-free. It answers "may they?" with a decision
+ * object; the 401/403/500 response is built by the HTTP boundary in
+ * `@/server/authz/responses`, which is what routes and controllers use.
  */
 
 import { initDb } from "@/lib/db";
-import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { getSession } from "@/server/auth/session";
 import { PERMISSION_MODULES, ACCESS_LEVELS } from "@/server/authz/capabilities";
@@ -508,11 +506,16 @@ export async function can(user, module, capability, minLevel = 1) {
 }
 
 /**
- * Route helper — drop-in for requireCapabilityV2, same 401/403 return shape.
- * DB failures surface as 500 (fail-open-to-error) instead of silently 403,
- * avoiding spurious mass-denial during transient Supabase issues.
+ * Route helper — the same 401/403/500 shapes as before, without building the
+ * HTTP answer. Returns a decision the HTTP boundary turns into a response
+ * (`@/server/authz/responses.requireAuthorization`).
+ * DB failures surface as a system failure (fail-open-to-error) instead of
+ * silently denying, avoiding spurious mass-denial during transient database
+ * issues.
+ *
+ * @returns {Promise<{allowed: boolean, status: number, errorKey: string|null}>}
  */
-export async function requireAuthorization(module, capability, minLevel = 1) {
+export async function evaluateAuthorization(module, capability, minLevel = 1) {
   try {
     const session = await getSession();
     if (!session) {
@@ -520,10 +523,7 @@ export async function requireAuthorization(module, capability, minLevel = 1) {
         resourceType: module,
         action: capability,
       });
-      return NextResponse.json(
-        { success: false, error: "errors.authRequired" },
-        { status: 401 },
-      );
+      return { allowed: false, status: 401, errorKey: "errors.authRequired" };
     }
     const ctx = await getAuthorizationContext(session);
     if (!authorize(ctx, module, capability, minLevel)) {
@@ -538,21 +538,23 @@ export async function requireAuthorization(module, capability, minLevel = 1) {
         minLevel,
         reason: "missing_permission",
       });
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      );
+      return {
+        allowed: false,
+        status: 403,
+        errorKey: "errors.insufficientPermissions",
+      };
     }
-    return null;
+    return { allowed: true, status: 200, errorKey: null };
   } catch (error) {
     logger.error("authorization_error", {
       resourceType: module,
       action: capability,
       error: error.message,
     });
-    return NextResponse.json(
-      { success: false, error: "errors.authzSystemFailure" },
-      { status: 500 },
-    );
+    return {
+      allowed: false,
+      status: 500,
+      errorKey: "errors.authzSystemFailure",
+    };
   }
 }

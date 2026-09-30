@@ -25,20 +25,16 @@
  *
  * No new tables. No new roles. All existing records stay the source of truth.
  *
- * Layer (see docs/LAYER_SPLIT.md): the decision lives here; the per-resource
- * lookups now live in `@/models/authorization/contextAssignmentReads`.
- * `src/models/authorization/context.js` is a re-export facade.
- *
- * NOTE (deferred, same as `requireAuthorization`): this helper still builds the
- * 401/403/500 answers. Refusal-shaping is controller work; it is deliberately
- * left here for now so the response contract every scoped route depends on does
- * not change.
+ * Layer (see docs/LAYER_SPLIT.md): this service is HTTP-free. It answers with a
+ * decision object; the 401/403/500 response is built by the HTTP boundary in
+ * `@/server/authz/responses`. That is what routes and controllers use. The
+ * per-resource lookups live in
+ * `@/models/authorization/contextAssignmentReads`.
  */
 
 import { initDb } from "@/lib/db";
-import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
-import { getAuthorizationContext, requireAuthorization } from "./context";
+import { getAuthorizationContext, evaluateAuthorization } from "./context";
 import {
   getProgramStaffAssignmentRows,
   getContactRoleAssignmentRows,
@@ -91,36 +87,34 @@ async function resolveVentureAssignment(contextId, userCid) {
 }
 
 /**
- * Route helper — the single scoped decision path.
- * Returns a NextResponse error (401/403/500) or null when allowed.
+ * Route helper — the same decision as before, without building the HTTP answer.
+ * Returns a decision the HTTP boundary turns into a response
+ * (`@/server/authz/responses.requireScopedAccess`).
  *
  * @param {{resource: "program"|"project"|"venture", contextId: string|number,
  *          module: string, capability: string, minLevel?: number}} params
+ * @returns {Promise<{allowed: boolean, status: number, errorKey: string|null}>}
  */
-export async function requireScopedAccess({ resource, contextId, module, capability, minLevel = 1 }) {
+export async function evaluateScopedAccess({ resource, contextId, module, capability, minLevel = 1 }) {
   try {
     if (!contextId) {
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      );
+      return { allowed: false, status: 403, errorKey: "errors.insufficientPermissions" };
     }
     const session = await getSession();
     if (!session) {
-      return NextResponse.json(
-        { success: false, error: "errors.authRequired" },
-        { status: 401 },
-      );
+      return { allowed: false, status: 401, errorKey: "errors.authRequired" };
     }
 
     // Super Admin bypass — existing resolver semantics.
     const authorizationContext = await getAuthorizationContext(session);
-    if (authorizationContext?.isSuperAdmin) return null;
+    if (authorizationContext?.isSuperAdmin) {
+      return { allowed: true, status: 200, errorKey: null };
+    }
 
     // CAPABILITY — the resolver decides (eligibility, default/individual
     // access, restrictions). Never bypassed by an assignment.
-    const capError = await requireAuthorization(module, capability, minLevel);
-    if (capError) return capError;
+    const capabilityDecision = await evaluateAuthorization(module, capability, minLevel);
+    if (!capabilityDecision.allowed) return capabilityDecision;
 
     // CONTEXT ASSIGNMENT — the person must belong to THIS resource.
     const resolved = await resolveContextAssignment({
@@ -130,17 +124,11 @@ export async function requireScopedAccess({ resource, contextId, module, capabil
       userEmail: session.email,
     });
     if (!resolved) {
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      );
+      return { allowed: false, status: 403, errorKey: "errors.insufficientPermissions" };
     }
-    return null;
+    return { allowed: true, status: 200, errorKey: null };
   } catch (error) {
-    console.error("[requireScopedAccess] error:", error?.message);
-    return NextResponse.json(
-      { success: false, error: "errors.authzSystemFailure" },
-      { status: 500 },
-    );
+    console.error("[evaluateScopedAccess] error:", error?.message);
+    return { allowed: false, status: 500, errorKey: "errors.authzSystemFailure" };
   }
 }
