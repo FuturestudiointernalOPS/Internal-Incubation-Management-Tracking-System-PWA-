@@ -16,6 +16,7 @@ import { hasVentureCapability } from "@/lib/venturePermissions";
 import { resolveVentureCode } from "@/lib/ventureOperatingPlans";
 import { assertBookableMilestone, activateDueStages } from "@/lib/ventureMilestoneEngine";
 import { signSessionMaterials } from "@/lib/ventureEvidence";
+import { getVentureByCode, getVentureDbIdByCodeOrId, getVentureIdAndCode } from "@/models/ventureWorkspace";
 
 // Venture-facing session changes notify founders (in-app + email). Sessions
 // created before the venture_facing flag existed (NULL) are treated as
@@ -24,7 +25,7 @@ async function emailVentureAboutSession(ventureParam, sessionRecord, { inAppTitl
   try {
     if (!sessionRecord || sessionRecord.venture_facing !== true) return;
     const { notifyAndEmailVentureFounders } = await import("@/lib/ventureNotify");
-    const ventureDbIdResult = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureParam] });
+    const ventureDbIdResult = await getVentureByCode(ventureParam);
     const dbId = ventureDbIdResult.rows?.[0]?.id;
     if (!dbId) return;
     await notifyAndEmailVentureFounders(db, {
@@ -191,9 +192,7 @@ export const POST = createHandler(async (req, { params }) => {
       if (denied) return denied;
 
       if (!staffActor) {
-        const ventureLookup = await db
-          .execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] })
-          .catch(() => ({ rows: [] }));
+        const ventureLookup = await getVentureDbIdByCodeOrId(id).catch(() => ({ rows: [] }));
         const ventureDbId = ventureLookup.rows?.[0]?.id || null;
         // A Journey that starts today is already active when a founder books —
         // activation is date-driven, not a manual step.
@@ -249,7 +248,7 @@ export const POST = createHandler(async (req, { params }) => {
       // platform tells them (in-app + email), regardless of venture_facing.
       if (coachContactId) {
         try {
-          const ventureDbIdResult = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] });
+          const ventureDbIdResult = await getVentureDbIdByCodeOrId(id);
           const dbId = ventureDbIdResult.rows?.[0]?.id;
           if (dbId) {
             const when = body.start_time ? new Date(body.start_time).toLocaleString() : "";
@@ -282,7 +281,7 @@ export const POST = createHandler(async (req, { params }) => {
       if (body.venture_facing === true) {
         try {
           const { notifyAndEmailVentureFounders } = await import("@/lib/ventureNotify");
-          const ventureDbIdResult = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+          const ventureDbIdResult = await getVentureByCode(id);
           const dbId = ventureDbIdResult.rows?.[0]?.id;
           if (dbId) {
             const when = body.start_time ? new Date(body.start_time).toLocaleString() : "";
@@ -316,7 +315,7 @@ export const POST = createHandler(async (req, { params }) => {
       // venture_facing. The creator and an LM who is also the coach are left
       // out (they got the coach wording above).
       try {
-        const leadManagerVenture = await db.execute({ sql: "SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] });
+        const leadManagerVenture = await getVentureIdAndCode(id);
         const dbId = leadManagerVenture.rows?.[0]?.id;
         const ventureCode = leadManagerVenture.rows?.[0]?.venture_id || id;
         if (dbId) {
@@ -427,7 +426,7 @@ export const POST = createHandler(async (req, { params }) => {
       // Lead Manager delivery (A8): same event for the Venture's active Lead
       // Managers (in-app + email), minus the actor and the session coach.
       try {
-        const leadManagerVenture = await db.execute({ sql: "SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] });
+        const leadManagerVenture = await getVentureIdAndCode(id);
         const dbId = leadManagerVenture.rows?.[0]?.id;
         const ventureCode = leadManagerVenture.rows?.[0]?.venture_id || id;
         if (dbId) {
@@ -482,7 +481,7 @@ export const POST = createHandler(async (req, { params }) => {
         // Lead Manager delivery (A8): same event for the Venture's active Lead
         // Managers (in-app + email), minus the actor and the session coach.
         try {
-          const leadManagerVenture = await db.execute({ sql: "SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] });
+          const leadManagerVenture = await getVentureIdAndCode(id);
           const dbId = leadManagerVenture.rows?.[0]?.id;
           const ventureCode = leadManagerVenture.rows?.[0]?.venture_id || id;
           if (dbId) {
