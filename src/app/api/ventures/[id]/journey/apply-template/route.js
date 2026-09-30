@@ -55,16 +55,16 @@ export const POST = createHandler(
     const sections = sectionsResult.rows || [];
     if (sections.length === 0) return NextResponse.json({ success: false, error: "Template has no sections to generate a journey from." }, { status: 400 });
 
-    const dbId = await resolveVentureInternalId(db, id);
+    const dbId = await resolveVentureInternalId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
-    await ensureJourneyTable(db);
+    await ensureJourneyTable();
 
     const existing = await countVentureJourneyStages(dbId);
     if (Number(existing.rows?.[0]?.n || 0) > 0) {
       return NextResponse.json({ success: false, error: "This Venture already has journey stages. Remove them first if you want to generate the journey from a template." }, { status: 409 });
     }
 
-    let order = await nextJourneyStageOrder(db, dbId);
+    let order = await nextJourneyStageOrder(dbId);
     for (let i = 0; i < sections.length; i++) {
       await insertJourneyStageFromTemplate({
         dbId,
@@ -85,7 +85,7 @@ export const POST = createHandler(
 
     // Managers keep their Archived view in sync (same rule as GET).
     const canManage = await allowsPlanAction(db, access, "manage");
-    const stages = await listJourneyStages(db, dbId, { includeArchived: canManage });
+    const stages = await listJourneyStages(dbId, { includeArchived: canManage });
     return NextResponse.json({ success: true, stages });
   },
 );

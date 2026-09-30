@@ -31,8 +31,8 @@ export async function POST(req, { params }) {
       );
     }
 
-    await ensureJourneyTable(db);
-    const dbId = await resolveVentureInternalId(db, id);
+    await ensureJourneyTable();
+    const dbId = await resolveVentureInternalId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     const body = await req.json();
@@ -42,10 +42,10 @@ export async function POST(req, { params }) {
 
     const summary =
       action === "restore"
-        ? await restoreJourneyStages(db, { dbId, stageIds: ids })
-        : await archiveJourneyStages(db, { dbId, stageIds: ids, actorCid: session.cid || null });
+        ? await restoreJourneyStages({ dbId, stageIds: ids })
+        : await archiveJourneyStages({ dbId, stageIds: ids, actorCid: session.cid || null });
 
-    const stages = await listJourneyStages(db, dbId, { includeArchived: true });
+    const stages = await listJourneyStages(dbId, { includeArchived: true });
     return NextResponse.json({ success: true, ...summary, stages });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

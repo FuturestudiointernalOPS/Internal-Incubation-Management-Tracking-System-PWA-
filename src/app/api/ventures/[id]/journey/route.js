@@ -65,8 +65,8 @@ async function requireStaffJourneyAccess(id) {
 }
 
 async function resolveDbId(id) {
-  await ensureJourneyTable(db);
-  return resolveVentureInternalId(db, id);
+  await ensureJourneyTable();
+  return resolveVentureInternalId(id);
 }
 
 export async function GET(req, { params }) {
@@ -102,7 +102,7 @@ export async function GET(req, { params }) {
       }
     }
 
-    const stages = await listJourneyStages(db, dbId, {
+    const stages = await listJourneyStages(dbId, {
       includeArchived: wantArchived && Boolean(access && access.manage),
     });
 
@@ -265,7 +265,7 @@ export async function POST(req, { params }) {
 
     const existing = await countJourneyStagesByVenture(dbId);
     const count = Number(existing.rows?.[0]?.n || 0);
-    const stageOrder = await nextJourneyStageOrder(db, dbId);
+    const stageOrder = await nextJourneyStageOrder(dbId);
     const status = count === 0 ? "active" : "upcoming";
     const targetDate = body.target_date ? String(body.target_date).slice(0, 10) : null;
     // Optional: when the Journey starts on its own (NULL = it starts only when
@@ -285,7 +285,7 @@ export async function POST(req, { params }) {
     // Managers keep their Archived view in sync: archived rows are returned
     // only to callers holding the manage capability (same rule as GET).
     const canManage = await allowsPlanAction(db, access, "manage");
-    const stages = await listJourneyStages(db, dbId, { includeArchived: canManage });
+    const stages = await listJourneyStages(dbId, { includeArchived: canManage });
     return NextResponse.json({ success: true, stage: stages.find((stage) => stage.id === insertResult.rows?.[0]?.id) || null, stages });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -311,7 +311,7 @@ export async function PATCH(req, { params }) {
         return NextResponse.json({ success: false, error: "Your assignment does not allow editing this Venture's journey." }, { status: 403 });
       }
       if (!stageId) return NextResponse.json({ success: false, error: "stage_id is required." }, { status: 400 });
-      const stage = await getJourneyStage(db, dbId, stageId);
+      const stage = await getJourneyStage(dbId, stageId);
       if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
 
       const name = body.name !== undefined ? String(body.name).trim() : null;
@@ -346,7 +346,7 @@ export async function PATCH(req, { params }) {
       } catch (_) {}
 
       const canManage = await allowsPlanAction(db, access, "manage");
-      const stages = await listJourneyStages(db, dbId, { includeArchived: canManage });
+      const stages = await listJourneyStages(dbId, { includeArchived: canManage });
       return NextResponse.json({ success: true, stages });
     }
 
@@ -360,7 +360,7 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ success: false, error: "Unknown action." }, { status: 400 });
     }
 
-    const stage = stageId ? await getJourneyStage(db, dbId, stageId) : null;
+    const stage = stageId ? await getJourneyStage(dbId, stageId) : null;
 
     if (action === "activate") {
       if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
@@ -400,14 +400,14 @@ export async function PATCH(req, { params }) {
       await releaseMilestonesForStage(db, { dbId, stageId });
     } else if (action === "delete") {
       if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
-      await deleteJourneyStage(db, { dbId, stageId });
+      await deleteJourneyStage({ dbId, stageId });
     } else if (action === "move") {
       if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
       const direction = String(body.direction || "");
       if (!["up", "down"].includes(direction)) {
         return NextResponse.json({ success: false, error: "direction (up|down) is required." }, { status: 400 });
       }
-      const moved = await moveJourneyStage(db, { dbId, stageId, direction });
+      const moved = await moveJourneyStage({ dbId, stageId, direction });
       if (moved.error) return NextResponse.json({ success: false, error: moved.error }, { status: 400 });
     }
 
@@ -438,7 +438,7 @@ export async function PATCH(req, { params }) {
     } catch (_) {}
 
     // Reached only after the manage gate above — safe to include archived rows.
-    const stages = await listJourneyStages(db, dbId, { includeArchived: true });
+    const stages = await listJourneyStages(dbId, { includeArchived: true });
     return NextResponse.json({ success: true, stages });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

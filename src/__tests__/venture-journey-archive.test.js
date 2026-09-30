@@ -1,25 +1,23 @@
 /**
  * Contract tests — Journey archive (soft delete) + permanent delete engine.
- * Pure functions with an injected db double (no module mocking needed).
+ *
+ * The layer split moved the decisions to `@/services/ventures/journey` and every
+ * statement to `@/models/ventureJourneyStore`; the db double is now the module
+ * mock (the same pattern as the plan-import suites), so the assertions and their
+ * contracts are unchanged.
  */
-const {
-  stageHasFiledWork,
-  archiveJourneyStages,
-  restoreJourneyStages,
-  deleteJourneyStages,
-} = require("@/lib/ventureJourneyArchive");
+jest.mock("@/lib/db", () => {
+  const state = { calls: [] };
 
-/**
- * db double shaped after the real schema:
- *  - journey stages: s1 (clean), s2 (has filed work via submission)
- *  - milestones: m1 (stage s1), m2 (stage s2)
- *  - tasks: t1 (milestone m1)
- *  - one submission on t2 (milestone m2) => s2 is "filed"
- */
-function fakeDb() {
-  const calls = [];
-  const handler = async (sql, args) => {
-    calls.push({ sql, args });
+  /**
+   * db double shaped after the real schema:
+   *  - journey stages: s1 (clean), s2 (has filed work via submission)
+   *  - milestones: m1 (stage s1), m2 (stage s2)
+   *  - tasks: t1 (milestone m1)
+   *  - one submission on t2 (milestone m2) => s2 is "filed"
+   */
+  const handler = async (sql, args = []) => {
+    state.calls.push({ sql, args });
     if (sql.includes("FROM venture_journey_stages WHERE id = ? AND venture_id = ?")) {
       const id = args[0];
       const name = { s1: "Journey One", s2: "Journey Two" }[id];
@@ -45,79 +43,87 @@ function fakeDb() {
     }
     return { rows: [] };
   };
-  const db = {
-    calls,
-    async execute({ sql, args = [] }) {
-      return handler(sql, args);
+
+  return {
+    __esModule: true,
+    default: {
+      async execute({ sql, args = [] }) {
+        return handler(sql, args);
+      },
+      async transaction(runInTransaction) {
+        return runInTransaction((sql, args = []) => handler(sql, args));
+      },
     },
-    async transaction(runInTransaction) {
-      return runInTransaction((sql, args = []) => handler(sql, args));
-    },
+    initDb: jest.fn().mockResolvedValue(true),
+    __state: state,
   };
-  return db;
-}
+});
+
+const { __state: state } = require("@/lib/db");
+const {
+  stageHasFiledWork,
+  archiveJourneyStages,
+  restoreJourneyStages,
+  deleteJourneyStages,
+} = require("@/services/ventures/journey");
+
+beforeEach(() => {
+  state.calls.length = 0;
+});
 
 describe("stageHasFiledWork", () => {
   test("false for a journey without filed work", async () => {
-    const db = fakeDb();
-    expect(await stageHasFiledWork(db, { dbId: "v1", stageId: "s1" })).toBe(false);
+    expect(await stageHasFiledWork({ dbId: "v1", stageId: "s1" })).toBe(false);
   });
 
   test("true when a bound milestone has a submission/review/deliverable", async () => {
-    const db = fakeDb();
-    expect(await stageHasFiledWork(db, { dbId: "v1", stageId: "s2" })).toBe(true);
+    expect(await stageHasFiledWork({ dbId: "v1", stageId: "s2" })).toBe(true);
   });
 });
 
 describe("archiveJourneyStages / restoreJourneyStages", () => {
   test("archives a journey (soft delete flag set) regardless of filed work", async () => {
-    const db = fakeDb();
-    const out = await archiveJourneyStages(db, { dbId: "v1", stageIds: ["s2"], actorCid: "USR-1" });
+    const out = await archiveJourneyStages({ dbId: "v1", stageIds: ["s2"], actorCid: "USR-1" });
     expect(out.archived.length).toBe(1);
     expect(out.archived[0].id).toBe("s2");
-    const update = db.calls.find((call) => call.sql.includes("SET is_archived = TRUE"));
+    const update = state.calls.find((call) => call.sql.includes("SET is_archived = TRUE"));
     expect(update).toBeTruthy();
     expect(update.args[0]).toBe("USR-1");
   });
 
   test("reports an unknown journey as blocked", async () => {
-    const db = fakeDb();
-    const out = await archiveJourneyStages(db, { dbId: "v1", stageIds: ["nope"] });
+    const out = await archiveJourneyStages({ dbId: "v1", stageIds: ["nope"] });
     expect(out.archived.length).toBe(0);
     expect(out.blocked[0].id).toBe("nope");
   });
 
   test("restores an archived journey", async () => {
-    const db = fakeDb();
-    const out = await restoreJourneyStages(db, { dbId: "v1", stageIds: ["s1"] });
+    const out = await restoreJourneyStages({ dbId: "v1", stageIds: ["s1"] });
     expect(out.restored.length).toBe(1);
-    expect(db.calls.some((call) => call.sql.includes("SET is_archived = FALSE"))).toBe(true);
+    expect(state.calls.some((call) => call.sql.includes("SET is_archived = FALSE"))).toBe(true);
   });
 });
 
 describe("deleteJourneyStages", () => {
   test("blocks a journey that already has submitted work", async () => {
-    const db = fakeDb();
-    const out = await deleteJourneyStages(db, { dbId: "v1", stageIds: ["s2"] });
+    const out = await deleteJourneyStages({ dbId: "v1", stageIds: ["s2"] });
     expect(out.deleted.length).toBe(0);
     expect(out.blocked.length).toBe(1);
     expect(out.blocked[0].reason).toMatch(/cannot be permanently deleted/i);
   });
 
   test("deletes a clean journey with its milestone/task structure", async () => {
-    const db = fakeDb();
-    const out = await deleteJourneyStages(db, { dbId: "v1", stageIds: ["s1"] });
+    const out = await deleteJourneyStages({ dbId: "v1", stageIds: ["s1"] });
     expect(out.deleted.length).toBe(1);
     expect(out.blocked.length).toBe(0);
-    const sqls = db.calls.map((call) => call.sql);
+    const sqls = state.calls.map((call) => call.sql);
     expect(sqls.some((statement) => statement.includes("DELETE FROM venture_tasks WHERE milestone_id"))).toBe(true);
     expect(sqls.some((statement) => statement.includes("DELETE FROM venture_milestones WHERE id"))).toBe(true);
     expect(sqls.some((statement) => statement.includes("DELETE FROM venture_journey_stages WHERE id"))).toBe(true);
   });
 
   test("deletes clean journeys and keeps filed ones (mixed selection)", async () => {
-    const db = fakeDb();
-    const out = await deleteJourneyStages(db, { dbId: "v1", stageIds: ["s1", "s2"] });
+    const out = await deleteJourneyStages({ dbId: "v1", stageIds: ["s1", "s2"] });
     expect(out.deleted.map((deletion) => deletion.id)).toEqual(["s1"]);
     expect(out.blocked.map((blockedStage) => blockedStage.id)).toEqual(["s2"]);
   });

@@ -44,11 +44,11 @@ export async function POST(req, { params }) {
       // Best effort — the save below reports the real error if the schema
       // still cannot support it.
     }
-    await ensureJourneyTable(db);
-    const dbId = await resolveVentureInternalId(db, id);
+    await ensureJourneyTable();
+    const dbId = await resolveVentureInternalId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const result = await saveJourneyAsTemplate(db, { dbId, name, description, actorCid: session.cid || null });
+    const result = await saveJourneyAsTemplate({ dbId, name, description, actorCid: session.cid || null });
     if (result.error) {
       return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     }

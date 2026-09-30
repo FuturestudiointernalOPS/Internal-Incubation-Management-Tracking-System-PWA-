@@ -22,7 +22,7 @@ const {
   nextJourneyStageOrder,
   moveJourneyStage,
   deleteJourneyStage,
-} = require("@/lib/ventureJourneys");
+} = require("@/services/ventures/journey");
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -31,7 +31,7 @@ beforeEach(() => {
 describe("ensureJourneyTable", () => {
   it("creates the stage table structurally and never seeds default stages", async () => {
     db.execute.mockResolvedValue({ rows: [] });
-    await ensureJourneyTable(db);
+    await ensureJourneyTable();
 
     expect(db.execute).toHaveBeenCalledTimes(10); // CREATE + 9 ALTERs (objective, target_date, start_date, held-state default, archive ×3, template provenance ×2)
     const [create, alterObjective, alterDate, alterStartDate, alterStatusDefault, alterArchived, alterArchivedAt, alterArchivedBy, alterSourceType, alterSourceId] = db.execute.mock.calls.map((call) => call[0].sql);
@@ -57,7 +57,7 @@ describe("ensureJourneyTable", () => {
 describe("resolveVentureInternalId", () => {
   it("resolves a VNT code to the internal ventures(id) UUID", async () => {
     db.execute.mockResolvedValue({ rows: [{ id: "11111111-1111-1111-1111-111111111111" }] });
-    const id = await resolveVentureInternalId(db, "VNT-JOURNEY");
+    const id = await resolveVentureInternalId("VNT-JOURNEY");
     expect(id).toBe("11111111-1111-1111-1111-111111111111");
     expect(db.execute.mock.calls[0][0].sql).toContain("WHERE venture_id = ?");
   });
@@ -65,7 +65,7 @@ describe("resolveVentureInternalId", () => {
   it("returns the UUID untouched when passed directly", async () => {
     const uuid = "22222222-2222-2222-2222-222222222222";
     db.execute.mockResolvedValue({ rows: [{ id: uuid }] });
-    const id = await resolveVentureInternalId(db, uuid);
+    const id = await resolveVentureInternalId(uuid);
     expect(id).toBe(uuid);
   });
 });
@@ -75,7 +75,7 @@ describe("listJourneyStages", () => {
     db.execute.mockResolvedValue({
       rows: [{ id: "s1", name: "Due Diligence", stage_order: 1, status: "active" }],
     });
-    const stages = await listJourneyStages(db, "v-uuid");
+    const stages = await listJourneyStages("v-uuid");
 
     const sql = db.execute.mock.calls[0][0].sql;
     expect(sql).toContain("ORDER BY stage_order ASC");
@@ -88,7 +88,7 @@ describe("listJourneyStages", () => {
 describe("nextJourneyStageOrder", () => {
   it("returns max order + 1", async () => {
     db.execute.mockResolvedValue({ rows: [{ next_order: "4" }] });
-    expect(await nextJourneyStageOrder(db, "v-uuid")).toBe(4);
+    expect(await nextJourneyStageOrder("v-uuid")).toBe(4);
   });
 });
 
@@ -109,7 +109,7 @@ describe("moveJourneyStage", () => {
       return transactionBody(query);
     });
 
-    const result = await moveJourneyStage(db, { dbId: "v-uuid", stageId: "b", direction: "up" });
+    const result = await moveJourneyStage({ dbId: "v-uuid", stageId: "b", direction: "up" });
     expect(result.success).toBe(true);
 
     const sqls = executed.map((entry) => entry.sql);
@@ -135,7 +135,7 @@ describe("moveJourneyStage", () => {
       };
       return transactionBody(query);
     });
-    const result = await moveJourneyStage(db, { dbId: "v-uuid", stageId: "a", direction: "up" });
+    const result = await moveJourneyStage({ dbId: "v-uuid", stageId: "a", direction: "up" });
     expect(result.error).toBe("Already at the edge.");
   });
 });
@@ -157,7 +157,7 @@ describe("deleteJourneyStage", () => {
       return transactionBody(query);
     });
 
-    const result = await deleteJourneyStage(db, { dbId: "v-uuid", stageId: "a" });
+    const result = await deleteJourneyStage({ dbId: "v-uuid", stageId: "a" });
     expect(result.success).toBe(true);
 
     const sqls = executed.map((entry) => entry.sql);

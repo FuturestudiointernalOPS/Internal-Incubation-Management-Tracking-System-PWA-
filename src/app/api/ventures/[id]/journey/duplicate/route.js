@@ -40,8 +40,8 @@ export async function POST(req, { params }) {
     const stageId = body.stage_id ? String(body.stage_id) : null;
     if (!stageId) return NextResponse.json({ success: false, error: "stage_id is required." }, { status: 400 });
 
-    await ensureJourneyTable(db);
-    const dbId = await resolveVentureInternalId(db, id);
+    await ensureJourneyTable();
+    const dbId = await resolveVentureInternalId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     const result = await duplicateJourneyStage(db, { dbId, stageId, actorCid: session.cid || null });
@@ -60,7 +60,7 @@ export async function POST(req, { params }) {
 
     // Caller holds manage (see gate above) — include archived rows so the
     // manager's Archived view stays in sync after duplicating.
-    const stages = await listJourneyStages(db, dbId, { includeArchived: true });
+    const stages = await listJourneyStages(dbId, { includeArchived: true });
     return NextResponse.json({ success: true, stage: result.stage, stages, milestones_copied: result.milestones_copied, tasks_copied: result.tasks_copied });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
