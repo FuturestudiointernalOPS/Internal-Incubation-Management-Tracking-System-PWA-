@@ -38,10 +38,9 @@ import {
   FACILITATOR_CAPABILITY_KEYS,
   parsePermissions,
 } from "@/lib/facilitator-permissions";
-import {
-  resolveAssignmentCapabilityLevel,
-  executeWithOptionalProfileColumn,
-} from "./programAssignments";
+import { executeWithOptionalProfileColumn } from "./programAssignmentReads";
+// The level resolution is a decision; it lives in the service layer.
+import { resolveAssignmentCapabilityLevel } from "@/services/authorization/programAssignments";
 import { ensureContextRoleProfilesSchema } from "./contextRoleProfiles";
 
 /** The template assignment-derived program management resolves to. */

@@ -41,11 +41,13 @@ import { getContextRoleProfile } from "@/models/authorization/contextRoleProfile
 import {
   listActiveProgramAssignments,
   listProgramAssignmentContacts,
-  assignmentsForRole,
   loadAssignmentLookups,
+} from "@/models/authorization/programAssignmentReads";
+import {
+  assignmentsForRole,
   deriveFacilitatorDesiredCaps,
   deriveAssignmentsExpiry,
-} from "@/models/authorization/programAssignments";
+} from "./programAssignments";
 import {
   ensureContextAppliedGrantsSchema,
   listActiveFounderVentures,
