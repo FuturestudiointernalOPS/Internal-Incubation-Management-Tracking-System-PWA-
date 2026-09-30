@@ -205,7 +205,7 @@ structure, the merge semantics, the fail-closed rules, and every returned field.
 
 | Check | Result |
 |---|---|
-| Full suite `npm test` | **228 suites, 3007 tests, all passed** |
+| Full suite `npm test` | **228 suites, 3010 tests, all passed** |
 | `npx eslint .` | 0 errors (6 pre-existing warnings elsewhere) |
 | `npm run build` | green |
 | Cold-resolution round trips | unchanged (3 waves — pinned by `db-sequencing.test.js`) |
@@ -319,34 +319,38 @@ cleanup, not layering:
 | Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
 | Programs | `services/programs/*` | ✅ **models done** (slice 12) · ⏳ controller orchestration started (slice 13) |
 | Contacts / CRM | `services/contacts/*` | ⏳ **started** — contact↔program/group sync (slice 14) |
-| Ventures | `services/ventures/*` | ⏳ **started** — document types (slice 15); see the backlog below |
+| Ventures | `services/ventures/*` | ⏳ **started** — document types (slice 15); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ⬜ not started |
 | LMS / platform / integrations | `services/<domain>/*` | ⬜ not started |
 
 #### Remaining mixed model modules (the actual backlog)
 
-Every one of these has at least one function that computes a decision and runs
-SQL in the same body. Recipe: characterisation test → statements into a
-`*Store.js` → decision into `services/<domain>/` → facade → tests + lint + build.
+After re-checking each candidate: a module only counts here if a **single
+function** both computes a decision and runs SQL. Several earlier candidates
+turned out to be fine and are listed below as **no work needed**.
 
-| Module | Domain | What mixes |
-|---|---|---|
-| `models/authorization/programScopeReadiness.js` | authorization | `buildProgramScopeReadiness` (report + reads) |
-| `models/authorization/investorScope.js` | authorization | `resolveInvestorScope` (decision + read) |
-| `models/ventureAssets.js` (416, 47 q) | ventures | the four `isFounderFor*` visibility/transition rules + reads |
-| `models/ventureMemberAccess.js` (84, 4 q) | ventures | member/founder/mutate checks + reads |
-| `models/venturePlanImport.js` (1225) | ventures | plan interpretation/validation + writes |
-| `models/workspace.js` (792, 56 q) | workspace | full-state assembly + campaign contact completion |
-| `models/participantPortal.js` (764, 72 q) | participant | portal state assembly |
-| `models/intelligence.js` (291, 13 q) | intelligence | aggregation + reads |
-| `models/lms/{learning,registrations,checkout}.js` | LMS | progress/registration/checkout decisions + reads |
-| `models/platform/ai/{report,email-personalize}.js` | platform | prompt/report shaping + reads |
-| `models/{contacts,groups,communications,forms,formRuns}.js` | CRM | a few decision helpers among otherwise query-only modules |
+Genuinely left — all large, and the reason they are still here:
 
-Pure modules that show up in a naive scan but need **nothing** (already
-pure/query-only): `platform/roles.js`, `authorization/capability-catalog.js`,
-`lms/constants.js`, `lms/scoring.js`, `lib/programProgress.js`,
-`ventureChangeLog.js`, `authorization/eligibility-defaults.js`.
+| Module | Domain | What mixes | Test net |
+|---|---|---|---|
+| `models/lms/learning.js` (680) | LMS | structure/progress loads, enrollment access, assessment submission, certificate finalisation | ✅ strong (`lms-learning.test.js`, …) |
+| `models/lms/registrations.js` (746) | LMS | registration decisions + reads | ✅ |
+| `models/lms/checkout.js` | LMS | checkout/reconcile decisions + reads | ✅ |
+| `models/workspace.js` (792) | workspace | campaign-contact completion + full-state assembly | partial |
+| `models/participantPortal.js` (764) | participant | portal state assembly | partial |
+| `models/venturePlanImport.js` (1225) | ventures | plan interpretation/validation + writes | partial |
+| `models/platform/ai/{report,email-personalize}.js` | platform | prompt/report shaping + reads | weak |
+| `models/{contacts,groups,communications,forms,formRuns}.js` | CRM | a few decision helpers among otherwise query-only modules | partial |
+
+**Checked and NOT mixed — no work needed:**
+
+- `models/authorization/investorScope.js` — delegates to other models' reads; runs no SQL itself.
+- `models/ventureAssets.js` (416, 47 q) — a pure repository: one statement per function; the `isFounderFor*` names return ROWS, the decision lives in the controller.
+- `models/ventureMemberAccess.js` (84) — thin reads returning booleans; its policy is already a separate pure function.
+- `models/intelligence.js` — aggregation reads plus light formatting.
+- Pure modules: `platform/roles.js`, `authorization/capability-catalog.js`,
+  `lms/constants.js`, `lms/scoring.js`, `lib/programProgress.js`,
+  `ventureChangeLog.js`, `authorization/eligibility-defaults.js`.
 
 > **Controllers are the new frontier.** Once the model modules are split, the
 > remaining domain logic is the orchestration inside `src/app/api/**/route.js`.
