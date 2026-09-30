@@ -150,6 +150,26 @@ export async function countOverdueSubmissions() {
   return db.execute({ sql: "SELECT COUNT(*) as c FROM platform_form_submissions ps JOIN platform_form_runs pfr ON ps.run_id = pfr.id WHERE ps.status = 'submitted' AND pfr.closes_at IS NOT NULL AND pfr.closes_at < NOW()" });
 }
 
+/**
+ * How many responses a RUN already holds (drafts excluded).
+ *
+ * This is what the run's "Submission Limit" is measured against. The submitter's
+ * own row is excluded so that saving/updating one's OWN response never counts as
+ * filling a seat — only a NEW response does.
+ */
+export async function countNonDraftSubmissionsByRunId(runId, excludeSubmitterId = null) {
+  if (excludeSubmitterId) {
+    return db.execute({
+      sql: "SELECT COUNT(*) as c FROM platform_form_submissions WHERE run_id = ? AND status != 'draft' AND submitter_id != ?",
+      args: [parseInt(runId), excludeSubmitterId],
+    });
+  }
+  return db.execute({
+    sql: "SELECT COUNT(*) as c FROM platform_form_submissions WHERE run_id = ? AND status != 'draft'",
+    args: [parseInt(runId)],
+  });
+}
+
 /** Activity feed: latest timeline rows with human-readable action details. */
 export async function getRecentActivityTimeline() {
   return db.execute({
@@ -593,9 +613,16 @@ export async function updateRunStatusById(id, status) {
   });
 }
 
-/** Run status + close date (submission deadline gate). */
+/**
+ * Run status + close date + settings (the submission gate).
+ *
+ * `settings` rides along because the gate is where a run's own rules are
+ * enforced on arrival: its submission limit, whether a person may answer more
+ * than once, whether it closes itself at the deadline, and whether responder
+ * identity is hidden from reviewers.
+ */
 export async function getRunSubmissionGateById(runId) {
-  return db.execute({ sql: "SELECT status, closes_at FROM platform_form_runs WHERE id = ?", args: [parseInt(runId)] });
+  return db.execute({ sql: "SELECT status, closes_at, settings FROM platform_form_runs WHERE id = ?", args: [parseInt(runId)] });
 }
 
 /** Existing submission id for a run + submitter (submit upsert guard). */

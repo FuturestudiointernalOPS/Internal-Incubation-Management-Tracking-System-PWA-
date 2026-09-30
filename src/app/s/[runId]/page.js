@@ -848,6 +848,13 @@ export default function PublicSubmitPage() {
           {run?.closes_at && <p className="text-xs text-slate-400 mt-2 flex items-center gap-1"><Clock className="w-3 h-3" /> {t("forms.closes")} {new Date(run.closes_at).toLocaleDateString()}</p>}
         </div>
 
+        {/* The run's own instructions — the same text the internal form shows. */}
+        {run?.settings?.instructions && (
+          <div className="p-4 rounded-2xl border border-orange-500/20 bg-orange-500/5">
+            <p className="text-xs font-medium text-slate-200 whitespace-pre-wrap">{run.settings.instructions}</p>
+          </div>
+        )}
+
         {/* Sections — step-by-step navigation */}
         {(() => {
           const validSections = sections.filter(sec => fields.some(field => String(field.section_id) === String(sec.id)));
