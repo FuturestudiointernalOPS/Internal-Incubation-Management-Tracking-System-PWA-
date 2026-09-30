@@ -1,13 +1,14 @@
 # Layer split — View → Controller → Service → Repository
 
-> Status: **authorization + finance complete; programs models done; contacts,
-> ventures, LMS, workspace and platform started**. Slices 1–9 finished
-> authorization (service layer HTTP-free), 10–11 finished finance, 12–13 covered
-> programs, 14 contacts, 15 ventures, 17–18 LMS (learning, then checkout), 19
-> workspace, 20 ventures (plan import), 21 platform (Run report), 22 the CRM
-> decision helpers, 23 the ventures controller extraction (21 of 30 routes). The
-> remaining mixed model modules are itemised in §4. This
-> document is the running log. Update it at the end of every slice.
+> Status: **authorization + finance complete; programs models done; the
+> controller frontier complete**. Slices 1–9 finished authorization (service
+> layer HTTP-free), 10–11 finished finance, 12–13 covered programs, 14 contacts,
+> 15 ventures, 17–18 LMS (learning, then checkout), 19 workspace, 20 ventures
+> (plan import), 21 platform (Run report), 22 the CRM decision helpers, 23 the
+> controller frontier: every route file that still ran inline SQL now reads
+> through its model, so **no `src/app/api/**/route.js` executes SQL**. The
+> remaining mixed model modules are itemised in §4. This document is the running
+> log. Update it at the end of every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
 [`SERVER_LAYERS.md`](SERVER_LAYERS.md) (the request path as it stands),
@@ -411,6 +412,35 @@ function.
 
 ---
 
+### Domain 10 — the controller frontier: inline SQL (slice 23)
+
+30 `src/app/api/**/route.js` files still ran `db.execute`/`db.transaction` inline
+(the ~290 that import `@/lib/db` only for `initDb` were never SQL); 22 of them sat
+under `ventures/`. Each statement is now extracted into the model that owns its
+data — `models/ventureWorkspace.js` for the workspace reads/writes,
+`models/workspaceCalendarStore.js` for the transverse calendar,
+`models/ventureJourney.js` for the Journey stage CRUD — the controller keeping
+only auth, validation and response shaping. **No route file runs SQL any more.**
+
+Gate `npm run build` and the 228 suites are unchanged, which is the point: the
+SQL travels byte-identical, one function per query, and behaviour does not move.
+
+Two corrections to the original inventory:
+
+- `platform/form-runs` was counted, but runs **no** SQL: the only `db.execute`
+in it was a comment documenting the removed raw-SQL `migrate` action.
+- `ventures/[id]/journey` was assumed done; it was not. Its stage CRUD (add,
+edit, activate, lock, reset, milestone hold) and its three roadmap reads
+(milestones, deliverable evidence, task counts) are now functions in
+`models/ventureJourney.js`, under the section the file had already reserved.
+
+**Unchanged:** every statement (byte-identical, same order), the progressive
+fallbacks (milestones → legacy columns; tasks → without the archive filter;
+deliverable evidence reported as unavailable instead of silently empty), the
+author flags and the sealed/unsealed projection.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -506,15 +536,18 @@ Done: `models/lms/learning.js` → `services/lms/learning.js` + `models/lms/lear
 > route, move the decision into `services/<domain>/`, keep the route's existing
 > test mocks working.
 
-#### Controller frontier — the inline-SQL inventory (slice 23+)
+#### Controller frontier — the inline-SQL inventory (slice 23) — COMPLETE
 
-Measured: **30 route files** still run `db.execute`/`db.transaction` inline (the
-~290 that only import `@/lib/db` for `initDb` are *not* SQL). 22 of the 30 are
-under `src/app/api/ventures/`.
+Measured at the start: **30 route files** ran `db.execute`/`db.transaction`
+inline (the ~290 that only import `@/lib/db` for `initDb` are *not* SQL); 22 of
+the 30 sat under `src/app/api/ventures/`. **All are extracted; a route file runs
+no SQL today.** Verify with
+`grep -rn "db\\.execute\\|db\\.transaction" src/app/api --include=route.js`:
+the only hit left is a comment in `platform/form-runs` recording the removed
+raw-SQL `migrate` action.
 
-**Done so far — 21 ventures routes extracted into `models/ventureWorkspace.js`**
-(SQL byte-identical, one function per query), the controller keeping its
-auth/validation/shaping:
+SQL is byte-identical, one function per query, the controller keeping its
+auth/validation/shaping. Most functions live in `models/ventureWorkspace.js`;
 
 | Route | Model functions |
 |---|---|
@@ -532,22 +565,30 @@ auth/validation/shaping:
 | `ventures/[id]/notes` | `getVentureCodeByDbId`, `getInternalNotesViewPermission`, `listActiveStaffAssignmentsByCode`, `listVentureNotes`, `insertVentureNote`, `getVentureNote`, `archiveVentureNote` |
 | `ventures/[id]/operating-plans` (+ `[planId]`, `[planId]/sections`) | `listVentureOperatingPlans`, `insertVentureOperatingPlan`, `getVentureOperatingPlan`, `listVenturePlanSections`, `listVenturePlanLinks`, `updateVentureOperatingPlan`, `ventureOperatingPlanExists`, `archiveVentureOperatingPlan`, `liveVenturePlanExists`, `venturePlanSectionExists`, `insertVenturePlanLink`, `insertVenturePlanSection`, `updateVenturePlanSection`, `getVenturePlanLink`, `deleteVenturePlanLink`, `deleteVenturePlanSection` |
 | `ventures/[id]/journey/apply-template` | `getActiveVenturePlanTemplate`, `listVenturePlanTemplateSections`, `countVentureJourneyStages`, `insertJourneyStageFromTemplate` |
+| `ventures/[id]/journey-report` | `getVentureDbIdByCodeOrId`, `listVentureStagesForReport(Legacy)`, `listVentureMilestonesForReport`, `listVentureTaskDeadlinesForReport`, `listVentureReviewedSubmissionsForReport`, `listVentureSessionsForReport`, `listVentureStaffAssignmentsForReport`, `listVentureSubmitedDeliverablesForReport`, `listVentureEvidencedDeliverablesForReport` |
+| `ventures/[id]/calendar` | `getVentureDbIdForCalendar`, `listVentureActionPlansWithDeadlines`, `listVentureCoachingFollowUpDates`, `listVentureCoachingSessionsForCalendar`, `listVentureFacingSessionsForCalendar`, `listVentureMilestonesWithTargetDates`, `listVentureTasksWithDueDates` |
+| `ventures/[id]/dashboard` | `getVentureDashboardInfo`, `listVentureMemberRecipients`, `selectInternalNotificationFeed`, `selectVentureNotificationFeed`, `listVentureActivityLog`, `listVentureDocumentsForDashboard(Legacy)`, `listVentureMeetings`, `listVentureKpiSummary`, `countVentureAdvisors`, `countVentureCoachingSessions`, `countVentureActiveCoachAssignments` |
+| `ventures/[id]/sessions` | `getVentureByCode`, `getVentureDbIdByCodeOrId`, `getVentureIdAndCode` |
+| `ventures/[id]/journey` | `listJourneyMilestonesByStage(Legacy)`, `listJourneyDeliverablesByMilestoneIds`, `listJourneyTaskStatusesByMilestoneIds(Legacy)`, `getJourneyTemplateName`, `countJourneyStagesByVenture`, `insertJourneyStage`, `updateJourneyStageFields`, `activateJourneyStage`, `lockJourneyStage`, `holdJourneyStageMilestones`, `resetJourneyStage` |
+
+Outside `ventures/`, the same wave covered `api/calendar`
+(`models/workspaceCalendarStore.js`: `selectCalendarVentureScope`,
+`selectCoachedVentureIds`, `selectVentureIdsByCodes`,
+`selectCalendarVentureSessions/Tasks/Milestones/JourneyStages`),
+`venture-permissions/responsibilities` and `venture-plan-templates`.
+`platform/form-runs` needed nothing (no SQL — see above).
 
 Two source-pinning suites were repointed (same assertion, new home):
 `identity-gate-bridge` (history membership probe) and `venture-label-surfaces`
 (the members company-name query).
 
-**Still to extract (9 routes):** `ventures/[id]/journey`, `journey-report`,
-`sessions`, `calendar`, `dashboard` (the five big reads left under ventures), plus
-outside ventures: `api/calendar`, `platform/form-runs`,
-`venture-permissions/responsibilities`, `venture-plan-templates`.
-
 ### Project-wide, still open (from `MVC_REFACTOR.md`)
 
-- 30 route files once ran inline SQL; 21 are extracted, **9 remain** (the five big
-  ventures reads + four non-venture routes). The "0 inline SQL in controllers" gate
-  is a **repository-extraction** backlog, independent of this split — see the
-  inventory above.
+- The "0 inline SQL in controllers" gate now holds: 30 route files once ran inline
+  SQL, all 30 read through their models. Both `/admin` and the API suite stay green.
+- `src/lib/ventureJourneys.js` (and its `ventureJourneyArchive`/`ventureJourneyTemplates`
+  siblings) still hold SQL behind a `db`-parameter API rather than the model layer —
+  the next repository-extraction target, tracked in `MVC_REFACTOR.md`, not here.
 - Giant page files (>600 LOC) still need splitting into feature components.
 
 ### Deferred decision: typing
