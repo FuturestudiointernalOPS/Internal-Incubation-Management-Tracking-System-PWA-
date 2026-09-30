@@ -1,11 +1,11 @@
 # Layer split — View → Controller → Service → Repository
 
-> Status: **in progress**. Slices 1–7 delivered: the authorization decision, the
-> readiness report, the scope engine, the eligibility decision, the membership
-> decisions, the eligibility-administration validators, the scoped-access guard
-> and the context-grant reconcile (2026-09-30). This document is the running log:
-> what is done, what was left aside on purpose, and what remains. Update it at the
-> end of every slice.
+> Status: **in progress**. Slices 1–8 delivered: the **authorization domain is
+> now fully split** — the access decision, the readiness report, the scope engine,
+> eligibility, membership, eligibility administration, the scoped-access guard,
+> the context-grant reconcile and the program-assignment derivation (2026-09-30).
+> This document is the running log: what is done, what was left aside on purpose,
+> and what remains. Update it at the end of every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
 [`SERVER_LAYERS.md`](SERVER_LAYERS.md) (the request path as it stands),
@@ -60,8 +60,8 @@ both temporary and both deleted once `grep` finds no importer:
 
 - **Model facades** — `src/models/authorization/<module>.js` becomes
   `export * from "@/services/…"`. Used for `resolver`, `scope`,
-  `contextGrantReadiness`, `eligibility-admin`, `context`, `contextGrants`. Cost:
-  a documented (shim-only) model→service edge.
+  `contextGrantReadiness`, `eligibility-admin`, `context`, `contextGrants`,
+  `programAssignments`. Cost: a documented (shim-only) model→service edge.
 - **Aggregating lib facades** — `src/lib/authorization/<module>.js` re-exports
   **both** the repository and the service (e.g. `eligibility`, `membership`).
   Used where the SQL stays in `models` and only the decision moved. This one
@@ -166,6 +166,21 @@ their own SQL. Now:
 Its cache invalidator now imports the sibling `./context` service dynamically
 (was `./resolver`); two suites' stubs moved to that path.
 
+### Slice 8 — the program-assignment derivation (domain complete)
+
+`src/models/authorization/programAssignments.js` held the per-assignment
+capability derivation and expiry next to its SQL. Now:
+
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/authorization/programAssignments.js` | `UNCONFIGURED_LEVEL`, `resolveAssignmentCapabilityLevel`, `deriveFacilitatorDesiredCaps`, `deriveAssignmentsExpiry`, `assignmentsForRole`. No SQL. |
+| **Repository** | `src/models/authorization/programAssignmentReads.js` | `listActiveProgramAssignments`, `listProgramAssignmentContacts`, `loadAssignmentLookups`, and the tolerant read for the optional profile column (`executeWithOptionalProfileColumn`). `isProgramEnded` stays here as a shared pure predicate the read uses. |
+| **Facade** | `src/models/authorization/programAssignments.js` | Re-exports **both** the reads and the service. |
+
+`src/models/authorization/programAssignmentBackfill.js` now imports the level
+decision from the service explicitly, and the two services that consume the
+derivation split their imports across the reads and the service.
+
 **Unchanged throughout:** the SQL (byte-identical), the wave/round-trip
 structure, the merge semantics, the fail-closed rules, and every returned field.
 
@@ -173,7 +188,7 @@ structure, the merge semantics, the fail-closed rules, and every returned field.
 
 | Check | Result |
 |---|---|
-| Full suite `npm test` | **228 suites, 2967 tests, all passed** |
+| Full suite `npm test` | **228 suites, 2969 tests, all passed** |
 | `npx eslint .` | 0 errors (6 pre-existing warnings elsewhere) |
 | `npm run build` | green |
 | Cold-resolution round trips | unchanged (3 waves — pinned by `db-sequencing.test.js`) |
@@ -189,22 +204,29 @@ structure, the merge semantics, the fail-closed rules, and every returned field.
 2. **`src/server/authz/guards.js`** shapes HTTP answers in the policy layer; the
    response shaping belongs in controllers.
 3. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
-   `eligibility-admin`, `context`, `contextGrants`) create shim-only
-   model→service edges; they are deleted once nothing imports them.
+   `eligibility-admin`, `context`, `contextGrants`, `programAssignments`) create
+   shim-only model→service edges; they are deleted once nothing imports them.
 4. **`requireScopedAccess` still builds the HTTP refusal answers** in the service
    — same deferral as `requireAuthorization` (§3.1).
-5. **No type layer** (see §4).
+5. **`models/authorization/programAssignmentBackfill.js` imports the level
+   decision from the service** — a backfill (data work) that needs a decision;
+   it stays in models for now.
+6. **No type layer** (see §4).
 
 ---
 
 ## 4. What remains
 
-### Authorization domain
+### Authorization domain — done
 
-| Module | Problem | Planned home |
+Every module that mixed a decision with its queries has been split (§2, slices
+1–8). What is left here is **not** a mixed module:
+
+| Item | Problem | Planned home |
 |---|---|---|
-| `models/authorization/programAssignments.js` (371 LOC) | `deriveFacilitatorDesiredCaps`, `deriveAssignmentsExpiry` + reads | service + reads |
-| `server/authz/guards.js` | guards shape HTTP answers | response shaping → controllers |
+| `server/authz/guards.js` | guards shape HTTP answers in the policy layer | response shaping → controllers |
+| Refusal shaping inside the services | `requireAuthorization` / `requireScopedAccess` build the 401/403/500 answers | controllers |
+| Facades (§3.3) | shim-only re-exports | deleted when unused |
 
 ### Other domains — not started
 
@@ -273,7 +295,7 @@ decision is recorded, new modules stay plain JavaScript.
 | Guard | File | Fails when |
 |---|---|---|
 | No SQL in `src/services/**` | `src/__tests__/server/services-boundaries.test.js` | a service contains `db.execute` or imports the pool |
-| No HTTP in the new repositories | same suite | `contextReads`, `contextGrantReadinessReads`, `scopeReads`, `eligibilityAdminReads`, `contextAssignmentReads` or `contextGrantsStore` import `next/server` / use `NextResponse` |
+| No HTTP in the new repositories | same suite | `contextReads`, `contextGrantReadinessReads`, `scopeReads`, `eligibilityAdminReads`, `contextAssignmentReads`, `contextGrantsStore` or `programAssignmentReads` import `next/server` / use `NextResponse` |
 | Decision surface intact | same suite | a renamed/removed export breaks the service barrel or the resolver facade |
 | No SQL in `server/authz` | `src/__tests__/server/authz-boundaries.test.js` | (pre-existing) authorization policy runs inline SQL |
 | Auth/authz import directions | `src/__tests__/server/auth-boundaries.test.js` | (pre-existing) |
