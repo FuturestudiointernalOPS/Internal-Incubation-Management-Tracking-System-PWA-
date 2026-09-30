@@ -2,6 +2,11 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { listAssignments, createAssignment, removeAssignment } from "@/lib/venturePermissions";
+import {
+  getVentureCodeForAssignment,
+  getLiveContactByCid,
+  findDuplicateVentureAssignment,
+} from "@/models/ventureWorkspace";
 
 // Phase 1: assignment management is Super Admin territory. Phase 3 will
 // extend this guard to Lead Managers whose matrix grants the assign action.
@@ -34,22 +39,23 @@ export async function POST(req, { params }) {
       return NextResponse.json({ success: false, error: "staff_contact_id and responsibility_code are required." }, { status: 400 });
     }
 
-    const venture = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE venture_id = ?", args: [id] });
+    const venture = await getVentureCodeForAssignment(id);
     if (!venture.rows?.[0]) {
       return NextResponse.json({ success: false, error: "Venture not found." }, { status: 404 });
     }
-    const contact = await db.execute({ sql: "SELECT cid FROM contacts WHERE cid = ? AND deleted = 0", args: [staff_contact_id] });
+    const contact = await getLiveContactByCid(staff_contact_id);
     if (!contact.rows?.[0]) {
       return NextResponse.json({ success: false, error: "Staff contact not found." }, { status: 404 });
     }
 
     const scopeType = scope_type || "venture_wide";
     // Prevent exact duplicate rows (same person, responsibility and scope).
-    const duplicate = await db.execute({
-      sql: `SELECT 1 FROM venture_staff_assignments
-            WHERE venture_id = ? AND staff_contact_id = ? AND responsibility_code = ?
-              AND scope_type = ? AND COALESCE(scope_ref_id,'') = COALESCE(?, '') AND status = 'active'`,
-      args: [id, staff_contact_id, responsibility_code, scopeType, scope_ref_id || ""],
+    const duplicate = await findDuplicateVentureAssignment({
+      ventureId: id,
+      staffContactId: staff_contact_id,
+      responsibilityCode: responsibility_code,
+      scopeType,
+      scopeRefId: scope_ref_id || "",
     });
     if (duplicate.rows?.length) {
       return NextResponse.json({ success: false, error: "This staff member already has this assignment." }, { status: 409 });

@@ -558,3 +558,56 @@ export async function listVentureHistorySessionNotes(owners) {
     args: owners,
   });
 }
+
+// ── POST /api/ventures/[id]/coach-invite ─────────────────────────────────────
+
+/** Company/name of a Venture by code-or-uuid id (coach invite label). */
+export async function getVentureNameByIdOrCode(id) {
+  return db.execute({
+    sql: "SELECT company_name, name FROM ventures WHERE venture_id = ? OR id::text = ?",
+    args: [id, id],
+  });
+}
+
+// ── GET/POST/PATCH /api/ventures/[id]/staff-assignments ──────────────────────
+
+/** Existing Venture code check before assigning staff. */
+export async function getVentureCodeForAssignment(ventureId) {
+  return db.execute({
+    sql: "SELECT venture_id FROM ventures WHERE venture_id = ?",
+    args: [ventureId],
+  });
+}
+
+/** Live contact check before assigning staff. */
+export async function getLiveContactByCid(cid) {
+  return db.execute({
+    sql: "SELECT cid FROM contacts WHERE cid = ? AND deleted = 0",
+    args: [cid],
+  });
+}
+
+/** An existing active assignment of the same person / responsibility / scope. */
+export async function findDuplicateVentureAssignment({
+  ventureId,
+  staffContactId,
+  responsibilityCode,
+  scopeType,
+  scopeRefId,
+}) {
+  return db.execute({
+    sql: `SELECT 1 FROM venture_staff_assignments
+            WHERE venture_id = ? AND staff_contact_id = ? AND responsibility_code = ?
+              AND scope_type = ? AND COALESCE(scope_ref_id,'') = COALESCE(?, '') AND status = 'active'`,
+    args: [ventureId, staffContactId, responsibilityCode, scopeType, scopeRefId],
+  });
+}
+
+/** Task totals (all + completed) for a venture, the completed statuses injected. */
+export async function countVentureTasksWithCompletedStatuses(dbId, completedStatuses) {
+  const completedSet = completedStatuses.map(() => "?").join(", ");
+  return db.execute({
+    sql: `SELECT COUNT(*) as total, SUM(CASE WHEN status IN (${completedSet}) THEN 1 ELSE 0 END) as done FROM venture_tasks WHERE venture_id = ?`,
+    args: [...completedStatuses, dbId],
+  });
+}

@@ -5,6 +5,7 @@ import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans
 import { resolveVentureCode } from "@/lib/ventureOperatingPlans";
 import { VENTURE_SCOPE_TYPES } from "@/lib/venturePermissions";
 import { inviteCoachByEmail } from "@/lib/ventureCoach";
+import { getVentureNameByIdOrCode } from "@/models/ventureWorkspace";
 
 export const dynamic = "force-dynamic";
 
@@ -38,10 +39,7 @@ export async function POST(req, { params }) {
     const code = await resolveVentureCode(db, id);
     if (!code) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const ventureResult = await db.execute({
-      sql: "SELECT company_name, name FROM ventures WHERE venture_id = ? OR id::text = ?",
-      args: [id, id],
-    }).catch(() => ({ rows: [] }));
+    const ventureResult = await getVentureNameByIdOrCode(id).catch(() => ({ rows: [] }));
     const ventureName = ventureResult.rows?.[0]?.company_name || ventureResult.rows?.[0]?.name || code;
 
     // The invitee's responsibility is a PRIVILEGE boundary: this endpoint invites

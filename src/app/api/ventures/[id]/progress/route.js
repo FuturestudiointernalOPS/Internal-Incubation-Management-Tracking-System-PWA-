@@ -10,6 +10,7 @@ import {
   countVenturePmfAssessments,
   countVentureRetrosByVentureId,
   countVentureStandupsByVentureId,
+  countVentureTasksWithCompletedStatuses,
   countVentureValidations,
   getAverageVentureMilestoneProgress,
   getFirstVentureBusinessModelId,
@@ -34,11 +35,7 @@ export async function GET(req, { params }) {
 
     // Completion is defined once in lib/ventureStatuses (canonical terminal
     // statuses: done | accepted | completed) — never hardcode here.
-    const completedSet = TASK_COMPLETED_STATUSES.map(() => "?").join(", ");
-    const tasksResult = await db.execute({
-      sql: `SELECT COUNT(*) as total, SUM(CASE WHEN status IN (${completedSet}) THEN 1 ELSE 0 END) as done FROM venture_tasks WHERE venture_id = ?`,
-      args: [...TASK_COMPLETED_STATUSES, dbId],
-    });
+    const tasksResult = await countVentureTasksWithCompletedStatuses(dbId, TASK_COMPLETED_STATUSES);
     const total = parseInt(tasksResult.rows?.[0]?.total||0);
     const done = parseInt(tasksResult.rows?.[0]?.done||0);
 
