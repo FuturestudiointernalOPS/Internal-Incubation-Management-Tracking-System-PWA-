@@ -513,6 +513,68 @@ export async function buildExistingProgramme({ dbId } = {}) {
   };
 }
 
+/** The answer budget one plan pass may use. Quoted back in the message when an
+ *  answer stops at the ceiling, so the limit and the words cannot drift apart. */
+export const PLAN_ANSWER_TOKENS = 8192;
+
+/**
+ * Ask the analyst, keeping the facts that explain a bad answer.
+ *
+ * `finish_reason` is the whole point: a reply that stopped at the length ceiling
+ * is UNFINISHED, not malformed, and the two need opposite answers from whoever
+ * uploaded the tracker — split the file, versus simply try again. Without it the
+ * platform can only say "invalid JSON", which blames the wrong thing.
+ */
+async function askPlanModel(messages, label) {
+  try {
+    const answer = await deepseekIntelligence.chatDetailed(messages, undefined, PLAN_ANSWER_TOKENS);
+    return { raw: answer.content, finishReason: answer.finishReason, truncated: answer.truncated };
+  } catch (error) {
+    console.error(`[plan-import:${label}] the model call failed:`, error?.message || error);
+    return { ok: false, error: `The model could not be reached (${error.message || "unknown error"}).` };
+  }
+}
+
+/**
+ * Read the JSON object out of a model answer, or say precisely why it cannot be.
+ *
+ * The evidence is logged SERVER-SIDE — the finish reason, the length, and the
+ * tail of the reply — because the tail is the only thing that can settle what
+ * went wrong, and it is gone the moment the request ends. The reply itself is
+ * never shown to the user: it is machine output, not an explanation.
+ *
+ * `error` is kept for logs and API consumers; `error_key` is what a screen
+ * translates, so no user-facing English is baked in here.
+ */
+function readModelJson({ raw, finishReason, truncated }, label) {
+  const text = String(raw || "");
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    console.error(
+      `[plan-import:${label}] no JSON object in the answer — finish_reason=${finishReason}, chars=${text.length}`,
+      text.slice(-500),
+    );
+    return { ok: false, error: "The model returned no usable JSON.", error_key: "venture.planImport.answerUnusable" };
+  }
+  try {
+    return { parsed: JSON.parse(jsonMatch[0]) };
+  } catch (parseError) {
+    console.error(
+      `[plan-import:${label}] unparseable answer — finish_reason=${finishReason}, truncated=${truncated}, ` +
+        `chars=${text.length}, ${parseError.message}`,
+      text.slice(-800),
+    );
+    return truncated
+      ? {
+          ok: false,
+          error: `The model's answer stopped at the ${PLAN_ANSWER_TOKENS}-token ceiling before it was finished.`,
+          error_key: "venture.planImport.answerTruncated",
+          error_params: { limit: PLAN_ANSWER_TOKENS },
+        }
+      : { ok: false, error: "The model returned invalid JSON.", error_key: "venture.planImport.answerInvalid" };
+  }
+}
+
 /**
  * Interpret a read sheet into a validated proposal.
  *
@@ -532,21 +594,12 @@ export async function interpretPlanSheet({
   const sheetText = renderPlanSheets(sheets, sheetName);
   const { messages, truncated } = buildPlanPrompt({ contextText, sheetText, existingProgrammeText, sheetName });
 
-  let raw;
-  try {
-    raw = await deepseekIntelligence.chat(messages, undefined, 8192);
-  } catch (error) {
-    return { ok: false, error: `The model could not be reached (${error.message || "unknown error"}).` };
-  }
+  const answer = await askPlanModel(messages, "interpret");
+  if (answer.error) return answer;
 
-  const jsonMatch = String(raw || "").match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return { ok: false, error: "The model returned no usable JSON." };
-  let parsed;
-  try {
-    parsed = JSON.parse(jsonMatch[0]);
-  } catch (_) {
-    return { ok: false, error: "The model returned invalid JSON." };
-  }
+  const read = readModelJson(answer, "interpret");
+  if (read.error) return read;
+  const parsed = read.parsed;
   if (!Array.isArray(parsed.journeys) || parsed.journeys.length === 0) {
     if (!(Array.isArray(parsed.already_covered) && parsed.already_covered.length > 0)) {
       return { ok: false, error: "The model proposed no journey." };
@@ -947,21 +1000,12 @@ export async function revisePlanProposal({ proposal, instruction } = {}) {
     },
   ];
 
-  let raw;
-  try {
-    raw = await deepseekIntelligence.chat(messages, undefined, 8192);
-  } catch (error) {
-    return { ok: false, error: `The model could not be reached (${error.message || "unknown error"}).` };
-  }
+  const answer = await askPlanModel(messages, "revise");
+  if (answer.error) return answer;
 
-  const jsonMatch = String(raw || "").match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return { ok: false, error: "The model returned no usable JSON." };
-  let parsed;
-  try {
-    parsed = JSON.parse(jsonMatch[0]);
-  } catch (_) {
-    return { ok: false, error: "The model returned invalid JSON." };
-  }
+  const read = readModelJson(answer, "revise");
+  if (read.error) return read;
+  const parsed = read.parsed;
   if (!Array.isArray(parsed.journeys) || parsed.journeys.length === 0) {
     return { ok: false, error: "The correction returned no journey." };
   }

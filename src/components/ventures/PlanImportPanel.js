@@ -163,7 +163,13 @@ function PlanUpload({ ventureId, onUploaded }) {
         return;
       }
       if (!res.ok || !payload.success) {
-        setError(payload.error || t("venture.planImport.failed"));
+        // A key the server names is translated here; anything else falls back to
+        // the server's own words (or, failing that, the generic message).
+        setError(
+          payload.error_key
+            ? t(payload.error_key, payload.error_params || {})
+            : payload.error || t("venture.planImport.failed"),
+        );
         return;
       }
       if (fileInput.current) fileInput.current.value = "";
@@ -425,7 +431,11 @@ function PlanReview({ ventureId, draft, onSaved }) {
       });
       const payload = await res.json().catch(() => ({}));
       if (!payload.success) {
-        setError(payload.error || t("venture.planImport.correctFailed"));
+        setError(
+          payload.error_key
+            ? t(payload.error_key, payload.error_params || {})
+            : payload.error || t("venture.planImport.correctFailed"),
+        );
         return;
       }
       // A SUGGESTION, not a change: nothing is stored and nothing is replaced

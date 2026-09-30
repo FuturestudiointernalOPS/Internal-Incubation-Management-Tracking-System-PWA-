@@ -8,10 +8,18 @@
  * what is stored, never accepted from the caller, and an open draft is the only
  * thing that can be edited.
  */
-jest.mock("@/lib/deepseek", () => ({
-  deepseekIntelligence: { chat: jest.fn() },
-  default: { chat: jest.fn() },
-}));
+jest.mock("@/lib/deepseek", () => {
+  // ONE chat double, shared by both entry points, so a test that stubs `.chat`
+  // drives `chatDetailed` too — which is what the plan importer calls.
+  const chat = jest.fn();
+  return {
+    deepseekIntelligence: {
+      chat,
+      chatDetailed: async (...args) => ({ content: await chat(...args), finishReason: "stop", truncated: false }),
+    },
+    default: { chat },
+  };
+});
 
 jest.mock("@/lib/db", () => {
   const state = {

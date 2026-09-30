@@ -2,8 +2,17 @@
  * Plan import — the model proposes, the platform validates, nothing is written.
  */
 const mockChat = jest.fn();
+/** What the provider would report for the answer: "length" means CUT OFF. */
+let mockFinishReason = "stop";
 jest.mock("@/lib/deepseek", () => ({
-  deepseekIntelligence: { chat: (...args) => mockChat(...args) },
+  deepseekIntelligence: {
+    chat: (...args) => mockChat(...args),
+    chatDetailed: async (...args) => ({
+      content: await mockChat(...args),
+      finishReason: mockFinishReason,
+      truncated: mockFinishReason === "length",
+    }),
+  },
   default: { chat: (...args) => mockChat(...args) },
 }));
 
@@ -27,7 +36,7 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-const { interpretPlanSheet, buildPlanPrompt, renderPlanSheets } = require("@/models/venturePlanImport");
+const { interpretPlanSheet, buildPlanPrompt, renderPlanSheets, PLAN_ANSWER_TOKENS } = require("@/models/venturePlanImport");
 
 const MODEL_REPLY = {
   journeys: [
@@ -78,7 +87,50 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockContacts.byEmail.clear();
   mockContacts.byName.clear();
+  mockFinishReason = "stop";
   mockChat.mockResolvedValue(JSON.stringify(MODEL_REPLY));
+});
+
+describe("a bad answer says WHICH KIND of bad it is", () => {
+  const sheets = [{ name: "Tracker", rows: [["ID", "Activity"]] }];
+
+  test("an answer CUT OFF at the length ceiling reports truncation, not bad JSON", async () => {
+    // This is the distinction that was thrown away. A truncated reply is
+    // unfinished, not malformed — and it needs a different answer from the
+    // person waiting: split the file, rather than try again.
+    mockFinishReason = "length";
+    // A real cut-off answer: some objects closed, the ones wrapping them not.
+    mockChat.mockResolvedValue(
+      '{"refs_derived":false,"journeys":[{"name":"J","milestones":[{"ref":"MS01","name":"M","tasks":[{"ref":"T1","title":"Conduct market research","deliverables":[]},{"ref":"T2","title":"Identify target partners',
+    );
+    const out = await interpretPlanSheet({ sheets });
+    expect(out.ok).toBe(false);
+    expect(out.error_key).toBe("venture.planImport.answerTruncated");
+    expect(out.error_params).toEqual({ limit: PLAN_ANSWER_TOKENS });
+    expect(out.error).toMatch(/ceiling/);
+  });
+
+  test("an answer that is simply unreadable reports invalid JSON", async () => {
+    mockFinishReason = "stop";
+    mockChat.mockResolvedValue('{"journeys": [{"name": "J",}]}'); // a trailing comma
+    const out = await interpretPlanSheet({ sheets });
+    expect(out.ok).toBe(false);
+    expect(out.error_key).toBe("venture.planImport.answerInvalid");
+  });
+
+  test("an answer with no JSON object at all says so", async () => {
+    mockFinishReason = "stop";
+    mockChat.mockResolvedValue("I could not do that.");
+    const out = await interpretPlanSheet({ sheets });
+    expect(out.ok).toBe(false);
+    expect(out.error_key).toBe("venture.planImport.answerUnusable");
+  });
+
+  test("a good answer carries no error key at all", async () => {
+    const out = await interpretPlanSheet({ sheets });
+    expect(out.ok).toBe(true);
+    expect(out.error_key).toBeUndefined();
+  });
 });
 
 describe("buildPlanPrompt — guardrails sit in the system message", () => {

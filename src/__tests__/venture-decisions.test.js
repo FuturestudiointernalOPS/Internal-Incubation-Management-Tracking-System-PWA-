@@ -4,7 +4,14 @@
  */
 const mockChat = jest.fn();
 jest.mock("@/lib/deepseek", () => ({
-  deepseekIntelligence: { chat: (...args) => mockChat(...args) },
+  // The double mirrors the real module's surface: the plan importer reads the
+  // answer through `chatDetailed` (it needs the finish reason), so a mock
+  // without it would report "the model could not be reached" in every test —
+  // a failure of the double, not of the code.
+  deepseekIntelligence: {
+    chat: (...args) => mockChat(...args),
+    chatDetailed: async (...args) => ({ content: await mockChat(...args), finishReason: "stop", truncated: false }),
+  },
   default: { chat: (...args) => mockChat(...args) },
 }));
 
