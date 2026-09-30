@@ -256,63 +256,6 @@ export async function getCalendarFollowups(programScopeSql, programScopeArgs, vi
   return db.execute({ sql, args });
 }
 
-/**
- * Venture sessions for one person's own calendar (Vinance 3, Phase 3).
- *
- *   - the coach's own sessions, whatever their visibility (coach_contact_id)
- *   - venture-facing sessions of the Ventures the person belongs to as a
- *     member (venture_members) or is actively assigned to as staff
- *     (venture_staff_assignments)
- *
- * Cancelled and no-show sessions are never calendar events. Venture ids are
- * stored in both key styles (the VNT code and the internal UUID), so the scope
- * list is expanded to cover both. Returns { rows } like the other getters.
- */
-export async function getCalendarVentureSessions(userId) {
-  const empty = { rows: [] };
-  if (!userId) return empty;
-
-  // 1. The person's Venture scope (membership ∪ active staff assignment).
-  const scopeRes = await db
-    .execute({
-      sql: `SELECT venture_id FROM venture_members
-              WHERE (contact_id = ? OR user_cid = ?) AND removed_at IS NULL
-            UNION
-            SELECT venture_id FROM venture_staff_assignments
-              WHERE staff_contact_id = ? AND status = 'active'`,
-      args: [userId, userId, userId],
-    })
-    .catch(() => empty);
-  const ventureCodes = (scopeRes.rows || []).map((row) => row.venture_id).filter(Boolean);
-
-  // 2. Expand to the internal ids too (rows may be keyed either way).
-  let internalVentureIds = [];
-  if (ventureCodes.length > 0) {
-    const idRes = await db
-      .execute({
-        sql: `SELECT id::text AS id FROM ventures WHERE venture_id IN (${ventureCodes.map(() => "?").join(",")})`,
-        args: ventureCodes,
-      })
-      .catch(() => empty);
-    internalVentureIds = (idRes.rows || []).map((row) => row.id).filter(Boolean);
-  }
-  const scope = [...new Set([...ventureCodes, ...internalVentureIds])];
-  // Sentinel: a person with no Ventures still gets their own coach sessions,
-  // and the IN list can never match a real venture id.
-  const scopeList = scope.length > 0 ? scope : ["__no_venture_scope__"];
-
-  return db.execute({
-    sql: `SELECT id, title, start_time, coach_name, status, venture_id,
-                 milestone_ref, journey_stage_id, deliverable_id
-          FROM venture_sessions
-          WHERE start_time IS NOT NULL
-            AND status NOT IN ('cancelled', 'no_show')
-            AND (coach_contact_id = ?
-                 OR (venture_facing = TRUE AND venture_id IN (${scopeList.map(() => "?").join(",")})))`,
-    args: [userId, ...scopeList],
-  });
-}
-
 // ────────────────────────────────────────────────────────────
 // /api/sessions — v2_sessions CRUD
 // ────────────────────────────────────────────────────────────
@@ -790,3 +733,16 @@ export async function completeCampaignContact(campaignContactId) {
     args: [campaignContactId],
   });
 }
+
+// ────────────────────────────────────────────────────────────
+// Compatibility shim — moved to the service layer
+// ────────────────────────────────────────────────────────────
+
+/**
+ * `getCalendarVentureSessions` now lives in `@/services/workspace/calendar`
+ * (the derivation of the Venture scope) with its three statements in
+ * `@/models/workspaceCalendarStore`. Re-exported here so existing importers
+ * (the dashboard route, the calendar suite) keep working — see
+ * docs/LAYER_SPLIT.md.
+ */
+export { getCalendarVentureSessions } from "@/services/workspace/calendar";
