@@ -36,9 +36,25 @@ export function cidOrNull(value) {
   return raw;
 }
 
-/** True when the value is a usable person reference, or absent (null/undefined). */
+/**
+ * True when the value is a usable person reference, or ABSENT.
+ *
+ * "Absent" includes the empty string. That is not a loophole — it is the value
+ * a form sends when a field is CLEARED, and `cidOrNull` already normalizes it to
+ * NULL. Treating it as malformed was a real defect: a milestone whose owner is an
+ * external NAME (or has no owner at all) arrives as `owner_cid: ""` beside
+ * `owner_name: "Amina"`, and rejecting it made that milestone impossible to save
+ * — the assignment is complete without a platform identity, and that is the whole
+ * point of the name half.
+ *
+ * What stays invalid is anything that is not a bounded string at all: an object,
+ * an array, a number, or an over-long blob (which `cidOrNull` would drop anyway,
+ * silently turning a caller's mistake into "no owner").
+ */
 export function isValidCid(value) {
-  return value === null || value === undefined || cidOrNull(value) !== null;
+  if (value === null || value === undefined) return true;
+  if (typeof value !== "string") return false;
+  return value.trim().length <= 64;
 }
 
 /** True when an error looks like a missing column (schema drift on old DBs). */
