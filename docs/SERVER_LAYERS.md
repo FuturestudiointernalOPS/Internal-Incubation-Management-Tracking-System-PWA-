@@ -67,6 +67,13 @@ or a membership check — and runs after an identity exists.
 5. **No new dependency is added to reach a layer.** `server/authz` calls models
    directly; models never call services.
 
+   *Known exceptions while the layer split is in progress* (tracked in
+   [LAYER_SPLIT.md](LAYER_SPLIT.md)): `models/authorization/eligibility-admin.js`
+   imports the eligibility decision from the service (it is itself a decision
+   module still parked in models), and the `resolver`, `scope` and
+   `contextGrantReadiness` model files are **temporary re-export facades** to
+   `services/authorization/*`. Both are removed as the split completes.
+
 ## State of the migration
 
 | Area | Home | Status |
