@@ -98,6 +98,7 @@ or a membership check — and runs after an identity exists.
 | Objective (KPI) progress rate + cache policy | `services/programs/kpiProgress.js` + `models/kpiProgressStore.js` | ✅ moved (slice 12 — first programs module) |
 | Program manager change (repair action) | `services/programs/programManager.js` | ✅ moved (slice 13 — controller orchestration) |
 | Contact ↔ program/group sync + reconciliation | `services/contacts/contactGroupSync.js` + `models/contactGroupSyncStore.js` | ✅ moved (slice 14 — first contacts module) |
+| Venture document types (decisions + 12 statements) | `services/ventures/ventureDocumentTypes.js` + `models/ventureDocumentTypesStore.js` | ✅ moved (slice 15 — first ventures module) |
 | Effective access-profile resolution, responsibilities domain | still `src/lib/auth.js` (6 functions, 8 SQL statements) | ⏸ **blocked on a decision** — see below |
 
 Two overlaps are **known and deliberately left alone** until a decision is made,

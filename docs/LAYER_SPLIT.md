@@ -1,9 +1,10 @@
 # Layer split — View → Controller → Service → Repository
 
-> Status: **authorization + finance complete; programs models done; contacts
-> started**. Slices 1–9 finished authorization (service layer HTTP-free), 10–11
-> finished finance, 12–13 covered the programs domain, 14 opened contacts/CRM.
-> This document is the running log. Update it at the end of every slice.
+> Status: **authorization + finance complete; programs models done; contacts and
+> ventures started**. Slices 1–9 finished authorization (service layer HTTP-free),
+> 10–11 finished finance, 12–13 covered programs, 14 contacts, 15 ventures. The
+> remaining mixed model modules are itemised in §4. This document is the running
+> log. Update it at the end of every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
 [`SERVER_LAYERS.md`](SERVER_LAYERS.md) (the request path as it stands),
@@ -204,7 +205,7 @@ structure, the merge semantics, the fail-closed rules, and every returned field.
 
 | Check | Result |
 |---|---|
-| Full suite `npm test` | **228 suites, 3002 tests, all passed** |
+| Full suite `npm test` | **228 suites, 3007 tests, all passed** |
 | `npx eslint .` | 0 errors (6 pre-existing warnings elsewhere) |
 | `npm run build` | green |
 | Cold-resolution round trips | unchanged (3 waves — pinned by `db-sequencing.test.js`) |
@@ -266,6 +267,19 @@ full-state route reaches it via `@/lib/contact-group-sync`).
 **Not changed:** the idempotent, additive, fill-only semantics; the one-run-per-
 window reconciliation guard; the byte-identical SQL.
 
+### Domain 5 — ventures (slice 15)
+
+`src/models/ventureDocumentTypes.js` (319 LOC) mixed the decisions (seed only
+when empty, fall back to the built-in set, unique code, delete guards, who may
+manage) into the functions that ran the SQL. Now: decisions in
+`src/services/ventures/ventureDocumentTypes.js`, every statement in
+`src/models/ventureDocumentTypesStore.js`, both re-exported by the
+`ventureDocumentTypes.js` facade. The injectable `database` argument the tests
+rely on is threaded through unchanged.
+
+**A test caught a real regression here** (a missing `if (!ventureId) return []`
+guard) — proof the suites are doing their job on a move like this.
+
 ---
 
 ## 3. Left aside on purpose (deferred, with reasons)
@@ -303,11 +317,36 @@ cleanup, not layering:
 | Domain | Service to create | Notes |
 |---|---|---|
 | Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
-| Programs | `services/programs/*` | ✅ **models done** (slice 12; the model modules were already repositories) · ⏳ controller orchestration started (slice 13) |
+| Programs | `services/programs/*` | ✅ **models done** (slice 12) · ⏳ controller orchestration started (slice 13) |
 | Contacts / CRM | `services/contacts/*` | ⏳ **started** — contact↔program/group sync (slice 14) |
-| Ventures | `services/ventures/*` | largest domain (`lib/ventures.js`, ~5.6k LOC) |
-| Tasks / projects | `services/tasks/*`, `services/projects/*` | orchestration currently in controllers |
-| LMS / platform / integrations | `services/<domain>/*` | |
+| Ventures | `services/ventures/*` | ⏳ **started** — document types (slice 15); see the backlog below |
+| Tasks / projects | `services/tasks/*`, `services/projects/*` | ⬜ not started |
+| LMS / platform / integrations | `services/<domain>/*` | ⬜ not started |
+
+#### Remaining mixed model modules (the actual backlog)
+
+Every one of these has at least one function that computes a decision and runs
+SQL in the same body. Recipe: characterisation test → statements into a
+`*Store.js` → decision into `services/<domain>/` → facade → tests + lint + build.
+
+| Module | Domain | What mixes |
+|---|---|---|
+| `models/authorization/programScopeReadiness.js` | authorization | `buildProgramScopeReadiness` (report + reads) |
+| `models/authorization/investorScope.js` | authorization | `resolveInvestorScope` (decision + read) |
+| `models/ventureAssets.js` (416, 47 q) | ventures | the four `isFounderFor*` visibility/transition rules + reads |
+| `models/ventureMemberAccess.js` (84, 4 q) | ventures | member/founder/mutate checks + reads |
+| `models/venturePlanImport.js` (1225) | ventures | plan interpretation/validation + writes |
+| `models/workspace.js` (792, 56 q) | workspace | full-state assembly + campaign contact completion |
+| `models/participantPortal.js` (764, 72 q) | participant | portal state assembly |
+| `models/intelligence.js` (291, 13 q) | intelligence | aggregation + reads |
+| `models/lms/{learning,registrations,checkout}.js` | LMS | progress/registration/checkout decisions + reads |
+| `models/platform/ai/{report,email-personalize}.js` | platform | prompt/report shaping + reads |
+| `models/{contacts,groups,communications,forms,formRuns}.js` | CRM | a few decision helpers among otherwise query-only modules |
+
+Pure modules that show up in a naive scan but need **nothing** (already
+pure/query-only): `platform/roles.js`, `authorization/capability-catalog.js`,
+`lms/constants.js`, `lms/scoring.js`, `lib/programProgress.js`,
+`ventureChangeLog.js`, `authorization/eligibility-defaults.js`.
 
 > **Controllers are the new frontier.** Once the model modules are split, the
 > remaining domain logic is the orchestration inside `src/app/api/**/route.js`.
