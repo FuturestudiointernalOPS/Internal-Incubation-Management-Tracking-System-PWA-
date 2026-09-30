@@ -5,6 +5,7 @@ import { requireAuthorization } from "@/lib/authorization";
 import { sendDecisionEmail, getTemplate, getDesignedTemplate, resolveResultDelayMinutes, ensureEmailLogTable, resolvePersonName, resolveSubmissionEmail, resolveProjectName, recordEmailStatus, isGenericName, isPlaceholderEmail, hasSentEmailToRecipientInRun, detectLanguage, getEmailLogRow } from "@/lib/email";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded, sendAcknowledgementForSubmission } from "@/lib/platform/automation";
 import { resolveAutomationFlag } from "@/lib/platform/automationSettings";
+import { maybeAutoApprove } from "@/models/platform/ai/autoApprove";
 import { syncApprovedSubmissionToProgramGroup } from "@/lib/contact-group-sync";
 import {
   insertTimelineEntry,
@@ -26,6 +27,7 @@ import {
   countSubmittedSubmissions,
   countApprovedSubmissions,
   countOverdueSubmissions,
+  countNonDraftSubmissionsByRunId,
   getRecentActivityTimeline,
   getAssignableContactsList,
   getScoringSubmissionById,
@@ -363,9 +365,16 @@ export async function GET(req) {
 
       const reviews = await getSubmissionReviewsBySubmissionId(submissionId);
 
+      // "Anonymous Submissions": the reviewer reads the answers and the outcome,
+      // never WHO answered — the same rule the run list applies.
+      const anonymousReview = run.rows[0]?.settings?.anonymous === true;
+      const submissionRow = anonymousReview
+        ? { ...submissionResult.rows[0], submitter_name: null, submitter_id: null }
+        : submissionResult.rows[0];
+
       return NextResponse.json({
         success: true,
-        submission: submissionResult.rows[0],
+        submission: submissionRow,
         run: run.rows[0] || null,
         reviews: reviews.rows,
       });
@@ -494,6 +503,21 @@ export async function GET(req) {
     if (id) {
       const run = await getRunDetailWithGroupTargetById(id);
       if (run.rows.length === 0) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+
+      // "Auto-Close": a run past its deadline closes ITSELF the moment anyone
+      // opens it (instead of merely refusing late answers), which is the status
+      // the operator would otherwise have to set by hand.
+      const runSettingsForView = run.rows[0].settings || {};
+      if (
+        runSettingsForView.auto_close === true &&
+        run.rows[0].closes_at && new Date(run.rows[0].closes_at) < new Date() &&
+        !["closed", "archived", "cancelled"].includes(run.rows[0].status)
+      ) {
+        try {
+          const closed = await updateRunStatusById(id, "closed");
+          if (closed.rows[0]) run.rows[0] = { ...run.rows[0], status: closed.rows[0].status };
+        } catch (_) {}
+      }
 
       // The Run is the only read the others depend on (for its form_id), so it
       // is wave 1 and everything below rides in wave 2: assignments,
@@ -682,6 +706,19 @@ export async function GET(req) {
           },
         };
       });
+
+      // "Anonymous Submissions": the reviewer sees the answers and the outcome,
+      // never WHO answered. This is a presentation rule over the payload the run
+      // screen renders — the senders still resolve the real address from the
+      // stored data, so nothing about delivery changes.
+      if (runSettingsForView.anonymous === true) {
+        for (const submission of enrichedSubmissions) {
+          submission.display_name = "Anonymous";
+          submission.email = null;
+          submission.submitter_name = null;
+          submission.submitter_id = null;
+        }
+      }
 
       // The document this Run hands to its report writer, if any. Read together
       // with the rest of the wave so the configuration screen can show it — and
@@ -1597,14 +1634,39 @@ export async function POST(req) {
       const run = await getRunSubmissionGateById(run_id);
       if (run.rows.length === 0) return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
       if (run.rows[0].status !== "active") return NextResponse.json({ success: false, error: "Run is not active" }, { status: 400 });
+      const gateSettings = run.rows[0].settings || {};
       if (run.rows[0].closes_at && new Date(run.rows[0].closes_at) < new Date()) {
+        // "Auto-Close" makes the run close ITSELF at its deadline instead of only
+        // refusing late answers — the status the operator would set by hand.
+        if (gateSettings.auto_close) {
+          try { await updateRunStatusById(run_id, "closed"); } catch (_) {}
+        }
         return NextResponse.json({ success: false, error: "Submission deadline has passed" }, { status: 400 });
       }
 
-      // Check if already submitted
+      // "Multiple Submissions" off (the default) means one response per person:
+      // a repeat save UPDATES that person's own response. On, a repeat save adds
+      // a NEW response instead — which is what lets the submission limit below
+      // ever be reached by one person.
+      const allowMultiple = gateSettings.allow_multiple === true;
       const existing = await findExistingSubmissionIdForRunAndSubmitter(run_id, session.cid);
+      const submissionToUpdate = !allowMultiple && existing.rows.length > 0 ? existing : { rows: [] };
 
       const newStatus = subStatus || "submitted";
+
+      // "Submission Limit" caps how many responses the run accepts (0 =
+      // unlimited). Only a NEW response consumes a seat, so updating one's own
+      // response is exempt.
+      if (newStatus !== "draft" && submissionToUpdate.rows.length === 0) {
+        const limit = parseInt(gateSettings.submission_limit) || 0;
+        if (limit > 0) {
+          const countRes = await countNonDraftSubmissionsByRunId(run_id, session.cid);
+          const current = parseInt(countRes.rows[0]?.c) || 0;
+          if (current >= limit) {
+            return NextResponse.json({ success: false, error: "platformMisc.runs.submissionLimitReached" }, { status: 400 });
+          }
+        }
+      }
 
       // Build final data with optional scoring
       let finalData = { ...(data || {}) };
@@ -1622,18 +1684,18 @@ export async function POST(req) {
         } catch (_) {}
       }
 
-      if (existing.rows.length > 0) {
-        const currentStatus = await getSubmissionCurrentStatusById(existing.rows[0].id);
+      if (submissionToUpdate.rows.length > 0) {
+        const currentStatus = await getSubmissionCurrentStatusById(submissionToUpdate.rows[0].id);
         // Don't allow overwriting approved/rejected submissions
         if (currentStatus.rows[0] && (currentStatus.rows[0].status === "approved" || currentStatus.rows[0].status === "rejected")) {
           return NextResponse.json({ success: false, error: "Cannot modify an already decided submission" }, { status: 400 });
         }
         const result = await updateSubmissionContentAndStatusById({
-          submissionId: existing.rows[0].id,
+          submissionId: submissionToUpdate.rows[0].id,
           data: finalData,
           status: newStatus,
         });
-        logTimeline(existing.rows[0].id, newStatus === "draft" ? "draft_saved" : "submitted", session.cid, null);
+        logTimeline(submissionToUpdate.rows[0].id, newStatus === "draft" ? "draft_saved" : "submitted", session.cid, null);
         // Fire automation
         if (newStatus !== "draft") {
           const fullRun = await getFullRunForSubmissionAutomationById(run_id);
@@ -1655,8 +1717,12 @@ export async function POST(req) {
               const { submissionHasEvaluation, evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
               const alreadyEvaluated = await submissionHasEvaluation(newSubmissionId).catch(() => true);
               if (!alreadyEvaluated) {
-                await evaluateSubmission(newSubmissionId);
+                const evaluation = await evaluateSubmission(newSubmissionId);
                 logTimeline(newSubmissionId, "ai_evaluated", "system", "System", {});
+                // A score that meets the form's cutoff approves the applicant
+                // right away — the same automatic step the evaluation endpoint
+                // applies, so nothing depends on an administrator opening the run.
+                if (evaluation) await maybeAutoApprove(newSubmissionId, evaluation);
               }
             } catch (error) {
               console.error("[form-runs] AI eval failed for submission", newSubmissionId, ":", error.message);
@@ -1690,8 +1756,10 @@ export async function POST(req) {
             const newSubmissionId = result.rows[0].id;
             try {
               const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
-              await evaluateSubmission(newSubmissionId);
+              const evaluation = await evaluateSubmission(newSubmissionId);
               logTimeline(newSubmissionId, "ai_evaluated", "system", "System", {});
+              // Same automatic approval step as every other evaluation path.
+              if (evaluation) await maybeAutoApprove(newSubmissionId, evaluation);
             } catch (error) {
               console.error("[form-runs] AI eval failed for submission", newSubmissionId, ":", error.message);
               logTimeline(newSubmissionId, "ai_eval_failed", "system", "System", { error: error.message });
@@ -1792,8 +1860,10 @@ export async function POST(req) {
           const newSubmissionId = result.rows[0].id;
           try {
             const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
-            await evaluateSubmission(newSubmissionId);
+            const evaluation = await evaluateSubmission(newSubmissionId);
             logTimeline(newSubmissionId, "ai_evaluated", "system", "System", {});
+            // Same automatic approval step as every other evaluation path.
+            if (evaluation) await maybeAutoApprove(newSubmissionId, evaluation);
           } catch (error) {
             console.error("[form-runs] AI eval failed for manual submission", newSubmissionId, ":", error.message);
             logTimeline(newSubmissionId, "ai_eval_failed", "system", "System", { error: error.message });

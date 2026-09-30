@@ -32,6 +32,7 @@ import db from "@/lib/db";
  */
 export async function getProgramFullStateData(id) {
   const queries = [
+    // NULL as completion_index is deliberate: v2_programs carries its own stored, stale value and nothing overwrites it any more, so this alias is what keeps that value off the screen.
     {
       name: "program",
       // The note's attachments are aggregated into this row so the screen does

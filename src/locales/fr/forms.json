@@ -25,6 +25,7 @@
     "paymentVerifyingHint": "Cela peut prendre jusqu'à deux minutes. Gardez cette page ouverte.",
     "paymentSuccess": "Votre inscription est confirmée",
     "paymentSuccessBody": "Votre accès est prêt. Choisissez votre mot de passe pour entrer dans votre cours.",
+    "paymentSuccessByEmail": "Votre paiement est confirmé. Nous vous avons envoyé le lien par e-mail — ouvrez-le pour choisir votre mot de passe et accéder à votre cours.",
     "paymentChoosePassword": "Choisir mon mot de passe",
     "paymentGoToCourse": "Aller à mon cours",
     "paymentEmailNote": "Nous vous avons aussi envoyé un e-mail — c'est votre reçu et votre porte de secours si vous fermez cette page.",

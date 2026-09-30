@@ -6,6 +6,9 @@ import { getClientIp } from "@/lib/rate-limit";
 import { defaultPaymentProvider } from "@/lib/integrations/payments";
 import { findRegistrationByCourseAndEmail, providerAmountOf } from "@/lib/lms/registrations";
 import { getPaidRunContext, startCheckoutForSubmission } from "@/lib/lms/checkout";
+import { formHasAiEvaluation, evaluateSubmission, submissionHasEvaluation } from "@/lib/platform/ai/evaluate";
+import { maybeAutoApprove } from "@/models/platform/ai/autoApprove";
+import { countNonDraftSubmissionsByRunId, updateRunStatusById } from "@/models/formRuns";
 import {
   ensurePublicSubmitInvitationColumn,
   ensurePublicSubmitInvitationIndex,
@@ -219,8 +222,14 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Run not found or not active" }, { status: 404 });
     }
 
-    // Check deadline
+    const runSettings = runResult.rows[0].settings || {};
+
+    // Check deadline — and, when the run asks for it, close it for good so the
+    // status matches the refusal the applicant just received.
     if (runResult.rows[0].closes_at && new Date(runResult.rows[0].closes_at) < new Date()) {
+      if (runSettings.auto_close === true) {
+        try { await updateRunStatusById(run_id, "closed"); } catch (_) {}
+      }
       return NextResponse.json({ success: false, error: "Submission deadline has passed" }, { status: 400 });
     }
 
@@ -320,7 +329,9 @@ export async function POST(req) {
     // Prevent duplicate SUBMITTED entries by same email — idempotent:
     // a repeat submission returns success (not an error) so a participant who
     // resubmits after a misleading error is NOT told their application failed.
-    if (submitterEmail) {
+    // "Multiple Submissions" on turns this off on purpose: a repeat response is
+    // then a NEW response, not a repeat of the first.
+    if (runSettings.allow_multiple !== true && submitterEmail) {
       const existing = await getSubmittedSubmissionBySubmitter(run_id, submitterEmail);
       if (existing.rows.length > 0) {
         // A paid Execution: a repeat submission is NOT simply "already done".
@@ -359,6 +370,18 @@ export async function POST(req) {
       await insertRateEntryForSubmission(run_id, ip);
     } catch (_) {}
 
+    // "Submission Limit": cap how many responses the run accepts (0 = unlimited).
+    // A returning submitter whose response already exists was answered above, so
+    // only a genuinely NEW response is counted here.
+    const submissionLimit = parseInt(runSettings.submission_limit) || 0;
+    if (submissionLimit > 0) {
+      const countRes = await countNonDraftSubmissionsByRunId(run_id);
+      const current = parseInt(countRes.rows[0]?.c) || 0;
+      if (current >= submissionLimit) {
+        return NextResponse.json({ success: false, error: "platformMisc.runs.submissionLimitReached" }, { status: 400 });
+      }
+    }
+
     // Insert submission — or upgrade existing draft
     let submissionId;
     if (submitterEmail) {
@@ -382,7 +405,9 @@ export async function POST(req) {
         const settings = formSettingsResult.rows[0].settings;
         const automationSettings = settings.automation || {};
         successConfig = {
-          message: automationSettings.success_message || null,
+          // The RUN's confirmation message is the one the operator wrote for THIS
+          // execution; the form's is the fallback every run of it inherits.
+          message: runSettings.confirmation_message || automationSettings.success_message || null,
           redirect_url: automationSettings.redirect_after_submit || null,
         };
       }
@@ -419,7 +444,7 @@ export async function POST(req) {
       let formForAuto = null;
       const formResult = await getFormById(runForAuto?.form_id);
       formForAuto = formResult.rows[0] || null;
-      after(() => {
+      after(async () => {
         onSubmission(
           {
             id: submissionId,
@@ -434,6 +459,23 @@ export async function POST(req) {
           formForAuto,
           null,
         );
+        // AI evaluation is AUTOMATIC for a form that has it enabled: the
+        // submission is scored the moment it arrives (and, when its score meets
+        // the configured cutoff, approved) — nobody has to open the run first.
+        // Without this the public path created submissions that were never
+        // evaluated, so no result document and no result email could ever exist.
+        try {
+          const formIdForEval = runForAuto?.form_id;
+          if (formIdForEval && await formHasAiEvaluation(formIdForEval)) {
+            const already = await submissionHasEvaluation(submissionId).catch(() => true);
+            if (!already) {
+              const evaluation = await evaluateSubmission(submissionId);
+              if (evaluation) await maybeAutoApprove(submissionId, evaluation);
+            }
+          }
+        } catch (error) {
+          console.error("[Public Submit] AI evaluation failed:", error?.message || error);
+        }
       });
     } catch (_) {}
 

@@ -619,6 +619,7 @@
       "settingSubmissionLimit": "Limite de soumissions",
       "settingSubmissionLimitDesc": "Nombre maximum de soumissions (0 = illimité)",
       "unlimited": "Illimité",
+      "submissionLimitReached": "Ce formulaire a atteint sa limite de soumissions.",
       "settingMultipleSubmissions": "Soumissions multiples",
       "settingMultipleSubmissionsDesc": "Autoriser les utilisateurs à soumettre plusieurs fois",
       "yes": "Oui",

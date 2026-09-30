@@ -671,7 +671,10 @@ export default function PublicSubmitPage() {
             panel(
               <CheckCircle2 className="w-10 h-10 text-emerald-500" />,
               t("forms.paymentSuccess"),
-              t("forms.paymentSuccessBody"),
+              // With a link in hand, access is genuinely ready. Without one (the
+              // short window has closed), the link travels by email — saying
+              // "your access is ready" with no button would be a dead end.
+              t(payAccessUrl ? "forms.paymentSuccessBody" : "forms.paymentSuccessByEmail"),
               <div className="space-y-3">
                 {payAccessUrl ? (
                   <a
@@ -844,6 +847,13 @@ export default function PublicSubmitPage() {
           {form?.description && <p className="text-sm text-slate-400 mt-2">{form.description}</p>}
           {run?.closes_at && <p className="text-xs text-slate-400 mt-2 flex items-center gap-1"><Clock className="w-3 h-3" /> {t("forms.closes")} {new Date(run.closes_at).toLocaleDateString()}</p>}
         </div>
+
+        {/* The run's own instructions — the same text the internal form shows. */}
+        {run?.settings?.instructions && (
+          <div className="p-4 rounded-2xl border border-orange-500/20 bg-orange-500/5">
+            <p className="text-xs font-medium text-slate-200 whitespace-pre-wrap">{run.settings.instructions}</p>
+          </div>
+        )}
 
         {/* Sections — step-by-step navigation */}
         {(() => {

@@ -188,9 +188,18 @@ export async function issueAccessToken(contactCid) {
   }).catch(() => {});
 
   const token = uuidv4();
+  // NO `token_type`: that column belongs to the invite/reset flow, whose
+  // constraint only admits 'staff_invite', 'participant_invite',
+  // 'password_reset' and 'family_invite' (and which some environments never
+  // created at all). Writing 'lms_purchase' there made the INSERT fail, so the
+  // whole access step was recorded as failed and a paid learner received a
+  // receipt with no way to choose a password. Nothing ever reads the type back
+  // — the setup link is validated by its own hash, expiry and `used` flag — so
+  // this insert deliberately omits it, exactly like the family/resend invite
+  // helpers.
   await db.execute({
-    sql: `INSERT INTO password_setup_tokens (token_hash, contact_cid, expires_at, token_type)
-          VALUES (?, ?, NOW() + INTERVAL '48 hours', 'lms_purchase')`,
+    sql: `INSERT INTO password_setup_tokens (token_hash, contact_cid, expires_at)
+          VALUES (?, ?, NOW() + INTERVAL '48 hours')`,
     args: [hashToken(token), contactCid],
   });
   return token;

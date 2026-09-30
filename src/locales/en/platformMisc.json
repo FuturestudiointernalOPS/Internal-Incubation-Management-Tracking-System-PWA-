@@ -619,6 +619,7 @@
       "settingSubmissionLimit": "Submission Limit",
       "settingSubmissionLimitDesc": "Max submissions allowed (0 = unlimited)",
       "unlimited": "Unlimited",
+      "submissionLimitReached": "This form has reached its submission limit.",
       "settingMultipleSubmissions": "Multiple Submissions",
       "settingMultipleSubmissionsDesc": "Allow users to submit more than once",
       "yes": "Yes",
