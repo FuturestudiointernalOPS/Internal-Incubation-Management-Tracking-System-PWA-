@@ -646,6 +646,109 @@ export function listVentureEvidencedDeliverablesForReport(owners) {
   });
 }
 
+// ── GET /api/ventures/[id]/dashboard ─────────────────────────────────────────
+
+/** Venture identity row for the dashboard. */
+export async function getVentureDashboardInfo(ventureId) {
+  return db.execute({
+    sql: "SELECT company_name, venture_id, industry, business_stage, status, created_at, description, website, logo_url, registration_number FROM ventures WHERE venture_id = ?",
+    args: [ventureId],
+  });
+}
+
+/** Active member recipient ids of a Venture (contact + user cid). */
+export function listVentureMemberRecipients(ventureId) {
+  return db.execute({
+    sql: "SELECT contact_id, user_cid FROM venture_members WHERE venture_id = ? AND removed_at IS NULL",
+    args: [ventureId],
+  });
+}
+
+/** The internal 'sa' notification feed (recent 10). */
+export function selectInternalNotificationFeed() {
+  return db.execute({
+    sql: `SELECT id, title, message, type, is_read, created_at
+                FROM v2_notifications
+                WHERE recipient_id = 'sa'
+                ORDER BY created_at DESC LIMIT 10`,
+  });
+}
+
+/** The notification feed for a set of recipients (optionally + internal 'sa'). */
+export function selectVentureNotificationFeed({ recipientIds, includeInternal }) {
+  const orInternal = includeInternal ? " OR recipient_id = 'sa'" : "";
+  return db.execute({
+    sql: `SELECT id, title, message, type, is_read, created_at
+                FROM v2_notifications
+                WHERE recipient_id IN (${recipientIds.map(() => "?").join(", ")})${orInternal}
+                ORDER BY created_at DESC LIMIT 10`,
+    args: recipientIds,
+  });
+}
+
+/** The Venture's recent activity log rows (40). */
+export function listVentureActivityLog(ventureId) {
+  return db.execute({
+    sql: `SELECT id, action, actor_name, details, created_at
+                FROM venture_activity_log WHERE venture_id = ?
+                ORDER BY created_at DESC LIMIT 40`,
+    args: [ventureId],
+  });
+}
+
+/** The Venture's recent documents (live, archive column). */
+export function listVentureDocumentsForDashboard(ventureId) {
+  return db.execute({
+    sql: "SELECT id, title, category, file_name, file_type, file_size, uploaded_by, created_at FROM venture_documents WHERE venture_id = ? AND is_deleted = false ORDER BY created_at DESC LIMIT 5",
+    args: [ventureId],
+  });
+}
+
+/** Legacy fallback: the same documents without the is_deleted guard. */
+export function listVentureDocumentsForDashboardLegacy(ventureId) {
+  return db.execute({
+    sql: "SELECT id, title, category, file_name, file_type, file_size, uploaded_by, created_at FROM venture_documents WHERE venture_id = ? ORDER BY created_at DESC LIMIT 5",
+    args: [ventureId],
+  });
+}
+
+/** Upcoming calendar events of a Venture (5). */
+export function listVentureMeetings(ventureId) {
+  return db.execute({
+    sql: `SELECT id, title, description, event_date, event_time, status, type
+                FROM calendar_events WHERE venture_id = ? AND event_date >= CURRENT_DATE
+                ORDER BY event_date ASC LIMIT 5`,
+    args: [ventureId],
+  });
+}
+
+/** The Venture's recent KPI assignments (5). */
+export function listVentureKpiSummary(dbId) {
+  return db.execute({
+    sql: `SELECT d.name, d.unit, d.auto_calc_source, a.target_value, a.current_value, a.updated_at
+                FROM venture_kpi_assignments a
+                JOIN venture_kpi_definitions d ON d.id = a.kpi_definition_id
+                WHERE a.venture_id::text = ?
+                ORDER BY a.updated_at DESC LIMIT 5`,
+    args: [dbId],
+  });
+}
+
+/** Count a Venture's advisors. */
+export function countVentureAdvisors(dbId) {
+  return db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_advisors WHERE venture_id::text = ?", args: [dbId] });
+}
+
+/** Count a Venture's coaching sessions. */
+export function countVentureCoachingSessions(dbId) {
+  return db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_coaching_sessions WHERE venture_id::text = ?", args: [dbId] });
+}
+
+/** Count a Venture's active coach assignments. */
+export function countVentureActiveCoachAssignments(dbId) {
+  return db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_coach_assignments WHERE venture_id::text = ? AND status = 'active'", args: [dbId] });
+}
+
 // ── GET/POST/PATCH /api/ventures/[id]/blockers ───────────────────────────────
 
 /** Internal ventures.id by VNT code — blockers resolveVentureDbId helper. */
