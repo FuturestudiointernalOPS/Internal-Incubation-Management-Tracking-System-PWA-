@@ -10,6 +10,16 @@ import {
 } from "@/models/ventureMemberInvitations";
 import { createLinkedNotification } from "@/models/workspace";
 import {
+  getVentureByCode,
+  listVentureMembersWithContacts,
+  findVentureMemberByEmail,
+  getVentureDisplayNameByCode,
+  getVentureMemberById,
+  getVentureMemberContactId,
+  archiveVentureMember,
+  updateVentureMemberFields,
+} from "@/models/ventureWorkspace";
+import {
   resolveVentureCode,
   getVentureFounderCount,
   checkVentureMemberViewAccess as checkAccess,
@@ -60,19 +70,10 @@ export async function GET(req, { params }) {
       }
     } catch (_) {}
 
-    await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+    await getVentureByCode(id);
     const code = await resolveVentureCode(db, id);
 
-    const result = await db.execute({
-      sql: `
-        SELECT vm.*, c.name as contact_name, c.email as contact_email
-        FROM venture_members vm
-        LEFT JOIN contacts c ON vm.contact_id = c.cid
-        WHERE vm.venture_id = ? AND vm.removed_at IS NULL
-        ORDER BY vm.member_type, vm.joined_at DESC
-      `,
-      args: [code],
-    });
+    const result = await listVentureMembersWithContacts(code);
 
     return NextResponse.json({ success: true, members: result.rows });
   } catch (error) {
@@ -138,13 +139,7 @@ export async function POST(req, { params }) {
     const code = await resolveVentureCode(db, id);
 
     // Someone already on the roster does not need an invitation.
-    const alreadyMember = await db.execute({
-      sql: `SELECT 1 FROM venture_members vm
-            JOIN contacts c ON c.cid = COALESCE(vm.contact_id, vm.user_cid)
-            WHERE vm.venture_id = ? AND vm.removed_at IS NULL AND LOWER(c.email) = LOWER(?)
-            LIMIT 1`,
-      args: [code, emailNorm],
-    });
+    const alreadyMember = await findVentureMemberByEmail(code, emailNorm);
     if (alreadyMember.rows?.length) {
       return NextResponse.json(
         { success: false, error: "This person is already a member of this Venture." },
@@ -166,12 +161,7 @@ export async function POST(req, { params }) {
     // the email below — ask for it once.
     let ventureName = "the Venture";
     try {
-      const ventureResult = await db.execute({
-        // company_name is the canonical label; the legacy `name` column can
-        // still hold the intake Run's name.
-        sql: "SELECT COALESCE(NULLIF(company_name, ''), name) AS venture_name FROM ventures WHERE venture_id = ? LIMIT 1",
-        args: [code],
-      });
+      const ventureResult = await getVentureDisplayNameByCode(code);
       ventureName = ventureResult.rows?.[0]?.venture_name || ventureName;
     } catch (_) {}
 
@@ -291,10 +281,7 @@ export async function PATCH(req, { params }) {
     }
 
     if (action === "remove") {
-      const memberResult = await db.execute({
-        sql: "SELECT member_type, contact_id, role FROM venture_members WHERE id = ? AND venture_id = ?",
-        args: [member_id, id],
-      });
+      const memberResult = await getVentureMemberById(member_id, id);
 
       if (!memberResult.rows?.[0]) {
         return NextResponse.json({ success: false, error: "Member not found" }, { status: 404 });
@@ -310,10 +297,7 @@ export async function PATCH(req, { params }) {
         }
       }
 
-      await db.execute({
-        sql: "UPDATE venture_members SET removed_at = NOW() WHERE id = ? AND venture_id = ?",
-        args: [member_id, id],
-      });
+      await archiveVentureMember(member_id, id);
 
       // The access answers remembered for this Venture are dropped here: a
       // removed member must lose access NOW, not when the window expires.
@@ -341,10 +325,7 @@ export async function PATCH(req, { params }) {
     } else {
       let memberContactId = null;
       try {
-        const memberContactResult = await db.execute({
-          sql: "SELECT contact_id FROM venture_members WHERE id = ? AND venture_id = ?",
-          args: [member_id, id],
-        });
+        const memberContactResult = await getVentureMemberContactId(member_id, id);
         memberContactId = memberContactResult.rows?.[0]?.contact_id || null;
       } catch (_) {}
       const updates = [];
@@ -371,10 +352,7 @@ export async function PATCH(req, { params }) {
         return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });
       }
       updateArgs.push(member_id, id);
-      await db.execute({
-        sql: `UPDATE venture_members SET ${updates.join(", ")} WHERE id = ? AND venture_id = ?`,
-        args: updateArgs,
-      });
+      await updateVentureMemberFields(updates, updateArgs);
       // A changed role or permission set means the remembered answers for this
       // Venture are no longer the whole truth.
       invalidateVentureAccess(id);

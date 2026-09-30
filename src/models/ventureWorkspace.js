@@ -611,3 +611,75 @@ export async function countVentureTasksWithCompletedStatuses(dbId, completedStat
     args: [...completedStatuses, dbId],
   });
 }
+
+// ── GET/POST/PATCH /api/ventures/[id]/members ────────────────────────────────
+
+/** Existence check: a Venture by its VNT code. */
+export async function getVentureByCode(ventureId) {
+  return db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+}
+
+/** A Venture's active roster with contact names/emails, grouped by type. */
+export async function listVentureMembersWithContacts(ventureCode) {
+  return db.execute({
+    sql: `
+        SELECT vm.*, c.name as contact_name, c.email as contact_email
+        FROM venture_members vm
+        LEFT JOIN contacts c ON vm.contact_id = c.cid
+        WHERE vm.venture_id = ? AND vm.removed_at IS NULL
+        ORDER BY vm.member_type, vm.joined_at DESC
+      `,
+    args: [ventureCode],
+  });
+}
+
+/** Existing active roster row whose contact email matches (case-insensitive). */
+export async function findVentureMemberByEmail(ventureCode, email) {
+  return db.execute({
+    sql: `SELECT 1 FROM venture_members vm
+            JOIN contacts c ON c.cid = COALESCE(vm.contact_id, vm.user_cid)
+            WHERE vm.venture_id = ? AND vm.removed_at IS NULL AND LOWER(c.email) = LOWER(?)
+            LIMIT 1`,
+    args: [ventureCode, email],
+  });
+}
+
+/** A Venture's display name (company_name first, legacy name fallback). */
+export async function getVentureDisplayNameByCode(ventureCode) {
+  return db.execute({
+    sql: "SELECT COALESCE(NULLIF(company_name, ''), name) AS venture_name FROM ventures WHERE venture_id = ? LIMIT 1",
+    args: [ventureCode],
+  });
+}
+
+/** One roster row (type, contact, role) of a Venture, by id. */
+export async function getVentureMemberById(memberId, ventureId) {
+  return db.execute({
+    sql: "SELECT member_type, contact_id, role FROM venture_members WHERE id = ? AND venture_id = ?",
+    args: [memberId, ventureId],
+  });
+}
+
+/** The contact id behind one roster row, by id. */
+export async function getVentureMemberContactId(memberId, ventureId) {
+  return db.execute({
+    sql: "SELECT contact_id FROM venture_members WHERE id = ? AND venture_id = ?",
+    args: [memberId, ventureId],
+  });
+}
+
+/** Soft-remove one roster row. */
+export async function archiveVentureMember(memberId, ventureId) {
+  return db.execute({
+    sql: "UPDATE venture_members SET removed_at = NOW() WHERE id = ? AND venture_id = ?",
+    args: [memberId, ventureId],
+  });
+}
+
+/** Apply controller-built SET clauses to a roster row. */
+export async function updateVentureMemberFields(updates, args) {
+  return db.execute({
+    sql: `UPDATE venture_members SET ${updates.join(", ")} WHERE id = ? AND venture_id = ?`,
+    args,
+  });
+}
