@@ -45,6 +45,7 @@ describe("services never touch the database directly", () => {
 describe("repositories stay HTTP-free", () => {
   it.each([
     "models/authorization/contextReads.js",
+    "models/authorization/contextGrantReadinessReads.js",
   ])("%s imports no HTTP layer", (rel) => {
     const source = fs.readFileSync(path.join(SRC, rel), "utf8");
     expect(source).not.toMatch(/from\s+["']next\/server["']/);

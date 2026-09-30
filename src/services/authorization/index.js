@@ -6,6 +6,8 @@
  * SQL itself and never renders anything.
  *
  *   context.js — resolve a person's effective access, and answer "may they?"
+ *   contextGrantReadiness.js — the read-only readiness/impact report an
+ *                              administrator consults before narrowing access
  *
  * Who imports it:
  *   - endpoints (controllers) call `requireAuthorization` at the top of a handler
@@ -18,3 +20,4 @@
  */
 
 export * from "./context";
+export * from "./contextGrantReadiness";
