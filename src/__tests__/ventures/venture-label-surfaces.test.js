@@ -40,7 +40,8 @@ describe("a Venture is named company_name-first everywhere", () => {
   });
 
   test("the portfolio reports read the company name", () => {
-    const src = read("src/lib/ventureReports.js");
+    // The mapping moved to the reports service in slice 31; same assertion.
+    const src = read("src/services/ventures/reports.js");
     // Both the report list and the journeys missing their closing report.
     expect(src.match(/venture_name: row\.company_name \|\| row\.name/g)).toHaveLength(2);
   });
@@ -50,7 +51,7 @@ describe("a Venture is named company_name-first everywhere", () => {
       "src/app/api/ventures/[id]/members/route.js",
       "src/models/ventureMemberInvitations.js",
       "src/models/authorization/contactContexts.js",
-      "src/lib/ventureReports.js",
+      "src/services/ventures/reports.js",
       "src/app/participant/ventures/page.js",
     ]) {
       const src = read(file);

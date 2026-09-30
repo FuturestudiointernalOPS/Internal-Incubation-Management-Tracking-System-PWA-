@@ -1,4 +1,3 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { resolvePlanAccess, allowsPlanAction, resolveVentureCode } from "@/lib/ventureOperatingPlans";
@@ -45,18 +44,18 @@ export async function GET(req, { params }) {
     const searchParams = new URL(req.url).searchParams;
     const reportId = searchParams.get("id");
     if (reportId) {
-      const report = await getVentureReport(db, { code, id: parseInt(reportId) });
+      const report = await getVentureReport({ code, id: parseInt(reportId) });
       if (!report) return NextResponse.json({ success: false, error: "Report not found." }, { status: 404 });
       return NextResponse.json({ success: true, report });
     }
     // Super Admin's gap view: journeys that closed WITHOUT their closing report.
     // Nothing is ever blocked on the report — the gap is simply visible.
     if (searchParams.get("missing_reports")) {
-      const journeys = await listJourneysMissingClosingReport(db, { code });
+      const journeys = await listJourneysMissingClosingReport({ code });
       return NextResponse.json({ success: true, journeys_missing_report: journeys });
     }
 
-    const reports = await listVentureReports(db, {
+    const reports = await listVentureReports({
       code,
       status: searchParams.get("status") || null,
       journeyStageId: searchParams.get("journey_stage_id") || null,
@@ -83,7 +82,7 @@ export async function POST(req, { params }) {
     if (!code) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     const body = await req.json();
-    const result = await createVentureReport(db, { code, actorCid: session.cid || null, fields: body });
+    const result = await createVentureReport({ code, actorCid: session.cid || null, fields: body });
     if (result.error) return NextResponse.json({ success: false, error: result.error }, { status: 400 });
 
     try {
@@ -116,7 +115,7 @@ export async function PATCH(req, { params }) {
     if (!body.id || !body.status) {
       return NextResponse.json({ success: false, error: "id and status are required." }, { status: 400 });
     }
-    const result = await updateVentureReportStatus(db, { code, id: parseInt(body.id), status: String(body.status) });
+    const result = await updateVentureReportStatus({ code, id: parseInt(body.id), status: String(body.status) });
     if (result.error) return NextResponse.json({ success: false, error: result.error }, { status: 400 });
 
     try {

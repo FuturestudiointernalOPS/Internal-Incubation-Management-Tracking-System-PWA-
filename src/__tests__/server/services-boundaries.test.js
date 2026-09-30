@@ -89,6 +89,7 @@ describe("repositories stay HTTP-free", () => {
     "models/ventureOperatingPlanStore.js",
     "models/ventureReadinessStore.js",
     "models/ventureNotifyStore.js",
+    "models/ventureReportStore.js",
   ])("%s imports no HTTP layer", (rel) => {
     const source = fs.readFileSync(path.join(SRC, rel), "utf8");
     expect(source).not.toMatch(/from\s+["']next\/server["']/);

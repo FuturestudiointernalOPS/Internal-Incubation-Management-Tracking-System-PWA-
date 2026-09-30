@@ -14,8 +14,9 @@
 > (service + store; the `db` threading through `canManageMilestones` /
 > `syncMilestoneFromWork` is gone), 29 the assignment-scope layer and the
 > operating-plan access helpers, 30 the roadmap readiness engine and the Venture
-> notification helpers. The remaining mixed model modules are itemised in §4.
-> This document is the running log. Update it at the end of every slice.
+> notification helpers. 31 the venture progress reports. The remaining mixed
+> model modules are itemised in §4. This document is the running log. Update it
+> at the end of every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
 [`SERVER_LAYERS.md`](SERVER_LAYERS.md) (the request path as it stands),
@@ -618,6 +619,18 @@ Manager), the dedupe suffixes and the per-recipient isolation.
 
 ---
 
+### Domain 18 — venture progress reports (slice 31)
+
+`src/lib/ventureReports.js` validated report input and shaped the portfolio rows
+while running its SQL. The validation and the mapping now live in
+`src/services/ventures/reports.js`; every statement in
+`src/models/ventureReportStore.js`; the `src/lib` file a facade. The two
+importing routes (`progress-reports`, `journey-reports`) dropped the db argument.
+The `venture-label-surfaces` source-pinning suite was repointed to the service
+(same assertion, new home).
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -799,10 +812,10 @@ Two source-pinning suites were repointed (same assertion, new home):
   `ventureAccessFacts.js` (slice 27, which left `ventureAuth.js` pure),
   `venturePermissions.js`, `ventureMilestoneEngine.js` (slice 28),
   `ventureScope.js` and `ventureOperatingPlans.js` (slice 29), `ventureReadiness.js`
-  and `ventureNotify.js` (slice 30) are done — all facades over
-  `services/ventures/*`. A long tail of `src/lib` modules still holds SQL (the
-  biggest: `ventures.js` (5.8k lines), `ventureReports.js`, `ventureCoach.js`,
-  plus the non-venture ones `auth.js`, `email.js`, `audit.js`, `token-hashing.js`,
+  and `ventureNotify.js` (slice 30), `ventureReports.js` (slice 31) are done —
+  all facades over `services/ventures/*`. A long tail of `src/lib` modules still
+  holds SQL (the biggest: `ventures.js` (5.8k lines), `ventureCoach.js`, plus the
+  non-venture ones `auth.js`, `email.js`, `audit.js`, `token-hashing.js`,
   `request-context.js`, `lms/coaching.js`) — the next repository-extraction
   targets, one module at a time, tracked in `MVC_REFACTOR.md`.
 - Giant page files (>600 LOC) still need splitting into feature components.
