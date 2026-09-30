@@ -1936,7 +1936,7 @@ export async function canManageVerification(ventureId, session) {
     // Assignments key on the VNT code; the rule above is asked of the code, so
     // an internal id in the URL is resolved first.
     const { resolveVentureCode } = await import("./ventureScope");
-    const code = await resolveVentureCode(db, ventureId);
+    const code = await resolveVentureCode(ventureId);
     if (code && (await canManageVentureDocumentTypes(session, code))) {
       return { allowed: true, isReviewer: true };
     }

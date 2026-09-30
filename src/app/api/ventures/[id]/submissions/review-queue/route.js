@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db from "@/lib/db";
 import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
 import {
   isGlobalRole,
@@ -45,10 +44,10 @@ export const GET = createHandler(async (req, { params }) => {
   // means "no restriction" (global roles, zero rows, wide reach, read error).
   let scopedTaskIds = null;
   if (session?.cid && !isGlobalRole(session.role)) {
-    const code = await resolveVentureCode(db, id);
-    const scopes = code ? await getAssignmentScopes(db, { code, cid: session.cid }) : null;
+    const code = await resolveVentureCode(id);
+    const scopes = code ? await getAssignmentScopes({ code, cid: session.cid }) : null;
     if (scopes && scopes.length > 0 && !hasVentureWideReach(scopes)) {
-      const contexts = await listTaskScopeContexts(db, { ventureDbId: dbId });
+      const contexts = await listTaskScopeContexts({ ventureDbId: dbId });
       if (contexts) {
         scopedTaskIds = contexts
           .filter((task) => isTaskInScope(scopes, task))

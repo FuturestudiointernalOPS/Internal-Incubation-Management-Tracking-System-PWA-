@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db from "@/lib/db";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { canDefineDeliverables, canReviewDeliverable } from "@/lib/ventureDeliverables";
@@ -168,7 +167,7 @@ export const PATCH = createHandler(async (req, { params }) => {
     if (access.error) return access.error;
     const { session } = access;
 
-    const allowed = await canReviewDeliverable(db, {
+    const allowed = await canReviewDeliverable({
       id,
       cid: session?.cid,
       role: session?.role,

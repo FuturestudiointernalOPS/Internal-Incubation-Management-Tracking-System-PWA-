@@ -144,8 +144,8 @@ export const POST = createHandler(async (req, { params }) => {
     // Assignment-scope gate (Vinance 3): delegated reviewers are confined to
     // the tasks inside their ACTIVE assignment scopes on this Venture.
     if (session?.cid && !isGlobalRole(session.role)) {
-      const code = await resolveVentureCode(db, id);
-      const scopes = code ? await getAssignmentScopes(db, { code, cid: session.cid }) : null;
+      const code = await resolveVentureCode(id);
+      const scopes = code ? await getAssignmentScopes({ code, cid: session.cid }) : null;
       let inScope = false;
       if (scopes === null) {
         inScope = false; // resolution error → fail closed, never over-grant
@@ -154,7 +154,7 @@ export const POST = createHandler(async (req, { params }) => {
       } else if (hasVentureWideReach(scopes)) {
         inScope = true; // venture_wide or lead_manager → Venture-wide pass
       } else {
-        inScope = isTaskInScope(scopes, await resolveTaskContext(db, task));
+        inScope = isTaskInScope(scopes, await resolveTaskContext(task));
       }
       if (!inScope) {
         return NextResponse.json({ success: false, error: "This review is outside your assigned scope." }, { status: 403 });
