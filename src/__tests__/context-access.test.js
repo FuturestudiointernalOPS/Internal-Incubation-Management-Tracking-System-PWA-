@@ -83,13 +83,16 @@ jest.mock("@/server/auth/session", () => ({
 
 const mockAuthzContext = { isSuperAdmin: false, eligibility: {}, effective: {} };
 let mockCapabilityDecision = null; // null = capability allowed
-jest.mock("@/lib/authorization", () => ({
+// The scoped-access service imports its decisions from the authorization-context
+// SERVICE (same layer), not through the infrastructure facade, so the stub is
+// wired on that path.
+jest.mock("@/services/authorization/context", () => ({
   getAuthorizationContext: jest.fn().mockImplementation(async () => mockAuthzContext),
   requireAuthorization: jest.fn().mockImplementation(async () => mockCapabilityDecision),
 }));
 
 const { requireScopedAccess, resolveContextAssignment } = require("@/lib/authorization/context");
-const { requireAuthorization } = require("@/lib/authorization");
+const { requireAuthorization } = require("@/services/authorization/context");
 
 const allow = { resource: "program", contextId: "P1", module: "programs", capability: "view" };
 
