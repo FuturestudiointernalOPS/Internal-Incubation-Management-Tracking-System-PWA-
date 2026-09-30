@@ -49,7 +49,7 @@ import ContextSwitcher from "@/components/layout/ContextSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
 import { fetchSwrJson, useApi, clearResponseCache } from "@/lib/hooks/useApi";
-import { buildAccessNav } from "@/lib/masterNavigation";
+import { buildAccessNav, hasCapability } from "@/lib/masterNavigation";
 import {
   HOVER_CAPABLE_QUERY,
   canUseHoverIntent,
@@ -767,6 +767,26 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
 
+  // Effective capability matrix for the whole surface, read ONCE from the shared
+  // permission context (the server remains authoritative). It sits here, above
+  // the badge fetchers, because they consult it — see `canReadMessages` below.
+  const { permissions: effectiveCaps } = usePermissions();
+
+  // Whether this person may use the Messages feature at all.
+  //
+  // The unread badge is the ONLY consumer of the messages endpoint in the shell,
+  // and the badge is only ever painted beside the Messages menu item. For
+  // somebody whose sidebar has no Messages item — a member's sidebar is the
+  // dashboard alone — the request is refused by the server, written into the
+  // error log, and its answer thrown away. Every page load. Asking for an answer
+  // that cannot be used is not a permission problem; it is a request that should
+  // not be made.
+  //
+  // False while the matrix is still loading, which is deliberate: every caller
+  // depends on this value, so the read fires the moment the answer arrives
+  // rather than being skipped for the session.
+  const canReadMessages = hasCapability(effectiveCaps, "messaging", "view");
+
   // When the inbox was last read — shared by every trigger through
   // fetchNotifications, so they throttle each other instead of each keeping
   // their own idea of "recently".
@@ -826,6 +846,8 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
 
   // ── Fetch actual unread message count (not from notifications) ──
   const fetchUnreadMessageCount = useCallback(async () => {
+    // No Messages feature, no badge, no request. See `canReadMessages`.
+    if (!canReadMessages) return;
     const savedUser = localStorage.getItem("user");
     if (!savedUser) return;
     let parsedUser;
@@ -846,7 +868,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
       );
       setUnreadMessageCount(myMessages.length);
     });
-  }, []);
+  }, [canReadMessages]);
 
   // ── Fetch pending user approvals count ──
   const fetchPendingUsersCount = useCallback(async () => {
@@ -1071,14 +1093,9 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
   // The learner door is derived from the enrolment read above and from nothing
   // else, so there is no state here to keep in step with it.
 
-  // Effective capability matrix for sidebar visibility, read ONCE for the whole
-  // surface from the shared permission context (the server remains
-  // authoritative). Every gated affordance under this shell reads the same
-  // value instead of firing its own request.
-  const { permissions: effectiveCaps } = usePermissions();
-
   // The capabilities are restored by PermissionProvider (which mounts above this
-  // shell) — the sidebar reads them from that context.
+  // shell) — the sidebar reads them from that context, and the badge fetchers
+  // read `canReadMessages` from it at the top of this component.
 
   // Load user from session API first, fallback to localStorage
   useEffect(() => {
