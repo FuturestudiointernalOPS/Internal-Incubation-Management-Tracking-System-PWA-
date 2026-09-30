@@ -5,7 +5,8 @@
 > authorization (service layer HTTP-free), 10–11 finished finance, 12–13 covered
 > programs, 14 contacts, 15 ventures, 17–18 LMS (learning, then checkout), 19
 > workspace, 20 ventures (plan import), 21 platform (Run report), 22 the CRM
-> decision helpers. The remaining mixed model modules are itemised in §4. This
+> decision helpers, 23 the ventures controller extraction (8 routes). The remaining
+> mixed model modules are itemised in §4. This
 > document is the running log. Update it at the end of every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
@@ -505,11 +506,45 @@ Done: `models/lms/learning.js` → `services/lms/learning.js` + `models/lms/lear
 > route, move the decision into `services/<domain>/`, keep the route's existing
 > test mocks working.
 
+#### Controller frontier — the inline-SQL inventory (slice 23+)
+
+Measured: **30 route files** still run `db.execute`/`db.transaction` inline (the
+~290 that only import `@/lib/db` for `initDb` are *not* SQL). 22 of the 30 are
+under `src/app/api/ventures/`.
+
+**Done so far — 8 ventures routes extracted into `models/ventureWorkspace.js`**
+(SQL byte-identical, one function per query), the controller keeping its
+auth/validation/shaping:
+
+| Route | Model functions |
+|---|---|
+| `ventures/assigned` | `listVenturesAssignedToStaff` |
+| `ventures/[id]/my-access` | `getVentureCodeByIdOrCode`, `listActiveVentureAssignmentsForAccess` |
+| `ventures/[id]/history` | `isActiveVentureMember` |
+| `ventures/[id]/venture-history` | `getVentureDbIdByCodeOrId`, `listVentureHistoryEvents/Notes/ReviewDecisions/SessionNotes` |
+| `ventures/[id]/coach-invite` | `getVentureNameByIdOrCode` |
+| `ventures/[id]/staff-assignments` | `getVentureCodeForAssignment`, `getLiveContactByCid`, `findDuplicateVentureAssignment` |
+| `ventures/[id]/progress` | `countVentureTasksWithCompletedStatuses` |
+| `ventures/[id]/members` | `getVentureByCode`, `listVentureMembersWithContacts`, `findVentureMemberByEmail`, `getVentureDisplayNameByCode`, `getVentureMemberById`, `getVentureMemberContactId`, `archiveVentureMember`, `updateVentureMemberFields` |
+
+Two source-pinning suites were repointed (same assertion, new home):
+`identity-gate-bridge` (history membership probe) and `venture-label-surfaces`
+(the members company-name query).
+
+**Still to extract (22 routes):** the remaining `ventures/[id]/*` routes (dashboard,
+calendar, sessions, notes, journey, journey-report, journey/apply-template,
+milestones + archive/duplicate, tasks + archive/duplicate/[taskId]/submissions,
+operating-plans + [planId] + [planId]/sections, submissions/review-queue), plus
+`ventures/[id]/calendar`, and outside ventures: `api/calendar`,
+`platform/form-runs`, `venture-permissions/responsibilities`,
+`venture-plan-templates`.
+
 ### Project-wide, still open (from `MVC_REFACTOR.md`)
 
-- ~290 route files still import the db layer; the "0 inline SQL in controllers"
-  gate is not met. This is a **repository-extraction** backlog, independent of
-  this split.
+- 30 route files still run inline SQL (down from ~290 *importers*; the rest only
+  use `initDb`). The "0 inline SQL in controllers" gate is a
+  **repository-extraction** backlog, independent of this split — see the inventory
+  above.
 - Giant page files (>600 LOC) still need splitting into feature components.
 
 ### Deferred decision: typing
