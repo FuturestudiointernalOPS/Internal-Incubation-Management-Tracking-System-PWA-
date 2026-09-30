@@ -20,6 +20,7 @@
  */
 
 export * from "./context";
+export * from "./contextGrants";
 export * from "./contextGrantReadiness";
 export * from "./eligibility";
 export * from "./eligibilityAdmin";

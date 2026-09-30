@@ -34,7 +34,7 @@ import { getAuthorizationContext } from "./context";
 import {
   contextGrantSentinel,
   resolveContextDesiredCaps,
-} from "@/models/authorization/contextGrants";
+} from "./contextGrants";
 import {
   listActiveProgramAssignments,
   listProgramAssignmentContacts,
