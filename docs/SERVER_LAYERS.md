@@ -68,11 +68,10 @@ or a membership check — and runs after an identity exists.
    directly; models never call services.
 
    *Known exceptions while the layer split is in progress* (tracked in
-   [LAYER_SPLIT.md](LAYER_SPLIT.md)): `models/authorization/eligibility-admin.js`
-   imports the eligibility decision from the service (it is itself a decision
-   module still parked in models), and the `resolver`, `scope` and
-   `contextGrantReadiness` model files are **temporary re-export facades** to
-   `services/authorization/*`. Both are removed as the split completes.
+   [LAYER_SPLIT.md](LAYER_SPLIT.md)): the `resolver`, `scope`,
+   `contextGrantReadiness` and `eligibility-admin` model files are **temporary
+   re-export facades** to `services/authorization/*`. They hold no logic and are
+   removed as the split completes.
 
 ## State of the migration
 
@@ -88,7 +87,7 @@ or a membership check — and runs after an identity exists.
 | Scope engine (policy dispatch, `isWithinScope`) + its 6 reads | `services/authorization/scope.js` + `models/authorization/scopeReads.js` | ✅ moved (slice 3) |
 | Eligibility decision | `services/authorization/eligibility.js` | ✅ moved (slice 4) — schema/seeds/vocabulary stay in `models/authorization/eligibility.js` |
 | Membership decisions (effective groups, lifecycle) | `services/authorization/membership.js` | ✅ moved (slice 4) — schema/bootstrap/raw reads/vocabulary stay in `models/authorization/membership.js` |
-| Eligibility-change validation (`eligibility-admin`) | still `models/authorization/eligibility-admin.js` | ⏳ next (mixes decision + reads; imports the eligibility decision from the service) |
+| Eligibility-change validation (`eligibility-admin`) | `services/authorization/eligibilityAdmin.js` + `models/authorization/eligibilityAdminReads.js` | ✅ moved (slice 5) — model file is a re-export facade |
 | Effective access-profile resolution, responsibilities domain | still `src/lib/auth.js` (6 functions, 8 SQL statements) | ⏸ **blocked on a decision** — see below |
 
 Two overlaps are **known and deliberately left alone** until a decision is made,
