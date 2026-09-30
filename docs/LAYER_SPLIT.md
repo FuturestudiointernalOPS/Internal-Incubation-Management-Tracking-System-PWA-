@@ -205,7 +205,7 @@ structure, the merge semantics, the fail-closed rules, and every returned field.
 
 | Check | Result |
 |---|---|
-| Full suite `npm test` | **228 suites, 3010 tests, all passed** |
+| Full suite `npm test` | **228 suites, 3015 tests, all passed** |
 | `npx eslint .` | 0 errors (6 pre-existing warnings elsewhere) |
 | `npm run build` | green |
 | Cold-resolution round trips | unchanged (3 waves — pinned by `db-sequencing.test.js`) |
@@ -280,6 +280,19 @@ rely on is threaded through unchanged.
 **A test caught a real regression here** (a missing `if (!ventureId) return []`
 guard) — proof the suites are doing their job on a move like this.
 
+### Domain 6 — LMS (slice 17)
+
+`src/models/lms/learning.js` (680 LOC) — the learner experience: structure and
+progress loads, enrollment access, lesson completion, assessment submission and
+certificate finalisation, all mixing the decision with the statements. Now: the
+decisions in `src/services/lms/learning.js`, every statement in
+`src/models/lms/learningStore.js`, the model file a re-export facade. The pure
+`computeCourseProgress` / `findContinueLesson` moved with the service; the
+injectable fake database the suite uses still drives both layers.
+
+One suite pinned the payload's SOURCE file (`lms-section-resource-learner-files`);
+it now reads the service instead of the model — same assertion, new home.
+
 ---
 
 ## 3. Left aside on purpose (deferred, with reasons)
@@ -321,7 +334,7 @@ cleanup, not layering:
 | Contacts / CRM | `services/contacts/*` | ⏳ **started** — contact↔program/group sync (slice 14) |
 | Ventures | `services/ventures/*` | ⏳ **started** — document types (slice 15); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ⬜ not started |
-| LMS / platform / integrations | `services/<domain>/*` | ⬜ not started |
+| LMS / platform / integrations | `services/<domain>/*` | ⏳ **LMS started** — learner experience (slice 17); registrations/checkout next |
 
 #### Remaining mixed model modules (the actual backlog)
 
@@ -333,7 +346,6 @@ Genuinely left — all large, and the reason they are still here:
 
 | Module | Domain | What mixes | Test net |
 |---|---|---|---|
-| `models/lms/learning.js` (680) | LMS | structure/progress loads, enrollment access, assessment submission, certificate finalisation | ✅ strong (`lms-learning.test.js`, …) |
 | `models/lms/registrations.js` (746) | LMS | registration decisions + reads | ✅ |
 | `models/lms/checkout.js` | LMS | checkout/reconcile decisions + reads | ✅ |
 | `models/workspace.js` (792) | workspace | campaign-contact completion + full-state assembly | partial |
@@ -341,6 +353,8 @@ Genuinely left — all large, and the reason they are still here:
 | `models/venturePlanImport.js` (1225) | ventures | plan interpretation/validation + writes | partial |
 | `models/platform/ai/{report,email-personalize}.js` | platform | prompt/report shaping + reads | weak |
 | `models/{contacts,groups,communications,forms,formRuns}.js` | CRM | a few decision helpers among otherwise query-only modules | partial |
+
+Done: `models/lms/learning.js` → `services/lms/learning.js` + `models/lms/learningStore.js` (slice 17).
 
 **Checked and NOT mixed — no work needed:**
 
