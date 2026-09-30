@@ -35,9 +35,9 @@ export const GET = createHandler(
   async (req, { params }) => {
     await initDb();
     const session = await getSession();
-    const access = await resolvePlanAccess(db, params.id, session);
+    const access = await resolvePlanAccess(params.id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    if (!(await allowsPlanAction(db, access, "view"))) {
+    if (!(await allowsPlanAction(access, "view"))) {
       return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }
     const plan = await loadPlan(db, access, params.planId);
@@ -50,13 +50,13 @@ export const PATCH = createHandler(
   async (req, { params }) => {
     await initDb();
     const session = await getSession();
-    const access = await resolvePlanAccess(db, params.id, session);
+    const access = await resolvePlanAccess(params.id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const body = await req.json();
     const statusAction = body.status !== undefined;
     const fieldAction = body.name !== undefined || body.objective !== undefined;
-    if ((statusAction && !(await allowsPlanAction(db, access, "manage"))) ||
-        (fieldAction && !(await allowsPlanAction(db, access, "edit")))) {
+    if ((statusAction && !(await allowsPlanAction(access, "manage"))) ||
+        (fieldAction && !(await allowsPlanAction(access, "edit")))) {
       return NextResponse.json({ success: false, error: "Not allowed to update this plan." }, { status: 403 });
     }
     const updateResult = await updateVentureOperatingPlan({
@@ -85,9 +85,9 @@ export const DELETE = createHandler(
   async (req, { params }) => {
     await initDb();
     const session = await getSession();
-    const access = await resolvePlanAccess(db, params.id, session);
+    const access = await resolvePlanAccess(params.id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    if (!(await allowsPlanAction(db, access, "manage"))) {
+    if (!(await allowsPlanAction(access, "manage"))) {
       return NextResponse.json({ success: false, error: "Not allowed to archive this plan." }, { status: 403 });
     }
     await archiveVentureOperatingPlan(params.planId, access.code);

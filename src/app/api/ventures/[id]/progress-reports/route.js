@@ -34,7 +34,7 @@ export async function GET(req, { params }) {
     const { id } = await params;
     const session = await getViewerSession();
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    const code = await resolveVentureCode(db, id);
+    const code = await resolveVentureCode(id);
     if (!code) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     const staff = roleIsPrivileged(session.role) || (session.cid ? await isStaffActorForVenture(id, session) : false);
@@ -73,13 +73,13 @@ export async function POST(req, { params }) {
     const session = await getViewerSession();
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
-    const access = await resolvePlanAccess(db, id, session);
+    const access = await resolvePlanAccess(id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    if (!(await allowsPlanAction(db, access, "manage"))) {
+    if (!(await allowsPlanAction(access, "manage"))) {
       return NextResponse.json({ success: false, error: "Only the Venture Manager (or a global role) can create progress reports." }, { status: 403 });
     }
 
-    const code = await resolveVentureCode(db, id);
+    const code = await resolveVentureCode(id);
     if (!code) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     const body = await req.json();
@@ -103,13 +103,13 @@ export async function PATCH(req, { params }) {
     const session = await getViewerSession();
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
-    const access = await resolvePlanAccess(db, id, session);
+    const access = await resolvePlanAccess(id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    if (!(await allowsPlanAction(db, access, "manage"))) {
+    if (!(await allowsPlanAction(access, "manage"))) {
       return NextResponse.json({ success: false, error: "Your assignment does not allow updating progress reports." }, { status: 403 });
     }
 
-    const code = await resolveVentureCode(db, id);
+    const code = await resolveVentureCode(id);
     if (!code) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     const body = await req.json();

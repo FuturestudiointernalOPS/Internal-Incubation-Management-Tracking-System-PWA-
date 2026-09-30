@@ -1,4 +1,3 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
@@ -59,7 +58,7 @@ async function getViewerSession() {
 async function requireStaffJourneyAccess(id) {
   const session = await getViewerSession();
   if (!session) return { session: null, access: null };
-  const access = await resolvePlanAccess(db, id, session);
+  const access = await resolvePlanAccess(id, session);
   if (!access.ok) return { session, access: null };
   return { session, access };
 }
@@ -91,12 +90,12 @@ export async function GET(req, { params }) {
     let access = null;
     const viewer = await getViewerSession();
     if (viewer) {
-      const planAccess = await resolvePlanAccess(db, id, viewer);
+      const planAccess = await resolvePlanAccess(id, viewer);
       if (planAccess.ok) {
         const [canCreate, canEdit, canManage] = await Promise.all([
-          allowsPlanAction(db, planAccess, "create"),
-          allowsPlanAction(db, planAccess, "edit"),
-          allowsPlanAction(db, planAccess, "manage"),
+          allowsPlanAction(planAccess, "create"),
+          allowsPlanAction(planAccess, "edit"),
+          allowsPlanAction(planAccess, "manage"),
         ]);
         access = { create: canCreate, edit: canEdit, manage: canManage };
       }
@@ -252,7 +251,7 @@ export async function POST(req, { params }) {
     const { id } = await params;
     const { session, access } = await requireStaffJourneyAccess(id);
     if (!session || !access) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    if (!(await allowsPlanAction(db, access, "create"))) {
+    if (!(await allowsPlanAction(access, "create"))) {
       return NextResponse.json({ success: false, error: "Your assignment does not allow defining this Venture's journey." }, { status: 403 });
     }
 
@@ -284,7 +283,7 @@ export async function POST(req, { params }) {
 
     // Managers keep their Archived view in sync: archived rows are returned
     // only to callers holding the manage capability (same rule as GET).
-    const canManage = await allowsPlanAction(db, access, "manage");
+    const canManage = await allowsPlanAction(access, "manage");
     const stages = await listJourneyStages(dbId, { includeArchived: canManage });
     return NextResponse.json({ success: true, stage: stages.find((stage) => stage.id === insertResult.rows?.[0]?.id) || null, stages });
   } catch (error) {
@@ -307,7 +306,7 @@ export async function PATCH(req, { params }) {
 
     // ── Field edits ──
     if (action === "update") {
-      if (!(await allowsPlanAction(db, access, "edit"))) {
+      if (!(await allowsPlanAction(access, "edit"))) {
         return NextResponse.json({ success: false, error: "Your assignment does not allow editing this Venture's journey." }, { status: 403 });
       }
       if (!stageId) return NextResponse.json({ success: false, error: "stage_id is required." }, { status: 400 });
@@ -345,7 +344,7 @@ export async function PATCH(req, { params }) {
         }
       } catch (_) {}
 
-      const canManage = await allowsPlanAction(db, access, "manage");
+      const canManage = await allowsPlanAction(access, "manage");
       const stages = await listJourneyStages(dbId, { includeArchived: canManage });
       return NextResponse.json({ success: true, stages });
     }
@@ -353,7 +352,7 @@ export async function PATCH(req, { params }) {
     // ── Management actions (status transitions, delete, move, template) ──
     const manageActions = ["activate", "lock", "complete", "reset", "delete", "move"];
     if (manageActions.includes(action)) {
-      if (!(await allowsPlanAction(db, access, "manage"))) {
+      if (!(await allowsPlanAction(access, "manage"))) {
         return NextResponse.json({ success: false, error: "Your assignment does not allow managing this Venture's journey." }, { status: 403 });
       }
     } else {

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import db from "@/lib/db";
 import { createHandler } from "@/lib/api/createHandler";
 import { resolveVentureCode } from "@/lib/ventureOperatingPlans";
 import {
@@ -25,7 +24,7 @@ import {
 
 async function requireManage(req, params) {
   const { id } = await params;
-  const ventureId = await resolveVentureCode(db, id);
+  const ventureId = await resolveVentureCode(id);
   if (!(await canManageVentureDocumentTypes(req.session, ventureId))) {
     return { error: NextResponse.json({ success: false, error: "errors.forbidden" }, { status: 403 }) };
   }

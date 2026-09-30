@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans";
 import {
@@ -36,9 +36,9 @@ export const POST = createHandler(
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
     const { id } = await params;
-    const access = await resolvePlanAccess(db, id, session);
+    const access = await resolvePlanAccess(id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    if (!(await allowsPlanAction(db, access, "create"))) {
+    if (!(await allowsPlanAction(access, "create"))) {
       return NextResponse.json({ success: false, error: "Your assignment does not allow defining this Venture's journey." }, { status: 403 });
     }
 
@@ -84,7 +84,7 @@ export const POST = createHandler(
     } catch (_) {}
 
     // Managers keep their Archived view in sync (same rule as GET).
-    const canManage = await allowsPlanAction(db, access, "manage");
+    const canManage = await allowsPlanAction(access, "manage");
     const stages = await listJourneyStages(dbId, { includeArchived: canManage });
     return NextResponse.json({ success: true, stages });
   },

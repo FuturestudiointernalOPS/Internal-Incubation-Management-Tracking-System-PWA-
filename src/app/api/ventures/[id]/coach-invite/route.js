@@ -26,9 +26,9 @@ export async function POST(req, { params }) {
     const session = await getSession();
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
-    const access = await resolvePlanAccess(db, id, session);
+    const access = await resolvePlanAccess(id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    if (!(await allowsPlanAction(db, access, "manage"))) {
+    if (!(await allowsPlanAction(access, "manage"))) {
       return NextResponse.json({ success: false, error: "Your assignment does not allow inviting coaches to this Venture." }, { status: 403 });
     }
 
@@ -36,7 +36,7 @@ export async function POST(req, { params }) {
     const email = String(body.email || "").trim();
     if (!email) return NextResponse.json({ success: false, error: "email is required." }, { status: 400 });
 
-    const code = await resolveVentureCode(db, id);
+    const code = await resolveVentureCode(id);
     if (!code) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     const ventureResult = await getVentureNameByIdOrCode(id).catch(() => ({ rows: [] }));

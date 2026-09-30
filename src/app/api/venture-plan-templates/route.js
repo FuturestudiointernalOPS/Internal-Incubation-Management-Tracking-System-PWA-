@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { listPlanTemplates, createTemplateFromPlan } from "@/lib/ventureOperatingPlans";
 import {
@@ -20,7 +20,7 @@ export const GET = createHandler(
   { roles: READ_ROLES },
   async () => {
     await initDb();
-    const templates = await listPlanTemplates(db, { activeOnly: true });
+    const templates = await listPlanTemplates({ activeOnly: true });
     return NextResponse.json({ success: true, templates });
   },
 );
@@ -41,12 +41,12 @@ export const POST = createHandler(
     if (!plan) return NextResponse.json({ success: false, error: "Plan not found." }, { status: 404 });
 
     const { resolvePlanAccess, allowsPlanAction } = await import("@/lib/ventureOperatingPlans");
-    const access = await resolvePlanAccess(db, plan.venture_id, session);
-    if (!access.ok || !(await allowsPlanAction(db, access, "manage"))) {
+    const access = await resolvePlanAccess(plan.venture_id, session);
+    if (!access.ok || !(await allowsPlanAction(access, "manage"))) {
       return NextResponse.json({ success: false, error: "Only staff managing this Venture can save it as a template." }, { status: 403 });
     }
 
-    const result = await createTemplateFromPlan(db, {
+    const result = await createTemplateFromPlan({
       planId,
       name: body.name || plan.name,
       description: body.description || null,

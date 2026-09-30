@@ -1,4 +1,3 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans";
@@ -23,9 +22,9 @@ export async function POST(req, { params }) {
     const session = await getSession();
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
-    const access = await resolvePlanAccess(db, id, session);
+    const access = await resolvePlanAccess(id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    if (!(await allowsPlanAction(db, access, "create"))) {
+    if (!(await allowsPlanAction(access, "create"))) {
       return NextResponse.json({ success: false, error: "Your assignment does not allow defining this Venture's journey." }, { status: 403 });
     }
 
@@ -53,7 +52,7 @@ export async function POST(req, { params }) {
     } catch (_) {}
 
     // Managers keep their Archived view in sync (same rule as GET).
-    const canManage = await allowsPlanAction(db, access, "manage");
+    const canManage = await allowsPlanAction(access, "manage");
     const stages = await listJourneyStages(dbId, { includeArchived: canManage });
     return NextResponse.json({ success: true, stages, ...result });
   } catch (error) {

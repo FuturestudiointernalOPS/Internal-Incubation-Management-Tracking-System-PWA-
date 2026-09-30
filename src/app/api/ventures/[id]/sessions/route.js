@@ -126,7 +126,7 @@ export const POST = createHandler(async (req, { params }) => {
     if (access.path === "super-admin") return null;
     // Assignments store the VNT code; the route may receive the UUID. Zeroing
     // this conversion would deny every delegated manager on a UUID route.
-    const ventureCode = await resolveVentureCode(db, id);
+    const ventureCode = await resolveVentureCode(id);
     const canSchedule = await hasVentureCapability({
       ventureId: ventureCode,
       contactId: actor?.cid,

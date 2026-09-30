@@ -12,9 +12,9 @@
 > facts (service + store; `ventureAuth` is left with no SQL and no `db`
 > parameter), 28 the permission engine and the milestone progression engine
 > (service + store; the `db` threading through `canManageMilestones` /
-> `syncMilestoneFromWork` is gone). The remaining mixed model modules are
-> itemised in §4. This document is the running log. Update it at the end of
-> every slice.
+> `syncMilestoneFromWork` is gone), 29 the assignment-scope layer and the
+> operating-plan access helpers. The remaining mixed model modules are itemised
+> in §4. This document is the running log. Update it at the end of every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
 [`SERVER_LAYERS.md`](SERVER_LAYERS.md) (the request path as it stands),
@@ -575,6 +575,28 @@ derivations.
 
 ---
 
+### Domain 16 — assignment scope + operating-plan access (slice 29)
+
+`src/lib/ventureScope.js` (assignment scope matching for review actions) and
+`src/lib/ventureOperatingPlans.js` (operating-plan access + the plan template
+library) decided and ran their SQL. Now: `services/ventures/scope.js` over
+`models/ventureScopeStore.js`, and `services/ventures/operatingPlans.js` over
+`models/ventureOperatingPlanStore.js`; both `src/lib` files are re-export
+facades.
+
+**Db threading gone again.** `getAssignmentScopes`, `resolveTaskContext`,
+`listTaskScopeContexts`, `resolveVentureCode` (scope form), `resolvePlanAccess`,
+`allowsPlanAction`, `listPlanTemplates`, `createTemplateFromPlan` and
+`applyTemplateToVenture` no longer take a db, so `canReviewDeliverable` lost its
+(unused) db too. Seventeen routes plus `ventureDeliverables.js` and `ventures.js`
+dropped the argument (and twelve of them their now-unused `db` import).
+
+**Unchanged:** the SQL (byte-identical), the scope-match rules, the
+fail-closed/allow-on-error postures, the write-requires-venture-wide rule and the
+structure-only template copy.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -754,14 +776,14 @@ Two source-pinning suites were repointed (same assertion, new home):
   `ventureJourneyTemplates.js` (slice 24), `ventureArchive.js`,
   `ventureDuplication.js` (slice 25), `ventureMilestoneOrder.js` (slice 26),
   `ventureAccessFacts.js` (slice 27, which left `ventureAuth.js` pure),
-  `venturePermissions.js` and `ventureMilestoneEngine.js` (slice 28) are done —
-  all facades over `services/ventures/*`. A long tail of `src/lib` modules still
+  `venturePermissions.js`, `ventureMilestoneEngine.js` (slice 28),
+  `ventureScope.js` and `ventureOperatingPlans.js` (slice 29) are done — all
+  facades over `services/ventures/*`. A long tail of `src/lib` modules still
   holds SQL (the biggest: `ventures.js` (5.8k lines), `ventureReports.js`,
-  `ventureOperatingPlans.js`, `ventureReadiness.js`, `ventureCoach.js`,
-  `ventureNotify.js`, `ventureScope.js`, plus the non-venture ones `auth.js`,
-  `email.js`, `audit.js`, `token-hashing.js`, `request-context.js`,
-  `lms/coaching.js`) — the next repository-extraction targets, one module at a
-  time, tracked in `MVC_REFACTOR.md`.
+  `ventureReadiness.js`, `ventureCoach.js`, `ventureNotify.js`, plus the
+  non-venture ones `auth.js`, `email.js`, `audit.js`, `token-hashing.js`,
+  `request-context.js`, `lms/coaching.js`) — the next repository-extraction
+  targets, one module at a time, tracked in `MVC_REFACTOR.md`.
 - Giant page files (>600 LOC) still need splitting into feature components.
 
 ### Deferred decision: typing

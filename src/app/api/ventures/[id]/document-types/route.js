@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import db from "@/lib/db";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { resolveVentureCode } from "@/lib/ventureOperatingPlans";
@@ -40,7 +39,7 @@ export const GET = createHandler(async (req, { params }) => {
     return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   }
 
-  const ventureId = await resolveVentureCode(db, id);
+  const ventureId = await resolveVentureCode(id);
   await ensureVentureDocumentTypesForVenture(ventureId);
 
   const canManage = await canManageVentureDocumentTypes(session, ventureId);
@@ -59,7 +58,7 @@ export const GET = createHandler(async (req, { params }) => {
 
 export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const ventureId = await resolveVentureCode(db, id);
+  const ventureId = await resolveVentureCode(id);
 
   if (!(await canManageVentureDocumentTypes(req.session, ventureId))) {
     return NextResponse.json({ success: false, error: "errors.forbidden" }, { status: 403 });

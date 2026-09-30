@@ -24,7 +24,7 @@ import {
  * DELETE /sections/links               { link_id }                                   (edit)
  */
 async function baseAccess(db, params, session) {
-  const access = await resolvePlanAccess(db, params.id, session);
+  const access = await resolvePlanAccess(params.id, session);
   if (!access.ok) return { error: NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 }) };
   const planResult = await liveVenturePlanExists(params.planId, access.code);
   if (!planResult.rows?.[0]) return { error: NextResponse.json({ success: false, error: "Plan not found." }, { status: 404 }) };
@@ -41,7 +41,7 @@ export const POST = createHandler(
 
     // { title,... } → create section; { section_id, ref_type, ... } → add link
     if (body.section_id && body.ref_type) {
-      if (!(await allowsPlanAction(db, accessGate.access, "edit"))) {
+      if (!(await allowsPlanAction(accessGate.access, "edit"))) {
         return NextResponse.json({ success: false, error: "Not allowed to edit this plan." }, { status: 403 });
       }
       const sectionResult = await venturePlanSectionExists(body.section_id, params.planId);
@@ -57,7 +57,7 @@ export const POST = createHandler(
     }
 
     // Create section
-    if (!(await allowsPlanAction(db, accessGate.access, "edit"))) {
+    if (!(await allowsPlanAction(accessGate.access, "edit"))) {
       return NextResponse.json({ success: false, error: "Not allowed to edit this plan." }, { status: 403 });
     }
     const title = String(body.title || "").trim();
@@ -85,7 +85,7 @@ export const PATCH = createHandler(
 
     const statusChange = body.status !== undefined;
     const requiredCapability = statusChange ? "manage" : "edit";
-    if (!(await allowsPlanAction(db, accessGate.access, requiredCapability))) {
+    if (!(await allowsPlanAction(accessGate.access, requiredCapability))) {
       return NextResponse.json({ success: false, error: "Not allowed to update this section." }, { status: 403 });
     }
     const updateResult = await updateVenturePlanSection({
@@ -114,7 +114,7 @@ export const DELETE = createHandler(
     const body = await req.json();
 
     if (body.link_id) {
-      if (!(await allowsPlanAction(db, accessGate.access, "edit"))) {
+      if (!(await allowsPlanAction(accessGate.access, "edit"))) {
         return NextResponse.json({ success: false, error: "Not allowed to edit this plan." }, { status: 403 });
       }
       const linkResult = await getVenturePlanLink(body.link_id, params.planId);
@@ -124,7 +124,7 @@ export const DELETE = createHandler(
     }
 
     if (!body.section_id) return NextResponse.json({ success: false, error: "section_id or link_id is required." }, { status: 400 });
-    if (!(await allowsPlanAction(db, accessGate.access, "manage"))) {
+    if (!(await allowsPlanAction(accessGate.access, "manage"))) {
       return NextResponse.json({ success: false, error: "Not allowed to delete sections." }, { status: 403 });
     }
     await deleteVenturePlanSection(body.section_id, params.planId);

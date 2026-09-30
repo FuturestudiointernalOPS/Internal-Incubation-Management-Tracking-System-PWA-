@@ -1,4 +1,3 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans";
@@ -22,9 +21,9 @@ export async function POST(req, { params }) {
     const session = await getSession();
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
-    const access = await resolvePlanAccess(db, id, session);
+    const access = await resolvePlanAccess(id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    if (!(await allowsPlanAction(db, access, "manage"))) {
+    if (!(await allowsPlanAction(access, "manage"))) {
       return NextResponse.json(
         { success: false, error: "Your assignment does not allow managing this Venture's journey." },
         { status: 403 },
