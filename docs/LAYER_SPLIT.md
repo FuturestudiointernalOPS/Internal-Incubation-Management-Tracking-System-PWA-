@@ -334,7 +334,7 @@ cleanup, not layering:
 | Contacts / CRM | `services/contacts/*` | ⏳ **started** — contact↔program/group sync (slice 14) |
 | Ventures | `services/ventures/*` | ⏳ **started** — document types (slice 15); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ⬜ not started |
-| LMS / platform / integrations | `services/<domain>/*` | ⏳ **LMS started** — learner experience (slice 17); registrations/checkout next |
+| LMS / platform / integrations | `services/<domain>/*` | ⏳ **LMS started** — learner experience (slice 17); registrations checked (no split needed), checkout next |
 
 #### Remaining mixed model modules (the actual backlog)
 
@@ -346,7 +346,6 @@ Genuinely left — all large, and the reason they are still here:
 
 | Module | Domain | What mixes | Test net |
 |---|---|---|---|
-| `models/lms/registrations.js` (746) | LMS | registration decisions + reads | ✅ |
 | `models/lms/checkout.js` | LMS | checkout/reconcile decisions + reads | ✅ |
 | `models/workspace.js` (792) | workspace | campaign-contact completion + full-state assembly | partial |
 | `models/participantPortal.js` (764) | participant | portal state assembly | partial |
@@ -355,6 +354,14 @@ Genuinely left — all large, and the reason they are still here:
 | `models/{contacts,groups,communications,forms,formRuns}.js` | CRM | a few decision helpers among otherwise query-only modules | partial |
 
 Done: `models/lms/learning.js` → `services/lms/learning.js` + `models/lms/learningStore.js` (slice 17).
+
+**Checked and NOT mixed — no work needed (second pass):**
+
+- `models/lms/registrations.js` (746) — a repository: one statement per function. Its two
+  decision-shaped functions (`listRegistrationsToReview`, `getRegistrationStats`) run **no SQL**;
+  they compose repository reads. Its pure helpers (`paymentAmountMultiplier`, `toProviderAmount`,
+  `normalizeRegistrationEmail`, …) are used BY the repository (`listRegistrationsByEmail`), so they
+  cannot move to the service without a shared pure module — they stay where they are.
 
 **Checked and NOT mixed — no work needed:**
 
