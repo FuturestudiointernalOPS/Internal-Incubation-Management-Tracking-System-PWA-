@@ -7,9 +7,10 @@
 > (plan import), 21 platform (Run report), 22 the CRM decision helpers, 23 the
 > controller frontier: every route file that still ran inline SQL now reads
 > through its model, so **no `src/app/api/**/route.js` executes SQL**, 24 the
-> Journey stage/archive/template engine (service + store, its three `src/lib`
-> modules now facades). The remaining mixed model modules are itemised in §4.
-> This document is the running log. Update it at the end of every slice.
+> Journey stage/archive/template engine, 25 the archive + duplication engines
+> (service + store, their `src/lib` modules now facades). The remaining mixed
+> model modules are itemised in §4. This document is the running log. Update it
+> at the end of every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
 [`SERVER_LAYERS.md`](SERVER_LAYERS.md) (the request path as it stands),
@@ -475,6 +476,30 @@ suites pin the exact insert arg positions), the transaction boundaries, the
 
 ---
 
+### Domain 12 — the archive + duplication engines (slice 25)
+
+`src/lib/ventureArchive.js` (milestone/task soft delete) and
+`src/lib/ventureDuplication.js` (independent structure copies) decided and ran
+their SQL in the same functions, behind `db`-as-first-argument APIs. Same
+recipe: decisions in `src/services/ventures/archive.js` and
+`src/services/ventures/duplication.js`, statements in
+`src/models/ventureArchiveStore.js` and `src/models/ventureDuplicationStore.js`,
+the two `src/lib` files reduced to re-export facades, and the `db` argument
+dropped from the four archive/duplicate routes.
+
+**The Journey edge is closed.** Domain 11 left a temporary store→lib edge (the
+Journey store borrowing the db for `ventureArchive`'s probe). Now that the
+probe is a service decision, `services/ventures/journey.js` imports
+`milestoneHasFiledWork` from `services/ventures/archive` — service → service,
+no store→lib edge left.
+
+**Unchanged:** the SQL (byte-identical, argument order — `venture-duplication.test.js`
+pins the exact insert arg positions and the re-parenting through `copy-N` ids),
+the transaction boundaries, the status resets (`upcoming` / `not_started` /
+`backlog`), the filed-work guard and the collision-safe stage re-serialisation.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -620,12 +645,14 @@ Two source-pinning suites were repointed (same assertion, new home):
 
 - The "0 inline SQL in controllers" gate now holds: 30 route files once ran inline
   SQL, all 30 read through their models. Both `/admin` and the API suite stay green.
-- `src/lib/ventureJourneys.js` and its `ventureJourneyArchive`/`ventureJourneyTemplates`
-  siblings are done (slice 24) — they are facades over `services/ventures/journey`.
-  A long tail of `src/lib` modules still holds SQL (the biggest: `ventures.js`,
-  `ventureMilestoneEngine.js`, `ventureDuplication.js`, `ventureArchive.js`,
-  `ventureReports.js`, `ventureOperatingPlans.js`, `ventureReadiness.js`,
-  `venturePermissions.js`, `ventureCoach.js`, `ventureNotify.js`) — the next
+- `src/lib/ventureJourneys.js`, `ventureJourneyArchive.js`,
+  `ventureJourneyTemplates.js` (slice 24) and `ventureArchive.js`,
+  `ventureDuplication.js` (slice 25) are done — all facades over
+  `services/ventures/*`. A long tail of `src/lib` modules still holds SQL (the
+  biggest: `ventures.js`, `ventureMilestoneEngine.js`,
+  `ventureMilestoneOrder.js`, `ventureReports.js`, `ventureOperatingPlans.js`,
+  `ventureReadiness.js`, `venturePermissions.js`, `ventureCoach.js`,
+  `ventureNotify.js`, `ventureScope.js`, `ventureAccessFacts.js`) — the next
   repository-extraction targets, one module at a time, tracked in
   `MVC_REFACTOR.md`.
 - Giant page files (>600 LOC) still need splitting into feature components.
