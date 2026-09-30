@@ -18,6 +18,21 @@ import {
   deleteJourneyStage,
 } from "@/lib/ventureJourneys";
 import { diffFields, recordVentureChange } from "@/models/ventureChangeLog";
+import {
+  listJourneyMilestonesByStage,
+  listJourneyMilestonesByStageLegacy,
+  listJourneyDeliverablesByMilestoneIds,
+  listJourneyTaskStatusesByMilestoneIds,
+  listJourneyTaskStatusesByMilestoneIdsLegacy,
+  getJourneyTemplateName,
+  countJourneyStagesByVenture,
+  insertJourneyStage,
+  updateJourneyStageFields,
+  activateJourneyStage,
+  lockJourneyStage,
+  holdJourneyStageMilestones,
+  resetJourneyStage,
+} from "@/models/ventureJourney";
 
 export const dynamic = "force-dynamic";
 
@@ -103,21 +118,8 @@ export async function GET(req, { params }) {
     // timeline can show stage -> milestone progress. Venture-facing data only
     // (milestones are visible to members through their own tools). Defensive:
     // if the additive columns are missing the stage list still renders.
-    const milestonesResult = await db.execute({
-      sql: `SELECT id, title, description, objective, status, progress, target_date,
-                   priority, display_order, created_at, journey_stage_id
-            FROM venture_milestones
-            WHERE venture_id = ? AND journey_stage_id IS NOT NULL
-            ORDER BY COALESCE(display_order, 0), created_at ASC`,
-      args: [dbId],
-    }).catch(() =>
-      db.execute({
-        sql: `SELECT id, title, status, progress, target_date, journey_stage_id
-              FROM venture_milestones
-              WHERE venture_id = ? AND journey_stage_id IS NOT NULL
-              ORDER BY COALESCE(display_order, 0), created_at ASC`,
-        args: [dbId],
-      }).catch(() => ({ rows: [] })),
+    const milestonesResult = await listJourneyMilestonesByStage(dbId).catch(() =>
+      listJourneyMilestonesByStageLegacy(dbId).catch(() => ({ rows: [] })),
     );
     const milestonesByStage = {};
     for (const milestone of milestonesResult.rows || []) {
@@ -139,15 +141,7 @@ export async function GET(req, { params }) {
     // is logged and reported, and the surfaces show it instead of an empty list.
     let deliverablesUnavailable = false;
     if (boundMilestoneIds.length > 0) {
-      const deliverablesResult = await db
-        .execute({
-          sql: `SELECT id, milestone_id, title, description, deliverable_type, status, approval_status,
-                       due_date, attachment_url, attachment_name, rejection_reason, reviewer_name
-                FROM venture_deliverables
-                WHERE milestone_id::text = ANY(?)
-                ORDER BY created_at ASC`,
-          args: [boundMilestoneIds],
-        })
+      const deliverablesResult = await listJourneyDeliverablesByMilestoneIds(boundMilestoneIds)
         .catch((error) => {
           deliverablesUnavailable = true;
           console.error(`[journey] deliverable evidence read failed for venture ${id}:`, error?.message || error);
@@ -178,12 +172,9 @@ export async function GET(req, { params }) {
     // so no dashboard, report or export changes meaning because of this read.
     const taskCountsByMilestone = {};
     if (boundMilestoneIds.length > 0) {
-      const taskCountSql = (archiveClause) =>
-        `SELECT milestone_id, status FROM venture_tasks WHERE milestone_id::text = ANY(?)${archiveClause}`;
-      const tasksResult = await db
-        .execute({ sql: taskCountSql(" AND COALESCE(is_archived, FALSE) = FALSE"), args: [boundMilestoneIds] })
+      const tasksResult = await listJourneyTaskStatusesByMilestoneIds(boundMilestoneIds)
         .catch(() =>
-          db.execute({ sql: taskCountSql(""), args: [boundMilestoneIds] }).catch(() => ({ rows: [] })),
+          listJourneyTaskStatusesByMilestoneIdsLegacy(boundMilestoneIds).catch(() => ({ rows: [] })),
         );
       for (const task of tasksResult.rows || []) {
         const key = String(task.milestone_id);
@@ -203,10 +194,7 @@ export async function GET(req, { params }) {
       const srcType = stamped.source_template_type === "journey" ? "journey" : "plan";
       const table = srcType === "journey" ? "venture_journey_templates" : "venture_plan_templates";
       try {
-        const templateResult = await db.execute({
-          sql: `SELECT name FROM ${table} WHERE id = ?`,
-          args: [stamped.source_template_id],
-        }).catch(() => ({ rows: [] }));
+        const templateResult = await getJourneyTemplateName(table, stamped.source_template_id).catch(() => ({ rows: [] }));
         const template = templateResult.rows?.[0];
         if (template) templateSource = { type: srcType, id: stamped.source_template_id, name: template.name || null };
       } catch (_) {}
@@ -275,10 +263,7 @@ export async function POST(req, { params }) {
     const name = String(body.name || "").trim();
     if (!name) return NextResponse.json({ success: false, error: "name is required." }, { status: 400 });
 
-    const existing = await db.execute({
-      sql: "SELECT COUNT(*) AS n FROM venture_journey_stages WHERE venture_id = ?",
-      args: [dbId],
-    });
+    const existing = await countJourneyStagesByVenture(dbId);
     const count = Number(existing.rows?.[0]?.n || 0);
     const stageOrder = await nextJourneyStageOrder(db, dbId);
     const status = count === 0 ? "active" : "upcoming";
@@ -287,10 +272,9 @@ export async function POST(req, { params }) {
     // a staff member activates it). No ordering is imposed on it.
     const startDate = body.start_date ? String(body.start_date).slice(0, 10) : null;
 
-    const insertResult = await db.execute({
-      sql: `INSERT INTO venture_journey_stages (venture_id, name, description, objective, start_date, target_date, stage_order, status)
-            VALUES (?,?,?,?,?,?,?,?) RETURNING id`,
-      args: [dbId, name, body.description || null, body.objective || null, startDate, targetDate, stageOrder, status],
+    const insertResult = await insertJourneyStage({
+      ventureId: dbId, name, description: body.description || null, objective: body.objective || null,
+      startDate, targetDate, stageOrder, status,
     });
 
     try {
@@ -335,22 +319,13 @@ export async function PATCH(req, { params }) {
       const targetDate = body.target_date !== undefined ? (body.target_date ? String(body.target_date).slice(0, 10) : null) : undefined;
       const startDate = body.start_date !== undefined ? (body.start_date ? String(body.start_date).slice(0, 10) : null) : undefined;
 
-      await db.execute({
-        sql: `UPDATE venture_journey_stages SET
-                name = COALESCE(?, name),
-                description = CASE WHEN ? = 1 THEN ? ELSE description END,
-                objective = CASE WHEN ? = 1 THEN ? ELSE objective END,
-                target_date = CASE WHEN ? = 1 THEN ?::date ELSE target_date END,
-                start_date = CASE WHEN ? = 1 THEN ?::date ELSE start_date END
-              WHERE id = ? AND venture_id = ?`,
-        args: [
-          name, body.description !== undefined ? 1 : 0, body.description !== undefined ? body.description : null,
-          body.objective !== undefined ? 1 : 0, body.objective !== undefined ? body.objective : null,
-          targetDate !== undefined ? 1 : 0, targetDate !== undefined ? targetDate : null,
-          startDate !== undefined ? 1 : 0, startDate !== undefined ? startDate : null,
-          stageId, dbId,
-        ],
-      });
+      await updateJourneyStageFields([
+        name, body.description !== undefined ? 1 : 0, body.description !== undefined ? body.description : null,
+        body.objective !== undefined ? 1 : 0, body.objective !== undefined ? body.objective : null,
+        targetDate !== undefined ? 1 : 0, targetDate !== undefined ? targetDate : null,
+        startDate !== undefined ? 1 : 0, startDate !== undefined ? startDate : null,
+        stageId, dbId,
+      ]);
       // Field-level history of the edit. Non-fatal by contract — the write above
       // already succeeded and must not be undone by a logging failure.
       try {
@@ -395,10 +370,7 @@ export async function PATCH(req, { params }) {
       // Activating is additive: Journeys overlap, so the others are left
       // alone (locking them here would fight the date-driven sweep, which
       // re-activates any Journey whose start_date has arrived).
-      await db.execute({
-        sql: "UPDATE venture_journey_stages SET status = 'active' WHERE id = ? AND venture_id = ?",
-        args: [stageId, dbId],
-      });
+      await activateJourneyStage(stageId, dbId);
       // The journey is now active — its milestones are offered (availability
       // is set by the Journey, never by a milestone's position).
       await releaseMilestonesForStage(db, { dbId, stageId });
@@ -407,17 +379,10 @@ export async function PATCH(req, { params }) {
       if (stage.status === "completed") {
         return NextResponse.json({ success: false, error: "Completed stages cannot be paused — reset the stage first." }, { status: 400 });
       }
-      await db.execute({
-        sql: "UPDATE venture_journey_stages SET status = 'upcoming', completed_at = NULL, approved_by = NULL WHERE id = ? AND venture_id = ?",
-        args: [stageId, dbId],
-      });
+      await lockJourneyStage(stageId, dbId);
       // A Journey that is no longer active holds its unreleased work again.
       // Work already under way is left where it is.
-      await db.execute({
-        sql: `UPDATE venture_milestones SET status = 'upcoming', updated_at = NOW()
-              WHERE venture_id = ? AND journey_stage_id = ? AND status IN ('blocked', 'not_started', 'locked')`,
-        args: [dbId, stageId],
-      });
+      await holdJourneyStageMilestones(dbId, stageId);
     } else if (action === "complete") {
       // A journey is NEVER closed by hand: it completes automatically once all
       // of its milestones have been marked completed.
@@ -430,10 +395,7 @@ export async function PATCH(req, { params }) {
       // Reopening touches THIS Journey only. Journeys overlap, so what the
       // others are is decided by their own dates (and by staff), never by a
       // neighbour's state — the old positional re-lock is gone.
-      await db.execute({
-        sql: "UPDATE venture_journey_stages SET status = 'active', completed_at = NULL, approved_by = NULL WHERE id = ? AND venture_id = ?",
-        args: [stageId, dbId],
-      });
+      await resetJourneyStage(stageId, dbId);
       // Reopened journey is active again — its milestones are offered.
       await releaseMilestonesForStage(db, { dbId, stageId });
     } else if (action === "delete") {
