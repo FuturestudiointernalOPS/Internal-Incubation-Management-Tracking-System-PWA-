@@ -22,5 +22,6 @@
 export * from "./context";
 export * from "./contextGrantReadiness";
 export * from "./eligibility";
+export * from "./eligibilityAdmin";
 export * from "./membership";
 export * from "./scope";
