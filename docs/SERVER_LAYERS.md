@@ -94,6 +94,8 @@ or a membership check — and runs after an identity exists.
 | Program-assignment derivation (levels, expiry) + its reads | `services/authorization/programAssignments.js` + `models/authorization/programAssignmentReads.js` | ✅ moved (slice 8 — authorization domain complete) |
 | Refusal responses (`requireAuthorization` / `requireScopedAccess`) | `server/authz/responses.js` (decisions stay in `services/authorization/*`) | ✅ moved (slice 9) — services are HTTP-free |
 | Finance ingestion (sheet parsing + sync) | `services/finance/ingest.js` + `models/finance/ingestStore.js` | ✅ moved (slice 10 — first slice outside authorization) |
+| Finance reads/aggregation (summary, monthly, transactions, budget lines) | `services/finance/queries.js` + `models/finance/queriesStore.js` | ✅ moved (slice 11 — finance domain complete) |
+| Objective (KPI) progress rate + cache policy | `services/programs/kpiProgress.js` + `models/kpiProgressStore.js` | ✅ moved (slice 12 — first programs module) |
 | Effective access-profile resolution, responsibilities domain | still `src/lib/auth.js` (6 functions, 8 SQL statements) | ⏸ **blocked on a decision** — see below |
 
 Two overlaps are **known and deliberately left alone** until a decision is made,

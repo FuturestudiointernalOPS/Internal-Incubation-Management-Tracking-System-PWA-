@@ -1,8 +1,8 @@
 # Layer split — View → Controller → Service → Repository
 
-> Status: **authorization domain complete; finance started**. Slices 1–9 split
-> and finished the authorization domain (service layer now HTTP-free); slice 10
-> is the first finance module. This document is the running log: what is done,
+> Status: **authorization complete; finance complete; programs started**. Slices
+> 1–9 finished authorization (service layer HTTP-free), 10–11 finished finance,
+> 12 opened the programs domain. This document is the running log: what is done,
 > what was left aside on purpose, and what remains. Update it at the end of every
 > slice.
 
@@ -205,7 +205,7 @@ structure, the merge semantics, the fail-closed rules, and every returned field.
 
 | Check | Result |
 |---|---|
-| Full suite `npm test` | **228 suites, 2986 tests, all passed** |
+| Full suite `npm test` | **228 suites, 2995 tests, all passed** |
 | `npx eslint .` | 0 errors (6 pre-existing warnings elsewhere) |
 | `npm run build` | green |
 | Cold-resolution round trips | unchanged (3 waves — pinned by `db-sequencing.test.js`) |
@@ -225,6 +225,23 @@ ROLLBACK, the upserts, the status/log writes). Now:
 
 **Unchanged:** the SQL (byte-identical), the parsing rules, the transaction
 boundaries and the returned counts.
+
+**Finance slice 11 — the reads/aggregation.** `src/models/finance/queries.js`
+(395 LOC) resolved the data source, aggregated the figures and ran the SQL in the
+same module. The resolution and aggregation (`resolveDataSource`, `getSummary`,
+`getMonthly`, `getTransactions`, `getBudgetLines`, `insertTransaction`,
+`getDataSources`) moved to `src/services/finance/queries.js`; every statement to
+`src/models/finance/queriesStore.js`. **The finance domain is now complete.**
+
+### Domain 3 — programs (slice 12)
+
+`src/models/kpi-progress.js` (279 LOC) computed an objective's completion rate
+*inside* the loop that read its rows. The rate and the cache policy now live in
+`src/services/programs/kpiProgress.js`; every statement (objectives, active
+participants, deliverables, approved submissions, cache clear/rewrite, last-
+calculated read) in `src/models/kpiProgressStore.js`. The rate is unchanged:
+approved (participant × deliverable) pairs, counted once each, over active
+participants × linked deliverables.
 
 ---
 
@@ -262,9 +279,10 @@ cleanup, not layering:
 
 | Domain | Service to create | Notes |
 |---|---|---|
-| Finance | `services/finance/*` | ⏳ **started** — ingestion split (slice 10); queries/summary next |
+| Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
+| Programs | `services/programs/*` | ⏳ **started** — objective progress split (slice 12); more program modules next |
 | Ventures | `services/ventures/*` | largest domain (`lib/ventures.js`, ~5.6k LOC) |
-| Tasks / projects / programs | `services/tasks/*`, `services/projects/*` | orchestration currently in controllers |
+| Tasks / projects | `services/tasks/*`, `services/projects/*` | orchestration currently in controllers |
 | LMS / platform / integrations | `services/<domain>/*` | |
 
 ### Project-wide, still open (from `MVC_REFACTOR.md`)
