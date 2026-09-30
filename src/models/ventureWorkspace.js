@@ -391,6 +391,81 @@ export async function getVentureDbIdForMilestoneCreate(venture_id) {
   });
 }
 
+/** All milestones of a Venture db id, newest first. */
+export async function listVentureMilestonesByDbId(ventureDbId) {
+  return db.execute({ sql: "SELECT * FROM venture_milestones WHERE venture_id = ? ORDER BY created_at DESC", args: [ventureDbId] });
+}
+
+/** Whether a journey stage belongs to a Venture db id. */
+export async function ventureJourneyStageExists(stageId, ventureDbId) {
+  return db.execute({ sql: "SELECT 1 FROM venture_journey_stages WHERE id = ? AND venture_id = ?", args: [stageId, ventureDbId] });
+}
+
+/** Insert one milestone (id supplied by the caller). */
+export async function insertVentureMilestone({
+  id,
+  ventureDbId,
+  title,
+  description,
+  targetDate,
+  status,
+  createdBy,
+  journeyStageId,
+  objective,
+  startDate,
+  priority,
+  ownerCid,
+  ownerName,
+  displayOrder,
+}) {
+  return db.execute({
+    sql: `INSERT INTO venture_milestones (id, venture_id, title, description, target_date, status, progress, created_by, journey_stage_id, objective, start_date, priority, owner_cid, owner_name, display_order) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [id, ventureDbId, title, description, targetDate, status, createdBy, journeyStageId, objective, startDate, priority, ownerCid, ownerName, displayOrder],
+  });
+}
+
+/** The BEFORE state of a milestone, for field-level history. */
+export async function getVentureMilestoneBeforeUpdate(milestoneId, ventureDbId) {
+  return db.execute({
+    sql: `SELECT title, description, objective, status, progress, target_date, start_date,
+                 priority, owner_cid, owner_name, journey_stage_id, display_order
+            FROM venture_milestones WHERE id = ? AND venture_id = ?`,
+    args: [milestoneId, ventureDbId],
+  });
+}
+
+/** The Venture's db id + code by code-or-uuid id (milestone completion authority). */
+export async function getVentureIdAndCode(id) {
+  return db.execute({
+    sql: "SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?",
+    args: [id, id],
+  });
+}
+
+/** Apply controller-built SET clauses to a milestone row. */
+export async function updateVentureMilestoneFields(updates, args) {
+  return db.execute({
+    sql: `UPDATE venture_milestones SET ${updates.join(", ")} WHERE id = ? AND venture_id = ?`,
+    args,
+  });
+}
+
+/** The legacy-schema fallback: the same update without the updated_at clause. */
+export async function updateVentureMilestoneValueFields(valueClauses, args) {
+  return db.execute({
+    sql: `UPDATE venture_milestones SET ${valueClauses.join(", ")} WHERE id = ? AND venture_id = ?`,
+    args,
+  });
+}
+
+/** A milestone's title + journey stage, by id. */
+export async function getVentureMilestoneTitleAndStage(milestoneId) {
+  return db.execute({
+    sql: "SELECT title, journey_stage_id FROM venture_milestones WHERE id = ?",
+    args: [milestoneId],
+  });
+}
+
 // ── GET /api/ventures/[id]/followups ─────────────────────────────────────────
 
 /** Internal ventures.id by VNT code — followups GET resolver. */
@@ -681,5 +756,18 @@ export async function updateVentureMemberFields(updates, args) {
   return db.execute({
     sql: `UPDATE venture_members SET ${updates.join(", ")} WHERE id = ? AND venture_id = ?`,
     args,
+  });
+}
+
+// ── POST /api/ventures/[id]/milestones/archive ───────────────────────────────
+
+/** Milestones of a Venture (by code-or-uuid) among the given ids, with the Venture's db id. */
+export async function listMilestonesForArchive(id, ids) {
+  return db.execute({
+    sql: `SELECT m.id, m.title, m.journey_stage_id, v.id AS venture_db_id FROM venture_milestones m
+          JOIN ventures v ON (m.venture_id::text = v.id::text OR m.venture_id::text = v.venture_id)
+          WHERE (v.venture_id = ? OR v.id::text = ?)
+            AND m.id::text = ANY(?)`,
+    args: [id, id, ids],
   });
 }

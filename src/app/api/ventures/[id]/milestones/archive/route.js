@@ -4,6 +4,7 @@ import db from "@/lib/db";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { applyBulk } from "@/lib/ventureArchive";
 import { canManageMilestones, completeStageIfAllMilestonesDone } from "@/lib/ventureMilestoneEngine";
+import { listMilestonesForArchive } from "@/models/ventureWorkspace";
 
 /**
  * POST /api/ventures/[id]/milestones/archive
@@ -40,13 +41,7 @@ export const POST = createHandler(async (req, { params }) => {
   // sides matches either type: joining on v.id alone raised "operator does not
   // exist: uuid = text" on staging and "integer = text" on production, and the
   // catch below turned that into a silent "archived 0 of N".
-  const rowsResult = await db.execute({
-    sql: `SELECT m.id, m.title, m.journey_stage_id, v.id AS venture_db_id FROM venture_milestones m
-          JOIN ventures v ON (m.venture_id::text = v.id::text OR m.venture_id::text = v.venture_id)
-          WHERE (v.venture_id = ? OR v.id::text = ?)
-            AND m.id::text = ANY(?)`,
-    args: [id, id, ids],
-  }).catch((error) => {
+  const rowsResult = await listMilestonesForArchive(id, ids).catch((error) => {
     console.error("[milestones/archive] lookup failed:", error?.message);
     return { rows: [] };
   });

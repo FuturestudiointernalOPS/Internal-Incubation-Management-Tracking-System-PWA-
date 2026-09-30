@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { duplicateMilestone } from "@/lib/ventureDuplication";
 import { canManageMilestones } from "@/lib/ventureMilestoneEngine";
+import { getVentureDbIdByCodeOrId } from "@/models/ventureWorkspace";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,7 @@ export async function POST(req, { params }) {
     if (!milestoneId) return NextResponse.json({ success: false, error: "milestone_id is required." }, { status: 400 });
 
     // Internal UUID + VNT code accepted as owner values (legacy rows exist on both).
-    const ventureResult = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] }).catch(() => ({ rows: [] }));
+    const ventureResult = await getVentureDbIdByCodeOrId(id).catch(() => ({ rows: [] }));
     const dbId = ventureResult.rows?.[0]?.id || (id.includes("-") && !id.startsWith("VNT-") ? id : null);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
