@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans";
+import {
+  listVentureOperatingPlans,
+  insertVentureOperatingPlan,
+} from "@/models/ventureWorkspace";
 
 /**
  * GET /api/ventures/[id]/operating-plans — list plans (section counts)
@@ -12,22 +16,16 @@ export const GET = createHandler(
   async (req, { params }) => {
     await initDb();
     const session = await getSession();
-    const access = await resolvePlanAccess(db, params.id, session);
+    const access = await resolvePlanAccess(params.id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    if (!(await allowsPlanAction(db, access, "view"))) {
+    if (!(await allowsPlanAction(access, "view"))) {
       return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }
-    const plansResult = await db.execute({
-      sql: `SELECT p.*,
-        (SELECT COUNT(*) FROM venture_plan_sections s WHERE s.plan_id = p.id) AS section_count,
-        (SELECT COUNT(*) FROM venture_plan_sections s WHERE s.plan_id = p.id AND s.status = 'completed') AS completed_sections
-        FROM venture_operating_plans p WHERE p.venture_id = ? ORDER BY p.created_at DESC`,
-      args: [access.code],
-    });
+    const plansResult = await listVentureOperatingPlans(access.code);
     const [canCreate, canEdit, canManage] = await Promise.all([
-      allowsPlanAction(db, access, "create"),
-      allowsPlanAction(db, access, "edit"),
-      allowsPlanAction(db, access, "manage"),
+      allowsPlanAction(access, "create"),
+      allowsPlanAction(access, "edit"),
+      allowsPlanAction(access, "manage"),
     ]);
     return NextResponse.json({
       success: true,
@@ -41,17 +39,19 @@ export const POST = createHandler(
   async (req, { params }) => {
     await initDb();
     const session = await getSession();
-    const access = await resolvePlanAccess(db, params.id, session);
+    const access = await resolvePlanAccess(params.id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    if (!(await allowsPlanAction(db, access, "create"))) {
+    if (!(await allowsPlanAction(access, "create"))) {
       return NextResponse.json({ success: false, error: "Your assignment does not allow creating operating plans." }, { status: 403 });
     }
     const body = await req.json();
     const name = String(body.name || "").trim();
     if (!name) return NextResponse.json({ success: false, error: "name is required." }, { status: 400 });
-    const insertResult = await db.execute({
-      sql: "INSERT INTO venture_operating_plans (venture_id, name, objective, created_by) VALUES (?,?,?,?) RETURNING id",
-      args: [access.code, name, body.objective || null, session.cid || null],
+    const insertResult = await insertVentureOperatingPlan({
+      ventureCode: access.code,
+      name,
+      objective: body.objective || null,
+      createdBy: session.cid || null,
     });
     const planId = insertResult.rows?.[0]?.id ?? null;
     try {

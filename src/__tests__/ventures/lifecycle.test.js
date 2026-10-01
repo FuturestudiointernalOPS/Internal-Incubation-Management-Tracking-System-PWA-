@@ -1,11 +1,30 @@
 /**
  * Phase 3 — Venture lifecycle & access gate tests (pure helpers).
+ *
+ * The lifecycle now reads through a store that owns its db, so the table shape
+ * is driven by the module mock rather than an injected double; the assertions
+ * (and their guarantees) are unchanged.
  */
 
 jest.mock("@/lib/auth", () => ({
   getSession: jest.fn().mockResolvedValue(null),
 }));
 
+jest.mock("@/lib/db", () => {
+  const state = { rows: [], calls: [] };
+  const execute = jest.fn(async ({ sql, args = [] }) => {
+    state.calls.push({ sql, args });
+    return { rows: state.rows };
+  });
+  return {
+    __esModule: true,
+    default: { execute },
+    initDb: jest.fn().mockResolvedValue(true),
+    __state: state,
+  };
+});
+
+const { __state: state } = require("@/lib/db");
 const {
   lifecycleIsArchived,
   roleIsPrivileged,
@@ -17,7 +36,11 @@ const { resetVentureAccessCache } = require("@/lib/ventureAccessFacts");
 // The Venture's own facts are remembered process-wide for a real 10 s window, so
 // each test starts from an empty cache — otherwise one test's Venture would
 // answer the next test's question.
-beforeEach(() => resetVentureAccessCache());
+beforeEach(() => {
+  resetVentureAccessCache();
+  state.calls.length = 0;
+  state.rows = [{ status: "active", is_archived: 0 }];
+});
 
 describe("lifecycleIsArchived", () => {
   it("detects archived from status or is_archived flag", () => {
@@ -41,42 +64,39 @@ describe("roleIsPrivileged", () => {
 
 describe("resolveVentureLifecycle", () => {
   it("resolves by venture_id code", async () => {
-    const db = { execute: jest.fn().mockResolvedValue({ rows: [{ status: "active", is_archived: 0 }] }) };
-    const lifecycle = await resolveVentureLifecycle("VNT-ABC", db);
+    const lifecycle = await resolveVentureLifecycle("VNT-ABC");
     expect(lifecycle.status).toBe("active");
-    expect(db.execute.mock.calls[0][0].sql).toContain("WHERE venture_id = ?");
+    expect(state.calls[0].sql).toContain("WHERE venture_id = ?");
   });
 
   it("resolves by internal id", async () => {
+    state.rows = [{ status: "archived", is_archived: 1 }];
     const id = "11111111-2222-3333-4444-555555555555";
-    const db = {
-      execute: jest.fn().mockResolvedValueOnce({ rows: [{ status: "archived", is_archived: 1 }] }),
-    };
-    const lifecycle = await resolveVentureLifecycle(id, db);
+    const lifecycle = await resolveVentureLifecycle(id);
     expect(lifecycle.status).toBe("archived");
     // The internal id is matched as an id, not cast to text: a cast would drop
     // the index on a hot read.
-    expect(db.execute.mock.calls[0][0].sql).toContain("WHERE id = ?");
+    expect(state.calls[0].sql).toContain("WHERE id = ?");
   });
 
   it("returns null when not found", async () => {
-    const db = { execute: jest.fn().mockResolvedValue({ rows: [] }) };
-    expect(await resolveVentureLifecycle("VNT-X", db)).toBeNull();
+    state.rows = [];
+    expect(await resolveVentureLifecycle("VNT-X")).toBeNull();
   });
 });
 
 describe("requireOperationalVentureAccess", () => {
-  const archivedDb = () => ({
-    execute: jest.fn().mockResolvedValue({ rows: [{ status: "archived", is_archived: 1 }] }),
-  });
-  const activeDb = () => ({
-    execute: jest.fn().mockResolvedValue({ rows: [{ status: "active", is_archived: 0 }] }),
-  });
+  const asArchived = () => {
+    state.rows = [{ status: "archived", is_archived: 1 }];
+  };
+  const asActive = () => {
+    state.rows = [{ status: "active", is_archived: 0 }];
+  };
 
   it("blocks every mutation on an archived Venture", async () => {
+    asArchived();
     const gate = await requireOperationalVentureAccess({
       ventureId: "VNT-A",
-      db: archivedDb(),
       session: { role: "super_admin" },
       mutate: true,
     });
@@ -85,9 +105,9 @@ describe("requireOperationalVentureAccess", () => {
   });
 
   it("allows privileged staff to read an archived Venture (historical)", async () => {
+    asArchived();
     const gate = await requireOperationalVentureAccess({
       ventureId: "VNT-A",
-      db: archivedDb(),
       session: { role: "staff" },
       mutate: false,
     });
@@ -95,9 +115,9 @@ describe("requireOperationalVentureAccess", () => {
   });
 
   it("removes active access for members when archived", async () => {
+    asArchived();
     const gate = await requireOperationalVentureAccess({
       ventureId: "VNT-A",
-      db: archivedDb(),
       session: { role: "founder" },
       mutate: false,
     });
@@ -106,9 +126,9 @@ describe("requireOperationalVentureAccess", () => {
   });
 
   it("passes active Ventures through", async () => {
+    asActive();
     const gate = await requireOperationalVentureAccess({
       ventureId: "VNT-A",
-      db: activeDb(),
       session: { role: "participant" },
       mutate: false,
     });

@@ -1,8 +1,9 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { duplicateMilestone } from "@/lib/ventureDuplication";
 import { canManageMilestones } from "@/lib/ventureMilestoneEngine";
+import { getVentureDbIdByCodeOrId } from "@/models/ventureWorkspace";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ export async function POST(req, { params }) {
     const { session } = access;
 
     // Duplicating creates a milestone — Lead Manager or Super Admin only.
-    const allowed = await canManageMilestones(db, { id, cid: session?.cid, role: session?.role });
+    const allowed = await canManageMilestones({ id, cid: session?.cid, role: session?.role });
     if (!allowed) {
       return NextResponse.json(
         { success: false, error: "Only the Venture's Lead Manager or a Super Admin can add milestones." },
@@ -36,11 +37,11 @@ export async function POST(req, { params }) {
     if (!milestoneId) return NextResponse.json({ success: false, error: "milestone_id is required." }, { status: 400 });
 
     // Internal UUID + VNT code accepted as owner values (legacy rows exist on both).
-    const ventureResult = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] }).catch(() => ({ rows: [] }));
+    const ventureResult = await getVentureDbIdByCodeOrId(id).catch(() => ({ rows: [] }));
     const dbId = ventureResult.rows?.[0]?.id || (id.includes("-") && !id.startsWith("VNT-") ? id : null);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const result = await duplicateMilestone(db, { dbId, code: id, milestoneId, actorCid: session.cid || null });
+    const result = await duplicateMilestone({ dbId, code: id, milestoneId, actorCid: session.cid || null });
     if (result.error) {
       return NextResponse.json({ success: false, error: result.error }, { status: result.error === "Milestone not found." ? 404 : 400 });
     }

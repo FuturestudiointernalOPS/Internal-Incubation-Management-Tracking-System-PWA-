@@ -466,7 +466,10 @@ export async function POST(req) {
         // evaluated, so no result document and no result email could ever exist.
         try {
           const formIdForEval = runForAuto?.form_id;
-          if (formIdForEval && await formHasAiEvaluation(formIdForEval)) {
+          // A PAID Execution is a registration CAPTURE, not an application: the
+          // money is not confirmed yet, so nothing is scored or approved before
+          // payment — the same rule that already suppresses its acknowledgement.
+          if (!paidContext?.hasCourse && formIdForEval && await formHasAiEvaluation(formIdForEval)) {
             const already = await submissionHasEvaluation(submissionId).catch(() => true);
             if (!already) {
               const evaluation = await evaluateSubmission(submissionId);

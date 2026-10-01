@@ -14,7 +14,6 @@ export {
   getAuthorizationContext,
   invalidateAuthorizationContext,
   invalidateAllAuthorizationContexts,
-  requireAuthorization,
   resolveAuthorizationContext,
   mergeEffectiveCapabilities,
   effectivePermissionsFromContext,
@@ -25,7 +24,6 @@ export {
 } from "./resolver";
 
 export {
-  evaluateEligibility,
   ensureEligibilitySchema,
   seedDefaultEligibility,
   MODULE_TO_FEATURE,
@@ -33,12 +31,21 @@ export {
   FEATURE_ORDER,
 } from "./eligibility";
 
+// The eligibility DECISION lives in the service layer; re-exported here so this
+// barrel keeps the surface it always had.
+export { evaluateEligibility } from "@/services/authorization/eligibility";
+
 export { runAuthzMigration } from "./migrations";
 
+export { resolveContextAssignment } from "./context";
+
+// The HTTP boundary: the authorization DECISIONS come from the service layer,
+// and are turned into the 401/403 responses routes return as-is here. Moving
+// this out of the services is what keeps every service free of `next/server`.
 export {
+  requireAuthorization,
   requireScopedAccess,
-  resolveContextAssignment,
-} from "./context";
+} from "@/server/authz/responses";
 
 export {
   FEATURE_KEYS,

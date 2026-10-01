@@ -16,7 +16,7 @@
  */
 
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth, getSession } from "@/lib/auth";
 import { changeVentureLead } from "@/lib/ventures";
 import {
@@ -56,7 +56,7 @@ export async function POST(req, { params }) {
     // explicit assignment — never the staff role alone.
     if (["staff", "program_manager"].includes(session.role)) {
       const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
-      if (!(await hasActiveVentureAssignment(ventureId, session.cid, db))) {
+      if (!(await hasActiveVentureAssignment(ventureId, session.cid))) {
         return NextResponse.json(
           { success: false, error: "Unauthorized. Only assigned Venture staff or the current lead founder can change the lead." },
           { status: 403 },
@@ -67,7 +67,7 @@ export async function POST(req, { params }) {
     // Archived Ventures are immutable historical records (Phase 3).
     try {
       const { requireOperationalVentureAccess } = await import("@/lib/ventureAuth");
-      const gate = await requireOperationalVentureAccess({ ventureId, db, session, mutate: true });
+      const gate = await requireOperationalVentureAccess({ ventureId, session, mutate: true });
       if (!gate.ok && gate.code === "archived") {
         return NextResponse.json({ success: false, code: "VENTURE_ARCHIVED", error: gate.reason }, { status: 409 });
       }

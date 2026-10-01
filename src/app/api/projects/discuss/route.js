@@ -2,16 +2,12 @@ import { NextResponse } from "next/server";
 import { requireProjectAccess } from "@/lib/auth";
 import { createHandler } from "@/lib/api/createHandler";
 import {
-  getProjectDiscussionMessages,
-  createProjectDiscussionMessage,
-  getProjectMemberCids,
-  getProjectOwnerAndName,
-  createProjectDiscussionNotification,
-  findContactsByNames,
-} from "@/models/projectCollaboration";
+  listProjectDiscussions,
+  postProjectDiscussion,
+} from "@/services/projects/collaboration";
 
 /**
- * PROJECT DISCUSSIONS API (Ticket 4.3)
+ * PROJECT DISCUSSIONS API (Ticket 4.3) — controller layer.
  *
  * GET  /api/projects/discuss?project_id=X
  *   - Returns all discussion messages for a project, oldest first
@@ -20,6 +16,9 @@ import {
  *   - Creates a new discussion message in the project context
  *   - Body: { project_id, sender_id, sender_name, body }
  *   - Notifies all project members (type: "project_discussion")
+ *
+ * The notification fan-out (owner, members, @mentions) lives in
+ * `@/services/projects/collaboration`.
  */
 
 export const GET = createHandler(async (req) => {
@@ -37,9 +36,8 @@ export const GET = createHandler(async (req) => {
   const authError = await requireProjectAccess(project_id);
   if (authError) return authError;
 
-  const result = await getProjectDiscussionMessages(project_id);
-
-  return NextResponse.json({ success: true, messages: result.rows });
+  const result = await listProjectDiscussions(project_id);
+  return NextResponse.json({ success: true, messages: result.messages });
 });
 
 export const POST = createHandler(async (req) => {
@@ -57,89 +55,16 @@ export const POST = createHandler(async (req) => {
   const authError = await requireProjectAccess(project_id);
   if (authError) return authError;
 
-  const result = await createProjectDiscussionMessage(
-    sender_id,
-    "Project Discussion",
-    messageBody,
-    project_id,
-  );
-
-  const row = result.rows[0] || {};
-
-  // Notify all project members (except sender)
-  try {
-    const membersResult = await getProjectMemberCids(project_id);
-
-    // Also get project owner
-    const projectResult = await getProjectOwnerAndName(project_id);
-
-    const projectName = projectResult.rows[0]?.name || "a project";
-    const notified = new Set();
-
-    const insertNotification = async (recipientId, title, message, type) => {
-      await createProjectDiscussionNotification(
-        recipientId,
-        title,
-        message,
-        type,
-      );
-    };
-
-    // Notify project owner
-    const ownerId = projectResult.rows[0]?.owner_id;
-    if (ownerId && ownerId !== sender_id) {
-      notified.add(ownerId);
-      await insertNotification(
-        ownerId,
-        "New Discussion Message",
-        `${sender_name || "Someone"} posted in "${projectName}"`,
-        "project_discussion",
-      );
-    }
-
-    // Notify all members
-    for (const member of membersResult.rows) {
-      if (member.user_cid === sender_id) continue;
-      if (notified.has(member.user_cid)) continue;
-      notified.add(member.user_cid);
-      await insertNotification(
-        member.user_cid,
-        "New Discussion Message",
-        `${sender_name || "Someone"} posted in "${projectName}"`,
-        "project_discussion",
-      );
-    }
-
-    // Handle @mentions
-    const mentionRegex = /@(\w[\w\s.-]*?\w)\b/g;
-    let match;
-    const mentionedNames = new Set();
-    while ((match = mentionRegex.exec(messageBody)) !== null) {
-      mentionedNames.add(match[1].trim().toLowerCase());
-    }
-
-    if (mentionedNames.size > 0) {
-      const namesArray = [...mentionedNames];
-      const mentionResult = await findContactsByNames(namesArray);
-
-      for (const mentioned of mentionResult.rows) {
-        if (notified.has(mentioned.cid)) continue;
-        if (mentioned.cid === sender_id) continue;
-        await insertNotification(
-          mentioned.cid,
-          "Mention in Discussion",
-          `${sender_name || "Someone"} mentioned you in "${projectName}"`,
-          "mention",
-        );
-      }
-    }
-  } catch (_) {
-    // Notification failure is non-fatal
-  }
+  const result = await postProjectDiscussion({
+    projectId: project_id,
+    senderId: sender_id,
+    senderName: sender_name,
+    body: messageBody,
+  });
 
   return NextResponse.json({
     success: true,
-    id: Number(row.id),
-    created_at: row.created_at,
+    id: result.id,
+    created_at: result.created_at,
   });
 });

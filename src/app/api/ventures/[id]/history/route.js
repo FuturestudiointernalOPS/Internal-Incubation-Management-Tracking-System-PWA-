@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import {
@@ -7,6 +7,7 @@ import {
   getVentureForHistory,
   getVentureFounderHistory,
 } from "@/models/ventureJourney";
+import { isActiveVentureMember } from "@/models/ventureWorkspace";
 
 export async function GET(req, { params }) {
   try {
@@ -32,11 +33,8 @@ export async function GET(req, { params }) {
 
     if (session && !["super_admin"].includes(session.role)) {
       const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
-      const assigned = await hasActiveVentureAssignment(id, session.cid, db);
-      const member = await db.execute({
-        sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND (contact_id = ? OR user_cid = ?) AND removed_at IS NULL LIMIT 1",
-        args: [id, session.cid || "", session.cid || ""],
-      });
+      const assigned = await hasActiveVentureAssignment(id, session.cid);
+      const member = await isActiveVentureMember(id, session.cid);
       if (!assigned && !member.rows?.length) {
         return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
       }

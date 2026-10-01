@@ -31,7 +31,7 @@ jest.mock("@/lib/ventureAuth", () => ({
 
 jest.mock("@/lib/ventureOperatingPlans", () => ({
   __esModule: true,
-  resolveVentureCode: jest.fn(async (_db, id) => id),
+  resolveVentureCode: jest.fn(async (id) => id),
 }));
 
 jest.mock("@/models/ventureDocumentTypes", () => ({

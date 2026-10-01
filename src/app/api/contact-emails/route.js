@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireAuth, getSession } from "@/lib/auth";
 import { findContactByCid } from "@/models/workspace";
-import { isContactWithinStaffedPrograms } from "@/models/authorization/scope";
 import { serverError } from "@/lib/apiError";
+import { canManageContactEmails } from "@/services/contacts/alternativeEmails";
 
 /**
  * /api/contact-emails — Alternative email management (Phase 2)
@@ -21,30 +21,12 @@ import { serverError } from "@/lib/apiError";
  * everyone else manages only their own identity.
  */
 
-const PRIVILEGED = ["super_admin", "staff", "program_manager"];
-
 /**
- * AUTHZ-CRM-1 — who may touch this contact's alternative emails?
- *
- *   - yourself                    → yes
- *   - Super Admin                 → yes (unscoped authority)
- *   - staff / program_manager     → only a contact who shares a PROGRAMME they
- *                                   are staffed on (a contact→programme rule)
- *   - anyone else                 → no
- *
- * This replaced a bare role check that let any staff-side caller manage EVERY
- * contact in the database.
+ * AUTHZ-CRM-1 — who may touch this contact's alternative emails? The decision
+ * lives in `@/services/contacts/alternativeEmails`; this maps a refusal to HTTP.
  */
-async function canManageContact(session, targetCid) {
-  if (!targetCid) return false;
-  if (String(targetCid) === String(session?.cid)) return true;
-  if (session?.role === "super_admin") return true;
-  if (!PRIVILEGED.includes(session?.role)) return false;
-  return isContactWithinStaffedPrograms(targetCid, session.cid, { email: session.email });
-}
-
 async function denyIfNotAllowed(session, targetCid) {
-  if (await canManageContact(session, targetCid)) return null;
+  if (await canManageContactEmails(session, targetCid)) return null;
   return NextResponse.json(
     { success: false, error: "errors.insufficientPermissions" },
     { status: 403 },

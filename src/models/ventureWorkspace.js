@@ -165,6 +165,14 @@ export async function countVenturePmfAssessments(dbId) {
 // ── GET/POST/PATCH/DELETE /api/ventures/[id]/tasks ───────────────────────────
 
 /** Internal ventures.id by VNT code — tasks resolveVentureDbId helper. */
+/** Milestone row (id + stage) verified to belong to one Venture. */
+export async function getVentureMilestoneForDeliverables(dbId, milestoneId) {
+  return db.execute({
+    sql: "SELECT id, journey_stage_id FROM venture_milestones WHERE id::text = ? AND venture_id = ?",
+    args: [String(milestoneId), dbId],
+  });
+}
+
 export async function getVentureDbIdForTasks(venture_id) {
   return db.execute({
     sql: "SELECT id FROM ventures WHERE venture_id = ?",
@@ -179,6 +187,574 @@ export async function insertVentureTaskReview({ task_id, reviewer_cid, reviewer_
             VALUES (?, ?, ?, ?, ?, NOW())`,
     args: [parseInt(task_id), reviewer_cid || null, reviewer_name || null, decision, comments || null],
   });
+}
+
+/** Whether a task has an approved submission (review-gated completion). */
+export async function hasApprovedTaskSubmission(taskId) {
+  return db.execute({
+    sql: "SELECT 1 FROM venture_task_submissions WHERE task_id = ? AND review_decision = 'approved' ORDER BY version DESC LIMIT 1",
+    args: [taskId],
+  });
+}
+
+/** Tasks of a Venture (by code-or-uuid) among the given ids, for bulk archive. */
+export async function listTasksForArchive(id, ids) {
+  return db.execute({
+    sql: `SELECT t.id, t.title FROM venture_tasks t
+          JOIN ventures v ON (t.venture_id::text = v.id::text OR t.venture_id::text = v.venture_id)
+          WHERE (v.venture_id = ? OR v.id::text = ?)
+            AND t.id::text = ANY(?)`,
+    args: [id, id, ids],
+  });
+}
+
+// ── GET/POST /api/ventures/[id]/tasks/[taskId]/submissions ───────────────────
+
+/** One venture task by id. */
+export async function getVentureTaskById(taskId) {
+  return db.execute({ sql: "SELECT * FROM venture_tasks WHERE id = ?", args: [taskId] });
+}
+
+/** A task's submission history, oldest first. */
+export async function listVentureTaskSubmissions(taskId) {
+  return db.execute({
+    sql: `SELECT id, task_id, version, status, file_url, file_name, file_type, file_size,
+                 notes, submitted_by, submitted_by_name, reviewed_by, review_decision,
+                 review_comment, reviewed_at, created_at
+          FROM venture_task_submissions WHERE task_id = ?
+          ORDER BY version ASC`,
+    args: [taskId],
+  });
+}
+
+/** The next submission version number for a task. */
+export async function getNextTaskSubmissionVersion(taskId) {
+  return db.execute({
+    sql: "SELECT COALESCE(MAX(version), 0) + 1 AS next_version FROM venture_task_submissions WHERE task_id = ?",
+    args: [taskId],
+  });
+}
+
+/** Append a task submission version, returning the new id. */
+export async function insertTaskSubmission({
+  taskId,
+  version,
+  fileUrl,
+  fileName,
+  fileType,
+  fileSize,
+  notes,
+  submittedBy,
+  submittedByName,
+}) {
+  return db.execute({
+    sql: `INSERT INTO venture_task_submissions
+          (task_id, version, status, file_url, file_name, file_type, file_size, notes, submitted_by, submitted_by_name)
+          VALUES (?,?,?,?,?,?,?,?,?,?) RETURNING id`,
+    args: [taskId, version, "submitted", fileUrl, fileName, fileType, fileSize, notes, submittedBy, submittedByName],
+  });
+}
+
+/** Move a task into in_progress (a submission means work is happening). */
+export async function setVentureTaskInProgress(taskId) {
+  return db.execute({ sql: "UPDATE venture_tasks SET status = 'in_progress' WHERE id = ?", args: [taskId] });
+}
+
+/** One submission of a task, by id. */
+export async function getTaskSubmission(submissionId, taskId) {
+  return db.execute({
+    sql: "SELECT * FROM venture_task_submissions WHERE id = ? AND task_id = ?",
+    args: [submissionId, taskId],
+  });
+}
+
+/** Record a review outcome on a submission. */
+export async function reviewTaskSubmission({ submissionId, decision, comment, reviewedBy }) {
+  return db.execute({
+    sql: `UPDATE venture_task_submissions
+          SET review_decision = ?, review_comment = ?, reviewed_by = ?, reviewed_at = NOW()
+          WHERE id = ?`,
+    args: [decision, comment, reviewedBy, submissionId],
+  });
+}
+
+/** Set a task's status. */
+export async function setVentureTaskStatus(taskId, status) {
+  return db.execute({ sql: "UPDATE venture_tasks SET status = ? WHERE id = ?", args: [status, taskId] });
+}
+
+/** A milestone's journey stage id (submission-review notification context). */
+export async function getMilestoneJourneyStageId(milestoneId) {
+  return db.execute({
+    sql: "SELECT journey_stage_id FROM venture_milestones WHERE id = ? AND journey_stage_id IS NOT NULL",
+    args: [milestoneId],
+  });
+}
+
+// ── GET /api/ventures/[id]/submissions/review-queue ──────────────────────────
+
+// Base queue query (no LIMIT). The full-access path appends LIMIT 20 so its
+// behavior stays byte-identical to the pre-scoping route.
+const VENTURE_REVIEW_QUEUE_SQL = `SELECT s.id AS submission_id, s.task_id, s.version, s.file_url, s.file_name, s.notes,
+                 s.submitted_by_name, s.created_at,
+                 t.title AS task_title,
+                 t.milestone_id,
+                 m.title AS milestone_title
+          FROM venture_task_submissions s
+          JOIN venture_tasks t ON t.id = s.task_id
+          LEFT JOIN venture_milestones m ON m.id::text = t.milestone_id::text
+          WHERE t.venture_id = ?
+            AND s.review_decision IS NULL
+            AND s.version = (SELECT MAX(s2.version) FROM venture_task_submissions s2 WHERE s2.task_id = s.task_id)
+          ORDER BY s.created_at DESC`;
+const VENTURE_REVIEW_QUEUE_SQL_FULL = `${VENTURE_REVIEW_QUEUE_SQL}
+          LIMIT 20`;
+
+/** The latest unreviewed submission per task; restricted omits the SQL LIMIT. */
+export function selectVentureReviewQueue(dbId, restricted) {
+  return db.execute({
+    sql: restricted ? VENTURE_REVIEW_QUEUE_SQL : VENTURE_REVIEW_QUEUE_SQL_FULL,
+    args: [dbId],
+  });
+}
+
+// ── /api/ventures/[id]/notes ─────────────────────────────────────────────────
+
+/** The canonical code behind a Venture db id (notes id resolver). */
+export async function getVentureCodeByDbId(id) {
+  return db.execute({ sql: "SELECT venture_id FROM ventures WHERE id::text = ?", args: [id] });
+}
+
+/** Whether a responsibility may view the internal_notes area. */
+export async function getInternalNotesViewPermission(responsibilityCode) {
+  return db.execute({
+    sql: "SELECT allowed FROM venture_permission_matrix WHERE responsibility_code = ? AND area = 'internal_notes' AND action = 'view'",
+    args: [responsibilityCode],
+  });
+}
+
+/** A contact's active assignment rows on a Venture, by id desc. */
+export async function listActiveStaffAssignmentsByCode(ventureCode, cid) {
+  return db.execute({
+    sql: "SELECT id, scope_type, scope_ref_type, scope_ref_id, responsibility_code FROM venture_staff_assignments WHERE venture_id = ? AND staff_contact_id = ? AND status = 'active' ORDER BY id DESC",
+    args: [ventureCode, cid],
+  });
+}
+
+/** A Venture's live notes, optionally narrowed to a scope reference. */
+export function listVentureNotes({ ventureCode, scopeType, scopeId }) {
+  let sql = "SELECT * FROM venture_notes WHERE venture_id = ? AND is_archived = FALSE";
+  const args = [ventureCode];
+  if (scopeType) {
+    sql += " AND scope_ref_type = ?";
+    args.push(String(scopeType));
+  }
+  if (scopeId) {
+    sql += " AND scope_ref_id = ?";
+    args.push(String(scopeId));
+  }
+  sql += " ORDER BY created_at DESC";
+  return db.execute({ sql, args });
+}
+
+/** Insert an internal note (with optional attachments), returning the new id. */
+export function insertVentureNote({ ventureCode, authorCid, authorName, title, body, scopeRefType, scopeRefId, attachments }) {
+  return db.execute({
+    sql: `INSERT INTO venture_notes (venture_id, author_cid, author_name, title, body, scope_ref_type, scope_ref_id${attachments ? ", attachments" : ""})
+            VALUES (?,?,?,?,?,?,?${attachments ? ", ?::jsonb" : ""}) RETURNING id`,
+    args: attachments
+      ? [ventureCode, authorCid, authorName, title, body, scopeRefType, scopeRefId, JSON.stringify(attachments)]
+      : [ventureCode, authorCid, authorName, title, body, scopeRefType, scopeRefId],
+  });
+}
+
+/** One note of a Venture, by id. */
+export async function getVentureNote(noteId, ventureCode) {
+  return db.execute({ sql: "SELECT * FROM venture_notes WHERE id = ? AND venture_id = ?", args: [noteId, ventureCode] });
+}
+
+/** Soft-archive one note. */
+export async function archiveVentureNote(noteId) {
+  return db.execute({ sql: "UPDATE venture_notes SET is_archived = TRUE, updated_at = NOW() WHERE id = ?", args: [noteId] });
+}
+
+// ── /api/ventures/[id]/operating-plans (+ [planId], [planId]/sections) ───────
+
+/** A Venture's operating plans with their section counts. */
+export async function listVentureOperatingPlans(ventureCode) {
+  return db.execute({
+    sql: `SELECT p.*,
+        (SELECT COUNT(*) FROM venture_plan_sections s WHERE s.plan_id = p.id) AS section_count,
+        (SELECT COUNT(*) FROM venture_plan_sections s WHERE s.plan_id = p.id AND s.status = 'completed') AS completed_sections
+        FROM venture_operating_plans p WHERE p.venture_id = ? ORDER BY p.created_at DESC`,
+    args: [ventureCode],
+  });
+}
+
+/** Insert an operating plan, returning the new id. */
+export async function insertVentureOperatingPlan({ ventureCode, name, objective, createdBy }) {
+  return db.execute({
+    sql: "INSERT INTO venture_operating_plans (venture_id, name, objective, created_by) VALUES (?,?,?,?) RETURNING id",
+    args: [ventureCode, name, objective, createdBy],
+  });
+}
+
+/** One operating plan of a Venture, by id (full row). */
+export async function getVentureOperatingPlan(planId, ventureCode) {
+  return db.execute({ sql: "SELECT * FROM venture_operating_plans WHERE id = ? AND venture_id = ?", args: [planId, ventureCode] });
+}
+
+/** A plan's sections, in display order. */
+export async function listVenturePlanSections(planId) {
+  return db.execute({ sql: "SELECT * FROM venture_plan_sections WHERE plan_id = ? ORDER BY sort_order, id", args: [planId] });
+}
+
+/** A plan's links (joined to its sections), in order. */
+export async function listVenturePlanLinks(planId) {
+  return db.execute({
+    sql: `SELECT l.* FROM venture_plan_links l
+          JOIN venture_plan_sections s ON s.id = l.section_id
+          WHERE s.plan_id = ? ORDER BY l.id`,
+    args: [planId],
+  });
+}
+
+/** Update a plan's name/objective/status (COALESCE: absent = unchanged). */
+export async function updateVentureOperatingPlan({ planId, ventureCode, name, objective, status }) {
+  return db.execute({
+    sql: "UPDATE venture_operating_plans SET name = COALESCE(?, name), objective = COALESCE(?, objective), status = COALESCE(?, status), updated_at = NOW() WHERE id = ? AND venture_id = ?",
+    args: [name, objective, status, planId, ventureCode],
+  });
+}
+
+/** Existence check: an operating plan of a Venture, by id. */
+export async function ventureOperatingPlanExists(planId, ventureCode) {
+  return db.execute({ sql: "SELECT id FROM venture_operating_plans WHERE id = ? AND venture_id = ?", args: [planId, ventureCode] });
+}
+
+/** Archive an operating plan. */
+export async function archiveVentureOperatingPlan(planId, ventureCode) {
+  return db.execute({ sql: "UPDATE venture_operating_plans SET status = 'archived', updated_at = NOW() WHERE id = ? AND venture_id = ?", args: [planId, ventureCode] });
+}
+
+/** Existence check: a live (non-archived) plan of a Venture. */
+export async function liveVenturePlanExists(planId, ventureCode) {
+  return db.execute({ sql: "SELECT id FROM venture_operating_plans WHERE id = ? AND venture_id = ? AND status <> 'archived'", args: [planId, ventureCode] });
+}
+
+/** Existence check: a section of a plan. */
+export async function venturePlanSectionExists(sectionId, planId) {
+  return db.execute({ sql: "SELECT id FROM venture_plan_sections WHERE id = ? AND plan_id = ?", args: [sectionId, planId] });
+}
+
+/** Insert a plan link (idempotent). */
+export async function insertVenturePlanLink({ sectionId, refType, refId, label, createdBy }) {
+  return db.execute({
+    sql: "INSERT INTO venture_plan_links (section_id, ref_type, ref_id, label, created_by) VALUES (?,?,?,?,?) ON CONFLICT (section_id, ref_type, ref_id) DO NOTHING",
+    args: [sectionId, refType, refId, label, createdBy],
+  });
+}
+
+/** Insert a plan section, returning the new id. */
+export async function insertVenturePlanSection({ planId, title, objective, instructions, sortOrder }) {
+  return db.execute({
+    sql: "INSERT INTO venture_plan_sections (plan_id, title, objective, instructions, sort_order) VALUES (?,?,?,?,?) RETURNING id",
+    args: [planId, title, objective, instructions, sortOrder],
+  });
+}
+
+/** Update a section's fields (COALESCE: absent = unchanged). */
+export async function updateVenturePlanSection({ sectionId, planId, title, objective, instructions, status, sortOrder }) {
+  return db.execute({
+    sql: `UPDATE venture_plan_sections SET
+              title = COALESCE(?, title),
+              objective = COALESCE(?, objective),
+              instructions = COALESCE(?, instructions),
+              status = COALESCE(?, status),
+              sort_order = COALESCE(?, sort_order),
+              updated_at = NOW()
+            WHERE id = ? AND plan_id = ?`,
+    args: [title, objective, instructions, status, sortOrder, sectionId, planId],
+  });
+}
+
+/** A link of a plan, by id. */
+export async function getVenturePlanLink(linkId, planId) {
+  return db.execute({
+    sql: "SELECT l.id FROM venture_plan_links l JOIN venture_plan_sections s ON s.id = l.section_id WHERE l.id = ? AND s.plan_id = ?",
+    args: [linkId, planId],
+  });
+}
+
+/** Delete a plan link. */
+export async function deleteVenturePlanLink(linkId) {
+  return db.execute({ sql: "DELETE FROM venture_plan_links WHERE id = ?", args: [linkId] });
+}
+
+/** Delete a plan section. */
+export async function deleteVenturePlanSection(sectionId, planId) {
+  return db.execute({ sql: "DELETE FROM venture_plan_sections WHERE id = ? AND plan_id = ?", args: [sectionId, planId] });
+}
+
+// ── POST /api/ventures/[id]/journey/apply-template ───────────────────────────
+
+/** An active plan template, by id. */
+export async function getActiveVenturePlanTemplate(templateId) {
+  return db.execute({ sql: "SELECT id, name FROM venture_plan_templates WHERE id = ? AND is_active = TRUE", args: [templateId] });
+}
+
+/** A template's sections (title + objective), in order. */
+export async function listVenturePlanTemplateSections(templateId) {
+  return db.execute({ sql: "SELECT title, objective FROM venture_plan_template_sections WHERE template_id = ? ORDER BY sort_order, id", args: [templateId] });
+}
+
+/** How many journey stages a Venture db id already has. */
+export async function countVentureJourneyStages(dbId) {
+  return db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_journey_stages WHERE venture_id = ?", args: [dbId] });
+}
+
+/** Insert one journey stage generated from a template. */
+export async function insertJourneyStageFromTemplate({ dbId, name, description, stageOrder, status, templateType, templateId }) {
+  return db.execute({
+    sql: `INSERT INTO venture_journey_stages (venture_id, name, description, stage_order, status, source_template_type, source_template_id)
+          VALUES (?,?,?,?,?,?,?)`,
+    args: [dbId, name, description, stageOrder, status, templateType, templateId],
+  });
+}
+
+// ── /api/venture-permissions/responsibilities ────────────────────────────────
+
+/** Insert a Venture responsibility definition. */
+export async function insertVentureResponsibility({ code, name, description, createdBy }) {
+  return db.execute({
+    sql: "INSERT INTO venture_responsibilities (code, name, description, created_by) VALUES (?,?,?,?)",
+    args: [code, name, description, createdBy],
+  });
+}
+
+/** Update a Venture responsibility (COALESCE: absent = unchanged). */
+export async function updateVentureResponsibility({ code, name, description, isActive }) {
+  return db.execute({
+    sql: "UPDATE venture_responsibilities SET name = COALESCE(?, name), description = COALESCE(?, description), is_active = COALESCE(?, is_active), updated_at = NOW() WHERE code = ?",
+    args: [name, description, isActive, code],
+  });
+}
+
+// ── /api/venture-plan-templates ──────────────────────────────────────────────
+
+/** A plan's Venture id + name (template save guard). */
+export async function getPlanVentureIdAndName(planId) {
+  return db.execute({ sql: "SELECT venture_id, name FROM venture_operating_plans WHERE id = ?", args: [planId] });
+}
+
+/** Activate/deactivate a plan template. */
+export async function setVenturePlanTemplateActive(id, isActive) {
+  return db.execute({ sql: "UPDATE venture_plan_templates SET is_active = ?, updated_at = NOW() WHERE id = ?", args: [isActive, id] });
+}
+
+// ── GET /api/ventures/[id]/calendar ──────────────────────────────────────────
+
+/** Venture-facing canonical sessions for the founder calendar (both id forms). */
+export async function listVentureFacingSessionsForCalendar(id, dbId) {
+  return db.execute({
+    sql: `SELECT id, title, session_type, coach_name, location, meeting_link, status,
+        preparation_notes, milestone_ref, journey_stage_id,
+        to_char(start_time, 'YYYY-MM-DD') as date, to_char(start_time, 'HH24:MI') as start_time
+        FROM venture_sessions WHERE venture_facing = TRUE AND start_time IS NOT NULL AND (venture_id = ? OR venture_id = ?)
+        ORDER BY start_time`,
+    args: [id, dbId],
+  });
+}
+
+// ── GET /api/ventures/[id]/journey-report ────────────────────────────────────
+
+/** A Venture's live journey stages (archived-aware), in order. */
+export function listVentureStagesForReport(dbId) {
+  return db.execute({
+    sql: `SELECT id, name, status, stage_order, target_date, completed_at
+              FROM venture_journey_stages WHERE venture_id = ? AND COALESCE(is_archived, FALSE) = FALSE
+              ORDER BY stage_order ASC`,
+    args: [dbId],
+  });
+}
+
+/** Legacy fallback: the same stages without the archive guard. */
+export function listVentureStagesForReportLegacy(dbId) {
+  return db.execute({
+    sql: `SELECT id, name, status, stage_order, target_date, completed_at
+                FROM venture_journey_stages WHERE venture_id = ?
+                ORDER BY stage_order ASC`,
+    args: [dbId],
+  });
+}
+
+/** Journey-bound milestones of a Venture (owner ids). */
+export function listVentureMilestonesForReport(owners) {
+  return db.execute({
+    sql: `SELECT id, journey_stage_id, title, status, target_date FROM venture_milestones
+              WHERE venture_id IN (${owners.map(() => "?").join(", ")}) AND journey_stage_id IS NOT NULL`,
+    args: owners,
+  });
+}
+
+/** Task statuses + due dates of a Venture (owner ids). */
+export function listVentureTaskDeadlinesForReport(owners) {
+  return db.execute({
+    sql: `SELECT status, due_date FROM venture_tasks WHERE venture_id IN (${owners.map(() => "?").join(", ")})`,
+    args: owners,
+  });
+}
+
+/** Reviewed submissions of a Venture (owner ids). */
+export function listVentureReviewedSubmissionsForReport(owners) {
+  return db.execute({
+    sql: `SELECT s.review_decision, s.reviewed_at
+              FROM venture_task_submissions s
+              JOIN venture_tasks t ON t.id = s.task_id
+              WHERE t.venture_id IN (${owners.map(() => "?").join(", ")}) AND s.review_decision IS NOT NULL`,
+    args: owners,
+  });
+}
+
+/** Session facts of a Venture (owner ids). */
+export function listVentureSessionsForReport(owners) {
+  return db.execute({
+    sql: `SELECT status, venture_facing, journey_stage_id, start_time
+              FROM venture_sessions WHERE venture_id IN (${owners.map(() => "?").join(", ")})`,
+    args: owners,
+  });
+}
+
+/** Active staff assignments of a Venture (VNT code). */
+export function listVentureStaffAssignmentsForReport(id) {
+  return db.execute({
+    sql: `SELECT responsibility_code, staff_contact_id, scope_type
+              FROM venture_staff_assignments WHERE venture_id = ? AND status = 'active'`,
+    args: [id],
+  });
+}
+
+/** Deliverables awaiting review of a Venture (owner ids). */
+export function listVentureSubmitedDeliverablesForReport(owners) {
+  return db.execute({
+    sql: `SELECT status FROM venture_deliverables
+              WHERE venture_id IN (${owners.map(() => "?").join(", ")}) AND status = 'submitted'`,
+    args: owners,
+  });
+}
+
+/** Deliverables carrying attached evidence (owner ids). */
+export function listVentureEvidencedDeliverablesForReport(owners) {
+  return db.execute({
+    sql: `SELECT id, milestone_id, title, status, approval_status, attachment_url, attachment_name
+              FROM venture_deliverables
+              WHERE venture_id IN (${owners.map(() => "?").join(", ")}) AND attachment_url IS NOT NULL
+              ORDER BY created_at ASC`,
+    args: owners,
+  });
+}
+
+// ── GET /api/ventures/[id]/dashboard ─────────────────────────────────────────
+
+/** Venture identity row for the dashboard. */
+export async function getVentureDashboardInfo(ventureId) {
+  return db.execute({
+    sql: "SELECT company_name, venture_id, industry, business_stage, status, created_at, description, website, logo_url, registration_number FROM ventures WHERE venture_id = ?",
+    args: [ventureId],
+  });
+}
+
+/** Active member recipient ids of a Venture (contact + user cid). */
+export function listVentureMemberRecipients(ventureId) {
+  return db.execute({
+    sql: "SELECT contact_id, user_cid FROM venture_members WHERE venture_id = ? AND removed_at IS NULL",
+    args: [ventureId],
+  });
+}
+
+/** The internal 'sa' notification feed (recent 10). */
+export function selectInternalNotificationFeed() {
+  return db.execute({
+    sql: `SELECT id, title, message, type, is_read, created_at
+                FROM v2_notifications
+                WHERE recipient_id = 'sa'
+                ORDER BY created_at DESC LIMIT 10`,
+  });
+}
+
+/** The notification feed for a set of recipients (optionally + internal 'sa'). */
+export function selectVentureNotificationFeed({ recipientIds, includeInternal }) {
+  const orInternal = includeInternal ? " OR recipient_id = 'sa'" : "";
+  return db.execute({
+    sql: `SELECT id, title, message, type, is_read, created_at
+                FROM v2_notifications
+                WHERE recipient_id IN (${recipientIds.map(() => "?").join(", ")})${orInternal}
+                ORDER BY created_at DESC LIMIT 10`,
+    args: recipientIds,
+  });
+}
+
+/** The Venture's recent activity log rows (40). */
+export function listVentureActivityLog(ventureId) {
+  return db.execute({
+    sql: `SELECT id, action, actor_name, details, created_at
+                FROM venture_activity_log WHERE venture_id = ?
+                ORDER BY created_at DESC LIMIT 40`,
+    args: [ventureId],
+  });
+}
+
+/** The Venture's recent documents (live, archive column). */
+export function listVentureDocumentsForDashboard(ventureId) {
+  return db.execute({
+    sql: "SELECT id, title, category, file_name, file_type, file_size, uploaded_by, created_at FROM venture_documents WHERE venture_id = ? AND is_deleted = false ORDER BY created_at DESC LIMIT 5",
+    args: [ventureId],
+  });
+}
+
+/** Legacy fallback: the same documents without the is_deleted guard. */
+export function listVentureDocumentsForDashboardLegacy(ventureId) {
+  return db.execute({
+    sql: "SELECT id, title, category, file_name, file_type, file_size, uploaded_by, created_at FROM venture_documents WHERE venture_id = ? ORDER BY created_at DESC LIMIT 5",
+    args: [ventureId],
+  });
+}
+
+/** Upcoming calendar events of a Venture (5). */
+export function listVentureMeetings(ventureId) {
+  return db.execute({
+    sql: `SELECT id, title, description, event_date, event_time, status, type
+                FROM calendar_events WHERE venture_id = ? AND event_date >= CURRENT_DATE
+                ORDER BY event_date ASC LIMIT 5`,
+    args: [ventureId],
+  });
+}
+
+/** The Venture's recent KPI assignments (5). */
+export function listVentureKpiSummary(dbId) {
+  return db.execute({
+    sql: `SELECT d.name, d.unit, d.auto_calc_source, a.target_value, a.current_value, a.updated_at
+                FROM venture_kpi_assignments a
+                JOIN venture_kpi_definitions d ON d.id = a.kpi_definition_id
+                WHERE a.venture_id::text = ?
+                ORDER BY a.updated_at DESC LIMIT 5`,
+    args: [dbId],
+  });
+}
+
+/** Count a Venture's advisors. */
+export function countVentureAdvisors(dbId) {
+  return db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_advisors WHERE venture_id::text = ?", args: [dbId] });
+}
+
+/** Count a Venture's coaching sessions. */
+export function countVentureCoachingSessions(dbId) {
+  return db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_coaching_sessions WHERE venture_id::text = ?", args: [dbId] });
+}
+
+/** Count a Venture's active coach assignments. */
+export function countVentureActiveCoachAssignments(dbId) {
+  return db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_coach_assignments WHERE venture_id::text = ? AND status = 'active'", args: [dbId] });
 }
 
 // ── GET/POST/PATCH /api/ventures/[id]/blockers ───────────────────────────────
@@ -391,6 +967,81 @@ export async function getVentureDbIdForMilestoneCreate(venture_id) {
   });
 }
 
+/** All milestones of a Venture db id, newest first. */
+export async function listVentureMilestonesByDbId(ventureDbId) {
+  return db.execute({ sql: "SELECT * FROM venture_milestones WHERE venture_id = ? ORDER BY created_at DESC", args: [ventureDbId] });
+}
+
+/** Whether a journey stage belongs to a Venture db id. */
+export async function ventureJourneyStageExists(stageId, ventureDbId) {
+  return db.execute({ sql: "SELECT 1 FROM venture_journey_stages WHERE id = ? AND venture_id = ?", args: [stageId, ventureDbId] });
+}
+
+/** Insert one milestone (id supplied by the caller). */
+export async function insertVentureMilestone({
+  id,
+  ventureDbId,
+  title,
+  description,
+  targetDate,
+  status,
+  createdBy,
+  journeyStageId,
+  objective,
+  startDate,
+  priority,
+  ownerCid,
+  ownerName,
+  displayOrder,
+}) {
+  return db.execute({
+    sql: `INSERT INTO venture_milestones (id, venture_id, title, description, target_date, status, progress, created_by, journey_stage_id, objective, start_date, priority, owner_cid, owner_name, display_order) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [id, ventureDbId, title, description, targetDate, status, createdBy, journeyStageId, objective, startDate, priority, ownerCid, ownerName, displayOrder],
+  });
+}
+
+/** The BEFORE state of a milestone, for field-level history. */
+export async function getVentureMilestoneBeforeUpdate(milestoneId, ventureDbId) {
+  return db.execute({
+    sql: `SELECT title, description, objective, status, progress, target_date, start_date,
+                 priority, owner_cid, owner_name, journey_stage_id, display_order
+            FROM venture_milestones WHERE id = ? AND venture_id = ?`,
+    args: [milestoneId, ventureDbId],
+  });
+}
+
+/** The Venture's db id + code by code-or-uuid id (milestone completion authority). */
+export async function getVentureIdAndCode(id) {
+  return db.execute({
+    sql: "SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?",
+    args: [id, id],
+  });
+}
+
+/** Apply controller-built SET clauses to a milestone row. */
+export async function updateVentureMilestoneFields(updates, args) {
+  return db.execute({
+    sql: `UPDATE venture_milestones SET ${updates.join(", ")} WHERE id = ? AND venture_id = ?`,
+    args,
+  });
+}
+
+/** The legacy-schema fallback: the same update without the updated_at clause. */
+export async function updateVentureMilestoneValueFields(valueClauses, args) {
+  return db.execute({
+    sql: `UPDATE venture_milestones SET ${valueClauses.join(", ")} WHERE id = ? AND venture_id = ?`,
+    args,
+  });
+}
+
+/** A milestone's title + journey stage, by id. */
+export async function getVentureMilestoneTitleAndStage(milestoneId) {
+  return db.execute({
+    sql: "SELECT title, journey_stage_id FROM venture_milestones WHERE id = ?",
+    args: [milestoneId],
+  });
+}
+
 // ── GET /api/ventures/[id]/followups ─────────────────────────────────────────
 
 /** Internal ventures.id by VNT code — followups GET resolver. */
@@ -446,5 +1097,253 @@ export async function updateVentureActionPlanFields(updates, args) {
   return db.execute({
     sql: `UPDATE venture_action_plans SET ${updates.join(", ")} WHERE id = ? AND venture_id = ?`,
     args,
+  });
+}
+
+// ── GET /api/ventures/assigned ───────────────────────────────────────────────
+
+/** A staff member's active Venture assignments, optionally filtered to one Venture. */
+export async function listVenturesAssignedToStaff(staffCid, ventureFilter) {
+  let sql = `
+      SELECT a.id, a.responsibility_code, vr.name AS responsibility_name,
+             a.scope_type, a.scope_ref_type, a.scope_ref_id, a.notes, a.created_at AS assigned_at,
+             v.venture_id, v.company_name, v.name, v.status, v.business_stage, v.industry, v.country
+      FROM venture_staff_assignments a
+      JOIN ventures v ON v.venture_id = a.venture_id
+      LEFT JOIN venture_responsibilities vr ON vr.code = a.responsibility_code
+      WHERE a.staff_contact_id = ? AND a.status = 'active'
+    `;
+  const args = [staffCid];
+  if (ventureFilter) {
+    sql += " AND a.venture_id = ?";
+    args.push(ventureFilter);
+  }
+  sql += " ORDER BY v.company_name NULLS LAST, v.name NULLS LAST, a.id DESC";
+
+  return db.execute({ sql, args });
+}
+
+// ── GET /api/ventures/[id]/my-access ─────────────────────────────────────────
+
+/** The canonical VNT code for a code-or-uuid id, or none. */
+export async function getVentureCodeByIdOrCode(id) {
+  return db.execute({
+    sql: "SELECT venture_id FROM ventures WHERE venture_id = ? OR id::text = ? LIMIT 1",
+    args: [id, id],
+  });
+}
+
+/** A contact's active assignment rows for one Venture (my-access facts). */
+export async function listActiveVentureAssignmentsForAccess(ventureCode, cid) {
+  return db.execute({
+    sql: `SELECT responsibility_code, scope_type, scope_ref_type, scope_ref_id
+                FROM venture_staff_assignments
+                WHERE venture_id = ? AND staff_contact_id = ? AND status = 'active'`,
+    args: [ventureCode, cid],
+  });
+}
+
+// ── GET /api/ventures/[id]/history ───────────────────────────────────────────
+
+/** Whether a contact is an active member of a Venture (by code or either cid column). */
+export async function isActiveVentureMember(ventureId, cid) {
+  return db.execute({
+    sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND (contact_id = ? OR user_cid = ?) AND removed_at IS NULL LIMIT 1",
+    args: [ventureId, cid || "", cid || ""],
+  });
+}
+
+// ── GET /api/ventures/[id]/venture-history ───────────────────────────────────
+
+/** Internal ventures.id for a code-or-uuid id, or none. */
+export async function getVentureDbIdByCodeOrId(id) {
+  return db.execute({
+    sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?",
+    args: [id, id],
+  });
+}
+
+/** Venture history events for the given owner ids (code + internal id). */
+export async function listVentureHistoryEvents(owners) {
+  return db.execute({
+    sql: `SELECT event_type, description, metadata, created_by, created_at
+              FROM venture_history WHERE venture_id IN (${owners.map(() => "?").join(", ")})
+              ORDER BY created_at ASC LIMIT 300`,
+    args: owners,
+  });
+}
+
+/** A Venture's readable internal notes (venture-history, staff only). */
+export async function listVentureHistoryNotes(owners) {
+  return db.execute({
+    sql: `SELECT id, title, body, author_name, scope_ref_type, scope_ref_id, created_at
+                  FROM venture_notes WHERE venture_id IN (${owners.map(() => "?").join(", ")}) AND is_archived = FALSE
+                  ORDER BY created_at DESC LIMIT 50`,
+    args: owners,
+  });
+}
+
+/** A Venture's submission review decisions (venture-history). */
+export async function listVentureHistoryReviewDecisions(owners) {
+  return db.execute({
+    sql: `SELECT s.version, s.status, s.review_decision, s.review_comment, s.reviewed_at,
+                     s.submitted_by_name, s.reviewed_by, s.created_at,
+                     t.title AS task_title
+              FROM venture_task_submissions s
+              JOIN venture_tasks t ON t.id = s.task_id
+              WHERE t.venture_id IN (${owners.map(() => "?").join(", ")}) AND s.review_decision IS NOT NULL
+              ORDER BY s.reviewed_at DESC NULLS LAST LIMIT 100`,
+    args: owners,
+  });
+}
+
+/** A Venture's session notes (venture-history, staff only). */
+export async function listVentureHistorySessionNotes(owners) {
+  return db.execute({
+    sql: `SELECT sn.id, sn.note_type, sn.content, sn.author_name, sn.created_at,
+                         s.title AS session_title, s.start_time, s.journey_stage_id, s.milestone_ref
+                  FROM venture_session_notes sn
+                  JOIN venture_sessions s ON s.id = sn.session_id
+                  WHERE s.venture_id IN (${owners.map(() => "?").join(", ")})
+                  ORDER BY sn.created_at DESC LIMIT 50`,
+    args: owners,
+  });
+}
+
+// ── POST /api/ventures/[id]/coach-invite ─────────────────────────────────────
+
+/** Company/name of a Venture by code-or-uuid id (coach invite label). */
+export async function getVentureNameByIdOrCode(id) {
+  return db.execute({
+    sql: "SELECT company_name, name FROM ventures WHERE venture_id = ? OR id::text = ?",
+    args: [id, id],
+  });
+}
+
+// ── GET/POST/PATCH /api/ventures/[id]/staff-assignments ──────────────────────
+
+/** Existing Venture code check before assigning staff. */
+export async function getVentureCodeForAssignment(ventureId) {
+  return db.execute({
+    sql: "SELECT venture_id FROM ventures WHERE venture_id = ?",
+    args: [ventureId],
+  });
+}
+
+/** Live contact check before assigning staff. */
+export async function getLiveContactByCid(cid) {
+  return db.execute({
+    sql: "SELECT cid FROM contacts WHERE cid = ? AND deleted = 0",
+    args: [cid],
+  });
+}
+
+/** An existing active assignment of the same person / responsibility / scope. */
+export async function findDuplicateVentureAssignment({
+  ventureId,
+  staffContactId,
+  responsibilityCode,
+  scopeType,
+  scopeRefId,
+}) {
+  return db.execute({
+    sql: `SELECT 1 FROM venture_staff_assignments
+            WHERE venture_id = ? AND staff_contact_id = ? AND responsibility_code = ?
+              AND scope_type = ? AND COALESCE(scope_ref_id,'') = COALESCE(?, '') AND status = 'active'`,
+    args: [ventureId, staffContactId, responsibilityCode, scopeType, scopeRefId],
+  });
+}
+
+/** Task totals (all + completed) for a venture, the completed statuses injected. */
+export async function countVentureTasksWithCompletedStatuses(dbId, completedStatuses) {
+  const completedSet = completedStatuses.map(() => "?").join(", ");
+  return db.execute({
+    sql: `SELECT COUNT(*) as total, SUM(CASE WHEN status IN (${completedSet}) THEN 1 ELSE 0 END) as done FROM venture_tasks WHERE venture_id = ?`,
+    args: [...completedStatuses, dbId],
+  });
+}
+
+// ── GET/POST/PATCH /api/ventures/[id]/members ────────────────────────────────
+
+/** Existence check: a Venture by its VNT code. */
+export async function getVentureByCode(ventureId) {
+  return db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+}
+
+/** A Venture's active roster with contact names/emails, grouped by type. */
+export async function listVentureMembersWithContacts(ventureCode) {
+  return db.execute({
+    sql: `
+        SELECT vm.*, c.name as contact_name, c.email as contact_email
+        FROM venture_members vm
+        LEFT JOIN contacts c ON vm.contact_id = c.cid
+        WHERE vm.venture_id = ? AND vm.removed_at IS NULL
+        ORDER BY vm.member_type, vm.joined_at DESC
+      `,
+    args: [ventureCode],
+  });
+}
+
+/** Existing active roster row whose contact email matches (case-insensitive). */
+export async function findVentureMemberByEmail(ventureCode, email) {
+  return db.execute({
+    sql: `SELECT 1 FROM venture_members vm
+            JOIN contacts c ON c.cid = COALESCE(vm.contact_id, vm.user_cid)
+            WHERE vm.venture_id = ? AND vm.removed_at IS NULL AND LOWER(c.email) = LOWER(?)
+            LIMIT 1`,
+    args: [ventureCode, email],
+  });
+}
+
+/** A Venture's display name (company_name first, legacy name fallback). */
+export async function getVentureDisplayNameByCode(ventureCode) {
+  return db.execute({
+    sql: "SELECT COALESCE(NULLIF(company_name, ''), name) AS venture_name FROM ventures WHERE venture_id = ? LIMIT 1",
+    args: [ventureCode],
+  });
+}
+
+/** One roster row (type, contact, role) of a Venture, by id. */
+export async function getVentureMemberById(memberId, ventureId) {
+  return db.execute({
+    sql: "SELECT member_type, contact_id, role FROM venture_members WHERE id = ? AND venture_id = ?",
+    args: [memberId, ventureId],
+  });
+}
+
+/** The contact id behind one roster row, by id. */
+export async function getVentureMemberContactId(memberId, ventureId) {
+  return db.execute({
+    sql: "SELECT contact_id FROM venture_members WHERE id = ? AND venture_id = ?",
+    args: [memberId, ventureId],
+  });
+}
+
+/** Soft-remove one roster row. */
+export async function archiveVentureMember(memberId, ventureId) {
+  return db.execute({
+    sql: "UPDATE venture_members SET removed_at = NOW() WHERE id = ? AND venture_id = ?",
+    args: [memberId, ventureId],
+  });
+}
+
+/** Apply controller-built SET clauses to a roster row. */
+export async function updateVentureMemberFields(updates, args) {
+  return db.execute({
+    sql: `UPDATE venture_members SET ${updates.join(", ")} WHERE id = ? AND venture_id = ?`,
+    args,
+  });
+}
+
+// ── POST /api/ventures/[id]/milestones/archive ───────────────────────────────
+
+/** Milestones of a Venture (by code-or-uuid) among the given ids, with the Venture's db id. */
+export async function listMilestonesForArchive(id, ids) {
+  return db.execute({
+    sql: `SELECT m.id, m.title, m.journey_stage_id, v.id AS venture_db_id FROM venture_milestones m
+          JOIN ventures v ON (m.venture_id::text = v.id::text OR m.venture_id::text = v.venture_id)
+          WHERE (v.venture_id = ? OR v.id::text = ?)
+            AND m.id::text = ANY(?)`,
+    args: [id, id, ids],
   });
 }

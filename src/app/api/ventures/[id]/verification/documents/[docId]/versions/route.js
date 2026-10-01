@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { signEvidencePath } from "@/lib/ventureEvidence";
+import { isActiveVentureMember } from "@/models/ventureWorkspace";
 import {
   listVerificationDocumentVersions,
   addVerificationDocumentVersion,
@@ -34,14 +34,9 @@ async function canAccessVerification(id, session) {
   if (!session) return false;
   if (session.role === "super_admin") return true;
   const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
-  const member = await db
-    .execute({
-      sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND (contact_id = ? OR user_cid = ?) AND removed_at IS NULL LIMIT 1",
-      args: [id, session.cid || "", session.cid || ""],
-    })
-    .catch(() => ({ rows: [] }));
+  const member = await isActiveVentureMember(id, session.cid).catch(() => ({ rows: [] }));
   if (member.rows?.length) return true;
-  return Boolean(await hasActiveVentureAssignment(id, session.cid, db));
+  return Boolean(await hasActiveVentureAssignment(id, session.cid));
 }
 
 export const GET = createHandler(async (req, { params }) => {

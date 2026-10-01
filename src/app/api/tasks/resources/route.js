@@ -1,13 +1,20 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
 import { createHandler } from "@/lib/api/createHandler";
+import { getSession } from "@/lib/auth";
 import {
-  getTaskAccessById,
-  createResource,
-  getResourceById,
-  getTaskAccessForDelete,
-  deleteResource,
-} from "@/models/taskResources";
+  addTaskResource,
+  removeTaskResource,
+} from "@/services/tasks/resources";
+
+/**
+ * TASK RESOURCES API — controller layer.
+ *
+ * POST   /api/tasks/resources  { task_id, name, url, type, file_name, file_size }
+ * DELETE /api/tasks/resources?id=X
+ *
+ * The access rule (portfolio role, or the task's owner/assignee/supervisor)
+ * lives in `@/services/tasks/resources`.
+ */
 
 export const POST = createHandler(async (req) => {
   const session = await getSession();
@@ -28,46 +35,23 @@ export const POST = createHandler(async (req) => {
     );
   }
 
-  const taskResult = await getTaskAccessById(task_id);
-  const task = taskResult.rows[0];
-  if (!task) {
-    return NextResponse.json(
-      { success: false, error: "Task not found" },
-      { status: 404 },
-    );
-  }
-  const staffSide = [
-    "super_admin",
-    "staff",
-    "program_manager",
-  ];
-  if (
-    !staffSide.includes(session.role) &&
-    String(task.user_id) !== String(session.cid) &&
-    String(task.assigned_to || "") !== String(session.cid) &&
-    String(task.supervisor_id || "") !== String(session.cid)
-  ) {
-    return NextResponse.json(
-      { success: false, error: "You do not have access to this task." },
-      { status: 403 },
-    );
-  }
-
-  const result = await createResource(
-    task_id,
+  const result = await addTaskResource({
+    taskId: task_id,
     name,
     url,
     type,
-    file_name,
-    file_size,
-    session?.cid,
-  );
-
-  return NextResponse.json({
-    success: true,
-    id: Number(result.rows[0]?.id || result.lastInsertRowid),
-    message: "Resource added successfully",
+    fileName: file_name,
+    fileSize: file_size,
+    role: session.role,
+    sessionCid: session.cid,
   });
+  if (result.error) {
+    return NextResponse.json(
+      result.body || { success: false, error: result.error },
+      { status: result.status },
+    );
+  }
+  return NextResponse.json(result.body, { status: result.status });
 });
 
 export const DELETE = createHandler(async (req) => {
@@ -88,44 +72,16 @@ export const DELETE = createHandler(async (req) => {
     );
   }
 
-  const resourceResult = await getResourceById(id);
-  const resource = resourceResult.rows[0];
-  if (!resource) {
-    return NextResponse.json(
-      { success: false, error: "Resource not found." },
-      { status: 404 },
-    );
-  }
-
-  const taskResult = await getTaskAccessForDelete(resource.task_id);
-  const task = taskResult.rows[0];
-  if (!task) {
-    return NextResponse.json(
-      { success: false, error: "Task not found" },
-      { status: 404 },
-    );
-  }
-  const staffSide = [
-    "super_admin",
-    "staff",
-    "program_manager",
-  ];
-  if (
-    !staffSide.includes(session.role) &&
-    String(task.user_id) !== String(session.cid) &&
-    String(task.assigned_to || "") !== String(session.cid) &&
-    String(task.supervisor_id || "") !== String(session.cid)
-  ) {
-    return NextResponse.json(
-      { success: false, error: "You do not have access to this task." },
-      { status: 403 },
-    );
-  }
-
-  await deleteResource(id);
-
-  return NextResponse.json({
-    success: true,
-    message: "Resource deleted successfully",
+  const result = await removeTaskResource({
+    id,
+    role: session.role,
+    sessionCid: session.cid,
   });
+  if (result.error) {
+    return NextResponse.json(
+      result.body || { success: false, error: result.error },
+      { status: result.status },
+    );
+  }
+  return NextResponse.json(result.body, { status: result.status });
 });

@@ -85,7 +85,7 @@ function request(body) {
 }
 
 /** The options object each notification helper was called with. */
-const optsOf = (mock) => mock.mock.calls[0][1];
+const optsOf = (mock) => mock.mock.calls[0][0];
 
 beforeEach(() => {
   mockCreateSession.mockClear();

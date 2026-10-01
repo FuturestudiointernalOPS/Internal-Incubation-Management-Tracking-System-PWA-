@@ -207,11 +207,11 @@ describe("ventureScope helpers — scope matching rules", () => {
 
   test("getAssignmentScopes normalizes NULL/venture_wide rows and [] when none", async () => {
     mockDb.flags.assignments = [{ scope_type: null, scope_ref_type: null, scope_ref_id: null, responsibility_code: "coach" }];
-    const scopes = await getAssignmentScopes(mockDb, { code: "VNT-TEST", cid: "coach-1" });
+    const scopes = await getAssignmentScopes({ code: "VNT-TEST", cid: "coach-1" });
     expect(scopes).toEqual([{ scope_type: "venture_wide", scope_ref_type: null, scope_ref_id: null, responsibility_code: "coach" }]);
 
     mockDb.flags.assignments = [];
-    const none = await getAssignmentScopes(mockDb, { code: "VNT-TEST", cid: "coach-1" });
+    const none = await getAssignmentScopes({ code: "VNT-TEST", cid: "coach-1" });
     expect(none).toEqual([]);
   });
 });

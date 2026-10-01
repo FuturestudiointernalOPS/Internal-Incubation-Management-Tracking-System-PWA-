@@ -1,4 +1,3 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans";
@@ -22,17 +21,17 @@ export async function POST(req, { params }) {
     const session = await getSession();
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
-    const access = await resolvePlanAccess(db, id, session);
+    const access = await resolvePlanAccess(id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    if (!(await allowsPlanAction(db, access, "manage"))) {
+    if (!(await allowsPlanAction(access, "manage"))) {
       return NextResponse.json(
         { success: false, error: "Your assignment does not allow managing this Venture's journey." },
         { status: 403 },
       );
     }
 
-    await ensureJourneyTable(db);
-    const dbId = await resolveVentureInternalId(db, id);
+    await ensureJourneyTable();
+    const dbId = await resolveVentureInternalId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     const body = await req.json();
@@ -42,10 +41,10 @@ export async function POST(req, { params }) {
 
     const summary =
       action === "restore"
-        ? await restoreJourneyStages(db, { dbId, stageIds: ids })
-        : await archiveJourneyStages(db, { dbId, stageIds: ids, actorCid: session.cid || null });
+        ? await restoreJourneyStages({ dbId, stageIds: ids })
+        : await archiveJourneyStages({ dbId, stageIds: ids, actorCid: session.cid || null });
 
-    const stages = await listJourneyStages(db, dbId, { includeArchived: true });
+    const stages = await listJourneyStages(dbId, { includeArchived: true });
     return NextResponse.json({ success: true, ...summary, stages });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

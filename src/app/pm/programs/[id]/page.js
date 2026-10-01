@@ -658,12 +658,6 @@ function ProgramWorkspace() {
     }
     setIsSaving(true);
     try {
-      // Derive grading from linked KPIs
-      const linkedKpis = kpis.filter(kpi => (newRequirement.kpi_ids || []).includes(kpi.id));
-      const avgWeight = linkedKpis.length > 0
-        ? parseFloat((linkedKpis.reduce((sum, kpi) => sum + (parseFloat(kpi.weight) || 0), 0) / linkedKpis.length).toFixed(2))
-        : 1;
-
       const response = await fetch("/api/pm/curriculum", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -680,7 +674,7 @@ function ProgramWorkspace() {
           assignee_id: newRequirement.assignee_id || "",
           resource_url: newRequirement.resource_url || null,
           resource_label: newRequirement.resource_label || null,
-          weight: avgWeight,
+          weight: 1,
         }),
       });
       const data = await response.json();
@@ -3182,6 +3176,7 @@ function ProgramWorkspace() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {kpis.map((kpi, kpiIdx) => {
                         const kpiProgress = kpi.progress || 0;
+                        const isMeasurable = kpi.measurable !== false;
                         return (
                           <div
                             key={kpi.id}
@@ -3192,7 +3187,7 @@ function ProgramWorkspace() {
                                 {t("pmMisc.workspace.kpi")} {kpiIdx + 1}
                               </span>
                               <span className="text-sm font-black text-[var(--brand-orange)]">
-                                {kpiProgress}%
+                                {isMeasurable ? `${kpiProgress}%` : "—"}
                               </span>
                             </div>
                             <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-tight mb-3 group-hover:text-[var(--brand-orange)] transition-colors">
@@ -3201,30 +3196,19 @@ function ProgramWorkspace() {
                             <div className="w-full h-2 bg-divider/20 rounded-full overflow-hidden">
                               <div
                                 className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-orange-400 rounded-full transition-all duration-700"
-                                style={{ width: `${kpiProgress}%` }}
+                                style={{ width: `${isMeasurable ? kpiProgress : 0}%` }}
                               />
                             </div>
                             <div className="flex items-center gap-3 mt-2">
-                              <span className="text-[7px] font-bold text-slate-500">
-                                {t("pmMisc.workspace.weight")}: {kpi.weight || 0}%
-                              </span>
-                              {kpi.linkedSessions > 0 && (
-                                <span className="text-[7px] font-bold text-slate-500">
-                                  {kpi.completedSessions}/{kpi.linkedSessions}{" "}
-                                  {t("pmMisc.workspace.sessionsLower")}
-                                </span>
-                              )}
-                              {kpi.linkedDocs > 0 && (
+                              {isMeasurable ? (
                                 <span className="text-[10px] font-bold text-slate-500">
-                                  {kpi.completedDocs}/{kpi.linkedDocs} {t("pmMisc.workspace.docsLower")}
+                                  {kpi.linkedDocs} {t("pmMisc.workspace.docsLower")}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold text-slate-600">
+                                  {t("pmMisc.workspace.nonMeasurable")}
                                 </span>
                               )}
-                              {kpi.linkedSessions === 0 &&
-                                kpi.linkedDocs === 0 && (
-                                  <span className="text-[10px] font-bold text-slate-600">
-                                    {t("pmMisc.workspace.noLinkedItems")}
-                                  </span>
-                                )}
                             </div>
                           </div>
                         );
@@ -5097,10 +5081,8 @@ function ProgramWorkspace() {
                     if (linked.length === 0) {
                       return <p className="text-[8px] text-slate-500 italic">{t("pmMisc.workspace.gradingKpiHint")}</p>;
                     }
-                    const avgWeight = (linked.reduce((sum, kpi) => sum + (parseFloat(kpi.weight) || 0), 0) / linked.length).toFixed(1);
-                    return <div className="grid grid-cols-2 gap-2 text-[10px]">
+                    return <div className="grid grid-cols-1 gap-2 text-[10px]">
                       <div><span className="text-slate-500">{t("pmMisc.workspace.kpisLinked")}</span> <span className="font-bold text-purple-400">{linked.length}</span></div>
-                      <div><span className="text-slate-500">{t("pmMisc.workspace.avgWeight")}</span> <span className="font-bold text-purple-400">{avgWeight}%</span></div>
                     </div>;
                   })()}
                 </div>

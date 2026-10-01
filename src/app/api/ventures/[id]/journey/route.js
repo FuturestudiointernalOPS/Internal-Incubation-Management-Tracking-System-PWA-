@@ -1,4 +1,3 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
@@ -18,6 +17,21 @@ import {
   deleteJourneyStage,
 } from "@/lib/ventureJourneys";
 import { diffFields, recordVentureChange } from "@/models/ventureChangeLog";
+import {
+  listJourneyMilestonesByStage,
+  listJourneyMilestonesByStageLegacy,
+  listJourneyDeliverablesByMilestoneIds,
+  listJourneyTaskStatusesByMilestoneIds,
+  listJourneyTaskStatusesByMilestoneIdsLegacy,
+  getJourneyTemplateName,
+  countJourneyStagesByVenture,
+  insertJourneyStage,
+  updateJourneyStageFields,
+  activateJourneyStage,
+  lockJourneyStage,
+  holdJourneyStageMilestones,
+  resetJourneyStage,
+} from "@/models/ventureJourney";
 
 export const dynamic = "force-dynamic";
 
@@ -44,20 +58,20 @@ async function getViewerSession() {
 async function requireStaffJourneyAccess(id) {
   const session = await getViewerSession();
   if (!session) return { session: null, access: null };
-  const access = await resolvePlanAccess(db, id, session);
+  const access = await resolvePlanAccess(id, session);
   if (!access.ok) return { session, access: null };
   return { session, access };
 }
 
 async function resolveDbId(id) {
-  await ensureJourneyTable(db);
-  return resolveVentureInternalId(db, id);
+  await ensureJourneyTable();
+  return resolveVentureInternalId(id);
 }
 
 export async function GET(req, { params }) {
   try {
     const { id } = await params;
-    const { session } = await requireVentureAccess(id, db);
+    const { session } = await requireVentureAccess(id);
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
     const dbId = await resolveDbId(id);
@@ -66,7 +80,7 @@ export async function GET(req, { params }) {
     // Date-driven activation: a Journey whose start_date has arrived becomes
     // active — and its milestones are offered — right here. Journeys never
     // wait for another Journey to complete, so no one presses "activate".
-    await activateDueStages(db, { dbId });
+    await activateDueStages({ dbId });
 
     // Management surfaces (staff) may request archived journeys; the
     // Venture-facing read never includes them.
@@ -76,18 +90,18 @@ export async function GET(req, { params }) {
     let access = null;
     const viewer = await getViewerSession();
     if (viewer) {
-      const planAccess = await resolvePlanAccess(db, id, viewer);
+      const planAccess = await resolvePlanAccess(id, viewer);
       if (planAccess.ok) {
         const [canCreate, canEdit, canManage] = await Promise.all([
-          allowsPlanAction(db, planAccess, "create"),
-          allowsPlanAction(db, planAccess, "edit"),
-          allowsPlanAction(db, planAccess, "manage"),
+          allowsPlanAction(planAccess, "create"),
+          allowsPlanAction(planAccess, "edit"),
+          allowsPlanAction(planAccess, "manage"),
         ]);
         access = { create: canCreate, edit: canEdit, manage: canManage };
       }
     }
 
-    const stages = await listJourneyStages(db, dbId, {
+    const stages = await listJourneyStages(dbId, {
       includeArchived: wantArchived && Boolean(access && access.manage),
     });
 
@@ -96,28 +110,15 @@ export async function GET(req, { params }) {
     // this is false. Never granted to members.
     let milestoneAuthority = false;
     if (viewer) {
-      milestoneAuthority = await canManageMilestones(db, { id, cid: viewer.cid, role: viewer.role });
+      milestoneAuthority = await canManageMilestones({ id, cid: viewer.cid, role: viewer.role });
     }
 
     // Phase 2 spine: attach the milestones bound to each stage so the Journey
     // timeline can show stage -> milestone progress. Venture-facing data only
     // (milestones are visible to members through their own tools). Defensive:
     // if the additive columns are missing the stage list still renders.
-    const milestonesResult = await db.execute({
-      sql: `SELECT id, title, description, objective, status, progress, target_date,
-                   priority, display_order, created_at, journey_stage_id
-            FROM venture_milestones
-            WHERE venture_id = ? AND journey_stage_id IS NOT NULL
-            ORDER BY COALESCE(display_order, 0), created_at ASC`,
-      args: [dbId],
-    }).catch(() =>
-      db.execute({
-        sql: `SELECT id, title, status, progress, target_date, journey_stage_id
-              FROM venture_milestones
-              WHERE venture_id = ? AND journey_stage_id IS NOT NULL
-              ORDER BY COALESCE(display_order, 0), created_at ASC`,
-        args: [dbId],
-      }).catch(() => ({ rows: [] })),
+    const milestonesResult = await listJourneyMilestonesByStage(dbId).catch(() =>
+      listJourneyMilestonesByStageLegacy(dbId).catch(() => ({ rows: [] })),
     );
     const milestonesByStage = {};
     for (const milestone of milestonesResult.rows || []) {
@@ -139,15 +140,7 @@ export async function GET(req, { params }) {
     // is logged and reported, and the surfaces show it instead of an empty list.
     let deliverablesUnavailable = false;
     if (boundMilestoneIds.length > 0) {
-      const deliverablesResult = await db
-        .execute({
-          sql: `SELECT id, milestone_id, title, description, deliverable_type, status, approval_status,
-                       due_date, attachment_url, attachment_name, rejection_reason, reviewer_name
-                FROM venture_deliverables
-                WHERE milestone_id::text = ANY(?)
-                ORDER BY created_at ASC`,
-          args: [boundMilestoneIds],
-        })
+      const deliverablesResult = await listJourneyDeliverablesByMilestoneIds(boundMilestoneIds)
         .catch((error) => {
           deliverablesUnavailable = true;
           console.error(`[journey] deliverable evidence read failed for venture ${id}:`, error?.message || error);
@@ -178,12 +171,9 @@ export async function GET(req, { params }) {
     // so no dashboard, report or export changes meaning because of this read.
     const taskCountsByMilestone = {};
     if (boundMilestoneIds.length > 0) {
-      const taskCountSql = (archiveClause) =>
-        `SELECT milestone_id, status FROM venture_tasks WHERE milestone_id::text = ANY(?)${archiveClause}`;
-      const tasksResult = await db
-        .execute({ sql: taskCountSql(" AND COALESCE(is_archived, FALSE) = FALSE"), args: [boundMilestoneIds] })
+      const tasksResult = await listJourneyTaskStatusesByMilestoneIds(boundMilestoneIds)
         .catch(() =>
-          db.execute({ sql: taskCountSql(""), args: [boundMilestoneIds] }).catch(() => ({ rows: [] })),
+          listJourneyTaskStatusesByMilestoneIdsLegacy(boundMilestoneIds).catch(() => ({ rows: [] })),
         );
       for (const task of tasksResult.rows || []) {
         const key = String(task.milestone_id);
@@ -203,10 +193,7 @@ export async function GET(req, { params }) {
       const srcType = stamped.source_template_type === "journey" ? "journey" : "plan";
       const table = srcType === "journey" ? "venture_journey_templates" : "venture_plan_templates";
       try {
-        const templateResult = await db.execute({
-          sql: `SELECT name FROM ${table} WHERE id = ?`,
-          args: [stamped.source_template_id],
-        }).catch(() => ({ rows: [] }));
+        const templateResult = await getJourneyTemplateName(table, stamped.source_template_id).catch(() => ({ rows: [] }));
         const template = templateResult.rows?.[0];
         if (template) templateSource = { type: srcType, id: stamped.source_template_id, name: template.name || null };
       } catch (_) {}
@@ -264,7 +251,7 @@ export async function POST(req, { params }) {
     const { id } = await params;
     const { session, access } = await requireStaffJourneyAccess(id);
     if (!session || !access) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    if (!(await allowsPlanAction(db, access, "create"))) {
+    if (!(await allowsPlanAction(access, "create"))) {
       return NextResponse.json({ success: false, error: "Your assignment does not allow defining this Venture's journey." }, { status: 403 });
     }
 
@@ -275,22 +262,18 @@ export async function POST(req, { params }) {
     const name = String(body.name || "").trim();
     if (!name) return NextResponse.json({ success: false, error: "name is required." }, { status: 400 });
 
-    const existing = await db.execute({
-      sql: "SELECT COUNT(*) AS n FROM venture_journey_stages WHERE venture_id = ?",
-      args: [dbId],
-    });
+    const existing = await countJourneyStagesByVenture(dbId);
     const count = Number(existing.rows?.[0]?.n || 0);
-    const stageOrder = await nextJourneyStageOrder(db, dbId);
+    const stageOrder = await nextJourneyStageOrder(dbId);
     const status = count === 0 ? "active" : "upcoming";
     const targetDate = body.target_date ? String(body.target_date).slice(0, 10) : null;
     // Optional: when the Journey starts on its own (NULL = it starts only when
     // a staff member activates it). No ordering is imposed on it.
     const startDate = body.start_date ? String(body.start_date).slice(0, 10) : null;
 
-    const insertResult = await db.execute({
-      sql: `INSERT INTO venture_journey_stages (venture_id, name, description, objective, start_date, target_date, stage_order, status)
-            VALUES (?,?,?,?,?,?,?,?) RETURNING id`,
-      args: [dbId, name, body.description || null, body.objective || null, startDate, targetDate, stageOrder, status],
+    const insertResult = await insertJourneyStage({
+      ventureId: dbId, name, description: body.description || null, objective: body.objective || null,
+      startDate, targetDate, stageOrder, status,
     });
 
     try {
@@ -300,8 +283,8 @@ export async function POST(req, { params }) {
 
     // Managers keep their Archived view in sync: archived rows are returned
     // only to callers holding the manage capability (same rule as GET).
-    const canManage = await allowsPlanAction(db, access, "manage");
-    const stages = await listJourneyStages(db, dbId, { includeArchived: canManage });
+    const canManage = await allowsPlanAction(access, "manage");
+    const stages = await listJourneyStages(dbId, { includeArchived: canManage });
     return NextResponse.json({ success: true, stage: stages.find((stage) => stage.id === insertResult.rows?.[0]?.id) || null, stages });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -323,11 +306,11 @@ export async function PATCH(req, { params }) {
 
     // ── Field edits ──
     if (action === "update") {
-      if (!(await allowsPlanAction(db, access, "edit"))) {
+      if (!(await allowsPlanAction(access, "edit"))) {
         return NextResponse.json({ success: false, error: "Your assignment does not allow editing this Venture's journey." }, { status: 403 });
       }
       if (!stageId) return NextResponse.json({ success: false, error: "stage_id is required." }, { status: 400 });
-      const stage = await getJourneyStage(db, dbId, stageId);
+      const stage = await getJourneyStage(dbId, stageId);
       if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
 
       const name = body.name !== undefined ? String(body.name).trim() : null;
@@ -335,22 +318,13 @@ export async function PATCH(req, { params }) {
       const targetDate = body.target_date !== undefined ? (body.target_date ? String(body.target_date).slice(0, 10) : null) : undefined;
       const startDate = body.start_date !== undefined ? (body.start_date ? String(body.start_date).slice(0, 10) : null) : undefined;
 
-      await db.execute({
-        sql: `UPDATE venture_journey_stages SET
-                name = COALESCE(?, name),
-                description = CASE WHEN ? = 1 THEN ? ELSE description END,
-                objective = CASE WHEN ? = 1 THEN ? ELSE objective END,
-                target_date = CASE WHEN ? = 1 THEN ?::date ELSE target_date END,
-                start_date = CASE WHEN ? = 1 THEN ?::date ELSE start_date END
-              WHERE id = ? AND venture_id = ?`,
-        args: [
-          name, body.description !== undefined ? 1 : 0, body.description !== undefined ? body.description : null,
-          body.objective !== undefined ? 1 : 0, body.objective !== undefined ? body.objective : null,
-          targetDate !== undefined ? 1 : 0, targetDate !== undefined ? targetDate : null,
-          startDate !== undefined ? 1 : 0, startDate !== undefined ? startDate : null,
-          stageId, dbId,
-        ],
-      });
+      await updateJourneyStageFields([
+        name, body.description !== undefined ? 1 : 0, body.description !== undefined ? body.description : null,
+        body.objective !== undefined ? 1 : 0, body.objective !== undefined ? body.objective : null,
+        targetDate !== undefined ? 1 : 0, targetDate !== undefined ? targetDate : null,
+        startDate !== undefined ? 1 : 0, startDate !== undefined ? startDate : null,
+        stageId, dbId,
+      ]);
       // Field-level history of the edit. Non-fatal by contract — the write above
       // already succeeded and must not be undone by a logging failure.
       try {
@@ -370,22 +344,22 @@ export async function PATCH(req, { params }) {
         }
       } catch (_) {}
 
-      const canManage = await allowsPlanAction(db, access, "manage");
-      const stages = await listJourneyStages(db, dbId, { includeArchived: canManage });
+      const canManage = await allowsPlanAction(access, "manage");
+      const stages = await listJourneyStages(dbId, { includeArchived: canManage });
       return NextResponse.json({ success: true, stages });
     }
 
     // ── Management actions (status transitions, delete, move, template) ──
     const manageActions = ["activate", "lock", "complete", "reset", "delete", "move"];
     if (manageActions.includes(action)) {
-      if (!(await allowsPlanAction(db, access, "manage"))) {
+      if (!(await allowsPlanAction(access, "manage"))) {
         return NextResponse.json({ success: false, error: "Your assignment does not allow managing this Venture's journey." }, { status: 403 });
       }
     } else {
       return NextResponse.json({ success: false, error: "Unknown action." }, { status: 400 });
     }
 
-    const stage = stageId ? await getJourneyStage(db, dbId, stageId) : null;
+    const stage = stageId ? await getJourneyStage(dbId, stageId) : null;
 
     if (action === "activate") {
       if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
@@ -395,29 +369,19 @@ export async function PATCH(req, { params }) {
       // Activating is additive: Journeys overlap, so the others are left
       // alone (locking them here would fight the date-driven sweep, which
       // re-activates any Journey whose start_date has arrived).
-      await db.execute({
-        sql: "UPDATE venture_journey_stages SET status = 'active' WHERE id = ? AND venture_id = ?",
-        args: [stageId, dbId],
-      });
+      await activateJourneyStage(stageId, dbId);
       // The journey is now active — its milestones are offered (availability
       // is set by the Journey, never by a milestone's position).
-      await releaseMilestonesForStage(db, { dbId, stageId });
+      await releaseMilestonesForStage({ dbId, stageId });
     } else if (action === "lock") {
       if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
       if (stage.status === "completed") {
         return NextResponse.json({ success: false, error: "Completed stages cannot be paused — reset the stage first." }, { status: 400 });
       }
-      await db.execute({
-        sql: "UPDATE venture_journey_stages SET status = 'upcoming', completed_at = NULL, approved_by = NULL WHERE id = ? AND venture_id = ?",
-        args: [stageId, dbId],
-      });
+      await lockJourneyStage(stageId, dbId);
       // A Journey that is no longer active holds its unreleased work again.
       // Work already under way is left where it is.
-      await db.execute({
-        sql: `UPDATE venture_milestones SET status = 'upcoming', updated_at = NOW()
-              WHERE venture_id = ? AND journey_stage_id = ? AND status IN ('blocked', 'not_started', 'locked')`,
-        args: [dbId, stageId],
-      });
+      await holdJourneyStageMilestones(dbId, stageId);
     } else if (action === "complete") {
       // A journey is NEVER closed by hand: it completes automatically once all
       // of its milestones have been marked completed.
@@ -430,22 +394,19 @@ export async function PATCH(req, { params }) {
       // Reopening touches THIS Journey only. Journeys overlap, so what the
       // others are is decided by their own dates (and by staff), never by a
       // neighbour's state — the old positional re-lock is gone.
-      await db.execute({
-        sql: "UPDATE venture_journey_stages SET status = 'active', completed_at = NULL, approved_by = NULL WHERE id = ? AND venture_id = ?",
-        args: [stageId, dbId],
-      });
+      await resetJourneyStage(stageId, dbId);
       // Reopened journey is active again — its milestones are offered.
-      await releaseMilestonesForStage(db, { dbId, stageId });
+      await releaseMilestonesForStage({ dbId, stageId });
     } else if (action === "delete") {
       if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
-      await deleteJourneyStage(db, { dbId, stageId });
+      await deleteJourneyStage({ dbId, stageId });
     } else if (action === "move") {
       if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
       const direction = String(body.direction || "");
       if (!["up", "down"].includes(direction)) {
         return NextResponse.json({ success: false, error: "direction (up|down) is required." }, { status: 400 });
       }
-      const moved = await moveJourneyStage(db, { dbId, stageId, direction });
+      const moved = await moveJourneyStage({ dbId, stageId, direction });
       if (moved.error) return NextResponse.json({ success: false, error: moved.error }, { status: 400 });
     }
 
@@ -476,7 +437,7 @@ export async function PATCH(req, { params }) {
     } catch (_) {}
 
     // Reached only after the manage gate above — safe to include archived rows.
-    const stages = await listJourneyStages(db, dbId, { includeArchived: true });
+    const stages = await listJourneyStages(dbId, { includeArchived: true });
     return NextResponse.json({ success: true, stages });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

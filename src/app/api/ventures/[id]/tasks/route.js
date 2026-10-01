@@ -13,9 +13,9 @@ import { TASK_BOARD_COLUMNS, TASK_REVIEW_GATED_COMPLETION_STATUSES, isTaskComple
 import { isStaffActorForVenture } from "@/lib/ventureAuth";
 import { canManageMilestones, syncMilestoneFromWork } from "@/lib/ventureMilestoneEngine";
 import { ventureOwned, ventureNotFound } from "@/lib/ventureOwnership";
-import db from "@/lib/db";
 import {
   getVentureDbIdForTasks,
+  hasApprovedTaskSubmission,
   insertVentureTaskReview,
 } from "@/models/ventureWorkspace";
 
@@ -43,8 +43,8 @@ async function resolveVentureDbId(ventureId) {
  */
 async function syncMilestoneForTask(task, { id, dbId, session }) {
   if (!task?.milestone_id) return { changed: false, status: null };
-  const canComplete = await canManageMilestones(db, { id, cid: session?.cid, role: session?.role });
-  return syncMilestoneFromWork(db, {
+  const canComplete = await canManageMilestones({ id, cid: session?.cid, role: session?.role });
+  return syncMilestoneFromWork({
     dbId,
     milestoneId: String(task.milestone_id),
     cid: session?.cid || null,
@@ -260,7 +260,7 @@ export const PATCH = createHandler(async (req, { params }) => {
   // ahead and are exempt (the same rule as booking a session against a
   // milestone), so the block bites where it should: on the Venture's own work.
   if (body.status !== undefined && TASK_PROCEED_STATUSES.includes(body.status)) {
-    const staffActor = await isStaffActorForVenture(db, id, session);
+    const staffActor = await isStaffActorForVenture(id, session);
     if (!staffActor) {
       const blockers = await getUnmetTaskDependencies({ ventureId: dbId, taskId: numericTaskId });
       if (blockers.length > 0) {
@@ -278,10 +278,7 @@ export const PATCH = createHandler(async (req, { params }) => {
   }
 
   if (body.status && TASK_REVIEW_GATED_COMPLETION_STATUSES.includes(body.status) && existingTask.review_required) {
-    const submissionResult = await db.execute({
-      sql: "SELECT 1 FROM venture_task_submissions WHERE task_id = ? AND review_decision = 'approved' ORDER BY version DESC LIMIT 1",
-      args: [parseInt(taskId)],
-    }).catch(() => ({ rows: [] }));
+    const submissionResult = await hasApprovedTaskSubmission(parseInt(taskId)).catch(() => ({ rows: [] }));
     if (!(submissionResult.rows || []).length) {
       return NextResponse.json({ success: false, error: "This task requires an approved submission before it can be completed." }, { status: 403 });
     }
@@ -325,7 +322,7 @@ export const DELETE = createHandler(async (req, { params }) => {
 
   // Soft delete (archive): a task that already has filed work (submissions or
   // reviews) is part of the Venture's record and can never be removed.
-  const archiveResult = await archiveTask(db, { taskId, actorCid: session.cid || null });
+  const archiveResult = await archiveTask({ taskId, actorCid: session.cid || null });
   if (archiveResult?.error) {
     return NextResponse.json({ success: false, error: archiveResult.error }, { status: 409 });
   }

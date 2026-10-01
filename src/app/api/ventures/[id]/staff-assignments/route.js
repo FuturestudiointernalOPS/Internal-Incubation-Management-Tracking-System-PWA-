@@ -1,7 +1,12 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { listAssignments, createAssignment, removeAssignment } from "@/lib/venturePermissions";
+import {
+  getVentureCodeForAssignment,
+  getLiveContactByCid,
+  findDuplicateVentureAssignment,
+} from "@/models/ventureWorkspace";
 
 // Phase 1: assignment management is Super Admin territory. Phase 3 will
 // extend this guard to Lead Managers whose matrix grants the assign action.
@@ -14,7 +19,7 @@ export async function GET(req, { params }) {
     if (authError) return authError;
     const { id } = await params;
     const includeRemoved = new URL(req.url).searchParams.get("include_removed") === "1";
-    const assignments = await listAssignments(db, id, { includeRemoved });
+    const assignments = await listAssignments(id, { includeRemoved });
     return NextResponse.json({ success: true, assignments });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -34,28 +39,29 @@ export async function POST(req, { params }) {
       return NextResponse.json({ success: false, error: "staff_contact_id and responsibility_code are required." }, { status: 400 });
     }
 
-    const venture = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE venture_id = ?", args: [id] });
+    const venture = await getVentureCodeForAssignment(id);
     if (!venture.rows?.[0]) {
       return NextResponse.json({ success: false, error: "Venture not found." }, { status: 404 });
     }
-    const contact = await db.execute({ sql: "SELECT cid FROM contacts WHERE cid = ? AND deleted = 0", args: [staff_contact_id] });
+    const contact = await getLiveContactByCid(staff_contact_id);
     if (!contact.rows?.[0]) {
       return NextResponse.json({ success: false, error: "Staff contact not found." }, { status: 404 });
     }
 
     const scopeType = scope_type || "venture_wide";
     // Prevent exact duplicate rows (same person, responsibility and scope).
-    const duplicate = await db.execute({
-      sql: `SELECT 1 FROM venture_staff_assignments
-            WHERE venture_id = ? AND staff_contact_id = ? AND responsibility_code = ?
-              AND scope_type = ? AND COALESCE(scope_ref_id,'') = COALESCE(?, '') AND status = 'active'`,
-      args: [id, staff_contact_id, responsibility_code, scopeType, scope_ref_id || ""],
+    const duplicate = await findDuplicateVentureAssignment({
+      ventureId: id,
+      staffContactId: staff_contact_id,
+      responsibilityCode: responsibility_code,
+      scopeType,
+      scopeRefId: scope_ref_id || "",
     });
     if (duplicate.rows?.length) {
       return NextResponse.json({ success: false, error: "This staff member already has this assignment." }, { status: 409 });
     }
 
-    const result = await createAssignment(db, {
+    const result = await createAssignment({
       ventureId: id,
       staffContactId: staff_contact_id,
       responsibilityCode: responsibility_code,
@@ -66,7 +72,7 @@ export async function POST(req, { params }) {
       notes: notes || null,
     });
     if (result.error) return NextResponse.json({ success: false, error: result.error }, { status: 400 });
-    const assignments = await listAssignments(db, id);
+    const assignments = await listAssignments(id);
     return NextResponse.json({ success: true, assignments });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -83,8 +89,8 @@ export async function PATCH(req, { params }) {
     if (!assignment_id || action !== "remove") {
       return NextResponse.json({ success: false, error: "assignment_id and action='remove' are required." }, { status: 400 });
     }
-    await removeAssignment(db, { id: assignment_id });
-    const assignments = await listAssignments(db, id);
+    await removeAssignment({ id: assignment_id });
+    const assignments = await listAssignments(id);
     return NextResponse.json({ success: true, assignments });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

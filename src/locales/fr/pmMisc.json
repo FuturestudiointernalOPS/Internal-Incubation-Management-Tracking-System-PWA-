@@ -303,6 +303,7 @@
       "sessionsLower": "séances",
       "docsLower": "docs",
       "noLinkedItems": "Aucun élément lié",
+      "nonMeasurable": "Non mesurable (aucun livrable lié)",
       "noKpisConfigured": "Aucun KPI configuré. Contactez votre Super Admin.",
       "exportLabel": "Exporter :",
       "exportParticipantsCsv": "Participants CSV",

@@ -1,17 +1,16 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import {
-  getCarryoverEligibleTasks,
-  getBlockersForTask,
-  getTaskRowById,
-  getLatestCarriedOverClone,
-  createCarriedOverClone,
-  migrateBlockersToTask,
-  migrateCommentsToTask,
-  migrateResourcesToTask,
-  reparentSubtasksToTask,
-  markTaskCarriedOver,
-} from "@/models/taskLifecycle";
+import { listCarryoverTasks, carryOverTask } from "@/services/tasks/carryover";
+
+/**
+ * TASK CARRY-OVER API — controller layer.
+ *
+ * GET  /api/tasks/carryover?user_id=X&week=W&year=Y
+ * POST /api/tasks/carryover  { task_id, target_week, target_year }
+ *
+ * The chain walk, the completed/idempotency guards and the ownership rule live
+ * in `@/services/tasks/carryover`.
+ */
 
 export const GET = createHandler(async (req) => {
   const { searchParams } = new URL(req.url);
@@ -23,32 +22,22 @@ export const GET = createHandler(async (req) => {
       { status: 401 },
     );
   }
-  const staffSide = [
-    "super_admin",
-    "staff",
-    "program_manager",
-  ];
-  let user_id = searchParams.get("user_id");
-  if (!staffSide.includes(session.role)) {
-    if (user_id && String(user_id) !== String(session.cid)) {
-      return NextResponse.json(
-        { success: false, error: "You can only view your own tasks." },
-        { status: 403 },
-      );
-    }
-    user_id = user_id || session.cid;
-  }
-  const week_number = searchParams.get("week");
-  const year = searchParams.get("year");
 
-  const result = await getCarryoverEligibleTasks(user_id, week_number, year);
-  const tasksWithBlockers = await Promise.all(
-    result.rows.map(async (task) => {
-      const blockersResult = await getBlockersForTask(task.id);
-      return { ...task, blockers: blockersResult.rows || [] };
-    }),
-  );
-  return NextResponse.json({ success: true, tasks: tasksWithBlockers });
+  const result = await listCarryoverTasks({
+    role: session.role,
+    sessionCid: session.cid,
+    requestedCid: searchParams.get("user_id"),
+    weekNumber: searchParams.get("week"),
+    year: searchParams.get("year"),
+  });
+
+  if (result.error) {
+    return NextResponse.json(
+      result.body || { success: false, error: result.error },
+      { status: result.status },
+    );
+  }
+  return NextResponse.json(result.body, { status: result.status });
 });
 
 // POST /api/tasks/carryover — shared carry-over operation (Ticket 2.4)
@@ -76,118 +65,20 @@ export const POST = createHandler(async (req) => {
     );
   }
 
-  const oldId = parseInt(task_id);
+  const result = await carryOverTask({
+    taskId: task_id,
+    targetWeek: target_week,
+    targetYear: target_year,
+    actorName: session.name || session.cid,
+    role: session.role,
+    sessionCid: session.cid,
+  });
 
-  // 1. Fetch the original task
-  const originalResult = await getTaskRowById(oldId);
-  if (originalResult.rows.length === 0) {
+  if (result.error) {
     return NextResponse.json(
-      { success: false, error: "Task not found" },
-      { status: 404 },
+      result.body || { success: false, error: result.error },
+      { status: result.status },
     );
   }
-  const originalTask = originalResult.rows[0];
-
-  // Object-level authorization: only the task's owner, assignee, supervisor —
-  // or staff — may carry it over. Previously any authenticated user could flip
-  // anyone's task by id.
-  if (!["super_admin", "staff", "program_manager"].includes(session.role)) {
-    const owns =
-      String(originalTask.user_id) === String(session.cid) ||
-      String(originalTask.assigned_to || "") === String(session.cid) ||
-      String(originalTask.supervisor_id || "") === String(session.cid);
-    if (!owns) {
-      return NextResponse.json(
-        { success: false, error: "You can only carry over your own tasks." },
-        { status: 403 },
-      );
-    }
-  }
-
-  // 2. Follow chain forward to find the LATEST clone (not the original)
-  // This prevents repeatedly cloning the same original task each week.
-  // Completed/archived copies are never carried again — a finished task must
-  // stay finished (Phase 1 carry-over fix, enforced in getLatestCarriedOverClone).
-  let taskToClone = originalTask;
-  while (true) {
-    const nextCloneResult = await getLatestCarriedOverClone(taskToClone.id);
-    if (nextCloneResult.rows.length === 0) break;
-    taskToClone = nextCloneResult.rows[0];
-  }
-  const sourceTask = taskToClone;
-
-  // 2b. Safety: never clone or flip a completed/archived task.
-  if (
-    sourceTask.status === "completed" ||
-    sourceTask.status === "archived"
-  ) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Completed tasks cannot be carried over.",
-        status: 409,
-      },
-      { status: 409 },
-    );
-  }
-
-  // 2c. Idempotency guard: the newest open copy already lives in the target
-  // week — it was carried over already, so do not clone it a second time.
-  if (
-    Number(sourceTask.created_week) === Number(target_week) &&
-    Number(sourceTask.created_year) === Number(target_year)
-  ) {
-    return NextResponse.json({
-      success: true,
-      id: sourceTask.id,
-      oldId,
-      action: "already_carried_over",
-    });
-  }
-
-  const sourceId = sourceTask.id;
-
-  // 3. Clone the LATEST task in the chain — preserve ALL fields including context
-  const cloneResult = await createCarriedOverClone({
-    // The clone belongs to the task's owner; the ACTOR comes from the session.
-    user_id: originalTask.user_id,
-    user_name: session.name || session.cid,
-    target_week,
-    target_year,
-    sourceId,
-    sourceTask,
-  });
-  const newId = Number(cloneResult.rows[0]?.id ?? cloneResult.lastInsertRowid);
-
-  // 4. Migrate blockers from the LATEST task (not the original)
-  await migrateBlockersToTask(newId, sourceId);
-
-  // 5. Migrate comments
-  try {
-    await migrateCommentsToTask(newId, sourceId);
-  } catch (_) {
-    /* table may not exist yet */
-  }
-
-  // 6. Migrate resources/attachments
-  try {
-    await migrateResourcesToTask(newId, sourceId);
-  } catch (_) {
-    /* table may not exist yet */
-  }
-
-  // 7. Re-parent subtasks from the LATEST task
-  await reparentSubtasksToTask(newId, sourceId);
-
-  // 8. Mark the LATEST task as carried_over (not the original).
-  // Guarded in markTaskCarriedOver: never flip a completed/archived task, and
-  // never leave a stale completion timestamp on a carried-over task.
-  await markTaskCarriedOver(sourceId);
-
-  return NextResponse.json({
-    success: true,
-    id: newId,
-    oldId,
-    action: "carried_over",
-  });
+  return NextResponse.json(result.body, { status: result.status });
 });

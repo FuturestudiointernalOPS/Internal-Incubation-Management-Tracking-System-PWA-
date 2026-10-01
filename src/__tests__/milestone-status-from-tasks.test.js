@@ -10,6 +10,17 @@
  * work done AND the evidence approved) may close it.
  */
 
+jest.mock("@/lib/db", () => {
+  const state = { executeImpl: async () => ({ rows: [] }) };
+  return {
+    __esModule: true,
+    default: { execute: jest.fn(async ({ sql, args = [] }) => state.executeImpl({ sql, args })) },
+    initDb: jest.fn().mockResolvedValue(true),
+    __state: state,
+  };
+});
+
+const { __state: mockState } = require("@/lib/db");
 const {
   deriveMilestoneStatusFromTasks,
   combineMilestoneStatus,
@@ -30,7 +41,7 @@ function fakeDb({
   milestoneTitle = "Market Readiness",
 } = {}) {
   const calls = [];
-  const execute = jest.fn(async ({ sql, args = [] }) => {
+  const executeImpl = async ({ sql, args = [] }) => {
     calls.push({ sql, args });
     if (sql.includes("SELECT id, title, status, journey_stage_id FROM venture_milestones")) {
       return {
@@ -46,8 +57,9 @@ function fakeDb({
     }
     if (sql.includes("SELECT id, status FROM venture_milestones")) return { rows: [{ id: MS, status: "completed" }] };
     return { rows: [] };
-  });
-  return { db: { execute }, calls };
+  };
+  mockState.executeImpl = executeImpl;
+  return { calls };
 }
 
 const statusUpdate = (calls) => calls.find((call) => call.sql.startsWith("UPDATE venture_milestones SET status = ?"));
@@ -128,35 +140,35 @@ describe("combineMilestoneStatus — tasks advance, evidence and authority close
 
 describe("syncMilestoneFromWork — a task moves the milestone it belongs to", () => {
   test("work starting moves the milestone to in_progress", async () => {
-    const { db, calls } = fakeDb({ tasks: [{ status: "in_progress" }] });
-    const out = await syncMilestoneFromWork(db, { dbId: DB, milestoneId: MS });
+    const { calls } = fakeDb({ tasks: [{ status: "in_progress" }] });
+    const out = await syncMilestoneFromWork({ dbId: DB, milestoneId: MS });
     expect(out).toEqual({ changed: true, status: "in_progress" });
     expect(statusUpdate(calls).args).toEqual(["in_progress", MS, DB]);
   });
 
   test("every task done, no evidence → still in_progress, never completed", async () => {
-    const { db, calls } = fakeDb({ tasks: [{ status: "done" }, { status: "done" }] });
-    const out = await syncMilestoneFromWork(db, { dbId: DB, milestoneId: MS, canComplete: true });
+    const { calls } = fakeDb({ tasks: [{ status: "done" }, { status: "done" }] });
+    const out = await syncMilestoneFromWork({ dbId: DB, milestoneId: MS, canComplete: true });
     expect(out).toEqual({ changed: true, status: "in_progress" });
     expect(calls.some((call) => call.sql.includes("status = 'completed'"))).toBe(false);
   });
 
   test("all tasks done + evidence approved, but no authority → stops at in_progress", async () => {
-    const { db, calls } = fakeDb({
+    const { calls } = fakeDb({
       tasks: [{ status: "done" }],
       deliverables: [{ approval_status: "approved" }],
     });
-    const out = await syncMilestoneFromWork(db, { dbId: DB, milestoneId: MS, canComplete: false });
+    const out = await syncMilestoneFromWork({ dbId: DB, milestoneId: MS, canComplete: false });
     expect(out).toEqual({ changed: true, status: "in_progress" });
     expect(calls.some((call) => call.sql.includes("status = 'completed'"))).toBe(false);
   });
 
   test("all tasks done + evidence approved + authority → completed, and the Journey closes", async () => {
-    const { db, calls } = fakeDb({
+    const { calls } = fakeDb({
       tasks: [{ status: "done" }],
       deliverables: [{ approval_status: "approved" }],
     });
-    const out = await syncMilestoneFromWork(db, { dbId: DB, milestoneId: MS, cid: "USR-lead", canComplete: true });
+    const out = await syncMilestoneFromWork({ dbId: DB, milestoneId: MS, cid: "USR-lead", canComplete: true });
     expect(out).toMatchObject({ changed: true, status: "completed", milestone_title: "Market Readiness" });
     expect(calls.some((call) => call.sql.includes("SET status = 'completed', progress = 100"))).toBe(true);
     expect(calls.some((call) => call.sql.includes("UPDATE venture_journey_stages SET status = 'completed'"))).toBe(true);
@@ -164,53 +176,53 @@ describe("syncMilestoneFromWork — a task moves the milestone it belongs to", (
   });
 
   test("THE NEW RULE: approved evidence with unfinished work does not close the milestone", async () => {
-    const { db, calls } = fakeDb({
+    const { calls } = fakeDb({
       tasks: [{ status: "done" }, { status: "todo" }],
       deliverables: [{ approval_status: "approved" }],
     });
-    const out = await syncMilestoneFromWork(db, { dbId: DB, milestoneId: MS, canComplete: true });
+    const out = await syncMilestoneFromWork({ dbId: DB, milestoneId: MS, canComplete: true });
     expect(out).toEqual({ changed: true, status: "in_progress" });
     expect(calls.some((call) => call.sql.includes("status = 'completed'"))).toBe(false);
   });
 
   test("an upcoming milestone is unreleased planning — the work never releases it", async () => {
-    const { db, calls } = fakeDb({ milestoneStatus: "upcoming", tasks: [{ status: "in_progress" }] });
-    const out = await syncMilestoneFromWork(db, { dbId: DB, milestoneId: MS, canComplete: true });
+    const { calls } = fakeDb({ milestoneStatus: "upcoming", tasks: [{ status: "in_progress" }] });
+    const out = await syncMilestoneFromWork({ dbId: DB, milestoneId: MS, canComplete: true });
     expect(out).toEqual({ changed: false, status: "upcoming" });
     expect(statusUpdate(calls)).toBeUndefined();
   });
 
   test("a blocked milestone stays blocked — finished work never clears a dependency", async () => {
-    const { db, calls } = fakeDb({ milestoneStatus: "blocked", tasks: [{ status: "done" }] });
-    const out = await syncMilestoneFromWork(db, { dbId: DB, milestoneId: MS, canComplete: true });
+    const { calls } = fakeDb({ milestoneStatus: "blocked", tasks: [{ status: "done" }] });
+    const out = await syncMilestoneFromWork({ dbId: DB, milestoneId: MS, canComplete: true });
     expect(out).toEqual({ changed: false, status: "blocked" });
     expect(statusUpdate(calls)).toBeUndefined();
   });
 
   test("a completed milestone is never reopened by later work", async () => {
-    const { db, calls } = fakeDb({ milestoneStatus: "completed", tasks: [{ status: "todo" }] });
-    const out = await syncMilestoneFromWork(db, { dbId: DB, milestoneId: MS, canComplete: true });
+    const { calls } = fakeDb({ milestoneStatus: "completed", tasks: [{ status: "todo" }] });
+    const out = await syncMilestoneFromWork({ dbId: DB, milestoneId: MS, canComplete: true });
     expect(out).toEqual({ changed: false, status: "completed" });
     expect(statusUpdate(calls)).toBeUndefined();
   });
 
   test("a milestone with no work at all keeps the status a person gave it", async () => {
-    const { db, calls } = fakeDb({ milestoneStatus: "in_progress", tasks: [], deliverables: [] });
-    const out = await syncMilestoneFromWork(db, { dbId: DB, milestoneId: MS });
+    const { calls } = fakeDb({ milestoneStatus: "in_progress", tasks: [], deliverables: [] });
+    const out = await syncMilestoneFromWork({ dbId: DB, milestoneId: MS });
     expect(out).toEqual({ changed: false, status: "in_progress" });
     expect(statusUpdate(calls)).toBeUndefined();
   });
 
   test("an unknown milestone changes nothing", async () => {
-    const { db, calls } = fakeDb({ milestoneStatus: null });
-    const out = await syncMilestoneFromWork(db, { dbId: DB, milestoneId: MS });
+    const { calls } = fakeDb({ milestoneStatus: null });
+    const out = await syncMilestoneFromWork({ dbId: DB, milestoneId: MS });
     expect(out).toEqual({ changed: false, status: null });
     expect(statusUpdate(calls)).toBeUndefined();
   });
 
   test("the sync writes nothing when the milestone already reads right", async () => {
-    const { db, calls } = fakeDb({ milestoneStatus: "in_progress", tasks: [{ status: "in_progress" }] });
-    const out = await syncMilestoneFromWork(db, { dbId: DB, milestoneId: MS });
+    const { calls } = fakeDb({ milestoneStatus: "in_progress", tasks: [{ status: "in_progress" }] });
+    const out = await syncMilestoneFromWork({ dbId: DB, milestoneId: MS });
     expect(out).toEqual({ changed: false, status: "in_progress" });
     expect(statusUpdate(calls)).toBeUndefined();
   });

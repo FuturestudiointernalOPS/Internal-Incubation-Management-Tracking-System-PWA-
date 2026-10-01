@@ -18,8 +18,8 @@ import { getAssignmentScopes, hasVentureWideReach, isTaskInScope } from "@/lib/v
 import { canManageMilestones } from "@/lib/ventureMilestoneEngine";
 
 /** Create / edit a deliverable's definition — Lead Manager or Super Admin. */
-export async function canDefineDeliverables(db, { id, cid, role }) {
-  return canManageMilestones(db, { id, cid, role });
+export async function canDefineDeliverables({ id, cid, role }) {
+  return canManageMilestones({ id, cid, role });
 }
 
 /**
@@ -27,10 +27,10 @@ export async function canDefineDeliverables(db, { id, cid, role }) {
  * active assignment scope covers the milestone (or its journey stage).
  * Fails closed: an unresolvable scope is a denial.
  */
-export async function canReviewDeliverable(db, { id, cid, role, milestoneId, journeyStageId }) {
+export async function canReviewDeliverable({ id, cid, role, milestoneId, journeyStageId }) {
   if (role === "super_admin") return true;
   if (!cid || !milestoneId) return false;
-  const scopes = await getAssignmentScopes(db, { code: id, cid });
+  const scopes = await getAssignmentScopes({ code: id, cid });
   if (!Array.isArray(scopes) || scopes.length === 0) return false;
   if (hasVentureWideReach(scopes)) return true;
   return isTaskInScope(scopes, { milestone_id: milestoneId, journey_stage_id: journeyStageId });

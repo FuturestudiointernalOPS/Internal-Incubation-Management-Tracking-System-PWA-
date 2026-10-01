@@ -12,6 +12,17 @@
  *     closing one still requires completion authority.
  */
 
+jest.mock("@/lib/db", () => {
+  const state = { executeImpl: async () => ({ rows: [] }) };
+  return {
+    __esModule: true,
+    default: { execute: jest.fn(async ({ sql, args = [] }) => state.executeImpl({ sql, args })) },
+    initDb: jest.fn().mockResolvedValue(true),
+    __state: state,
+  };
+});
+
+const { __state: mockState } = require("@/lib/db");
 const {
   deriveMilestoneStatusFromDeliverables,
   syncMilestoneStatusFromDeliverables,
@@ -24,7 +35,7 @@ const STAGE = "s-1";
 /** A db double answering the exact questions the engine asks, in order. */
 function fakeDb({ milestoneStatus = "not_started", journeyStageId = STAGE, deliverables = [], stageStatus = "active", milestoneTitle = "Pitch Deck" }) {
   const calls = [];
-  const execute = jest.fn(async ({ sql, args = [] }) => {
+  mockState.executeImpl = async ({ sql, args = [] }) => {
     calls.push({ sql, args });
     if (sql.includes("SELECT id, title, status, journey_stage_id FROM venture_milestones")) {
       return { rows: milestoneStatus ? [{ id: MS, title: milestoneTitle, status: milestoneStatus, journey_stage_id: journeyStageId }] : [] };
@@ -40,8 +51,8 @@ function fakeDb({ milestoneStatus = "not_started", journeyStageId = STAGE, deliv
     }
     if (sql.includes("SELECT id, status FROM venture_milestones")) return { rows: [{ id: MS, status: "completed" }] };
     return { rows: [] };
-  });
-  return { db: { execute }, calls };
+  };
+  return { calls };
 }
 
 const statusUpdate = (calls) => calls.find((call) => call.sql.startsWith("UPDATE venture_milestones SET status = ?"));
@@ -76,23 +87,23 @@ describe("deriveMilestoneStatusFromDeliverables", () => {
 
 describe("syncMilestoneStatusFromDeliverables", () => {
   test("a submission moves the milestone to under_review and never completes it", async () => {
-    const { db, calls } = fakeDb({ deliverables: [{ status: "submitted" }] });
-    const out = await syncMilestoneStatusFromDeliverables(db, { dbId: DB, milestoneId: MS, canComplete: true });
+    const { calls } = fakeDb({ deliverables: [{ status: "submitted" }] });
+    const out = await syncMilestoneStatusFromDeliverables({ dbId: DB, milestoneId: MS, canComplete: true });
     expect(out).toEqual({ changed: true, status: "under_review" });
     expect(statusUpdate(calls).args).toEqual(["under_review", MS, DB]);
     expect(calls.some((call) => call.sql.includes("status = 'completed'"))).toBe(false);
   });
 
   test("a returned deliverable moves the milestone to changes_requested", async () => {
-    const { db, calls } = fakeDb({ deliverables: [{ approval_status: "approved" }, { approval_status: "rejected" }] });
-    const out = await syncMilestoneStatusFromDeliverables(db, { dbId: DB, milestoneId: MS, canComplete: true });
+    const { calls } = fakeDb({ deliverables: [{ approval_status: "approved" }, { approval_status: "rejected" }] });
+    const out = await syncMilestoneStatusFromDeliverables({ dbId: DB, milestoneId: MS, canComplete: true });
     expect(out.status).toBe("changes_requested");
     expect(statusUpdate(calls).args[0]).toBe("changes_requested");
   });
 
   test("the last approval completes the milestone for a completion authority — and unlocks the next", async () => {
-    const { db, calls } = fakeDb({ deliverables: [{ approval_status: "approved" }] });
-    const out = await syncMilestoneStatusFromDeliverables(db, { dbId: DB, milestoneId: MS, cid: "USR-lead", canComplete: true });
+    const { calls } = fakeDb({ deliverables: [{ approval_status: "approved" }] });
+    const out = await syncMilestoneStatusFromDeliverables({ dbId: DB, milestoneId: MS, cid: "USR-lead", canComplete: true });
     expect(out).toMatchObject({ changed: true, status: "completed", milestone_title: "Pitch Deck" });
     expect(calls.some((call) => call.sql.includes("SET status = 'completed', progress = 100"))).toBe(true);
     expect(calls.some((call) => call.sql.includes("UPDATE venture_journey_stages SET status = 'completed'"))).toBe(true);
@@ -102,37 +113,37 @@ describe("syncMilestoneStatusFromDeliverables", () => {
   });
 
   test("a scoped reviewer without completion authority stops at in_progress", async () => {
-    const { db, calls } = fakeDb({ deliverables: [{ approval_status: "approved" }] });
-    const out = await syncMilestoneStatusFromDeliverables(db, { dbId: DB, milestoneId: MS, canComplete: false });
+    const { calls } = fakeDb({ deliverables: [{ approval_status: "approved" }] });
+    const out = await syncMilestoneStatusFromDeliverables({ dbId: DB, milestoneId: MS, canComplete: false });
     expect(out).toEqual({ changed: true, status: "in_progress" });
     expect(statusUpdate(calls).args[0]).toBe("in_progress");
     expect(calls.some((call) => call.sql.includes("status = 'completed'"))).toBe(false);
   });
 
   test("an upcoming milestone is unreleased planning — the work never releases it", async () => {
-    const { db, calls } = fakeDb({ milestoneStatus: "upcoming", deliverables: [{ status: "submitted" }] });
-    const out = await syncMilestoneStatusFromDeliverables(db, { dbId: DB, milestoneId: MS, canComplete: true });
+    const { calls } = fakeDb({ milestoneStatus: "upcoming", deliverables: [{ status: "submitted" }] });
+    const out = await syncMilestoneStatusFromDeliverables({ dbId: DB, milestoneId: MS, canComplete: true });
     expect(out).toEqual({ changed: false, status: "upcoming" });
     expect(statusUpdate(calls)).toBeUndefined();
   });
 
   test("a blocked milestone stays blocked — evidence never clears a dependency", async () => {
-    const { db, calls } = fakeDb({ milestoneStatus: "blocked", deliverables: [{ approval_status: "approved" }] });
-    const out = await syncMilestoneStatusFromDeliverables(db, { dbId: DB, milestoneId: MS, canComplete: true });
+    const { calls } = fakeDb({ milestoneStatus: "blocked", deliverables: [{ approval_status: "approved" }] });
+    const out = await syncMilestoneStatusFromDeliverables({ dbId: DB, milestoneId: MS, canComplete: true });
     expect(out).toEqual({ changed: false, status: "blocked" });
     expect(statusUpdate(calls)).toBeUndefined();
   });
 
   test("a completed milestone is never reopened by later evidence", async () => {
-    const { db, calls } = fakeDb({ milestoneStatus: "completed", deliverables: [{ approval_status: "rejected" }] });
-    const out = await syncMilestoneStatusFromDeliverables(db, { dbId: DB, milestoneId: MS, canComplete: true });
+    const { calls } = fakeDb({ milestoneStatus: "completed", deliverables: [{ approval_status: "rejected" }] });
+    const out = await syncMilestoneStatusFromDeliverables({ dbId: DB, milestoneId: MS, canComplete: true });
     expect(out).toEqual({ changed: false, status: "completed" });
     expect(statusUpdate(calls)).toBeUndefined();
   });
 
   test("an unknown milestone changes nothing", async () => {
-    const { db, calls } = fakeDb({ milestoneStatus: null });
-    const out = await syncMilestoneStatusFromDeliverables(db, { dbId: DB, milestoneId: MS });
+    const { calls } = fakeDb({ milestoneStatus: null });
+    const out = await syncMilestoneStatusFromDeliverables({ dbId: DB, milestoneId: MS });
     expect(out).toEqual({ changed: false, status: null });
     expect(statusUpdate(calls)).toBeUndefined();
   });

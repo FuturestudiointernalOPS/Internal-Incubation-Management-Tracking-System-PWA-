@@ -150,7 +150,9 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => true),
 }));
 
-jest.mock("@/models/authorization/resolver", () => ({
+// The context-grant service imports its cache invalidator from the authorization
+// service (same layer), so the stub is wired on that path.
+jest.mock("@/services/authorization/context", () => ({
   invalidateAuthorizationContext: jest.fn(),
 }));
 

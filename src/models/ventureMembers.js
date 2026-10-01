@@ -13,6 +13,8 @@
  * of a member count.
  */
 
+import db from "@/lib/db";
+
 function rowsOf(result) {
   return (result && result.rows) || [];
 }
@@ -26,7 +28,7 @@ const asCode = (ventureId) => String(ventureId || "");
  * The contact join uses the contact id when present and the user id otherwise,
  * because both generations of rows exist in the table.
  */
-export async function listVentureMembers(db, ventureId, { includeRemoved = false } = {}) {
+export async function listVentureMembers(ventureId, { includeRemoved = false } = {}) {
   const result = await db.execute({
     sql: `SELECT vm.id, vm.contact_id, vm.user_cid, vm.member_type, vm.role,
                  vm.permissions, vm.joined_at, vm.lead_founder, vm.is_owner,

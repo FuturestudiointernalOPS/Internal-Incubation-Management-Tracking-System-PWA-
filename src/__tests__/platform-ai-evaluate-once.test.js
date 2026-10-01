@@ -25,7 +25,9 @@ const path = require("path");
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
 const REVIEW_PAGE = "src/app/platform/runs/review/[submissionId]/page.js";
-const FORM_RUNS = "src/app/api/platform/form-runs/route.js";
+// The submit/manual-add write path now lives in the service; the per-submission
+// evaluation guard moved with it (see docs/LAYER_SPLIT.md, slice 104).
+const FORM_RUNS_SERVICE = "src/services/platform/formRuns.js";
 const EVALUATE = "src/models/platform/ai/evaluate.js";
 
 let mockFrameworkRows = [];
@@ -137,7 +139,7 @@ describe("the misleading name is gone, not aliased", () => {
 
 describe("a re-saved response is never re-evaluated", () => {
   test("the submit path asks the per-submission question before spending a call", () => {
-    const src = read(FORM_RUNS);
+    const src = read(FORM_RUNS_SERVICE);
     // The update branch must verify against THIS submission...
     expect(src).toMatch(/submissionHasEvaluation\(newSubmissionId\)/);
     // ...and the old name must be gone from every call site.
@@ -147,7 +149,7 @@ describe("a re-saved response is never re-evaluated", () => {
 
   test("an unanswerable check skips the call rather than risking a duplicate", () => {
     // `.catch(() => true)` = "assume already evaluated" = do not spend a call.
-    expect(read(FORM_RUNS)).toContain(".catch(() => true)");
+    expect(read(FORM_RUNS_SERVICE)).toContain(".catch(() => true)");
   });
 });
 

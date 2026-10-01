@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import db from "@/lib/db";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/lib/auth";
 import { getAuthorizationContext, requireAuthorization } from "@/lib/authorization";
 import { isWithinScope, resolveVentureScopeId } from "@/lib/authorization/scope";
 import { updateVenture } from "@/lib/ventures";
+import { listVentureDocumentReadiness } from "@/models/ventureReadiness";
 import {
   listVenturesWithCounts,
   recordVentureUpdatedTimeline,
@@ -67,9 +67,31 @@ export const GET = createHandler(async (req) => {
     search,
   });
 
+  // Document-driven readiness (Ready / %), computed live — spread onto each
+  // Venture row so list screens can render it without a second round-trip.
+  let readinessByVenture = new Map();
+  try {
+    const readiness = await listVentureDocumentReadiness(
+      (result.rows || []).map((row) => row.venture_id),
+    );
+    readinessByVenture = new Map(readiness.map((row) => [row.venture_id, row]));
+  } catch (_) {
+    readinessByVenture = new Map();
+  }
+
+  const ventures = (result.rows || []).map((venture) => {
+    const readiness = readinessByVenture.get(venture.venture_id);
+    if (!readiness) return venture;
+    return {
+      ...venture,
+      readiness_percent: readiness.readiness_percent,
+      is_ready: readiness.is_ready,
+    };
+  });
+
   return NextResponse.json({
     success: true,
-    ventures: result.rows,
+    ventures,
   });
 });
 
@@ -138,7 +160,7 @@ export const PUT = createHandler(async (req) => {
         const globalRoles = ["super_admin"];
         if (!session || !globalRoles.includes(session.role)) {
           const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
-          const assigned = session?.cid ? await hasActiveVentureAssignment(id, session.cid, db) : false;
+          const assigned = session?.cid ? await hasActiveVentureAssignment(id, session.cid) : false;
           if (!assigned) delete updates.status;
         }
       } catch (_) {}

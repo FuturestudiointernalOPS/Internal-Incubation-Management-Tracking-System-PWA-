@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import db from "@/lib/db";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
@@ -7,6 +6,21 @@ import {
   getOrCreateVerification,
 } from "@/lib/ventures";
 import { listVentureMembers, summarizeVentureMembers } from "@/models/ventureMembers";
+import {
+  getVentureByCode,
+  getVentureDashboardInfo,
+  listVentureMemberRecipients,
+  selectInternalNotificationFeed,
+  selectVentureNotificationFeed,
+  listVentureActivityLog,
+  listVentureDocumentsForDashboard,
+  listVentureDocumentsForDashboardLegacy,
+  listVentureMeetings,
+  listVentureKpiSummary,
+  countVentureAdvisors,
+  countVentureCoachingSessions,
+  countVentureActiveCoachAssignments,
+} from "@/models/ventureWorkspace";
 
 /**
  * GET /api/ventures/[id]/dashboard
@@ -31,7 +45,7 @@ export const GET = createHandler(
     // Resolve the internal id (UUID-lineage tables key on it, not the VNT code)
     let dbId = id;
     try {
-      const ventureLookup = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+      const ventureLookup = await getVentureByCode(id);
       if (ventureLookup.rows[0]) dbId = ventureLookup.rows[0].id;
     } catch (_) {}
 
@@ -59,10 +73,7 @@ export const GET = createHandler(
     // ── Venture Info ──
     const ventureInfo = (async () => {
       try {
-        const ventureQuery = await db.execute({
-          sql: "SELECT company_name, venture_id, industry, business_stage, status, created_at, description, website, logo_url, registration_number FROM ventures WHERE venture_id = ?",
-          args: [id],
-        });
+        const ventureQuery = await getVentureDashboardInfo(id);
         return ventureQuery.rows[0] || null;
       } catch { return null; }
     })();
@@ -74,7 +85,7 @@ export const GET = createHandler(
     // had a founder report "Team 0" and "no team members yet".
     const teamData = (async () => {
       try {
-        const members = await listVentureMembers(db, id);
+        const members = await listVentureMembers(id);
         const summary = summarizeVentureMembers(members);
         return {
           total: summary.total,
@@ -106,29 +117,16 @@ export const GET = createHandler(
     // (that feed is NEVER exposed to Venture members).
     const notifications = (async () => {
       try {
-        const memberResult = await db.execute({
-          sql: "SELECT contact_id, user_cid FROM venture_members WHERE venture_id = ? AND removed_at IS NULL",
-          args: [id],
-        });
+        const memberResult = await listVentureMemberRecipients(id);
         const recipientIds = [...new Set((memberResult.rows || []).flatMap((row) => [row.contact_id, row.user_cid]).filter(Boolean))];
-        const orInternal = isInternalViewer ? " OR recipient_id = 'sa'" : "";
-        let sql, args;
+        let feedResult;
         if (recipientIds.length > 0) {
-          sql = `SELECT id, title, message, type, is_read, created_at
-                FROM v2_notifications
-                WHERE recipient_id IN (${recipientIds.map(() => "?").join(", ")})${orInternal}
-                ORDER BY created_at DESC LIMIT 10`;
-          args = recipientIds;
+          feedResult = await selectVentureNotificationFeed({ recipientIds, includeInternal: isInternalViewer });
         } else if (isInternalViewer) {
-          sql = `SELECT id, title, message, type, is_read, created_at
-                FROM v2_notifications
-                WHERE recipient_id = 'sa'
-                ORDER BY created_at DESC LIMIT 10`;
-          args = [];
+          feedResult = await selectInternalNotificationFeed();
         } else {
           return { unread: 0, recent: [] };
         }
-        const feedResult = await db.execute({ sql, args });
         const notificationRows = feedResult.rows || [];
         return {
           unread: notificationRows.filter((notification) => !notification.is_read).length,
@@ -162,12 +160,7 @@ export const GET = createHandler(
     ];
     const recentActivity = (async () => {
       try {
-        const activityQuery = await db.execute({
-          sql: `SELECT id, action, actor_name, details, created_at
-                FROM venture_activity_log WHERE venture_id = ?
-                ORDER BY created_at DESC LIMIT 40`,
-          args: [id],
-        });
+        const activityQuery = await listVentureActivityLog(id);
         const rows = activityQuery.rows || [];
         if (isInternalViewer) {
           return rows.slice(0, 10).map((entry) => ({
@@ -205,16 +198,10 @@ export const GET = createHandler(
       try {
         let rows = [];
         try {
-          const documentsQuery = await db.execute({
-            sql: "SELECT id, title, category, file_name, file_type, file_size, uploaded_by, created_at FROM venture_documents WHERE venture_id = ? AND is_deleted = false ORDER BY created_at DESC LIMIT 5",
-            args: [id],
-          });
+          const documentsQuery = await listVentureDocumentsForDashboard(id);
           rows = documentsQuery.rows || [];
         } catch (_) {
-          const documentsQuery = await db.execute({
-            sql: "SELECT id, title, category, file_name, file_type, file_size, uploaded_by, created_at FROM venture_documents WHERE venture_id = ? ORDER BY created_at DESC LIMIT 5",
-            args: [id],
-          });
+          const documentsQuery = await listVentureDocumentsForDashboardLegacy(id);
           rows = documentsQuery.rows || [];
         }
         return {
@@ -227,12 +214,7 @@ export const GET = createHandler(
     // ── Meetings (placeholder — integrates with calendar/events module) ──
     const meetings = (async () => {
       try {
-        const meetingsQuery = await db.execute({
-          sql: `SELECT id, title, description, event_date, event_time, status, type
-                FROM calendar_events WHERE venture_id = ? AND event_date >= CURRENT_DATE
-                ORDER BY event_date ASC LIMIT 5`,
-          args: [id],
-        }).catch(() => ({ rows: [] }));
+        const meetingsQuery = await listVentureMeetings(id).catch(() => ({ rows: [] }));
         return (meetingsQuery.rows || []).map((meeting) => ({
           id: meeting.id, title: meeting.title, description: meeting.description,
           date: meeting.event_date, time: meeting.event_time, status: meeting.status, type: meeting.type || "meeting",
@@ -243,14 +225,7 @@ export const GET = createHandler(
     // ── KPI Summary (the venture KPI module, not the global kpis table) ──
     const kpiSummary = (async () => {
       try {
-        const kpiQuery = await db.execute({
-          sql: `SELECT d.name, d.unit, d.auto_calc_source, a.target_value, a.current_value, a.updated_at
-                FROM venture_kpi_assignments a
-                JOIN venture_kpi_definitions d ON d.id = a.kpi_definition_id
-                WHERE a.venture_id::text = ?
-                ORDER BY a.updated_at DESC LIMIT 5`,
-          args: [dbId],
-        }).catch(() => ({ rows: [] }));
+        const kpiQuery = await listVentureKpiSummary(dbId).catch(() => ({ rows: [] }));
         return (kpiQuery.rows || []).map((kpi) => ({
           id: kpi.id, title: kpi.name, category: kpi.auto_calc_source || "manual",
           current: kpi.current_value, target: kpi.target_value,
@@ -264,9 +239,9 @@ export const GET = createHandler(
     const coaching = (async () => {
       try {
         const [advisorResult, sessionResult, assignmentResult] = await Promise.all([
-          db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_advisors WHERE venture_id::text = ?", args: [dbId] }).catch(() => ({ rows: [{ n: 0 }] })),
-          db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_coaching_sessions WHERE venture_id::text = ?", args: [dbId] }).catch(() => ({ rows: [{ n: 0 }] })),
-          db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_coach_assignments WHERE venture_id::text = ? AND status = 'active'", args: [dbId] }).catch(() => ({ rows: [{ n: 0 }] })),
+          countVentureAdvisors(dbId).catch(() => ({ rows: [{ n: 0 }] })),
+          countVentureCoachingSessions(dbId).catch(() => ({ rows: [{ n: 0 }] })),
+          countVentureActiveCoachAssignments(dbId).catch(() => ({ rows: [{ n: 0 }] })),
         ]);
         const coaches = Number(assignmentResult.rows?.[0]?.n || 0);
         const advisors = Number(advisorResult.rows?.[0]?.n || 0);

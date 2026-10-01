@@ -21,7 +21,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const SCHEMA_SOURCE = fs.readFileSync(
-  path.join(__dirname, "..", "lib", "ventures.js"),
+  path.join(__dirname, "..", "services", "ventures", "schema.js"),
   "utf8",
 );
 
@@ -48,7 +48,7 @@ describe("every assignment table states BOTH halves in the schema self-heal", ()
 describe("the writers agree with the self-heal", () => {
   test("the plan import writes the name half to deliverables and tasks", () => {
     const importer = fs.readFileSync(
-      path.join(__dirname, "..", "models", "venturePlanImport.js"),
+      path.join(__dirname, "..", "models", "venturePlanImportStore.js"),
       "utf8",
     );
     // Both inserts name the column they depend on, so a missing one is a loud

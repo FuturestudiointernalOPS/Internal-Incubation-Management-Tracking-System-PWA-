@@ -2,13 +2,7 @@ import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
-import { summarizeSubmission, analyzeSubmission } from "@/lib/platform/integrations";
-import {
-  getFormForAiAnalysis,
-  getRunForAiAnalysis,
-  getSubmissionForAiAnalysis,
-  logAiAnalysisToTimeline,
-} from "@/models/platformAi";
+import { analyzeSubmissionForRun } from "@/services/platform/analysis";
 
 /**
  * Platform AI Analysis API
@@ -18,6 +12,9 @@ import {
  *
  * Returns AI-generated summary, flags, score for a submission.
  * Results are advisory only — human decisions remain final.
+ *
+ * Thin controller: gates on `runs.view` and delegates to
+ * `@/services/platform/analysis` (see docs/LAYER_SPLIT.md).
  */
 
 export async function POST(req) {
@@ -30,54 +27,9 @@ export async function POST(req) {
     const capError = await requireAuthorization("runs", "view");
     if (capError) return capError;
 
-    const { submission_id, mode } = await req.json();
-    if (!submission_id) {
-      return NextResponse.json({ success: false, error: "submission_id required" }, { status: 400 });
-    }
-
-    // Fetch submission
-    const submissionResult = await getSubmissionForAiAnalysis(submission_id);
-    if (submissionResult.rows.length === 0) {
-      return NextResponse.json({ success: false, error: "Submission not found" }, { status: 404 });
-    }
-
-    const submission = submissionResult.rows[0];
-
-    // Fetch run and form for context
-    const runResult = await getRunForAiAnalysis(submission.run_id);
-    const run = runResult.rows[0] || null;
-
-    let form = null;
-    if (run?.form_id) {
-      const formResult = await getFormForAiAnalysis(run.form_id);
-      form = formResult.rows[0] || null;
-    }
-
-    const analysisMode = mode || "analyze";
-
-    let result;
-    if (analysisMode === "summarize") {
-      const summary = await summarizeSubmission(submission, form);
-      result = { summary };
-    } else {
-      const analysis = await analyzeSubmission(submission, form);
-      result = analysis || { error: "AI analysis returned no result" };
-    }
-
-    // Log AI usage for governance
-    try {
-      await logAiAnalysisToTimeline(submission_id, {
-        mode: analysisMode,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (_) { /* timeline logging is non-critical */ }
-
-    return NextResponse.json({
-      success: true,
-      submission_id,
-      mode: analysisMode,
-      ...result,
-    });
+    const payload = await req.json();
+    const { status, body } = await analyzeSubmissionForRun(payload);
+    return NextResponse.json(body, { status });
   } catch (error) {
     console.error("[Platform AI API] Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

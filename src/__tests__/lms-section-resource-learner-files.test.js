@@ -168,7 +168,7 @@ test("the learner course payload reads material through the learner view", () =>
   // Wiring check: the payload is what reaches a learner, so it must not read the
   // staff view — that is where the permanent link still lives.
   const source = fs.readFileSync(
-    path.join(__dirname, "../models/lms/learning.js"),
+    path.join(__dirname, "../services/lms/learning.js"),
     "utf8",
   );
   expect(source).toContain("learnerSectionResourcesByCourse");

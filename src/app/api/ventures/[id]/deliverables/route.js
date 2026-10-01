@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db from "@/lib/db";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { canDefineDeliverables, canReviewDeliverable } from "@/lib/ventureDeliverables";
 import { canManageMilestones, syncMilestoneStatusFromDeliverables } from "@/lib/ventureMilestoneEngine";
 import { dateOrNull, textOrNull } from "@/lib/ventureInput";
 import { listDeliverables, createDeliverable, updateDeliverable, getDeliverable, notifyVentureFounders } from "@/lib/ventures";
+import { getVentureDbIdByCodeOrId, getVentureMilestoneForDeliverables } from "@/models/ventureWorkspace";
 
 /**
  * Deliverable management — a deliverable always belongs to a milestone, and a
@@ -28,26 +28,19 @@ import { listDeliverables, createDeliverable, updateDeliverable, getDeliverable,
  */
 
 async function resolveDbId(id) {
-  const ventureResult = await db
-    .execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] })
-    .catch(() => ({ rows: [] }));
+  const ventureResult = await getVentureDbIdByCodeOrId(id).catch(() => ({ rows: [] }));
   return ventureResult.rows?.[0]?.id || null;
 }
 
 /** Milestone + its journey stage, verified to belong to this Venture. */
 async function loadMilestoneForVenture(dbId, milestoneId) {
-  const milestoneResult = await db
-    .execute({
-      sql: "SELECT id, journey_stage_id FROM venture_milestones WHERE id::text = ? AND venture_id = ?",
-      args: [String(milestoneId), dbId],
-    })
-    .catch(() => ({ rows: [] }));
+  const milestoneResult = await getVentureMilestoneForDeliverables(dbId, milestoneId).catch(() => ({ rows: [] }));
   return milestoneResult.rows?.[0] || null;
 }
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id, db);
+  const { session } = await requireVentureAccess(id);
   if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
   const milestoneId = new URL(req.url).searchParams.get("milestone_id");
@@ -70,7 +63,7 @@ export const POST = createHandler(async (req, { params }) => {
   if (access.error) return access.error;
   const { session } = access;
 
-  const allowed = await canDefineDeliverables(db, { id, cid: session?.cid, role: session?.role });
+  const allowed = await canDefineDeliverables({ id, cid: session?.cid, role: session?.role });
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: "Only the Venture's Lead Manager or a Super Admin can add deliverables." },
@@ -135,7 +128,7 @@ export const PATCH = createHandler(async (req, { params }) => {
 
   // ── submit: the Venture side supplies the evidence ───────────────────────
   if (action === "submit") {
-    const { session } = await requireVentureAccess(id, db);
+    const { session } = await requireVentureAccess(id);
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const evidenceUrl = String(body?.attachment_url || "").trim();
     if (!evidenceUrl) {
@@ -156,7 +149,7 @@ export const PATCH = createHandler(async (req, { params }) => {
     // (a submission moves it to "awaiting review"). A submission is the
     // founder's act, so it can never COMPLETE the milestone — `canComplete` is
     // false and the sign-off stays with the Lead Manager.
-    const milestoneSync = await syncMilestoneStatusFromDeliverables(db, {
+    const milestoneSync = await syncMilestoneStatusFromDeliverables({
       dbId,
       milestoneId: milestone.id,
       cid: session?.cid || null,
@@ -174,7 +167,7 @@ export const PATCH = createHandler(async (req, { params }) => {
     if (access.error) return access.error;
     const { session } = access;
 
-    const allowed = await canReviewDeliverable(db, {
+    const allowed = await canReviewDeliverable({
       id,
       cid: session?.cid,
       role: session?.role,
@@ -224,8 +217,8 @@ export const PATCH = createHandler(async (req, { params }) => {
     // and the LAST approval closes it — but closing a milestone stays the Lead
     // Manager / Super Admin's decision (the same authority the manual complete
     // action requires); a scoped coach's approval stops at In Progress.
-    const canCompleteMilestone = await canManageMilestones(db, { id, cid: session?.cid, role: session?.role });
-    const milestoneSync = await syncMilestoneStatusFromDeliverables(db, {
+    const canCompleteMilestone = await canManageMilestones({ id, cid: session?.cid, role: session?.role });
+    const milestoneSync = await syncMilestoneStatusFromDeliverables({
       dbId,
       milestoneId: milestone.id,
       cid: session?.cid || null,
@@ -291,7 +284,7 @@ export const PATCH = createHandler(async (req, { params }) => {
   if (access.error) return access.error;
   const { session } = access;
 
-  const allowed = await canDefineDeliverables(db, { id, cid: session?.cid, role: session?.role });
+  const allowed = await canDefineDeliverables({ id, cid: session?.cid, role: session?.role });
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: "Only the Venture's Lead Manager or a Super Admin can edit deliverables." },

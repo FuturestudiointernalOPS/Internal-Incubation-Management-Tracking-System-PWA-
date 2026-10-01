@@ -2,89 +2,63 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  ArrowLeft, Loader2, TrendingUp, Target, RefreshCw,
-  BookOpen, Briefcase, Shield, DollarSign, Rocket, Users, BarChart3, Lightbulb,
-} from "lucide-react";
+import { ArrowLeft, Loader2, TrendingUp, Rocket, Shield } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
+import { DEFAULT_VENTURE_DOCUMENT_TYPES } from "@/lib/ventureDocumentTypeDefaults";
 
 // Module scope on purpose: the hook keys its internal callback on these
 // functions, so inline arrows would give them a new identity on every render and
 // refetch in a loop.
 const pickVenture = (payload) => (payload?.success ? payload.venture : null);
-const pickInvestment = (payload) => (payload?.success ? payload : null);
+const pickVerification = (payload) => (payload?.success ? payload : null);
 const pickRoadmapReadiness = (payload) =>
   payload?.success && payload.roadmap_readiness ? payload.roadmap_readiness : null;
+const pickDocumentTypes = (payload) =>
+  payload?.success ? payload.document_types || [] : null;
 
-const CATEGORY_ICONS = {
-  startup_profile: Briefcase, legal: Shield, financial: DollarSign, product: Rocket,
-  traction: TrendingUp, market_validation: Target, business_model: BarChart3,
-  team: Users, technology: Rocket, pitch_readiness: BookOpen,
-};
-
-const CATEGORY_LABELS = {
-  startup_profile: "Startup Profile", legal: "Legal", financial: "Financial",
-  product: "Product", traction: "Traction", market_validation: "Market Validation",
-  business_model: "Business Model", team: "Team", technology: "Technology",
-  pitch_readiness: "Pitch Readiness",
+const ITEM_STATUS_CONFIG = {
+  pending: { label: "vadmin.verification.itemStatusPending", color: "text-slate-400 bg-slate-500/10" },
+  under_review: { label: "vadmin.verification.itemStatusUnderReview", color: "text-amber-400 bg-amber-500/10" },
+  verified: { label: "vadmin.verification.statusVerified", color: "text-emerald-400 bg-emerald-500/10" },
+  rejected: { label: "vadmin.verification.statusRejected", color: "text-rose-400 bg-rose-500/10" },
+  not_applicable: { label: "vadmin.verification.itemStatusNotApplicable", color: "text-slate-500 bg-slate-500/5" },
 };
 
 export default function VentureInvestmentPage() {
   const { id } = useParams();
   const router = useRouter();
   const { t } = useI18n();
-  const [evaluating, setEvaluating] = useState(false);
+  const [openingDataBank, setOpeningDataBank] = useState(false);
 
-  // Three reads, the venture identifier staying a plain dependency of each. Their
-  // loaders' work — cache-first paint, discarding a stale response, the
-  // background refresh — belongs to the hook, so the screen keeps no data state
-  // of its own and never sets state from an effect.
   const { data: venture, loading: ventureLoading } = useApi(
     `/api/ventures/${id}`,
     { transform: pickVenture, deps: [id] },
   );
-  const { data, loading: assessmentLoading, refresh } = useApi(
-    `/api/ventures/${id}/investment`,
-    { transform: pickInvestment, deps: [id] },
+  const { data: verificationData, loading: verificationLoading } = useApi(
+    `/api/ventures/${id}/verification`,
+    { transform: pickVerification, deps: [id] },
   );
-  // Roadmap-derived readiness (read-only, independent): the same live numbers
-  // the founder sees. Fail-soft — any error just leaves the derived block hidden,
-  // the recorded assessment below keeps working untouched.
-  const {
-    data: roadmap,
-    loading: roadmapLoading,
-    refresh: refreshRoadmap,
-  } = useApi(`/api/ventures/${id}/investment-readiness`, {
+  const { data: configuredDocumentTypes } = useApi(
+    `/api/ventures/${id}/document-types`,
+    { transform: pickDocumentTypes, deps: [id], defaultValue: null },
+  );
+  const { data: roadmap, loading: roadmapLoading } = useApi(`/api/ventures/${id}/investment-readiness`, {
     transform: pickRoadmapReadiness,
     deps: [id],
   });
-  const loading = ventureLoading || assessmentLoading;
 
-  const handleEvaluate = async () => {
-    setEvaluating(true);
-    try {
-      const response = await fetch(`/api/ventures/${id}/investment`, { method: "POST" });
-      const payload = await response.json();
-      if (payload.success) { refresh(); refreshRoadmap(); }
-    } catch {} finally { setEvaluating(false); }
-  };
+  const loading = ventureLoading || verificationLoading;
+
+  const documentTypes = Array.isArray(configuredDocumentTypes)
+    ? configuredDocumentTypes
+    : DEFAULT_VENTURE_DOCUMENT_TYPES;
 
   const progressBar = (pct, color) => (
     <div className="w-full bg-tertiary rounded-full h-2 overflow-hidden">
-      <div className={`h-full rounded-full transition-all ${color || "bg-[var(--brand-orange)]"}`} style={{ width: `${Math.min(pct||0, 100)}%` }} />
+      <div className={`h-full rounded-full transition-all ${color || "bg-[var(--brand-orange)]"}`} style={{ width: `${Math.min(pct || 0, 100)}%` }} />
     </div>
   );
-
-  if (loading) return (
-    <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
-  );
-
-  const level = data?.level || {};
-  const categories = data?.categories || [];
-  const recommendations = data?.recommendations || [];
-  const history = data?.history || [];
-  const overallScore = data?.assessment?.overall_score ?? data?.overall_score ?? 0;
 
   // Same mapping as the founder-facing RoadmapReadinessCard (GrowthTabs.js):
   // live components/counts straight from the readiness engine.
@@ -103,6 +77,26 @@ export default function VentureInvestmentPage() {
     { key: "deliverables", label: t("venture.manager.irDeliverables"), completed: rrCounts.deliverables?.approved ?? 0, total: rrCounts.deliverables?.reviewed ?? 0 },
   ];
 
+  const readiness = verificationData?.readiness;
+  const items = verificationData?.items || [];
+  const itemByCategory = new Map(items.map((item) => [item.category, item]));
+
+  const readinessState = () => {
+    if (!readiness) return null;
+    if (readiness.is_ready) return { label: t("vadmin.verification.ready"), cls: "text-emerald-400 bg-emerald-500/10" };
+    if (readiness.readiness_percent != null) {
+      return {
+        label: `${t("vadmin.verification.notReady")} · ${readiness.readiness_percent}%`,
+        cls: "text-rose-400 bg-rose-500/10",
+      };
+    }
+    return { label: t("vadmin.verification.readinessUndefined"), cls: "text-slate-400 bg-slate-500/10" };
+  };
+
+  if (loading) return (
+    <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
+  );
+
   return (
     <>
       <div className="space-y-8 pb-20">
@@ -111,23 +105,77 @@ export default function VentureInvestmentPage() {
           <div>
             <button onClick={() => router.push(`/admin/ventures/${id}`)}
               className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
-              <ArrowLeft className="w-3 h-3" /> Back to Dashboard
+              <ArrowLeft className="w-3 h-3" /> {t("vadmin.investment.backToDashboard")}
             </button>
             <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
-              <TrendingUp className="w-6 h-6 text-[var(--brand-orange)]" /> Investment Readiness
+              <TrendingUp className="w-6 h-6 text-[var(--brand-orange)]" /> {t("vadmin.investment.investmentReadiness")}
             </h1>
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">{venture?.company_name || ""}</p>
           </div>
-          <button onClick={handleEvaluate} disabled={evaluating}
+          <button onClick={() => { setOpeningDataBank(true); router.push(`/admin/ventures/${id}/verification`); }}
+            disabled={openingDataBank}
             className="px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30 flex items-center gap-2">
-            {evaluating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-            {evaluating ? "Evaluating..." : "Run Assessment"}
+            <Shield className="w-3.5 h-3.5" /> {t("vadmin.investment.openDataBank")}
           </button>
         </div>
 
-        {/* Roadmap readiness (derived) — the live numbers the Venture is
-            evaluated on. Rendered first, above the recorded assessment: if the
-            two disagree both are shown as-is, neither is reconciled. */}
+        {/* Document readiness (decision Q4): the acceptance % computed live from
+            the Venture's Data bank documents, replacing the old 10-category
+            recorded assessment. */}
+        <div className="card">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="min-w-0">
+              <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide flex items-center gap-2">
+                <Shield className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("vadmin.investment.documentReadiness")}
+              </h3>
+              <p className="text-[10px] text-[var(--text-secondary)] mt-1">{t("vadmin.investment.documentReadinessDesc")}</p>
+            </div>
+            {(() => { const state = readinessState(); return state ? (
+              <span className={`inline-flex items-center gap-1.5 shrink-0 text-[10px] font-bold uppercase px-2.5 py-1 rounded ${state.cls}`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-current" /> {state.label}
+              </span>
+            ) : null; })()}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="min-w-[140px]">
+              <p className="text-5xl font-black tracking-tighter text-[var(--brand-orange)]">
+                {readiness?.readiness_percent != null ? readiness.readiness_percent : "—"}
+                {readiness?.readiness_percent != null && <span className="text-lg font-bold text-[var(--text-tertiary)]">%</span>}
+              </p>
+              <p className="mt-1 text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wide">{t("vadmin.verification.ventureReadiness")}</p>
+            </div>
+            <div className="flex-1 min-w-[200px]">
+              {progressBar(readiness?.readiness_percent ?? 0, readiness?.is_ready ? "bg-emerald-500" : "bg-[var(--brand-orange)]")}
+              <div className="flex flex-wrap gap-2 mt-3">
+                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">✓ {readiness?.verified_count ?? 0}</span>
+                <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-1 rounded">✕ {readiness?.rejected_count ?? 0}</span>
+                <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-1 rounded">◷ {readiness?.pending_count ?? 0}</span>
+                <span className="text-[10px] font-bold text-slate-400 bg-slate-500/10 px-2 py-1 rounded">… {readiness?.missing_count ?? 0}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Per-document status detail */}
+          <div className="space-y-2 mt-5">
+            {documentTypes.map((documentType) => {
+              const item = itemByCategory.get(documentType.code);
+              const itemStatusConfig = ITEM_STATUS_CONFIG[item?.status] || ITEM_STATUS_CONFIG.pending;
+              return (
+                <div key={documentType.code} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                  <span className="text-[10px] font-bold text-[var(--text-primary)]">{documentType.label_en}</span>
+                  <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${itemStatusConfig.color}`}>
+                    {t(itemStatusConfig.label)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Roadmap readiness (derived) — the live pipeline numbers, kept from
+            the previous screen because it does not belong to the retired
+            10-category engine. */}
         {roadmap ? (
           <div className="card">
             <div className="flex items-start justify-between gap-4 mb-3">
@@ -172,142 +220,6 @@ export default function VentureInvestmentPage() {
             </p>
           </div>
         ) : null}
-
-        {/* Recorded assessment — the legacy manual evaluation, unchanged. */}
-        <div className="flex items-center gap-3">
-          <h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("vadmin.investment.recordedAssessment")}</h2>
-          <div className="flex-1 h-px bg-[var(--border-primary)]" />
-        </div>
-
-        {/* Score Card */}
-        <div className="card">
-          <div className="flex flex-col md:flex-row items-center gap-8">
-            <div className="text-center">
-              <div className={`w-32 h-32 rounded-full flex items-center justify-center text-4xl font-black border-4 ${
-                overallScore >= 75 ? "border-emerald-500 bg-emerald-500/10 text-emerald-400" :
-                overallScore >= 50 ? "border-amber-500 bg-amber-500/10 text-amber-400" :
-                overallScore >= 25 ? "border-[var(--brand-orange)] bg-brand-orange/10 text-[var(--brand-orange)]" :
-                "border-rose-500 bg-rose-500/10 text-rose-400"
-              }`}>
-                {overallScore}
-              </div>
-              <div className="mt-3">
-                <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${level.color || "text-slate-500 bg-slate-500/10"}`}>
-                  {level.label || "Not Ready"}
-                </span>
-              </div>
-            </div>
-            <div className="flex-1 space-y-4 w-full">
-              <h3 className="text-sm font-black text-[var(--text-primary)]">Investment Readiness Score</h3>
-              {progressBar(overallScore, overallScore >= 75 ? "bg-emerald-500" : overallScore >= 50 ? "bg-amber-500" : overallScore >= 25 ? "bg-[var(--brand-orange)]" : "bg-rose-500")}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center">
-                {[
-                  { min: 0, max: 25, label: "Not Ready", color: "text-rose-400" },
-                  { min: 26, max: 50, label: "Early Ready", color: "text-amber-400" },
-                  { min: 51, max: 75, label: "Investment Ready", color: "text-emerald-400" },
-                  { min: 76, max: 100, label: "Fundraising Ready", color: "text-[var(--brand-orange)]" },
-                ].map((level) => (
-                  <div key={level.label} className={`p-2 rounded-lg ${overallScore >= level.min && overallScore <= level.max ? "bg-brand-orange/10" : "bg-tertiary"}`}>
-                    <p className={`text-[10px] font-bold uppercase ${overallScore >= level.min && overallScore <= level.max ? level.color : "text-slate-500"}`}>{level.min}-{level.max}</p>
-                    <p className={`text-[10px] font-bold ${overallScore >= level.min && overallScore <= level.max ? level.color : "text-slate-500"}`}>{level.label}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Category Breakdown */}
-        <div className="card">
-          <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4">Category Breakdown</h3>
-          <div className="space-y-3">
-            {categories.length === 0 && <p className="text-sm text-[var(--text-secondary)] text-center py-4">Run an assessment to see category scores</p>}
-            {categories.map((category) => {
-              const Icon = CATEGORY_ICONS[category.category] || Target;
-              const score = category.score || 0;
-              return (
-                <div key={category.category} className="flex items-center gap-4 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                    score >= 75 ? "bg-emerald-500/10" : score >= 50 ? "bg-amber-500/10" : "bg-slate-500/10"
-                  }`}>
-                    <Icon className={`w-5 h-5 ${score >= 75 ? "text-emerald-400" : score >= 50 ? "text-amber-400" : "text-slate-400"}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] font-bold text-[var(--text-primary)]">{CATEGORY_LABELS[category.category] || category.category}</span>
-                      <span className="text-[11px] font-black">{score}</span>
-                    </div>
-                    {progressBar(score, score >= 75 ? "bg-emerald-500" : score >= 50 ? "bg-amber-500" : "bg-rose-500")}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Recommendations */}
-        <div className="card">
-          <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4 flex items-center gap-2">
-            <Lightbulb className="w-3.5 h-3.5 text-amber-400" /> Recommendations
-          </h3>
-          {recommendations.length === 0 ? (
-            <p className="text-sm text-[var(--text-secondary)] text-center py-4">No recommendations yet. Run an assessment to generate them.</p>
-          ) : (
-            <div className="space-y-3">
-              {recommendations.map((recommendation) => (
-                <div key={recommendation.id} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                          recommendation.priority === "high" ? "bg-rose-500/10 text-rose-400" :
-                          recommendation.priority === "medium" ? "bg-amber-500/10 text-amber-400" :
-                          "bg-slate-500/10 text-slate-400"
-                        }`}>{recommendation.priority}</span>
-                        <p className="text-[11px] font-bold text-[var(--text-primary)]">{recommendation.title}</p>
-                      </div>
-                      <p className="text-[10px] text-[var(--text-secondary)] mt-1">{recommendation.description}</p>
-                      <div className="flex items-center gap-3 mt-2 text-[10px] text-[var(--text-secondary)]">
-                        <span>⏱ {recommendation.estimated_effort || "2-4 weeks"}</span>
-                        <span>Impact: <span className={recommendation.expected_impact === "high" ? "text-emerald-400" : recommendation.expected_impact === "medium" ? "text-amber-400" : "text-slate-400"}>{recommendation.expected_impact}</span></span>
-                        {recommendation.resource_id && <span className="text-[var(--brand-orange)]">📚 Resource available</span>}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* History Timeline */}
-        {history.length > 0 && (
-          <div className="card">
-            <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4">Score History</h3>
-            <div className="space-y-2">
-              {history.map((entry, index) => (
-                <div key={entry.id || index} className="flex items-center gap-4 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                    entry.new_score >= (entry.previous_score || 0) ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
-                  }`}>
-                    <TrendingUp className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold text-[var(--text-primary)]">{entry.new_score}</span>
-                      <span className="text-[10px] text-[var(--text-secondary)]">(was {entry.previous_score})</span>
-                      <span className="text-[10px] text-[var(--text-secondary)] capitalize">{entry.new_level?.replace(/_/g, " ")}</span>
-                    </div>
-                    <p className="text-[10px] text-[var(--text-secondary)]">{new Date(entry.created_at).toLocaleString()}</p>
-                  </div>
-                  <span className={`text-[10px] font-bold ${entry.new_score >= (entry.previous_score || 0) ? "text-emerald-400" : "text-rose-400"}`}>
-                    {entry.previous_score ? `${entry.new_score - entry.previous_score > 0 ? "+" : ""}${entry.new_score - (entry.previous_score || 0)}` : "—"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </>
   );

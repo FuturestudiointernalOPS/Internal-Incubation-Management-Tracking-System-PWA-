@@ -1,23 +1,17 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { logAuditEvent } from "@/lib/audit";
 import { requireAuth, getSession } from "@/lib/auth";
-import { getTaskTitleById } from "@/lib/db/queries/tasks";
-import { completeCarryoverAncestors } from "@/lib/taskCarryover";
-import {
-  getTaskAccessForReconcile,
-  updateTaskReconciledStatus,
-} from "@/models/taskLifecycle";
+import { reconcileTasks } from "@/services/tasks/reconcile";
 
 /**
- * POST /api/tasks/reconcile
+ * TASK RECONCILE API — controller layer.
  *
- * Batch reconcile tasks during retro submission.
+ * POST /api/tasks/reconcile
  * Body: { user_id, user_name, tasks: [{ id, status, force_complete }] }
  *
- * Status options: 'completed', 'carried_over', 'in_progress' (for partially completed)
- *
- * Uses same-task-record persist rule — no duplicates created.
+ * Status options: 'completed', 'carried_over', 'in_progress'.
+ * The per-task rules (own-scope, allowed statuses, ancestor completion, audit)
+ * live in `@/services/tasks/reconcile`.
  */
 export async function POST(req) {
   try {
@@ -40,93 +34,22 @@ export async function POST(req) {
         { status: 401 },
       );
     }
-    const staffSide = [
-      "super_admin",
-      "staff",
-      "program_manager",
-    ];
-    if (
-      !staffSide.includes(session.role) &&
-      String(user_id) !== String(session.cid)
-    ) {
+
+    const result = await reconcileTasks({
+      userId: user_id,
+      userName: user_name,
+      tasks,
+      role: session.role,
+      sessionCid: session.cid,
+    });
+
+    if (result.error) {
       return NextResponse.json(
-        { success: false, error: "You can only reconcile your own tasks." },
-        { status: 403 },
+        result.body || { success: false, error: result.error },
+        { status: result.status },
       );
     }
-
-    const results = [];
-
-    for (const task of tasks) {
-      const { id, status, force_complete } = task;
-
-      if (!id || !status) {
-        results.push({ id, success: false, error: "id and status required" });
-        continue;
-      }
-
-      if (!["completed", "carried_over", "in_progress"].includes(status)) {
-        results.push({
-          id,
-          success: false,
-          error: `Invalid status: ${status}`,
-        });
-        continue;
-      }
-
-      // Non-staff-side users may only reconcile their own tasks
-      if (!staffSide.includes(session.role)) {
-        const taskResult = await getTaskAccessForReconcile(id);
-        const task = taskResult.rows[0];
-        if (
-          !task ||
-          (String(task.user_id) !== String(session.cid) &&
-            String(task.assigned_to || "") !== String(session.cid) &&
-            String(task.supervisor_id || "") !== String(session.cid))
-        ) {
-          results.push({ id, success: false, error: "Not your task" });
-          continue;
-        }
-      }
-
-      try {
-        const updateBody = { id, user_id, user_name, status };
-        if (force_complete) updateBody.force_complete = true;
-
-        // Fetch current task name for audit
-        const taskTitle = (await getTaskTitleById(id)) || `Task #${id}`;
-
-        // Update via the existing PUT logic by calling through DB directly
-        await updateTaskReconciledStatus(status, id);
-
-        // Completing a cloned task must also complete its carried-over ancestors
-        if (status === "completed") {
-          await completeCarryoverAncestors(id);
-        }
-
-        // Audit log
-        await logAuditEvent({
-          entity_type: "task",
-          entity_id: parseInt(id),
-          user_id,
-          user_name: user_name || "",
-          action:
-            status === "completed"
-              ? "completed"
-              : status === "carried_over"
-                ? "carried_over"
-                : "updated",
-          details: `Task "${taskTitle}" reconciled as ${status}`,
-          metadata: { status },
-        });
-
-        results.push({ id, success: true, status });
-      } catch (error) {
-        results.push({ id, success: false, error: error.message });
-      }
-    }
-
-    return NextResponse.json({ success: true, results });
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error("POST reconcile error:", error);
     return NextResponse.json(

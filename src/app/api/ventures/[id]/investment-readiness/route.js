@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { computeRoadmapReadiness } from "@/lib/ventureReadiness";
@@ -82,7 +82,7 @@ export async function GET(req, { params }) {
     // Roadmap-derived readiness (Vinance 3 — Phase 3): computed live over the
     // whole defined Venture progression. Additive cutover — legacy keys above
     // stay untouched so current consumers keep working unchanged.
-    const roadmap = await computeRoadmapReadiness(db, { dbId, code: id });
+    const roadmap = await computeRoadmapReadiness({ dbId, code: id });
 
     return NextResponse.json({
       success: true,

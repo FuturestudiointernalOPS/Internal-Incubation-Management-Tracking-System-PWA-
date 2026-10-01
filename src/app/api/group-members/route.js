@@ -1,7 +1,23 @@
-import { supabase } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireProgramScope } from "@/lib/programScopedAccess";
+import {
+  resolveGroupProgram,
+  isParticipantInProgram,
+  addMemberToGroup,
+  listGroupMembersWithParticipants,
+} from "@/services/contacts/groupMembers";
+
+/**
+ * /api/group-members — v2 team (group) membership.
+ *
+ * POST   /api/group-members   { group_id, participant_id }  add a member
+ * GET    /api/group-members?group_id=                       list members
+ *
+ * The decisions live in `@/services/contacts/groupMembers` (the group's program,
+ * the one-team-per-program rule); this route authenticates, resolves the record
+ * scope, validates and shapes the HTTP answer.
+ */
 
 export async function POST(req) {
   try {
@@ -17,35 +33,19 @@ export async function POST(req) {
       );
     }
 
-    // Check if participant is already in a group for this program
-    // We'd need to fetch the group's program_id first
-    const { data: groupData } = await supabase
-      .from("v2_groups")
-      .select("program_id")
-      .eq("id", group_id)
-      .single();
-
-    if (!groupData) {
+    // Record scope: a membership write belongs to the group's program, so the
+    // caller must be staffed there. The group's program is resolved first.
+    const programId = await resolveGroupProgram(group_id);
+    if (programId === null || programId === undefined) {
       return NextResponse.json(
         { success: false, error: "errors.notFound" },
         { status: 404 },
       );
     }
-
-    // Record scope: a membership write belongs to the group's program, so the
-    // caller must be staffed there. The group's program was just resolved.
-    const scopeError = await requireProgramScope({ programId: groupData.program_id, wave: "groups" });
+    const scopeError = await requireProgramScope({ programId, wave: "groups" });
     if (scopeError) return scopeError;
 
-    const { data: existing } = await supabase
-      .from("v2_group_members")
-      .select("id, v2_groups(program_id)")
-      .eq("participant_id", participant_id);
-
-    const alreadyInProgram = existing?.some(
-      (member) => member.v2_groups.program_id === groupData.program_id,
-    );
-    if (alreadyInProgram) {
+    if (await isParticipantInProgram(participant_id, programId)) {
       return NextResponse.json(
         {
           success: false,
@@ -55,19 +55,12 @@ export async function POST(req) {
       );
     }
 
-    const { data, error } = await supabase
-      .from("v2_group_members")
-      .insert([{ group_id, participant_id }])
-      .select();
+    const membership = await addMemberToGroup({
+      groupId: group_id,
+      participantId: participant_id,
+    });
 
-    if (error) {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 500 },
-      );
-    }
-
-    return NextResponse.json({ success: true, membership: data[0] });
+    return NextResponse.json({ success: true, membership });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },
@@ -92,21 +85,8 @@ export async function GET(req) {
       );
     }
 
-    const query = supabase
-      .from("v2_group_members")
-      .select("*, v2_participants(*)")
-      .eq("group_id", group_id);
-
-    const { data, error } = await query;
-
-    if (error) {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 500 },
-      );
-    }
-
-    return NextResponse.json({ success: true, members: data });
+    const members = await listGroupMembersWithParticipants(group_id);
+    return NextResponse.json({ success: true, members });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },

@@ -23,7 +23,7 @@ const { zipSync, strToU8 } = require("fflate");
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
 const REPORT_FILE_ROUTE = "src/app/api/platform/form-runs/report-file/route.js";
-const FORM_RUNS = "src/app/api/platform/form-runs/route.js";
+const FORM_RUNS_DETAIL_SERVICE = "src/services/platform/formRuns.js";
 const RUNS_PAGE = "src/app/platform/runs/page.js";
 
 // ─── Fake database: the report store + the run-document table ────────────────
@@ -541,13 +541,17 @@ describe("the run screens and the builder are wired to the document", () => {
     const src = read(REPORT_FILE_ROUTE);
     expect((src.match(/requireAuthorization\("runs", "edit"\)/g) || []).length).toBe(2); // POST + DELETE
     expect(src).toContain('requireAuthorization("runs", "view")');
-    // The path is never handed to a browser.
-    expect(src).not.toMatch(/storage_path:\s*row\.storage_path/);
-    expect(src).toContain("signRunReportFilePath");
+    // The path is never handed to a browser — the signed link is minted in the
+    // service (docs/LAYER_SPLIT.md), which is where the check now lives.
+    const service = read("src/services/platform/reportFiles.js");
+    expect(service).not.toMatch(/storage_path:\s*row\.storage_path/);
+    expect(service).toContain("signRunReportFilePath");
   });
 
   test("the report builder takes the document's text as the reference", () => {
-    const src = read(FORM_RUNS);
+    // The report builder (and the Run-detail wiring it rides on) lives in the
+    // platform service after the controller-frontier split.
+    const src = read(FORM_RUNS_DETAIL_SERVICE);
     expect(src).toContain("getRunReportFileTextByRunId");
     expect(src).toContain("reference: referenceText");
     expect(src).toContain("referenceName:");

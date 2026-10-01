@@ -5,17 +5,32 @@
  *   1. milestone ordering (display_order normalization + up/down swap)
  *   2. milestone STRUCTURE authority (Lead Manager / Super Admin only)
  *
- * Pure functions with injected db doubles — no module mocking needed.
+ * Ordering now reaches a store that owns its db, so its table double is the
+ * module mock; the engine tests below keep injecting their own doubles.
  */
+jest.mock("@/lib/db", () => {
+  const state = { handler: async () => ({ rows: [] }), calls: [] };
+  return {
+    __esModule: true,
+    default: {
+      execute: jest.fn(async ({ sql, args = [] }) => state.handler(sql, args)),
+      transaction: jest.fn(async (runInTransaction) => runInTransaction((sql, args = []) => state.handler(sql, args))),
+    },
+    initDb: jest.fn().mockResolvedValue(true),
+    __state: state,
+  };
+});
+
+const { __state: mockState } = require("@/lib/db");
 const { moveStageMilestone, listStageMilestones } = require("@/lib/ventureMilestoneOrder");
 const { canManageMilestones, releaseMilestonesForStage, completeStageIfAllMilestonesDone } = require("@/lib/ventureMilestoneEngine");
 
-/** db double with an in-memory venture_milestones table. */
+/** Install an in-memory venture_milestones table into the db double. */
 function fakeDb(rows) {
   const state = rows.map((row) => ({ ...row }));
-  const calls = [];
-  const handler = async (sql, args = []) => {
-    calls.push({ sql, args });
+  mockState.calls.length = 0;
+  mockState.handler = async (sql, args = []) => {
+    mockState.calls.push({ sql, args });
     if (sql.includes("SELECT id, display_order FROM venture_milestones")) {
       return {
         rows: [...state].sort(
@@ -36,12 +51,7 @@ function fakeDb(rows) {
     }
     return { rows: [] };
   };
-  return {
-    state,
-    calls,
-    execute: async ({ sql, args = [] }) => handler(sql, args),
-    transaction: async (runInTransaction) => runInTransaction((sql, args = []) => handler(sql, args)),
-  };
+  return { state };
 }
 
 const orderOf = (db) => {
@@ -58,7 +68,7 @@ describe("milestone ordering inside a journey", () => {
       { id: "m2", display_order: 2, created_at: "2026-01-02" },
       { id: "m3", display_order: 3, created_at: "2026-01-03" },
     ]);
-    const res = await moveStageMilestone(db, { dbId: "v1", stageId: "s1", milestoneId: "m3", direction: "up" });
+    const res = await moveStageMilestone({ dbId: "v1", stageId: "s1", milestoneId: "m3", direction: "up" });
     expect(res.success).toBe(true);
     expect(orderOf(db)).toEqual(["m1", "m3", "m2"]);
   });
@@ -68,7 +78,7 @@ describe("milestone ordering inside a journey", () => {
       { id: "m1", display_order: 1, created_at: "2026-01-01" },
       { id: "m2", display_order: 2, created_at: "2026-01-02" },
     ]);
-    const res = await moveStageMilestone(db, { dbId: "v1", stageId: "s1", milestoneId: "m1", direction: "down" });
+    const res = await moveStageMilestone({ dbId: "v1", stageId: "s1", milestoneId: "m1", direction: "down" });
     expect(res.success).toBe(true);
     expect(orderOf(db)).toEqual(["m2", "m1"]);
   });
@@ -78,7 +88,7 @@ describe("milestone ordering inside a journey", () => {
       { id: "m1", display_order: null, created_at: "2026-01-01" },
       { id: "m2", display_order: null, created_at: "2026-01-02" },
     ]);
-    const res = await moveStageMilestone(db, { dbId: "v1", stageId: "s1", milestoneId: "m2", direction: "up" });
+    const res = await moveStageMilestone({ dbId: "v1", stageId: "s1", milestoneId: "m2", direction: "up" });
     expect(res.success).toBe(true);
     expect(orderOf(db)).toEqual(["m2", "m1"]);
     expect(db.state.find((row) => row.id === "m2").display_order).toBe(1);
@@ -89,20 +99,20 @@ describe("milestone ordering inside a journey", () => {
       { id: "m1", display_order: 1, created_at: "2026-01-01" },
       { id: "m2", display_order: 2, created_at: "2026-01-02" },
     ]);
-    const res = await moveStageMilestone(db, { dbId: "v1", stageId: "s1", milestoneId: "m1", direction: "up" });
+    const res = await moveStageMilestone({ dbId: "v1", stageId: "s1", milestoneId: "m1", direction: "up" });
     expect(res.error).toBe("Already at the edge.");
     expect(orderOf(db)).toEqual(["m1", "m2"]);
   });
 
   test("reports an unknown milestone", async () => {
-    const db = fakeDb([{ id: "m1", display_order: 1, created_at: "2026-01-01" }]);
-    const res = await moveStageMilestone(db, { dbId: "v1", stageId: "s1", milestoneId: "nope", direction: "up" });
+    fakeDb([{ id: "m1", display_order: 1, created_at: "2026-01-01" }]);
+    const res = await moveStageMilestone({ dbId: "v1", stageId: "s1", milestoneId: "nope", direction: "up" });
     expect(res.error).toBe("Milestone not found in this journey.");
   });
 
   test("listStageMilestones returns an empty list when the read fails", async () => {
-    const db = { execute: async () => { throw new Error("missing column"); } };
-    expect(await listStageMilestones(db, { dbId: "v1", stageId: "s1" })).toEqual([]);
+    mockState.handler = async () => { throw new Error("missing column"); };
+    expect(await listStageMilestones({ dbId: "v1", stageId: "s1" })).toEqual([]);
   });
 });
 
@@ -113,14 +123,13 @@ describe("milestone structure authority (matrix `milestones.edit` / Super Admin 
   // truth — a Lead Manager holds `milestones.edit`, a Coach does not.
   const MATRIX = { lead_manager: true, coach: false };
 
-  function authDb({
+  function authHandler({
     codeRow = { id: "db-1", venture_id: "VNT-1" },
     responsibility = null,
     scope = "venture_wide",
     failCode = false,
   } = {}) {
-    return {
-      execute: async ({ sql, args }) => {
+    return async (sql, args) => {
         if (sql.includes("FROM ventures WHERE venture_id = ? OR id::text = ?")) {
           if (failCode) throw new Error("no ventures table");
           return { rows: codeRow ? [codeRow] : [] };
@@ -141,17 +150,22 @@ describe("milestone structure authority (matrix `milestones.edit` / Super Admin 
           return { rows: [{ allowed: MATRIX[args?.[0]] ? 1 : 0 }] };
         }
         return { rows: [] };
-      },
     };
   }
 
+  /** Install the permission tables and run the authority check against them. */
+  const canManage = async (options, args) => {
+    mockState.handler = authHandler(options);
+    return canManageMilestones(args);
+  };
+
   test("super_admin always may manage milestones", async () => {
-    expect(await canManageMilestones(authDb(), { id: "VNT-1", cid: "u1", role: "super_admin" })).toBe(true);
+    expect(await canManage(undefined, { id: "VNT-1", cid: "u1", role: "super_admin" })).toBe(true);
   });
 
   test("an assigned Lead Manager may manage milestones", async () => {
     expect(
-      await canManageMilestones(authDb({ responsibility: "lead_manager" }), {
+      await canManage({ responsibility: "lead_manager" }, {
         id: "VNT-1",
         cid: "lm-1",
         role: "staff",
@@ -165,7 +179,7 @@ describe("milestone structure authority (matrix `milestones.edit` / Super Admin 
     // coach holds a genuine assignment, so the old check's shape was right for a
     // lead manager and wrong here.
     expect(
-      await canManageMilestones(authDb({ responsibility: "coach" }), {
+      await canManage({ responsibility: "coach" }, {
         id: "VNT-1",
         cid: "coach-1",
         role: "staff",
@@ -177,7 +191,7 @@ describe("milestone structure authority (matrix `milestones.edit` / Super Admin 
     // The cell is venture-wide: scope narrows where you work, not whether you
     // may rewrite the plan.
     expect(
-      await canManageMilestones(authDb({ responsibility: "lead_manager", scope: "milestone" }), {
+      await canManage({ responsibility: "lead_manager", scope: "milestone" }, {
         id: "VNT-1",
         cid: "lm-2",
         role: "staff",
@@ -187,7 +201,7 @@ describe("milestone structure authority (matrix `milestones.edit` / Super Admin 
 
   test("staff with no assignment at all may not", async () => {
     expect(
-      await canManageMilestones(authDb({ responsibility: null }), {
+      await canManage({ responsibility: null }, {
         id: "VNT-1",
         cid: "nobody",
         role: "staff",
@@ -196,11 +210,11 @@ describe("milestone structure authority (matrix `milestones.edit` / Super Admin 
   });
 
   test("members (no cid) may not", async () => {
-    expect(await canManageMilestones(authDb(), { id: "VNT-1", cid: null, role: "member" })).toBe(false);
+    expect(await canManage(undefined, { id: "VNT-1", cid: null, role: "member" })).toBe(false);
   });
 
   test("an unresolvable venture is denied (fails closed)", async () => {
-    expect(await canManageMilestones(authDb({ failCode: true }), { id: "VNT-9", cid: "lm-1", role: "staff" })).toBe(false);
+    expect(await canManage({ failCode: true }, { id: "VNT-9", cid: "lm-1", role: "staff" })).toBe(false);
   });
 });
 
@@ -221,7 +235,8 @@ describe("release — an active journey offers every milestone", () => {
       }
       return { rows: [] };
     };
-    return { state, execute: async ({ sql, args = [] }) => handler(sql, args) };
+    mockState.handler = (sql, args = []) => handler(sql, args);
+    return { state };
   }
 
   test("releases every held milestone when the journey is active", async () => {
@@ -231,7 +246,7 @@ describe("release — an active journey offers every milestone", () => {
         { id: "m2", status: "upcoming", display_order: 2 },
       ],
     });
-    const out = await releaseMilestonesForStage(db, { dbId: "v1", stageId: "s1" });
+    const out = await releaseMilestonesForStage({ dbId: "v1", stageId: "s1" });
     expect(out.released_milestone_ids).toEqual(["m1", "m2"]);
     expect(db.state.map((milestone) => milestone.status)).toEqual(["not_started", "not_started"]);
   });
@@ -243,7 +258,7 @@ describe("release — an active journey offers every milestone", () => {
         { id: "m2", status: "upcoming", display_order: 2 },
       ],
     });
-    const out = await releaseMilestonesForStage(db, { dbId: "v1", stageId: "s1" });
+    const out = await releaseMilestonesForStage({ dbId: "v1", stageId: "s1" });
     expect(out.released_milestone_ids).toEqual(["m2"]);
     expect(db.state[0].status).toBe("in_progress");
     expect(db.state[1].status).toBe("not_started");
@@ -257,7 +272,7 @@ describe("release — an active journey offers every milestone", () => {
       ],
       blockedIds: ["m2"],
     });
-    const out = await releaseMilestonesForStage(db, { dbId: "v1", stageId: "s1" });
+    const out = await releaseMilestonesForStage({ dbId: "v1", stageId: "s1" });
     expect(out.released_milestone_ids).toEqual([]);
     expect(db.state[0].status).toBe("completed");
     expect(db.state[1].status).toBe("blocked");
@@ -270,27 +285,27 @@ describe("release — an active journey offers every milestone", () => {
         { id: "m2", status: "upcoming", display_order: 2 },
       ],
     });
-    const out = await releaseMilestonesForStage(db, { dbId: "v1", stageId: "s1" });
+    const out = await releaseMilestonesForStage({ dbId: "v1", stageId: "s1" });
     expect(out.released_milestone_ids).toEqual(["m2"]);
     expect(db.state[0].status).toBe("completed");
   });
 
   test("does nothing while the journey is not active", async () => {
     const db = releaseDb({ stageStatus: "upcoming", milestones: [{ id: "m1", status: "upcoming", display_order: 1 }] });
-    const out = await releaseMilestonesForStage(db, { dbId: "v1", stageId: "s1" });
+    const out = await releaseMilestonesForStage({ dbId: "v1", stageId: "s1" });
     expect(out.released_milestone_ids).toEqual([]);
     expect(db.state[0].status).toBe("upcoming");
   });
 
   test("does nothing when the journey cannot be resolved", async () => {
-    const db = releaseDb({ stageMissing: true, milestones: [{ id: "m1", status: "upcoming", display_order: 1 }] });
-    const out = await releaseMilestonesForStage(db, { dbId: "v1", stageId: "s1" });
+    releaseDb({ stageMissing: true, milestones: [{ id: "m1", status: "upcoming", display_order: 1 }] });
+    const out = await releaseMilestonesForStage({ dbId: "v1", stageId: "s1" });
     expect(out.released_milestone_ids).toEqual([]);
   });
 
   test("does nothing when the journey has no milestones", async () => {
-    const db = releaseDb();
-    const out = await releaseMilestonesForStage(db, { dbId: "v1", stageId: "s1" });
+    releaseDb();
+    const out = await releaseMilestonesForStage({ dbId: "v1", stageId: "s1" });
     expect(out.released_milestone_ids).toEqual([]);
   });
 });
@@ -322,7 +337,8 @@ describe("a journey closes ONLY when every milestone is completed", () => {
       }
       return { rows: [] };
     };
-    return { stages: stageRows, milestones: milestoneRows, execute: async ({ sql, args = [] }) => handler(sql, args) };
+    mockState.handler = (sql, args = []) => handler(sql, args);
+    return { stages: stageRows, milestones: milestoneRows };
   }
 
   test("closes the journey — and starts nothing else (Journeys activate on their own dates)", async () => {
@@ -337,7 +353,7 @@ describe("a journey closes ONLY when every milestone is completed", () => {
         { id: "m3", status: "upcoming", journey_stage_id: "s2", display_order: 1 },
       ],
     });
-    const out = await completeStageIfAllMilestonesDone(db, { dbId: "v1", stageId: "s1", cid: "lm-1" });
+    const out = await completeStageIfAllMilestonesDone({ dbId: "v1", stageId: "s1", cid: "lm-1" });
     expect(out.completed).toBe(true);
     expect(out.next_stage_id).toBeUndefined();
     expect(db.stages.find((stage) => stage.id === "s1").status).toBe("completed");
@@ -354,24 +370,24 @@ describe("a journey closes ONLY when every milestone is completed", () => {
         { id: "m2", status: "in_progress", journey_stage_id: "s1", display_order: 2 },
       ],
     });
-    const out = await completeStageIfAllMilestonesDone(db, { dbId: "v1", stageId: "s1" });
+    const out = await completeStageIfAllMilestonesDone({ dbId: "v1", stageId: "s1" });
     expect(out.completed).toBe(false);
     expect(db.stages[0].status).toBe("active");
   });
 
   test("a journey with no milestones never closes (nothing to close on)", async () => {
     const db = stageDb({ stages: [{ id: "s1", name: "A", status: "active", stage_order: 1 }], milestones: [] });
-    const out = await completeStageIfAllMilestonesDone(db, { dbId: "v1", stageId: "s1" });
+    const out = await completeStageIfAllMilestonesDone({ dbId: "v1", stageId: "s1" });
     expect(out.completed).toBe(false);
     expect(db.stages[0].status).toBe("active");
   });
 
   test("only an active journey can close", async () => {
-    const db = stageDb({
+    stageDb({
       stages: [{ id: "s1", name: "A", status: "upcoming", stage_order: 1 }],
       milestones: [{ id: "m1", status: "completed", journey_stage_id: "s1", display_order: 1 }],
     });
-    const out = await completeStageIfAllMilestonesDone(db, { dbId: "v1", stageId: "s1" });
+    const out = await completeStageIfAllMilestonesDone({ dbId: "v1", stageId: "s1" });
     expect(out.completed).toBe(false);
   });
 });

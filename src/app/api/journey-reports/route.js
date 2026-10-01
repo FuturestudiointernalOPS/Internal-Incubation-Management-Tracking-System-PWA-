@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { listPortfolioReports, listPortfolioMissingClosingReports } from "@/lib/ventureReports";
 
@@ -31,8 +31,8 @@ export async function GET(req) {
 
     const status = new URL(req.url).searchParams.get("status") || null;
     const [reports, missing] = await Promise.all([
-      listPortfolioReports(db, { status }),
-      listPortfolioMissingClosingReports(db),
+      listPortfolioReports({ status }),
+      listPortfolioMissingClosingReports(),
     ]);
 
     return NextResponse.json({ success: true, reports, journeys_missing_report: missing });

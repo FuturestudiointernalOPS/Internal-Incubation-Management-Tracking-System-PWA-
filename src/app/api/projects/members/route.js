@@ -3,20 +3,21 @@ import { NextResponse } from "next/server";
 import { requireAuth, getSession, requireProjectAccess } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import {
-  getProjectMembersWithNames,
-  getProjectName,
-  declinePendingProjectInvitation,
-  createProjectInvitation,
-  createProjectInvitationNotification,
-  deleteProjectMember,
-} from "@/models/projectCollaboration";
+  listProjectMembers,
+  inviteProjectMember,
+  removeProjectMember,
+} from "@/services/projects/collaboration";
+import { seesWholeProjectPortfolio } from "@/services/projects/workspace";
 
 /**
- * PROJECT MEMBERS API
+ * PROJECT MEMBERS API — controller layer.
  *
  * GET    /api/projects/members?project_id=X
  * POST   /api/projects/members  { project_id, user_cid, role }
  * DELETE /api/projects/members?project_id=X&user_cid=Y
+ *
+ * Auth, validation and response shaping only; the invite sequence and the
+ * membership changes live in `@/services/projects/collaboration`.
  */
 
 export async function GET(req) {
@@ -35,20 +36,13 @@ export async function GET(req) {
     }
 
     const session = await getSession();
-    const staffSide = [
-      "super_admin",
-      "staff",
-      "program_manager",
-    ];
-    if (!staffSide.includes(session.role)) {
-      const authError = await requireProjectAccess(projectId);
-      if (authError) return authError;
+    if (!seesWholeProjectPortfolio(session.role)) {
+      const accessError = await requireProjectAccess(projectId);
+      if (accessError) return accessError;
     }
 
-    // Get members with names from contacts
-    const result = await getProjectMembersWithNames(projectId);
-
-    return NextResponse.json({ success: true, members: result.rows });
+    const result = await listProjectMembers(projectId);
+    return NextResponse.json({ success: true, members: result.members });
   } catch (error) {
     console.error("GET project members error:", error);
     return NextResponse.json(
@@ -72,41 +66,22 @@ export async function POST(req) {
       );
     }
 
-    // Get session for inviter info
-    const session = await getSession();
-    const inviterName = session?.name || "Unknown";
-
     // Object-level authorization: `projects.edit` alone is a global capability.
     // A non-staff holder may only invite into a project they own or belong to.
-    if (!["super_admin", "staff", "program_manager"].includes(session?.role)) {
+    const session = await getSession();
+    if (!seesWholeProjectPortfolio(session?.role)) {
       const accessError = await requireProjectAccess(project_id);
       if (accessError) return accessError;
     }
 
-    // Get project name
-    const projectResult = await getProjectName(project_id);
-    const projectName = projectResult.rows[0]?.name || "Unknown Project";
-
-    // Cancel any existing pending invitation for this project+user
-    await declinePendingProjectInvitation(project_id, user_cid);
-
-    // Create invitation
-    await createProjectInvitation(
-      project_id,
-      inviterName,
-      user_cid,
+    const result = await inviteProjectMember({
+      projectId: project_id,
+      userCid: user_cid,
       role,
-    );
+      inviterName: session?.name || "Unknown",
+    });
 
-    // Notify invitee
-    await createProjectInvitationNotification(
-      user_cid,
-      "Project Invitation",
-      `${inviterName} invited you to join "${projectName}"`,
-      "project_invite",
-    );
-
-    return NextResponse.json({ success: true, action: "invited" });
+    return NextResponse.json({ success: true, action: result.action });
   } catch (error) {
     console.error("POST project members error:", error);
     return NextResponse.json(
@@ -135,14 +110,13 @@ export async function DELETE(req) {
     // Object-level authorization: only a member/owner of the project (or staff)
     // may remove a member — otherwise `projects.edit` removes anyone anywhere.
     const session = await getSession();
-    if (!["super_admin", "staff", "program_manager"].includes(session?.role)) {
+    if (!seesWholeProjectPortfolio(session?.role)) {
       const accessError = await requireProjectAccess(projectId);
       if (accessError) return accessError;
     }
 
-    await deleteProjectMember(projectId, userCid);
-
-    return NextResponse.json({ success: true, action: "removed" });
+    const result = await removeProjectMember(projectId, userCid);
+    return NextResponse.json({ success: true, action: result.action });
   } catch (error) {
     console.error("DELETE project members error:", error);
     return NextResponse.json(

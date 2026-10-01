@@ -1,6 +1,5 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { sendStandaloneEmail } from "@/lib/email";
 import {
   requireAuth,
   getSession,
@@ -13,25 +12,12 @@ import {
   authorize,
 } from "@/lib/authorization";
 import { requireProgramScope } from "@/lib/programScopedAccess";
-import { stripTeamCredentials, generateTeamUsername, generateTeamPassword } from "@/lib/teamCredentials";
+import { deleteTeam, getTeamById } from "@/models/teams";
 import {
-  createTeam,
-  deleteTeam,
-  getNewTeamContactMembers,
-  getNewTeamParticipantMembers,
-  getTeamById,
-  getTeamContactMembers,
-  getTeamParticipantMembers,
-  getTeams,
-  linkContactsToNewTeam,
-  linkContactsToTeam,
-  linkParticipantsToNewTeam,
-  linkParticipantsToTeam,
-  removeContactFromTeam,
-  removeParticipantFromTeam,
-  setTeamVentureReady,
-  updateTeamHandler,
-} from "@/models/teams";
+  applyTeamPatch,
+  createTeamWithMembers,
+  listProgramTeams,
+} from "@/services/programs/teams";
 
 export async function GET(req) {
   try {
@@ -64,14 +50,10 @@ export async function GET(req) {
       if (guardError) return guardError;
     }
 
-    const result = await getTeams(programId);
-
     // Shared team credentials are management data: only management roles receive
     // them. A delegated reader gets the roster without username/password.
     const canSeeCredentials = hasProgramManagementAccess(session?.role);
-    const teams = canSeeCredentials
-      ? result.rows
-      : (result.rows || []).map(stripTeamCredentials);
+    const teams = await listProgramTeams({ programId, canSeeCredentials });
 
     return NextResponse.json({ success: true, teams });
   } catch (error) {
@@ -87,17 +69,8 @@ export async function POST(req) {
     await initDb();
     const capError = await requireAuthorization("programs", "edit");
     if (capError) return capError;
-    const data = await req.json();
-    const {
-      program_id,
-      name,
-      handler_id,
-      handler_name,
-      member_ids,
-      group_name,
-      leader_id,
-      is_management_group,
-    } = data;
+    const payload = await req.json();
+    const { program_id, name } = payload;
 
     if (!program_id || !name) {
       return NextResponse.json(
@@ -111,94 +84,13 @@ export async function POST(req) {
     const scopeError = await requireProgramScope({ programId: program_id, wave: "groups" });
     if (scopeError) return scopeError;
 
-    // Generate Team Username and Password from a cryptographic source (SECRET-3).
-    const generatedUsername = generateTeamUsername(name);
-    const generatedPassword = generateTeamPassword();
-    const teamId = crypto.randomUUID(); // Use built-in crypto for UUID
+    const { team, linkingWarning } = await createTeamWithMembers({ payload });
 
-    // 1. Create Team Record (name = sub-team, group_name = parent group, approved by default)
-    const result = await createTeam({
-      id: teamId,
-      program_id,
-      name,
-      handler_id,
-      handler_name,
-      password: generatedPassword,
-      team_username: generatedUsername,
-      group_name,
-      leader_id,
+    return NextResponse.json({
+      success: true,
+      team,
+      ...(linkingWarning ? { warning: linkingWarning } : {}),
     });
-
-    const team = result.rows[0];
-
-    // 2. Link Members to Team
-    let linkingWarning = null;
-    if (member_ids && Array.isArray(member_ids) && member_ids.length > 0) {
-      try {
-        // Classify IDs: UUID pattern for v2_participants, everything else for contacts
-        const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        const uuidIds = member_ids.filter((id) => id && UUID_RE.test(id.toString()));
-        const contactIds = member_ids.filter((id) => id && !UUID_RE.test(id.toString()));
-
-        // Update UUID-based participants (v2_participants table)
-        if (uuidIds.length > 0) {
-          await linkParticipantsToNewTeam(team.id, uuidIds);
-        }
-
-        // Update contact-based participants (contacts table)
-        if (contactIds.length > 0) {
-          await linkContactsToNewTeam(team.id, contactIds);
-        }
-
-        // 3. Send Emails
-        const allMembers = [];
-
-        if (uuidIds.length > 0) {
-          const participantMembersResult = await getNewTeamParticipantMembers(uuidIds);
-          allMembers.push(...participantMembersResult.rows);
-        }
-
-        if (contactIds.length > 0) {
-          const contactMembersResult = await getNewTeamContactMembers(contactIds);
-          allMembers.push(...contactMembersResult.rows);
-        }
-
-        // Management groups (facilitator cohort groups) do NOT send shared
-        // team credentials — there is no shared team login for these groups.
-        if (!is_management_group) {
-          for (const member of allMembers) {
-            try {
-              await sendStandaloneEmail({
-                to: member.email,
-                subject: `Unit Credentials Secured: ${name}`,
-                body: `
-                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                  <h2 style="color: #FF6600;">Unit Deployment: ${name}</h2>
-                  <p>Hello ${member.name},</p>
-                  <p>You have been assigned to <strong>${name}</strong>. Here are the shared access credentials for your unit:</p>
-                  <div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0; border: 1px solid #e2e8f0;">
-                    <p style="margin: 5px 0;"><strong>Unit Username:</strong> ${generatedUsername}</p>
-                    <p style="margin: 5px 0;"><strong>Unit Password:</strong> ${generatedPassword}</p>
-                  </div>
-                  <p>Use these credentials to access the program dashboard. All members of your unit will share these credentials.</p>
-                  <a href="${(await import("@/lib/appUrl")).resolveAppUrl()}/login" style="display: inline-block; background: #FF6600; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 10px;">Login to Command Center</a>
-                </div>
-              `,
-                isHtml: true,
-                email_type: "team_credentials",
-              });
-            } catch (error) {
-              console.error(`Email delivery failed for ${member.email}:`, error);
-            }
-          }
-        }
-      } catch (linkErr) {
-        console.error("Team member linking failed:", linkErr.message);
-        linkingWarning = `Team created but member linking failed: ${linkErr.message}`;
-      }
-    }
-
-    return NextResponse.json({ success: true, team, ...(linkingWarning ? { warning: linkingWarning } : {}) });
   } catch (error) {
     console.error("Team Creation Error:", error);
     return NextResponse.json(
@@ -213,7 +105,8 @@ export async function PATCH(req) {
     await initDb();
     const capError = await requireAuthorization("programs", "edit");
     if (capError) return capError;
-    const { team_id, member_ids, member_id, action, handler_id, handler_name, is_venture_ready, is_management_group } = await req.json();
+    const payload = await req.json();
+    const { team_id } = payload;
 
     // Every action below targets one team, so its program is resolved first and
     // the caller must be staffed there — the team id arrives from the client.
@@ -227,96 +120,8 @@ export async function PATCH(req) {
     const scopeError = await requireProgramScope({ programId: teamForScope.rows?.[0]?.program_id, wave: "groups" });
     if (scopeError) return scopeError;
 
-    // Support update_handler action (reassign the team's facilitator/oversight)
-    if (action === "update_handler" && team_id) {
-      await updateTeamHandler(team_id, handler_id, handler_name);
-      return NextResponse.json({ success: true });
-    }
-
-    // Support remove_member action (unassign a participant from a team)
-    if (action === "remove_member" && team_id && member_id) {
-      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (UUID_RE.test(String(member_id))) {
-        await removeParticipantFromTeam(member_id, team_id);
-      } else {
-        await removeContactFromTeam(member_id, team_id);
-      }
-      return NextResponse.json({ success: true });
-    }
-
-    // Support set_venture_ready action (used by venture approval workflow)
-    if (action === "set_venture_ready" && team_id) {
-      await setTeamVentureReady(team_id, is_venture_ready);
-      return NextResponse.json({ success: true });
-    }
-
-    if (!team_id || !member_ids || !Array.isArray(member_ids)) {
-      return NextResponse.json(
-        { success: false, error: "Missing parameters." },
-        { status: 400 },
-      );
-    }
-
-    // Fetch team details for email notification
-    const teamRes = await getTeamById(team_id);
-    const team = teamRes.rows[0];
-    if (!team)
-      return NextResponse.json(
-        { success: false, error: "Team not found." },
-        { status: 404 },
-      );
-
-    // Link Members to Team — classify by UUID vs contact CID
-    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const uuidIds = member_ids.filter((id) => id && UUID_RE.test(id.toString()));
-    const contactIds = member_ids.filter((id) => id && !UUID_RE.test(id.toString()));
-
-    if (uuidIds.length > 0) {
-      await linkParticipantsToTeam(team.id, uuidIds);
-    }
-
-    if (contactIds.length > 0) {
-      await linkContactsToTeam(team.id, contactIds);
-    }
-
-    // Send Emails (Copied Logic from POST)
-    const allMembers = [];
-    if (uuidIds.length > 0) {
-      const participantMembersResult = await getTeamParticipantMembers(uuidIds);
-      allMembers.push(...participantMembersResult.rows);
-    }
-    if (contactIds.length > 0) {
-      const contactMembersResult = await getTeamContactMembers(contactIds);
-      allMembers.push(...contactMembersResult.rows);
-    }
-
-    if (!is_management_group) {
-      for (const member of allMembers) {
-        try {
-          await sendStandaloneEmail({
-            to: member.email,
-            subject: `Unit Assignment Confirmed: ${team.name}`,
-            body: `
-            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #FF6600;">Unit Assignment: ${team.name}</h2>
-              <p>Hello ${member.name},</p>
-              <p>You have been assigned to <strong>${team.name}</strong>. Here are your shared access credentials:</p>
-              <div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0; border: 1px solid #e2e8f0;">
-                <p style="margin: 5px 0;"><strong>Unit Username:</strong> ${team.team_username}</p>
-                <p style="margin: 5px 0;"><strong>Unit Password:</strong> ${team.password}</p>
-              </div>
-              <p>Use these credentials to access the program dashboard.</p>
-              <a href="${(await import("@/lib/appUrl")).resolveAppUrl()}/login" style="display: inline-block; background: #FF6600; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 10px;">Login to Command Center</a>
-            </div>
-          `,
-            isHtml: true,
-            email_type: "team_credentials",
-          });
-        } catch {}
-      }
-    }
-
-    return NextResponse.json({ success: true });
+    const result = await applyTeamPatch({ payload });
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },

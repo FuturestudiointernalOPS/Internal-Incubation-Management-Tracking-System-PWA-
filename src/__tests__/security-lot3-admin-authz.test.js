@@ -43,8 +43,12 @@ describe("role changes are not capability grants", () => {
   });
 
   test("contacts PUT gates `role` on the assign-roles capability", () => {
-    const src = read("src/app/api/contacts/route.js");
+    // The updatable-column list (with `role` gated on the capability) moved to
+    // the update service; the route still resolves `canAssignRole`.
+    const src = read("src/services/contacts/update.js");
     expect(src).toMatch(/\.\.\.\(canAssignRole \? \["role"\] : \[\]\)/);
+    const route = read("src/app/api/contacts/route.js");
+    expect(route).toMatch(/const canAssignRole = !assignRoleError/);
   });
 
   test("approve-user derives the role and the actor server-side, returns no token", () => {
@@ -74,10 +78,14 @@ describe("object-level authorization added in this lot", () => {
   });
 
   test("tasks/carryover checks ownership and takes attribution from the session", () => {
-    const src = read("src/app/api/tasks/carryover/route.js");
+    // The ownership rule moved to the service layer with the layer split; the
+    // route keeps the session-derived attribution and no longer reads the body's
+    // user_id/user_name.
+    const src = read("src/services/tasks/carryover.js");
     expect(src).toMatch(/You can only carry over your own tasks/);
+    const route = read("src/app/api/tasks/carryover/route.js");
     // The body's user_id/user_name must no longer drive the clone.
-    expect(src).not.toMatch(/const \{ task_id, target_week, target_year, user_id, user_name \}/);
+    expect(route).not.toMatch(/const \{ task_id, target_week, target_year, user_id, user_name \}/);
   });
 
   test("contacts/full-state scopes the PM parameter for non-management", () => {

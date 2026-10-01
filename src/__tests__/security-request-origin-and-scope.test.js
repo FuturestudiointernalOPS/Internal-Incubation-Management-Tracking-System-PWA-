@@ -124,25 +124,39 @@ describe("SECRET-3 — shared team credentials come from a CSPRNG", () => {
   });
 
   test("both team routes generate with the helper, not Math.random", () => {
-    for (const file of ["src/app/api/teams/route.js", "src/app/api/pm/teams/route.js"]) {
-      const source = read(file);
+    // The org-team route generates inline; the pm-team route generates in its
+    // service (the Programs controller frontier moved the use case out of the
+    // route). The same helper must be used in both homes.
+    for (const source of [
+      read("src/app/api/teams/route.js"),
+      read("src/services/programs/teams.js"),
+    ]) {
       expect(source).toMatch(/generateTeamPassword\(\)/);
       expect(source).not.toMatch(/generatedPassword\s*=\s*`FST\$\{/);
     }
+    // The pm route itself no longer generates — it delegates to the service.
+    expect(read("src/app/api/pm/teams/route.js")).toMatch(
+      /@\/services\/programs\/teams/,
+    );
   });
 });
 
 describe("AUTHZ-CRM-1 — contact emails are bound to a shared programme", () => {
   test("the route consults the shared-programme predicate", () => {
-    const source = read("src/app/api/contact-emails/route.js");
-    expect(source).toMatch(/isContactWithinStaffedPrograms\(/);
-    expect(source).toMatch(/denyIfNotAllowed/);
+    // The refusal mapping stays on the route; the AUTHZ-CRM-1 decision moved to
+    // the contact-emails service (the CRM controller frontier).
+    const route = read("src/app/api/contact-emails/route.js");
+    expect(route).toMatch(/canManageContactEmails/);
+    expect(route).toMatch(/denyIfNotAllowed/);
+    const service = read("src/services/contacts/alternativeEmails.js");
+    expect(service).toMatch(/isContactWithinStaffedPrograms\(/);
   });
 
   test("the predicate is the data-layer rule, keyed to the caller", () => {
-    const source = read("src/models/authorization/scope.js");
-    expect(source).toMatch(/export async function isContactWithinStaffedPrograms/);
-    expect(source).toMatch(/v2_program_staff/);
+    const service = read("src/services/authorization/scope.js");
+    const reads = read("src/models/authorization/scopeReads.js");
+    expect(service).toMatch(/export async function isContactWithinStaffedPrograms/);
+    expect(reads).toMatch(/v2_program_staff/);
   });
 });
 

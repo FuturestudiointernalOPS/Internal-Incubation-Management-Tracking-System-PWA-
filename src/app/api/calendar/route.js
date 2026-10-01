@@ -1,6 +1,15 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import {
+  selectCalendarVentureScope,
+  selectCoachedVentureIds,
+  selectVentureIdsByCodes,
+  selectCalendarVentureSessions,
+  selectCalendarVentureTasks,
+  selectCalendarVentureMilestones,
+  selectCalendarJourneyStages,
+} from "@/models/workspaceCalendarStore";
 import {
   getFacilitatorProgramScopePids,
   getParticipantProgramScopePids,
@@ -273,24 +282,14 @@ export async function GET(req) {
       const seesAllVentures = privilegedVentureRoles.includes(session?.role) && !personalMode;
       let ventureScope = null; // null = no restriction
       if ((!seesAllVentures || personalMode) && sessionCid) {
-        const ventureScopeResult = await db.execute({
-          sql: `SELECT venture_id FROM venture_members
-                WHERE (contact_id = ? OR user_cid = ?) AND removed_at IS NULL
-                UNION
-                SELECT venture_id FROM venture_staff_assignments
-                WHERE staff_contact_id = ? AND status = 'active'`,
-          args: [sessionCid, sessionCid, sessionCid],
-        }).catch(() => ({ rows: [] }));
+        const ventureScopeResult = await selectCalendarVentureScope(sessionCid).catch(() => ({ rows: [] }));
         let scopeList = (ventureScopeResult.rows || [])
           .map((row) => row.venture_id)
           .filter(Boolean);
         // A coach's own sessions count even when stored under a UUID key or
         // when the coach holds no assignment row yet.
         if (personalMode) {
-          const coachSessionsResult = await db.execute({
-            sql: "SELECT DISTINCT venture_id FROM venture_sessions WHERE coach_contact_id = ?",
-            args: [sessionCid],
-          }).catch(() => ({ rows: [] }));
+          const coachSessionsResult = await selectCoachedVentureIds(sessionCid).catch(() => ({ rows: [] }));
           scopeList = [
             ...scopeList,
             ...(coachSessionsResult.rows || [])
@@ -307,12 +306,8 @@ export async function GET(req) {
         // styles. Entries that resolve to neither are kept as ids (stale
         // codes simply match nothing).
         let scopeIds = null;
-        let scopeArgs = [];
         if (!seesAllVentures) {
-          const ventureIdResult = await db.execute({
-            sql: `SELECT id, venture_id FROM ventures WHERE venture_id IN (${ventureScope.map(() => "?").join(",")})`,
-            args: ventureScope,
-          }).catch(() => ({ rows: [] }));
+          const ventureIdResult = await selectVentureIdsByCodes(ventureScope).catch(() => ({ rows: [] }));
           const resolvedCodes = new Set(
             (ventureIdResult.rows || []).map((row) => row.venture_id),
           );
@@ -323,28 +318,15 @@ export async function GET(req) {
             (scopeKey) => !resolvedCodes.has(scopeKey),
           );
           scopeIds = [...new Set([...mappedIds, ...leftoverIds])];
-          scopeArgs = [...ventureScope, ...scopeIds];
         }
-        const scopeSql = seesAllVentures
-          ? ""
-          : ` AND (venture_id IN (${ventureScope.map(() => "?").join(",")}) OR venture_id IN (${scopeIds.map(() => "?").join(",")}))`;
-        const scopeQueryArgs = seesAllVentures ? [] : scopeArgs;
-        // Personal coach filter: coaches always see their own sessions even
-        // when not marked venture-facing.
-        const sessionsPersonalSql =
-          personalMode && sessionCid
-            ? " AND (coach_contact_id = ? OR venture_facing = TRUE)"
-            : "";
-        const sessionsPersonalArgs = personalMode && sessionCid ? [sessionCid] : [];
 
         // 6a. Venture sessions (founder-facing, plus the coach's own)
-        const sessionsBaseWhere = personalMode
-          ? "start_time IS NOT NULL"
-          : "venture_facing = TRUE AND start_time IS NOT NULL";
-        const ventureSessionsResult = await db.execute({
-          sql: `SELECT id, title, start_time, coach_name, coach_contact_id, status FROM venture_sessions
-                WHERE ${sessionsBaseWhere}${scopeSql}${sessionsPersonalSql}`,
-          args: [...scopeQueryArgs, ...sessionsPersonalArgs],
+        const ventureSessionsResult = await selectCalendarVentureSessions({
+          personalMode,
+          seesAllVentures,
+          ventureScope,
+          scopeIds,
+          sessionCid,
         }).catch(() => ({ rows: [] }));
         for (const sessionRow of ventureSessionsResult.rows || []) {
           events.push({
@@ -364,11 +346,7 @@ export async function GET(req) {
         }
 
         // 6b. Venture task deadlines
-        const ventureTasksResult = await db.execute({
-          sql: `SELECT id, title, due_date, status FROM venture_tasks
-                WHERE due_date IS NOT NULL${scopeSql}`,
-          args: scopeQueryArgs,
-        }).catch(() => ({ rows: [] }));
+        const ventureTasksResult = await selectCalendarVentureTasks({ seesAllVentures, ventureScope, scopeIds }).catch(() => ({ rows: [] }));
         for (const ventureTask of ventureTasksResult.rows || []) {
           events.push({
             id: `vtask-${ventureTask.id}`,
@@ -385,11 +363,7 @@ export async function GET(req) {
         }
 
         // 6c. Venture milestone target dates
-        const ventureMilestonesResult = await db.execute({
-          sql: `SELECT id, title, target_date, status FROM venture_milestones
-                WHERE target_date IS NOT NULL${scopeSql}`,
-          args: scopeQueryArgs,
-        }).catch(() => ({ rows: [] }));
+        const ventureMilestonesResult = await selectCalendarVentureMilestones({ seesAllVentures, ventureScope, scopeIds }).catch(() => ({ rows: [] }));
         for (const milestone of ventureMilestonesResult.rows || []) {
           events.push({
             id: `vms-${milestone.id}`,
@@ -407,14 +381,7 @@ export async function GET(req) {
 
         // 6d. Journey stage targets (journey stages are UUID-keyed only)
         if (seesAllVentures || (scopeIds && scopeIds.length > 0)) {
-          const journeyStagesResult = await db.execute({
-            sql: seesAllVentures
-              ? `SELECT id, name, target_date, status FROM venture_journey_stages
-                 WHERE target_date IS NOT NULL`
-              : `SELECT id, name, target_date, status FROM venture_journey_stages
-                 WHERE target_date IS NOT NULL AND venture_id IN (${scopeIds.map(() => "?").join(",")})`,
-            args: seesAllVentures ? [] : scopeIds,
-          }).catch(() => ({ rows: [] }));
+          const journeyStagesResult = await selectCalendarJourneyStages({ seesAllVentures, scopeIds }).catch(() => ({ rows: [] }));
           for (const stage of journeyStagesResult.rows || []) {
             events.push({
               id: `vstage-${stage.id}`,

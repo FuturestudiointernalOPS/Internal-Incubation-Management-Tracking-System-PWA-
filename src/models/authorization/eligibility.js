@@ -14,6 +14,10 @@
  * - Missing rows = NOT eligible (fail closed).
  * - An explicit `eligible = 0` row wins over any `eligible = 1` row.
  * - Super Admin bypasses eligibility entirely (preserved V2 behavior).
+ *
+ * Layer (see docs/LAYER_SPLIT.md): this module is the REPOSITORY — the schema,
+ * the one-time seeds and the shared vocabulary. The eligibility DECISION
+ * (`evaluateEligibility`) lives in `@/services/authorization/eligibility`.
  */
 
 import db from "@/lib/db";
@@ -221,24 +225,4 @@ export async function seedProgramAssignmentEligibility() {
     if (!result.success) return result;
   }
   return { success: true };
-}
-
-/**
- * Pure eligibility evaluation over pre-loaded rows.
- *
- * @param {Array<{feature_key, eligible}>} rows
- *   Rows already filtered to the user's identities (role + groups).
- * @param {string} featureKey
- * @returns {boolean} true when at least one identity is eligible AND no
- *   identity explicitly denies the feature.
- */
-
-export function evaluateEligibility(rows, featureKey) {
-  let anyEligible = false;
-  for (const row of rows || []) {
-    if (row.feature_key !== featureKey) continue;
-    if (Number(row.eligible) === 1) anyEligible = true;
-    else return false; // explicit deny wins over any allow
-  }
-  return anyEligible; // missing rows = not eligible (fail closed)
 }

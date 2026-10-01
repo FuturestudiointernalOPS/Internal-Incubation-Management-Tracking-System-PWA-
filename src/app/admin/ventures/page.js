@@ -66,6 +66,19 @@ export default function VenturesPage() {
   const stageConfig = (stage) => VENTURE_STAGES[stage] || VENTURE_STAGES.idea;
   const statusConfig = (status) => STATUS_CONFIG[status] || STATUS_CONFIG.active;
 
+  const readinessConfig = (venture) => {
+    if (venture.is_ready) {
+      return { label: t("vadmin.list.ready"), cls: "bg-emerald-500/10 text-emerald-400" };
+    }
+    if (venture.readiness_percent != null) {
+      return {
+        label: `${t("vadmin.list.notReady")} · ${venture.readiness_percent}%`,
+        cls: "bg-rose-500/10 text-rose-400",
+      };
+    }
+    return { label: t("vadmin.list.readinessUndefined"), cls: "bg-slate-500/10 text-slate-400" };
+  };
+
   const notify = (type, message, duration = 4000) => {
     window.dispatchEvent(
       new CustomEvent("impactos:notify", { detail: { type, message, duration } }),
@@ -192,6 +205,7 @@ export default function VenturesPage() {
                     <th className="text-left px-5 py-3">{t("vadmin.list.industry")}</th>
                     <th className="text-left px-5 py-3">{t("vadmin.list.stage")}</th>
                     <th className="text-left px-5 py-3">{t("vadmin.list.status")}</th>
+                    <th className="text-left px-5 py-3">{t("vadmin.list.readiness")}</th>
                     <th className="text-left px-5 py-3">{t("vadmin.list.members")}</th>
                     <th className="text-left px-5 py-3">{t("vadmin.list.created")}</th>
                     <th className="px-5 py-3" />
@@ -201,12 +215,13 @@ export default function VenturesPage() {
                   {filteredVentures.map((venture) => {
                     const stage = stageConfig(venture.business_stage);
                     const status = statusConfig(venture.status);
+                    const readiness = readinessConfig(venture);
                     const founderCount = parseInt(venture.founder_count) || 0;
                     const memberCount = parseInt(venture.member_count) || 0;
                     return (
                       <tr
                         key={venture.id}
-                        onClick={() => router.push(`/admin/ventures/${venture.venture_id}`)}
+                        onClick={() => router.push(`/admin/ventures/${venture.venture_id}/verification`)}
                         className="border-b border-divider/50 cursor-pointer hover:bg-tertiary/50 transition-all group"
                       >
                         <td className="px-5 py-3">
@@ -234,6 +249,12 @@ export default function VenturesPage() {
                           <span className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase px-2 py-1 rounded ${status.color}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${status.dot || "bg-current"}`} />
                             {t(status.label)}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase px-2 py-1 rounded ${readiness.cls}`}>
+                            <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                            {readiness.label}
                           </span>
                         </td>
                         <td className="px-5 py-3 text-[11px] text-slate-400 font-medium">
