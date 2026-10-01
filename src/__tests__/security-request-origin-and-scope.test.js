@@ -134,9 +134,13 @@ describe("SECRET-3 — shared team credentials come from a CSPRNG", () => {
 
 describe("AUTHZ-CRM-1 — contact emails are bound to a shared programme", () => {
   test("the route consults the shared-programme predicate", () => {
-    const source = read("src/app/api/contact-emails/route.js");
-    expect(source).toMatch(/isContactWithinStaffedPrograms\(/);
-    expect(source).toMatch(/denyIfNotAllowed/);
+    // The refusal mapping stays on the route; the AUTHZ-CRM-1 decision moved to
+    // the contact-emails service (the CRM controller frontier).
+    const route = read("src/app/api/contact-emails/route.js");
+    expect(route).toMatch(/canManageContactEmails/);
+    expect(route).toMatch(/denyIfNotAllowed/);
+    const service = read("src/services/contacts/alternativeEmails.js");
+    expect(service).toMatch(/isContactWithinStaffedPrograms\(/);
   });
 
   test("the predicate is the data-layer rule, keyed to the caller", () => {

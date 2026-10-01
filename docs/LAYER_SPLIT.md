@@ -29,7 +29,9 @@
 > schema bootstrap, intake, then the core record — **`ventures.js` is now a
 > barrel**), then the non-venture `src/lib` tail — which is now **completely clear
 > of SQL** (token hashing, task audit, access profiles + responsibilities, LMS
-> coaching, then the email delivery log). The
+> coaching, then the email delivery log). Its CRM controller frontier has since
+> begun — contact groups, user groups, the registry feed, then the contact
+> alternative emails. The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1482,6 +1484,29 @@ precedence (`sent` wins for `lastSentAt`).
 
 ---
 
+### Domain 55 — the CRM controller frontier: contact alternative emails (slice 73)
+
+The `/api/contact-emails` route (list / add / remove a contact's alternative
+emails) carried its own authorization rule inline: a bare role check that let any
+staff-side caller manage **every** contact in the database. That rule is
+**AUTHZ-CRM-1** and it now lives in `services/contacts/alternativeEmails.js`
+(`canManageContactEmails(session, targetCid)`): yourself, Super Admin, or a
+staff/program-manager **who shares a programme the target is staffed on** (a
+contact→programme predicate, read through `services/authorization/scope`);
+everyone else is refused.
+
+The route keeps `initDb`, `requireAuth`, the query/body validation, the
+contact-exists 404 (POST), the refuse→403 mapping and the delegation to
+`@/lib/contactIdentity`; it no longer decides who may act. The alternative-email
+reads/writes themselves are unchanged (and never become the login credential).
+
+**Source-pin repointed:** `security-request-origin-and-scope` pinned the
+shared-programme predicate inside the route; the same assertion now reads it in
+`services/contacts/alternativeEmails.js` (the route still asserts the predicate is
+consulted, via `canManageContactEmails`).
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1518,7 +1543,7 @@ cleanup, not layering:
 |---|---|---|
 | Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
 | Programs | `services/programs/*` | ✅ **models done** (slice 12) · ⏳ controller orchestration started (slice 13) |
-| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22), the groups controller (slice 65), user groups (slice 66) + the registry feed (slice 67) |
+| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22), the groups controller (slice 65), user groups (slice 66), the registry feed (slice 67) + the contact alternative emails (slice 73); `contacts/route.js` and the rest of the CRM routes remain |
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
