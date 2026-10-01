@@ -2179,6 +2179,24 @@ the envelope. The PUT (the grant/revoke/… writes) stays for a later slice.
 `npm test` (244 suites, 3550 tests), `npx eslint` (0 errors) and `npm run build`
 are green.
 
+### Domain 79 — the permission writes (slice 115)
+
+The `PUT` of the same controller follows. Its action switch (grant / revoke /
+restrict / unrestrict, the role and group defaults, the profile / role /
+supervisor / status changes, the Super Admin promotion and demotion) and the
+eligibility boundary on a grant move to
+`services/authorization/permissionWrites.js` (`applyPermissionChange`), together
+with the audit record each write leaves. The route keeps the
+`permissions.assign_capabilities` gate, the session, the required-field
+validation and the ROLE gate on promote/remove (a role change is never a
+capability grant, so it stays in the HTTP boundary). The service answers
+`{ status, body }` and imports the same `@/lib/auth` / `@/lib/authorization`
+facades the controller used, so the route-level test mocks keep intercepting.
+The controller is now thin over two services.
+
+`npm test` (244 suites, 3552 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
 ---
 
 ## 3. Left aside on purpose (deferred, with reasons)
