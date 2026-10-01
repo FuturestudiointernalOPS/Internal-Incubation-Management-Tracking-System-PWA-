@@ -14,8 +14,10 @@
 > (service + store; the `db` threading through `canManageMilestones` /
 > `syncMilestoneFromWork` is gone), 29 the assignment-scope layer and the
 > operating-plan access helpers, 30 the roadmap readiness engine and the Venture
-> notification helpers. 31 the venture progress reports. The remaining mixed
-> model modules are itemised in §4. This document is the running log. Update it
+> notification helpers, 31 the venture progress reports, 32 the Venture coach
+> identity/invitation layer, 33 the first `ventures.js` domain (activity, history
+> and notifications) out of the monolith. The remaining mixed model modules are
+> itemised in §4. This document is the running log. Update it
 > at the end of every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
@@ -631,6 +633,42 @@ The `venture-label-surfaces` source-pinning suite was repointed to the service
 
 ---
 
+### Domain 19 — the Venture coach identity/invitation layer (slice 32)
+
+`src/lib/ventureCoach.js` resolved a Venture's coach contact and invited coaches
+while running its SQL. The decisions now live in `services/ventures/coach.js`,
+every statement in `models/ventureCoachStore.js`; the `src/lib` file is a facade.
+`resolveCoachContact` and `inviteCoachByEmail` take no db, so the `sessions` and
+`coach-invite` routes dropped it (both routes no longer import the db at all).
+
+**Unchanged:** the SQL, the coach-contact resolution and the invitation payload.
+
+---
+
+### Domain 20 — the `ventures.js` monolith: activity, history, notifications (slice 33)
+
+`src/lib/ventures.js` is the largest module of the split (5.8k lines, ~219
+exported functions, ~11 domains), so it is taken **domain by domain**. Each domain
+extracts to its own `models/<x>Store.js` + `services/ventures/<x>.js`, and
+`src/lib/ventures.js` becomes a barrel that re-exports them, keeping the public
+surface (`@/lib/ventures`) intact for the many importers.
+
+**Domain 1 — activity, history and notifications.** The three streams every
+Venture write path feeds: the activity log (`logVentureActivity`), the
+institutional history (`addVentureHistory`) and the in-app inbox
+(`createVentureNotification`, `notifyVentureFounders`). The decisions — how a
+notification's context columns are assembled, the dedupe probe and the founder
+audience — now live in `services/ventures/activity.js`; every statement in
+`models/ventureActivityStore.js`; and `src/lib/ventures.js` re-exports the four
+functions. The internal `await import("./ventures")` call sites inside the file
+keep working through the barrel; the routes that import them from
+`@/lib/ventures` are untouched.
+
+**Unchanged:** the SQL (byte-identical), the notification column order, the
+dedupe keys (including the `sa:` suffix) and the founder/`sa` audience.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -812,9 +850,12 @@ Two source-pinning suites were repointed (same assertion, new home):
   `ventureAccessFacts.js` (slice 27, which left `ventureAuth.js` pure),
   `venturePermissions.js`, `ventureMilestoneEngine.js` (slice 28),
   `ventureScope.js` and `ventureOperatingPlans.js` (slice 29), `ventureReadiness.js`
-  and `ventureNotify.js` (slice 30), `ventureReports.js` (slice 31) are done —
-  all facades over `services/ventures/*`. A long tail of `src/lib` modules still
-  holds SQL (the biggest: `ventures.js` (5.8k lines), `ventureCoach.js`, plus the
+  and `ventureNotify.js` (slice 30), `ventureReports.js` (slice 31) and
+  `ventureCoach.js` (slice 32) are done — all facades over `services/ventures/*`.
+  `ventures.js` (5.8k lines) is being emptied domain by domain: its
+  activity/history/notification domain is out (slice 33) and re-exported through
+  the barrel. A long tail of `src/lib` modules still
+  holds SQL (the remaining domains of `ventures.js`, plus the
   non-venture ones `auth.js`, `email.js`, `audit.js`, `token-hashing.js`,
   `request-context.js`, `lms/coaching.js`) — the next repository-extraction
   targets, one module at a time, tracked in `MVC_REFACTOR.md`.
