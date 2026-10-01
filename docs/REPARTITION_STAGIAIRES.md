@@ -54,14 +54,14 @@ veut donc dire : *tu prends le domaine plateforme **et** la page des exécutions
 
 | # | Stagiaire / pôle | Couloir (décision + données) | Grosse vue / composant | Feature |
 |---|---|---|---|---|
-| 1 | **Plateforme & formulaires** | `services/platform/**` | Page « runs » plateforme | Formulaires publics, évaluation, réponses |
-| 2 | **Ventures** | `services/ventures/**` | Panneau parcours (jalons) ventures | Parcours startup, jalons, modèles |
-| 3 | **Programmes** | `services/programs/**` | Pages admin « programmes » | Programmes, curriculum, équipe programme |
-| 4 | **Permissions & sécurité** | `services/authorization/**` | Centre de permissions | Droits, périmètres, accès |
-| 5 | **CRM & contacts** | `services/contacts/**` | Écran d'adhésion + page contacts | Contacts, groupes, familles, adhésions |
-| 6 | **Opérations internes** | `services/tasks/**` + `services/projects/**` | Gestionnaire de tâches + page tâches | Tâches, blocages, projets, standups |
-| 7 | **Tableau de bord & messagerie** | `services/communications/**` | Coquille de l'application + messagerie | Annonces, campagnes, messages |
-| — | **Lead (toi)** | Couloirs restants + audit | Vues/composants restants + façades | Coordination, nettoyage, domaines à ouvrir |
+| chris mael | **Plateforme & formulaires** | `services/platform/**` | Page « runs » plateforme | Formulaires publics, évaluation, réponses |
+| scom M | **Ventures** | `services/ventures/**` | Panneau parcours (jalons) ventures | Parcours startup, jalons, modèles |
+| Aïchath | **Programmes** | `services/programs/**` | Pages admin « programmes » | Programmes, curriculum, équipe programme |
+| Harry | **Permissions & sécurité** | `services/authorization/**` | Centre de permissions | Droits, périmètres, accès |
+| Jas | **CRM & contacts** | `services/contacts/**` | Écran d'adhésion + page contacts | Contacts, groupes, familles, adhésions |
+| Alexis | **Opérations internes** | `services/tasks/**` + `services/projects/**` | Gestionnaire de tâches + page tâches | Tâches, blocages, projets, standups |
+| Christelle | **Tableau de bord & messagerie** | `services/communications/**` | Coquille de l'application + messagerie | Annonces, campagnes, messages |
+
 
 Aucune ligne ne partage de fichier avec une autre. Détail et preuve par fiche.
 
