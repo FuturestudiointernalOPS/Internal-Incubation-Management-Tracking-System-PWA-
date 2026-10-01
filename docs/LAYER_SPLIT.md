@@ -2125,6 +2125,25 @@ green.
 
 ---
 
+### Domain 77 — the resource guards' decision boundary (slice 112)
+
+`server/authz/guards.js` (`requireProjectAccess`, `requireProgramFacilitator`,
+`enforceFacilitatorProgramAccess`, `assertNoParticipantFacilitatorConflict`,
+`requireAssignmentAccess`) was the last module that both decided and built its
+own HTTP answers. The DECISIONS move to
+`services/authorization/resourceGuards.js`, answering the same
+`{ allowed, status, errorKey }` shape as the rest of the authorization service;
+`guards.js` becomes a thin mapper (decision → response) that imports nothing but
+the HTTP layer and the service. The public guard signatures are unchanged, so no
+route changes. The existing `authz-boundaries` net (44 assertions over every
+guard's 401/403/404/409/500 path) now exercises the service through the guards,
+and `services-boundaries` still proves the new module is HTTP-free.
+
+`npm test` (243 suites, 3532 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -2133,11 +2152,10 @@ green.
 2. **`models/authorization/programAssignmentBackfill.js` imports the level
    decision from the service** — a backfill (data work) that needs a decision;
    it stays in models for now.
-3. **`server/authz/guards.js`** (`requireProjectAccess`, `requireProgramFacilitator`,
-   `requireAssignmentAccess`, …) still queries models and builds its own
-   responses. It is the *other* authorization boundary; splitting it the same way
-   is follow-up work, not a mixed module.
-4. **No type layer** (see §4).
+3. **No type layer** (see §4).
+
+`server/authz/guards.js` was the *other* authorization boundary; it is now split
+(slice 112) — see §2, Domain 77.
 
 ---
 
@@ -2152,8 +2170,8 @@ cleanup, not layering:
 | Item | Status |
 |---|---|
 | Facades (§3.1) | shim-only re-exports, deleted when unused |
-| `server/authz/guards.js` (§3.3) | its own boundary work, same recipe |
-| Decision tests | `authorize`, `evaluateAuthorization` and the derivation are now testable without a database or HTTP |
+| `server/authz/guards.js` | ✅ split (slice 112) — the decisions live in `services/authorization/resourceGuards.js` |
+| Decision tests | `authorize`, `evaluateAuthorization`, the derivation and the resource guards are now testable without HTTP |
 
 ### Other domains — not started
 
