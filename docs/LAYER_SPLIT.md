@@ -119,6 +119,40 @@ n'aurait rien protégé de plus.
 **Vérifié.** `npm test` : 227/227, 2 940/2 940 (mêmes effectifs qu'avant la
 tranche). `npx eslint .` : 0 erreur. `npm run build` : vert.
 
+### Tranche 3 — `src/services/platform/publicSubmit.js` (le couloir `api/s/public-submit`)
+
+**Date :** 2026-10-01. **Qui :** même session.
+
+**Avant.** `src/app/api/s/public-submit/route.js` (499 lignes, 44 `if`) :
+point d'entrée public (sans authentification) qui mélangeait transport HTTP
+(cookie de capture, en-têtes) et une décision dense — garde d'un run actif,
+consentement pour une exécution payante, limitation de débit par IP,
+résolution d'identité depuis les champs du formulaire, détection de doublon
+avec reprise de paiement, limite de soumissions, capture du paiement,
+déclenchement de l'automatisation + évaluation IA en tâche de fond.
+
+**Après.**
+- `src/services/platform/publicSubmit.js` (nouveau, 457 lignes) :
+  `submitPublicForm` (toute la décision) + les aides pures déjà présentes
+  (`ensurePublicSubmitSchema`, `courseSummary`, `paymentConfig`,
+  `neutralCheckoutPayload`, `freshCheckoutPayload`, `preparePaidCheckout`),
+  toutes déplacées à l'identique.
+- `route.js` : 499 → 81 lignes. Ne garde que ce qui est vraiment HTTP : le
+  cookie de capture (`readBrowserToken`/`withBrowserCookie`, qui lisent/
+  écrivent directement l'objet requête/réponse) et la mise en forme finale.
+
+**Remarque méthode.** `after()` (de `next/server`) reste dans le service : il
+ne fait que planifier un rappel en tâche de fond, il ne construit aucune
+réponse HTTP — même distinction déjà actée dans
+`services/platform/formRuns.js` (`scheduleResultSweep`, tranche 1).
+
+**Vérifié.** Ce couloir a un **test comportemental** réel (pas un test
+épinglé sur le texte) : `lms-checkout.test.js` importe et exécute le
+handler `POST` avec une fausse base de données — 34/34 avant et après,
+sans aucune correction nécessaire (contrairement aux tranches 1 et 2, dont
+les tests lisaient `route.js` comme du texte). `npm test` : 227/227 suites,
+2 940/2 940 tests. `npx eslint .` : 0 erreur. `npm run build` : vert.
+
 ## 3. Backlog (L1 — platform, ce qu'il reste)
 
 | Élément | Statut |
@@ -127,6 +161,14 @@ tranche). `npx eslint .` : 0 erreur. `npm run build` : vert.
 | `form-runs/route.js` — les 9 actions `POST` à décision | ✅ fait (tranche 2) |
 | `form-runs/route.js` — `GET` (orchestration restante, auto-close inline, agrégation du tableau des réponses) | à auditer — probablement déjà acceptable (transport + mise en forme) |
 | `form-runs/route.js` — `status`, `launch`, `preview_result`, `regenerate_report`, `send_result_emails`, `dispatch_scheduled_result_emails`, `delete_submission`, `regenerate_link`, `create` | laissé tel quel (contrôleur déjà mince, voir tranche 2) |
+| `services/platform/publicSubmit.js` — `api/s/public-submit` | ✅ fait (tranche 3) |
+| `api/platform/forms` (350 lignes, 33 `if`) | non commencé |
+| `api/platform/import/execute` (382 lignes, 31 `if`) | non commencé |
+| `api/intents` (423 lignes, 30 `if`) | non commencé |
+| `api/platform/ai/evaluate-submission` (299 lignes, 17 `if`) | non commencé |
+| `api/evaluation` (210 lignes, 14 `if`) | non commencé |
+| `api/run-export` (191 lignes, 13 `if`) | non commencé |
+| Petites routes `platform/ai/*`, `platform/seed/*`, `platform/integrations/*`, `platform/notifications` (déjà < 100-200 lignes) | à confirmer qu'elles sont déjà minces |
 | `services/platform/import.js` (609 lignes) | non commencé |
 | `services/platform/seed.js` (535 lignes) | non commencé |
 | `services/platform/report.js` (426 lignes) | non commencé |
