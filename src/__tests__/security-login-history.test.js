@@ -86,7 +86,9 @@ describe("i18n — the console's new login labels exist in both locales", () => 
 
 describe("the console's summary stats expose the keys it reads", () => {
   test("getLoginStats returns login_successes and login_failures", () => {
-    const src = read("src/lib/ventures.js");
+    // The login stats moved to the audit service (slice 54); the assertion is
+    // unchanged, only its home.
+    const src = read("src/services/ventures/auditSecurity.js");
     expect(src).toMatch(/login_successes: successCount/);
     expect(src).toMatch(/login_failures: failureCount/);
   });

@@ -18,13 +18,13 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–53 the next `ventures.js`
+> controller (workspace, then collaboration), 39–54 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
 > project timeline & dependencies, reports & project analytics, coach & mentor
 > management, mentoring sessions & scheduling, knowledge hub & learning,
 > mentor feedback & analytics, investment readiness, investor matching, pitch deck
 > & data room, the fundraising pipeline, investment analytics, administration &
-> system config, then the notification centre). The
+> system config, the notification centre, then audit logs & security). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1117,6 +1117,24 @@ template rendering and the default preferences.
 
 ---
 
+### Domain 40 — the `ventures.js` monolith: audit logs & security (slice 54)
+
+**Domain 21** (ENHANCEMENT 5.3). The append-only audit log (write with a safe
+failure, filtered query, stats), the security events (query, resolve, stats), the
+admin session management (list, revoke one, bulk revoke) and the login history
+(query, stats). Decisions move to `services/ventures/auditSecurity.js`; every
+statement to `models/ventureAuditStore.js`; `src/lib/ventures.js` **imports**
+then re-exports the twelve functions, because `logAuditEvent` is still called by
+the domains left in the file (an `export … from` introduces no local binding).
+The `hashToken` import left the monolith with the domain; the
+`security-login-history` source-pinning suite was repointed to the service (same
+assertion, new home).
+
+**Unchanged:** the SQL (byte-identical), the filters, the token hashing, the
+non-blocking audit write and the login-stat keys.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1317,7 +1335,8 @@ Two source-pinning suites were repointed (same assertion, new home):
   is out (slice 50), and its investment analytics domain
   is out (slice 51), and its administration & system config domain
   is out (slice 52), and its notification centre domain
-  is out (slice 53), all
+  is out (slice 53), and its audit logs & security domain
+  is out (slice 54), all
   re-exported through the barrel. A
   long tail of
   `src/lib` modules still

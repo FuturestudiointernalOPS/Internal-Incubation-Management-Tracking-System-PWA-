@@ -1,6 +1,5 @@
 import db from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
-import { hashToken } from "@/lib/token-hashing";
 import { listVentureMembers, summarizeVentureMembers } from "@/models/ventureMembers";
 
 /**
@@ -1155,221 +1154,39 @@ export {
   sendTemplatedNotification,
 } from "@/services/ventures/notifications";
 
-// =============================================================================
-// ENHANCEMENT 5.3: AUDIT LOGS & SECURITY
-// =============================================================================
+// ── ENHANCEMENT 5.3: Audit logs & security ─────────────────────────────────
+// Extracted to the service layer; re-exported for existing importers
+// (see docs/LAYER_SPLIT.md). `logAuditEvent` is also called by the domains
+// still in this file, so it is imported as a local binding before re-export.
+import {
+  logAuditEvent,
+  queryAuditLogs,
+  getAuditLog,
+  getAuditLogStats,
+  querySecurityEvents,
+  resolveSecurityEvent,
+  getSecurityStats,
+  getActiveSessions,
+  revokeSession,
+  revokeUserSessions,
+  queryLoginHistory,
+  getLoginStats,
+} from "@/services/ventures/auditSecurity";
 
-/**
- * Log an audit event (immutable, append-only).
- */
-export async function logAuditEvent({ eventType, actorCid, actorName, actorRole, ventureId, entityType, entityId, description, metadata, ipAddress, userAgent, sessionId, severity }) {
-  try {
-    const id = (await db.execute({
-      sql: `INSERT INTO venture_audit_logs (event_type, actor_cid, actor_name, actor_role, venture_id, entity_type, entity_id, description, metadata, ip_address, user_agent, session_id, severity)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?) RETURNING id`,
-      args: [
-        eventType, actorCid, actorName||null, actorRole||null, ventureId||null,
-        entityType||null, entityId||null, description||null,
-        JSON.stringify(metadata||{}),
-        ipAddress||null, userAgent||null, sessionId||null, severity||"info",
-      ],
-    })).rows[0]?.id;
-    return { id };
-  } catch (error) {
-    console.error("Audit log error:", error.message);
-    return null;
-  }
-}
-
-/**
- * Query audit logs with filtering and pagination.
- */
-export async function queryAuditLogs({ eventType, actorCid, ventureId, entityType, entityId, severity, limit=50, offset=0, fromDate, toDate } = {}) {
-  let sql = "SELECT * FROM venture_audit_logs WHERE 1=1";
-  const args = [];
-  if (eventType) { sql += " AND event_type=?"; args.push(eventType); }
-  if (actorCid) { sql += " AND actor_cid=?"; args.push(actorCid); }
-  if (ventureId) { sql += " AND venture_id=?"; args.push(ventureId); }
-  if (entityType) { sql += " AND entity_type=?"; args.push(entityType); }
-  if (entityId) { sql += " AND entity_id=?"; args.push(entityId); }
-  if (severity) { sql += " AND severity=?"; args.push(severity); }
-  if (fromDate) { sql += " AND created_at >= ?"; args.push(fromDate); }
-  if (toDate) { sql += " AND created_at <= ?"; args.push(toDate); }
-  sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
-  args.push(limit, offset);
-  return (await db.execute({ sql, args })).rows || [];
-}
-
-/**
- * Get a single audit log entry.
- */
-export async function getAuditLog(id) {
-  return (await db.execute({ sql: "SELECT * FROM venture_audit_logs WHERE id=?", args: [id] })).rows[0] || null;
-}
-
-/**
- * Get audit log count for stats.
- */
-export async function getAuditLogStats(hoursAgo = 24) {
-  const [total, bySeverity, byType] = await Promise.all([
-    db.execute({ sql: "SELECT COUNT(*) as c FROM venture_audit_logs WHERE created_at > NOW() - INTERVAL '1 hour' * ?", args: [hoursAgo] }).catch(() => ({ rows: [{ c: 0 }] })),
-    db.execute({ sql: "SELECT severity, COUNT(*) as c FROM venture_audit_logs WHERE created_at > NOW() - INTERVAL '1 hour' * ? GROUP BY severity", args: [hoursAgo] }).catch(() => ({ rows: [] })),
-    db.execute({ sql: "SELECT event_type, COUNT(*) as c FROM venture_audit_logs WHERE created_at > NOW() - INTERVAL '1 hour' * ? GROUP BY event_type ORDER BY c DESC LIMIT 10", args: [hoursAgo] }).catch(() => ({ rows: [] })),
-  ]);
-  return {
-    total: parseInt(total.rows[0]?.c || 0),
-    by_severity: bySeverity.rows || [],
-    by_type: byType.rows || [],
-  };
-}
-
-// ─── Security Events ────────────────────────────────────────────────────────
-
-/**
- * Query security events with filtering and pagination.
- */
-export async function querySecurityEvents({ eventType, actorCid, severity, isResolved, limit=50, offset=0, fromDate, toDate } = {}) {
-  let sql = "SELECT * FROM venture_security_events WHERE 1=1";
-  const args = [];
-  if (eventType) { sql += " AND event_type=?"; args.push(eventType); }
-  if (actorCid) { sql += " AND actor_cid=?"; args.push(actorCid); }
-  if (severity) { sql += " AND severity=?"; args.push(severity); }
-  if (isResolved !== undefined) { sql += " AND is_resolved=?"; args.push(isResolved ? 1 : 0); }
-  if (fromDate) { sql += " AND created_at >= ?"; args.push(fromDate); }
-  if (toDate) { sql += " AND created_at <= ?"; args.push(toDate); }
-  sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
-  args.push(limit, offset);
-  return (await db.execute({ sql, args })).rows || [];
-}
-
-/**
- * Resolve a security event.
- */
-export async function resolveSecurityEvent(eventId, resolvedBy, notes) {
-  await db.execute({
-    sql: "UPDATE venture_security_events SET is_resolved=TRUE, resolved_by=?, resolved_at=NOW(), resolution_notes=? WHERE id=? AND NOT is_resolved",
-    args: [resolvedBy, notes||null, eventId],
-  });
-  return { success: true };
-}
-
-/**
- * Get security event stats.
- */
-export async function getSecurityStats(hoursAgo = 24) {
-  const [total, unresolved, critical, byType] = await Promise.all([
-    db.execute({ sql: "SELECT COUNT(*) as c FROM venture_security_events WHERE created_at > NOW() - INTERVAL '1 hour' * ?", args: [hoursAgo] }).catch(() => ({ rows: [{ c: 0 }] })),
-    db.execute({ sql: "SELECT COUNT(*) as c FROM venture_security_events WHERE is_resolved=FALSE AND created_at > NOW() - INTERVAL '1 hour' * ?", args: [hoursAgo] }).catch(() => ({ rows: [{ c: 0 }] })),
-    db.execute({ sql: "SELECT COUNT(*) as c FROM venture_security_events WHERE severity='critical' AND created_at > NOW() - INTERVAL '1 hour' * ?", args: [hoursAgo] }).catch(() => ({ rows: [{ c: 0 }] })),
-    db.execute({ sql: "SELECT event_type, COUNT(*) as c FROM venture_security_events WHERE created_at > NOW() - INTERVAL '1 hour' * ? GROUP BY event_type ORDER BY c DESC", args: [hoursAgo] }).catch(() => ({ rows: [] })),
-  ]);
-  return {
-    total: parseInt(total.rows[0]?.c || 0),
-    unresolved: parseInt(unresolved.rows[0]?.c || 0),
-    critical: parseInt(critical.rows[0]?.c || 0),
-    by_type: byType.rows || [],
-  };
-}
-
-// ─── Session Management ──────────────────────────────────────────────────────
-
-/**
- * Get all active sessions with user info.
- */
-export async function getActiveSessions({ userCid, limit=50, offset=0 } = {}) {
-  let sql = `SELECT s.*, c.name as user_name, c.email as user_email
-             FROM user_sessions s
-             LEFT JOIN contacts c ON s.user_cid = c.cid
-             WHERE s.expires_at > NOW()`;
-  const args = [];
-  if (userCid) { sql += " AND s.user_cid=?"; args.push(userCid); }
-  sql += " ORDER BY s.created_at DESC LIMIT ? OFFSET ?";
-  args.push(limit, offset);
-  return (await db.execute({ sql, args })).rows || [];
-}
-
-/**
- * Revoke a specific session.
- */
-export async function revokeSession(sessionToken, revokedBy) {
-  const tokenHash = hashToken(sessionToken);
-  const session = (await db.execute({ sql: "SELECT * FROM user_sessions WHERE expires_at > NOW() AND (token_hash = ? OR token = ?)", args: [tokenHash, sessionToken] })).rows[0];
-  if (!session) return { success: false, error: "Session not found or already expired" };
-  await db.execute({ sql: "UPDATE user_sessions SET expires_at=NOW(), logout_time=NOW(), session_status='revoked' WHERE token_hash = ? OR token = ?", args: [tokenHash, sessionToken] });
-  // Log the revocation
-  await logAuditEvent({
-    eventType: "SESSION_REVOKED", actorCid: revokedBy, actorName: null,
-    entityType: "session", entityId: sessionToken.substring(0, 8),
-    description: `Session revoked for user ${session.user_cid}`,
-    severity: "warning",
-  });
-  return { success: true };
-}
-
-/**
- * Revoke all sessions for a user except current one.
- */
-export async function revokeUserSessions(userCid, exceptToken, revokedBy) {
-  const sessions = (await db.execute({
-    sql: "SELECT * FROM user_sessions WHERE user_cid=? AND token!=? AND expires_at > NOW()",
-    args: [userCid, exceptToken],
-  })).rows || [];
-  await db.execute({
-    sql: "UPDATE user_sessions SET expires_at=NOW(), logout_time=NOW(), session_status='revoked' WHERE user_cid=? AND token!=? AND expires_at > NOW()",
-    args: [userCid, exceptToken],
-  });
-  for (const session of sessions) {
-    await logAuditEvent({
-      eventType: "SESSION_REVOKED", actorCid: revokedBy,
-      entityType: "session", entityId: session.token.substring(0, 8),
-      description: `Bulk revoked session for user ${userCid}`,
-      severity: "info",
-    });
-  }
-  return { success: true, count: sessions.length };
-}
-
-// ─── Login History ──────────────────────────────────────────────────────────
-
-/**
- * Query login history with filtering and pagination.
- */
-export async function queryLoginHistory({ userCid, action, isSuccess, limit=50, offset=0, fromDate, toDate } = {}) {
-  let sql = "SELECT * FROM venture_login_history WHERE 1=1";
-  const args = [];
-  if (userCid) { sql += " AND user_cid=?"; args.push(userCid); }
-  if (action) { sql += " AND action=?"; args.push(action); }
-  if (isSuccess !== undefined) { sql += " AND is_success=?"; args.push(isSuccess ? 1 : 0); }
-  if (fromDate) { sql += " AND created_at >= ?"; args.push(fromDate); }
-  if (toDate) { sql += " AND created_at <= ?"; args.push(toDate); }
-  sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
-  args.push(limit, offset);
-  return (await db.execute({ sql, args })).rows || [];
-}
-
-/**
- * Get login stats (success/failure counts).
- */
-export async function getLoginStats(hoursAgo = 24) {
-  const [total, successes, failures, unique] = await Promise.all([
-    db.execute({ sql: "SELECT COUNT(*) as c FROM venture_login_history WHERE created_at > NOW() - INTERVAL '1 hour' * ?", args: [hoursAgo] }).catch(() => ({ rows: [{ c: 0 }] })),
-    db.execute({ sql: "SELECT COUNT(*) as c FROM venture_login_history WHERE is_success=TRUE AND created_at > NOW() - INTERVAL '1 hour' * ?", args: [hoursAgo] }).catch(() => ({ rows: [{ c: 0 }] })),
-    db.execute({ sql: "SELECT COUNT(*) as c FROM venture_login_history WHERE is_success=FALSE AND created_at > NOW() - INTERVAL '1 hour' * ?", args: [hoursAgo] }).catch(() => ({ rows: [{ c: 0 }] })),
-    db.execute({ sql: "SELECT COUNT(DISTINCT user_cid) as c FROM venture_login_history WHERE created_at > NOW() - INTERVAL '1 hour' * ?", args: [hoursAgo] }).catch(() => ({ rows: [{ c: 0 }] })),
-  ]);
-  const successCount = parseInt(successes.rows[0]?.c || 0);
-  const failureCount = parseInt(failures.rows[0]?.c || 0);
-  return {
-    total: parseInt(total.rows[0]?.c || 0),
-    successes: successCount,
-    failures: failureCount,
-    unique_users: parseInt(unique.rows[0]?.c || 0),
-    // The admin Security console's "Login Success"/"Login Failures" cards read
-    // these names; without them the cards stayed at a permanent zero.
-    login_successes: successCount,
-    login_failures: failureCount,
-  };
-}
+export {
+  logAuditEvent,
+  queryAuditLogs,
+  getAuditLog,
+  getAuditLogStats,
+  querySecurityEvents,
+  resolveSecurityEvent,
+  getSecurityStats,
+  getActiveSessions,
+  revokeSession,
+  revokeUserSessions,
+  queryLoginHistory,
+  getLoginStats,
+};
 
 // =============================================================================
 // ENHANCEMENT 5.4: EXTERNAL INTEGRATIONS & PUBLIC APIs
