@@ -105,6 +105,7 @@ or a membership check — and runs after an identity exists.
 | Task action use cases (carry-over, approval, reconcile, assignment list/respond, assignment action) | `services/tasks/{carryover,approval,reconcile,assignments,assignmentAction}.js` | ✅ moved (slice 39 — tasks domain started) |
 | The shared task-access rule (portfolio / owner / assignee / supervisor) | `services/tasks/access.js` | ✅ extracted (slice 40) |
 | Task sub-resource use cases (comments, resources, duplicate, logs, deadline reminders) | `services/tasks/{comments,resources,duplicate,logs,deadlines}.js` | ✅ moved (slice 40 — only the `tasks/route.js` monolith remains) |
+| `tasks/route.js` GET (listing scope, id lookup access check, batch enrichment) | `services/tasks/query.js` | ✅ moved (slice 41 — the monolith's read path; POST/PUT/DELETE/PATCH remain) |
 | Effective access-profile resolution, responsibilities domain | still `src/lib/auth.js` (6 functions, 8 SQL statements) | ⏸ **blocked on a decision** — see below |
 
 Two overlaps are **known and deliberately left alone** until a decision is made,

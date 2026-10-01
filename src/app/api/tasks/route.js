@@ -23,9 +23,6 @@ import {
   getActiveBlockersOnSubtasks,
   getActiveSuperAdminCids,
   getActiveSuperAdmins,
-  getBlockersForTask,
-  getBlockersForTasks,
-  getCommentCountsForTasks,
   getContactNameByCid,
   getContactRoleByCid,
   getIntentResponsibleId,
@@ -36,14 +33,9 @@ import {
   getProjectMembership,
   getProjectOwnerId,
   getProjectStatus,
-  getResourcesForTasks,
-  getSubtasksForTask,
-  getSubtasksForTasks,
   getSuperAdminContact,
   getTaskDeleteInfo,
   getTaskEndDateRowById,
-  getTaskRowById,
-  getTasksByFilters,
   getTaskStandupInfo,
   getTaskTitleRowById,
   incrementTaskRescheduleCount,
@@ -59,6 +51,7 @@ import {
   updateTaskEndDate,
   updateTaskFields,
 } from "@/models/tasks";
+import { listTasks } from "@/services/tasks/query";
 
 /**
  * TASKS API
@@ -126,218 +119,30 @@ export async function GET(req) {
       );
     }
     const { searchParams } = new URL(req.url);
-    const user_id = searchParams.get("user_id");
-    const assigned_to = searchParams.get("assigned_to");
-    const project_id_filter = searchParams.get("project_id");
 
-    // SECURITY (Phase 0): Users see their own tasks + tasks assigned to them.
-    // Super admin can see all but only within their authorized contexts.
-    const sessionCid = session.cid;
-
-    // SECURITY: When a non-SA explicitly requests another user's tasks,
-    // block unless the requester is that user's supervisor or has context access.
-    if (session.role !== "super_admin" && user_id && user_id !== sessionCid) {
-      // Allow if the requester has a task assigned to the target user
-      // (supervisor check will be added in Phase 4 when intents exist)
-      return NextResponse.json(
-        { success: false, error: "You can only access your own tasks." },
-        { status: 403 },
-      );
-    }
-    // Non-staff-side roles (participants, etc.) may only view their own tasks:
-    // force the user filter to the session user and reject foreign assignee filters.
-    const staffSide = [
-      "super_admin",
-      "staff",
-      "program_manager",
-    ];
-    const notStaffSide = !staffSide.includes(session.role);
-    let effectiveUserId = user_id || (notStaffSide ? sessionCid : null);
-    if (notStaffSide && assigned_to && String(assigned_to) !== String(sessionCid)) {
-      return NextResponse.json(
-        { success: false, error: "You can only view your own tasks." },
-        { status: 403 },
-      );
-    }
-    const status = searchParams.get("status");
-    const week_number = searchParams.get("week");
-    const year = searchParams.get("year");
-    const id = searchParams.get("id");
-    const sort = searchParams.get("sort");
-    const limit = searchParams.get("limit");
-    const brief = searchParams.get("brief") === "true";
-    const priority = searchParams.get("priority");
-
-    if (id) {
-      const result = await getTaskRowById(parseInt(id));
-      if (result.rows.length === 0) {
-        return NextResponse.json(
-          { success: false, error: "Task not found" },
-          { status: 404 },
-        );
-      }
-      const task = result.rows[0];
-
-      // SECURITY (Phase 0/6): ID lookup must still enforce authorization.
-      // Only the task owner, assignee, supervisor, or super_admin can view a task by ID.
-      if (
-        session.role !== "super_admin" &&
-        String(task.user_id) !== String(sessionCid) &&
-        String(task.assigned_to || "") !== String(sessionCid) &&
-        String(task.supervisor_id || "") !== String(sessionCid)
-      ) {
-        return NextResponse.json(
-          { success: false, error: "You do not have access to this task." },
-          { status: 403 },
-        );
-      }
-
-      // Fetch blockers + subtasks for this single task
-      const blockersResult = await getBlockersForTask(parseInt(id));
-      const subtasksResult = await getSubtasksForTask(parseInt(id));
-      return NextResponse.json({
-        success: true,
-        tasks: [
-          {
-            ...task,
-            blockers: blockersResult.rows || [],
-            subtasks: subtasksResult.rows || [],
-          },
-        ],
-      });
-    }
-
-    // SECURITY (Phase 0/6): For non-SA users, scope to: owned tasks, assigned tasks, or supervised tasks.
-    // When an explicit assigned_to filter is given, use that. Otherwise scope by session user.
-    // (The SQL for each scope is assembled in src/models/tasks.js — getTasksByFilters.)
-    let scope;
-    if (session.role !== "super_admin") {
-      if (!user_id && !assigned_to) {
-        // No user/assignee filter given (with or without project_id): force scope to session user
-        scope = "self";
-      } else if (effectiveUserId) {
-        // Explicit user_id filter (pre-authorized above): scope to that user
-        scope = "user";
-      } else if (assigned_to) {
-        // Non-SA requesting by assigned_to: only allow viewing own assignments
-        if (assigned_to !== sessionCid) {
-          return NextResponse.json(
-            { success: false, error: "You can only view tasks assigned to yourself." },
-            { status: 403 },
-          );
-        }
-        scope = "assigned";
-      }
-    }
-
-    const result = await getTasksByFilters({
-      isSuperAdmin: session.role === "super_admin",
-      scope,
-      sessionCid,
-      effectiveUserId,
-      assignedTo: assigned_to,
-      projectId: project_id_filter,
-      status,
-      priority,
-      week: week_number,
-      year,
-      sort,
-      limit,
+    const result = await listTasks({
+      userId: searchParams.get("user_id"),
+      assignedTo: searchParams.get("assigned_to"),
+      projectId: searchParams.get("project_id"),
+      status: searchParams.get("status"),
+      weekNumber: searchParams.get("week"),
+      year: searchParams.get("year"),
+      id: searchParams.get("id"),
+      sort: searchParams.get("sort"),
+      limit: searchParams.get("limit"),
+      brief: searchParams.get("brief") === "true",
+      priority: searchParams.get("priority"),
+      role: session.role,
+      sessionCid: session.cid,
     });
 
-    // For brief fetches (tasks tab), skip blockers/subtasks to avoid N+1 perf hit
-    if (brief) {
-      return NextResponse.json({ success: true, tasks: result.rows });
+    if (result.error) {
+      return NextResponse.json(
+        { success: false, error: result.error },
+        { status: result.status },
+      );
     }
-
-    // Batch fetch blockers for all tasks (2 queries total instead of N+1)
-    const taskIds = result.rows.map((task) => task.id);
-    let blockersByTask = {};
-    let subtasksByTask = {};
-    let resourcesByTask = {};
-    let commentCountByTask = {};
-    let allTaskIds = [...taskIds];
-
-    if (taskIds.length > 0) {
-      // Single batch query for all blockers
-      const blockersResult = await getBlockersForTasks(taskIds);
-      for (const blocker of blockersResult.rows || []) {
-        const taskId = blocker.task_id;
-        if (!blockersByTask[taskId]) blockersByTask[taskId] = [];
-        blockersByTask[taskId].push({
-          id: blocker.id,
-          title: blocker.title,
-          status: blocker.status,
-          severity: blocker.severity,
-          description: blocker.description,
-          reference_url: blocker.reference_url,
-          notes: blocker.notes,
-        });
-      }
-
-      // Single batch query for all subtasks — include full field set (Ticket 1.3)
-      try {
-        const subtasksResult = await getSubtasksForTasks(taskIds);
-        for (const subtask of subtasksResult.rows || []) {
-          const parentTaskId = subtask.parent_task_id;
-          if (!subtasksByTask[parentTaskId]) subtasksByTask[parentTaskId] = [];
-          subtasksByTask[parentTaskId].push(subtask);
-          allTaskIds.push(subtask.id);
-        }
-      } catch {
-        // parent_task_id column may not exist yet
-      }
-
-      // Single batch query for all resources (tasks + subtasks)
-      try {
-        const resourcesResult = await getResourcesForTasks(allTaskIds);
-        for (const resource of resourcesResult.rows || []) {
-          const taskId = resource.task_id;
-          if (!resourcesByTask[taskId]) resourcesByTask[taskId] = [];
-          resourcesByTask[taskId].push({
-            id: resource.id,
-            name: resource.name,
-            url: resource.url,
-            type: resource.type,
-            file_name: resource.file_name,
-            file_size: resource.file_size,
-            uploaded_by: resource.uploaded_by,
-          });
-        }
-      } catch {
-        // task_resources table may not exist yet in some environments
-      }
-
-      // Comment counts (tasks + subtasks) — full thread fetched on-demand per task
-      try {
-        const commentCountsResult = await getCommentCountsForTasks(allTaskIds);
-        for (const commentRow of commentCountsResult.rows || []) {
-          commentCountByTask[commentRow.task_id] = parseInt(commentRow.cnt) || 0;
-        }
-      } catch {
-        // v2_task_comments table may not exist yet in some environments
-      }
-    }
-
-    // Attach resources/comment counts onto subtasks now that we have them
-    for (const parentTaskId of Object.keys(subtasksByTask)) {
-      subtasksByTask[parentTaskId] = subtasksByTask[parentTaskId].map((subtask) => ({
-        ...subtask,
-        resources: resourcesByTask[subtask.id] || [],
-        commentCount: commentCountByTask[subtask.id] || 0,
-      }));
-    }
-
-    // Map results
-    const tasksWithBlockers = result.rows.map((task) => ({
-      ...task,
-      blockers: blockersByTask[task.id] || [],
-      subtasks: subtasksByTask[task.id] || [],
-      resources: resourcesByTask[task.id] || [],
-      commentCount: commentCountByTask[task.id] || 0,
-    }));
-
-    return NextResponse.json({ success: true, tasks: tasksWithBlockers });
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error("GET tasks error:", error);
     return NextResponse.json(

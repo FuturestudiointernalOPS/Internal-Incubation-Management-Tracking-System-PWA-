@@ -894,6 +894,41 @@ Moved to `services/tasks/*`, each with a new characterisation net
 
 ---
 
+### Domain 25 (cont.) — the controller frontier: `tasks/route.js`, the read path (slice 41)
+
+The monolith's first pass. `tasks/route.js` (1698 lines, five verbs) is too large
+and too entangled to move in one go, so it is done verb by verb, reads first.
+
+The **GET** handler moves to `services/tasks/query.js` (`listTasks`). The route's
+GET drops to an HTTP shell; what moved is the whole read decision:
+
+- the scoping — a non-super-admin asking for another user's tasks is refused; a
+  non-portfolio caller is forced to their own tasks and a foreign assignee filter
+  is refused; a task looked up by id is still access-checked, so the id path is
+  not an IDOR;
+- the SQL scope choice (`self` / `user` / `assigned`) — the statement itself is
+  still assembled in `@/models/tasks` (`getTasksByFilters`), so no SQL text enters
+  the service;
+- the brief short-circuit, and the batch enrichment (blockers, subtasks,
+  resources, comment counts) that replaces the N+1 fan-out.
+
+The route keeps `STAFF_SIDE_ROLES` (POST/PUT still gate `supervisor_id` on it,
+and `security-lot10` pins it there). Eight now-unused model imports left the
+route with the handler.
+
+New characterisation net: `tasks-query-api.test.js` (10 tests) — the model layer
+is mocked, so it asserts the decisions, not the SQL. It immediately earned its
+keep: a portfolio caller with **no** filter is scoped to their own tasks
+(`scope: "self"`), not unscoped, which the first draft of the test had wrong.
+`tasks-api.test.js` (POST/PUT) and `security-lot10` are unchanged and green.
+
+`npm test` (232 suites, 3297 tests), `npx eslint` (0 errors) and
+`npm run build` are green.
+
+**Left:** the monolith's write paths — POST, PUT, DELETE, PATCH.
+
+---
+
 ### Domain 25 — the `ventures.js` monolith: milestones & deliverables (slice 39)
 
 **Domain 5.** The milestone read, the deliverables of a milestone, and the
