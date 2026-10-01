@@ -18,13 +18,13 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–52 the next `ventures.js`
+> controller (workspace, then collaboration), 39–53 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
 > project timeline & dependencies, reports & project analytics, coach & mentor
 > management, mentoring sessions & scheduling, knowledge hub & learning,
 > mentor feedback & analytics, investment readiness, investor matching, pitch deck
-> & data room, the fundraising pipeline, investment analytics, then administration
-> & system config). The
+> & data room, the fundraising pipeline, investment analytics, administration &
+> system config, then the notification centre). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1102,6 +1102,21 @@ activity actions and the platform-version fallbacks.
 
 ---
 
+### Domain 39 — the `ventures.js` monolith: notification centre (slice 53)
+
+**Domain 20** (ENHANCEMENT 5.2). The in-app notification catalogue (send with its
+delivery log, list, read, archive, delete, unread count), the templates with their
+variable rendering and the per-user preferences. Decisions move to
+`services/ventures/notifications.js`; every statement to
+`models/ventureNotificationsStore.js`; `src/lib/ventures.js` re-exports the
+thirteen functions. (Distinct from the `notify`/`ventureNotifyStore` pair of
+slice 30, which backs founder/coach/Lead-Manager delivery.)
+
+**Unchanged:** the SQL (byte-identical), the recipient/status filters, the
+template rendering and the default preferences.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1301,7 +1316,8 @@ Two source-pinning suites were repointed (same assertion, new home):
   is out (slice 49), and its fundraising pipeline domain
   is out (slice 50), and its investment analytics domain
   is out (slice 51), and its administration & system config domain
-  is out (slice 52), all
+  is out (slice 52), and its notification centre domain
+  is out (slice 53), all
   re-exported through the barrel. A
   long tail of
   `src/lib` modules still

@@ -1136,107 +1136,24 @@ export {
   getAdminActivityLogs,
 } from "@/services/ventures/systemAdmin";
 
-// =============================================================================
-// ENHANCEMENT 5.2: NOTIFICATION CENTER
-// =============================================================================
-
-export async function sendNotification({ recipientId, recipientType, ventureId, type, title, body, data, priority, source, sourceId }) {
-  const id = (await db.execute({
-    sql: `INSERT INTO venture_notifications (recipient_id, recipient_type, venture_id, type, title, body, data, priority, source, source_id) VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?) RETURNING id`,
-    args: [recipientId, recipientType||"user", ventureId||null, type||"system", title, body||null, JSON.stringify(data||{}), priority||"normal", source||null, sourceId||null],
-  })).rows[0]?.id;
-  await db.execute({ sql: `INSERT INTO venture_notification_delivery_logs (notification_id, channel, status) VALUES (?, 'in_app', 'sent')`, args: [id] });
-  return { id };
-}
-
-export async function listNotifications(recipientId, { type, status, limit=50, offset=0 } = {}) {
-  let sql = "SELECT * FROM venture_notifications WHERE (recipient_id=? OR recipient_type='all')";
-  const args = [recipientId];
-  if (type) { sql += " AND type=?"; args.push(type); }
-  if (status) { sql += " AND status=?"; args.push(status); }
-  else { sql += " AND status != 'archived'"; }
-  sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?"; args.push(limit, offset);
-  return (await db.execute({ sql, args })).rows || [];
-}
-
-export async function getNotification(notifId) {
-  return (await db.execute({ sql: "SELECT * FROM venture_notifications WHERE id=?", args: [notifId] })).rows[0] || null;
-}
-
-export async function markNotificationRead(notifId) {
-  await db.execute({ sql: "UPDATE venture_notifications SET status='read', read_at=NOW() WHERE id=?", args: [notifId] });
-  return { success: true };
-}
-
-export async function markAllNotificationsRead(recipientId) {
-  await db.execute({ sql: "UPDATE venture_notifications SET status='read', read_at=NOW() WHERE (recipient_id=? OR recipient_type='all') AND status='unread'", args: [recipientId] });
-  return { success: true };
-}
-
-export async function archiveNotification(notifId) {
-  await db.execute({ sql: "UPDATE venture_notifications SET status='archived' WHERE id=?", args: [notifId] });
-  return { success: true };
-}
-
-export async function deleteNotification(notifId) {
-  await db.execute({ sql: "DELETE FROM venture_notifications WHERE id=?", args: [notifId] });
-  return { success: true };
-}
-
-export async function getUnreadCount(recipientId) {
-  const result = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_notifications WHERE (recipient_id=? OR recipient_type='all') AND status='unread'", args: [recipientId] });
-  return parseInt(result.rows[0]?.c||0);
-}
-
-export async function getNotificationTemplates() {
-  return (await db.execute({ sql: "SELECT * FROM venture_notification_templates WHERE is_active=TRUE ORDER BY name" })).rows || [];
-}
-
-export async function renderTemplate(templateKey, variables) {
-  const template = (await db.execute({ sql: "SELECT * FROM venture_notification_templates WHERE template_key=? AND is_active=TRUE", args: [templateKey] })).rows[0];
-  if (!template) return null;
-  let title = template.title_template, body = template.body_template||"";
-  for (const [variableKey, variableValue] of Object.entries(variables||{})) {
-    title = title.replace(new RegExp(`{{${variableKey}}}`, "g"), String(variableValue));
-    body = body.replace(new RegExp(`{{${variableKey}}}`, "g"), String(variableValue));
-  }
-  return { title, body, channels: typeof template.channels==="string"?JSON.parse(template.channels):(template.channels||["in_app"]) };
-}
-
-export async function getNotificationPreferences(userCid) {
-  const existing = (await db.execute({ sql: "SELECT * FROM venture_notification_preferences WHERE user_cid=?", args: [userCid] })).rows[0];
-  if (existing) return existing;
-  await db.execute({
-    sql: `INSERT INTO venture_notification_preferences (user_cid, preferences) VALUES (?, ?::jsonb)`,
-    args: [userCid, JSON.stringify({
-      system: { in_app: true, email: true }, project: { in_app: true, email: true },
-      mentoring: { in_app: true, email: true }, investment: { in_app: true, email: false },
-      verification: { in_app: true, email: true }, announcements: { in_app: true, email: true },
-    })],
-  });
-  return (await db.execute({ sql: "SELECT * FROM venture_notification_preferences WHERE user_cid=?", args: [userCid] })).rows[0];
-}
-
-export async function updateNotificationPreferences(userCid, updates) {
-  const sets = ["updated_at=NOW()"]; const args = [];
-  if (updates.preferences) { sets.push("preferences=?::jsonb"); args.push(JSON.stringify(updates.preferences)); }
-  if (updates.quiet_hours_start !== undefined) { sets.push("quiet_hours_start=?"); args.push(updates.quiet_hours_start); }
-  if (updates.quiet_hours_end !== undefined) { sets.push("quiet_hours_end=?"); args.push(updates.quiet_hours_end); }
-  if (updates.digest_frequency) { sets.push("digest_frequency=?"); args.push(updates.digest_frequency); }
-  if (updates.language) { sets.push("language=?"); args.push(updates.language); }
-  args.push(userCid);
-  await db.execute({ sql: `UPDATE venture_notification_preferences SET ${sets.join(",")} WHERE user_cid=?`, args });
-  return { success: true };
-}
-
-export async function sendTemplatedNotification({ templateKey, recipientId, recipientType, ventureId, variables, priority, source, sourceId }) {
-  const rendered = await renderTemplate(templateKey, variables);
-  if (!rendered) throw new Error(`Template "${templateKey}" not found.`);
-  return sendNotification({
-    recipientId, recipientType, ventureId, type: templateKey.split("_")[0]||"system",
-    title: rendered.title, body: rendered.body, data: variables, priority, source, sourceId,
-  });
-}
+// ── ENHANCEMENT 5.2: Notification center ────────────────────────────────────
+// Extracted to the service layer; re-exported for existing importers
+// (see docs/LAYER_SPLIT.md).
+export {
+  sendNotification,
+  listNotifications,
+  getNotification,
+  markNotificationRead,
+  markAllNotificationsRead,
+  archiveNotification,
+  deleteNotification,
+  getUnreadCount,
+  getNotificationTemplates,
+  renderTemplate,
+  getNotificationPreferences,
+  updateNotificationPreferences,
+  sendTemplatedNotification,
+} from "@/services/ventures/notifications";
 
 // =============================================================================
 // ENHANCEMENT 5.3: AUDIT LOGS & SECURITY
