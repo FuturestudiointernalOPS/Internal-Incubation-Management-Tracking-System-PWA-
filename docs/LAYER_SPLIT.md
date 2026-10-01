@@ -1899,7 +1899,7 @@ the role-lock column migration and the envelope.
 
 ---
 
-### Domain 72 — the submissions controller frontier: the list read (slice 93)
+### Domain 73 — the submissions controller frontier: the list read (slice 93)
 
 The **GET** scopes the read: the team-entity binding (a team session may only
 read its own team), the own-scope fallback (no program context → a non-management
@@ -1917,7 +1917,7 @@ the `assignments.view` assignment guard (which answers HTTP) and the envelope.
 
 ---
 
-### Domain 73 — the submissions controller frontier: the score write (slice 94)
+### Domain 74 — the submissions controller frontier: the score write (slice 94)
 
 The last verb, the **PUT**: the two score columns' migrations, the score /
 evaluation payload shaping (integer score, JSON-encoded evaluation) and the
