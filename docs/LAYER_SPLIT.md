@@ -18,12 +18,12 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–50 the next `ventures.js`
+> controller (workspace, then collaboration), 39–51 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
 > project timeline & dependencies, reports & project analytics, coach & mentor
 > management, mentoring sessions & scheduling, knowledge hub & learning,
 > mentor feedback & analytics, investment readiness, investor matching, pitch deck
-> & data room, then the fundraising pipeline). The
+> & data room, the fundraising pipeline, then investment analytics). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1042,6 +1042,20 @@ stage-change tracking and the win-rate maths.
 
 ---
 
+### Domain 37 — the `ventures.js` monolith: investment analytics (slice 51)
+
+**Domain 18** (ENHANCEMENT 4.5). The full investment analytics aggregation
+(readiness, match, pipeline, data room, funnel, monthly activity and funding
+trends) and the export summary derived from it. Decisions move to
+`services/ventures/investmentAnalytics.js`; every statement to
+`models/ventureInvestmentAnalyticsStore.js`; `src/lib/ventures.js` re-exports the
+two functions.
+
+**Unchanged:** the SQL (byte-identical), the per-section safe fallbacks and the
+engagement/win rates. **This closes the 4.x investment family.**
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1239,7 +1253,8 @@ Two source-pinning suites were repointed (same assertion, new home):
   is out (slice 47), and its investor matching domain
   is out (slice 48), and its pitch deck & data room domain
   is out (slice 49), and its fundraising pipeline domain
-  is out (slice 50), all
+  is out (slice 50), and its investment analytics domain
+  is out (slice 51), all
   re-exported through the barrel. A
   long tail of
   `src/lib` modules still
