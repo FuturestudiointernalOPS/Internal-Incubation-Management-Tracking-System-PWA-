@@ -74,7 +74,9 @@ describe("supervisor_id is a management field", () => {
 });
 
 describe("anonymous contacts cannot enroll into a program", () => {
-  const src = read("src/app/api/contacts/route.js");
+  // The mapping moved to the registration service; the route no longer decides
+  // what an anonymous submission may carry.
+  const src = read("src/services/contacts/registration.js");
 
   test("program_id and program_name are only honoured for an authenticated caller", () => {
     expect(src).toMatch(/program_id: session \? contact\.program_id \|\| null : null/);
