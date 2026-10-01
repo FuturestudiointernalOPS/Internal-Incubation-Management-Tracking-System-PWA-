@@ -36,7 +36,7 @@
 > contacts list read, then the soft-delete, then the registration, then the
 > contact update — **the CRM controller frontier is complete**. The
 > Communications controller frontier has since begun (campaigns, internal
-> messages, announcements). The
+> messages, announcements, follow-ups and events). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1819,6 +1819,25 @@ author is the session — it now reaches the model through the service.
 
 ---
 
+### Domain 69 — the Communications controller frontier: follow-ups & events (slices 89–90)
+
+**Slice 89 — `/api/followups`** → `services/communications/followups.js`
+(`ensureFollowupSchema`, `createFollowup`, `updateFollowupRecord`). Creating a
+follow-up now owns its two side effects — the calendar-event derivation (`end =
+start + duration`, the truncated title) and the `pending_followup` submission
+move, both non-blocking — plus the update. The route keeps the `createHandler`
+role gate, the facilitator program/team guard (which answers HTTP) and the
+required-field checks.
+
+**Slice 90 — `/api/events`** → `services/communications/events.js` (`createEvent`).
+The event-create now owns the participant notification (the composed date /
+location message). The route keeps the role gates and the envelope.
+
+With these, every communications controller is thin — campaigns, internal
+messages, announcements, follow-ups and events.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1860,7 +1879,7 @@ cleanup, not layering:
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
 | LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85); `platform/form-runs` and the remaining platform AI/import/seed routes to do |
-| Communications | `services/communications/*` | ⏳ **started** — message scope (earlier), campaigns (86), internal messages (87), announcements (88); the followups / events controllers remain |
+| Communications | `services/communications/*` | ✅ **controller frontier complete** — message scope (earlier), campaigns (86), internal messages (87), announcements (88), follow-ups and events (89–90) |
 
 #### Remaining mixed model modules (the actual backlog)
 
