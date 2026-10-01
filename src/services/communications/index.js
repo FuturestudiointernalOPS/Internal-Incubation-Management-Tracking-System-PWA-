@@ -8,7 +8,9 @@
  *
  *   messageScope.js — who may see which message
  *   campaigns.js — the campaign step/audience use-cases
+ *   internalComms.js — the internal message scope engine + inbox/send/read
  */
 
 export * from "./messageScope";
 export * from "./campaigns";
+export * from "./internalComms";
