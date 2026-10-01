@@ -347,11 +347,18 @@ Du plus rentable / débloquant au plus tard :
    diligence, campagnes, pipeline, relations, évaluation, décisions,
    organisations, liste de suivi, préférences, réunions, tableau de bord,
    agrégateurs et mot de passe. `register` est un 410 sans décision.
-4. 🟰 **LMS & paiement** et **e-mail / intégrations** — vérifier d'abord : routes
-   probablement déjà minces ; ne traiter que ce qui contient une décision. Fait :
-   le **règlement partagé** (`settleVerifiedPayment`) et la **réconciliation**
-   (`checkoutReconcile`). Reste à vérifier `api/public/**`, `api/webhooks/**`,
-   `api/gmail-v1-test/**`, le reste de `api/lms/**`, et `api/integrations/**`.
+4. 🟰 **LMS & paiement** et **e-mail / intégrations** — routes à décision déjà
+   migrées : le **règlement partagé** (`settleVerifiedPayment`), la
+   **réconciliation** (`checkoutReconcile`) et l'**inscription publique**
+   (`api/public/register`, `api/public/group-info`) →
+   `services/lms/publicRegistration.js`. Restent à vérifier (ne traiter que les
+   décisions) : `api/webhooks/kkiapay` (machine à états de la notification, déjà
+   adossée au socle de règlement), `api/webhooks/resend` (vérification de
+   signature Svix + fraîcheur + table événement → statut) et le dispatch d'action
+   de `api/lms/registrations` (`link-run` vs `reconcile`). `api/gmail-v1-test`
+   est un diagnostic temporaire marqué « à supprimer », sans décision ;
+   `api/integrations/**`, `api/public/course-match` et `api/webhooks/route.js`
+   délèguent déjà.
 5. **Vues et composants réservés** (V1, V3, V4, V5, V7, V9–V12, V14, V15, V17 et
    B3, B4, B5, B8, B9, B11, B12, B13) — à intercaler avec les couloirs.
 6. **Tableau de bord & ops admin** (agrégateurs : `api/dashboard/**`,
@@ -405,6 +412,7 @@ Du plus rentable / débloquant au plus tard :
 > `venture-kpis` (lectures/écritures sans décision) restent au contrôleur.
 > Tests 255 suites / 3775 ✅ (dont `investor-portal.test.js`), lint 0 erreur,
 > build ✅.
+| LMS & paiement — **inscription publique** | ✅ fait | Décisions de `api/public/register/route.js` (résolution du groupe avec repli familles → v2_groups, règle « un e-mail existant n'est pas une preuve de propriété — jamais réécrire les identifiants d'un compte », garde de conflit facilitateur/participant dans le même programme, synchronisation de la table d'adhésion canonique) et de `api/public/group-info/route.js` (résolution du groupe + fenêtre d'inscription) déplacées dans `services/lms/publicRegistration.js`. Routes amaigries (la présence des champs et la longueur du mot de passe restent au contrôleur, qui valide). Test ajouté (`src/__tests__/lms-public-registration.test.js`) ; le garde-fou statique `security-p0-regressions.test.js` pointe désormais le service. |
 | LMS & paiement — **règlement partagé** | ✅ fait | La décision « régler un paiement VÉRIFIÉ » (contrôle du montant vs prix décidé côté serveur, passage en payé, octroi de l'accès, envoi du reçu, journalisation), dupliquée dans `api/webhooks/kkiapay/route.js` et `api/public/checkout/route.js` (action `verify`), est désormais dans `services/lms/checkout.js` (`settleVerifiedPayment`), appelée par les deux. Les journaux restent identiques : les valeurs `event` (webhook) vs `verified` (checkout) sont passées en paramètre, donc le SQL et les écritures sont inchangés. Le test end-to-end `src/__tests__/lms-checkout.test.js` reste vert. |
 | LMS & paiement — **réconciliation** | ✅ fait | `lib/lms/checkoutReconcile.js` (module de DÉCISION logé dans `lib/`) déplacé vers `services/lms/checkoutReconcile.js` ; `lib/lms/checkoutReconcile.js` devient une simple façade, donc aucun importateur ne change (dont `src/__tests__/lms-checkout-reconcile-cron.test.js`, qui mocke ce chemin lib). Tests 253 suites / 3689 ✅, lint 0 erreur, build ✅. |
 

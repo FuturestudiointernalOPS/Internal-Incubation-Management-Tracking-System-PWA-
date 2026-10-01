@@ -2334,6 +2334,32 @@ are green.
 
 ---
 
+### Domain 85 — the public registration surfaces (slice 121)
+
+`api/public/register` and `api/public/group-info` are the two public LMS
+surfaces still holding a decision:
+
+- **`register`** — the group lookup with its families→v2_groups fallback, the
+  "an existing email is NOT proof of ownership, so an anonymous form must never
+  rewrite an account's credentials" rule, the same-program facilitator/participant
+  conflict guard, and the canonical membership sync move to
+  `services/lms/publicRegistration.js` as `registerParticipantViaGroupLink`. Field
+  presence and the password length stay in the controller, which is where
+  validation belongs.
+- **`group-info`** — the same group resolution plus the program registration
+  window move to `buildPublicGroupInfo`.
+
+Every statement stays in `@/models/platformConfig`; both controllers keep only
+`initDb` and the envelope (the role-conflict response shape stays at the
+boundary). A focused `lms-public-registration.test.js` pins the moved decisions,
+and the static guard in `security-p0-regressions.test.js` now points at the
+service (the invariant is unchanged, only its home moved).
+
+`npm test` (256 suites, 3785 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** — **deleted** (slice 117): `resolver`, `scope`,
