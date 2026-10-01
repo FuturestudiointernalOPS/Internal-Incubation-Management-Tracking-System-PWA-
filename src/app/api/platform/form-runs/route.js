@@ -1,9 +1,8 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
-import { resolvePersonName, resolveSubmissionEmail, recordEmailStatus, isGenericName, isPlaceholderEmail } from "@/lib/email";
-import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded, sendAcknowledgementForSubmission } from "@/lib/platform/automation";
-import { maybeAutoApprove } from "@/models/platform/ai/autoApprove";
+import { resolvePersonName, resolveSubmissionEmail, isGenericName, isPlaceholderEmail } from "@/lib/email";
+import { onRunCreated, onRunLaunched } from "@/lib/platform/automation";
 import {
   getSubmissionById,
   getRunById,
@@ -18,7 +17,6 @@ import {
   countSubmittedSubmissions,
   countApprovedSubmissions,
   countOverdueSubmissions,
-  countNonDraftSubmissionsByRunId,
   getRecentActivityTimeline,
   getAssignableContactsList,
   getScoringSubmissionById,
@@ -39,50 +37,14 @@ import {
   getSubmissionsBySubmitterId,
   listFormRunsPage,
   updateRunStatusById,
-  getRunSubmissionGateById,
-  findExistingSubmissionIdForRunAndSubmitter,
-  getRunFormIdForEvaluationById,
-  getSubmissionCurrentStatusById,
-  updateSubmissionContentAndStatusById,
-  getFullRunForSubmissionAutomationById,
-  getFormForSubmissionAutomationById,
-  insertSubmissionForSubmitter,
-  getFullRunForInsertSubmissionAutomationById,
-  getFormForInsertSubmissionAutomationById,
-  getRunForManualAddById,
-  findContactByLowerEmailForManualAdd,
-  updateContactNameById,
-  getAssignedGroupForManualAddById,
-  insertContactForManualAdd,
-  getRunFormIdForManualEvaluationById,
-  insertManualAddSubmission,
-  getFormForManualAddAutomationById,
-  getBulkReviewValidationsByIdsInRun,
-  getRetryEmailValidationsByIdsInRun,
-  getSubmissionForActivationRetryById,
-  getRunDataForActivationRetryById,
-  getFormForActivationRetryById,
-  getCancelledBatchSubmissionIdsInRun,
   getRunPublicSlugById,
   updateRunPublicSlugById,
   launchRunById,
-  insertRunAssignmentForAction,
-  getAssignmentsAfterAssignByRunId,
-  getFullRunAfterAssignById,
-  getRunIdByAssignmentId,
-  deleteAssignmentById,
-  getAssignmentsAfterUnassignByRunId,
   deleteReviewsBySubmissionId,
   deleteTimelineBySubmissionId,
   deleteEvaluationsBySubmissionId,
   deleteSubmissionById,
   getManualMessageSubmissionsByIdsInRun,
-  getManualMessageFieldLabelsByRunId,
-  getManualMessageGroupNameByRunId,
-  getActivationMessageSubmissionsByIdsInRun,
-  getContactStatusForActivationById,
-  getRunDataForActivationSendById,
-  getFormForActivationSendById,
   updatePublicSlugForRegeneratedLinkById,
   addPublicSlugColumnIfMissing,
   updatePublicSlugRetryAfterAlterById,
@@ -108,13 +70,20 @@ import {
   logTimeline,
   enrichAssignments,
   deriveAccountStatus,
-  calculateSubmissionScores,
-  sendDecisionEmailForSubmission,
   buildResultDocument,
   sendResultEmailForSubmission,
   dispatchScheduledResultEmails,
   scheduleResultSweep,
   processReviewInternal,
+  submitResponse,
+  manualAddSubmission,
+  assignRunTargets,
+  unassignRunTarget,
+  bulkReviewSubmissions,
+  retryFailedEmails,
+  markEmailsCancelled,
+  sendManualMessageToSubmissions,
+  sendActivationMessagesToSubmissions,
 } from "@/services/platform/formRuns";
 
 /**
@@ -618,146 +587,9 @@ export async function POST(req) {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
 
       const { run_id, data, status: subStatus } = body;
-      if (!run_id) return NextResponse.json({ success: false, error: "run_id is required" }, { status: 400 });
-
-      // Check run is active and not closed
-      const run = await getRunSubmissionGateById(run_id);
-      if (run.rows.length === 0) return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
-      if (run.rows[0].status !== "active") return NextResponse.json({ success: false, error: "Run is not active" }, { status: 400 });
-      const gateSettings = run.rows[0].settings || {};
-      if (run.rows[0].closes_at && new Date(run.rows[0].closes_at) < new Date()) {
-        // "Auto-Close" makes the run close ITSELF at its deadline instead of only
-        // refusing late answers — the status the operator would set by hand.
-        if (gateSettings.auto_close) {
-          try { await updateRunStatusById(run_id, "closed"); } catch (_) {}
-        }
-        return NextResponse.json({ success: false, error: "Submission deadline has passed" }, { status: 400 });
-      }
-
-      // "Multiple Submissions" off (the default) means one response per person:
-      // a repeat save UPDATES that person's own response. On, a repeat save adds
-      // a NEW response instead — which is what lets the submission limit below
-      // ever be reached by one person.
-      const allowMultiple = gateSettings.allow_multiple === true;
-      const existing = await findExistingSubmissionIdForRunAndSubmitter(run_id, session.cid);
-      const submissionToUpdate = !allowMultiple && existing.rows.length > 0 ? existing : { rows: [] };
-
-      const newStatus = subStatus || "submitted";
-
-      // "Submission Limit" caps how many responses the run accepts (0 =
-      // unlimited). Only a NEW response consumes a seat, so updating one's own
-      // response is exempt.
-      if (newStatus !== "draft" && submissionToUpdate.rows.length === 0) {
-        const limit = parseInt(gateSettings.submission_limit) || 0;
-        if (limit > 0) {
-          const countRes = await countNonDraftSubmissionsByRunId(run_id, session.cid);
-          const current = parseInt(countRes.rows[0]?.c) || 0;
-          if (current >= limit) {
-            return NextResponse.json({ success: false, error: "platformMisc.runs.submissionLimitReached" }, { status: 400 });
-          }
-        }
-      }
-
-      // Build final data with optional scoring
-      let finalData = { ...(data || {}) };
-      // Is AI evaluation switched ON for this form? A FORM-level question: it says
-      // nothing about whether THIS response already carries an evaluation. The
-      // two were confused, so every re-save re-ran the model and appended a row.
-      let formAiEnabled = false;
-      if (newStatus === "submitted") {
-        const scores = await calculateSubmissionScores(run_id, finalData);
-        if (scores) finalData._scores = scores;
-        try {
-          const { formHasAiEvaluation } = await import("@/lib/platform/ai/evaluate");
-          const runInfo = await getRunFormIdForEvaluationById(run_id);
-          if (runInfo.rows.length > 0) formAiEnabled = await formHasAiEvaluation(runInfo.rows[0].form_id);
-        } catch (_) {}
-      }
-
-      if (submissionToUpdate.rows.length > 0) {
-        const currentStatus = await getSubmissionCurrentStatusById(submissionToUpdate.rows[0].id);
-        // Don't allow overwriting approved/rejected submissions
-        if (currentStatus.rows[0] && (currentStatus.rows[0].status === "approved" || currentStatus.rows[0].status === "rejected")) {
-          return NextResponse.json({ success: false, error: "Cannot modify an already decided submission" }, { status: 400 });
-        }
-        const result = await updateSubmissionContentAndStatusById({
-          submissionId: submissionToUpdate.rows[0].id,
-          data: finalData,
-          status: newStatus,
-        });
-        logTimeline(submissionToUpdate.rows[0].id, newStatus === "draft" ? "draft_saved" : "submitted", session.cid, null);
-        // Fire automation
-        if (newStatus !== "draft") {
-          const fullRun = await getFullRunForSubmissionAutomationById(run_id);
-          const runRow = fullRun.rows[0];
-          let formRow = null;
-          if (runRow) {
-            const formResult = await getFormForSubmissionAutomationById(runRow.form_id);
-            formRow = formResult.rows[0] || null;
-          }
-          onSubmission(result.rows[0], runRow || { id: parseInt(run_id) }, formRow, session);
-          // AI evaluation — but ONLY when this response has never been evaluated.
-          // Re-evaluating appends a duplicate row AND spends a model call to
-          // answer a question that is already answered; the new row carries no
-          // human values, so it would also hide whatever a human had entered.
-          // If we cannot tell whether it was evaluated, we do NOT evaluate.
-          if (formAiEnabled) {
-            const newSubmissionId = result.rows[0].id;
-            try {
-              const { submissionHasEvaluation, evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
-              const alreadyEvaluated = await submissionHasEvaluation(newSubmissionId).catch(() => true);
-              if (!alreadyEvaluated) {
-                const evaluation = await evaluateSubmission(newSubmissionId);
-                logTimeline(newSubmissionId, "ai_evaluated", "system", "System", {});
-                // A score that meets the form's cutoff approves the applicant
-                // right away — the same automatic step the evaluation endpoint
-                // applies, so nothing depends on an administrator opening the run.
-                if (evaluation) await maybeAutoApprove(newSubmissionId, evaluation);
-              }
-            } catch (error) {
-              console.error("[form-runs] AI eval failed for submission", newSubmissionId, ":", error.message);
-              logTimeline(newSubmissionId, "ai_eval_failed", "system", "System", { error: error.message });
-            }
-          }
-        }
-        return NextResponse.json({ success: true, submission: result.rows[0] });
-      } else {
-        const result = await insertSubmissionForSubmitter({
-          runId: run_id,
-          submitterId: session.cid,
-          submitterName: null,
-          status: newStatus,
-          data: finalData,
-        });
-        logTimeline(result.rows[0].id, newStatus === "draft" ? "started" : "submitted", session.cid, null);
-        // Fire automation
-        if (newStatus !== "draft") {
-          const fullRun = await getFullRunForInsertSubmissionAutomationById(run_id);
-          const runRow = fullRun.rows[0];
-          let formRow = null;
-          if (runRow) {
-            const formResult = await getFormForInsertSubmissionAutomationById(runRow.form_id);
-            formRow = formResult.rows[0] || null;
-          }
-          onSubmission(result.rows[0], runRow || { id: parseInt(run_id) }, formRow, session);
-          // A brand-new response cannot already have an evaluation, so the
-          // form-level switch is the whole question here.
-          if (formAiEnabled) {
-            const newSubmissionId = result.rows[0].id;
-            try {
-              const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
-              const evaluation = await evaluateSubmission(newSubmissionId);
-              logTimeline(newSubmissionId, "ai_evaluated", "system", "System", {});
-              // Same automatic approval step as every other evaluation path.
-              if (evaluation) await maybeAutoApprove(newSubmissionId, evaluation);
-            } catch (error) {
-              console.error("[form-runs] AI eval failed for submission", newSubmissionId, ":", error.message);
-              logTimeline(newSubmissionId, "ai_eval_failed", "system", "System", { error: error.message });
-            }
-          }
-        }
-        return NextResponse.json({ success: true, submission: result.rows[0] });
-      }
+      const result = await submitResponse({ run_id, data, status: subStatus, session });
+      if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: result.statusCode || 500 });
+      return NextResponse.json({ success: true, submission: result.submission });
     }
 
     // ─── MANUAL ADD ACTION (super admin injects a respondent) ───
@@ -771,97 +603,9 @@ export async function POST(req) {
       if (authError) return authError;
 
       const { run_id, name, email, data, status: subStatus } = body;
-      if (!run_id) return NextResponse.json({ success: false, error: "run_id is required" }, { status: 400 });
-
-      const run = await getRunForManualAddById(run_id);
-      if (run.rows.length === 0) return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
-
-      const cleanName = (name || "").trim();
-      const cleanEmail = (email || "").trim().toLowerCase();
-
-      // Resolve/ensure a real contact so the respondent's name + email flow
-      // through scoring, review, and the approval/activation email pipeline.
-      let submitterId = null;
-      if (cleanEmail) {
-        const existing = await findContactByLowerEmailForManualAdd(cleanEmail);
-        if (existing.rows.length > 0) {
-          submitterId = existing.rows[0].cid;
-          if (cleanName && !existing.rows[0].name) {
-            await updateContactNameById(submitterId, cleanName);
-          }
-        } else {
-          submitterId = "USR_" + Math.random().toString(36).substring(2, 14).toUpperCase();
-          // Approved respondents default to Member. If the run carries a
-          // group/program assignment, the respondent is placed in that group
-          // (its designation applies then); otherwise they stay neutral —
-          // never an assumed participant.
-          let assignedGroup = null;
-          try {
-            const assignRes = await getAssignedGroupForManualAddById(run.rows[0].id);
-            if (assignRes.rows[0]) {
-              assignedGroup = String(assignRes.rows[0].target_id || "").trim().toUpperCase() || null;
-            }
-          } catch (_) {}
-          await insertContactForManualAdd({
-            cid: submitterId,
-            name: cleanName || cleanEmail,
-            email: cleanEmail,
-            groupName: assignedGroup,
-          });
-        }
-      } else {
-        submitterId = "manual_" + Math.random().toString(36).substring(2, 12);
-      }
-
-      const newStatus = subStatus || "approved";
-
-      let finalData = { ...(data || {}) };
-      // manual_add CREATES a response, so the form-level switch is the whole
-      // question — there is nothing that could already have been evaluated.
-      let formAiEnabled = false;
-      if (newStatus === "submitted") {
-        const scores = await calculateSubmissionScores(run_id, finalData);
-        if (scores) finalData._scores = scores;
-        try {
-          const { formHasAiEvaluation } = await import("@/lib/platform/ai/evaluate");
-          const runInfo = await getRunFormIdForManualEvaluationById(run_id);
-          if (runInfo.rows.length > 0) formAiEnabled = await formHasAiEvaluation(runInfo.rows[0].form_id);
-        } catch (_) {}
-      }
-
-      const result = await insertManualAddSubmission({
-        runId: run_id,
-        submitterId,
-        submitterName: cleanName || null,
-        status: newStatus,
-        data: finalData,
-      });
-      logTimeline(result.rows[0].id, newStatus === "draft" ? "started" : "submitted", session.cid, cleanName || null);
-
-      if (newStatus !== "draft") {
-        const runRow = run.rows[0];
-        let formRow = null;
-        if (runRow) {
-          const formResult = await getFormForManualAddAutomationById(runRow.form_id);
-          formRow = formResult.rows[0] || null;
-        }
-        onSubmission(result.rows[0], runRow || { id: parseInt(run_id) }, formRow, session);
-        if (formAiEnabled) {
-          const newSubmissionId = result.rows[0].id;
-          try {
-            const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
-            const evaluation = await evaluateSubmission(newSubmissionId);
-            logTimeline(newSubmissionId, "ai_evaluated", "system", "System", {});
-            // Same automatic approval step as every other evaluation path.
-            if (evaluation) await maybeAutoApprove(newSubmissionId, evaluation);
-          } catch (error) {
-            console.error("[form-runs] AI eval failed for manual submission", newSubmissionId, ":", error.message);
-            logTimeline(newSubmissionId, "ai_eval_failed", "system", "System", { error: error.message });
-          }
-        }
-      }
-
-      return NextResponse.json({ success: true, submission: result.rows[0] });
+      const result = await manualAddSubmission({ run_id, name, email, data, status: subStatus, session });
+      if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: result.statusCode || 500 });
+      return NextResponse.json({ success: true, submission: result.submission });
     }
 
     // ─── REVIEW ACTION ───
@@ -914,64 +658,9 @@ export async function POST(req) {
       if (authError) return authError;
 
       const { run_id, submission_ids, decision, comment, include_result_pdf } = body;
-      if (!run_id || !Array.isArray(submission_ids) || submission_ids.length === 0) {
-        return NextResponse.json({ success: false, error: "run_id and submission_ids are required" }, { status: 400 });
-      }
-      if (submission_ids.length > 25) {
-        return NextResponse.json({ success: false, error: "A bulk batch can process at most 25 submissions" }, { status: 400 });
-      }
-      if (decision !== "approved") {
-        return NextResponse.json({ success: false, error: "Only 'approved' is supported as a bulk action right now" }, { status: 400 });
-      }
-
-      const idList = [...new Set(submission_ids.map((id) => parseInt(id)).filter((numericId) => Number.isFinite(numericId)))];
-      if (idList.length === 0) {
-        return NextResponse.json({ success: false, error: "No valid submission ids provided" }, { status: 400 });
-      }
-
-      // Backend validation: every id must belong to THIS run — the frontend
-      // selection state is never trusted alone.
-      const validationsResult = await getBulkReviewValidationsByIdsInRun(idList, run_id);
-      const validMap = new Map(validationsResult.rows.map((row) => [row.id, row]));
-
-      const results = [];
-      for (const id of idList) {
-        const row = validMap.get(id);
-        if (!row) {
-          results.push({ submission_id: id, status: "failed", name: "", error: "Submission is not in this run" });
-          continue;
-        }
-        if (row.status === "approved") {
-          results.push({ submission_id: id, status: "already_approved", name: row.submitter_name || "" });
-          continue;
-        }
-        try {
-          const reviewResult = await processReviewInternal({
-            submission_id: id,
-            decision: "approved",
-            comment: comment || "Bulk approved",
-            session,
-            includeResultPdf: include_result_pdf === true,
-          });
-          results.push({
-            submission_id: id,
-            status: reviewResult.ok ? (reviewResult.already_approved ? "already_approved" : "approved") : "failed",
-            name: row.submitter_name || "",
-            error: reviewResult.ok ? undefined : reviewResult.error,
-            result_pdf: reviewResult.result_pdf ? reviewResult.result_pdf.status : undefined,
-            result_pdf_error: reviewResult.result_pdf ? reviewResult.result_pdf.error : undefined,
-          });
-        } catch (error) {
-          results.push({
-            submission_id: id,
-            status: "failed",
-            name: row.submitter_name || "",
-            error: error?.message || "Unknown error",
-          });
-        }
-      }
-
-      return NextResponse.json({ success: true, results });
+      const result = await bulkReviewSubmissions({ run_id, submission_ids, decision, comment, include_result_pdf, session });
+      if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: result.statusCode || 500 });
+      return NextResponse.json({ success: true, results: result.results });
     }
 
     // ─── RETRY FAILED EMAILS ACTION ───
@@ -986,88 +675,9 @@ export async function POST(req) {
       if (authError) return authError;
 
       const { run_id, retries } = body;
-      if (!run_id || !Array.isArray(retries) || retries.length === 0) {
-        return NextResponse.json({ success: false, error: "run_id and retries are required" }, { status: 400 });
-      }
-
-      if (!retries.every((retry) => retry && Number.isFinite(parseInt(retry.submission_id)) && typeof retry.email_type === "string")) {
-        return NextResponse.json({ success: false, error: "Each retry needs submission_id and email_type" }, { status: 400 });
-      }
-
-      // Backend validation: every submission must belong to THIS run.
-      const idList = [...new Set(retries.map((retry) => parseInt(retry.submission_id)))];
-      const validationsResult = await getRetryEmailValidationsByIdsInRun(idList, run_id);
-      const validMap = new Map(validationsResult.rows.map((row) => [row.id, row]));
-
-      const { getEmailLogRow } = await import("@/lib/email");
-      const results = [];
-      for (const item of retries) {
-        const id = parseInt(item.submission_id);
-        const type = String(item.email_type);
-        const name = validMap.get(id)?.submitter_name || "";
-        if (!validMap.has(id)) {
-          results.push({ submission_id: id, email_type: type, name, status: "failed", error: "Submission is not in this run" });
-          continue;
-        }
-        const logRow = await getEmailLogRow(id, type);
-        if (logRow && logRow.status === "sent") {
-          results.push({ submission_id: id, email_type: type, name, status: "already_sent", error: "Email already sent — not resent" });
-          continue;
-        }
-        if (!logRow || !["failed", "bounced", "cancelled", "pending"].includes(logRow.status)) {
-          results.push({ submission_id: id, email_type: type, name, status: "skipped", error: "No failed/bounced/cancelled/pending send to retry" });
-          continue;
-        }
-
-        if (type === "approval" || type === "rejection") {
-          const sendResult = await sendDecisionEmailForSubmission({
-            submission_id: id,
-            decision: type === "approval" ? "approved" : "rejected",
-            comment: "",
-          });
-          results.push({ submission_id: id, email_type: type, name, status: sendResult.status, error: sendResult.error, to: sendResult.to });
-        } else if (type === "result") {
-          const sendResult = await sendResultEmailForSubmission({ submission_id: id });
-          results.push({ submission_id: id, email_type: type, name, status: sendResult.status, error: sendResult.error, to: sendResult.to });
-        } else if (type === "acknowledgement") {
-          // Submission confirmation — same resolution chain as when it first
-          // fired (recipient, name, run → form → default template).
-          const sendResult = await sendAcknowledgementForSubmission({ submission_id: id });
-          results.push({ submission_id: id, email_type: type, name, status: sendResult.status, error: sendResult.error, to: sendResult.to });
-        } else if (type === "activation") {
-          try {
-            const submissionResult = await getSubmissionForActivationRetryById(id);
-            const runData = await getRunDataForActivationRetryById(submissionResult.rows[0]?.run_id);
-            let formData = null;
-            if (runData.rows[0]) {
-              const formResult = await getFormForActivationRetryById(runData.rows[0].form_id);
-              formData = formResult.rows[0] || null;
-            }
-            await onReview(
-              { id: null, submission_id: id, decision: "approved", comment: "Manual email retry", reviewer_name: session.cid },
-              submissionResult.rows[0],
-              runData.rows[0] || null,
-              session,
-              formData
-            );
-            const after = await getEmailLogRow(id, "activation");
-            results.push({
-              submission_id: id,
-              email_type: "activation",
-              name,
-              status: after?.status === "sent" ? "sent" : after?.status === "failed" ? "failed" : "skipped",
-              error: after?.status === "failed" ? (after.error || "Activation email failed") : undefined,
-              to: after?.recipient,
-            });
-          } catch (error) {
-            results.push({ submission_id: id, email_type: "activation", name, status: "failed", error: error?.message || "Retry error" });
-          }
-        } else {
-          results.push({ submission_id: id, email_type: type, name, status: "failed", error: `Unsupported email type: ${type}` });
-        }
-      }
-
-      return NextResponse.json({ success: true, results });
+      const result = await retryFailedEmails({ run_id, retries, session });
+      if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: result.statusCode || 500 });
+      return NextResponse.json({ success: true, results: result.results });
     }
 
     // ─── MARK EMAILS CANCELLED (admin stopped a batch before sending) ───
@@ -1079,36 +689,9 @@ export async function POST(req) {
       if (authError) return authError;
 
       const { run_id, items } = body;
-      if (!run_id || !Array.isArray(items) || items.length === 0) {
-        return NextResponse.json({ success: false, error: "run_id and items are required" }, { status: 400 });
-      }
-      if (items.length > 100) {
-        return NextResponse.json({ success: false, error: "A cancel batch can process at most 100 items" }, { status: 400 });
-      }
-
-      const idList = [...new Set(items.map((item) => parseInt(item?.submission_id)).filter((numericId) => Number.isFinite(numericId)))];
-      const validationsResult = await getCancelledBatchSubmissionIdsInRun(idList, run_id);
-      const validSet = new Set(validationsResult.rows.map((row) => row.id));
-
-      const { getEmailLogRow } = await import("@/lib/email");
-      let marked = 0;
-      for (const item of items) {
-        const id = parseInt(item?.submission_id);
-        const type = String(item?.email_type || "");
-        if (!Number.isFinite(id) || !type || !validSet.has(id)) continue;
-        const logRow = await getEmailLogRow(id, type);
-        if (logRow && logRow.status === "sent") continue; // never touch successful sends
-        await recordEmailStatus({
-          submission_id: id,
-          contact_cid: logRow?.contact_cid || null,
-          email_type: type,
-          status: "cancelled",
-          error: "Cancelled by administrator before send",
-          to: logRow?.recipient || null,
-        });
-        marked++;
-      }
-      return NextResponse.json({ success: true, marked });
+      const result = await markEmailsCancelled({ run_id, items });
+      if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: result.statusCode || 500 });
+      return NextResponse.json({ success: true, marked: result.marked });
     }
 
     // ─── LAUNCH ACTION ───
@@ -1144,43 +727,9 @@ export async function POST(req) {
       // list of targets so one action can assign a run to multiple audiences
       // (e.g. Program AND Group) in a single request.
       const { run_id, target_type, target_id, targets } = body;
-      const ALLOWED_TARGET_TYPES = ["user", "group", "program", "cohort", "team", "organization", "all"];
-      const targetList = Array.isArray(targets)
-        ? targets
-        : [{ target_type: target_type || "user", target_id }];
-      const valid = targetList.filter(
-        (target) => target && ALLOWED_TARGET_TYPES.includes(target.target_type) && target.target_id,
-      );
-      if (!run_id || valid.length === 0) {
-        return NextResponse.json({ success: false, error: "run_id and target required" }, { status: 400 });
-      }
-
-      const runId = parseInt(run_id);
-      let added = 0;
-      let skipped = 0;
-      const createdTargets = [];
-      for (const target of valid) {
-        const insertResult = await insertRunAssignmentForAction({
-          runId,
-          targetType: target.target_type,
-          targetId: target.target_id,
-          assignedBy: session.cid,
-        });
-        if (insertResult.rowsAffected > 0) {
-          added++;
-          createdTargets.push({ target_type: target.target_type, target_id: target.target_id });
-        } else {
-          skipped++;
-        }
-      }
-
-      const assignments = await getAssignmentsAfterAssignByRunId(runId);
-      // Fire automation for each newly created assignment
-      const fullRun = await getFullRunAfterAssignById(runId);
-      for (const target of createdTargets) {
-        onAssignmentAdded(target, fullRun.rows[0] || { id: runId });
-      }
-      return NextResponse.json({ success: true, added, skipped, assignments: await enrichAssignments(assignments.rows) });
+      const result = await assignRunTargets({ run_id, target_type, target_id, targets, session });
+      if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: result.statusCode || 500 });
+      return NextResponse.json({ success: true, added: result.added, skipped: result.skipped, assignments: result.assignments });
     }
 
     // ─── UNASSIGN ACTION ───
@@ -1190,18 +739,9 @@ export async function POST(req) {
       if (authError) return authError;
 
       const { assignment_id } = body;
-      if (!assignment_id) return NextResponse.json({ success: false, error: "assignment_id required" }, { status: 400 });
-
-      const assignmentResult = await getRunIdByAssignmentId(assignment_id);
-      const runId = assignmentResult.rows[0]?.run_id;
-
-      await deleteAssignmentById(assignment_id);
-
-      if (runId) {
-        const assignments = await getAssignmentsAfterUnassignByRunId(runId);
-        return NextResponse.json({ success: true, assignments: await enrichAssignments(assignments.rows) });
-      }
-      return NextResponse.json({ success: true, assignments: [] });
+      const result = await unassignRunTarget({ assignment_id });
+      if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: result.statusCode || 500 });
+      return NextResponse.json({ success: true, assignments: result.assignments });
     }
 
     // ─── PREVIEW RESULT ACTION (read-only PDF before sending) ───
@@ -1352,93 +892,15 @@ export async function POST(req) {
       if (authError) return authError;
 
       const { run_id, submission_ids, subject, body: messageBody } = body;
-      if (!run_id || !Array.isArray(submission_ids) || submission_ids.length === 0) {
-        return NextResponse.json({ success: false, error: "run_id and submission_ids are required" }, { status: 400 });
-      }
-      if (!subject || !messageBody) {
-        return NextResponse.json({ success: false, error: "subject and body are required" }, { status: 400 });
-      }
-      if (submission_ids.length > 500) {
-        return NextResponse.json({ success: false, error: "A manual message can send to at most 500 recipients" }, { status: 400 });
-      }
-
-      const batchId = "msg_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-      const idList = [...new Set(submission_ids.map((id) => parseInt(id)).filter((numericId) => Number.isFinite(numericId)))];
-      const validationsResult = await getManualMessageSubmissionsByIdsInRun(idList, run_id);
-      const validMap = new Map(validationsResult.rows.map((row) => [row.id, row]));
-
-      // Fetch the form's field labels once for identity resolution.
-      let fieldLabels = {};
-      try {
-        const fieldLabelsResult = await getManualMessageFieldLabelsByRunId(run_id);
-        for (const fieldRow of fieldLabelsResult.rows) fieldLabels[String(fieldRow.id)] = fieldRow.label;
-      } catch (_) {}
-
-      let groupName = null;
-      try {
-        const groupResult = await getManualMessageGroupNameByRunId(run_id);
-        if (groupResult.rows.length > 0) groupName = groupResult.rows[0].name;
-      } catch (_) {}
-
-      const { sendManualMessage, resolveSubmissionEmail, resolvePersonName, isPlaceholderEmail } = await import("@/lib/email");
-
-      const results = [];
-      let sent = 0;
-      let failed = 0;
-
-      for (const id of idList) {
-        const submission = validMap.get(id);
-        if (!submission) {
-          results.push({ submission_id: id, status: "failed", error: "Submission is not in this run" });
-          failed++;
-          continue;
-        }
-
-        const subData = submission.data || {};
-        const contactEmail = resolveSubmissionEmail({ submissionData: subData, fieldLabels, contactEmail: "" });
-        if (!contactEmail || isPlaceholderEmail(contactEmail)) {
-          results.push({ submission_id: id, name: submission.submitter_name || "", status: "failed", error: "No usable recipient email" });
-          failed++;
-          continue;
-        }
-
-        const name = resolvePersonName({
-          contactName: "",
-          submitterName: submission.submitter_name || "",
-          submissionData: subData,
-          fieldLabels,
-        }) || submission.submitter_name || "Participant";
-
-        const sendResult = await sendManualMessage({
-          to: contactEmail,
-          name,
-          subject,
-          body: messageBody,
-          submission_id: id,
-          contact_cid: submission.submitter_id || null,
-          batch_id: batchId,
-          templateVars: {
-            form_name: "",
-            group_name: groupName || "",
-          },
-        });
-
-        if (sendResult.success) {
-          sent++;
-          results.push({ submission_id: id, name, status: "sent", to: contactEmail });
-        } else {
-          failed++;
-          results.push({ submission_id: id, name, status: "failed", error: sendResult.error || "Send failed", to: contactEmail });
-        }
-      }
-
+      const result = await sendManualMessageToSubmissions({ run_id, submission_ids, subject, body: messageBody });
+      if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: result.statusCode || 500 });
       return NextResponse.json({
         success: true,
-        batch_id: batchId,
-        recipients: idList.length,
-        sent,
-        failed,
-        results,
+        batch_id: result.batch_id,
+        recipients: result.recipients,
+        sent: result.sent,
+        failed: result.failed,
+        results: result.results,
       });
     }
 
@@ -1449,87 +911,9 @@ export async function POST(req) {
       if (authError) return authError;
 
       const { run_id, submission_ids, force } = body;
-      if (!run_id || !Array.isArray(submission_ids) || submission_ids.length === 0) {
-        return NextResponse.json({ success: false, error: "run_id and submission_ids are required" }, { status: 400 });
-      }
-      const forceResend = force === true || force === 1 || force === "true" || force === "1";
-
-
-      // Backend validation: every submission must belong to THIS run.
-      const idList = [...new Set(submission_ids.map((id) => parseInt(id)))];
-      const validationsResult = await getActivationMessageSubmissionsByIdsInRun(idList, run_id);
-      const validMap = new Map(validationsResult.rows.map((row) => [row.id, row]));
-
-      const { getEmailLogRow, getActivationHistory } = await import("@/lib/email");
-      const results = [];
-      for (const id of idList) {
-        const submission = validMap.get(id);
-        if (!submission) {
-          results.push({ submission_id: id, name: "", status: "failed", error: "Submission is not in this run" });
-          continue;
-        }
-        const name = submission.submitter_name || "";
-        if (String(submission.status || "").toLowerCase() !== "approved") {
-          results.push({ submission_id: id, name, status: "skipped", error: "Submission is not approved" });
-          continue;
-        }
-
-        const logRow = await getEmailLogRow(id, "activation");
-        if (!forceResend && logRow && logRow.status === "sent") {
-          results.push({ submission_id: id, name, status: "already_sent", error: "Activation email already sent" });
-          continue;
-        }
-
-        // Account already activated → no activation email needed. This avoids
-        // the misleading "Send failed" when the person already completed setup.
-        try {
-          const actCheck = await getContactStatusForActivationById(submission.submitter_id);
-          if (actCheck.rows[0] && String(actCheck.rows[0].status || "").toLowerCase() === "active") {
-            results.push({ submission_id: id, name, status: "skipped", error: "Account already activated — no activation email needed" });
-            continue;
-          }
-        } catch (_) {}
-
-        try {
-          const runData = await getRunDataForActivationSendById(submission.run_id);
-          let formData = null;
-          if (runData.rows[0]) {
-            const formResult = await getFormForActivationSendById(runData.rows[0].form_id);
-            formData = formResult.rows[0] || null;
-          }
-          // Force resend bypasses the once-per-submission dedup so an admin can
-          // issue a fresh activation link after the previous 48h link expired.
-          const reviewSubmission = forceResend ? { ...submission, _forceActivationResend: true } : submission;
-          await onReview(
-            { id: null, submission_id: id, decision: "approved", comment: forceResend ? "Manual activation resend" : "Manual activation send", reviewer_name: session.cid },
-            reviewSubmission,
-            runData.rows[0] || null,
-            session,
-            formData
-          );
-          const after = await getEmailLogRow(id, "activation");
-          const hist = await getActivationHistory({ submission_id: id, contact_cid: submission.submitter_id || null });
-          results.push({
-            submission_id: id,
-            name,
-            status: after?.status === "sent" ? "sent" : after?.status === "failed" ? "failed" : "skipped",
-            error: after?.status === "failed" || !after
-              ? (after?.error || "Activation email failed")
-              : after?.status === "pending"
-                ? "Activation send did not complete — check the Emails tab"
-                : after?.error || undefined,
-            to: after?.recipient,
-            first_sent_at: hist.first_sent_at,
-            last_sent_at: hist.last_sent_at,
-            token_valid: hist.token_valid,
-            token_expires_at: hist.token_expires_at,
-          });
-        } catch (error) {
-          results.push({ submission_id: id, name, status: "failed", error: error?.message || "Activation send error" });
-        }
-      }
-
-      return NextResponse.json({ success: true, results });
+      const result = await sendActivationMessagesToSubmissions({ run_id, submission_ids, force, session });
+      if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: result.statusCode || 500 });
+      return NextResponse.json({ success: true, results: result.results });
     }
 
     // ─── REGENERATE PUBLIC LINK (rotates public_slug — old link stops working) ───

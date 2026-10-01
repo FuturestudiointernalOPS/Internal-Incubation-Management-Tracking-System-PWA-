@@ -22,7 +22,16 @@
 const fs = require("fs");
 const path = require("path");
 
-const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+const read = (rel) => {
+  const text = fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+  // Slice 1/2: the review/decision cluster (incl. the AI-evaluate-once logic
+  // in submit/manual_add) moved from the route to the service — append it so
+  // assertions against either half still match.
+  if (rel === "src/app/api/platform/form-runs/route.js") {
+    return fs.readFileSync(path.join(process.cwd(), "src/services/platform/formRuns.js"), "utf8") + "\n" + text;
+  }
+  return text;
+};
 
 const REVIEW_PAGE = "src/app/platform/runs/review/[submissionId]/page.js";
 const FORM_RUNS = "src/app/api/platform/form-runs/route.js";

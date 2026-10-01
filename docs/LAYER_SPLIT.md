@@ -77,12 +77,56 @@ les handlers eux-mêmes) :
 - `src/app/platform/runs/page.js` (5 353 lignes, tâche V2 du catalogue) —
   tâche de vue distincte, pas touchée ici.
 
+### Tranche 2 — le reste des actions `POST` du contrôleur
+
+**Date :** 2026-10-01. **Qui :** même session, suite de la tranche 1.
+
+**Avant.** `form-runs/route.js` faisait 1 677 lignes après la tranche 1 (194
+`if`). Le contrôleur `POST` à lui seul regroupait 18 actions dans un seul
+handler ; 9 d'entre elles portaient une vraie décision multi-étapes
+(validation métier, résolution de contact, boucle de traitement par lot),
+pas seulement « valider un paramètre puis appeler un modèle ».
+
+**Tranche choisie.** Les 9 actions avec décision réelle :
+`submit` (déjà vu dans le commentaire, c'est la plus dense : garde-fou d'un
+run actif/non clos, règle « soumissions multiples », limite de soumissions,
+score IA, évaluation IA anti-doublon, auto-approbation), `manual_add`
+(résolution/création de contact, mêmes règles IA), `assign`/`unassign`,
+`bulk_review`, `retry_emails`, `mark_email_cancelled`, `send_manual_message`,
+`send_activation_messages`.
+
+**Laissé tel quel (contrôleur légitime, pas une décision à extraire) :**
+`status`, `launch`, `preview_result`, `regenerate_report`,
+`send_result_emails`, `dispatch_scheduled_result_emails`, `delete_submission`,
+`regenerate_link`, l'action de création en bas de fichier — chacune ne fait
+qu'une validation simple + un ou deux appels de modèle déjà fait, enrober ça
+n'aurait rien protégé de plus.
+
+**Après.**
+- `src/services/platform/formRuns.js` : +9 fonctions exportées (21 au total) —
+  `submitResponse`, `manualAddSubmission`, `assignRunTargets`,
+  `unassignRunTarget`, `bulkReviewSubmissions`, `retryFailedEmails`,
+  `markEmailsCancelled`, `sendManualMessageToSubmissions`,
+  `sendActivationMessagesToSubmissions`. Même convention de retour que
+  `processReviewInternal` (`{ok, statusCode, error, ...}`). 1 784 lignes.
+- `form-runs/route.js` : 1 677 → 1 061 lignes. Chaque action devenue un
+  dispatcheur de 4-6 lignes (déstructurer `body`, appeler le service, mettre
+  en forme la réponse) — le contrat HTTP (codes, clés JSON) est identique.
+- 1 suite de test de plus corrigée (même geste qu'en tranche 1) :
+  `platform-ai-evaluate-once.test.js` lisait le `.catch(() => true)` de la
+  garde anti-double-évaluation, maintenant dans le service.
+
+**Vérifié.** `npm test` : 227/227, 2 940/2 940 (mêmes effectifs qu'avant la
+tranche). `npx eslint .` : 0 erreur. `npm run build` : vert.
+
 ## 3. Backlog (L1 — platform, ce qu'il reste)
 
 | Élément | Statut |
 |---|---|
 | `services/platform/formRuns.js` — cluster revue/décision/e-mail/PDF | ✅ fait (tranche 1) |
-| Reste de `form-runs/route.js` (GET/POST/PUT/DELETE — orchestration restante) | à auditer tranche par tranche |
+| `form-runs/route.js` — les 9 actions `POST` à décision | ✅ fait (tranche 2) |
+| `form-runs/route.js` — `GET` (orchestration restante, auto-close inline, agrégation du tableau des réponses) | à auditer — probablement déjà acceptable (transport + mise en forme) |
+| `form-runs/route.js` — `status`, `launch`, `preview_result`, `regenerate_report`, `send_result_emails`, `dispatch_scheduled_result_emails`, `delete_submission`, `regenerate_link`, `create` | laissé tel quel (contrôleur déjà mince, voir tranche 2) |
 | `services/platform/import.js` (609 lignes) | non commencé |
 | `services/platform/seed.js` (535 lignes) | non commencé |
 | `services/platform/report.js` (426 lignes) | non commencé |
