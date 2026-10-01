@@ -32,7 +32,7 @@
 > coaching, then the email delivery log). Its CRM controller frontier has since
 > begun — contact groups, user groups, the registry feed, then the contact
 > alternative emails, then the group members, then the directory search, then the
-> duplicate flags, then the contact timeline. The
+> duplicate flags, then the contact timeline, then the contact merge. The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1646,6 +1646,20 @@ check and the envelope.
 
 ---
 
+### Domain 60 — the CRM controller frontier: the contact merge (slice 79)
+
+`/api/contacts/merge` (POST) and `/api/contacts/merge/preview` (GET) carried the
+merge orchestration inline: the reassignment of the duplicate's program
+enrollments, venture memberships and timeline events, the survivor's context-grant
+reconciliation (so a merged founder keeps working access), the merge timeline
+event, the soft-delete that frees the duplicate's email, the flag resolution and
+— for the preview — the three counts and the summary. That all moves to
+`services/contacts/merge.js` (`mergeContacts`, `previewContactMerge`). The routes
+keep the `super_admin` auth, the `contacts.delete` / `contacts.view` gates, the
+required-parameter checks and the envelope.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1682,7 +1696,7 @@ cleanup, not layering:
 |---|---|---|
 | Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
 | Programs | `services/programs/*` | ✅ **controller frontier complete** (slices 13, 68–72, 76) — lifecycle, workspace bundle, exports, weekly reports, teams, curriculum |
-| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22), the groups controller (slice 65), user groups (slice 66), the registry feed (slice 67) + the contact alternative emails (slice 73), then group members (slice 74, retiring the last Supabase route), then the directory-search pool (slice 75), then the duplicate-flag queue (slice 77), then the contact timeline (slice 78); `contacts/route.js` and the rest of the CRM routes remain |
+| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22), the groups controller (slice 65), user groups (slice 66), the registry feed (slice 67) + the contact alternative emails (slice 73), then group members (slice 74, retiring the last Supabase route), then the directory-search pool (slice 75), then the duplicate-flag queue (slice 77), then the contact timeline (slice 78), then the contact merge (slice 79); `contacts/route.js` — the largest CRM controller — remains |
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
