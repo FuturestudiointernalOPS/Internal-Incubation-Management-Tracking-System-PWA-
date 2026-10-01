@@ -64,8 +64,11 @@ describe("privileged writes and secrets", () => {
 
 describe("no raw HTML and server-controlled fields", () => {
   test("the public success message is sanitised", () => {
-    const src = read("src/app/s/[runId]/page.js");
+    // The message is rendered by SubmissionSuccess since the public run page was
+    // split, so the guard follows the sanitiser to the file that now holds it.
+    const src = read("src/components/public/run-submit/SubmissionSuccess.js");
     expect(src).toMatch(/sanitizeRichText\(/);
+    expect(src).toMatch(/dangerouslySetInnerHTML/);
   });
 
   test("lms enrollments force the admin source", () => {
