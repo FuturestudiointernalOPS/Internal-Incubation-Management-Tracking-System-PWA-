@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { logAuditEvent, isTaskLocked } from "@/lib/audit";
 import { logTaskEvent, ACTION_TYPES } from "@/lib/taskAudit";
 import { requireAuth } from "@/lib/auth";
-import { standupUpsert } from "@/lib/standupUpsert";
 import { completeCarryoverAncestors } from "@/lib/taskCarryover";
 import {
   getTaskById,
@@ -13,21 +12,14 @@ import {
 import {
   completeSubtasks,
   countIncompleteSubtasks,
-  createTask,
   getActiveBlockersForTask,
   getActiveBlockersForTaskWithTitle,
   getActiveBlockersOnSubtasks,
   getActiveSuperAdminCids,
-  getActiveSuperAdmins,
   getContactNameByCid,
-  getContactRoleByCid,
   getIntentResponsibleId,
-  getParentProjectCategory,
   getPendingAssignmentId,
   getProjectMembership,
-  getProjectOwnerId,
-  getProjectStatus,
-  getSuperAdminContact,
   getTaskEndDateRowById,
   incrementTaskRescheduleCount,
   insertNotification,
@@ -44,6 +36,8 @@ import {
 import { listTasks } from "@/services/tasks/query";
 import { deleteTaskRecord } from "@/services/tasks/remove";
 import { respondToPendingAssignment } from "@/services/tasks/assignments";
+import { createTaskRecord } from "@/services/tasks/create";
+import { isValidDateStr } from "@/services/tasks/dates";
 
 /**
  * TASKS API
@@ -68,34 +62,6 @@ import { respondToPendingAssignment } from "@/services/tasks/assignments";
  * anyone else.
  */
 const STAFF_SIDE_ROLES = ["super_admin", "staff", "program_manager"];
-
-function getWeekNumber(date) {
-  const targetDate = new Date(
-    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
-  );
-  const dayNum = targetDate.getUTCDay() || 7;
-  targetDate.setUTCDate(targetDate.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(targetDate.getUTCFullYear(), 0, 1));
-  return Math.ceil(((targetDate - yearStart) / 86400000 + 1) / 7);
-}
-
-// ── Date validation helpers ──
-function isValidDateStr(value) {
-  return (
-    typeof value === "string" &&
-    /^\d{4}-\d{2}-\d{2}$/.test(value) &&
-    !isNaN(new Date(value + "T00:00:00Z").getTime())
-  );
-}
-
-function todayStr() {
-  return new Date().toISOString().split("T")[0];
-}
-
-function isCurrentWeek(weekNumber, yearNumber) {
-  const now = new Date();
-  return Number(weekNumber) === getWeekNumber(now) && Number(yearNumber) === now.getFullYear();
-}
 
 export async function GET(req) {
   try {
@@ -152,30 +118,8 @@ export async function POST(req) {
     const { getSession } = await import("@/lib/auth");
     const session = await getSession();
     const body = await req.json();
-    let { user_id } = body;
-    const {
-      user_name,
-      title,
-      description,
-      status,
-      project_id,
-      category,
-      created_week,
-      created_year,
-      carried_over_from_task_id,
-      parent_task_id,
-      start_date,
-      end_date,
-      assigned_to,
-      link,
-      priority,
-      context_type,
-      context_id,
-      supervisor_id,
-      intent_id,
-    } = body;
 
-    if (!user_id || !title || !created_week || !created_year) {
+    if (!body.user_id || !body.title || !body.created_week || !body.created_year) {
       return NextResponse.json(
         {
           success: false,
@@ -185,322 +129,18 @@ export async function POST(req) {
       );
     }
 
-    // Non-privileged users can only create tasks for themselves
-    if (
-      ![
-        "super_admin",
-        "staff",
-        "program_manager",
-        "team",
-      ].includes(session.role)
-    ) {
-      user_id = session.cid;
-    }
-
-    // Phase 1: Inherit project/category from parent task if creating a sub-task
-    let finalProjectId = project_id;
-    let finalCategory = category;
-    if (parent_task_id && !finalProjectId && !finalCategory) {
-      try {
-        const parentResult = await getParentProjectCategory(parseInt(parent_task_id));
-        if (parentResult.rows.length > 0) {
-          const parentTask = parentResult.rows[0];
-          if (!finalProjectId && parentTask.project_id)
-            finalProjectId = String(parentTask.project_id);
-          if (!finalCategory && parentTask.category) finalCategory = parentTask.category;
-        }
-      } catch (_) {}
-    }
-
-    // Task must have project_id OR category — auto-assign "General" as fallback
-    if (!finalProjectId && !finalCategory) {
-      finalCategory = "General";
-    }
-
-    // Prevent task creation on closed projects
-    if (finalProjectId) {
-      try {
-        const projectCheck = await getProjectStatus(finalProjectId);
-        if (
-          projectCheck.rows.length > 0 &&
-          (projectCheck.rows[0].status === "Closed" ||
-            projectCheck.rows[0].status === "Archived")
-        ) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: "Cannot add tasks to a closed or archived project.",
-            },
-            { status: 400 },
-          );
-        }
-      } catch (_) {}
-    }
-
-    // Phase 5: Auto-generate start_date from created_at if not provided
-    // ─── DATE VALIDATION (Phase 13) ───
-    if (start_date && !isValidDateStr(start_date)) {
-      return NextResponse.json(
-        { success: false, error: "Invalid start_date. Expected format YYYY-MM-DD." },
-        { status: 400 },
-      );
-    }
-    if (end_date && !isValidDateStr(end_date)) {
-      return NextResponse.json(
-        { success: false, error: "Invalid end_date. Expected format YYYY-MM-DD." },
-        { status: 400 },
-      );
-    }
-    if (start_date && end_date && end_date < start_date) {
-      return NextResponse.json(
-        { success: false, error: "Due date cannot be earlier than the start date." },
-        { status: 400 },
-      );
-    }
-    // New tasks for the current reporting week cannot start in the past
-    // (backfilled tasks for previous weeks and subtasks are exempt).
-    const isCurrentWeekTask = isCurrentWeek(created_week, created_year);
-    if (
-      isCurrentWeekTask &&
-      !parent_task_id &&
-      !carried_over_from_task_id &&
-      start_date &&
-      start_date < todayStr()
-    ) {
-      return NextResponse.json(
-        { success: false, error: "Start date cannot be in the past." },
-        { status: 400 },
-      );
-    }
-
-    const finalStartDate =
-      start_date || (isCurrentWeekTask ? todayStr() : null);
-    const finalEndDate = end_date || null;
-    let finalAssignedTo = assigned_to || null;
-
-    // If task has a project but no assignee, default to project owner
-    if (!finalAssignedTo && finalProjectId) {
-      try {
-        const ownerResult = await getProjectOwnerId(finalProjectId);
-        if (ownerResult.rows.length > 0 && ownerResult.rows[0].owner_id) {
-          finalAssignedTo = ownerResult.rows[0].owner_id;
-        }
-      } catch (_) {}
-    }
-
-    // Prevent assigning to super_admin (unless the creator IS the super admin assigning to themselves)
-    if (finalAssignedTo) {
-      try {
-        const superAdminCheck = await getSuperAdminContact(finalAssignedTo);
-        if (superAdminCheck.rows.length > 0 && finalAssignedTo !== user_id) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: "Cannot assign tasks to a Super Admin.",
-            },
-            { status: 400 },
-          );
-        }
-      } catch (_) {}
-    }
-
-    // Phase 2: All Future Studio staff can add tasks to any project — skip membership check
-    let finalStatus = status || "in_progress";
-    let pendingApproval = false;
-
-    // If assigned to someone else, don't set assigned_to directly — use pending assignment workflow
-    const needsAssignment = finalAssignedTo && finalAssignedTo !== user_id;
-    const effectiveAssignedTo = needsAssignment ? null : finalAssignedTo;
-
-    // PHASE 2: Contact Group enforcement — assigner and assignee must share a group.
-    if (needsAssignment && session.role !== "super_admin") {
-      const { validateTaskAssignment } = await import("@/lib/contactGroups");
-      const groupCheck = await validateTaskAssignment(
-        user_id,
-        finalAssignedTo,
-        { context_type: context_type || "staff", context_id: context_id || null },
-      );
-      if (!groupCheck.allowed) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Cannot assign task outside your Contact Group. ${groupCheck.reason || "No shared group found."}`,
-          },
-          { status: 403 },
-        );
-      }
-    }
-
-    const finalPriority = ["critical", "high", "medium", "low"].includes(
-      priority,
-    )
-      ? priority
-      : "medium";
-
-    const result = await createTask({
-      user_id,
-      user_name,
-      title,
-      description,
-      status: finalStatus,
-      project_id: finalProjectId,
-      category: finalCategory,
-      created_week,
-      created_year,
-      carried_over_from_task_id,
-      parent_task_id,
-      start_date: finalStartDate,
-      end_date: finalEndDate,
-      assigned_to: effectiveAssignedTo,
-      link,
-      priority: finalPriority,
-      context_type,
-      context_id,
-      // Management field: only a staff-side caller may set a supervisor (it
-      // grants access to the task). A participant's value is ignored.
-      supervisor_id: STAFF_SIDE_ROLES.includes(session.role) ? supervisor_id || null : null,
-      intent_id,
+    const result = await createTaskRecord({
+      input: body,
+      role: session.role,
+      sessionCid: session.cid,
     });
-
-    const taskId = Number(result.rows[0]?.id || result.lastInsertRowid);
-
-    // ─── SUBTASK ⇄ PARENT CASCADE on creation (Phase 13) ───
-    // Keep parent/subtask completion consistent:
-    //   - All non-archived subtasks complete → parent completes (respecting blockers)
-    //   - Any incomplete subtask exists → completed parent reopens to in_progress
-    if (parent_task_id) {
-      try {
-        const incompleteSubtasks = await countIncompleteSubtasks(parseInt(parent_task_id));
-        if ((Number(incompleteSubtasks.rows[0]?.total) || 0) === 0) {
-          const parentBlockersResult = await getActiveBlockersForTask(parseInt(parent_task_id));
-          if (parentBlockersResult.rows.length === 0) {
-            await markTaskCompleted(parseInt(parent_task_id));
-          }
-        } else {
-          await reopenCompletedTask(parseInt(parent_task_id));
-        }
-      } catch (_) {}
+    if (result.error) {
+      return NextResponse.json(
+        result.body || { success: false, error: result.error },
+        { status: result.status },
+      );
     }
-
-    // Audit log: Task Created
-    await logAuditEvent({
-      entity_type: "task",
-      entity_id: taskId,
-      user_id,
-      user_name: user_name || "",
-      action: pendingApproval ? "created_pending_approval" : "created",
-      details: `Task "${title}" created${pendingApproval ? " (pending project approval)" : ""} (Week ${created_week}, ${created_year})`,
-      metadata: {
-        title,
-        status: finalStatus,
-        project_id: finalProjectId,
-        category: finalCategory,
-        created_week,
-        created_year,
-      },
-    });
-
-    // Immutable task audit trail
-    await logTaskEvent({
-      task_id: taskId,
-      project_id: finalProjectId,
-      actor_id: user_id,
-      target_user_id: user_id,
-      action_type: pendingApproval
-        ? ACTION_TYPES.TASK_UPDATED
-        : ACTION_TYPES.TASK_CREATED,
-      new_state: {
-        title,
-        status: finalStatus,
-        project_id: finalProjectId,
-        category: finalCategory,
-      },
-      description: `Task "${title}" created${pendingApproval ? " (pending project approval)" : ""}`,
-    });
-
-    // ─── Notify super admins about new sub-tasks ───
-    if (parent_task_id) {
-      try {
-        // Fetch parent task title
-        const parentTitle =
-          (await getTaskTitleById(parent_task_id)) || "Unknown";
-
-        // Fetch all super admins
-        const superAdminsResult = await getActiveSuperAdmins();
-
-        for (const superAdmin of superAdminsResult.rows) {
-          await insertNotificationWithCreatedAt(
-            superAdmin.cid,
-            "New Sub-task Created",
-            `${user_name || user_id} added sub-task "${title}" under "${parentTitle}"`,
-            "subtask",
-          );
-        }
-      } catch (_) {}
-    }
-
-    // ─── Auto-upsert weekly standup (unified task→standup sync) ───
-    try {
-      const userResult = await getContactRoleByCid(user_id);
-      const userRole = userResult.rows[0]?.role || "staff";
-
-      await standupUpsert({
-        user_id,
-        user_name: user_name || "Unknown",
-        user_role: userRole,
-        week_number: created_week,
-        year: created_year,
-        taskContext: { title, status: finalStatus },
-      });
-    } catch (error) {
-      console.error("Standup upsert failed (non-blocking):", error.message);
-    }
-
-    // ─── Task Assignment Workflow ───
-    // If assigned to someone else, create pending assignment (requires accept/decline)
-    if (needsAssignment) {
-      try {
-        await insertTaskAssignment(taskId, user_id, finalAssignedTo);
-        // Notify assignee — resolve display name if not provided
-        const taskRef = title || "#" + taskId;
-        let notifyName = user_name;
-        if (!notifyName) {
-          try {
-            const nameResult = await getContactNameByCid(user_id);
-            if (nameResult.rows.length > 0) notifyName = nameResult.rows[0].name;
-          } catch (_) {}
-        }
-        await insertNotification(
-          finalAssignedTo,
-          "New Task Assignment",
-          `${notifyName || user_id} assigned you task "${taskRef}"`,
-          "task_assignment",
-        );
-      } catch (error) {
-        console.error("Task assignment creation failed:", error.message);
-      }
-    }
-
-    // ─── Sync parent end_date if subtask extends further ───
-    if (parent_task_id && finalEndDate) {
-      try {
-        const parentEndStr = await getTaskEndDateById(parseInt(parent_task_id));
-        if (parentEndStr) {
-          const parentEndDate = new Date(parentEndStr);
-          const subtaskEndDate = new Date(finalEndDate);
-          if (subtaskEndDate > parentEndDate) {
-            await updateTaskEndDate(finalEndDate, parseInt(parent_task_id));
-          }
-        }
-      } catch (_) {}
-    }
-
-    return NextResponse.json({
-      success: true,
-      id: taskId,
-      action: pendingApproval ? "created_pending_approval" : "created",
-      pendingApproval,
-    });
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error("POST tasks error:", error);
     return NextResponse.json(

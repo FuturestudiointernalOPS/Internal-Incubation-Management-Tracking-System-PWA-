@@ -59,8 +59,12 @@ describe("supervisor_id is a management field", () => {
 
   test("the role list exists and gates the supervisor on create", () => {
     expect(src).toContain('const STAFF_SIDE_ROLES = ["super_admin", "staff", "program_manager"]');
-    expect(src).toMatch(
-      /supervisor_id: STAFF_SIDE_ROLES\.includes\(session\.role\) \? supervisor_id \|\| null : null/,
+    // The create-side supervisor gate moved to the service layer with the layer
+    // split; the rule is unchanged (staff-side roles only), now expressed through
+    // the shared portfolio rule.
+    const createSrc = read("src/services/tasks/create.js");
+    expect(createSrc).toMatch(
+      /supervisor_id: seesWholePortfolio\(role\) \? supervisor_id \|\| null : null/,
     );
   });
 
