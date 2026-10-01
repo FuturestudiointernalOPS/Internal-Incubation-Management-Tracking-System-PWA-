@@ -18,11 +18,12 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–48 the next `ventures.js`
+> controller (workspace, then collaboration), 39–49 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
 > project timeline & dependencies, reports & project analytics, coach & mentor
 > management, mentoring sessions & scheduling, knowledge hub & learning,
-> mentor feedback & analytics, investment readiness, then investor matching). The
+> mentor feedback & analytics, investment readiness, investor matching, then pitch
+> deck & data room). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1012,6 +1013,20 @@ strengths/weaknesses and the status side-effects.
 
 ---
 
+### Domain 35 — the `ventures.js` monolith: pitch deck & data room (slice 49)
+
+**Domain 16** (ENHANCEMENT 4.3). The document catalogue (list / read with
+versions, upload with the duplicate guard and the schema-compat ALTERs, update
+with versioning, delete) and the secure sharing (create link, scoped revoke,
+access logs, shares). Decisions move to `services/ventures/documents.js`; every
+statement to `models/ventureDocumentsStore.js`; `src/lib/ventures.js` re-exports
+the nine functions.
+
+**Unchanged:** the SQL (byte-identical), the visibility filter, the duplicate
+rule, the version numbering and the share token/expiry.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1207,7 +1222,8 @@ Two source-pinning suites were repointed (same assertion, new home):
   & learning domain is out (slice 45), and its mentor feedback & analytics domain
   is out (slice 46), and its investment readiness domain
   is out (slice 47), and its investor matching domain
-  is out (slice 48), all
+  is out (slice 48), and its pitch deck & data room domain
+  is out (slice 49), all
   re-exported through the barrel. A
   long tail of
   `src/lib` modules still

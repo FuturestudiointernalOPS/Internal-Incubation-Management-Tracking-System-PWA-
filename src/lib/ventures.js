@@ -1083,108 +1083,20 @@ export {
   updateMatchStatus,
 } from "@/services/ventures/investorMatching";
 
-// =============================================================================
-// ENHANCEMENT 4.3: PITCH DECK & DATA ROOM
-// =============================================================================
-
-export async function listDocuments(ventureId, { category, isPitchDeck, search, visibility } = {}) {
-  let sql = "SELECT id, name as title, name, description, document_type, category, file_name, file_size, file_type, file_url, thumbnail_url, is_pitch_deck, approval_status, created_at, updated_at, venture_id FROM venture_documents WHERE venture_id=? AND is_deleted = false";
-  const args = [ventureId];
-  if (category) { sql += " AND category=?"; args.push(category); }
-  if (isPitchDeck !== undefined) { sql += " AND is_pitch_deck=?"; args.push(isPitchDeck?1:0); }
-  if (search) { sql += " AND (name ILIKE ? OR description ILIKE ?)"; args.push(`%${search}%`, `%${search}%`); }
-  // Restrict visibility based on role (null = show all)
-  if (visibility && Array.isArray(visibility) && visibility.length > 0) {
-    sql += ` AND approval_status IN (${visibility.map(()=>'?').join(',')})`;
-    args.push(...visibility);
-  }
-  sql += " ORDER BY created_at DESC";
-  return (await db.execute({ sql, args })).rows || [];
-}
-
-export async function getDocument(docId) {
-  const [d, v] = await Promise.all([
-    db.execute({ sql: "SELECT * FROM venture_documents WHERE id=?", args: [docId] }),
-    db.execute({ sql: "SELECT * FROM venture_document_versions WHERE document_id=? ORDER BY version_number DESC", args: [docId] }),
-  ]);
-  if (d.rows.length === 0) return null;
-  return { ...d.rows[0], versions: v.rows||[] };
-}
-
-export async function uploadDocument({ ventureId, title, description, documentType, category, fileName, fileSize, fileType, fileUrl, thumbnailUrl, isPitchDeck, uploadedBy }) {
-  const dup = await db.execute({ sql: "SELECT id FROM venture_documents WHERE venture_id=? AND file_name=?", args: [ventureId, fileName] });
-  if (dup.rows.length > 0) throw new Error("File already exists. Use update for new version.");
-  const id = (await db.execute({
-    sql: `INSERT INTO venture_documents (venture_id, name, description, document_type, category, file_name, file_size, file_type, file_url, storage_path, thumbnail_url, is_pitch_deck, uploaded_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-    args: [ventureId, title.trim(), description||null, documentType||"other", category||"other", fileName, fileSize||null, fileType||null, fileUrl, fileUrl, thumbnailUrl||null, isPitchDeck?1:0, uploadedBy||"system"],
-  })).rows[0]?.id;
-  // Ensure version table columns exist (schema compatibility)
-  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS version_number INTEGER" }); } catch {}
-  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS version INTEGER" }); } catch {}
-  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS file_name TEXT" }); } catch {}
-  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS file_size BIGINT" }); } catch {}
-  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS change_notes TEXT" }); } catch {}
-  try { await db.execute({ sql: "ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS storage_path TEXT" }); } catch {}
-  await db.execute({ sql: `INSERT INTO venture_document_versions (document_id, version_number, version, file_name, file_size, file_url, storage_path, uploaded_by, change_notes) VALUES (?, 1, 1, ?, ?, ?, ?, ?, 'v1')`, args: [id, fileName, fileSize||null, fileUrl, fileUrl, uploadedBy||"system"] });
-  return { id };
-}
-
-export async function updateDocument(docId, updates) {
-  if (updates.file_url) {
-    const doc = (await db.execute({ sql: "SELECT * FROM venture_documents WHERE id=?", args: [docId] })).rows[0];
-    if (doc) {
-      const nextVersion = (doc.current_version||0) + 1;
-      await db.execute({ sql: `INSERT INTO venture_document_versions (document_id, version, file_name, file_size, file_url, uploaded_by, change_notes) VALUES (?, ?, ?, ?, ?, ?, ?)`, args: [docId, nextVersion, updates.file_name||doc.file_name, updates.file_size||null, updates.file_url, updates.uploaded_by||"system", updates.change_notes||`v${nextVersion}`] });
-      updates.current_version = nextVersion;
-    }
-  }
-  const allowed = ["title","description","document_type","category","file_name","file_size","file_type","file_url","thumbnail_url","current_version"];
-  const sets = []; const args = [];
-  for (const column of allowed) { if (updates[column] !== undefined) { sets.push(`${column}=?`); args.push(updates[column]); } }
-  if (sets.length === 0) return { updated: false };
-  sets.push("updated_at=NOW()"); args.push(docId);
-  await db.execute({ sql: `UPDATE venture_documents SET ${sets.join(",")} WHERE id=?`, args });
-  return { updated: true };
-}
-
-export async function deleteDocument(docId) {
-  await db.execute({ sql: "DELETE FROM venture_documents WHERE id=?", args: [docId] });
-  return { success: true };
-}
-
-// ─── Secure Sharing ────────────────────────────────────────────────────────
-
-export async function createShareLink({ documentId, ventureId, sharedWithEmail, sharedWithName, accessType, expiresInHours, maxDownloads, createdBy }) {
-  const { v4: uuidv4 } = await import("uuid");
-  const token = uuidv4();
-  const expiresAt = expiresInHours ? new Date(Date.now()+expiresInHours*3600000).toISOString() : null;
-  const id = (await db.execute({
-    sql: `INSERT INTO venture_document_shares (document_id, venture_id, share_token, shared_with_email, shared_with_name, access_type, expires_at, max_downloads, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-    args: [documentId, ventureId, token, sharedWithEmail||null, sharedWithName||null, accessType||"read", expiresAt, maxDownloads||null, createdBy||"system"],
-  })).rows[0]?.id;
-  return { id, token, expires_at: expiresAt, share_url: `/api/ventures/share/${token}` };
-}
-
-export async function revokeShare(shareId, ventureIds = []) {
-  const ids = (Array.isArray(ventureIds) ? ventureIds : [ventureIds]).filter(
-    (ventureId) => ventureId !== null && ventureId !== undefined,
-  );
-  if (ids.length === 0) return { success: false };
-  const scope = ids.map(() => "venture_id = ?").join(" OR ");
-  await db.execute({
-    sql: `UPDATE venture_document_shares SET is_revoked=TRUE, updated_at=NOW() WHERE id=? AND (${scope})`,
-    args: [shareId, ...ids],
-  });
-  return { success: true };
-}
-
-export async function getAccessLogs(documentId) {
-  return (await db.execute({ sql: "SELECT * FROM venture_document_access_logs WHERE document_id=? ORDER BY created_at DESC LIMIT 50", args: [documentId] })).rows || [];
-}
-
-export async function getDocumentShares(documentId) {
-  return (await db.execute({ sql: "SELECT * FROM venture_document_shares WHERE document_id=? ORDER BY created_at DESC", args: [documentId] })).rows || [];
-}
+// ── ENHANCEMENT 4.3: Pitch deck & data room ─────────────────────────────────
+// Extracted to the service layer; re-exported for existing importers
+// (see docs/LAYER_SPLIT.md).
+export {
+  listDocuments,
+  getDocument,
+  uploadDocument,
+  updateDocument,
+  deleteDocument,
+  createShareLink,
+  revokeShare,
+  getAccessLogs,
+  getDocumentShares,
+} from "@/services/ventures/documents";
 
 // =============================================================================
 // ENHANCEMENT 4.4: FUNDRAISING PIPELINE
