@@ -1465,6 +1465,23 @@ membership rule.
 
 ---
 
+### Domain 53 — the CRM controller frontier: the registry feed (slice 67)
+
+`src/app/api/contacts/full-state/route.js` assembled the Personnel Dashboard feed
+inline: the PM-scoped reads (assigned programs → scoped contacts/participants/
+families/teams) or the global registry, the enrolled-participant merge, the
+group-name uppercase normalization, the FUTURE STUDIO synthetic family, the
+invitation/token status and the activation EMAIL status roll-up. All of it moves
+to `services/contacts/registryFeed.js` (`buildRegistryFeed({ pmId, statusFilter
+})`); the route keeps initDb, the capability guard, the request scope resolution
+(and its 403) and the response envelope.
+
+**Unchanged:** the read set and batching, the case-insensitive participant merge,
+the synthetic-family id, the password-hash strip and the activation-status
+precedence (`sent` wins for `lastSentAt`).
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1501,7 +1518,7 @@ cleanup, not layering:
 |---|---|---|
 | Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
 | Programs | `services/programs/*` | ✅ **models done** (slice 12) · ⏳ controller orchestration started (slice 13) |
-| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22), the groups controller (slice 65) + user groups (slice 66) |
+| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22), the groups controller (slice 65), user groups (slice 66) + the registry feed (slice 67) |
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
