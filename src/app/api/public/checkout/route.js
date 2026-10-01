@@ -5,12 +5,16 @@ import { isValidEmail, normalizeEmail } from "@/lib/email-utils";
 import { defaultPaymentProvider } from "@/lib/integrations/payments";
 import {
   getRegistrationByReference,
+  normalizeRegistrationEmail,
+  markRegistrationPaid,
   providerAmountOf,
+  recordPaymentEvent,
   setEmailState,
   setPaymentHint,
 } from "@/lib/lms/registrations";
 import {
   findResumableRegistration,
+  fulfillRegistration,
   getCheckoutStateForPayer,
   issueResumeLink,
   mintAccessLinkForPayer,
@@ -30,6 +34,12 @@ export const dynamic = "force-dynamic";
  *                                    NEVER the reference back, never a link.
  * POST { action: "hint" }            a transaction id the BROWSER reported —
  *                                    an INDICATION only, it grants nothing.
+ * POST { action: "verify" }          the payer's own tab asking us to re-ask
+ *                                    the PROVIDER: same two guarantees as the
+ *                                    notification (server-side verification +
+ *                                    amount match), so a missed or delayed
+ *                                    Kkiapay notification cannot leave a paid
+ *                                    registration stuck on "pending".
  * POST { action: "access" }          mint the access link, INSIDE the short
  *                                    window after payment; past it the answer
  *                                    is "check your email".
@@ -82,6 +92,7 @@ export async function POST(req) {
     const action = String(body.action || "");
 
     if (action === "hint") return await handleHint(req, body);
+    if (action === "verify") return await handleVerify(req, body);
     if (action === "access") return await handleAccess(req, body);
     if (action === "resend") return await handleResend(req, body);
     if (action === "continue") return await handleContinue(req, body);
@@ -119,6 +130,128 @@ async function handleHint(req, body) {
     });
   }
   return NextResponse.json({ success: true, recorded: true });
+}
+
+/**
+ * The payer's own tab asking US to re-ask the PROVIDER.
+ *
+ * The Kkiapay notification is the primary path, but it can be missed — Kkiapay
+ * retries only a handful of times, and a sandbox, a deploy or a network blip can
+ * swallow it. The payer, though, holds a successful transaction id from the
+ * widget and their browser is already polling. So here we re-verify SERVER-side,
+ * by that id, and settle the registration if the money is confirmed.
+ *
+ * It grants NOTHING on a claim: the provider's verified answer decides, and the
+ * amount is checked against the price WE decided — the same two guarantees the
+ * notification path relies on. A payment that is real therefore stops being
+ * stuck on "en cours".
+ */
+async function handleVerify(req, body) {
+  const reference = String(body.reference || "").trim();
+  const email = normalizeEmail(body.email);
+  if (!reference || !email) {
+    return NextResponse.json({ success: false, error: "lms.errors.invalidPayload" }, { status: 400 });
+  }
+
+  const limited = enforceRateLimit(req, `checkout-verify:${reference}`, {
+    limit: 120,
+    windowMs: 30 * 60 * 1000,
+  });
+  if (limited) return limited;
+
+  const registration = await getRegistrationByReference(reference);
+  if (
+    !registration ||
+    normalizeRegistrationEmail(registration.email) !== normalizeRegistrationEmail(email)
+  ) {
+    return NextResponse.json({ success: false, error: "lms.errors.registrationNotFound" }, { status: 404 });
+  }
+
+  if (registration.status === "paid") {
+    return NextResponse.json({ success: true, payment: "paid" });
+  }
+
+  // The widget's success callback reports its transaction id with this action;
+  // keep it as the trace the notification would otherwise have carried.
+  const hintedTransactionId = body.transactionId ? String(body.transactionId) : null;
+  if (hintedTransactionId && !registration.provider_transaction_id) {
+    await setPaymentHint(registration.id, {
+      transactionId: hintedTransactionId,
+      partnerId: registration.partner_id || reference,
+    });
+    registration.provider_transaction_id = hintedTransactionId;
+  }
+
+  // Nothing to ask about: no notification and no browser report means no id.
+  // The person may simply not have paid yet — leave it pending.
+  const transactionId = registration.provider_transaction_id;
+  if (!transactionId) {
+    return NextResponse.json({ success: true, payment: registration.status });
+  }
+
+  const provider = defaultPaymentProvider();
+  if (!provider.canVerifyTransaction()) {
+    return NextResponse.json({ success: true, payment: registration.status });
+  }
+
+  const verified = await provider.verifyTransaction(transactionId);
+  if (!verified.ok || !verified.isSuccess) {
+    // Not settled yet, or a transient outage. Leave it pending; the next poll
+    // (or the notification, or the sweep) tries again.
+    return NextResponse.json({ success: true, payment: registration.status, verified: false });
+  }
+
+  const expected = providerAmountOf(registration);
+  if (verified.amount != null && Number(verified.amount) !== Number(expected)) {
+    // A divergent amount is a fraud/error signal: record it and refuse.
+    await recordPaymentEvent({
+      registrationId: registration.id,
+      reference: registration.reference,
+      runId: registration.run_id,
+      provider: provider.name,
+      eventType: "verify",
+      transactionId,
+      partnerId: verified.partnerId,
+      amount: verified.amount,
+      status: "failed",
+      message: "amount_mismatch",
+    });
+    return NextResponse.json({ success: true, payment: registration.status });
+  }
+
+  await markRegistrationPaid(registration.id, {
+    provider: provider.name,
+    transactionId,
+    partnerId: verified.partnerId,
+  });
+
+  // The receipt goes out as soon as the MONEY is confirmed — even when the
+  // access step is still in progress, exactly as the notification path does.
+  const fulfillment = await fulfillRegistration(registration.id);
+  const delivery = await deliverCheckoutEmail({
+    registration: { ...registration, status: "paid" },
+    accessToken: fulfillment.ok ? fulfillment.accessToken : null,
+  });
+  await setEmailState(registration.id, { status: delivery.sent ? "sent" : "failed" });
+
+  await recordPaymentEvent({
+    registrationId: registration.id,
+    reference: registration.reference,
+    runId: registration.run_id,
+    provider: provider.name,
+    eventType: "verify",
+    transactionId,
+    partnerId: verified.partnerId,
+    amount: verified.amount,
+    status: "processed",
+    message: fulfillment.ok ? "granted" : "access_failed",
+  });
+
+  return NextResponse.json({
+    success: true,
+    payment: "paid",
+    access: fulfillment.ok ? "granted" : "failed",
+  });
 }
 
 /** The link is handed over ONLY while the moment is fresh. */

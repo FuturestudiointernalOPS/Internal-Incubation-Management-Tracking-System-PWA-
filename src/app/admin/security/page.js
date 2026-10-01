@@ -40,6 +40,23 @@ const pickSessions = (payload) => (payload?.success ? payload.sessions || [] : [
 const pickEvents = (payload) => (payload?.success ? payload.events || [] : []);
 const pickLoginHistory = (payload) => (payload?.success ? payload.history || [] : []);
 
+// Login-history rows carry MACHINE CODES, never prose. They are rendered through
+// t() so the console shows translated labels instead of a raw enum (i18n rule).
+const LOGIN_ACTION_KEYS = {
+  login_success: "adminMisc.security.actionLoginSuccess",
+  team_login_success: "adminMisc.security.actionTeamLoginSuccess",
+  family_login_success: "adminMisc.security.actionFamilyLoginSuccess",
+  login_failed: "adminMisc.security.actionLoginFailed",
+};
+const LOGIN_FAILURE_KEYS = {
+  invalid_credentials: "adminMisc.security.failureInvalidCredentials",
+  account_inactive: "adminMisc.security.failureAccountInactive",
+  account_pending: "adminMisc.security.failureAccountPending",
+  account_archived: "adminMisc.security.failureAccountArchived",
+  account_not_active: "adminMisc.security.failureAccountNotActive",
+  rate_limited: "adminMisc.security.failureRateLimited",
+};
+
 // The seven reads this console needs, at module scope for the same reason as the
 // transformations above.
 const SUMMARY_SESSIONS_URL = "/api/security/sessions?limit=10";
@@ -52,6 +69,14 @@ const LOGIN_HISTORY_URL = "/api/security/login-history?limit=50";
 
 export default function SecurityPage() {
   const { t } = useI18n();
+
+  // Render a login-history code as a translated label; a code with no mapping
+  // (e.g. a row written before these codes existed) degrades to a humanised form.
+  const loginActionLabel = (action) =>
+    LOGIN_ACTION_KEYS[action] ? t(LOGIN_ACTION_KEYS[action]) : (action || "").replace(/_/g, " ");
+  const loginFailureLabel = (reason) =>
+    LOGIN_FAILURE_KEYS[reason] ? t(LOGIN_FAILURE_KEYS[reason]) : (reason || t("adminMisc.security.failed"));
+
   const [activeTab, setActiveTab] = useState("overview");
 
   // Confirm dialog
@@ -302,7 +327,7 @@ export default function SecurityPage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-[var(--text-primary)]">{loginEntry.user_name || loginEntry.user_cid || t("adminMisc.security.unknown")}</p>
                           <p className="text-xs text-[var(--text-secondary)]">
-                            {loginEntry.action?.replace(/_/g, " ")} {loginEntry.ip_address ? t("adminMisc.security.fromIp", { ip: loginEntry.ip_address }) : ""}
+                            {loginActionLabel(loginEntry.action)} {loginEntry.ip_address ? t("adminMisc.security.fromIp", { ip: loginEntry.ip_address }) : ""}
                           </p>
                         </div>
                         <p className="text-xs text-[var(--text-secondary)] whitespace-nowrap">{formatDate(loginEntry.created_at)}</p>
@@ -484,7 +509,7 @@ export default function SecurityPage() {
                             {loginEntry.user_email && <p className="text-xs text-[var(--text-secondary)]">{loginEntry.user_email}</p>}
                           </td>
                           <td className="p-4">
-                            <span className="text-sm text-[var(--text-primary)]">{loginEntry.action?.replace(/_/g, " ")}</span>
+                            <span className="text-sm text-[var(--text-primary)]">{loginActionLabel(loginEntry.action)}</span>
                           </td>
                           <td className="p-4">
                             <div className="flex items-center gap-2">
@@ -502,7 +527,7 @@ export default function SecurityPage() {
                               loginEntry.is_success ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
                             }`}>
                               {loginEntry.is_success ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
-                              {loginEntry.is_success ? t("adminMisc.security.success") : loginEntry.failure_reason || t("adminMisc.security.failed")}
+                              {loginEntry.is_success ? t("adminMisc.security.success") : loginFailureLabel(loginEntry.failure_reason)}
                             </span>
                           </td>
                         </tr>

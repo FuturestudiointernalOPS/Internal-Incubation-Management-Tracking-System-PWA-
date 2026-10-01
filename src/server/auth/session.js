@@ -27,7 +27,6 @@ import {
   findSessionByToken,
   backfillSessionTokenHash,
   deleteSessionByTokenOrHash,
-  ensureImpersonationColumn,
 } from "@/models/sessions";
 import {
   readSessionToken,
@@ -65,7 +64,7 @@ function toSqlTimestamp(date) {
  * Stores session in database and returns the token and maxAge.
  * The caller is responsible for setting the cookie on the response.
  */
-export async function createSession(userCid, userRole, rememberMe = false, isImpersonation = false) {
+export async function createSession(userCid, userRole, rememberMe = false) {
   await initDb();
   await ensureTokenHashColumns();
 
@@ -102,8 +101,6 @@ export async function createSession(userCid, userRole, rememberMe = false, isImp
     userCid,
     "role:",
     userRole,
-    "impersonation:",
-    isImpersonation,
     "expires:",
     expiresAtStr,
   );
@@ -119,17 +116,15 @@ export async function createSession(userCid, userRole, rememberMe = false, isImp
 
   // Create new session
   const tokenHash = hashToken(token);
-  await ensureSessionColumns();
   await insertSession({
     token,
     tokenHash,
     userCid,
     role: userRole,
     expiresAt: expiresAtStr,
-    isImpersonation,
   });
 
-  return { token, maxAge: sessionMaxAgeSeconds(rememberMe), isImpersonation };
+  return { token, maxAge: sessionMaxAgeSeconds(rememberMe) };
 }
 
 /**
@@ -259,23 +254,7 @@ async function readSessionFromToken(token) {
     role: session.role,
     group_name: session.group_name,
     token: session.token,
-    is_impersonation: session.is_impersonation === true,
   };
-}
-
-/**
- * Idempotent self-heal for the session columns this module writes, so an
- * environment whose schema predates them does not fail the login path.
- */
-let ensureSessionColumnsPromise = null;
-function ensureSessionColumns() {
-  if (!ensureSessionColumnsPromise) {
-    ensureSessionColumnsPromise = ensureImpersonationColumn().catch((error) => {
-      console.warn("[session] ensureSessionColumns skipped:", error.message);
-      ensureSessionColumnsPromise = null;
-    });
-  }
-  return ensureSessionColumnsPromise;
 }
 
 /**

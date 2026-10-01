@@ -167,6 +167,33 @@ VALUES ('ventures','role','founder',1)
 ON CONFLICT (feature_key, identity_type, identity_value) DO NOTHING;
 ```
 
+### 4.7 Venture held states — `locked` → `upcoming` / `blocked`
+
+**Run BEFORE the code that reads the new states is deployed.** `locked` used to
+mean two different things at once — a Journey that had not started, and a
+milestone a dependency was holding back. The code now writes and reads two
+separate states, so a database that still holds `locked` rows shows the raw
+value instead of a word.
+
+One migration, already committed:
+`src/migrations/20260929_venture_journey_upcoming.sql`. It is idempotent, never
+touches `completed` work and never deletes. Run it through the guarded script,
+which executes the migration file's own SQL:
+
+```bash
+node scripts/migrate-journey-held-states.mjs .env.staging            # dry run — rolls back, writes nothing
+node scripts/migrate-journey-held-states.mjs .env.staging --apply    # write
+```
+
+- The env file is passed **by name on purpose**: the script never falls back to
+`.env.local`, which points at **production**.
+- Dry run first, on **staging**, then the same two commands against production.
+- After the apply, re-run the dry run: it must report `0` rows that would change.
+
+Expected effect: journey stages that read `locked` become `upcoming`; milestones
+read `upcoming` (Journey not started), `blocked` (an explicit dependency is
+unmet) or `not_started` (Journey active, nothing holds it back).
+
 ---
 
 ## 5. Database schema steps
@@ -181,6 +208,11 @@ them is **missing** the newer columns and tables.
 - marking a **notification** read → 500
 - notifications silently not appearing (every path is wrapped in `try/catch {}`)
 - journey template apply → 500 (`relation venture_journey_templates does not exist`)
+- a Venture's **deliverable evidence invisible in every view** — a missing column
+  makes the roadmap's deliverable read fail, and that read is tolerant by design,
+  so the failure is now logged and reported (`deliverables_unavailable`) instead
+  of silently rendering as "this Venture has no deliverables". If you see that
+  banner, run the two `venture_deliverables` statements below.
 
 **Fix:** apply the DDL before or immediately after deploy, or trigger one of the
 four paths once as staff. `migrations/venture_phase2_spine.sql` covers **only**
@@ -220,6 +252,11 @@ ALTER TABLE venture_sessions  ADD COLUMN IF NOT EXISTS materials JSONB;
 ALTER TABLE venture_notes     ADD COLUMN IF NOT EXISTS source_session_id INTEGER;
 ALTER TABLE venture_reports   ADD COLUMN IF NOT EXISTS journey_stage_id UUID;
 ALTER TABLE venture_reports   ADD COLUMN IF NOT EXISTS report_kind TEXT;
+-- The deliverable's evidence: the uploaded file is stored as a PRIVATE path
+-- here (never a public URL) and signed per read. Without these two columns the
+-- evidence read fails and deliverable evidence disappears from every screen.
+ALTER TABLE venture_deliverables ADD COLUMN IF NOT EXISTS attachment_url TEXT;
+ALTER TABLE venture_deliverables ADD COLUMN IF NOT EXISTS attachment_name TEXT;
 ```
 
 **`journey_stage_id` / `report_kind` are nullable on purpose.** Existing
@@ -252,6 +289,15 @@ them verbatim from `src/lib/ventures.js`.
 ```sql
 SELECT data_type FROM information_schema.columns
 WHERE table_name = 'venture_milestones' AND column_name = 'id';
+```
+
+**Verify the deliverable evidence columns exist** (the check behind the
+`deliverables_unavailable` banner above):
+
+```sql
+SELECT column_name FROM information_schema.columns
+WHERE table_name = 'venture_deliverables'
+  AND column_name IN ('attachment_url', 'attachment_name');
 ```
 
 ### Program tables — align the schema with the code

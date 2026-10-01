@@ -1,15 +1,15 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import {
-  deleteCampaignContacts,
+  deleteCampaignCascade,
   deleteCampaignSteps,
-  getCampaignContactCids,
   getCampaignContacts,
   getCampaignSteps,
   getCampaignWithCounts,
   updateCampaign,
 } from "@/models/communications";
+import { addCampaignSteps, syncCampaignAudience } from "@/services/communications/campaigns";
 
 // ── CAMPAIGNS RETIRED ──────────────────────────────────────────────────────
 // Campaigns are hidden from the sidebar and their API is disabled (403).
@@ -83,47 +83,12 @@ export async function PUT(req, { params }) {
     // Update steps
     if (data.steps) {
       await deleteCampaignSteps(id);
-      const stepQueries = data.steps.map((step, stepOrder) => {
-        const delay_hours =
-          (step.wait_type === "days" ? (step.delay_days || 0) * 24 : 0) +
-          (step.wait_type === "hours" ? step.delay_hours || 0 : 0) +
-          Math.round(
-            (step.wait_type === "minutes" ? step.delay_minutes || 0 : 0) / 60,
-          );
-        return {
-          sql: "INSERT INTO campaign_steps (campaign_id, step_order, subject, body, delay_hours) VALUES (?, ?, ?, ?, ?)",
-          args: [id, stepOrder, step.subject, step.body, delay_hours],
-        };
-      });
-      await db.batch(stepQueries);
+      await addCampaignSteps(id, data.steps);
     }
 
     // Update contacts (Target Audience)
     if (data.cids) {
-      // For simplicity, we'll keep existing sent records and only sync pending/new ones
-      // 1. Get existing contact IDs
-      const existingCidsResult = await getCampaignContactCids(id);
-      const existingCids = existingCidsResult.rows.map((row) => row.contact_cid);
-
-      // 2. Identities to add
-      const toAdd = data.cids.filter(
-        (contactCid) => !existingCids.includes(contactCid),
-      );
-      if (toAdd.length > 0) {
-        const addQueries = toAdd.map((contactCid) => ({
-          sql: "INSERT INTO campaign_contacts (campaign_id, contact_cid, status) VALUES (?, ?, 'pending')",
-          args: [id, contactCid],
-        }));
-        await db.batch(addQueries);
-      }
-
-      // 3. Identities to remove (only if they aren't 'sent' yet)
-      const toRemove = existingCids.filter(
-        (contactCid) => !data.cids.includes(contactCid),
-      );
-      if (toRemove.length > 0) {
-        await deleteCampaignContacts(id, toRemove);
-      }
+      await syncCampaignAudience(id, data.cids);
     }
 
     return NextResponse.json({ success: true });
@@ -143,14 +108,7 @@ export async function DELETE(req, { params }) {
     const authError = await requireAuth(["staff", "super_admin"]);
     if (authError) return authError;
 
-    await db.batch([
-      { sql: "DELETE FROM campaigns WHERE id = ?", args: [id] },
-      { sql: "DELETE FROM campaign_steps WHERE campaign_id = ?", args: [id] },
-      {
-        sql: "DELETE FROM campaign_contacts WHERE campaign_id = ?",
-        args: [id],
-      },
-    ]);
+    await deleteCampaignCascade(id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

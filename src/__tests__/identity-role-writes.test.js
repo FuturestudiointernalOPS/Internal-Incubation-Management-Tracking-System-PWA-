@@ -54,7 +54,6 @@ test("mutation-site inventory is frozen (every contacts.role write is known)", (
     "src/models/authorization.js", // promote/demote super_admin/staff (TRUE identity op — keep)
     "src/models/investorRelations.js", // investor onboarding (contextual — I2 target)
     "src/models/platform/automation.js", // platform approval role set (contextual — I2 target)
-    "src/models/venturePipeline.js", // venture founder (contextual — I2 target)
   ];
   // authFlows.js used to be here: accepting a legacy V2 invite overwrote the
   // contact's role with no guard. Both the routes and the model helpers behind
@@ -64,12 +63,7 @@ test("mutation-site inventory is frozen (every contacts.role write is known)", (
 });
 
 test("contextual role mutations protect baseline identities (guards present)", () => {
-  const venture = fs.readFileSync("src/models/venturePipeline.js", "utf8");
   const investor = fs.readFileSync("src/models/investorRelations.js", "utf8");
-  // Founder write must never clobber super_admin/staff/admin/program_manager.
-  expect(venture).toMatch(
-    /UPDATE\s+contacts\s+SET\s+role\s*=\s*'founder'[\s\S]{0,200}?role\s+NOT\s+IN\s*\(\s*'super_admin'\s*,\s*'staff'/,
-  );
   // Investor write must never clobber super_admin/staff/admin.
   expect(investor).toMatch(
     /UPDATE\s+contacts\s+SET\s+role\s*=\s*'investor'[\s\S]{0,200}?role\s+NOT\s+IN\s*\(\s*'super_admin'\s*,\s*'staff'/,
@@ -138,7 +132,6 @@ describe("I2 mutation-stop guard presence", () => {
     const sites = [
       "src/models/adminOps.js",
       "src/models/investorRelations.js",
-      "src/models/venturePipeline.js",
       "src/models/platform/automation.js",
     ];
     for (const file of sites) {

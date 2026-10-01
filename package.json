@@ -11,9 +11,13 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "jest --runInBand",
+    "test:coverage": "jest --runInBand --coverage",
+    "test:watch": "jest --watch",
     "i18n:parity": "node scripts/i18n-parity.mjs",
     "db:align": "node scripts/db-audit/apply-align-migration.mjs",
     "backfill:founder-ledger": "node scripts/backfill-founder-ledger.mjs",
+    "backfill:milestone-status": "node scripts/backfill-milestone-status.mjs",
+    "migrate:journey-held-states": "node scripts/migrate-journey-held-states.mjs",
     "verify:alignment": "node scripts/verify-feature-alignment.mjs",
     "sync-finance": "node scripts/sync-finance.js --syncAll"
   },
@@ -49,6 +53,26 @@
     },
     "testMatch": [
       "<rootDir>/src/__tests__/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.{js,jsx}",
+      "!src/__tests__/**",
+      "!src/locales/**",
+      "!src/migrations/**",
+      "!**/*.config.js",
+      "!src/app/**/layout.js",
+      "!src/app/**/loading.js",
+      "!src/app/**/error.js",
+      "!src/app/**/not-found.js"
+    ],
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "/src/__tests__/"
+    ],
+    "coverageReporters": [
+      "text-summary",
+      "json-summary",
+      "lcov"
     ]
   },
   "dependencies": {

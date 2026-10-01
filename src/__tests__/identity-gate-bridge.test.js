@@ -93,10 +93,17 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     const lists = authBlocks("src/app/api/submissions/route.js");
     expect(lists).toHaveLength(1); // one pure-global handler stays listed
     expect(containsContextual(lists[0])).toBe(false);
-    // Own-scope fallback for no-programId reads + self-service identity binding.
-    expect(src).toMatch(/participant_id = session\.cid/);
-    expect(src).toMatch(/body\.participant_id = session\.cid/);
-    expect(src).toMatch(/body\.team_id = session\.cid/);
+    // Own-scope fallback for no-programId reads + self-service identity binding
+    // — both now live in the service.
+    expect(src).toMatch(/applyOwnSubmissionScope/);
+    const service = fs.readFileSync(
+      path.join(ROOT, "src/services/ventures/submissions.js"),
+      "utf8",
+    );
+    expect(service).toMatch(/export function applyOwnSubmissionScope/);
+    expect(service).toMatch(/return session\.cid;/);
+    expect(service).toMatch(/body\.participant_id = session\.cid/);
+    expect(service).toMatch(/body\.team_id = session\.cid/);
   });
 
   test("phase 1.1: ventures/[id]/history — bare + unified membership/assignment gate", () => {
@@ -105,7 +112,10 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(bareAuthCount(file)).toBe(1);
     expect(authBlocks(file)).toHaveLength(0);
     expect(src).toMatch(/hasActiveVentureAssignment/);
-    expect(src).toMatch(/venture_members WHERE venture_id/);
+    // The membership probe moved to the model; the route keeps the gate.
+    expect(src).toMatch(/isActiveVentureMember/);
+    const model = fs.readFileSync(path.join(ROOT, "src/models/ventureWorkspace.js"), "utf8");
+    expect(model).toMatch(/venture_members WHERE venture_id/);
   });
 
   test("phase 1.1: pm/teams GET — bare + program-context gate (management/capability/assignment)", () => {
@@ -126,7 +136,13 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     const lists = authBlocks(file);
     expect(lists).toHaveLength(0); // no contextual-role list remains
     expect(src).toMatch(/requireAuthorization\("contacts", "view"\)/);
-    expect(src).toMatch(/getContactByCid\(cidFilter \|\| session\.cid\)/);
+    // The self-lookup read moved to the service; the route still asserts the
+    // contacts.view gate.
+    const service = fs.readFileSync(
+      path.join(ROOT, "src/services/contacts/registryRead.js"),
+      "utf8",
+    );
+    expect(service).toMatch(/getContactByCid\(cidFilter \|\| session\.cid\)/);
   });
 
   test("phase 1.2: contacts/search GET — bare + membership-keyed branch + capability gate", () => {
@@ -135,8 +151,14 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(bareAuthCount(file)).toBe(1);
     const lists = authBlocks(file);
     expect(lists).toHaveLength(0);
-    expect(src).toMatch(/isParticipantInProgram/);
-    expect(src).toMatch(/isVentureFounderInProgram/);
+    // The membership-keyed decision moved to the service; the route keeps the
+    // capability gate.
+    const service = fs.readFileSync(
+      path.join(ROOT, "src/services/contacts/directorySearch.js"),
+      "utf8",
+    );
+    expect(service).toMatch(/isParticipantInProgram/);
+    expect(service).toMatch(/isVentureFounderInProgram/);
     expect(src).toMatch(/requireAuthorization\("contacts", "view"\)/);
   });
 

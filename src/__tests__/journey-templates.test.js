@@ -5,8 +5,10 @@
  *   → entire Venture journey (stages + bound milestones + top-level tasks)
  *     becomes an independent, structure-only library template
  * POST /api/ventures/[id]/journey/apply-journey-template
- *   → fresh journey stages (first active, rest locked) + fresh milestones and
- *     tasks; 409 when the Venture already has stages
+ *   → fresh journey stages + fresh milestones and tasks; a Venture with no
+ *     journey gets its first stage active and the rest upcoming; a Venture
+ *     already under way has the new stages CONTINUE its numbering and arrive
+ *     upcoming, so a template can be added to a programme already under way
  * GET /api/journey-templates — library listing with structural counts
  */
 
@@ -26,8 +28,8 @@ function makeFakeDb() {
     executed.push({ sql, args });
     if (sql.startsWith("CREATE TABLE IF NOT EXISTS venture_journey_stages")) return { rows: [] };
     if (sql.includes("FROM ventures WHERE id::text")) return { rows: [{ id: VENTURE_DB_ID }] };
-    if (sql.includes("SELECT COUNT(*) AS n FROM venture_journey_stages")) {
-      return { rows: [{ n: flags.existingStages ? 2 : 0 }] };
+    if (sql.includes("MAX(stage_order)") && sql.includes("FROM venture_journey_stages")) {
+      return { rows: [{ max_order: flags.existingStages ? 2 : 0 }] };
     }
     if (sql.includes("SELECT id, name FROM venture_journey_templates WHERE id = ?")) {
       return { rows: [{ id: "tpl-1", name: "F&F Journey" }] };
@@ -38,7 +40,7 @@ function makeFakeDb() {
         ? {
             rows: [
               { id: STAGE_1, venture_id: VENTURE_DB_ID, name: "Family & Friends", description: "d1", objective: "o1", stage_order: 1, status: "active" },
-              { id: STAGE_2, venture_id: VENTURE_DB_ID, name: "GTM", description: null, objective: null, stage_order: 2, status: "locked" },
+              { id: STAGE_2, venture_id: VENTURE_DB_ID, name: "GTM", description: null, objective: null, stage_order: 2, status: "upcoming" },
             ],
           }
         : { rows: [] };
@@ -203,7 +205,7 @@ describe("POST /journey/apply-journey-template — generate journey from saved t
     const stageInserts = insertsMatching("INSERT INTO venture_journey_stages");
     expect(stageInserts.length).toBe(2);
     expect(stageInserts[0].args[5]).toBe("active");
-    expect(stageInserts[1].args[5]).toBe("locked");
+    expect(stageInserts[1].args[5]).toBe("upcoming");
     // Milestones bound to the freshly returned stage ids
     const msInserts = insertsMatching("INSERT INTO venture_milestones");
     expect(msInserts.length).toBe(2);
@@ -214,10 +216,28 @@ describe("POST /journey/apply-journey-template — generate journey from saved t
     expect(insertsMatching("INSERT INTO venture_tasks")[0].sql).toContain("'backlog'");
   });
 
-  test("returns 409 when the Venture already has journey stages", async () => {
+  test("adding to a Venture that already has journeys CONTINUES the numbering", async () => {
     mockDb.flags.existingStages = true;
     const res = await applyPOST(new Request("http://localhost/x", { method: "POST", body: JSON.stringify({ template_id: "tpl-1" }) }), ctx);
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(200);
+    const data = await readJson(res);
+    expect(data.success).toBe(true);
+
+    const stageInserts = insertsMatching("INSERT INTO venture_journey_stages");
+    expect(stageInserts.length).toBe(2);
+    // 2 stages already exist, so the new ones are 3 and 4 — never colliding with
+    // UNIQUE (venture_id, stage_order).
+    expect(stageInserts[0].args[4]).toBe(3);
+    expect(stageInserts[1].args[4]).toBe(4);
+    // Nothing opens itself on top of work in flight.
+    expect(stageInserts[0].args[5]).toBe("upcoming");
+    expect(stageInserts[1].args[5]).toBe("upcoming");
+    // The counts reported are the NEW rows, not the Venture's total.
+    expect(data.stages).toBe(2);
+    // And an upcoming stage offers no milestone: availability is the Journey's.
+    for (const insert of insertsMatching("INSERT INTO venture_milestones")) {
+      expect(insert.args[5]).toBe("upcoming");
+    }
   });
 });
 

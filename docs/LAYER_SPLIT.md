@@ -1,0 +1,2453 @@
+# Layer split — View → Controller → Service → Repository
+
+> Status: **authorization + finance complete; programs models done; controller
+> frontier complete (after a correction — see slice 26)**. Slices 1–9 finished
+> authorization (service layer HTTP-free), 10–11 finished finance, 12–13 covered
+> programs, 14 contacts, 15 ventures, 17–18 LMS (learning, then checkout), 19
+> workspace, 20 ventures (plan import), 21 platform (Run report), 22 the CRM
+> decision helpers, 23 the first controller sweep, 24 the Journey
+> stage/archive/template engine, 25 the archive + duplication engines, 26 the
+> controller leftovers the first sweep's grep missed (multiline `db\n.execute`
+> chains, `runSafeQuery`/`runQuery` wrappers) + milestone ordering, 27 the access
+> facts (service + store; `ventureAuth` is left with no SQL and no `db`
+> parameter), 28 the permission engine and the milestone progression engine
+> (service + store; the `db` threading through `canManageMilestones` /
+> `syncMilestoneFromWork` is gone), 29 the assignment-scope layer and the
+> operating-plan access helpers, 30 the roadmap readiness engine and the Venture
+> notification helpers, 31 the venture progress reports, 32 the Venture coach
+> identity/invitation layer, 33–36 the first `ventures.js` domains out of the
+> monolith (activity/history/notifications, the startup-profile wizard,
+> founders/co-founders, the Data-bank verification), 37–38 the projects
+> controller (workspace, then collaboration), 39–64 the next `ventures.js`
+> domains (milestones & deliverables, tasks/dependencies/comments/attachments,
+> project timeline & dependencies, reports & project analytics, coach & mentor
+> management, mentoring sessions & scheduling, knowledge hub & learning,
+> mentor feedback & analytics, investment readiness, investor matching, pitch deck
+> & data room, the fundraising pipeline, investment analytics, administration &
+> system config, the notification centre, audit logs & security, then external
+> integrations & public APIs, system monitoring, health & reporting, then the core
+> schema bootstrap, intake, then the core record — **`ventures.js` is now a
+> barrel**), then the non-venture `src/lib` tail — which is now **completely clear
+> of SQL** (token hashing, task audit, access profiles + responsibilities, LMS
+> coaching, then the email delivery log). Its CRM controller frontier has since
+> begun — contact groups, user groups, the registry feed, then the contact
+> alternative emails, then the group members, then the directory search, then the
+> duplicate flags, then the contact timeline, then the contact merge, then the
+> contacts list read, then the soft-delete, then the registration, then the
+> contact update — **the CRM controller frontier is complete**. The
+> Communications controller frontier has since begun (campaigns, internal
+> messages, announcements, follow-ups and events). The
+> submissions controller frontier has since begun and is now complete (the submit
+> path, the review, the list read, the score write). The platform frontier has
+> since begun — the `form-runs` email/report-document cluster (slice 95), then
+> the platform wave (slices 96–111): the import preview/execute/review-flag
+> routes, the two seeds, the AI form generation, the template personalizer, the
+> advisory analysis, the evaluation scoreboard, the form-runs scoring engine, the
+> review workflow, the forms/collections controllers, the whole `form-runs`
+> action vocabulary (respondent write path, run lifecycle, email actions,
+> messaging actions, link/document/run actions, then the PUT/DELETE verbs) and
+> the remaining platform controllers (notifications, integrations, investor-run,
+> evaluation-config, report-file).
+> The remaining mixed model modules are itemised in §4. This document is the
+> running log. Update it at the end of every slice.
+
+Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
+[`SERVER_LAYERS.md`](SERVER_LAYERS.md) (the request path as it stands),
+[`ARCHITECTURE.md`](ARCHITECTURE.md).
+
+---
+
+## 1. The target
+
+We are moving to four layers, with a hard rule on each:
+
+```text
+View            src/app/<role>/**/page.js · src/components/**
+   │            renders, collects input — never touches the database
+   ▼
+Controller      src/app/api/**/route.js
+   │            authenticates, validates, shapes the HTTP answer — no decisions, no SQL
+   ▼
+Service         src/services/<domain>/**        ← NEW
+   │            decides ("may they?", "what runs next?") — no SQL
+   ▼
+Repository      src/models/<domain>/**
+   │            one function per query — no decisions, no HTTP
+   ▼
+Database        src/lib/db.js  (direct Postgres pool)
+```
+
+Infrastructure (`src/lib/**`: db engine, i18n, email, storage, logger) sits
+beside all of this and is not a domain layer.
+
+### Naming decisions (and the deviations from the original sketch)
+
+| Proposal | Decision here | Why |
+|---|---|---|
+| `src/repositories/**` | **keep `src/models/**`** as the repository layer | `AGENTS.md` and ~250 importers already say "all SQL lives in `src/models`". Renaming would be pure churn for zero behaviour. A second data-access folder would be two homes for the same thing — rejected. |
+| `src/services/**` | **adopted** | New home for use-case/decision code. This is the layer that did not exist. |
+| `src/types/**` | **deferred** | The project is JavaScript with no static typing (`jsconfig.json`, no TS dependency). Introducing a type layer is a separate decision, tracked in §4. |
+| `src/lib/supabase/{client,server}.ts` | **not created** | Data access is a direct Postgres pool. The Supabase client (`src/lib/supabase.js`) is peripheral (storage/admin), not the data path and not the auth path. Repositories call the pool. |
+
+### The one rule that makes the split worth it
+
+> A service must never run SQL.
+
+If a service runs SQL, its decision cannot be tested without a database, and it
+becomes the module this split exists to break up. This is enforced by a test
+(§6), not by convention.
+
+### Two compatibility mechanisms
+
+When a symbol moves, existing importers must keep working. Two devices are used,
+both temporary and both deleted once `grep` finds no importer:
+
+- **Model facades** — `src/models/authorization/<module>.js` becomes
+  `export * from "@/services/…"`. Used for `resolver`, `scope`,
+  `contextGrantReadiness`, `eligibility-admin`, `context`, `contextGrants`,
+  `programAssignments`. Cost: a documented (shim-only) model→service edge.
+- **Aggregating lib facades** — `src/lib/authorization/<module>.js` re-exports
+  **both** the repository and the service (e.g. `eligibility`, `membership`).
+  Used where the SQL stays in `models` and only the decision moved. This one
+  creates **no** cross-layer edge, so it is preferred.
+
+---
+
+## 2. What is done
+
+### Slice 1 — the authorization context
+
+The decision module decided access **and** ran SQL **and** imported HTTP
+(`src/models/authorization/resolver.js`, 583 LOC). Now split:
+
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/authorization/context.js` | Resolve effective access, merge grants/groups/profile/restrictions, gate on eligibility, `authorize`, `can`, `requireAuthorization`, the context cache, the row-shaping helpers. |
+| **Service barrel** | `src/services/authorization/index.js` | Public entry point of the authorization service. |
+| **Repository** | `src/models/authorization/contextReads.js` | The 8 reads, one function per query, SQL byte-identical. No decisions, no HTTP. |
+| **Facade** | `src/models/authorization/resolver.js` | `export * from "@/services/authorization/context"`. |
+
+### Slice 2 — the readiness report
+
+`buildContextGrantReadiness` decided, ran two inline statements, and reached
+into the resolver (the model→service edge slice 1 created). Now:
+
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/authorization/contextGrantReadiness.js` | The report — drift and impact computation. Asks the context service, not the model. |
+| **Repository** | `src/models/authorization/contextGrantReadinessReads.js` | The two reads (contact row, sentinel-granted capabilities). |
+| **Facade** | `src/models/authorization/contextGrantReadiness.js` | `export * from "@/services/…"`. |
+
+### Slice 3 — the scope engine
+
+`src/models/authorization/scope.js` decided record scope and ran six statements.
+Now:
+
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/authorization/scope.js` | `resolveScopeIds` (policy dispatch), `resolveVentureScopeId`, `isWithinScope`, `isContactWithinStaffedPrograms`, the fail-closed rules. Re-exports the pure catalogue. |
+| **Repository** | `src/models/authorization/scopeReads.js` | The four policy reads + the venture-id lookup + the shared-programme probe. |
+| **Facade** | `src/models/authorization/scope.js` | `export * from "@/services/…"`. The pure catalogue stays in `./scope-catalog`. |
+
+### Slice 4 — eligibility and membership decisions
+
+Both modules mixed a pure decision with their queries. Now:
+
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/authorization/eligibility.js` | `evaluateEligibility` (the pure eligibility decision). |
+| **Repository** | `src/models/authorization/eligibility.js` | The schema, the one-time seeds, the vocabulary (`MODULE_TO_FEATURE`, defaults). |
+| **Service** | `src/services/authorization/membership.js` | `isEffectiveMembership`, `selectEffectiveGroups`, `applyMembershipAction`, `getEffectiveGroupsAndHistory`, `getEffectiveGroupsForUser`. |
+| **Repository** | `src/models/authorization/membership.js` | Schema, one-time bootstrap, raw reads (`getMembershipRowsForUser`, `getMembership`, `isGroupProtected`, …), vocabulary (`INTERNAL_GROUP`, `MEMBERSHIP_ACTIONS`, `normalizeGroupName`). |
+
+`src/lib/authorization/{eligibility,membership}.js` aggregate both layers, so
+**no** cross-layer edge was created for these two.
+
+### Slice 5 — eligibility administration
+
+`src/models/authorization/eligibility-admin.js` held the eligibility vocabulary
+and validators but also ran three statements, and reached into the eligibility
+decision from the model layer. Now:
+
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/authorization/eligibilityAdmin.js` | The vocabulary (`FEATURE_KEYS`, `ROLE_CATALOG`, `ELIGIBILITY_IDENTITIES`, …), `validateEligibilityChanges`, `validateCapabilitiesWithinEligibility`, `assertTemplateCapsEligible`, `findTemplatesGrantingFeature`. |
+| **Repository** | `src/models/authorization/eligibilityAdminReads.js` | The profile-capability read and the templates-granting read. The third read (eligibility rows for a role + groups) reuses `contextReads.getFeatureEligibilityRows` — no second copy of that statement. |
+| **Facade** | `src/models/authorization/eligibility-admin.js` | `export * from "@/services/…"`. |
+
+This move **removed the last real model→service edge**: the eligibility decision
+is now asked for by another service (`./eligibility`), not by a model.
+
+### Slice 6 — the scoped-access guard
+
+`src/models/authorization/context.js` held the scoped decision path
+(`requireScopedAccess`) and its three per-resource assignment resolvers, all
+running their own SQL, and imported its decisions through the infrastructure
+facade. Now:
+
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/authorization/scopedAccess.js` | `resolveContextAssignment` (program / project / venture), `requireScopedAccess`, the 401/403/500 answers. Imports `getAuthorizationContext` / `requireAuthorization` from `./context` — the same layer — instead of through the facade. |
+| **Repository** | `src/models/authorization/contextAssignmentReads.js` | The program-staff, contact-role, project-member and venture-member lookups. |
+| **Facade** | `src/models/authorization/context.js` | `export * from "@/services/…"`. |
+
+Importing the sibling service instead of the facade also **avoids an import
+cycle** the move would otherwise create (the facade tree re-exports this module).
+
+### Slice 7 — the context-grant reconcile
+
+The most sensitive module of the domain — it **writes** capability grants, not
+just reads. `src/models/authorization/contextGrants.js` (626 LOC) held the grant
+plan, the justification resolution and the reconcile orchestration, all running
+their own SQL. Now:
+
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/authorization/contextGrants.js` | `SUPPORTED_CONTEXT_ROLES`, `contextGrantSentinel`, `planContextGrantChanges`, `resolveContextDesiredCaps`, `resolveContextJustification`, `syncContextGrantsForUser`, `syncAllContextGrants`, `syncContextGrantsOnConnect`, `syncAllContextGrantsEverywhere`, `revokeAllContextGrants`. No SQL. |
+| **Repository** | `src/models/authorization/contextGrantsStore.js` | Every statement: the provenance schema, the reads that justify a grant, and the writes that apply/revoke it. This is the one repository module that also **writes** — the mechanism owns the rows it creates. |
+| **Facade** | `src/models/authorization/contextGrants.js` | `export * from "@/services/…"`. Four suites `jest.mock` this exact path; a facade keeps those mocks intercepting. |
+
+Its cache invalidator now imports the sibling `./context` service dynamically
+(was `./resolver`); two suites' stubs moved to that path.
+
+### Slice 8 — the program-assignment derivation (domain complete)
+
+`src/models/authorization/programAssignments.js` held the per-assignment
+capability derivation and expiry next to its SQL. Now:
+
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/authorization/programAssignments.js` | `UNCONFIGURED_LEVEL`, `resolveAssignmentCapabilityLevel`, `deriveFacilitatorDesiredCaps`, `deriveAssignmentsExpiry`, `assignmentsForRole`. No SQL. |
+| **Repository** | `src/models/authorization/programAssignmentReads.js` | `listActiveProgramAssignments`, `listProgramAssignmentContacts`, `loadAssignmentLookups`, and the tolerant read for the optional profile column (`executeWithOptionalProfileColumn`). `isProgramEnded` stays here as a shared pure predicate the read uses. |
+| **Facade** | `src/models/authorization/programAssignments.js` | Re-exports **both** the reads and the service. |
+
+`src/models/authorization/programAssignmentBackfill.js` now imports the level
+decision from the service explicitly, and the two services that consume the
+derivation split their imports across the reads and the service.
+
+### Slice 9 — the HTTP boundary (finishing the domain)
+
+The last thing tying the domain to HTTP: `requireAuthorization` and
+`requireScopedAccess` lived in the services and built `NextResponse` objects
+themselves. They now return a **decision value**, and one boundary module owns
+the response:
+
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/authorization/context.js` → `evaluateAuthorization` | `{ allowed, status, errorKey }` — no HTTP. |
+| **Service** | `src/services/authorization/scopedAccess.js` → `evaluateScopedAccess` | the scoped decision, built on `evaluateAuthorization`. |
+| **HTTP boundary** | `src/server/authz/responses.js` | `requireAuthorization` / `requireScopedAccess`: map a decision to `null \| NextResponse`. This is the **only** place left where an authorization decision meets HTTP. |
+
+Every existing caller keeps its exact contract (`if (authError) return
+ authError;`) — the barrel re-exports the boundary functions from their new
+ home, so no route changed. The services are now provably HTTP-free: a guard
+ test fails if any file under `src/services/**` imports `next/server`.
+
+**Unchanged throughout:** the SQL (byte-identical), the wave/round-trip
+structure, the merge semantics, the fail-closed rules, and every returned field.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| Full suite `npm test` | **228 suites, 3015 tests, all passed** |
+| `npx eslint .` | 0 errors (6 pre-existing warnings elsewhere) |
+| `npm run build` | green |
+| Cold-resolution round trips | unchanged (3 waves — pinned by `db-sequencing.test.js`) |
+
+### Domain 2 — finance (slice 10)
+
+The first slice outside authorization. `src/models/finance/ingest.js` (415 LOC)
+brought the finance sheets in: it **parsed** them (sheet → budget lines and
+transactions) *and* ran the sync's SQL (the data-source lookup, BEGIN/COMMIT/
+ROLLBACK, the upserts, the status/log writes). Now:
+
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/finance/ingest.js` | The three sheet parsers and the sync orchestration (`ingestFromSheet`, `syncDataSource`). No SQL. |
+| **Repository** | `src/models/finance/ingestStore.js` | Every statement: the lookups, the transaction control, the upserts, the sync-log and data-source status updates. |
+| **Facade** | `src/models/finance/ingest.js` | `export * from "@/services/…"` (the sync route reaches it via `@/lib/finance/ingest`). |
+
+**Unchanged:** the SQL (byte-identical), the parsing rules, the transaction
+boundaries and the returned counts.
+
+**Finance slice 11 — the reads/aggregation.** `src/models/finance/queries.js`
+(395 LOC) resolved the data source, aggregated the figures and ran the SQL in the
+same module. The resolution and aggregation (`resolveDataSource`, `getSummary`,
+`getMonthly`, `getTransactions`, `getBudgetLines`, `insertTransaction`,
+`getDataSources`) moved to `src/services/finance/queries.js`; every statement to
+`src/models/finance/queriesStore.js`. **The finance domain is now complete.**
+
+### Domain 3 — programs (slice 12)
+
+`src/models/kpi-progress.js` (279 LOC) computed an objective's completion rate
+*inside* the loop that read its rows. The rate and the cache policy now live in
+`src/services/programs/kpiProgress.js`; every statement (objectives, active
+participants, deliverables, approved submissions, cache clear/rewrite, last-
+calculated read) in `src/models/kpiProgressStore.js`. The rate is unchanged:
+approved (participant × deliverable) pairs, counted once each, over active
+participants × linked deliverables.
+
+The rest of the programs domain was already repository-shaped: `programs.js`,
+`programMembership.js`, `curriculum.js`, `teams.js` and `programWorkspace.js` are
+one-function-per-query modules with no decision mixed in. What still carries
+programs logic is the **controllers**.
+
+**Programs slice 13 — the manager-change controller.**
+`PUT /api/pm/programs/[id]/manager` did the domain work itself (the unchanged
+check, the dangling-cid guard, the write, the reconciliation of both sides).
+That work moved to `src/services/programs/programManager.js`
+(`changeProgramManager` → `{ status, errorKey, body }`). The route keeps what a
+controller owns: the `programs.edit` gate, the two-ways-in repair policy,
+validation and response shaping.
+
+### Domain 4 — contacts / CRM (slice 14)
+
+`src/models/contact-group-sync.js` (304 LOC) resolved the contact, decided the
+fill-only writes and ran three reconciliation statements. The decisions now live
+in `src/services/contacts/contactGroupSync.js`; every statement in
+`src/models/contactGroupSyncStore.js`. The file is a re-export facade (the
+full-state route reaches it via `@/lib/contact-group-sync`).
+
+**Not changed:** the idempotent, additive, fill-only semantics; the one-run-per-
+window reconciliation guard; the byte-identical SQL.
+
+### Domain 5 — ventures (slice 15)
+
+`src/models/ventureDocumentTypes.js` (319 LOC) mixed the decisions (seed only
+when empty, fall back to the built-in set, unique code, delete guards, who may
+manage) into the functions that ran the SQL. Now: decisions in
+`src/services/ventures/ventureDocumentTypes.js`, every statement in
+`src/models/ventureDocumentTypesStore.js`, both re-exported by the
+`ventureDocumentTypes.js` facade. The injectable `database` argument the tests
+rely on is threaded through unchanged.
+
+**A test caught a real regression here** (a missing `if (!ventureId) return []`
+guard) — proof the suites are doing their job on a move like this.
+
+### Domain 6 — LMS (slice 17)
+
+`src/models/lms/learning.js` (680 LOC) — the learner experience: structure and
+progress loads, enrollment access, lesson completion, assessment submission and
+certificate finalisation, all mixing the decision with the statements. Now: the
+decisions in `src/services/lms/learning.js`, every statement in
+`src/models/lms/learningStore.js`, the model file a re-export facade. The pure
+`computeCourseProgress` / `findContinueLesson` moved with the service; the
+injectable fake database the suite uses still drives both layers.
+
+One suite pinned the payload's SOURCE file (`lms-section-resource-learner-files`);
+it now reads the service instead of the model — same assertion, new home.
+
+**LMS slice 18 — the paid checkout.** `src/models/lms/checkout.js` (514 LOC)
+resolved the price, decided what a run sells, captured the registration, granted
+the course access and minted the access/resume links — all in the same functions
+that ran the SQL. Now: the decisions in `src/services/lms/checkout.js`, every
+statement in `src/models/lms/checkoutStore.js`, the model file a re-export
+facade (reached by the LMS routes and the public checkout through
+`@/lib/lms/checkout`).
+
+The public surface is preserved: the pure insert/read wrappers
+(`findContactForPurchase`, `insertPurchaseContact`, `insertPurchaseEnrollment`) and
+the re-exported registration writes (`recordPaymentEvent`, `markRegistrationPaid`,
+`setEmailState`, `setAccessState`) keep their names.
+
+Two suites pinned the SOURCE file and were repointed, same assertion, new home:
+`lms-access-token-schema` now reads the store (it asserts the access INSERT omits
+the invite-only `token_type`), and `login-next-redirect` reads the service (it
+asserts the setup-password link carries `next`).
+
+**Unchanged:** the SQL (byte-identical), the server-side price, the neutral
+answers to strangers, the window/link rules, and every returned field.
+
+---
+
+### Domain 7 — workspace (slice 19)
+
+`src/models/workspace.js` (792 LOC) is largely a repository: one statement per
+function. Exactly one function mixed a decision with its SQL —
+`getCalendarVentureSessions`, which DERIVED a person's Venture scope (membership
+∪ active staff assignment), expanded the codes to the internal ids and chose the
+"no scope" sentinel, then ran three statements in the same body. Now: the
+derivation in `src/services/workspace/calendar.js`, the three statements in
+`src/models/workspaceCalendarStore.js`. The `workspace.js` file keeps its
+repository functions and re-exports the moved one — the model-level shim device,
+because the file is not otherwise a facade.
+
+The characterisation suite (`venture-session-calendar`) drives the function
+through the fake database unchanged; it now reads the service in its header.
+
+**Unchanged:** the SQL (byte-identical), the scope semantics, the sentinel and
+the coach leg.
+
+---
+
+### Domain 8 — ventures, plan import (slice 20)
+
+`src/models/venturePlanImport.js` (1225 LOC) is the biggest mixed module left:
+it interpreted an uploaded tracker into a proposal, validated it against the
+platform, kept the draft and turned an approved draft into journey rows —
+resolving owners, choosing the first-journey status and running the SQL in the
+same functions.
+
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/ventures/planImport.js` | The prompt shaping, `normalizeJourneys`, `deriveProposalDates`, `validateDependencyRefs`, owner resolution, the interpretation and the plain-language correction, the draft decisions (supersede, recompute stats) and the whole `applyPlanImport` orchestration (first-journey rule, orders, labels, edges, change log). |
+| **Repository** | `src/models/venturePlanImportStore.js` | Every statement: the owner lookups, the existing-programme reads, the draft CRUD, and the structural writes. |
+| **Facade** | `src/models/venturePlanImport.js` | `export * from` + `export { default } from` the service. |
+
+**Keeping the transaction in service hands without running SQL there.** The two
+multi-statement operations must stay in ONE transaction, and one of them (apply)
+needs the in-transaction `MAX(stage_order)` to decide the first journey's status.
+Rather than move that decision into a store that owns the transaction (which the
+rule forbids), the store exposes `runInTransaction(fn)` — the same
+"`db` as a parameter" device `src/lib/ventureJourneys.js` already uses — and every
+statement that runs inside a transaction takes its `query` runner as the first
+argument. The service still writes no SQL: it calls store functions.
+
+The `initDb()` the module used to call defensively is gone: the plan-import
+controller already initialises the database, like every other migrated service's
+controller.
+
+**Unchanged:** the SQL (byte-identical, same statement order), the transaction
+boundaries, the single statement per structure write, every returned field, and
+the guarded, once-only apply.
+
+---
+
+### Domain 9 — platform, Run report (slice 21)
+
+`src/models/platform/ai/report.js` (489 LOC) shaped the prompt, parsed and
+validated the model's answer, and read/wrote the stored report in the same
+functions. Now: the decisions in `src/services/platform/report.js`, every
+statement in `src/models/platform/ai/reportStore.js`, the model file a re-export
+facade. The on-demand table guard (`ensureSubmissionReportsTable`, memoised) moved
+with the statements — the suite resets the module registry to re-check it.
+
+**`models/platform/ai/email-personalize.js` is pure** — no imports, no SQL, no
+HTTP. It is the service-side shaping already, so there is nothing to split; the
+files that call it as a library keep importing it (`@/lib/platform/ai/email-personalize`).
+
+**Unchanged:** the SQL (byte-identical), the prompt text, the parsing bounds, the
+report key and every returned field.
+
+### Domain 4 (cont.) — the CRM decision helpers (slice 22)
+
+Five CRM/platform modules were checked; only the genuine `decision + SQL` helpers
+were split, each keeping its model file as a re-export shim:
+
+| Module | Function | Service + store |
+|---|---|---|
+| `models/communications.js` | `listMessagesForScope` (the visibility policy) | `services/communications/messageScope.js` + `models/messageScopeStore.js` |
+| `models/contacts.js` | `findContactByEmail` (normalise + empty-input guard) | `services/contacts/contactLookup.js` + `models/contactLookupStore.js` |
+| `models/groups.js` | `upsertV2ParticipantActiveWithFallback` (the no-constraint fallback) | `services/contacts/participantSync.js` + `models/participantSyncStore.js` |
+| `models/formRuns.js` | `listFormRunsPage` (the page + its matching total) | `services/platform/formRunList.js` + `models/formRunListStore.js` |
+
+**Unchanged:** the SQL (byte-identical), the assembled visibility clauses, the
+fallback path, the window-count/fallback total and the response shapes.
+
+**Checked and NOT split (repository shaping, per the `countApprovedSubmissions`
+precedent):** `countNonDraftSubmissionsByRunId`'s two branches and
+`buildRunListFilter`/`countFormRuns` in `formRuns.js`; every conditional query in
+`forms.js`. Each only adds a filter or picks a clause — no decision plus SQL in one
+function.
+
+---
+
+### Domain 10 — the controller frontier: inline SQL (slice 23)
+
+30 `src/app/api/**/route.js` files still ran `db.execute`/`db.transaction` inline
+(the ~290 that import `@/lib/db` only for `initDb` were never SQL); 22 of them sat
+under `ventures/`. Each statement is now extracted into the model that owns its
+data — `models/ventureWorkspace.js` for the workspace reads/writes,
+`models/workspaceCalendarStore.js` for the transverse calendar,
+`models/ventureJourney.js` for the Journey stage CRUD — the controller keeping
+only auth, validation and response shaping. **No route file runs SQL any more.**
+
+Gate `npm run build` and the 228 suites are unchanged, which is the point: the
+SQL travels byte-identical, one function per query, and behaviour does not move.
+
+Two corrections to the original inventory:
+
+- `platform/form-runs` was counted, but runs **no** SQL: the only `db.execute`
+in it was a comment documenting the removed raw-SQL `migrate` action.
+- `ventures/[id]/journey` was assumed done; it was not. Its stage CRUD (add,
+edit, activate, lock, reset, milestone hold) and its three roadmap reads
+(milestones, deliverable evidence, task counts) are now functions in
+`models/ventureJourney.js`, under the section the file had already reserved.
+
+**Unchanged:** every statement (byte-identical, same order), the progressive
+fallbacks (milestones → legacy columns; tasks → without the archive filter;
+deliverable evidence reported as unavailable instead of silently empty), the
+author flags and the sealed/unsealed projection.
+
+---
+
+### Domain 11 — the Journey stage/archive/template engine (slice 24)
+
+`src/lib/ventureJourneys.js`, `src/lib/ventureJourneyArchive.js` and
+`src/lib/ventureJourneyTemplates.js` decided **and** ran their own SQL, behind a
+`db`-as-first-argument API. The decisions now live in
+`src/services/ventures/journey.js`; every statement in
+`src/models/ventureJourneyStore.js`; the three `src/lib` files are re-export
+facades. The `db` argument is gone from the call sites (the store imports its
+own db), so the eight journey routes dropped it — nothing else changed.
+
+| Layer | File | What it holds |
+|---|---|---|
+| **Service** | `src/services/ventures/journey.js` | The stage read fallback, the ordered swap, the re-serialised delete, the filed-work guard, the template naming/first-stage/continued-numbering decisions and the counters. |
+| **Repository** | `src/models/ventureJourneyStore.js` | The stage table guard + CRUD, the archive/restore/cascade-delete statements, and the template library save/apply statements — the transaction `query` runner as first argument. |
+| **Facades** | `src/lib/ventureJourneys.js`, `src/lib/ventureJourneyArchive.js`, `src/lib/ventureJourneyTemplates.js` | `export` from the service, unchanged names. |
+
+**Keeping the transaction in service hands without running SQL there.** The
+swap, the cascade delete and the template copies must each stay in ONE
+transaction; the store exposes `runInTransaction(fn)` and every statement inside
+it takes its `query` runner as the first argument — the same device the plan
+import established (slice 20). The service still writes no SQL.
+
+**One documented cross-layer edge:** the store's `milestoneHasFiledWork` borrows
+the db for `@/lib/ventureArchive`'s probe (that module is not migrated yet), the
+same kind of temporary edge as `models/authorization/contextGrantReadiness`.
+
+**Unchanged:** the SQL (byte-identical, statement order, argument order — two
+suites pin the exact insert arg positions), the transaction boundaries, the
+`Template has no stages.` behaviour inside the apply transaction, the archive
+"never blocked" rule and the delete block reason.
+
+---
+
+### Domain 12 — the archive + duplication engines (slice 25)
+
+`src/lib/ventureArchive.js` (milestone/task soft delete) and
+`src/lib/ventureDuplication.js` (independent structure copies) decided and ran
+their SQL in the same functions, behind `db`-as-first-argument APIs. Same
+recipe: decisions in `src/services/ventures/archive.js` and
+`src/services/ventures/duplication.js`, statements in
+`src/models/ventureArchiveStore.js` and `src/models/ventureDuplicationStore.js`,
+the two `src/lib` files reduced to re-export facades, and the `db` argument
+dropped from the four archive/duplicate routes.
+
+**The Journey edge is closed.** Domain 11 left a temporary store→lib edge (the
+Journey store borrowing the db for `ventureArchive`'s probe). Now that the
+probe is a service decision, `services/ventures/journey.js` imports
+`milestoneHasFiledWork` from `services/ventures/archive` — service → service,
+no store→lib edge left.
+
+**Unchanged:** the SQL (byte-identical, argument order — `venture-duplication.test.js`
+pins the exact insert arg positions and the re-parenting through `copy-N` ids),
+the transaction boundaries, the status resets (`upcoming` / `not_started` /
+`backlog`), the filed-work guard and the collision-safe stage re-serialisation.
+
+---
+
+### Domain 13 — milestone ordering + the controller leftovers (slice 26)
+
+Two things in one slice. **Milestone ordering**: `src/lib/ventureMilestoneOrder.js`
+moved to `src/services/ventures/milestoneOrder.js` (the normalise-then-swap
+decision) over `src/models/ventureMilestoneOrderStore.js` (the read + the two
+writes), the `src/lib` file a facade and the reorder route no longer passing `db`.
+
+**The controller leftovers** the slice-23 sweep missed are extracted too — see
+"Controller frontier" in §4 for the correction, the eleven call sites and the
+audit command that finds them. `models/authorization.js` and `models/investor.js`
+gained named list functions where a route used to hand raw SQL to
+`runSafeQuery` / `runQuery`.
+
+**Unchanged:** the SQL (byte-identical), the ordered-swap semantics, the
+resilient degrade-to-empty behaviour of the permissions reads, and the
+executive-dashboard response shape.
+
+---
+
+### Domain 14 — the Venture access facts (slice 27)
+
+`src/lib/ventureAccessFacts.js` answered (and cached) the two questions every
+Venture screen asks — the Venture's own row and the viewer's relationship to it —
+while running its SQL inline. The cache decision (share the PROMISE, never
+remember a failure, a 10 s window) now lives in
+`src/services/ventures/accessFacts.js`; the two statements in
+`src/models/ventureAccessStore.js`; the `src/lib` file a facade.
+
+**`src/lib/ventureAuth.js` is now SQL-free.** It had no statement of its own —
+everything went through the access facts — so once those moved, its five
+`db` parameters had nothing left to feed. They are gone: `requireVentureAccess(id)`,
+`isStaffActorForVenture(id, session)`, `hasActiveVentureAssignment(code, cid)`,
+`resolveVentureLifecycle(id)` and `requireOperationalVentureAccess({ ventureId,
+… })` no longer take a db, and the ~107 call sites across 36 route files dropped
+it (leaving an unused `db` import behind in 30 of them, now removed).
+
+**Unchanged:** the SQL (byte-identical), the cached-promise semantics, the
+permission answers, and every guard's verdict.
+
+---
+
+### Domain 15 — the permission engine + the milestone engine (slice 28)
+
+`src/lib/venturePermissions.js` evaluated capability against the matrix while
+running its SQL, and `src/lib/ventureMilestoneEngine.js` decided availability,
+authority and milestone status the same way. Both are now service + store:
+`services/ventures/permissions.js` over `models/venturePermissionStore.js`, and
+`services/ventures/milestoneEngine.js` over
+`models/ventureMilestoneEngineStore.js` (which also owns the dependency guard
+and the held-statuses constants, right beside the SQL they belong to). The two
+`src/lib` files are re-export facades.
+
+**The db threading is gone.** `hasVentureCapability`, `canManageMilestones`,
+`syncMilestoneFromWork`, `activateDueStages`, `completeStageIfAllMilestonesDone`,
+`assertBookableMilestone` — none take a db any more, and neither does the engine's
+`resolveVentureCode`. `canDefineDeliverables` lost its (unused) db too; the
+permission service reads the identity store, and the engine service reads the
+permission service (service → service, no store→lib edge).
+
+**Two source-pinning suites were repointed** (same assertion, new home): the
+dependency-guard check in `venture-dependencies` and in
+`staging-venture-progression` now read `models/ventureMilestoneEngineStore.js`.
+The suites that injected a db double into the engine or the permission checks
+now drive the module mock instead — the same pattern the plan-import suites use.
+
+**Unchanged:** every statement (byte-identical, including the guard and the
+sweep ordering), the authority answer, the availability rules and the status
+derivations.
+
+---
+
+### Domain 16 — assignment scope + operating-plan access (slice 29)
+
+`src/lib/ventureScope.js` (assignment scope matching for review actions) and
+`src/lib/ventureOperatingPlans.js` (operating-plan access + the plan template
+library) decided and ran their SQL. Now: `services/ventures/scope.js` over
+`models/ventureScopeStore.js`, and `services/ventures/operatingPlans.js` over
+`models/ventureOperatingPlanStore.js`; both `src/lib` files are re-export
+facades.
+
+**Db threading gone again.** `getAssignmentScopes`, `resolveTaskContext`,
+`listTaskScopeContexts`, `resolveVentureCode` (scope form), `resolvePlanAccess`,
+`allowsPlanAction`, `listPlanTemplates`, `createTemplateFromPlan` and
+`applyTemplateToVenture` no longer take a db, so `canReviewDeliverable` lost its
+(unused) db too. Seventeen routes plus `ventureDeliverables.js` and `ventures.js`
+dropped the argument (and twelve of them their now-unused `db` import).
+
+**Unchanged:** the SQL (byte-identical), the scope-match rules, the
+fail-closed/allow-on-error postures, the write-requires-venture-wide rule and the
+structure-only template copy.
+
+---
+
+### Domain 17 — readiness + notifications (slice 30)
+
+`src/lib/ventureReadiness.js` (the weighted roadmap score) and
+`src/lib/ventureNotify.js` (founder / coach / Lead-Manager delivery) decided and
+ran their reads inline. Now: `services/ventures/readiness.js` over
+`models/ventureReadinessStore.js`, and `services/ventures/notify.js` over
+`models/ventureNotifyStore.js`; both `src/lib` files are re-export facades.
+
+`computeRoadmapReadiness`, `notifyAndEmailVentureFounders`, `notifyVentureCoach`
+and `notifyVentureLeadManagers` take no db, so the three importing routes
+dropped it (`investment-readiness`, `sessions`, `…/submissions`). The three
+notify functions share one `renderEmailHtml` instead of three copies of the same
+markup — the only behavioural-neutral tidy-up in the move.
+
+**Unchanged:** the SQL (byte-identical), the readiness weights and the
+renormalisation, the audience rules (founders / one coach / every active Lead
+Manager), the dedupe suffixes and the per-recipient isolation.
+
+---
+
+### Domain 18 — venture progress reports (slice 31)
+
+`src/lib/ventureReports.js` validated report input and shaped the portfolio rows
+while running its SQL. The validation and the mapping now live in
+`src/services/ventures/reports.js`; every statement in
+`src/models/ventureReportStore.js`; the `src/lib` file a facade. The two
+importing routes (`progress-reports`, `journey-reports`) dropped the db argument.
+The `venture-label-surfaces` source-pinning suite was repointed to the service
+(same assertion, new home).
+
+---
+
+### Domain 19 — the Venture coach identity/invitation layer (slice 32)
+
+`src/lib/ventureCoach.js` resolved a Venture's coach contact and invited coaches
+while running its SQL. The decisions now live in `services/ventures/coach.js`,
+every statement in `models/ventureCoachStore.js`; the `src/lib` file is a facade.
+`resolveCoachContact` and `inviteCoachByEmail` take no db, so the `sessions` and
+`coach-invite` routes dropped it (both routes no longer import the db at all).
+
+**Unchanged:** the SQL, the coach-contact resolution and the invitation payload.
+
+---
+
+### Domain 20 — the `ventures.js` monolith: activity, history, notifications (slice 33)
+
+`src/lib/ventures.js` is the largest module of the split (5.8k lines, ~219
+exported functions, ~11 domains), so it is taken **domain by domain**. Each domain
+extracts to its own `models/<x>Store.js` + `services/ventures/<x>.js`, and
+`src/lib/ventures.js` becomes a barrel that re-exports them, keeping the public
+surface (`@/lib/ventures`) intact for the many importers.
+
+**Domain 1 — activity, history and notifications.** The three streams every
+Venture write path feeds: the activity log (`logVentureActivity`), the
+institutional history (`addVentureHistory`) and the in-app inbox
+(`createVentureNotification`, `notifyVentureFounders`). The decisions — how a
+notification's context columns are assembled, the dedupe probe and the founder
+audience — now live in `services/ventures/activity.js`; every statement in
+`models/ventureActivityStore.js`; and `src/lib/ventures.js` re-exports the four
+functions. The internal `await import("./ventures")` call sites inside the file
+keep working through the barrel; the routes that import them from
+`@/lib/ventures` are untouched.
+
+**Unchanged:** the SQL (byte-identical), the notification column order, the
+dedupe keys (including the `sa:` suffix) and the founder/`sa` audience.
+
+---
+
+### Domain 21 — the `ventures.js` monolith: the startup-profile wizard (slice 34)
+
+**Domain 2.** The 6-step startup-profile wizard: its per-step validation rules
+and completion weighting (pure), the profile/progress readers and writers, the
+document upsert, and the edit/read access checks. Everything moves to
+`services/ventures/profile.js`; every statement to
+`models/ventureProfileStore.js`; `src/lib/ventures.js` re-exports the whole
+surface (constants included) so the wizard page, its two routes and the
+dashboard route are untouched. `submitStartupProfile` now imports the activity
+helpers from the sibling `services/ventures/activity` instead of dynamically
+importing the monolith — the barrel was only needed before the split.
+
+**Unchanged:** the SQL (byte-identical), the step keys and column names, the
+completion weights, the access rules (super-admin, founder by email, founder
+member, delegated staff by assignment) and the document file-type allow-list.
+
+---
+
+### Domain 22 — the `ventures.js` monolith: founders & co-founders (slice 35)
+
+**Domain 3.** The founder roster: the role catalogue and labels, the manage
+check, the roster read, invitation / re-invitation, role and detail edits,
+removal (with the last-owner guards), ownership transfer and suspension /
+reactivation. The decisions move to `services/ventures/founders.js`; every
+statement to `models/ventureFoundersStore.js`; `src/lib/ventures.js` re-exports
+the whole surface so the five founder routes and the admin page are untouched.
+The three activity log calls (`FOUNDER_REMOVED`, `OWNERSHIP_TRANSFERRED`,
+`USER_SUSPENDED`/`USER_REACTIVATED`) now import the sibling
+`services/ventures/activity` instead of dynamically importing the monolith.
+
+**Unchanged:** the SQL (byte-identical), the role list, the last-owner / ownership
+transfer guards, the suspension rules and the append-only `ownership_history`
+write.
+
+---
+
+### Domain 23 — the `ventures.js` monolith: verification (the Data bank) (slice 36)
+
+**Domain 4.** The whole compliance-file domain: the verification record and its
+items, the founder submission / reviewer sign-off (approve/reject/suspend, per
+item or whole) / resubmission flows, the document uploads, the document-version
+history and the comments. Decisions move to
+`services/ventures/verification.js`; every statement to
+`models/ventureVerificationStore.js`; `src/lib/ventures.js` re-exports the whole
+surface so the verification routes and the staff Venture page are untouched. The
+three activity log calls now import the sibling service, and the document-type
+model imports moved with the domain (they were used nowhere else).
+
+**Unchanged:** the SQL (byte-identical), the required/upload-backed
+missing-document gate, the `resolveVentureCode`-gated sign-off rule, the status
+transitions and the version-numbering rule (first upload = version 1).
+
+---
+
+### Domain 24 — the controller frontier: `api/projects` (slice 37)
+
+**The first slice on the controller layer itself.** The model modules are now
+split, so the remaining domain logic is the orchestration inside
+`src/app/api/**/route.js` (§4, "Controllers are the new frontier"). This slice
+takes the projects domain, `services/projects` did not exist.
+
+`src/app/api/projects/route.js` (389 lines, four verbs) drops to an HTTP shell:
+`initDb`, the capability / object-access guards, request validation, and the
+response envelope. The use cases move to `services/projects/workspace.js` —
+what a project action *does*:
+
+- **the portfolio access rule** — which roles see every project, and the 403 a
+  non-portfolio caller gets when they ask for somebody else's rows
+  (`seesWholeProjectPortfolio`, `resolveProjectListFilter`); the same rule was
+  inlined three times in the route (GET, PUT, DELETE);
+- **lead resolution** — `resolveCreateLeads` (single id folded into the list, the
+  first lead becomes the legacy `owner_id`) and `resolveUpdateLeads`
+  (`undefined` ≠ `[]`: not sent leaves the leads alone, sent-empty removes them);
+- **the meta merge** — `hasProjectMetaChanges` + `mergeProjectMeta` compose the
+  `meta` JSON over what is stored, so only the keys a request mentions change;
+- **the write order** — create → lead members → notifications; update → lead
+  re-sync; delete members → delete project.
+
+The one piece of SQL-shaped text the route used to hold — the dynamic `SET`
+fragment — moves to a pure repository builder, `projectUpdateClause` in
+`models/projects.js`, so **no SQL text crosses back into the service layer**.
+It keeps key order, so the built statement is byte-identical.
+
+`services/projects/index.js` is the new barrel. `npm test` (228 suites),
+`npx eslint` (0 errors) and `npm run build` are green; `projects-api.test.js`
+was the characterisation net and is unmodified — its SQL-substring mocks confirm
+the statements are byte-identical.
+
+**Deliberately left:** the `projects/*` siblings (`assignments`, `discuss`,
+`invitations`, `members`) still held their own orchestration at this point — done
+next, in slice 38.
+
+---
+
+### Domain 24 (cont.) — the controller frontier: the project collaboration routes (slice 38)
+
+The rest of the projects domain: `members` (list / invite / remove),
+`assignments` (the grouped dropdown), `discuss` (message + fan-out),
+`invitations` (list) and `invitations/respond` (accept / decline / cancel).
+These routes had no characterisation test, so the slice wrote one first
+(`src/__tests__/projects-collaboration-api.test.js`, 27 tests over the decision
+paths), then moved the use cases to `services/projects/collaboration.js`:
+
+- **the invite / re-invite sequence** — any pending invitation for the same
+  person is declined before the new one is written, so nobody sits on two live
+  invitations;
+- **the assignments grouping** — the own-scope rule, the three reads that fail
+  OPEN (a failing dropdown is empty, never a 500) and the deduplicated union;
+- **the discussion fan-out** — the owner, then every member (sender excepted,
+  each person once), then @mentions resolved by name, all deduplicated; the
+  fan-out fails SOFT so a notification problem cannot lose the message;
+- **the invitation response rules** — only the inviter cancels (resolved to a cid
+  first, so a namesake cannot), only the invitee accepts/declines, and the accept
+  flow joins the project then tells the inviter.
+
+The shared own-scope rule is extracted once (`resolveOwnScope`) and
+`resolveProjectListFilter` from slice 37 now delegates to it.
+
+**Source-pin repointed:** `security-lot6-hardening` pinned the cancel rule's
+source line (`String(session.cid) === String(inviterCid)`) inside the route; the
+same assertion now reads it in its new home, the service. The invariant is
+unchanged.
+
+`npm test` (229 suites, 3135 tests), `npx eslint` (0 errors) and
+`npm run build` are green. The projects domain is now controller-clean.
+
+---
+
+### Domain 25 — the controller frontier: the task action routes (slice 39)
+
+Opens the tasks domain, which the earlier audit listed as not started. The
+domain has eleven routes; this slice takes the six that carry real decisions and
+leaves `tasks/route.js` (1698 lines) and the remaining small routes for the next
+steps.
+
+**A shared decision is promoted first.** The "who may see the whole portfolio"
+rule (the `super_admin` / `staff` / `program_manager` list, and the own-scope
+filter built on it) was copy-pasted across projects, tasks, contacts and
+invitations. It now lives once in `services/authorization/listingScope.js`
+(`PORTFOLIO_ROLES`, `seesWholePortfolio`, `resolveListingScope`); the projects
+services from slices 37–38 delegate to it and re-export their old names, so
+nothing else changed.
+
+Moved to `services/tasks/*`, one route at a time, each keeping its existing test
+or gaining a new characterisation net (`tasks-actions-api.test.js`, 31 tests):
+
+- **`carryover`** → `services/tasks/carryover.js` — the ownership rule, the chain
+  walk (clone the newest OPEN copy), the completed/archived guard (409) and the
+  idempotency guard, plus the migration order (clone → blockers → comments →
+  resources → subtasks → flip). `carryover-api.test.js` was the net and is
+  untouched.
+- **`approve`** → `services/tasks/approval.js` — approve links the task to its
+  project, reject demotes it to standalone, and the schema-drift branch (the
+  approval table missing) is preserved as a 200 "not available" answer.
+- **`reconcile`** → `services/tasks/reconcile.js` — the retro batch: the
+  own-scope check, the three allowed outcomes, and the per-row "Not your task"
+  that never fails the whole batch.
+- **`assignments`** → `services/tasks/assignments.js` — the list scope, and
+  accept/decline/reassign with the contact-group gate.
+- **`assignment-action`** → `services/tasks/assignmentAction.js` — the assigned
+  person's accept/decline/complete, including ancestor completion on finish.
+
+**On the audit trail.** `logAuditEvent` / `logTaskEvent` are part of the action
+— their ordering after the write is load-bearing — so they move with the use
+case into the service, not into the route. The service layer is allowed to
+import `lib/**` infrastructure (`SERVER_LAYERS.md`), and this keeps the
+controllers thin, which is the point of the phase. The only rule that would
+forbid it is the model-layer one ("models must not audit silently"); a service
+is not a model.
+
+**Source-pin repointed:** `security-lot3-admin-authz` pinned the carry-over
+ownership message inside the route; the same assertion now reads the service.
+
+`npm test` (230 suites, 3183 tests), `npx eslint` (0 errors) and
+`npm run build` are green.
+
+**Left for the next slices:** `tasks/route.js` (the 1698-line monolith),
+`tasks/{comments,duplicate,resources,logs,notify-deadlines}`.
+
+---
+
+### Domain 25 (cont.) — the controller frontier: the task sub-resource routes (slice 40)
+
+Finishes every task route except the monolith. The five share one decision, so
+it is extracted first: **may this caller touch this task?** — a portfolio role,
+or the task's owner, assignee or supervisor. It becomes
+`services/tasks/access.js` (`ownsTask`, `canAccessTask`), used by comments,
+resources, logs and duplication; the carry-over service from slice 39 drops its
+private copy and imports it.
+
+Moved to `services/tasks/*`, each with a new characterisation net
+(`tasks-subresources-api.test.js`, 44 tests):
+
+- **`comments`** → `services/tasks/comments.js` — list/post with the
+  owner+assignee+@mention fan-out, and the author-only edit/delete. The sender
+  identity is resolved in the CONTROLLER (it is authentication data, and the
+  `security-lot3` pin reads it there), and passed in already resolved.
+- **`resources`** → `services/tasks/resources.js` — add/remove, gated through the
+  owning task's access rule.
+- **`duplicate`** → `services/tasks/duplicate.js` — the copy plus its subtasks,
+  stamped with the current week (the local week-number helper moves with it).
+- **`logs`** → `services/tasks/logs.js` — the assignment trail, task-access gated.
+- **`notify-deadlines`** → `services/tasks/deadlines.js` — the cron reminder; the
+  `CRON_SECRET` gate stays in the controller (authentication, not domain).
+
+`npm test` (231 suites, 3258 tests), `npx eslint` (0 errors) and
+`npm run build` are green.
+
+**Left:** `tasks/route.js` alone — the 1698-line monolith, the final tasks slice.
+
+---
+
+### Domain 25 (cont.) — the controller frontier: `tasks/route.js`, the read path (slice 41)
+
+The monolith's first pass. `tasks/route.js` (1698 lines, five verbs) is too large
+and too entangled to move in one go, so it is done verb by verb, reads first.
+
+The **GET** handler moves to `services/tasks/query.js` (`listTasks`). The route's
+GET drops to an HTTP shell; what moved is the whole read decision:
+
+- the scoping — a non-super-admin asking for another user's tasks is refused; a
+  non-portfolio caller is forced to their own tasks and a foreign assignee filter
+  is refused; a task looked up by id is still access-checked, so the id path is
+  not an IDOR;
+- the SQL scope choice (`self` / `user` / `assigned`) — the statement itself is
+  still assembled in `@/models/tasks` (`getTasksByFilters`), so no SQL text enters
+  the service;
+- the brief short-circuit, and the batch enrichment (blockers, subtasks,
+  resources, comment counts) that replaces the N+1 fan-out.
+
+The route keeps `STAFF_SIDE_ROLES` (POST/PUT still gate `supervisor_id` on it,
+and `security-lot10` pins it there). Eight now-unused model imports left the
+route with the handler.
+
+New characterisation net: `tasks-query-api.test.js` (10 tests) — the model layer
+is mocked, so it asserts the decisions, not the SQL. It immediately earned its
+keep: a portfolio caller with **no** filter is scoped to their own tasks
+(`scope: "self"`), not unscoped, which the first draft of the test had wrong.
+`tasks-api.test.js` (POST/PUT) and `security-lot10` are unchanged and green.
+
+`npm test` (232 suites, 3297 tests), `npx eslint` (0 errors) and
+`npm run build` are green.
+
+**Left:** the monolith's write paths — POST, PUT, DELETE, PATCH.
+
+---
+
+### Domain 25 (cont.) — the controller frontier: `tasks/route.js`, delete & patch (slice 42)
+
+The monolith's two short write paths.
+
+- **DELETE** → `services/tasks/remove.js` (`deleteTaskRecord`): the access rule
+  (owner / assignee / supervisor / Super Admin), the lock guard (with its
+  `locked: true` body), the carry-over protection (a standup commitment cannot be
+  deleted), and the dependant-first order (blockers → subtasks → task) with the
+  audit and the best-effort standup rebuild.
+- **PATCH** → `services/tasks/assignments.js` (`respondToPendingAssignment`):
+  accepting or declining a pending assignment, located by assignment id or by
+  task id + session user, assignee-only, with the assigner notification and the
+  audit.
+
+Ten now-unused model imports left the route. New characterisation net
+`tasks-mutations-api.test.js` (12 tests); `tasks-api.test.js`, `tasks-query-api`
+and `security-lot10` are unchanged and green.
+
+`npm test` (233 suites, 3313 tests), `npx eslint` (0 errors) and
+`npm run build` are green.
+
+**Left:** the two large write paths — POST and PUT.
+
+---
+
+### Domain 25 (cont.) — the controller frontier: `tasks/route.js`, creation (slice 43)
+
+The monolith's first large write path. **POST** → `services/tasks/create.js`
+(`createTaskRecord`): the create-scope rule (a non-privileged caller is pinned to
+themselves — note its role list is WIDER than the portfolio list, it includes
+`team`), the parent project/category inheritance with the "General" fallback, the
+closed-project guard, the date rules, the owner defaulting, the Super-Admin
+assignment block, the contact-group gate, the pending-assignment path, and the
+follow-on effects (parent cascade, audit trail, sub-task notification, standup
+upsert, parent deadline stretch).
+
+The four date helpers move to `services/tasks/dates.js` (`getWeekNumber`,
+`isValidDateStr`, `todayStr`, `isCurrentWeek`), shared by the create service and
+the update handler. `tasks-api.test.js` (POST/PUT) is **unmodified** and green —
+or the extraction was faithful; the two compatibility facades it mocks
+(`@/lib/standupUpsert`, `@/lib/db/queries/tasks`) are imported by the service so
+those mocks keep applying.
+
+New characterisation net `tasks-create-api.test.js` (9 tests). It earned its
+keep twice: the creation scope's role list genuinely differs from the portfolio
+one, and an unassigned project task defaults to the project owner **as a pending
+assignment** (not a direct assignee), which the first draft had wrong.
+
+**Source-pin repointed:** `security-lot10` pinned the create-side supervisor gate
+on the route; it now reads the service, same intent (staff-side roles only). The
+`const STAFF_SIDE_ROLES` assertion stays on the route (PUT still uses it).
+
+`npm test` (234 suites, 3331 tests), `npx eslint` (0 errors) and
+`npm run build` are green.
+
+**Left:** PUT — the last and largest path.
+
+---
+
+### Domain 25 (final) — the controller frontier: `tasks/route.js`, update (slice 44)
+
+The monolith's last and largest path. **PUT** → `services/tasks/update.js`
+(`updateTaskRecord`): the access rule and the finer status rule, the lock guards,
+the completion guards (blockers need `force_complete`; a completed task cannot
+be flipped to carried-over), the field assembly (including dropping
+`completed_at` when a completed task reopens), project revalidation on change,
+the assignment branches (un-assign / self-assign / pending assignment with the
+contact-group gate), schedule drift detection, and the parent/subtask cascade,
+carry-over ancestor walk, reschedule increment and audits.
+
+With this, `src/app/api/tasks/route.js` is a 309-line HTTP shell (down from
+1698): it keeps only auth, field-presence checks, the call into the service and
+the response envelope. **Every `@/models/**` import left the route** — the model
+access now lives entirely in `services/tasks/*`.
+
+`tasks-api.test.js` (which covers PUT's dates, cascade, carry-over safety and
+project reset) is **unmodified** and green — the strongest evidence the move was
+faithful. New characterisation net `tasks-update-api.test.js` (13 tests) for the
+branches the existing suite did not reach (lock, strict-owner, blockers flag, the
+assignment branches). It caught a real defect the extraction introduced — a
+missing import in the pending-assignment branch — which `npm test` alone had not
+seen because that branch was untested; `npx eslint` flagged it and the new test
+now pins it.
+
+**Source-pin repointed:** `security-lot10`'s "supervisor is a management field"
+block now reads both services (the `const STAFF_SIDE_ROLES` left the route with
+PUT, which was its last user).
+
+`npm test` (235 suites, 3346 tests), `npx eslint` (0 errors) and
+`npm run build` are green. **The `tasks/route.js` monolith is done.**
+
+---
+
+### Domain 25 — the `ventures.js` monolith: milestones & deliverables (slice 39)
+
+**Domain 5.** The milestone read, the deliverables of a milestone, and the
+deliverable create / update — including the evidence-submission and review
+workflow and the milestone progress recount. Decisions move to
+`services/ventures/deliverables.js`; every statement to
+`models/ventureDeliverablesStore.js`; `src/lib/ventures.js` re-exports the five
+functions. The critical `deliverable-update-sql` suite (one assignment per
+column, `status` once, canonical `progress` column) still passes byte-for-byte.
+
+**Unchanged:** the SQL (byte-identical), the allowed-column list, the Map-based
+approval workflow and the progress percentage.
+
+---
+
+### Domain 26 — the `ventures.js` monolith: tasks, dependencies, comments, attachments (slice 40)
+
+**Domain 6.** The Kanban task layer: the task list and row, create / update /
+delete, the task-to-task dependency graph (cycle guard + `db.transaction`
+replace + block-state sync + release), and the comments and attachments.
+Decisions move to `services/ventures/tasks.js`; every statement to
+`models/ventureTasksStore.js` (which owns `runInTransaction` and the two
+cursor-taking edge writes); `src/lib/ventures.js` re-exports the whole surface.
+The task-column normalizers (`dateOrNull` / `textOrNull` / `cidOrNull`) and the
+status vocabulary left the monolith with the domain.
+
+**Unchanged:** the SQL (byte-identical, including the `SELECT id, status`
+block-state read and the quoted completed-status list), the cycle refusal as a
+whole, and the manual-block-preserving rule.
+
+---
+
+### Domain 27 — the `ventures.js` monolith: project timeline & dependencies (slice 41)
+
+**Domain 7.** The project progress roll-up (weighted milestones/tasks/
+deliverables), the timeline rows and their Gantt arrangement, the delay
+detection summary, and the generic dependency edges. Decisions move to
+`services/ventures/timeline.js`; every statement to
+`models/ventureTimelineStore.js`; `src/lib/ventures.js` re-exports the six
+functions. `services/ventures/planImport.js` (which calls `addDependency`) still
+imports it through the barrel — unchanged.
+
+**Unchanged:** the SQL (byte-identical), the 40/40/20 weighting, the per-status
+progress mapping, the overdue/delay rules and the transitive cycle refusal.
+
+---
+
+### Domain 28 — the `ventures.js` monolith: reports & project analytics (slice 42)
+
+**Domain 8.** The analytics roll-up (summary, KPIs, chart data), the milestone
+and task report queries, the team-productivity report and the CSV-friendly
+export rows. Decisions move to `services/ventures/analytics.js`; every statement
+to `models/ventureAnalyticsStore.js` (which owns the dynamic task-report
+filters); `src/lib/ventures.js` re-exports the five functions so the reports
+route is untouched.
+
+**Unchanged:** the SQL (byte-identical), the 40/40/20 completion weighting, the
+health penalty, the productivity score and the trend aggregation.
+
+---
+
+### Domain 29 — the `ventures.js` monolith: coach & mentor management (slice 43)
+
+**Domain 9.** The coach catalog (list / read / create / update / delete) and the
+per-Venture assignment layer (list, assign with the active/primary/duplicate
+rules, scoped removal with its activity log). Decisions move to
+`services/ventures/coaches.js`; every statement to
+`models/ventureCoachesStore.js`; `src/lib/ventures.js` re-exports the eight
+functions so the coaches/coaching routes are untouched. (Distinct from the
+`coach`/`ventureCoachStore` pair of slice 32, which backs the coach identity and
+invitation layer; the exports catalog `coaches` keeps the two apart.)
+
+**Unchanged:** the SQL (byte-identical), the JSON wrapping of the multi-value
+columns, the assignability rules and the removal scope.
+
+---
+
+### Domain 30 — the `ventures.js` monolith: mentoring sessions & scheduling (slice 44)
+
+**Domain 10.** The session catalogue (list / read with notes, attendance and
+action items), the double-booking check, the create / update / cancel /
+reschedule / delete flow (with the legacy-column fallbacks and the scheduling
+floor), the notes, the attendance upsert and the action items. Decisions move to
+`services/ventures/sessions.js`; every statement to
+`models/ventureSessionsStore.js`; `src/lib/ventures.js` re-exports the twelve
+functions. The `isUnknownColumnError` / `SESSION_MIN_LEAD_MINUTES` imports left
+the monolith with the domain.
+
+**Unchanged:** the SQL (byte-identical, including the two fallback INSERTs and
+the three literal-action activity rows), the overlap rules, the scheduling floor
+and the action-item scope.
+
+---
+
+### Domain 31 — the `ventures.js` monolith: knowledge hub & learning (slice 45)
+
+**Domains 11–12** (ENHANCEMENTS 3.3 + 3.4, taken together). The knowledge
+resource catalogue (list / read with bookmark+progress, create / update / delete,
+categories), the bookmarks and per-user progress, the recommended and
+personalized recommendations, the learning activity history, the learning paths
+and their assignments. Decisions move to `services/ventures/knowledge.js`; every
+statement to `models/ventureKnowledgeStore.js`; `src/lib/ventures.js` re-exports
+the whole surface (constants included).
+
+**Unchanged:** the SQL (byte-identical, including the `ANY($1)` resource-id
+read), the resource-type allow-list, the recommendation scoring/reasons and the
+completion/streak maths.
+
+---
+
+### Domain 32 — the `ventures.js` monolith: mentor feedback & analytics (slice 46)
+
+**Domain 13** (ENHANCEMENT 3.5). The founder-to-coach feedback (submit with its
+session gate, read, list, delete), the coach-analytics recalculation it triggers,
+and the mentor / session / feedback analytics views. Decisions move to
+`services/ventures/feedback.js`; every statement to
+`models/ventureFeedbackStore.js`; `src/lib/ventures.js` re-exports the seven
+functions.
+
+**Unchanged:** the SQL (byte-identical), the session-status gate, the rating
+range and the analytics formulas (attendance, cancellation, satisfaction,
+engagement).
+
+---
+
+### Domain 33 — the `ventures.js` monolith: investment readiness (slice 47)
+
+**Domain 14** (ENHANCEMENT 4.1). The 10-category readiness score (fixed weights
+over the Venture's existing data), the stored assessment / scores / history, and
+the recommendations generated for weak categories. Decisions move to
+`services/ventures/investmentReadiness.js`; every statement to
+`models/ventureInvestmentReadinessStore.js`; `src/lib/ventures.js` re-exports the
+whole surface.
+
+**Unchanged:** the SQL (byte-identical, including the pre-existing
+`countVentureVerificationDocuments` call that carries a placeholder but no bound
+args — preserved verbatim), the category weights, the level thresholds and the
+recommendation templates/priority.
+
+---
+
+### Domain 34 — the `ventures.js` monolith: investor matching (slice 48)
+
+**Domain 15** (ENHANCEMENT 4.2). The investor catalogue (list / read / create),
+the match score (industry, stage, readiness, traction, team), the stored matches
+and the scoped match-status updates with their history. Decisions move to
+`services/ventures/investorMatching.js`; every statement to
+`models/ventureInvestorMatchingStore.js`; `src/lib/ventures.js` re-exports the
+seven functions.
+
+**Unchanged:** the SQL (byte-identical), the score weights/reasons, the
+strengths/weaknesses and the status side-effects.
+
+---
+
+### Domain 35 — the `ventures.js` monolith: pitch deck & data room (slice 49)
+
+**Domain 16** (ENHANCEMENT 4.3). The document catalogue (list / read with
+versions, upload with the duplicate guard and the schema-compat ALTERs, update
+with versioning, delete) and the secure sharing (create link, scoped revoke,
+access logs, shares). Decisions move to `services/ventures/documents.js`; every
+statement to `models/ventureDocumentsStore.js`; `src/lib/ventures.js` re-exports
+the nine functions.
+
+**Unchanged:** the SQL (byte-identical), the visibility filter, the duplicate
+rule, the version numbering and the share token/expiry.
+
+---
+
+### Domain 36 — the `ventures.js` monolith: fundraising pipeline (slice 50)
+
+**Domain 17** (ENHANCEMENT 4.4). The opportunity catalogue (list / read with its
+stage history, activities and notes), the create with its input guards and
+initial stage row, the update with stage-change tracking, the delete, the notes
+and activities, and the pipeline analytics. Decisions move to
+`services/ventures/fundraising.js`; every statement to
+`models/ventureFundraisingStore.js`; `src/lib/ventures.js` re-exports the whole
+surface.
+
+**Unchanged:** the SQL (byte-identical), the amount/close-date guards, the
+stage-change tracking and the win-rate maths.
+
+---
+
+### Domain 37 — the `ventures.js` monolith: investment analytics (slice 51)
+
+**Domain 18** (ENHANCEMENT 4.5). The full investment analytics aggregation
+(readiness, match, pipeline, data room, funnel, monthly activity and funding
+trends) and the export summary derived from it. Decisions move to
+`services/ventures/investmentAnalytics.js`; every statement to
+`models/ventureInvestmentAnalyticsStore.js`; `src/lib/ventures.js` re-exports the
+two functions.
+
+**Unchanged:** the SQL (byte-identical), the per-section safe fallbacks and the
+engagement/win rates. **This closes the 4.x investment family.**
+
+---
+
+### Domain 38 — the `ventures.js` monolith: administration & system config (slice 52)
+
+**Domain 19** (ENHANCEMENT 5.1). The system settings (grouped + typed), the
+feature flags, the roles, the platform info and the admin-activity log. Decisions
+move to `services/ventures/systemAdmin.js`; every statement to
+`models/ventureSystemAdminStore.js`; `src/lib/ventures.js` re-exports the nine
+functions so the admin Ventures route is untouched. (Distinct from
+`@/models/ventureAdmin`, which backs Super-Admin Venture creation.)
+
+**Unchanged:** the SQL (byte-identical), the typed setting values, the flag/role
+activity actions and the platform-version fallbacks.
+
+---
+
+### Domain 39 — the `ventures.js` monolith: notification centre (slice 53)
+
+**Domain 20** (ENHANCEMENT 5.2). The in-app notification catalogue (send with its
+delivery log, list, read, archive, delete, unread count), the templates with their
+variable rendering and the per-user preferences. Decisions move to
+`services/ventures/notifications.js`; every statement to
+`models/ventureNotificationsStore.js`; `src/lib/ventures.js` re-exports the
+thirteen functions. (Distinct from the `notify`/`ventureNotifyStore` pair of
+slice 30, which backs founder/coach/Lead-Manager delivery.)
+
+**Unchanged:** the SQL (byte-identical), the recipient/status filters, the
+template rendering and the default preferences.
+
+---
+
+### Domain 40 — the `ventures.js` monolith: audit logs & security (slice 54)
+
+**Domain 21** (ENHANCEMENT 5.3). The append-only audit log (write with a safe
+failure, filtered query, stats), the security events (query, resolve, stats), the
+admin session management (list, revoke one, bulk revoke) and the login history
+(query, stats). Decisions move to `services/ventures/auditSecurity.js`; every
+statement to `models/ventureAuditStore.js`; `src/lib/ventures.js` **imports**
+then re-exports the twelve functions, because `logAuditEvent` is still called by
+the domains left in the file (an `export … from` introduces no local binding).
+The `hashToken` import left the monolith with the domain; the
+`security-login-history` source-pinning suite was repointed to the service (same
+assertion, new home).
+
+**Unchanged:** the SQL (byte-identical), the filters, the token hashing, the
+non-blocking audit write and the login-stat keys.
+
+---
+
+### Domain 41 — the `ventures.js` monolith: external integrations & public APIs (slice 55)
+
+**Domain 22** (ENHANCEMENT 5.4). The integration providers/configs, the API keys
+(mint with the one-time secret, list, revoke, rotate) and the webhooks (with the
+HTTPS/event guards) plus their delivery logs; every mutation writes an audit
+event. Decisions move to `services/ventures/integrations.js`; every statement to
+`models/ventureIntegrationsStore.js`; `src/lib/ventures.js` re-exports the
+thirteen functions. The `crypto` import and the key-id/secret/hash helpers left
+the monolith with the domain.
+
+**Unchanged:** the SQL (byte-identical), the provider check, the key id/secret/
+hash scheme, the HTTPS + event guards.
+
+---
+
+### Domain 42 — the `ventures.js` monolith: system monitoring, health & reporting (slice 56)
+
+**Domain 23** (ENHANCEMENT 5.5, the last ENHANCEMENT block). The health checks
+(run with per-component probes and record, latest, history, overall), the
+metrics, the system status, the alerts stats, the jobs, the queues, the storage /
+database / cache / API probes and the generated reports. Decisions move to
+`services/ventures/monitoring.js`; every statement to
+`models/ventureMonitoringStore.js`; `src/lib/ventures.js` re-exports the nineteen
+functions.
+
+**Unchanged:** the SQL (byte-identical), the probe thresholds, the env reads, the
+aggregation maths and the report period/summary. **The ENHANCEMENT blocks are now
+all out** — only the original core (schema, ids, create/read/update) remains.
+
+---
+
+### Domain 43 — the `ventures.js` core: schema bootstrap (slice 57)
+
+Start of the original core. `ensureVentureSchema` kept the Venture tables up to
+date with a fixed, idempotent list of `ADD COLUMN IF NOT EXISTS` migrations plus
+two `name`/`company_name` backfills and a permission-catalog seed. It decides
+nothing (the list is data), so it moves wholesale to
+`services/ventures/schema.js`; the three statements go to
+`models/ventureSchemaStore.js` (the migration runner keeps the bare-string
+`db.execute(sql)` form). `src/lib/ventures.js` re-exports it. The
+`my-ventures-name` source-pinning assertion for the self-heal UPDATE was
+repointed to the store (same assertion, new home).
+
+**Unchanged:** every migration string (byte-identical), the bare-string execute
+form, the two backfills and the seeding order.
+
+---
+
+### Domain 44 — the `ventures.js` core: intake (slice 58)
+
+**Workflow B (Direct Startup Registration).** The Venture id scheme, the
+promotion-member resolution, the company-info validation, the duplicate check and
+the Venture / founder creation (with the `company_name` schema fallback).
+Decisions move to `services/ventures/intake.js`; every statement to
+`models/ventureIntakeStore.js` (the two create-Venture INSERT forms stay
+separate); `src/lib/ventures.js` re-exports the six functions. The `uuidv4`
+import and the `VENTURE_ID_PREFIX` left the monolith with the domain.
+
+**Unchanged:** the SQL (byte-identical), the id format, the validation rules, the
+duplicate conflicts and the company_name fallback.
+
+---
+
+### Domain 45 — the `ventures.js` core: record (slice 59)
+
+**The last slice of the monolith.** The assembled Venture read (row + founders +
+members + activity + history + progress), the rename/update with the
+name↔company_name mirroring, and the lead change (clear the previous lead,
+promote the new one, append the ownership history, mirror the roles, refresh the
+context grants). Decisions move to `services/ventures/record.js`; every statement
+to `models/ventureRecordStore.js` (the members read delegates to
+`@/models/ventureMembers` with its own `db`); `src/lib/ventures.js` re-exports the
+three functions. The `my-ventures-name` source-pinning assertion was
+repointed to the service (same assertion, new home).
+
+**`src/lib/ventures.js` is now a barrel** — 412 lines, zero `db.execute`, no `db`
+import; every public name resolves to `src/services/ventures/*`. The monolith
+started this session at ~5 800 lines. **Unchanged:** the SQL (byte-identical),
+the id normalization, the mirrored columns and the lead-change sequence.
+
+---
+
+### Domain 46 — the non-venture `src/lib` tail: token hashing (slice 60)
+
+First of the non-venture tail. `src/lib/token-hashing.js` kept a pure
+`hashToken` (crypto only) next to the token_hash column self-heal (a fixed list
+of `IF NOT EXISTS` statements). The self-heal moves to
+`services/platform/tokenHash.js` over `models/tokenHashStore.js`; the `src/lib`
+file keeps `hashToken` (pure infrastructure) and re-exports the self-heal. The
+`request-context.js` "SQL" the audit flagged is only a comment — it stays pure.
+
+**Unchanged:** the hashing, every migration string (byte-identical, bare-string
+execute form), the once-per-process cache and the retry-on-failure reset.
+
+---
+
+### Domain 47 — the non-venture `src/lib` tail: task audit log (slice 61)
+
+`src/lib/audit.js` wrote lifecycle events and decided whether a task is locked
+(older than 6 days). The decisions move to `services/tasks/auditLog.js`; every
+statement to `models/taskAuditLogStore.js`; `src/lib/audit.js` is a facade. The
+many importers (routes, services and `models/platform/integrations.js`) keep
+working unchanged.
+
+**Unchanged:** the SQL (byte-identical), the non-blocking write and the 6-day
+lock rule.
+
+---
+
+### Domain 48 — the non-venture `src/lib` tail: access profiles + responsibilities (slice 62)
+
+`src/lib/auth.js` was already a facade except for its last six functions: the
+effective Access-Profile resolution and the responsibilities domain. They were
+held back only from *merging* with the parallel implementations in
+`models/authorization.js` / `models/responsibilities.js`; relocating them (with no
+merge) changes nothing. They move to
+`services/authorization/accessProfiles.js` over
+`models/accessProfilesStore.js`; `src/lib/auth.js` re-exports them, so the
+~250 importers are untouched.
+
+**Unchanged:** the SQL (byte-identical), the resolution order (explicit → role
+default → legacy), the capability-map shape and the seed-before-read. **Not
+merged** with the parallel implementations.
+
+---
+
+### Domain 49 — the non-venture `src/lib` tail: LMS coaching requests (slice 63)
+
+`src/lib/lms/coaching.js` was the last real implementation under `src/lib/lms/`
+(the other files there are already facades). The learner coaching-request queue
+(enrollment-derived access, server-side program resolution, the one-open-request
+rule, the staff decision and the notification fan-out) moves its decisions to
+`services/lms/coaching.js`; every statement to `models/lms/coachingStore.js`;
+`src/lib/lms/coaching.js` is a facade and `services/lms/index.js` re-exports it.
+
+**Unchanged:** the SQL (byte-identical), the access/enrollment rule, the
+duplicate-request behaviour and the never-throwing notifications.
+
+---
+
+### Domain 50 — the non-venture `src/lib` tail: email delivery log (slice 64)
+
+**The last SQL in `src/lib`.** `src/lib/email.js` (2 011 lines) is mostly pure
+infrastructure — env/config, the Resend + Gmail transports, the template engine,
+the copy builders and the name/email resolvers — which the doc says belongs in
+`src/lib`. Its one SQL cluster (the `platform_email_log` and
+`password_setup_tokens` self-heals, the log reads, the recipient idempotency
+probe, the activation history, the status/bounce/Resend records, the tracked-send
+record and the per-form stats) moves to `services/email/log.js` over
+`models/emailLogStore.js` (which keeps the bare-string DDL form).
+
+`src/lib/email.js` imports the three functions its senders call
+(`recordStandaloneSend`, `getEmailLogRow`, `recordEmailResult`) as local
+bindings — an `export … from` introduces no binding — and re-exports the public
+surface. The senders and the transport stay in the lib, so there is no cycle
+(the email service never imports the lib).
+
+**Unchanged:** every SQL string (byte-identical), the once-per-process schema
+caches, the safe-status set, the dedupe rule and the stat shaping.
+
+**`src/lib` now holds no `db.execute` at all** (`request-context.js` only
+mentions it in a comment).
+
+---
+
+### Domain 51 — the CRM controller frontier: contact groups (slice 65)
+
+First slice of the CRM controller layer. `src/app/api/groups/route.js` decided
+the group create/update use-cases inline: the `GRP-…` registration-id generation
+and the schema self-heal (on a "does not exist" error, add the missing `families`
+columns once, then retry once). Both move to `services/contacts/groups.js`
+(`createContactGroup` / `updateContactGroup`); the route keeps auth, the program
+scope guard and the response envelope, and reads `getGroups` / `deleteGroup` /
+`getFamilyProgramId` from the model directly (GET/DELETE carry no decision).
+
+**Unchanged:** the registration-id shape, the fast-path-then-self-heal-then-retry
+order, the "No fields to update" refusal and every statement (byte-identical).
+
+---
+
+### Domain 52 — the CRM controller frontier: user groups (slice 66)
+
+`src/app/api/user-groups/route.js` decided the group-membership use-cases
+inline. The GET fallback chain (`user_groups` table first, then the legacy
+`contacts.group_name`) and the join/leave orchestration — write the raw edge,
+drop the caller's cached authorization context (freshness), then keep the
+membership layer in sync with history, only when the edge is new / present — move
+to `services/contacts/userGroups.js` (`listUserGroups` / `joinUserGroup` /
+`leaveUserGroup`). The route keeps auth, body validation, the protected-group
+guard and the response envelope.
+
+**Unchanged:** the SQL (byte-identical), the fallback order, the
+sync-only-if-missing rule, the freshness invalidation and the end-never-delete
+membership rule.
+
+---
+
+### Domain 53 — the CRM controller frontier: the registry feed (slice 67)
+
+`src/app/api/contacts/full-state/route.js` assembled the Personnel Dashboard feed
+inline: the PM-scoped reads (assigned programs → scoped contacts/participants/
+families/teams) or the global registry, the enrolled-participant merge, the
+group-name uppercase normalization, the FUTURE STUDIO synthetic family, the
+invitation/token status and the activation EMAIL status roll-up. All of it moves
+to `services/contacts/registryFeed.js` (`buildRegistryFeed({ pmId, statusFilter
+})`); the route keeps initDb, the capability guard, the request scope resolution
+(and its 403) and the response envelope.
+
+**Unchanged:** the read set and batching, the case-insensitive participant merge,
+the synthetic-family id, the password-hash strip and the activation-status
+precedence (`sent` wins for `lastSentAt`).
+
+---
+
+### Domain 54 — the Programs controller frontier (slices 68–72, 76)
+
+The programs domain's **route** layer, taken one route at a time. Slice 13 had
+only the manager-change repair; this wave takes the lifecycle, the workspace
+bundle, the weekly reports, the exports and the teams. `services/programs/*`
+grew from one decision module (`programManager.js`) to six.
+
+**Slice 68 — `pm/programs`, the program lifecycle** →
+`services/programs/workspace.js` (`listProgramRecords`, `createProgramRecord`,
+`updateProgramRecord`, `deleteProgramRecord`). The list read with its completion
+index (four weighted blocks, computed in JS, capped at 100%), the duplicate-name
+rule, the date rules, the segment assignment + participant sync, the default
+objectives, the quick-archive shortcut, the manager-change notification and the
+protected-data guard all move; the route keeps `requireAuth` (GET/PUT bare, POST
+`[staff, super_admin]`), the `programs.*` capabilities, the `wave: "content"`
+record scope (PUT/DELETE) and the response envelope.
+
+New characterisation net `programs-api.test.js` (13 tests); no SQL moved, so the
+existing suites are untouched.
+
+**Slice 69 — `pm/full-state`, the program bundle** →
+`services/programs/fullState.js` (`buildProgramFullState`). The fourteen-read
+bundle assembly, the materials/attachment de-double-stringify, the
+participant/facilitator/staff merge, the optional metrics block and the
+calendar-day normalisation move; the route keeps the assigned-PM /
+`requireProgramFacilitator` gate. `db-sequencing-audit` (one wave, ≤ 15
+statements) is unchanged and green.
+
+**Slice 70 — `pm/export`** → `services/programs/export.js`
+(`buildProgramExport`). The export-type vocabulary, each type's filename and the
+serialisation (CSV, Excel, iCalendar, client-PDF JSON) move; the route keeps the
+`reports.export` capability, the `wave: "content"` scope and the header shaping.
+
+**Slice 71 — `pm/reports`, the weekly reports** →
+`services/programs/weeklyReports.js` (`listWeeklyReportsForSession`,
+`saveWeeklyReport`). The own-scope filter, the KPI-name lookup and the
+status → score mapping move; the route keeps `requireAuth`, the
+`requireAssignmentAccess` gate (GET) and the `programs.edit` + `wave: "content"`
+gates (POST).
+
+**Slice 72 — `pm/teams`, the program teams** → `services/programs/teams.js`
+(`listProgramTeams`, `createTeamWithMembers`, `applyTeamPatch`). The
+credential-stripping rule, the cryptographic credential generation, the member
+classification/linking and the credential e-mails move; the route keeps the
+management / `programs.view` / assignment gate (GET), the `programs.edit` +
+`wave: "groups"` gates and the team resolution that feeds the scope check
+(PATCH/DELETE).
+
+**Source-pin repointed:** `security-request-origin-and-scope` pinned the
+credential generator inside `pm/teams/route.js`; the same assertion now reads it
+in `services/programs/teams.js` (and still asserts the org-team route generates
+inline). `program-scope-coverage` and `identity-gate-bridge` are unchanged — the
+auth, capability and scope guards stayed on the routes.
+
+**Slice 76 — `pm/curriculum`, the session/requirement controller** →
+`services/programs/curriculum.js` (`runCurriculumAction`, `updateCurriculum`,
+`deleteCurriculumItem`, plus the two scope resolvers). The whole action
+vocabulary (add_session with its conflict guard, add_requirement,
+send_reminder, toggle_status / toggle_deliverable, assign_team, anchor_material,
+the legacy weekly report), the field update with its schedule-conflict guard,
+the legacy full update and the per-type delete cascade move; the route keeps
+`programs.edit`, the `wave: "content"` scope and the response envelope, and asks
+the service which RECORD's program authorises the action (the record is resolved
+from the row, never the body). **No `@/models` import remains in the route.**
+New characterisation net `curriculum-api.test.js`.
+
+`npm test` (237 suites, 3399 tests), `npx eslint` (0 errors) and `npm run build`
+are green. **The Programs controller frontier is complete.**
+
+---
+
+### Domain 55 — the CRM controller frontier: contact alternative emails (slice 73)
+
+The `/api/contact-emails` route (list / add / remove a contact's alternative
+emails) carried its own authorization rule inline: a bare role check that let any
+staff-side caller manage **every** contact in the database. That rule is
+**AUTHZ-CRM-1** and it now lives in `services/contacts/alternativeEmails.js`
+(`canManageContactEmails(session, targetCid)`): yourself, Super Admin, or a
+staff/program-manager **who shares a programme the target is staffed on** (a
+contact→programme predicate, read through `services/authorization/scope`);
+everyone else is refused.
+
+The route keeps `initDb`, `requireAuth`, the query/body validation, the
+contact-exists 404 (POST), the refuse→403 mapping and the delegation to
+`@/lib/contactIdentity`; it no longer decides who may act. The alternative-email
+reads/writes themselves are unchanged (and never become the login credential).
+
+**Source-pin repointed:** `security-request-origin-and-scope` pinned the
+shared-programme predicate inside the route; the same assertion now reads it in
+`services/contacts/alternativeEmails.js` (the route still asserts the predicate is
+consulted, via `canManageContactEmails`).
+
+---
+
+### Domain 56 — the CRM controller frontier: group members (slice 74)
+
+`/api/group-members` (add / list a v2 team's members) was the **last route still
+reading through the Supabase client** — `supabase.from("v2_groups")` /
+`v2_group_members` inline. Its reads and writes now go through `@/models/groups`
+(`getGroupProgramId`, `getParticipantGroupPrograms`, `insertGroupMember`,
+`getGroupMembers`, `getGroupMemberParticipants`), and the decisions — resolving
+the group's program and the one-team-per-program rule — moved to
+`services/contacts/groupMembers.js`. The route keeps
+`requireAuth(["staff", "super_admin"])`, the validation, the record-scope guard
+(`requireProgramScope({ programId, wave: "groups" })`) and the response envelope.
+
+**Behaviour kept:** the 404 on an unknown group, the 400 "Participant already
+assigned to a team in this program.", the GET `group_id is required` guard and
+the `members` payload (each membership with its participant row nested under
+`v2_participants`).
+
+**Test repointed:** `security-lot7-program-scope` used to mock `@/lib/supabase`
+and assert `__builder.insert`; it now mocks the model functions (adding the five
+group-member reads/writes) and asserts `insertGroupMember`. `src/lib/supabase.js`
+is **not** dead — the storage layer (`src/lib/storage.js`) still uses it; only the
+routes are now Supabase-free.
+
+---
+
+### Domain 57 — the CRM controller frontier: the directory-search pool (slice 75)
+
+`/api/contacts/search` chose its pool inline: for a requested program it checked
+whether the caller was a participant (`isParticipantInProgram`) or a
+venture-founder in that program (`isVentureFounderInProgram`) and, if so, ran the
+program-scoped query; otherwise it fell through to the capability-gated global
+directory. That decision now lives in `services/contacts/directorySearch.js`
+(`contactSearchPattern`, `searchProgramPoolForMember`, `searchGlobalDirectory`).
+The route keeps both capability gates (`contacts.view`), the `q` length guard and
+the envelope.
+
+**Source-pin repointed:** `identity-gate-bridge` pinned the two membership
+predicates inside the route; the same assertion now reads them in the service
+(the route still asserts the `contacts.view` gate).
+
+---
+
+### Domain 58 — the CRM controller frontier: the duplicate-flag queue (slice 77)
+
+`/api/contacts/duplicates` shaped the pending candidate-duplicate queue and clamped
+its page size inline. Those rules — the 200/500 page-size clamp, the
+`contact_a`/`contact_b` identity shaping and the "dismiss only a still-pending
+flag" outcome — now live in `services/contacts/duplicateFlags.js`
+(`resolveDuplicateFlagLimit`, `listPendingDuplicateFlags`,
+`dismissPendingDuplicateFlag`). The route keeps the `super_admin` auth, the
+`contacts.view` / `contacts.edit` gates and the envelope.
+
+---
+
+### Domain 59 — the CRM controller frontier: the contact timeline (slice 78)
+
+`/api/contacts/[cid]/timeline` carried its own scope rule: a participant or
+founder may only read their OWN timeline, and a program manager sees the
+non-program events plus their programs' events. That rule — plus the scoped read
+assembled with the contact identity and the event append — now lives in
+`services/contacts/timeline.js` (`mayReadContactTimeline`, `listContactTimeline`,
+`addContactTimelineEvent`). The route keeps both capability gates
+(`contacts.view` / `contacts.edit`), the pagination parsing, the required-field
+check and the envelope.
+
+---
+
+### Domain 60 — the CRM controller frontier: the contact merge (slice 79)
+
+`/api/contacts/merge` (POST) and `/api/contacts/merge/preview` (GET) carried the
+merge orchestration inline: the reassignment of the duplicate's program
+enrollments, venture memberships and timeline events, the survivor's context-grant
+reconciliation (so a merged founder keeps working access), the merge timeline
+event, the soft-delete that frees the duplicate's email, the flag resolution and
+— for the preview — the three counts and the summary. That all moves to
+`services/contacts/merge.js` (`mergeContacts`, `previewContactMerge`). The routes
+keep the `super_admin` auth, the `contacts.delete` / `contacts.view` gates, the
+required-parameter checks and the envelope.
+
+---
+
+### Domain 61 — the CRM controller frontier: the contacts list read (slice 80)
+
+`/api/contacts` (the personnel registry, 649 lines and four verbs) is taken
+verb by verb. This slice is the **GET**: the query selection (own record only for
+a caller without `contacts.view`, the archived set for a Super Admin on
+`?status=archived`, a single cid, the Super-Admin directory, else the
+staff/PM window), the self-lookup guard that refuses a foreign cid, and the row
+enrichment (the participant/assignment cid sets, the invitation status and the
+`is_participant` / `has_assignment` flags) now live in
+`services/contacts/registryRead.js` (`readRegistryContacts`). The route keeps
+`requireAuth`, the `contacts.view` capability and the envelope.
+
+**Source-pin repointed:** `identity-gate-bridge` pinned
+`getContactByCid(cidFilter || session.cid)` inside the route; the same assertion
+now reads it in the service (the route still asserts the `contacts.view` gate).
+
+---
+
+### Domain 62 — the CRM controller frontier: the contacts soft-delete (slice 81)
+
+The `/api/contacts` **DELETE** recorded the actor and ran the soft-delete inline.
+The rule — never remove the row, always record the session as the actor, and free
+the e-mail with a unique placeholder that keeps the original address for audit —
+now lives in `services/contacts/deletion.js` (`softDeleteRegistryContact`). The
+route keeps the `contacts.delete` capability, the required-cid check and the
+envelope.
+
+---
+
+### Domain 63 — the CRM controller frontier: the contact registration (slice 82)
+
+The `/api/contacts` **POST** (single or bulk registration) carried the whole
+create use-case inline — the role normalization (a privileged caller may choose;
+everyone else is capped at the self-service set), the status defaulting, the
+unusable-password rule, the invitation firing, the program enrollment with the
+facilitator-conflict guard, the access-request notification and the
+duplicate-phone detection. That now lives in `services/contacts/registration.js`
+(`registerContacts`). The route keeps the optional-auth `contacts.create`
+capability, the role-assign and org-membership gates, the all-failed → 400
+mapping and the envelope.
+
+**Source-pin repointed:** `security-lot10` pinned
+`program_id: session ? contact.program_id || null : null` inside the route; the
+same assertion now reads it in the service.
+
+---
+
+### Domain 64 — the CRM controller frontier: the contact update (slice 83)
+
+The `/api/contacts` **PUT** built the SET clause inline and ran the program sync
+in the route. The rules — the capability-gated `role` column, the archive intent
+(server clock + session actor), the field normalization, the branch between a
+role promotion, a `program_ids` replacement and a single `program_id` ensure, the
+membership application with its audit, and the approval-time notification purge —
+now live in `services/contacts/update.js` (`buildContactUpdate`,
+`planContactProgramSync`, `findMissingProgram`, `applyContactProgramMembership`,
+`completeContactUpdate`). The route keeps the `contacts.edit` capability, the
+`org_membership` gate, the facilitator-conflict guard (which answers HTTP), the
+program-not-found 404 and the envelope.
+
+**Source-pin repointed:** `security-lot3` pinned
+`...(canAssignRole ? ["role"] : [])` inside the route; the same assertion now
+reads it in the service (the route still resolves `canAssignRole`).
+
+**The `/api/contacts` controller is now four thin verbs** — GET / POST / PUT /
+DELETE delegating to `registryRead` / `registration` / `update` / `deletion`.
+That closes the CRM controller frontier: every CRM route is a thin controller.
+
+---
+
+### Domain 65 — the LMS / platform controller frontier (slices 84–85)
+
+**Slice 84 — `lms/registrations/[id]`, the registration team actions** →
+`services/lms/registrations.js` (`applyRegistrationAction`). The four team
+actions and their rules move: retry-access (replay the access step, then hand
+over a FRESH one-time link), resend-email, refund at the provider with an
+optional same-step access revocation (refunding and revoking stay two separate
+decisions), and revoke-access (only for a refunded registration, leaving a
+journal line). The route keeps `lms.edit` and the response envelope. New
+characterisation net `lms-registrations-review.test.js`; the fake-database
+`lms-checkout` suite still drives refund/revoke end to end.
+
+**Slice 85 — `platform/ai/evaluate-submission`, the AI evaluation** →
+`services/platform/evaluation.js` (`handleEvaluationPost`,
+`getEvaluationResult`). The client-driven batch model (claim an expiry-stamped
+row so two processes never double-evaluate, evaluate with bounded concurrency,
+release, record failures for a targeted retry), the progress counts and the
+single evaluation (with the `force` re-evaluate) move; the route keeps the
+`runs.*` capability split — `runs.view` for watching progress, `runs.review` for
+evaluating (it can auto-approve). `withTimeout` now clears its timer so a
+finished batch leaves no dangling handle. New characterisation net
+`platform-evaluation-api.test.js`.
+
+`npm test` (239 suites, 3440 tests), `npx eslint` (0 errors) and `npm run build`
+are green. **`platform/form-runs` (2691 lines) and the rest of the platform
+AI/import/seed routes are the remaining heavy controllers.**
+
+---
+
+### Domain 66 — the Communications controller frontier: campaigns (slice 86)
+
+The two `/api/campaigns` controllers (retired behind `RETIRED = true`, kept
+re-enableable) still ran their own SQL: the step-sequence and target-contact
+multi-row inserts (`db.batch`) and the three-table delete cascade. Those
+statements moved to `@/models/communications` (`insertCampaignSteps`,
+`insertCampaignContacts`, `deleteCampaignCascade`), and the decisions — the wait
+(days / hours / minutes) collapsed into the stored `delay_hours`, and the additive
+audience sync (keep the sent records, insert the new identities as pending, drop
+the ones no longer listed while still pending) — moved to
+`services/communications/campaigns.js` (`campaignStepRows`, `addCampaignSteps`,
+`addCampaignContacts`, `syncCampaignAudience`). The routes keep the
+`staff`/`super_admin` gate, the name-required check, the retirement 403 and the
+envelope.
+
+**With this, no `src/app/api/**/route.js` runs SQL at all** — the anti-SQL audit
+(`grep … '\.execute|\.transaction|\.batch\('`) returns nothing across the API
+surface.
+
+---
+
+### Domain 67 — the Communications controller frontier: internal messages (slice 87)
+
+`/api/internal-comms` (488 lines) was the biggest communications controller: it
+carried the message-scope engine inline — the program-member resolution
+(participants, staff, PM, assistants, legacy contacts), the group-member
+resolution (`__staff__` or a family, plus the family's program), the three-wave
+user scope (contact / groups / programs, then the membership + family-name
+lookups, then the program's families) and the direct-message "share a program"
+rule. Those now live in `services/communications/internalComms.js` alongside the
+three use-cases — the inbox (`readMessageInbox`, feeding the `messageScope`
+policy), the send (`sendInternalMessage`, with the sender-identity,
+broadcast-to-all and program/group-scope guards and the recipient notification
+fan-out) and the read marking (`markMessagesRead`, with the
+conversation-participant guard). The route keeps `messaging.view` /
+`messaging.send`, the own-inbox 403 and the envelope; the scope decisions return
+`{ denied: { error, status } }`.
+
+---
+
+### Domain 68 — the Communications controller frontier: announcements (slice 88)
+
+`/api/announcements` (280 lines, four verbs) carried its decisions inline: the
+feed selection (active vs all, and the audience), the publish (the author always
+taken from the session, the notification fan-out to all or to a group), and the
+author-or-Super-Admin ownership rule for edit and archive. Those now live in
+`services/communications/announcements.js` (`listAnnouncementFeed`,
+`publishAnnouncement`, `updateAnnouncement`, `archiveAnnouncement`). The route
+keeps the `internal_comms.create_announcements` / `internal_comms.moderate` gates,
+the required-field checks and the envelope.
+
+**Unchanged:** `identity-in-writes` still drives POST and asserts the write's
+author is the session — it now reaches the model through the service.
+
+---
+
+### Domain 69 — the Communications controller frontier: follow-ups & events (slices 89–90)
+
+**Slice 89 — `/api/followups`** → `services/communications/followups.js`
+(`ensureFollowupSchema`, `createFollowup`, `updateFollowupRecord`). Creating a
+follow-up now owns its two side effects — the calendar-event derivation (`end =
+start + duration`, the truncated title) and the `pending_followup` submission
+move, both non-blocking — plus the update. The route keeps the `createHandler`
+role gate, the facilitator program/team guard (which answers HTTP) and the
+required-field checks.
+
+**Slice 90 — `/api/events`** → `services/communications/events.js` (`createEvent`).
+The event-create now owns the participant notification (the composed date /
+location message). The route keeps the role gates and the envelope.
+
+With these, every communications controller is thin — campaigns, internal
+messages, announcements, follow-ups and events.
+
+---
+
+### Domain 70 — the submissions controller frontier: the submit (slice 91)
+
+`/api/submissions` (674 lines, four verbs) is the venture deliverable-submission
+controller. This slice is the **POST**: the self-service identity binding
+(participant/member bound to their own cid and an active membership; team
+sessions bound to their own team and program; every other role denied), the
+program-completion view-only gate, the file-url resolution, the
+deliverable/document id derivation and the version computation all moved to
+`services/ventures/submissions.js` (`createSubmissionRecord`). The route keeps
+`requireAuth`, the safe migrations and the envelope.
+
+**Source-pin repointed:** `identity-gate-bridge` pinned `body.participant_id =
+session.cid` and `body.team_id = session.cid` inside the route; those assertions
+now read them in the service (the route still pins the GET own-scope
+`participant_id = session.cid`).
+
+---
+
+### Domain 71 — the submissions controller frontier: the review (slice 92)
+
+The **PATCH** turns a submission's review from a decision into a new state. The
+business rules (written feedback for a revision, a reason for a rejection), the
+**role lock** (once a final decision exists, only the role camp that made it may
+change it), the review write (score preserved when not resent), the follow-up
+scheduling (calendar event + follow-up record), the participant notification, the
+team propagation and the KPI recalculation all moved to
+`services/ventures/submissions.js` (`applySubmissionReview`), and the facilitator
+record-scope check to `isSubmissionWithinFacilitatorScope`. The route keeps
+`requireAuth`, the `assignments.grade` assignment guard (which answers HTTP), the
+role-lock column migration and the envelope.
+
+---
+
+### Domain 72 — the platform controller frontier: the Run-detail read (slice 93)
+
+`src/app/api/platform/form-runs/route.js` (2691 lines) is the platform monolith;
+this slice takes its **read path** — the run screen. The `GET ?id=` assembly
+moves to `services/platform/formRuns.js` (`buildRunDetail`): the
+auto-close-on-open rule, the one-wave bundle (assignments, submissions, reviews,
+evaluations, email logs, activation logs, the form's fields and the report file),
+the respondent enrichment (real email and name, `account_created` /
+`account_status`, the activation history built from the email log and the token
+state) and the anonymous presentation rule. `enrichAssignments` moves with it and
+is re-exported (the POST assign/unassign actions still call it). The route keeps
+the capabilities, the branch routing and the deferred `scheduleResultSweep` (the
+`after` trigger is HTTP infrastructure).
+
+**Source-pin repointed:** `run-report-file` now reads `report_file` /
+`runReportFileDescriptor` in the service (same assertion, new home).
+`db-sequencing-audit` is unchanged — the run detail is still 12 statements in 5
+waves.
+
+`npm test` (239 suites, 3452 tests), `npx eslint` (0 errors) and `npm run build`
+are green. **The write half of `form-runs` (the POST action vocabulary) and the
+remaining platform AI/import/seed routes are the next slices.**
+the role-lock column migration and the envelope.
+
+---
+
+### Domain 73 — the submissions controller frontier: the list read (slice 93)
+
+The **GET** scopes the read: the team-entity binding (a team session may only
+read its own team), the own-scope fallback (no program context → a non-management
+session lists only its own rows) and the facilitator scope filter (their assigned
+teams, deny-closed when they have none), plus the UI row shaping and the
+version-history grouping. Those moved to `services/ventures/submissions.js`
+(`bindSubmissionTeamScope`, `applyOwnSubmissionScope`,
+`needsFacilitatorSubmissionScope`, `resolveFacilitatorSubmissionScope`,
+`formatSubmissionRows`, `groupSubmissionVersions`). The route keeps `requireAuth`,
+the `assignments.view` assignment guard (which answers HTTP) and the envelope.
+
+**Source-pin repointed:** `identity-gate-bridge` pinned the own-scope
+`participant_id = session.cid` inside the route; the assertion now pins
+`applyOwnSubmissionScope` in the service instead.
+
+---
+
+### Domain 74 — the submissions controller frontier: the score write (slice 94)
+
+The last verb, the **PUT**: the two score columns' migrations, the score /
+evaluation payload shaping (integer score, JSON-encoded evaluation) and the
+branch between “one submission by id” and “every submission of a participant in a
+program” all moved to `services/ventures/submissions.js`
+(`saveSubmissionScore`). The route keeps the `[staff, super_admin, program_manager]`
+gate, the `requireProgramScope` record-scope guard (which answers HTTP), the
+program resolution and the envelope.
+
+That closes the submissions controller frontier — `/api/submissions` went from
+674 to 265 lines, four thin verbs over one service.
+
+---
+
+### Domain 75 — the platform controller frontier: the form-runs emails & report document (slice 95)
+
+The second slice of the platform monolith `form-runs`, after the Run-detail read
+(93): the decision/result email and document cluster.
+`sendDecisionEmailForSubmission` (the run→form→default template chain, the group
+gate, the duplicate-recipient sentinel), `buildResultDocument` (the answer
+rebuild, the weighted score with the human overrides, the composed-report brief —
+Output Instruction *or* attached document — and the PDF renderer selection),
+`sendResultEmailForSubmission`, the scheduled `dispatchScheduledResultEmails` and
+`logTimeline` move to `services/platform/formRuns.js`, together with the
+`formatResultAnswer` / `isFounderFitResultRun` helpers. The route keeps
+`scheduleResultSweep` and `processReviewInternal` — both use the `next/server`
+`after` — and imports the moved functions from the service.
+
+**Source-pins repointed**, same assertions, new home (the service):
+`result-email-founder-fit`, `result-email-schedule`, `result-pdf-on-approval`,
+`run-output-instruction` and `run-report-file`. `db-sequencing-audit` is
+unchanged.
+
+`npm test` (240 suites, 3468 tests), `npx eslint` (0 errors) and `npm run build`
+are green. **`processReviewInternal` and the rest of the `form-runs` POST action
+vocabulary are the next platform slices.**
+
+---
+
+### Domain 76 — the platform controller frontier (slices 96–111)
+
+With the model layer clear (§4), the platform controllers carried the last
+domain logic. This wave thins them route by route; each keeps its `initDb`, its
+capability/role gate, its body parsing and its response envelope, and delegates
+the decision to `services/platform/*`.
+
+**Slice 96 — `/api/platform/import/{preview,execute,review-flags}`** →
+`services/platform/import.js`. The preview's file parse (RFC-4180 aware via
+`parseCSVRows`) and the column→question fuzzy match (`fuzzyMatchColumns`,
+word-overlap ≥ 0.4, a question claimed once) move, as does the execute's
+lookup-first contact resolution (`resolveContact`: crm-id → email → phone →
+name; a name-only match is `uncertain` and never silently merged), the
+label-aware applicant-email resolution and the whole row loop (dedupe by run +
+submitter, the batch/file-hash idempotency, the review-flag persistence). The
+review-flag read/write moves too. `import/preview` went from 227 to 34 lines,
+`import/execute` from 377 to 29.
+
+**Slice 97 — `/api/platform/seed/{founder-assessment,investor-application}`** →
+`services/platform/seed.js`. The Founder Fit Score seed (its 8 scored sections ×
+questions, the weight config, the profile fields, the conditional logic and the
+publish snapshot) and the Investor intake seed (form + run behind the
+single-active-investor guard) move. The CSRF `requireSameOrigin(req)` stays on
+the founder-assessment GET and the `super_admin` gate stays on both routes.
+**Source-pin repointed:** `investor-application-intake` now reads the seed
+strings in the service (same assertion, new home).
+
+**Slice 98 — `/api/platform/ai/generate-all`** →
+`services/platform/formGeneration.js` (`generateFormWithFramework`). The design
+prompt, the normalisation (field defaults, default rating options, sequential
+numbering, evaluation weights rebalanced to 100) and the three-step persist with
+the orphaned-form cleanup move. `generate-all` went from 166 to 37 lines.
+
+**Slice 99 — `/api/platform/ai/personalize-template`** →
+`services/platform/personalize.js` (`personalizeTemplate`). The two-tier
+personalizer — a full-body rewrite validated against the draft's tag skeleton,
+then a deterministic segment splice, with the allowed-variable set and the
+language lock — moves. The route keeps the `runs.edit` / `forms.edit`
+capability. **Source-pin repointed:** `ai-template-specs` now reads the prompt
+contract in the service.
+
+**Slice 100 — `/api/platform/ai/analyze`** → `services/platform/analysis.js`
+(`analyzeSubmissionForRun`). The advisory summary/analysis, its run+form context
+load and the usage journal move; the `runs.view` gate and the health probe stay
+in the route.
+
+**Slice 101 — `/api/platform/ai/evaluation-scores`** →
+`services/platform/evaluationScores.js` (`getEvaluationScoreboard`). The run →
+form resolution, the score-boundary filter, the dynamic filterable-field
+derivation and the respondent shaping (answers keyed by the form's own question
+labels, real name/email resolution) move; the `runs.view` gate stays.
+
+**Slice 102 — the `form-runs` scoring engine** → `services/platform/scoring.js`
+(`calculateSubmissionScores`). The self-contained scoring decision (the run's
+config first, then the form's; the per-section percentage; the weighted overall
+and the ranking label) moves out of the route, which now imports it. This is the
+first piece of the heavy `form-runs` write half; the POST action vocabulary
+remains.
+
+**Slice 103 — `processReviewInternal`** → `services/platform/formRuns.js`. The
+approval/rejection workflow behind the `review` and `bulk_review` actions moves
+as one function: the idempotency guard, the "also send the AI result PDF"
+evaluation gate (refusing the WHOLE action as a 409 *before* any side effect),
+the dimension-override write, the status transition, the decision email, the
+result-PDF send, the `REVIEW_COMPLETED` automation and the synchronous
+program/group sync. The service is HTTP-free, so the two HTTP-boundary pieces
+are **injected by the controller**: `after` (the `next/server` deferred-task
+hook) and `scheduleResultSweep`. The route now imports the function and passes
+both; its `review` and `bulk_review` handlers are pure orchestration (capability
+→ validate → call → shape). **Source-pins repointed**, same assertions, new home
+(the service): `result-pdf-on-approval` (the gate order and the single build
+site) and `result-email-schedule` (the post-approval sweep). The controller
+still owns the `runs.review` capability, the request parsing and the response
+envelope.
+
+**Slice 104 — `/api/platform/forms` and `/api/platform/collections`** →
+`services/platform/forms.js` and `services/platform/collections.js`. The Forms
+decisions move: the version-snapshot fallback for a published-but-empty form
+(only when it was not edited since the publish), the publish (snapshot + version
+bump), the create, the **FK-safe builder save** (sections upserted, fields
+re-pointed to null when their section is going away, deletions last) and the
+permanent-delete cascade. The Collections decisions move too: the list + the
+recursive tree, the slug, the parent-reference guard and the audit trail. The
+single-active-Investor guard becomes `guardInvestorIntake`, called by both write
+paths in the route. **Source-pin repointed:** `investor-application-intake` now
+reads the guard in the route + the assertion in the service.
+
+New characterisation nets `platform-import-api.test.js` (the fuzzy match, the
+run→form resolution, the row loop, the flag guards), `platform-scoring.test.js`
+(config precedence, the weighted overall, the ranking, the unanswered-question
+rule) and `platform-forms-collections.test.js` (the snapshot fallback, the
+FK-safe save, the investor guard, the collections tree/slug). `npm test` (242
+suites, 3499 tests), `npx eslint` (0 errors) and `npm run build` are green.
+
+**Slices 105–109 — the rest of the `form-runs` POST action vocabulary** →
+`services/platform/formRuns.js`. The remaining write half leaves the controller,
+grouped by cohesion:
+
+- **105 — the respondent write path** (`submitResponse`, `manualAddRespondent`):
+  the active/deadline/auto-close gate, the multiple-submissions rule, the
+  submission limit, the frozen decided response, the scoring, the AI evaluation
+  (per-submission guard on a re-save) and the submission automation.
+- **106 — the run lifecycle** (`changeRunStatus`, `isValidRunStatus`,
+  `launchRun`, `assignRunTargets`, `unassignRun`): the valid-status set, the
+  slug-before-launch rule and the multi-target assignment insert/skip decision.
+- **107 — the email actions** (`retryFailedEmails`, `markEmailsCancelled`,
+  `sendResultEmails`): the manual-retry log-state rules, the never-touch-a-sent
+  pair rule and the result-email loop.
+- **108 — the messaging actions** (`sendManualMessages`, `sendActivationMessages`):
+  the recipient/name resolution, the approved-only and already-active skips and
+  the force-resend flag.
+- **109 — the link/document/run actions** (`regeneratePublicLink`,
+  `regenerateRunReport`, `deleteSubmission`, `createRun`): the slug rotation with
+  its legacy-column retry, the report re-roll + timeline entry, the submission
+  cascade and the run creation with its slug, assignments and automation.
+
+The `review` / `bulk_review` handlers stay thin over `processReviewInternal`,
+injecting `after` and `scheduleResultSweep`. The controller keeps every
+capability gate (`runs.create` / `runs.edit` / `runs.review` / `runs.delete`),
+the `x-cron-secret` check, the request parsing and the response envelope. The
+route drops from 1621 to 828 lines.
+
+**Source-pins repointed**, same assertions, new homes (the service):
+`platform-ai-evaluate-once` (the re-save evaluation guard), `run-output-instruction`
+(the one PDF sender reached from many actions) and `result-pdf-on-approval`
+(the sender call sites, after the bulk actions moved). `npm test` (242 suites,
+3499 tests), `npx eslint` (0 errors) and `npm run build` are green.
+
+**Slice 110 — the `form-runs` `PUT` and `DELETE` verbs** →
+`services/platform/formRuns.js` (`updateRunMetadata`, `archiveRun`). The
+metadata write's Output-Instruction rule (a string, bounded by
+`MAX_OUTPUT_INSTRUCTION`, stored trimmed — blank means "no instruction, default
+report") and the archive cascade (email/review/evaluation logs cleared first,
+then the report document's stored OBJECT, then the run) leave the controller.
+`form-runs` is now a pure controller: every verb delegates to the service.
+**Source-pin repointed:** `run-output-instruction` now reads the bounded/trimmed
+instruction in the service (same assertion, new home). `npm test` (243 suites,
+3530 tests), `npx eslint` (0 errors) and `npm run build` are green. **The whole
+`form-runs` route is now a thin controller over `services/platform/formRuns.js`.**
+
+New characterisation net `platform-form-runs-actions.test.js` exercises the
+extracted decisions with the repository mocked — the run-status vocabulary, the
+assignment audience allowlist, the Output-Instruction rules, the submit run gate
+and the pre-side-effect review guards (idempotency, the "PDF needs an
+evaluation" refusal) — so the workflow is covered behaviourally and not only by
+the source-pins (`npm test` 244 suites, 3548 tests).
+
+**Slice 111 — the remaining platform controllers** →
+`services/platform/{notifications,integrations,investorIntake,evaluationConfig,reportFiles}.js`.
+The last thin-but-deciding platform routes move: the notification list +
+mark-one/mark-all, the calendar/Notion health probes and sync vocabulary (sync /
+unsync / sync-all, with the required-id and unknown-action refusals), the
+Investor Run reference + public URL (404 when unconfigured), the form
+evaluation-framework read/save/remove and the Run report-file attach/read/detach
+(validate before any byte is read or written, the replace-then-remove ordering,
+the signed read link that never hands out the storage path, and "detach = row
+first, object after"). The gates stay in the routes: `settings.view` for the
+health reads, `super_admin`/`program_manager` for the syncs, `runs.edit`/`runs.view`
+for the report file and the session (no capability) for notifications.
+**Source-pins repointed:** `run-report-file` (the signed link is now minted in
+the service) and `investor-application-intake` (the run resolution is now in the
+service). New characterisation net `platform-misc-controllers.test.js`. `npm
+test` (243 suites, 3530 tests), `npx eslint` (0 errors) and `npm run build` are
+green.
+
+---
+
+### Domain 77 — the resource guards' decision boundary (slice 112)
+
+`server/authz/guards.js` (`requireProjectAccess`, `requireProgramFacilitator`,
+`enforceFacilitatorProgramAccess`, `assertNoParticipantFacilitatorConflict`,
+`requireAssignmentAccess`) was the last module that both decided and built its
+own HTTP answers. The DECISIONS move to
+`services/authorization/resourceGuards.js`, answering the same
+`{ allowed, status, errorKey }` shape as the rest of the authorization service;
+`guards.js` becomes a thin mapper (decision → response) that imports nothing but
+the HTTP layer and the service. The public guard signatures are unchanged, so no
+route changes. The existing `authz-boundaries` net (44 assertions over every
+guard's 401/403/404/409/500 path) now exercises the service through the guards,
+and `services-boundaries` still proves the new module is HTTP-free.
+
+`npm test` (243 suites, 3532 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
+### Domain 78 — the last `db` threading (slice 113)
+
+`listVentureMembers` was the only repository read that still took the pool as its
+first argument, which forced the Ventures dashboard controller to import the raw
+pool just to pass it through. The read now uses the module-level pool like every
+other model; the dashboard and `ventureRecordStore` call it without the argument,
+and no `src/app/api/**/route.js` imports the raw pool any longer (only `initDb`).
+
+`npm test` (243 suites, 3532 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
+### Domain 79 — the permission-matrix read (slice 114)
+
+`GET /api/engineering/permissions` was the largest remaining controller. Its read
+assembly moves to `services/authorization/permissionMatrix.js`
+(`preparePermissionReads`, `readPermissionMatrix`): the table view's enriched users
+(explicit profile or role default, groups merged from the user_groups table and
+the legacy group column, responsibilities), the module catalog with its
+role/group/profile defaults, and one user's effective-permissions matrix with the
+"who has access and why" explanation. The service answers `{ status, body }`; the
+route keeps the `permissions.view_matrix` gate, `initDb`, the query parsing and
+the envelope. The PUT (the grant/revoke/… writes) stays for a later slice.
+
+`npm test` (244 suites, 3550 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+### Domain 79 — the permission writes (slice 115)
+
+The `PUT` of the same controller follows. Its action switch (grant / revoke /
+restrict / unrestrict, the role and group defaults, the profile / role /
+supervisor / status changes, the Super Admin promotion and demotion) and the
+eligibility boundary on a grant move to
+`services/authorization/permissionWrites.js` (`applyPermissionChange`), together
+with the audit record each write leaves. The route keeps the
+`permissions.assign_capabilities` gate, the session, the required-field
+validation and the ROLE gate on promote/remove (a role change is never a
+capability grant, so it stays in the HTTP boundary). The service answers
+`{ status, body }` and imports the same `@/lib/auth` / `@/lib/authorization`
+facades the controller used, so the route-level test mocks keep intercepting.
+The controller is now thin over two services.
+
+`npm test` (244 suites, 3552 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
+## 3. Left aside on purpose (deferred, with reasons)
+
+1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
+   `eligibility-admin`, `context`, `contextGrants`, `programAssignments`) create
+   shim-only model→service edges; they are deleted once nothing imports them.
+2. **`models/authorization/programAssignmentBackfill.js` imports the level
+   decision from the service** — a backfill (data work) that needs a decision;
+   it stays in models for now.
+3. **No type layer** (see §4).
+
+`server/authz/guards.js` was the *other* authorization boundary; it is now split
+(slice 112) — see §2, Domain 77.
+
+---
+
+## 4. What remains
+
+### Authorization domain — done
+
+Every module that mixed a decision with its queries is split (slices 1–8), and
+the domain is now HTTP-free at the service layer (slice 9). What is left is
+cleanup, not layering:
+
+| Item | Status |
+|---|---|
+| Facades (§3.1) | shim-only re-exports, deleted when unused |
+| `server/authz/guards.js` | ✅ split (slice 112) — the decisions live in `services/authorization/resourceGuards.js` |
+| Decision tests | `authorize`, `evaluateAuthorization`, the derivation and the resource guards are now testable without HTTP |
+
+### Other domains — not started
+
+| Domain | Service to create | Notes |
+|---|---|---|
+| Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
+| Programs | `services/programs/*` | ✅ **controller frontier complete** (slices 13, 68–72, 76) — lifecycle, workspace bundle, exports, weekly reports, teams, curriculum |
+| Contacts / CRM | `services/contacts/*` | ✅ **controller frontier complete** — sync (slice 14), the decision helpers (slice 22), groups (65), user groups (66), the registry feed (67), alternative emails (73), group members (74, retiring the last Supabase route), directory search (75), duplicate flags (77), timeline (78), merge (79) and the `/api/contacts` registry controller — list read (80), soft-delete (81), registration (82), update (83). |
+| Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
+| Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
+| Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
+| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85), the `form-runs` Run-detail read (93), the `form-runs` email/report-document cluster (95), the import routes (96), the seeds (97), the AI form generation (98), the template personalizer (99), the advisory analysis (100), the evaluation scoreboard (101), the form-runs scoring engine (102), the review workflow (103), the forms/collections controllers (104) and the rest of the `form-runs` POST vocabulary — the respondent write path, the run lifecycle, the email actions, the messaging actions, the link/document/run actions (105–109), the PUT/DELETE verbs (110) and the remaining platform controllers — notifications, integrations, investor-run, evaluation-config, report-file (111) — **`/api/platform/form-runs` is now a thin controller over `services/platform/formRuns.js`** |
+| Communications | `services/communications/*` | ✅ **controller frontier complete** — message scope (earlier), campaigns (86), internal messages (87), announcements (88), follow-ups and events (89–90) |
+| Submissions | `services/ventures/submissions.js` | ✅ **controller frontier complete** — the submit POST (91), the review PATCH (92), the list GET (93) and the score PUT (94) |
+
+#### Remaining mixed model modules (the actual backlog)
+
+After re-checking each candidate: a module only counts here if a **single
+function** both computes a decision and runs SQL. Every candidate named in the
+earlier backlog has now been re-checked and either split or cleared — the table is
+empty:
+
+| Module | Domain | What mixes | Test net |
+|---|---|---|---|
+| _(none left at the model layer)_ | — | — | — |
+
+Done: `models/lms/learning.js` → `services/lms/learning.js` + `models/lms/learningStore.js` (slice 17); `models/lms/checkout.js` → `services/lms/checkout.js` + `models/lms/checkoutStore.js` (slice 18); `models/workspace.js` (the Venture-session calendar source) → `services/workspace/calendar.js` + `models/workspaceCalendarStore.js` (slice 19); `models/venturePlanImport.js` → `services/ventures/planImport.js` + `models/venturePlanImportStore.js` (slice 20); `models/platform/ai/report.js` → `services/platform/report.js` + `models/platform/ai/reportStore.js` (slice 21); the CRM helpers of slice 22 (see §2).
+
+**Checked and NOT mixed — no work needed (fourth pass, slice 22):**
+
+- `models/platform/ai/email-personalize.js` — pure: no imports, no SQL, no HTTP.
+- `models/forms.js` and `models/formRuns.js` — `countNonDraftSubmissionsByRunId`,
+  `buildRunListFilter`, `countFormRuns` and every `forms.js` query only add a
+  filter or choose a clause: repository shaping, not a decision.
+
+**Checked and NOT mixed — no work needed (third pass):**
+
+- `models/participantPortal.js` (764) — re-checked function by function: every one
+  wraps exactly one statement. The conditional getters
+  (`getParticipantProgramAssignments`, `getSubmissionsByParticipantOrTeam`, the
+  ritual `…ByUserAndWeek` reads) only add a WHERE filter — repository shaping, not
+  a decision. The "portal state assembly" named in the backlog lives in the
+  participant controllers (the new frontier), not in this module.
+
+**Checked and NOT mixed — no work needed (second pass):**
+
+- `models/lms/registrations.js` (746) — a repository: one statement per function. Its two
+  decision-shaped functions (`listRegistrationsToReview`, `getRegistrationStats`) run **no SQL**;
+  they compose repository reads. Its pure helpers (`paymentAmountMultiplier`, `toProviderAmount`,
+  `normalizeRegistrationEmail`, …) are used BY the repository (`listRegistrationsByEmail`), so they
+  cannot move to the service without a shared pure module — they stay where they are.
+
+**Checked and NOT mixed — no work needed:**
+
+- `models/authorization/investorScope.js` — delegates to other models' reads; runs no SQL itself.
+- `models/ventureAssets.js` (416, 47 q) — a pure repository: one statement per function; the `isFounderFor*` names return ROWS, the decision lives in the controller.
+- `models/ventureMemberAccess.js` (84) — thin reads returning booleans; its policy is already a separate pure function.
+- `models/intelligence.js` — aggregation reads plus light formatting.
+- Pure modules: `platform/roles.js`, `authorization/capability-catalog.js`,
+  `lms/constants.js`, `lms/scoring.js`, `lib/programProgress.js`,
+  `ventureChangeLog.js`, `authorization/eligibility-defaults.js`.
+
+> **Controllers are the new frontier.** Once the model modules are split, the
+> remaining domain logic is the orchestration inside `src/app/api/**/route.js`.
+> The recipe is the same, one route at a time: keep auth/validation/shaping in the
+> route, move the decision into `services/<domain>/`, keep the route's existing
+> test mocks working.
+
+#### Controller frontier — the inline-SQL inventory (slices 23 + 26)
+
+**A correction on the slice-23 audit.** Slice 23 concluded "no route runs SQL"
+from a grep for `db\.execute` — which does not match a call chained across lines
+(`await db\n  .execute(...)`), nor a wrapper such as `runSafeQuery(sql)` /
+`runQuery(sql)` with the SQL text in the route. Slice 26 re-audited with patterns
+that catch both and found **eleven more call sites in eight routes**, all now
+extracted. The reliable audit is:
+
+```sh
+grep -rnE "\.(execute|transaction|batch)\(" src/app/api --include=route.js
+grep -rnE "(runSafeQuery|runQuery|safeQuery)\(" src/app/api --include=route.js
+grep -rlnE "(SELECT|INSERT INTO|UPDATE [a-z_]+ SET|DELETE FROM)" src/app/api --include=route.js
+```
+
+The first two must be empty. The third still fires on three deliberate items:
+`campaigns/route.js` + `campaigns/[id]/route.js` (inline SQL in **RETIRED,
+unreachable** code — `RETIRED = true` 403s first, and it calls `db.batch`, which
+the db module does not define, so re-enabling would throw); `attendance` and
+`submissions` (a controller-assembled WHERE **fragment** handed to a model — the
+same repository-shaping class as `buildRunListFilter`, slice 22); and
+`migrate/phase5` (the sanctioned migration endpoint, which executes the
+statements of a `.sql` file, like the other `/api/migrate/phaseN` routes).
+
+Slice 26 extracted: `ventures/[id]/deliverables` (2) → `getVentureDbIdByCodeOrId`,
+`getVentureMilestoneForDeliverables`; `milestones/reorder` (1) →
+`getVentureDbIdByCodeOrId`; `verification` (2) and
+`verification/documents/[docId]/versions` (1) → `isActiveVentureMember`;
+`platform/import/execute` (4) → `findContactByCidForImport`,
+`findContactByLowerEmailForImport`, `findContactByPhoneForImport`,
+`selectAllContactsForImport`; `engineering/permissions` (10) → eight named list
+functions in `models/authorization.js`; `investor/executive-dashboard` (8) →
+eight named functions in `models/investor.js`. SQL byte-identical throughout.
+
+Slice 23 extracted **30 route files** (22 under `src/app/api/ventures/`); these
+are the ones it covered, SQL byte-identical, one function per query, the
+controller keeping its auth/validation/shaping. Most functions live in
+`models/ventureWorkspace.js`;
+
+| Route | Model functions |
+|---|---|
+| `ventures/assigned` | `listVenturesAssignedToStaff` |
+| `ventures/[id]/my-access` | `getVentureCodeByIdOrCode`, `listActiveVentureAssignmentsForAccess` |
+| `ventures/[id]/history` | `isActiveVentureMember` |
+| `ventures/[id]/venture-history` | `getVentureDbIdByCodeOrId`, `listVentureHistoryEvents/Notes/ReviewDecisions/SessionNotes` |
+| `ventures/[id]/coach-invite` | `getVentureNameByIdOrCode` |
+| `ventures/[id]/staff-assignments` | `getVentureCodeForAssignment`, `getLiveContactByCid`, `findDuplicateVentureAssignment` |
+| `ventures/[id]/progress` | `countVentureTasksWithCompletedStatuses` |
+| `ventures/[id]/members` | `getVentureByCode`, `listVentureMembersWithContacts`, `findVentureMemberByEmail`, `getVentureDisplayNameByCode`, `getVentureMemberById`, `getVentureMemberContactId`, `archiveVentureMember`, `updateVentureMemberFields` |
+| `ventures/[id]/milestones` (+ `archive`, `duplicate`) | `listVentureMilestonesByDbId`, `ventureJourneyStageExists`, `insertVentureMilestone`, `getVentureMilestoneBeforeUpdate`, `getVentureIdAndCode`, `updateVentureMilestoneFields/ValueFields`, `getVentureMilestoneTitleAndStage`, `listMilestonesForArchive` |
+| `ventures/[id]/tasks` (+ `archive`, `duplicate`, `[taskId]/submissions`) | `hasApprovedTaskSubmission`, `listTasksForArchive`, `getVentureTaskById`, `listVentureTaskSubmissions`, `getNextTaskSubmissionVersion`, `insertTaskSubmission`, `setVentureTaskInProgress`, `getTaskSubmission`, `reviewTaskSubmission`, `setVentureTaskStatus`, `getMilestoneJourneyStageId` |
+| `ventures/[id]/submissions/review-queue` | `selectVentureReviewQueue` |
+| `ventures/[id]/notes` | `getVentureCodeByDbId`, `getInternalNotesViewPermission`, `listActiveStaffAssignmentsByCode`, `listVentureNotes`, `insertVentureNote`, `getVentureNote`, `archiveVentureNote` |
+| `ventures/[id]/operating-plans` (+ `[planId]`, `[planId]/sections`) | `listVentureOperatingPlans`, `insertVentureOperatingPlan`, `getVentureOperatingPlan`, `listVenturePlanSections`, `listVenturePlanLinks`, `updateVentureOperatingPlan`, `ventureOperatingPlanExists`, `archiveVentureOperatingPlan`, `liveVenturePlanExists`, `venturePlanSectionExists`, `insertVenturePlanLink`, `insertVenturePlanSection`, `updateVenturePlanSection`, `getVenturePlanLink`, `deleteVenturePlanLink`, `deleteVenturePlanSection` |
+| `ventures/[id]/journey/apply-template` | `getActiveVenturePlanTemplate`, `listVenturePlanTemplateSections`, `countVentureJourneyStages`, `insertJourneyStageFromTemplate` |
+| `ventures/[id]/journey-report` | `getVentureDbIdByCodeOrId`, `listVentureStagesForReport(Legacy)`, `listVentureMilestonesForReport`, `listVentureTaskDeadlinesForReport`, `listVentureReviewedSubmissionsForReport`, `listVentureSessionsForReport`, `listVentureStaffAssignmentsForReport`, `listVentureSubmitedDeliverablesForReport`, `listVentureEvidencedDeliverablesForReport` |
+| `ventures/[id]/calendar` | `getVentureDbIdForCalendar`, `listVentureActionPlansWithDeadlines`, `listVentureCoachingFollowUpDates`, `listVentureCoachingSessionsForCalendar`, `listVentureFacingSessionsForCalendar`, `listVentureMilestonesWithTargetDates`, `listVentureTasksWithDueDates` |
+| `ventures/[id]/dashboard` | `getVentureDashboardInfo`, `listVentureMemberRecipients`, `selectInternalNotificationFeed`, `selectVentureNotificationFeed`, `listVentureActivityLog`, `listVentureDocumentsForDashboard(Legacy)`, `listVentureMeetings`, `listVentureKpiSummary`, `countVentureAdvisors`, `countVentureCoachingSessions`, `countVentureActiveCoachAssignments` |
+| `ventures/[id]/sessions` | `getVentureByCode`, `getVentureDbIdByCodeOrId`, `getVentureIdAndCode` |
+| `ventures/[id]/journey` | `listJourneyMilestonesByStage(Legacy)`, `listJourneyDeliverablesByMilestoneIds`, `listJourneyTaskStatusesByMilestoneIds(Legacy)`, `getJourneyTemplateName`, `countJourneyStagesByVenture`, `insertJourneyStage`, `updateJourneyStageFields`, `activateJourneyStage`, `lockJourneyStage`, `holdJourneyStageMilestones`, `resetJourneyStage` |
+
+Outside `ventures/`, the same wave covered `api/calendar`
+(`models/workspaceCalendarStore.js`: `selectCalendarVentureScope`,
+`selectCoachedVentureIds`, `selectVentureIdsByCodes`,
+`selectCalendarVentureSessions/Tasks/Milestones/JourneyStages`),
+`venture-permissions/responsibilities` and `venture-plan-templates`.
+`platform/form-runs` needed nothing (no SQL — see above).
+
+Two source-pinning suites were repointed (same assertion, new home):
+`identity-gate-bridge` (history membership probe) and `venture-label-surfaces`
+(the members company-name query).
+
+### Project-wide, still open (from `MVC_REFACTOR.md`)
+
+- The "0 inline SQL in controllers" gate holds again after the slice-26
+  correction: the first sweep (slice 23) missed chained/wrapper call sites; those
+  are extracted too. The only SQL-shaped text left in routes is the RETIRED
+  (unreachable) campaign code, the two controller-assembled WHERE fragments, and
+  the sanctioned `/api/migrate/phaseN` endpoint — see the frontier section, with
+  the audit command that actually finds them.
+- `src/lib/ventureJourneys.js`, `ventureJourneyArchive.js`,
+  `ventureJourneyTemplates.js` (slice 24), `ventureArchive.js`,
+  `ventureDuplication.js` (slice 25), `ventureMilestoneOrder.js` (slice 26),
+  `ventureAccessFacts.js` (slice 27, which left `ventureAuth.js` pure),
+  `venturePermissions.js`, `ventureMilestoneEngine.js` (slice 28),
+  `ventureScope.js` and `ventureOperatingPlans.js` (slice 29), `ventureReadiness.js`
+  and `ventureNotify.js` (slice 30), `ventureReports.js` (slice 31) and
+  `ventureCoach.js` (slice 32) are done — all facades over `services/ventures/*`.
+  **`ventures.js` (5.8k lines at the start of the wave) is now a barrel**: all
+  23 domains (activity/history/notifications → system monitoring, slices 33–56)
+  plus the core (schema, intake, record, slices 57–59) are out, re-exported
+  through `src/lib/ventures.js` over `services/ventures/*` and
+  `models/venture*Store.js`. **The non-venture `src/lib` tail is done too** —
+  `auth.js`, `audit.js`, `token-hashing.js`, `lms/coaching.js` and `email.js` were
+  split, and `request-context.js` never held SQL (only a comment). **`src/lib`
+  now contains no `db.execute` outside `db.js` itself.** The next frontier is the
+  remaining controller-heavy routes and the giant page files below.
+- Giant page files (>600 LOC) still need splitting into feature components.
+
+### Deferred decision: typing
+
+Not started and not required by this split. When revisited, the options are:
+(a) JSDoc type annotations on the service/repository boundaries, (b) a real
+TypeScript migration (project-wide, its own programme), or (c) nothing. Until a
+decision is recorded, new modules stay plain JavaScript.
+
+---
+
+## 5. Rules (the contract for every new slice)
+
+1. **Services decide; repositories read/write.** No SQL outside `src/models/**`
+   (existing rule, unchanged). No decisions inside a new repository module.
+2. **Services never run SQL** — enforced by
+   `src/__tests__/server/services-boundaries.test.js`.
+3. **New repositories never import HTTP** (`next/server`, `NextResponse`) —
+   pinned by the same suite.
+4. **Behaviour is invariant.** SQL stays byte-identical (the endpoint suites
+   match on query text). Round-trip/wave counts stay identical (pinned by
+   `db-sequencing.test.js`).
+5. **Public surfaces only grow.** Moving a symbol leaves a facade at its old
+   path for one release; delete it only once `grep` finds no importer.
+6. **Prefer the aggregating lib facade** over a model facade when the SQL stays
+   in `models` — it creates no cross-layer edge.
+7. **No new dependency** to reach a layer.
+
+---
+
+## 6. How to run the next slice (recipe)
+
+1. Pick one module that mixes decisions with reads.
+2. Write/extend the characterisation test first — the decision paths, not the
+   implementation.
+3. Copy the SQL **verbatim** into a repository module (one function per query,
+   named after the data). Do not reformat, reorder or "improve" it.
+4. Move the decision logic into the matching service module; import the
+   repository reads; delete the SQL from the original.
+5. Keep every old import path working — model facade or aggregating lib facade.
+6. Run `npm test`, `npx eslint .`, `npm run build`. **The build catches direct
+   imports the unit suites miss** (a route importing a moved symbol directly
+   fails only at build time).
+7. Update §2/§3/§4 of this document, then delete the facades once nothing
+   imports them.
+
+---
+
+## 7. Guardrails
+
+| Guard | File | Fails when |
+|---|---|---|
+| No SQL in `src/services/**` | `src/__tests__/server/services-boundaries.test.js` | a service contains `db.execute` or imports the pool |
+| No HTTP in `src/services/**` | same suite | a service imports `next/server` or references `NextResponse` |
+| The HTTP boundary owns refusals | same suite | `@/server/authz` stops exporting `requireAuthorization` / `requireScopedAccess`, they disappear from the `@/models/authorization` barrel, or they reappear in the service layer |
+| No HTTP in the new repositories | same suite | the split stores (`contextReads`, `contextGrantReadinessReads`, `scopeReads`, `eligibilityAdminReads`, `contextAssignmentReads`, `contextGrantsStore`, `programAssignmentReads`, `learningStore`, `checkoutStore`, `workspaceCalendarStore`, `venturePlanImportStore`, `platform/ai/reportStore`, `contactLookupStore`, `participantSyncStore`, `messageScopeStore`, `formRunListStore`) import `next/server` / use `NextResponse` |
+| Decision surface intact | same suite | a renamed/removed export breaks the service barrel or the resolver facade |
+| No SQL in `server/authz` | `src/__tests__/server/authz-boundaries.test.js` | (pre-existing) authorization policy runs inline SQL |
+| Auth/authz import directions | `src/__tests__/server/auth-boundaries.test.js` | (pre-existing) |

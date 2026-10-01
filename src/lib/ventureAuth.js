@@ -13,15 +13,15 @@ export function roleIsPrivileged(role) {
  * (investment engine, fundraising/investor pipelines, analytics/reports)
  * that were previously reachable by any member through requireVentureAccess.
  */
-export async function isStaffActorForVenture(db, ventureId, session) {
+export async function isStaffActorForVenture(ventureId, session) {
   if (!session) return false;
   if (session.role === "super_admin") return true;
   if (!session.cid) return false;
   try {
     // venture_staff_assignments stores the VNT code (TEXT). The shared facts
     // resolve an internal UUID back to the code once, for every caller.
-    const facts = await getVentureFacts(ventureId, db);
-    return hasActiveVentureAssignment(facts?.code || ventureId, session.cid, db);
+    const facts = await getVentureFacts(ventureId);
+    return hasActiveVentureAssignment(facts?.code || ventureId, session.cid);
   } catch (_) {
     return false;
   }
@@ -41,11 +41,11 @@ export function lifecycleIsArchived(lifecycle) {
  * Resolve the lifecycle state of a Venture (status + is_archived). Accepts
  * the VNT code or the internal UUID. Never throws.
  */
-export async function resolveVentureLifecycle(ventureId, db) {
+export async function resolveVentureLifecycle(ventureId) {
   try {
     // Shared with every other screen of the same page: the lifecycle state is
     // the Venture's own fact, and asking for it once is enough.
-    const facts = await getVentureFacts(ventureId, db);
+    const facts = await getVentureFacts(ventureId);
     return facts ? { status: facts.status, is_archived: facts.is_archived } : null;
   } catch (_) {
     return null;
@@ -59,8 +59,8 @@ export async function resolveVentureLifecycle(ventureId, db) {
  *    non-privileged members lose active access entirely.
  *  - active/paused Venture: normal membership rules apply elsewhere.
  */
-export async function requireOperationalVentureAccess({ ventureId, db, session, mutate = false }) {
-  const lifecycle = await resolveVentureLifecycle(ventureId, db);
+export async function requireOperationalVentureAccess({ ventureId, session, mutate = false }) {
+  const lifecycle = await resolveVentureLifecycle(ventureId);
   if (!lifecycle) return { ok: false, code: "not_found" };
   const archived = lifecycleIsArchived(lifecycle);
   if (archived) {
@@ -94,19 +94,19 @@ export async function requireOperationalVentureAccess({ ventureId, db, session, 
  *     bypass: access is per-Venture via assignment or membership.
  *   - Non-member / non-assigned → 404 (don't leak existence).
  */
-export async function hasActiveVentureAssignment(ventureCode, sessionCid, db) {
+export async function hasActiveVentureAssignment(ventureCode, sessionCid) {
   if (!ventureCode || !sessionCid) return false;
   try {
     // Shares the cached relationship, so an access check and a staff-actor check
     // on the same screen never ask the database twice for the same answer.
-    const relationship = await getViewerRelationship(ventureCode, sessionCid, db);
+    const relationship = await getViewerRelationship(ventureCode, sessionCid);
     return relationship.is_assigned;
   } catch (_) {
     return false;
   }
 }
 
-export async function requireVentureAccess(ventureId, db) {
+export async function requireVentureAccess(ventureId) {
   const session = await getSession();
   if (!session) return { ventureId, session: null };
 
@@ -121,7 +121,7 @@ export async function requireVentureAccess(ventureId, db) {
     // than once per screen (see lib/ventureAccessFacts.js): the Venture's code
     // (venture_members stores the code, not the internal id) and then the
     // relationship itself — membership OR a delegated staff assignment.
-    const { facts, relationship } = await ventureAccessFacts(ventureId, session.cid, db);
+    const { facts, relationship } = await ventureAccessFacts(ventureId, session.cid);
     if (facts && (relationship.is_member || relationship.is_assigned)) {
       return { ventureId, session };
     }

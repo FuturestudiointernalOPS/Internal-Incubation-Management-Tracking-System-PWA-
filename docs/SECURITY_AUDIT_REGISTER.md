@@ -5,6 +5,8 @@
 **Method** : read-only static review of every `src/app/api/**/route.js` (403 route files) and the modules they call (`src/lib/**`, `src/models/**`), grouped by domain; the most severe findings were re-verified line by line. No live exploitation, no production data touched.
 **Companion** : the earlier M1 findings remain in `docs/SECURITY_AUDIT_M1.md`.
 
+**Update 2026-09-28** — the staging impersonation feature was **removed** on branch `G`. Deleted: the `api/auth/impersonate` and `api/auth/quick-login` routes, the login-page "Developer Tools" panel, the staging banner, and the whole `is_impersonation` session plumbing. Findings **AUTH-2** and **IMP-1** below are therefore **historical**. `ALLOW_IMPERSONATION` and `NEXT_PUBLIC_ALLOW_IMPERSONATION` are now obsolete and should be deleted from the hosting environment.
+
 > This is the living register. Every finding has a **status**. "OPEN" means the risk is still present in the code today.
 
 ---
@@ -100,7 +102,7 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 
 | ID | Location | Was | Status |
 |---|---|---|---|
-| AUTH-2 | `auth/impersonate`, `auth/quick-login` | No authn — the env flag (and its client-visible `NEXT_PUBLIC_` twin) was the only gate. Both now require a live `super_admin` session. | **FIXED — Lot 3** |
+| AUTH-2 | `auth/impersonate`, `auth/quick-login` | No authn — the env flag (and its client-visible `NEXT_PUBLIC_` twin) was the only gate. Both now require a live `super_admin` session. | **FIXED — Lot 3 → REMOVED 2026-09-28** (both routes deleted) |
 | AUTH-3 | `auth/setup-password`, `auth/reset-password`, `profile` | Password change/reset left old sessions alive. Now purges sessions (profile keeps only the current one, via `deleteUserSessionsExcept`). | **FIXED — Lot 3** |
 | AUTHZ-ADM-1 | `engineering/permissions` | `promote_super_admin`/`remove_super_admin` were gated only by `assign_capabilities`. Now require the `super_admin` role. | **FIXED — Lot 3** |
 | AUTHZ-ADM-2 | `admin/bulk-upload`, `contacts` PUT | CSV / `role` written to arbitrary contacts. Import clamps to `IMPORTABLE_ROLES` without the assign-roles capability; `contacts` PUT only writes `role` for a role-assignment holder. | **FIXED — Lot 3** |
@@ -139,7 +141,7 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | ID | Location | Was | Status |
 |---|---|---|---|
 | LOG-1 | `src/lib/auth.js` | Session logs printed a token prefix (cookie and stored token). The lines now carry no token material. | **FIXED — Lot 6** |
-| IMP-1 | `src/lib/auth.js` | `is_impersonation` was never written on `user_sessions`, so an impersonated session was indistinguishable. Now persisted (with an idempotent column self-heal) and returned on the session. | **FIXED — Lot 6** |
+| IMP-1 | `src/lib/auth.js` | `is_impersonation` was never written on `user_sessions`, so an impersonated session was indistinguishable. Now persisted (with an idempotent column self-heal) and returned on the session. | **FIXED — Lot 6 → REMOVED 2026-09-28** (the whole flag was deleted) |
 | CSV-1 | `src/lib/csv.js` | `rowsToCsv` emitted `=…`/`+…`/`@…` cells verbatim, so an export opened in a spreadsheet executed the formula. Formula-leading cells are now prefixed with `'` (plain negative numbers are left alone). | **FIXED — Lot 6** |
 | XSS-1 | `src/app/s/[runId]/page.js` | The public success message was injected with `dangerouslySetInnerHTML`. Now rendered through `sanitizeRichText`. | **FIXED — Lot 6** |
 | AUD-1 | `admin/reject-user`, `tasks/comments` | The audit actor name came from the request body. Both now take it from the session. | **FIXED — Lot 6** |
@@ -237,7 +239,7 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 | BOLA-ADM-1 | BOLA | `projects/members`, `projects` DELETE, `admin/projects/[id]/approvals` | ✅ fixed in Lot 3 (see §2.5). | **FIXED** |
 | AUTHZ-ADM-1 | Privilege escalation | `engineering/permissions` | ✅ fixed in Lot 3. | **FIXED** |
 | AUTHZ-ADM-2 | Mass assignment | `admin/bulk-upload`, `contacts` PUT | ✅ fixed in Lot 3. | **FIXED** |
-| AUTH-2 | Auth | `auth/impersonate`, `auth/quick-login` | ✅ fixed in Lot 3. | **FIXED** |
+| AUTH-2 | Auth | `auth/impersonate`, `auth/quick-login` | ✅ fixed in Lot 3; both routes were **deleted** 2026-09-28. | **REMOVED** |
 | AUTH-3 | Session | password change/reset paths | ✅ fixed in Lot 3. | **FIXED** |
 | XPROG-1 | Scope | `pm/{teams,curriculum,reports,export}`, `teams`, `lms/coaching-requests` | ✅ fully fixed (Lots 4/7/8) — program scope everywhere, and the `SELECT *` team credentials are now management-only (Lot 11). | **FIXED** |
 | BOLA-CRM-1 | BOLA | `group-members` POST | ✅ fixed in Lot 7 (program scope on the membership insert; unscoped read fixed in Lot 3). | **FIXED** |
@@ -284,7 +286,7 @@ Pattern fixed everywhere: the self-service guard admitted an investor on role/ca
 |---|---|---|---|
 | LOG-1 | Logging | `src/lib/auth.js` logs a session-token prefix. | ✅ fixed in Lot 6. | **FIXED** |
 | CSV-1 | Formula injection | `ventures/[id]/reports`, `analytics` exports. | ✅ fixed in Lot 6 (`rowsToCsv` prefixes formula cells). | **FIXED** |
-| IMP-1 | Impersonation | `is_impersonation` never persisted on `user_sessions`. | ✅ fixed in Lot 6. | **FIXED** |
+| IMP-1 | Impersonation | `is_impersonation` never persisted on `user_sessions`. | ✅ fixed in Lot 6, then the whole feature was **deleted** 2026-09-28. | **REMOVED** |
 | XSS-1 | Stored (low) | `src/app/s/[runId]/page.js` renders `successMessage` via `dangerouslySetInnerHTML` (form-author content; submitted values are escaped). | ✅ fixed in Lot 6 (`sanitizeRichText`). | **FIXED** |
 | AUD-1 | Audit integrity | `admin/approve-user`, `admin/reject-user`, `tasks/comments` accept the actor name from the body. | ✅ fixed in Lot 6. | **FIXED** |
 | SECRET-2 | Secrets in URL | `notifications/{due-reminders,overdue}`, `context-grants-sweep` pass `?key=`. | ✅ header `x-cron-secret` preferred in Lot 6; `?key=` kept as fallback for existing schedulers. | **FIXED (part)** |
@@ -338,7 +340,7 @@ Each lot: `npx eslint .` · `npm test` · `npm run build`, plus a security regre
 ## 6. Residual risks to accept or schedule
 
 1. **Global catalogs** (`knowledge_resources`, `venture_coaches`) have no tenant dimension — fixing requires a product decision on who owns the global catalog (a platform capability). Currently editable by any venture editor (AUTHZ-GLOBAL-1).
-2. **Impersonation** is a staging feature; the residual risk is a misconfigured production environment (AUTH-2). Recommendation: drop the `NEXT_PUBLIC_` variant from the server gate.
+2. ~~**Impersonation** is a staging feature; the residual risk is a misconfigured production environment (AUTH-2).~~ **REMOVED 2026-09-28** — the feature was deleted outright (AUTH-2 / IMP-1), so this residual risk no longer exists. `NEXT_PUBLIC_ALLOW_IMPERSONATION` is obsolete.
 3. **`tar`** has no upstream fix; reachable only through `canvas`'s native build, not the PDF read path (DEP-1).
 4. **Legacy clear-text passwords** (SECRET-1) — a data migration is required before the fallback can be removed.
 5. **Investor approval status** — `requireInvestorSelfServiceAuthorization` ignores `investor_profiles.approval_status`, and self-registration stores an `active` contact. Whether an unapproved investor should reach the portal is a product decision; resource binding is now enforced regardless (Lot 2).
@@ -435,7 +437,7 @@ Everything below is **still present in the code today**. Grouped by the lot that
 - **LOGIC-INV-1** — should an investor's self-declared "invested" need staff confirmation?
 - **§6.5** — investor approval status / self-registration `active`.
 - **§6.4** — legacy clear-text passwords: migration needed before removing the fallback.
-- **AUTH-2 note** — impersonation is staging-only; the env flag should lose its `NEXT_PUBLIC_` variant.
+- ~~**AUTH-2 note** — impersonation is staging-only; the env flag should lose its `NEXT_PUBLIC_` variant.~~ **Resolved 2026-09-28** — the feature was removed entirely. `ALLOW_IMPERSONATION` / `NEXT_PUBLIC_ALLOW_IMPERSONATION` should now be deleted from the hosting environment (Vercel).
 
 ---
 

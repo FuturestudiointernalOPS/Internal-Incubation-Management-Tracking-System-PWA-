@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import db from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { createHandler } from "@/lib/api/createHandler";
 import {
@@ -27,7 +26,7 @@ export const GET = createHandler(
     // Phase 5 hardening: founders are only visible to the venture's members
     // and Future Studio staff — never to any authenticated user.
     const { requireVentureAccess } = await import("@/lib/ventureAuth");
-    const access = await requireVentureAccess(id, db);
+    const access = await requireVentureAccess(id);
     if (!access.session) {
       return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }

@@ -4,6 +4,7 @@ import db from "@/lib/db";
  * Groups model — data access for the group / people-organization controllers:
  * `src/app/api/groups/route.js` (contact groups — families table),
  * `src/app/api/user-groups/route.js` (user ⇄ group membership),
+ * `src/app/api/group-members/route.js` (v2 team membership),
  * `src/app/api/participants/route.js` (enrollment + contact credential sync),
  * `src/app/api/segments/route.js` + `src/app/api/segments/run/route.js` (retired),
  * `src/app/api/invites/route.js` + `src/app/api/invites/[token]/route.js` (invites),
@@ -723,6 +724,54 @@ export async function getV2GroupRowsByProgram(programId) {
   return db.execute({ sql, args });
 }
 
+// ── POST / GET /api/group-members ────────────────────────────────────────────
+
+/** The owning program of a group (POST — resolves the membership write's scope). */
+export async function getGroupProgramId(groupId) {
+  return db.execute({
+    sql: "SELECT program_id FROM v2_groups WHERE CAST(id AS TEXT) = ?",
+    args: [String(groupId)],
+  });
+}
+
+/** A participant's memberships with each group's program id (POST duplicate rule). */
+export async function getParticipantGroupPrograms(participantId) {
+  return db.execute({
+    sql: `SELECT gm.id, g.program_id
+              FROM v2_group_members gm
+              LEFT JOIN v2_groups g ON g.id = gm.group_id
+             WHERE CAST(gm.participant_id AS TEXT) = ?`,
+    args: [String(participantId)],
+  });
+}
+
+/** Insert one group membership (POST). */
+export async function insertGroupMember(groupId, participantId) {
+  return db.execute({
+    sql: "INSERT INTO v2_group_members (group_id, participant_id) VALUES (?, ?) RETURNING *",
+    args: [groupId, participantId],
+  });
+}
+
+/** A group's memberships (GET). */
+export async function getGroupMembers(groupId) {
+  return db.execute({
+    sql: "SELECT * FROM v2_group_members WHERE CAST(group_id AS TEXT) = ?",
+    args: [String(groupId)],
+  });
+}
+
+/** The participant rows behind a group's memberships (GET embedded resource). */
+export async function getGroupMemberParticipants(groupId) {
+  return db.execute({
+    sql: `SELECT p.*
+              FROM v2_participants p
+              JOIN v2_group_members gm ON gm.participant_id = p.id
+             WHERE CAST(gm.group_id AS TEXT) = ?`,
+    args: [String(groupId)],
+  });
+}
+
 // ── POST /api/superadmin/groups/assignment ───────────────────────────────────
 
 /** Program existence check before assigning a group (v2_programs by id). */
@@ -750,25 +799,13 @@ export async function getAssignmentContactsByGroupName(groupName) {
 }
 
 /**
- * Sync a contact into v2_participants as Active; on a missing unique
- * constraint (email, program_id) fall back to a plain status UPDATE.
+ * Sync a contact into v2_participants as Active.
+ *
+ * The fallback policy moved to `@/services/contacts/participantSync` (the
+ * decision), with its two statements in `@/models/participantSyncStore`.
+ * Re-exported here so existing importers keep working — see docs/LAYER_SPLIT.md.
  */
-export async function upsertV2ParticipantActiveWithFallback(programId, name, email, phone) {
-  try {
-    return await db.execute({
-      sql: `INSERT INTO v2_participants (program_id, name, email, phone, status)
-            VALUES (?, ?, ?, ?, 'Active')
-            ON CONFLICT(email, program_id) DO UPDATE SET status = 'Active'`,
-      args: [programId, name, email, phone],
-    });
-  } catch (_) {
-    // Fallback if unique constraint (email, program_id) is not there
-    return db.execute({
-      sql: "UPDATE v2_participants SET status = 'Active' WHERE email = ? AND program_id = ?",
-      args: [email, programId],
-    });
-  }
-}
+export { upsertV2ParticipantActiveWithFallback } from "@/services/contacts/participantSync";
 
 /** Sync the participant_programs junction row for an assigned contact. */
 export async function insertParticipantProgramMembership(participantId, programId) {

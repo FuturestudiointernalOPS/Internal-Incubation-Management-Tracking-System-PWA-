@@ -3,13 +3,21 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import {
-  getProgramIdsForPm,
-  getContactTimelineEvents,
-  getTimelineContactIdentity,
-  createContactTimelineEvent,
-} from "@/models/contacts";
+  mayReadContactTimeline,
+  listContactTimeline,
+  addContactTimelineEvent,
+} from "@/services/contacts/timeline";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * /api/contacts/[cid]/timeline — a contact's timeline.
+ *
+ * The scope rule (own-record for participants/founders, program-scoped for
+ * program managers) and the event append live in
+ * `@/services/contacts/timeline`; this route gates on the capability and shapes
+ * the HTTP answer.
+ */
 
 export async function GET(req, { params }) {
   try {
@@ -25,30 +33,18 @@ export async function GET(req, { params }) {
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = parseInt(searchParams.get("offset") || "0");
 
-    if (session.role === "participant" || session.role === "founder") {
-      if (session.cid !== cid) {
-        return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
-      }
+    if (!mayReadContactTimeline(session, cid)) {
+      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
     }
 
-    // Program managers: scope events to non-program modules + their programs.
-    let pmProgramIds;
-    if (session.role === "program_manager") {
-      const programsResult = await getProgramIdsForPm(session.cid);
-      pmProgramIds = programsResult.rows.map((row) => row.id);
-    }
-
-    const result = await getContactTimelineEvents(
-      cid,
+    const { contact, events, total } = await listContactTimeline(session, cid, {
       moduleFilter,
       typeFilter,
-      pmProgramIds,
       limit,
       offset,
-    );
-    const contactResult = await getTimelineContactIdentity(cid);
+    });
 
-    return NextResponse.json({ success: true, contact: contactResult.rows[0] || null, events: result.rows, total: result.rows.length });
+    return NextResponse.json({ success: true, contact, events, total });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -68,15 +64,15 @@ export async function POST(req, { params }) {
       return NextResponse.json({ success: false, error: "event_type and description required" }, { status: 400 });
     }
 
-    const result = await createContactTimelineEvent(
+    const event = await addContactTimelineEvent({
       cid,
-      event_type,
+      eventType: event_type,
       description,
-      session.cid,
+      actorCid: session.cid,
       metadata,
-    );
+    });
 
-    return NextResponse.json({ success: true, event: result.rows[0] });
+    return NextResponse.json({ success: true, event });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

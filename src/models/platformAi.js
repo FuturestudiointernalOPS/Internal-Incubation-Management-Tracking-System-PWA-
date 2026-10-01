@@ -8,7 +8,6 @@ import db from "@/lib/db";
  *   - `src/app/api/platform/ai/analyze/route.js`               (4 queries)
  *   - `src/app/api/platform/ai/evaluation-config/route.js`     (3 queries)
  *   - `src/app/api/platform/seed/founder-assessment/route.js`  (22 queries)
- *   - `src/app/api/platform/seed/venture-application/route.js` (10 queries)
  *
  * Each function wraps exactly one SQL statement that used to live inline in a
  * controller. SQL is byte-identical to the original queries, so behavior is
@@ -667,105 +666,4 @@ export async function publishFounderAssessmentForm(formId) {
   });
 }
 
-// ── /api/platform/seed/venture-application — Venture intake form seed ────────
-
-/** Existing Venture Application form row (if any). */
-export async function findVentureApplicationFormByName(name) {
-  return db.execute({
-    sql: "SELECT * FROM platform_forms WHERE name = ?",
-    args: [name],
-  });
-}
-
-/** (Re)flag an existing form as the single Venture intake. */
-export async function flagFormAsVentureApplication(formId) {
-  return db.execute({
-    sql: `UPDATE platform_forms
-                SET settings = settings || '{"venture_application": true}'::jsonb,
-                    updated_at = NOW()
-                WHERE id = ?`,
-    args: [formId],
-  });
-}
-
-/** Create the Venture Application form; returns its id. */
-export async function createVentureApplicationForm(name, description, settings) {
-  return db.execute({
-    sql: `INSERT INTO platform_forms (name, description, status, visibility, version, settings, created_by, owner_id, owner_name, created_at, updated_at)
-              VALUES (?, ?, 'published', 'internal', 1, ?::jsonb, 'system', 'system', 'Platform', NOW(), NOW())
-              RETURNING id`,
-    args: [name, description, JSON.stringify(settings)],
-  });
-}
-
-/** Insert one Venture Application section; returns its id. */
-export async function insertVentureApplicationSection(formId, title, sortOrder) {
-  return db.execute({
-    sql: `INSERT INTO platform_form_sections (form_id, title, sort_order, created_at)
-                VALUES (?, ?, ?, NOW()) RETURNING id`,
-    args: [formId, title, sortOrder],
-  });
-}
-
-/** Insert one Venture Application field inside a section. */
-export async function insertVentureApplicationField(formId, sectionId, field, sortOrder) {
-  return db.execute({
-    sql: `INSERT INTO platform_form_fields (form_id, section_id, field_type, label, required, options, settings, sort_order, created_at)
-                  VALUES (?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, NOW())`,
-    args: [
-      formId,
-      sectionId,
-      field.type,
-      field.label,
-      field.required ? true : false,
-      JSON.stringify(field.options || []),
-      JSON.stringify({ key: field.key }),
-      sortOrder,
-    ],
-  });
-}
-
-/** Store the Venture Application form's version-1 snapshot. */
-export async function insertVentureApplicationSnapshot(formId, snapshot) {
-  return db.execute({
-    sql: `INSERT INTO platform_form_versions (form_id, version, snapshot, published_at, published_by, created_at)
-              VALUES (?, 1, ?::jsonb, NOW(), 'system', NOW())`,
-    args: [formId, JSON.stringify(snapshot)],
-  });
-}
-
-/** Full seeded Venture Application form row (post-insert re-read). */
-export async function getFormByIdForVentureSeed(formId) {
-  return db.execute({
-    sql: "SELECT * FROM platform_forms WHERE id = ?",
-    args: [formId],
-  });
-}
-
-/** The most recent active run of a form that has a public slug. */
-export async function findActiveVentureRun(formId) {
-  return db.execute({
-    sql: `SELECT * FROM platform_form_runs
-            WHERE form_id = ? AND status = 'active' AND public_slug IS NOT NULL
-            ORDER BY created_at DESC LIMIT 1`,
-    args: [formId],
-  });
-}
-
-/** Create the active Venture Application run; returns its id. */
-export async function createVentureApplicationRun(formId, formVersion, name, description, slug) {
-  return db.execute({
-    sql: `INSERT INTO platform_form_runs (form_id, form_version, name, description, status, settings, owner_id, created_by, public_slug, created_at, updated_at)
-              VALUES (?, ?, ?, ?, 'active', ?::jsonb, 'system', 'system', ?, NOW(), NOW())
-              RETURNING id`,
-    args: [formId, formVersion || 1, name, description, JSON.stringify({}), slug],
-  });
-}
-
-/** Full seeded Venture Application run row (post-insert re-read). */
-export async function getVentureRunById(runId) {
-  return db.execute({
-    sql: "SELECT * FROM platform_form_runs WHERE id = ?",
-    args: [runId],
-  });
-}
+// ── AI form generation & assessment helpers continue below ────────────────────

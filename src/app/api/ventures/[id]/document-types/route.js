@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import db from "@/lib/db";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { resolveVentureCode } from "@/lib/ventureOperatingPlans";
@@ -35,12 +34,12 @@ export const GET = createHandler(async (req, { params }) => {
 
   // The same gate the Data bank itself uses, so a screen can never be told more
   // than the reader is allowed to see.
-  const { session } = await requireVentureAccess(id, db);
+  const { session } = await requireVentureAccess(id);
   if (!session) {
     return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   }
 
-  const ventureId = await resolveVentureCode(db, id);
+  const ventureId = await resolveVentureCode(id);
   await ensureVentureDocumentTypesForVenture(ventureId);
 
   const canManage = await canManageVentureDocumentTypes(session, ventureId);
@@ -59,7 +58,7 @@ export const GET = createHandler(async (req, { params }) => {
 
 export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const ventureId = await resolveVentureCode(db, id);
+  const ventureId = await resolveVentureCode(id);
 
   if (!(await canManageVentureDocumentTypes(req.session, ventureId))) {
     return NextResponse.json({ success: false, error: "errors.forbidden" }, { status: 403 });

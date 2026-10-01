@@ -43,9 +43,10 @@ const ADMIN_REPORTS = "src/app/admin/ventures/[id]/reports/page.js";
 const ADMIN_SESSIONS = "src/app/admin/ventures/[id]/sessions/page.js";
 
 describe("the vocabulary — every word exists in both languages", () => {
-  test("the ladder is the seven agreed words", () => {
+  test("the ladder is the eight agreed words", () => {
     expect(STATUS_WORD_IDS).toEqual([
-      "locked",
+      "upcoming",
+      "blocked",
       "not_started",
       "in_progress",
       "awaiting_review",
@@ -67,13 +68,14 @@ describe("the vocabulary — every word exists in both languages", () => {
   });
 
   test("the agreed words are exactly these", () => {
+    expect(englishStatus.upcoming).toBe("Upcoming");
+    expect(englishStatus.blocked).toBe("Blocked");
     expect(englishStatus.notStarted).toBe("Not Started");
     expect(englishStatus.inProgress).toBe("In Progress");
     expect(englishStatus.awaitingReview).toBe("Awaiting Review");
     expect(englishStatus.changesRequested).toBe("Changes Requested");
     expect(englishStatus.completed).toBe("Completed");
     expect(englishStatus.approved).toBe("Approved");
-    expect(englishStatus.locked).toBe("Locked");
   });
 
   test("the retired duplicates are gone from the journey ladder", () => {
@@ -99,10 +101,20 @@ describe("one word per state", () => {
     expect(word.key).toBe("status.awaitingReview");
   });
 
-  test("a stage under way reads In Progress, not Active", () => {
+  test("a stage not yet started reads Upcoming, under way reads In Progress", () => {
     expect(stageStatusWord("active").id).toBe("in_progress");
     expect(stageStatusWord("completed").id).toBe("completed");
-    expect(stageStatusWord("locked").id).toBe("locked");
+    expect(stageStatusWord("upcoming").id).toBe("upcoming");
+    expect(stageStatusWord("upcoming").key).toBe("status.upcoming");
+    // The retired stored value is tolerated, but resolves to the SAME word.
+    expect(stageStatusWord("locked").id).toBe("upcoming");
+  });
+
+  test("a dependency-held milestone reads Blocked, distinct from Upcoming", () => {
+    expect(milestoneStatusWord("blocked").id).toBe("blocked");
+    expect(milestoneStatusWord("blocked").key).toBe("status.blocked");
+    expect(milestoneStatusWord("upcoming").id).toBe("upcoming");
+    expect(stageStatusWord("upcoming").id).not.toBe(milestoneStatusWord("blocked").id);
   });
 
   test("a milestone awaiting review agrees with a deliverable awaiting review", () => {

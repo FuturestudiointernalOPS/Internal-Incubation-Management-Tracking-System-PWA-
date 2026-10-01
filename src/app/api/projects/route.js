@@ -3,31 +3,25 @@ import { initDb } from "@/lib/db";
 import { requireAuth, getSession, requireProjectAccess } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import {
-  createProject,
-  upsertProjectLeadMember,
-  createProjectAssignmentNotification,
-  getProjectsList,
-  getProjectMembersForProjects,
-  getTaskSummaryByProjectIds,
-  getProjectMetaById,
-  updateProject,
-  deleteProjectLeads,
-  upsertProjectLeadMemberOnUpdate,
-  deleteProjectMembersByProjectId,
-  deleteProjectById,
-} from "@/models/projects";
+  createProjectWithLeads,
+  listProjects,
+  updateProjectRecord,
+  deleteProjectRecord,
+  seesWholeProjectPortfolio,
+} from "@/services/projects/workspace";
 
 /**
- * PROJECTS API
+ * PROJECTS API — controller layer.
  *
- * GET   /api/projects?program_id=X&user_cid=X
+ * GET   /api/projects?program_id=X&user_cid=X&include_archived=true
  * POST  /api/projects
  * PUT   /api/projects
+ * DELETE /api/projects?id=X
  *
- * Supports:
- * - Creating projects (POST)
- * - Editing projects, archiving (PUT)
- * - Fetching all projects or filtered by program or user assignment (GET)
+ * This route only authenticates, validates the request shape and shapes the
+ * HTTP answer. The use cases — who may see the portfolio, how leads resolve, how
+ * `meta` merges, the order of the writes — live in
+ * `@/services/projects/workspace` (see docs/LAYER_SPLIT.md).
  */
 
 export async function POST(req) {
@@ -47,7 +41,7 @@ export async function POST(req) {
       end_date,
       priority,
       assigned_pm_id,
-      assigned_pm_ids = [],
+      assigned_pm_ids,
     } = body;
 
     if (!name) {
@@ -57,55 +51,19 @@ export async function POST(req) {
       );
     }
 
-    // If single lead was passed, add to array
-    const leadsToAssign = [...assigned_pm_ids];
-    if (assigned_pm_id && !leadsToAssign.includes(assigned_pm_id)) {
-      leadsToAssign.push(assigned_pm_id);
-    }
-
-    // Assign the first lead as the primary owner_id for legacy compatibility
-    const primaryOwnerId = leadsToAssign.length > 0 ? leadsToAssign[0] : null;
-
-    // Build meta with all extra fields
-    const meta = JSON.stringify({
-      description: description || null,
-      concept_note: concept_note || null,
-      concept_note_url: concept_note_url || null,
-      assigned_pm_id: primaryOwnerId, // legacy fallback
-      assigned_pm_ids: leadsToAssign,
-    });
-
-    const result = await createProject(
-      program_id,
+    const { projectId } = await createProjectWithLeads({
+      programId: program_id,
       name,
       status,
-      start_date,
-      end_date,
+      description,
+      conceptNote: concept_note,
+      conceptNoteUrl: concept_note_url,
+      startDate: start_date,
+      endDate: end_date,
       priority,
-      meta,
-      primaryOwnerId,
-    );
-
-    const projectId = result.rows[0]?.id || result.lastInsertRowid;
-
-    // If PM leads were assigned, add them as project members with lead role
-    for (const leadId of leadsToAssign) {
-      await upsertProjectLeadMember(projectId, leadId);
-    }
-
-    // Notify assigned PM leads
-    for (const leadId of leadsToAssign) {
-      try {
-        await createProjectAssignmentNotification(
-          leadId,
-          "New Project Assignment",
-          `You have been assigned as lead for project "${name}".`,
-          "project_assignment",
-        );
-      } catch (notifErr) {
-        console.error("Project assignment notification failed:", notifErr.message);
-      }
-    }
+      assignedPmId: assigned_pm_id,
+      assignedPmIds: assigned_pm_ids,
+    });
 
     return NextResponse.json({ success: true, project_id: projectId });
   } catch (error) {
@@ -123,77 +81,24 @@ export async function GET(req) {
     const authError = await requireAuth();
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
-    const program_id = searchParams.get("program_id");
-    const user_cid = searchParams.get("user_cid");
-    const include_archived = searchParams.get("include_archived");
     const session = await getSession();
-    const staffSide = [
-      "super_admin",
-      "staff",
-      "program_manager",
-    ];
-    let filterCid = user_cid;
-    if (!staffSide.includes(session.role)) {
-      if (filterCid && String(filterCid) !== String(session.cid)) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "You can only view your own projects.",
-          },
-          { status: 403 },
-        );
-      }
-      filterCid = filterCid || session.cid;
-    }
 
-    const result = await getProjectsList(
-      program_id,
-      filterCid,
-      include_archived,
-    );
-
-    // Get all members in a single query instead of N+1
-    const projectIds = result.rows.map((row) => row.id);
-    let allMembers = [];
-    if (projectIds.length > 0) {
-      const membersResult = await getProjectMembersForProjects(projectIds);
-      allMembers = membersResult.rows || [];
-    }
-
-    // Group members by project_id
-    const memberMap = {};
-    for (const member of allMembers) {
-      const projectIdKey = String(member.project_id);
-      if (!memberMap[projectIdKey]) memberMap[projectIdKey] = [];
-      memberMap[projectIdKey].push({ user_cid: member.user_cid, role: member.role });
-    }
-
-    // Batch per-project task stats into ONE grouped query instead of one
-    // COUNT per project. Produces identical { total, completed } per project.
-    const taskMap = {};
-    if (projectIds.length > 0) {
-      const taskSummaryResult = await getTaskSummaryByProjectIds(projectIds);
-      for (const row of taskSummaryResult.rows || []) taskMap[row.pid] = row;
-    }
-
-    const projectsWithStats = result.rows.map((row) => {
-      const meta =
-        (typeof row.meta === "string" ? JSON.parse(row.meta) : row.meta) ||
-        {};
-      const projectIdKey = String(row.id);
-      const taskSummary = taskMap[projectIdKey] || {};
-      return {
-        ...row,
-        meta,
-        members: memberMap[projectIdKey] || [],
-        task_summary: {
-          total: taskSummary.total || 0,
-          completed: taskSummary.completed || 0,
-        },
-      };
+    const result = await listProjects({
+      programId: searchParams.get("program_id"),
+      role: session.role,
+      sessionCid: session.cid,
+      requestedCid: searchParams.get("user_cid"),
+      includeArchived: searchParams.get("include_archived"),
     });
 
-    return NextResponse.json({ success: true, projects: projectsWithStats });
+    if (result.error) {
+      return NextResponse.json(
+        { success: false, error: result.error },
+        { status: result.status },
+      );
+    }
+
+    return NextResponse.json({ success: true, projects: result.projects });
   } catch (error) {
     console.error("GET /api/projects error:", error);
     return NextResponse.json(
@@ -209,19 +114,7 @@ export async function PUT(req) {
     const authError = await requireAuth();
     if (authError) return authError;
     const body = await req.json();
-    const {
-      id,
-      name,
-      status,
-      description,
-      concept_note,
-      concept_note_url,
-      start_date,
-      end_date,
-      priority,
-      assigned_pm_id,
-      assigned_pm_ids,
-    } = body;
+    const { id } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -230,116 +123,23 @@ export async function PUT(req) {
       );
     }
 
+    // Object-level authorization: a caller outside the portfolio roles must own
+    // or belong to the project before editing it.
     const session = await getSession();
-    const staffSide = [
-      "super_admin",
-      "staff",
-      "program_manager",
-    ];
-    if (!staffSide.includes(session.role)) {
-      const authError = await requireProjectAccess(id);
-      if (authError) return authError;
+    if (!seesWholeProjectPortfolio(session.role)) {
+      const accessError = await requireProjectAccess(id);
+      if (accessError) return accessError;
     }
 
-    const updateFields = [];
-    const updateArgs = [];
-
-    if (name !== undefined) {
-      updateFields.push("name = ?");
-      updateArgs.push(name);
-    }
-    if (status !== undefined) {
-      updateFields.push("status = ?");
-      updateArgs.push(status);
-    }
-    if (start_date !== undefined) {
-      updateFields.push("start_date = ?");
-      updateArgs.push(start_date || null);
-    }
-    if (end_date !== undefined) {
-      updateFields.push("end_date = ?");
-      updateArgs.push(end_date || null);
-    }
-    if (
-      priority !== undefined &&
-      ["critical", "high", "medium", "low"].includes(priority)
-    ) {
-      updateFields.push("priority = ?");
-      updateArgs.push(priority);
-    }
-
-    // If meta fields changed, update the meta JSON
-    if (
-      description !== undefined ||
-      concept_note !== undefined ||
-      concept_note_url !== undefined ||
-      assigned_pm_id !== undefined ||
-      assigned_pm_ids !== undefined
-    ) {
-      // Fetch current meta
-      const current = await getProjectMetaById(id);
-
-      const rawMeta = current.rows[0]?.meta;
-      const currentMeta =
-        (typeof rawMeta === "string" ? JSON.parse(rawMeta) : rawMeta) || {};
-
-      let leadsToAssign = assigned_pm_ids;
-      if (assigned_pm_ids === undefined && assigned_pm_id !== undefined) {
-        leadsToAssign = assigned_pm_id ? [assigned_pm_id] : [];
-      }
-
-      const primaryOwnerId =
-        leadsToAssign && leadsToAssign.length > 0 ? leadsToAssign[0] : null;
-
-      const newMeta = JSON.stringify({
-        ...currentMeta,
-        ...(description !== undefined ? { description } : {}),
-        ...(concept_note !== undefined ? { concept_note } : {}),
-        ...(concept_note_url !== undefined ? { concept_note_url } : {}),
-        ...(leadsToAssign !== undefined
-          ? { assigned_pm_id: primaryOwnerId, assigned_pm_ids: leadsToAssign }
-          : {}),
-      });
-
-      updateFields.push("meta = ?");
-      updateArgs.push(newMeta);
-
-      // Also sync owner_id column with assigned_pm_id
-      if (leadsToAssign !== undefined) {
-        updateFields.push("owner_id = ?");
-        updateArgs.push(primaryOwnerId);
-      }
-    }
-
-    if (updateFields.length === 0) {
+    const result = await updateProjectRecord({ id, patch: body });
+    if (result.error) {
       return NextResponse.json(
-        { success: false, error: "No fields to update." },
-        { status: 400 },
+        { success: false, error: result.error },
+        { status: result.status },
       );
     }
 
-    updateArgs.push(id);
-
-    await updateProject(updateFields, updateArgs);
-
-    // Update project leads in members table if provided
-    if (assigned_pm_ids !== undefined || assigned_pm_id !== undefined) {
-      const leadsToAssign =
-        assigned_pm_ids !== undefined
-          ? assigned_pm_ids
-          : assigned_pm_id
-            ? [assigned_pm_id]
-            : [];
-      // Remove existing lead(s)
-      await deleteProjectLeads(id);
-
-      // Assign new leads if provided
-      for (const leadId of leadsToAssign) {
-        await upsertProjectLeadMemberOnUpdate(id, leadId);
-      }
-    }
-
-    return NextResponse.json({ success: true, action: "updated" });
+    return NextResponse.json({ success: true, action: result.action });
   } catch (error) {
     console.error("PUT /api/projects error:", error);
     return NextResponse.json(
@@ -367,16 +167,12 @@ export async function DELETE(req) {
     // Object-level authorization: `projects.delete` is a global capability, so a
     // non-staff holder must own or belong to the project before destroying it.
     const session = await getSession();
-    if (!["super_admin", "staff", "program_manager"].includes(session?.role)) {
+    if (!seesWholeProjectPortfolio(session?.role)) {
       const accessError = await requireProjectAccess(id);
       if (accessError) return accessError;
     }
 
-    // Remove project members first
-    await deleteProjectMembersByProjectId(id);
-
-    // Then delete the project
-    await deleteProjectById(id);
+    await deleteProjectRecord(id);
 
     return NextResponse.json({ success: true, action: "deleted" });
   } catch (error) {

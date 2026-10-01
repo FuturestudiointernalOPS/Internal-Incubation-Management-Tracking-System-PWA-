@@ -13,6 +13,10 @@ import {
 
 /** The only entity kinds a legacy dependency may connect. */
 const DEPENDENCY_TYPES = new Set(["milestone", "task"]);
+/** A milestone id is a UUID; a task id is an integer — both validated as such. */
+const UUID_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const TASK_ID = /^\d+$/;
+const isValidEntityId = (type, id) => (type === "milestone" ? UUID_ID.test(id) : TASK_ID.test(id));
 
 /**
  * GET /api/ventures/[id]/timeline[?view=gantt|progress|delay]
@@ -58,23 +62,26 @@ export const POST = createHandler(async (req, { params }) => {
 
   if (body.action === "add_dependency") {
     // The ids and types come straight from the request. Restrict the types to
-    // the two entities a dependency may connect, and require positive integer
-    // ids so a malformed body cannot insert a row no reader can resolve.
+    // the two entities a dependency may connect, and require the id SHAPE the
+    // entity really has — milestones are UUIDs, tasks are integers — so a
+    // malformed body cannot insert a row no reader can resolve.
     const sourceType = typeof body.source_type === "string" ? body.source_type : "";
     const targetType = typeof body.target_type === "string" ? body.target_type : "";
-    const sourceId = Number.parseInt(body.source_id, 10);
-    const targetId = Number.parseInt(body.target_id, 10);
+    const sourceId = body.source_id === undefined || body.source_id === null ? "" : String(body.source_id);
+    const targetId = body.target_id === undefined || body.target_id === null ? "" : String(body.target_id);
     if (
       !DEPENDENCY_TYPES.has(sourceType) ||
       !DEPENDENCY_TYPES.has(targetType) ||
-      !Number.isInteger(sourceId) || sourceId <= 0 ||
-      !Number.isInteger(targetId) || targetId <= 0
+      !isValidEntityId(sourceType, sourceId) ||
+      !isValidEntityId(targetType, targetId)
     ) {
       return NextResponse.json({ success: false, error: "Invalid dependency." }, { status: 400 });
     }
+    const dbId = await resolveVentureDbId(id);
+    if (!dbId) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     try {
       const result = await addDependency({
-        ventureId: id,
+        ventureId: dbId,
         sourceType,
         sourceId,
         targetType,
@@ -87,15 +94,15 @@ export const POST = createHandler(async (req, { params }) => {
   }
 
   if (body.action === "remove_dependency") {
-    // The dependency id comes from the request: only one that belongs to THIS
-    // venture may be removed (accepts both the code and the numeric id).
-    const dependencyId = Number.parseInt(body.dependency_id, 10);
-    if (!Number.isInteger(dependencyId) || dependencyId <= 0) {
+    // The dependency id comes from the request and is a UUID: the DELETE is
+    // scoped to this Venture's resolved id, so it can never reach other rows.
+    const dependencyId = typeof body.dependency_id === "string" ? body.dependency_id : "";
+    if (!UUID_ID.test(dependencyId)) {
       return NextResponse.json({ success: false, error: "Invalid dependency." }, { status: 400 });
     }
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    await removeDependency(dependencyId, [id, dbId]);
+    await removeDependency(dependencyId, [dbId]);
     return NextResponse.json({ success: true });
   }
 

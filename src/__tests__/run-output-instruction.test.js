@@ -22,7 +22,7 @@ const path = require("path");
 
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
-const FORM_RUNS = "src/app/api/platform/form-runs/route.js";
+const FORM_RUNS_SERVICE = "src/services/platform/formRuns.js";
 const RESULT_PDF = "src/models/platform/resultPdf.js";
 
 const mockQueries = [];
@@ -305,7 +305,7 @@ describe("a failed composition is reported, never silently substituted", () => {
 
 describe("the run's report builder selects the renderer by instruction", () => {
   test("the builder reads the run's instruction and composes through the model layer", () => {
-    const src = read(FORM_RUNS);
+    const src = read(FORM_RUNS_SERVICE);
     expect(src).toContain("run_settings?.output_instruction");
     expect(src).toContain("getOrCreateSubmissionReport({");
     // Without an instruction the fixed renderer is untouched.
@@ -314,13 +314,16 @@ describe("the run's report builder selects the renderer by instruction", () => {
   });
 
   test("preview and send still share the one builder", () => {
-    const src = read(FORM_RUNS);
-    expect((src.match(/buildSubmissionResultPdf\(\{/g) || []).length).toBe(1);
-    expect((src.match(/await sendResultEmailForSubmission\(/g) || []).length).toBeGreaterThanOrEqual(2);
+    // One PDF build site, in the builder both preview and send call.
+    expect((read(FORM_RUNS_SERVICE).match(/buildSubmissionResultPdf\(\{/g) || []).length).toBe(1);
+    // The sender is still reached from more than one action — approval, the
+    // scheduled dispatcher, retries and the bulk result send — all in the
+    // service now (see docs/LAYER_SPLIT.md).
+    expect((read(FORM_RUNS_SERVICE).match(/await sendResultEmailForSubmission\(/g) || []).length).toBeGreaterThanOrEqual(2);
   });
 
-  test("the instruction is bounded and trimmed at the API boundary", () => {
-    const src = read(FORM_RUNS);
+  test("the instruction is bounded and trimmed at the write boundary", () => {
+    const src = read(FORM_RUNS_SERVICE);
     expect(src).toContain("MAX_OUTPUT_INSTRUCTION");
     expect(src).toContain("outputInstructionTooLong");
     expect(MAX_OUTPUT_INSTRUCTION).toBeGreaterThan(0);

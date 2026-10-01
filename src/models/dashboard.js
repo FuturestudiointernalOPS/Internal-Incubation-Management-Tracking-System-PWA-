@@ -15,18 +15,14 @@ import db from "@/lib/db";
 /** KPI summary for the Super Admin dashboard (program × weighted KPI rate). */
 export async function getProgramKpiSummary() {
   return db.execute({
+    // Every objective weighs the same, so the programme figure is the plain
+    // average of its objectives' rates. Non-measurable objectives (no linked
+    // deliverable) are never cached, so they are excluded by construction.
     sql: `SELECT p.id, p.name, p.status,
-                 ROUND(
-                   COALESCE(
-                     SUM(kp.completion_rate * COALESCE(k.weight, 0))
-                       / NULLIF(SUM(COALESCE(k.weight, 0)), 0),
-                     AVG(kp.completion_rate)
-                   )
-                 ) AS avg_kpi_rate,
+                 ROUND(AVG(kp.completion_rate)) AS avg_kpi_rate,
                  COUNT(DISTINCT kp.kpi_id) AS kpi_count
           FROM v2_programs p
           LEFT JOIN kpi_progress kp ON p.id::text = kp.program_id
-          LEFT JOIN v2_kpis k ON kp.kpi_id::text = k.id::text
           WHERE p.status NOT IN ('archived', 'cancelled')
           GROUP BY p.id, p.name, p.status
           HAVING COUNT(DISTINCT kp.kpi_id) > 0
@@ -267,7 +263,7 @@ export async function getQuickAccessTasks(userId) {
 /** KPI progress rows for programs the user manages or handles. */
 export async function getKpiProgressRows(userId) {
   return db.execute({
-    sql: `SELECT kp.program_id, kp.kpi_id, k.title, k.weight, k.target_value, k.auto_weight,
+    sql: `SELECT kp.program_id, kp.kpi_id, k.title, k.target_value,
                  kp.approved_count, kp.participant_count, kp.completion_rate
           FROM kpi_progress kp
           JOIN v2_kpis k ON kp.kpi_id::text = k.id::text AND kp.program_id::text = k.program_id::text

@@ -515,6 +515,67 @@ export async function runSafeQuery(sql, args = []) {
   }
 }
 
+/** GET users=true — group names per user (degrades if the table is missing). */
+export function listUserGroupNames() {
+  return runSafeQuery("SELECT user_cid, group_name FROM user_groups");
+}
+
+/** GET users=true — active responsibilities per user. */
+export function listUserResponsibilitiesForTable() {
+  return runSafeQuery(`SELECT ur.user_cid, r.id, r.name, r.key, r.icon
+              FROM user_responsibilities ur
+              JOIN responsibilities r ON r.id = ur.responsibility_id
+              WHERE r.is_active = 1`);
+}
+
+/** GET users=true — active access profiles. */
+export function listActiveAccessProfiles() {
+  return runSafeQuery("SELECT id, name, description FROM access_profiles WHERE is_active = 1");
+}
+
+/** GET users=true — role-to-profile defaults (profile id form). */
+export function listRoleAccessProfileDefaultsForTable() {
+  return runSafeQuery(`SELECT rpd.role_name, ap.id as profile_id, ap.name as profile_name
+              FROM role_access_profile_defaults rpd
+              JOIN access_profiles ap ON ap.id = rpd.access_profile_id`);
+}
+
+/** GET users=true — a user's individual capability grants. */
+export function listUserCapabilitiesForUser(userCid) {
+  return runSafeQuery(
+    "SELECT * FROM user_capabilities WHERE user_cid = ? AND (expires_at IS NULL OR expires_at > NOW())",
+    [userCid],
+  );
+}
+
+/** GET users=true — a user's individual capability restrictions. */
+export function listUserCapabilityRestrictionsForUser(userCid) {
+  return runSafeQuery(
+    "SELECT * FROM user_capability_restrictions WHERE user_cid = ? AND (expires_at IS NULL OR expires_at > NOW())",
+    [userCid],
+  );
+}
+
+/** GET (no filter) — every role capability default. */
+export function listRoleCapabilities() {
+  return runSafeQuery("SELECT * FROM role_capabilities ORDER BY role, module, capability");
+}
+
+/** GET (no filter) — every group capability default. */
+export function listGroupCapabilities() {
+  return runSafeQuery("SELECT * FROM group_capabilities ORDER BY group_name, module, capability");
+}
+
+/** GET ?role= — one role's capability defaults. */
+export function listRoleCapabilitiesForRole(role) {
+  return runSafeQuery("SELECT * FROM role_capabilities WHERE role = ? ORDER BY module, capability", [role]);
+}
+
+/** GET ?group= — one group's capability defaults. */
+export function listGroupCapabilitiesForGroup(group) {
+  return runSafeQuery("SELECT * FROM group_capabilities WHERE group_name = ? ORDER BY module, capability", [group]);
+}
+
 /** GET users=true — all contacts for the permission table, by name. */
 export async function listPermissionTableContacts() {
   return db.execute({

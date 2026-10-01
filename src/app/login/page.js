@@ -1,24 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import {
-  Eye,
-  EyeOff,
-  AlertCircle,
-  Globe,
-  Wrench,
-  ChevronDown,
-  LogIn,
-} from "lucide-react";
+import React, { useState } from "react";
+import { Eye, EyeOff, AlertCircle, Globe } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useI18n, SUPPORTED_LANGUAGES } from "@/lib/i18n";
 import { roleHomeHref } from "@/lib/platform/roles";
-
-// Hardcoded staging test users as fallback
-const FALLBACK_USERS = {
-  super_admin: [{ cid: "sp", name: "Super Admin", email: "sp@staging.bj" }],
-};
+import { safeNextPath } from "@/lib/safeNextPath";
+import { clearResponseCache } from "@/lib/hooks/useApi";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -30,87 +19,6 @@ export default function LoginPage() {
   const [success, setSuccess] = useState(false);
   const { t, lang, switchLang } = useI18n();
   const router = useRouter();
-
-  // Staging-only impersonation
-  const [devToolsOpen, setDevToolsOpen] = useState(false);
-  const [impersonateUsers, setImpersonateUsers] = useState({});
-  const [selectedRole, setSelectedRole] = useState("");
-  // The chosen user belongs to the role it was chosen under, so the pair is kept
-  // together: switching role then clears the choice by derivation, instead of by
-  // an effect that cleared it after the fact and cost an extra render.
-  const [userChoice, setUserChoice] = useState({ role: "", cid: "" });
-  const selectedUserCid = userChoice.role === selectedRole ? userChoice.cid : "";
-  const [impersonateLoading, setImpersonateLoading] = useState(false);
-  const [impersonateError, setImpersonateError] = useState("");
-  const [impersonateDebug, setImpersonateDebug] = useState("");
-  const isStaging =
-    typeof window !== "undefined" &&
-    process.env.NEXT_PUBLIC_ALLOW_IMPERSONATION === "true";
-
-  // Fetch available users when dev tools are opened
-  useEffect(() => {
-    if (!devToolsOpen || !isStaging) return;
-    async function fetchUsers() {
-      setImpersonateDebug("Fetching users...");
-      try {
-        const response = await fetch("/api/auth/impersonate");
-        setImpersonateDebug("API responded: " + response.status);
-        const data = await response.json();
-        if (data.success && Object.keys(data.users || {}).length > 0) {
-          setImpersonateUsers(data.users);
-          setImpersonateDebug("Loaded " + Object.keys(data.users).length + " roles from API");
-        } else {
-          // Fallback to hardcoded users
-          setImpersonateDebug("API returned empty — using fallback users");
-          setImpersonateUsers(FALLBACK_USERS);
-        }
-      } catch (error) {
-        setImpersonateDebug("Fetch failed: " + (error.message || "network error") + " — using fallback");
-        setImpersonateUsers(FALLBACK_USERS);
-      }
-    }
-    fetchUsers();
-  }, [devToolsOpen, isStaging]);
-
-  const handleImpersonate = async () => {
-    if (!selectedUserCid) return;
-    setImpersonateLoading(true);
-    setImpersonateError("");
-    try {
-      const selectedUsers = impersonateUsers[selectedRole] || [];
-      const selectedUser = selectedUsers.find((user) => user.cid === selectedUserCid);
-      const userEmail = selectedUser ? selectedUser.email : selectedUserCid;
-
-      // Use the passwordless staging impersonation endpoint instead of a
-      // hardcoded password login. This works for any existing contact and
-      // removes the "Invalid credentials" failure caused by password drift.
-      const response = await fetch("/api/auth/impersonate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cid: selectedUserCid, email: userEmail }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        localStorage.setItem("user", JSON.stringify(data.user));
-        // The destination comes with the identity: the server decided it from
-        // the relationships it read at sign-in. The local map stays as the
-        // fallback, so a response without it behaves exactly as before.
-        var role = data.user.role;
-        var target = data.user.home || roleHomeHref(role) || "/workspaces";
-        // Client-side navigation: the destination section layout re-reads the
-        // localStorage user + session cookie and mounts the shell itself.
-        router.replace(target);
-      } else {
-        setImpersonateError(
-          t(data.error || "Impersonation failed.") || data.error || "Impersonation failed.",
-        );
-        setImpersonateLoading(false);
-      }
-    } catch {
-      setImpersonateError("Network error.");
-      setImpersonateLoading(false);
-    }
-  };
 
   const handleLogin = async (event) => {
     event.preventDefault();
@@ -127,9 +35,23 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (data.success) {
+        // A brand-new session must not read the previous one's cached answers.
+        clearResponseCache();
         localStorage.setItem("user", JSON.stringify(data.user));
         setSuccess(true);
         setTimeout(async () => {
+          // An explicit destination from the URL WINS over the habitual home
+          // screen and over the profile-completion gate: this is how a payer
+          // lands straight in the course they just bought.
+          const requested =
+            typeof window !== "undefined"
+              ? safeNextPath(new URLSearchParams(window.location.search).get("next"))
+              : null;
+          if (requested) {
+            router.replace(requested);
+            return;
+          }
+
           // Where this person belongs was decided server-side, from the
           // relationships read at sign-in — a founder whose baseline badge is
           // "member" cannot be recognised from the badge, which is exactly why
@@ -186,6 +108,7 @@ export default function LoginPage() {
             alt="Future Studio"
             width={1018}
             height={1024}
+            priority
             className="h-20 w-auto object-contain animate-in fade-in zoom-in duration-700 mb-2"
           />
           <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em] mt-1">
@@ -196,8 +119,8 @@ export default function LoginPage() {
         <div className="card shadow-2xl border-[var(--border-primary)]">
           <form onSubmit={handleLogin} className="space-y-6">
             {errorMsg && (
-              <div className="p-3 rounded-md bg-rose-500/10 border border-rose-500/20 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-500" />
+              <div role="alert" className="p-3 rounded-md bg-rose-500/10 border border-rose-500/20 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-500" aria-hidden="true" />
                 <span className="text-[11px] font-bold text-rose-500 uppercase">
                   {errorMsg}
                 </span>
@@ -205,10 +128,11 @@ export default function LoginPage() {
             )}
 
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider ml-1">
+              <label htmlFor="login-email" className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider ml-1">
                 {t("auth.login.email")}
               </label>
               <input
+                id="login-email"
                 type="email"
                 required
                 value={email}
@@ -219,11 +143,12 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2 relative">
-              <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider ml-1">
+              <label htmlFor="login-password" className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider ml-1">
                 {t("auth.login.password")}
               </label>
               <div className="relative">
                 <input
+                  id="login-password"
                   type={showPassword ? "text" : "password"}
                   required
                   value={password}
@@ -234,6 +159,8 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? t("auth.login.hidePassword") : t("auth.login.showPassword")}
+                  aria-pressed={showPassword}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]"
                 >
                   {showPassword ? (
@@ -254,7 +181,7 @@ export default function LoginPage() {
                   className="w-3.5 h-3.5 accent-[var(--brand-orange)] cursor-pointer"
                 />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                  Remember Me
+                  {t("auth.login.rememberMe")}
                 </span>
               </label>
               <button
@@ -262,7 +189,7 @@ export default function LoginPage() {
                 onClick={() => router.push("/forgot-password")}
                 className="text-[10px] font-bold text-[var(--brand-orange)] hover:underline uppercase tracking-wide"
               >
-                Forgot Password?
+                {t("auth.login.forgotPassword")}
               </button>
             </div>
 
@@ -279,103 +206,6 @@ export default function LoginPage() {
             </button>
           </form>
         </div>
-
-        {/* Staging-Only Impersonation */}
-        {isStaging && (
-          <div className="border border-amber-500/30 bg-amber-500/5 rounded-lg overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setDevToolsOpen(!devToolsOpen)}
-              className="w-full flex items-center justify-between px-4 py-3 hover:bg-amber-500/10 transition-all"
-            >
-              <div className="flex items-center gap-2">
-                <Wrench className="w-4 h-4 text-amber-500" />
-                <span className="text-[11px] font-black text-amber-500 uppercase tracking-widest">
-                  Impersonation (Staging Only)
-                </span>
-              </div>
-              <ChevronDown
-                className={`w-4 h-4 text-amber-500 transition-transform ${devToolsOpen ? "rotate-180" : ""}`}
-              />
-            </button>
-
-            {devToolsOpen && (
-              <div className="px-4 pb-4 space-y-3 animate-in">
-                <div className="border-t border-amber-500/20 pt-3">
-                  <p className="text-[10px] font-bold text-amber-500/70 uppercase tracking-wide mb-2">
-                    Login as any user without password
-                  </p>
-
-                  {/* Debug info */}
-                  {impersonateDebug && (
-                    <div className="mb-2 p-2 rounded bg-amber-500/10 border border-amber-500/20">
-                      <p className="text-[10px] font-bold text-amber-500/80 uppercase">{impersonateDebug}</p>
-                    </div>
-                  )}
-
-                  {/* Role selector */}
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1 block">
-                    Role
-                  </label>
-                  <select
-                    value={selectedRole}
-                    onChange={(event) => setSelectedRole(event.target.value)}
-                    className="w-full bg-primary border border-[var(--border-primary)] rounded-md py-2 px-3 text-xs font-medium outline-none focus:border-amber-500 transition-all mb-2"
-                  >
-                    <option value="">-- Select role --</option>
-                    {Object.keys(impersonateUsers).map((role) => (
-                      <option key={role} value={role}>
-                        {role.replace(/_/g, " ").toUpperCase()}
-                      </option>
-                    ))}
-                  </select>
-
-                  {/* User selector */}
-                  {selectedRole && impersonateUsers[selectedRole] && (
-                    <>
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1 block">
-                        User
-                      </label>
-                      <select
-                        value={selectedUserCid}
-                        onChange={(event) => setUserChoice({ role: selectedRole, cid: event.target.value })}
-                        className="w-full bg-primary border border-[var(--border-primary)] rounded-md py-2 px-3 text-xs font-medium outline-none focus:border-amber-500 transition-all mb-2"
-                      >
-                        <option value="">-- Select user --</option>
-                        {impersonateUsers[selectedRole].map((user) => (
-                          <option key={user.cid} value={user.cid}>
-                            {user.name} ({user.email})
-                          </option>
-                        ))}
-                      </select>
-                    </>
-                  )}
-
-                  {/* Error */}
-                  {impersonateError && (
-                    <div className="p-2 rounded-md bg-rose-500/10 border border-rose-500/20 flex items-center gap-2 mb-2">
-                      <AlertCircle className="w-3 h-3 text-rose-500" />
-                      <span className="text-[10px] font-bold uppercase text-rose-500">
-                        {impersonateError}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Login button */}
-                  <button
-                    type="button"
-                    disabled={!selectedUserCid || impersonateLoading}
-                    onClick={handleImpersonate}
-                    className="w-full py-2.5 bg-amber-500 text-black rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-                  >
-                    <LogIn className="w-3.5 h-3.5" />
-                    {impersonateLoading ? "Logging in..." : "Login as Selected User"}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         <div className="flex items-center justify-center gap-2 mb-4">
           <Globe className="w-3.5 h-3.5 text-[var(--text-secondary)]" />

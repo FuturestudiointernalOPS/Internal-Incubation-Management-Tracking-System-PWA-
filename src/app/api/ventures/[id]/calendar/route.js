@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
@@ -6,6 +6,7 @@ import {
   listVentureActionPlansWithDeadlines,
   listVentureCoachingFollowUpDates,
   listVentureCoachingSessionsForCalendar,
+  listVentureFacingSessionsForCalendar,
   listVentureMilestonesWithTargetDates,
   listVentureTasksWithDueDates,
 } from "@/models/ventureWorkspace";
@@ -41,11 +42,7 @@ export async function GET(req, { params }) {
     // Canonical sessions (venture_sessions) — ONLY rows staff explicitly marked
     // Venture-facing. Internal sessions never surface on the founder calendar.
     // venture_sessions keys on the VNT code; match both id forms defensively.
-    const sessions = await db.execute({ sql: `SELECT id, title, session_type, coach_name, location, meeting_link, status,
-        preparation_notes, milestone_ref, journey_stage_id,
-        to_char(start_time, 'YYYY-MM-DD') as date, to_char(start_time, 'HH24:MI') as start_time
-        FROM venture_sessions WHERE venture_facing = TRUE AND start_time IS NOT NULL AND (venture_id = ? OR venture_id = ?)
-        ORDER BY start_time`, args: [id, dbId] }).catch(() => ({ rows: [] }));
+    const sessions = await listVentureFacingSessionsForCalendar(id, dbId).catch(() => ({ rows: [] }));
 
     const events = [
       ...(tasks.rows||[]).map(task => ({ type: "task", id: task.id, title: task.title, date: task.date, status: task.status, priority: task.priority })),

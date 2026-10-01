@@ -1,29 +1,32 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import {
-  archiveAnnouncementById,
-  createAnnouncement,
-  ensureAnnouncementsTable,
-  ensureAnnouncementsTableForInsert,
-  getAnnouncementAuthorById,
-  getAnnouncementAuthorByIdForDelete,
-  listAnnouncements,
-  notifyAllActiveUsersOfAnnouncement,
-  notifyAnnouncementGroupMembers,
-  updateAnnouncementFields,
-} from "@/models/communications";
+  listAnnouncementFeed,
+  publishAnnouncement,
+  updateAnnouncement,
+  archiveAnnouncement,
+} from "@/services/communications/announcements";
 
 /**
- * GET /api/announcements
- *   ?target_type=all&target_id=X  → active announcements for a given audience
- *   ?all=true                      → all announcements (admin only)
- *   (no params)                    → all active announcements for everyone
+ * /api/announcements — the internal announcement board.
+ *
+ * GET    ?target_type=all&target_id=X  → active announcements for an audience
+ *        ?all=true                      → all announcements (admin only)
+ *        (no params)                    → all active announcements
+ * POST   { title, body, target_type, target_id, is_pinned }  publish
+ * PUT    { id, is_archived, is_pinned, title, body }         edit
+ * DELETE ?id=X                                               soft-archive
+ *
+ * The feed / publish / moderation rules — including the "author is the session"
+ * rule — live in `@/services/communications/announcements`; this route
+ * authenticates, gates on the capability and shapes the HTTP answer.
  */
+
 export async function GET(req) {
   try {
     await initDb();
-    const { getSession } = await import("@/lib/auth");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -37,18 +40,13 @@ export async function GET(req) {
     const targetType = searchParams.get("target_type");
     const targetId = searchParams.get("target_id");
 
-    // Ensure table exists (safe migration)
-    try {
-      await ensureAnnouncementsTable();
-    } catch (_) {}
-
-    const result = await listAnnouncements({
+    const announcements = await listAnnouncementFeed({
+      session,
       showAll,
-      isSuperAdmin: session.role === "super_admin",
       targetType,
       targetId,
     });
-    return NextResponse.json({ success: true, announcements: result.rows });
+    return NextResponse.json({ success: true, announcements });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },
@@ -57,16 +55,9 @@ export async function GET(req) {
   }
 }
 
-/**
- * POST /api/announcements
- * Body: { title, body, target_type, target_id, is_pinned }
- *       The AUTHOR is read from the session, never from the request.
- * Permissions: super_admin, program_manager, project_owner, department_lead
- */
 export async function POST(req) {
   try {
     await initDb();
-    const { getSession } = await import("@/lib/auth");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -74,25 +65,11 @@ export async function POST(req) {
         { status: 401 },
       );
     }
-    const authError = await requireAuthorization(
-      "internal_comms",
-      "create_announcements",
-    );
+    const authError = await requireAuthorization("internal_comms", "create_announcements");
     if (authError) return authError;
 
-    // Ensure table exists (safe migration)
-    try {
-      await ensureAnnouncementsTableForInsert();
-    } catch (_) {}
-
-    const {
-      title,
-      body,
-      target_type,
-      target_id,
-      is_pinned,
-    } = await req.json();
-
+    const payload = await req.json();
+    const { title, body } = payload || {};
     if (!title || !body) {
       return NextResponse.json(
         { success: false, error: "Title and body are required." },
@@ -100,43 +77,8 @@ export async function POST(req) {
       );
     }
 
-    // The author is WHO IS SIGNED IN, never what the request claims. Someone who
-    // holds the capability to post must not be able to attribute the post to
-    // somebody else, so `author_id`/`author_name` in the body are not read at all.
-    const effectiveAuthorId = session.cid;
-    const effectiveAuthorName =
-      session.name || session.email || effectiveAuthorId;
-
-    const insertResult = await createAnnouncement({
-      title,
-      body,
-      authorId: effectiveAuthorId,
-      authorName: effectiveAuthorName,
-      targetType: target_type,
-      targetId: target_id,
-      isPinned: is_pinned,
-    });
-
-    const newId = insertResult.rows[0]?.id;
-
-    // Send notifications to targeted users
-    try {
-      const notificationTitle = `New Announcement: ${title}`;
-      const notificationBody =
-        body.length > 200 ? body.substring(0, 197) + "..." : body;
-
-      if (target_type === "all" || !target_type || !target_id) {
-        // Organization-wide: notify all users
-        await notifyAllActiveUsersOfAnnouncement(notificationTitle, notificationBody);
-      } else if (target_type === "group") {
-        // Target by group: notify all users in that group
-        await notifyAnnouncementGroupMembers(notificationTitle, notificationBody, target_id);
-      }
-    } catch (_) {
-      // Notifications are non-blocking
-    }
-
-    return NextResponse.json({ success: true, id: newId });
+    const { id } = await publishAnnouncement({ session, payload });
+    return NextResponse.json({ success: true, id });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },
@@ -145,15 +87,9 @@ export async function POST(req) {
   }
 }
 
-/**
- * PUT /api/announcements
- * Body: { id, is_archived, is_pinned, title, body }
- * Only the author or super_admin can edit.
- */
 export async function PUT(req) {
   try {
     await initDb();
-    const { getSession } = await import("@/lib/auth");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -164,50 +100,21 @@ export async function PUT(req) {
     const authError = await requireAuthorization("internal_comms", "moderate");
     if (authError) return authError;
 
-    const { id, is_archived, is_pinned, title, body } = await req.json();
-    if (!id) {
+    const payload = await req.json();
+    if (!payload?.id) {
       return NextResponse.json(
         { success: false, error: "Announcement id is required." },
         { status: 400 },
       );
     }
 
-    // Verify ownership or super_admin
-    const existing = await getAnnouncementAuthorById(id);
-    if (existing.rows.length === 0) {
+    const outcome = await updateAnnouncement({ session, payload });
+    if (outcome.denied) {
       return NextResponse.json(
-        { success: false, error: "Announcement not found." },
-        { status: 404 },
+        { success: false, error: outcome.denied.error },
+        { status: outcome.denied.status },
       );
     }
-    if (
-      existing.rows[0].author_id !== session.cid &&
-      session.role !== "super_admin"
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Only the author or super_admin can edit this announcement.",
-        },
-        { status: 403 },
-      );
-    }
-
-    // No fields to update guard — the UPDATE itself is assembled in
-    // src/models/communications.js (updateAnnouncementFields)
-    if (
-      is_archived === undefined &&
-      is_pinned === undefined &&
-      title === undefined &&
-      body === undefined
-    ) {
-      return NextResponse.json(
-        { success: false, error: "No fields to update." },
-        { status: 400 },
-      );
-    }
-
-    await updateAnnouncementFields({ id, is_archived, is_pinned, title, body });
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -218,14 +125,9 @@ export async function PUT(req) {
   }
 }
 
-/**
- * DELETE /api/announcements?id=X
- * Soft-archives an announcement. Only author or super_admin.
- */
 export async function DELETE(req) {
   try {
     await initDb();
-    const { getSession } = await import("@/lib/auth");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -245,30 +147,13 @@ export async function DELETE(req) {
       );
     }
 
-    // Verify ownership or super_admin
-    const existing = await getAnnouncementAuthorByIdForDelete(id);
-    if (existing.rows.length === 0) {
+    const outcome = await archiveAnnouncement({ session, id });
+    if (outcome.denied) {
       return NextResponse.json(
-        { success: false, error: "Announcement not found." },
-        { status: 404 },
+        { success: false, error: outcome.denied.error },
+        { status: outcome.denied.status },
       );
     }
-    if (
-      existing.rows[0].author_id !== session.cid &&
-      session.role !== "super_admin"
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Only the author or super_admin can archive this announcement.",
-        },
-        { status: 403 },
-      );
-    }
-
-    // Soft archive
-    await archiveAnnouncementById(id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

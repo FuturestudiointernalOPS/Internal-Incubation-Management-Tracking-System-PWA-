@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db from "@/lib/db";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { canManageMilestones, releaseFirstMilestoneForStage } from "@/lib/ventureMilestoneEngine";
+import { canManageMilestones, releaseMilestonesForStage } from "@/lib/ventureMilestoneEngine";
 import { moveStageMilestone } from "@/lib/ventureMilestoneOrder";
+import { getVentureDbIdByCodeOrId } from "@/models/ventureWorkspace";
 
 /**
  * POST /api/ventures/[id]/milestones/reorder
@@ -19,7 +19,7 @@ export const POST = createHandler(async (req, { params }) => {
   if (access.error) return access.error;
   const { session } = access;
 
-  const allowed = await canManageMilestones(db, { id, cid: session?.cid, role: session?.role });
+  const allowed = await canManageMilestones({ id, cid: session?.cid, role: session?.role });
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: "Only the Venture's Lead Manager or a Super Admin can reorder milestones." },
@@ -38,18 +38,17 @@ export const POST = createHandler(async (req, { params }) => {
     );
   }
 
-  const ventureResult = await db
-    .execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] })
-    .catch(() => ({ rows: [] }));
+  const ventureResult = await getVentureDbIdByCodeOrId(id).catch(() => ({ rows: [] }));
   const dbId = ventureResult.rows?.[0]?.id;
   if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-  const result = await moveStageMilestone(db, { dbId, stageId, milestoneId, direction });
+  const result = await moveStageMilestone({ dbId, stageId, milestoneId, direction });
   if (result.error) {
     return NextResponse.json({ success: false, error: result.error }, { status: 400 });
   }
-  // Reordering changes which milestone is first — keep the release chain
-  // consistent (releases the new first unfinished one in an active journey).
-  await releaseFirstMilestoneForStage(db, { dbId, stageId });
+  // Reordering never changes availability — position releases nothing. The
+  // call stays as an idempotent safety net: any still-held milestone of this
+  // active Journey is offered (or reads `blocked` when a dependency is unmet).
+  await releaseMilestonesForStage({ dbId, stageId });
   return NextResponse.json({ success: true });
 });

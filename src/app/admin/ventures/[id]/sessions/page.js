@@ -106,7 +106,7 @@ export default function VentureSessionsPage() {
 
   // Stage/milestone/task pickers load when the create modal opens so they
   // reflect the latest journey structure (Super Admin sees all stages incl.
-  // locked ones — the staff authoring view).
+  // upcoming ones — the staff authoring view).
   const loadJourneyContext = async () => {
     try {
       const [journeyResponse, milestonesResponse, tasksResponse] = await Promise.all([

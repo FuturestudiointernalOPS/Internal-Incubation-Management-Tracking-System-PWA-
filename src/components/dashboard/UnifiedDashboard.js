@@ -25,7 +25,7 @@ import {
   Plus,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { formatLocaleDate, weightedKpiProgress } from "@/lib/constants";
+import { formatLocaleDate, averageKpiProgress } from "@/lib/constants";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
 import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
 
@@ -1135,9 +1135,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                         )}
                         <div className="grid grid-cols-2 gap-1.5">
                           {kpis.slice(0, 6).map((kpi) => {
-                            const total = parseInt(kpi.participant_count) || 1;
-                            const approved = parseInt(kpi.approved_count) || 0;
-                            const percent = total > 0 ? Math.round((approved / total) * 100) : 0;
+                            const percent = Math.round(parseFloat(kpi.completion_rate) || 0);
                             return (
                               <div key={kpi.kpi_id} className="p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
                                 <div className="flex items-center justify-between mb-1">
@@ -1204,19 +1202,14 @@ export default function UnifiedDashboard({ role: propRole }) {
                         0;
                       // Get this program's KPIs from dashboard data.
                       const programKpis = (data?.kpis || []).filter(kpi => String(kpi.program_id) === String(program.id));
-                      // Each KPI's achievement is the share of active participants
-                      // whose work was approved; weightedKpiProgress then mixes them
-                      // by weight (equal weights when none is set), so a program is
-                      // never dragged to 0 just because a weight is missing.
+                      // Each objective's rate is stored ready-made; every objective
+                      // weighs the same, so the programme figure is their plain
+                      // average. Objectives with no linked deliverable have no
+                      // cached row and are left out.
                       const kpiProgress = programKpis.length > 0
-                        ? weightedKpiProgress(programKpis.map((kpi) => {
-                            const total = parseInt(kpi.participant_count) || 0;
-                            const approved = parseInt(kpi.approved_count) || 0;
-                            return {
-                              weight: kpi.weight,
-                              progress: total > 0 ? (approved / total) * 100 : 0,
-                            };
-                          }))
+                        ? averageKpiProgress(programKpis.map((kpi) => ({
+                            progress: parseFloat(kpi.completion_rate) || 0,
+                          })))
                         : fallbackProgress;
                       return (
                         <div

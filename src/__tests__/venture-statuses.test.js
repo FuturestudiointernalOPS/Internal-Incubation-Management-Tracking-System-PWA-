@@ -9,9 +9,12 @@
 
 const {
   JOURNEY_STAGE_STATUSES,
+  isJourneyStageUpcoming,
   isJourneyStageComplete,
   MILESTONE_STATUSES,
   isMilestoneComplete,
+  isMilestoneHeld,
+  HELD_MILESTONE_STATUSES,
   TASK_BOARD_COLUMNS,
   TASK_REVIEW_OUTCOME_STATUSES,
   TASK_COMPLETED_STATUSES,
@@ -23,21 +26,24 @@ const {
 } = require("@/lib/ventureStatuses");
 
 describe("ventureStatuses — journey stages", () => {
-  test("vocabulary covers locked/active/completed only", () => {
-    expect(JOURNEY_STAGE_STATUSES).toEqual(["locked", "active", "completed"]);
+  test("vocabulary covers upcoming/active/completed only", () => {
+    expect(JOURNEY_STAGE_STATUSES).toEqual(["upcoming", "active", "completed"]);
   });
 
-  test("only completed is terminal", () => {
+  test("only completed is terminal; upcoming is the not-started state", () => {
     expect(isJourneyStageComplete("completed")).toBe(true);
     expect(isJourneyStageComplete("active")).toBe(false);
-    expect(isJourneyStageComplete("locked")).toBe(false);
+    expect(isJourneyStageComplete("upcoming")).toBe(false);
+    expect(isJourneyStageUpcoming("upcoming")).toBe(true);
+    expect(isJourneyStageUpcoming("active")).toBe(false);
   });
 });
 
 describe("ventureStatuses — milestones", () => {
-  test("vocabulary matches the founder Journey labels + locked release state", () => {
+  test("vocabulary matches the founder Journey labels + the two held states", () => {
     expect(MILESTONE_STATUSES).toEqual([
-      "locked",
+      "upcoming",
+      "blocked",
       "not_started",
       "in_progress",
       "under_review",
@@ -46,11 +52,16 @@ describe("ventureStatuses — milestones", () => {
     ]);
   });
 
-  test("only completed is terminal; locked is the unreleased state", () => {
+  test("only completed is terminal; upcoming and blocked are held", () => {
     expect(isMilestoneComplete("completed")).toBe(true);
-    for (const status of ["not_started", "in_progress", "under_review", "changes_requested", "locked"]) {
+    for (const status of ["upcoming", "blocked", "not_started", "in_progress", "under_review", "changes_requested"]) {
       expect(isMilestoneComplete(status)).toBe(false);
     }
+    expect(isMilestoneHeld("upcoming")).toBe(true);
+    expect(isMilestoneHeld("blocked")).toBe(true);
+    expect(isMilestoneHeld("not_started")).toBe(false);
+    // The release sweeps also tolerate the retired `locked` value.
+    expect(HELD_MILESTONE_STATUSES).toEqual(["upcoming", "blocked", "locked"]);
   });
 });
 

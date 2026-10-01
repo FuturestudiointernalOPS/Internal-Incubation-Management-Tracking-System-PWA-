@@ -2,7 +2,6 @@
  * Integration tests for Venture OS API routes
  *
  * Tests:
- * - POST /api/ventures/register — full registration flow
  * - GET /api/ventures — list ventures
  * - GET /api/ventures/[id] — get venture
  * - PATCH /api/ventures/[id] — update venture
@@ -113,22 +112,6 @@ import db from "@/lib/db";
 describe("Venture API Integration Tests", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-  });
-
-  describe("POST /api/ventures/register", () => {
-    it("is retired — Venture creation only flows through the Forms/Runs intake pipeline", async () => {
-      const { POST } = await import("@/app/api/ventures/register/route");
-      const req = new Request("http://localhost:3000/api/ventures/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company_name: "TechFlow Inc." }),
-      });
-      const response = await POST(req);
-      const data = await response.json();
-      expect(response.status).toBe(410);
-      expect(data.success).toBe(false);
-      expect(data.code).toBe("LEGACY_FLOW_RETIRED");
-    });
   });
 
   describe("GET /api/ventures", () => {

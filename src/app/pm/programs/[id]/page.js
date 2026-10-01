@@ -221,7 +221,6 @@ function ProgramWorkspace() {
   const [emailInput, setEmailInput] = useState("");
   const [editingScoreFor, setEditingScoreFor] = useState(null); // participant id being edited
   const [scoreDraft, setScoreDraft] = useState(""); // in-progress marks value
-  const [promoteTarget, setPromoteTarget] = useState(null); // { team, action: 'approve' | 'promote' }
 
   // Load existing attendance when modal opens
   useEffect(() => {
@@ -659,12 +658,6 @@ function ProgramWorkspace() {
     }
     setIsSaving(true);
     try {
-      // Derive grading from linked KPIs
-      const linkedKpis = kpis.filter(kpi => (newRequirement.kpi_ids || []).includes(kpi.id));
-      const avgWeight = linkedKpis.length > 0
-        ? parseFloat((linkedKpis.reduce((sum, kpi) => sum + (parseFloat(kpi.weight) || 0), 0) / linkedKpis.length).toFixed(2))
-        : 1;
-
       const response = await fetch("/api/pm/curriculum", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -681,7 +674,7 @@ function ProgramWorkspace() {
           assignee_id: newRequirement.assignee_id || "",
           resource_url: newRequirement.resource_url || null,
           resource_label: newRequirement.resource_label || null,
-          weight: avgWeight,
+          weight: 1,
         }),
       });
       const data = await response.json();
@@ -1902,22 +1895,6 @@ function ProgramWorkspace() {
                         >
                           <ChevronRight className="w-3 h-3" /> {t("pmMisc.workspace.view")}
                         </button>
-                        {!team.is_venture_ready && (
-                          <button
-                            onClick={() => setPromoteTarget({ team, action: "approve" })}
-                            className="btn btn-primary btn-sm"
-                          >
-                            <CheckCircle2 className="w-3 h-3" /> {t("pmMisc.workspace.approve")}
-                          </button>
-                        )}
-                        {team.is_venture_ready && !team.venture_id && (
-                          <button
-                            onClick={() => setPromoteTarget({ team, action: "promote" })}
-                            className="btn btn-primary btn-sm"
-                          >
-                            <Zap className="w-3 h-3" /> {t("pmMisc.workspace.promote")}
-                          </button>
-                        )}
                         </div>
                       </div>
                     </div>
@@ -3199,6 +3176,7 @@ function ProgramWorkspace() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {kpis.map((kpi, kpiIdx) => {
                         const kpiProgress = kpi.progress || 0;
+                        const isMeasurable = kpi.measurable !== false;
                         return (
                           <div
                             key={kpi.id}
@@ -3209,7 +3187,7 @@ function ProgramWorkspace() {
                                 {t("pmMisc.workspace.kpi")} {kpiIdx + 1}
                               </span>
                               <span className="text-sm font-black text-[var(--brand-orange)]">
-                                {kpiProgress}%
+                                {isMeasurable ? `${kpiProgress}%` : "—"}
                               </span>
                             </div>
                             <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-tight mb-3 group-hover:text-[var(--brand-orange)] transition-colors">
@@ -3218,30 +3196,19 @@ function ProgramWorkspace() {
                             <div className="w-full h-2 bg-divider/20 rounded-full overflow-hidden">
                               <div
                                 className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-orange-400 rounded-full transition-all duration-700"
-                                style={{ width: `${kpiProgress}%` }}
+                                style={{ width: `${isMeasurable ? kpiProgress : 0}%` }}
                               />
                             </div>
                             <div className="flex items-center gap-3 mt-2">
-                              <span className="text-[7px] font-bold text-slate-500">
-                                {t("pmMisc.workspace.weight")}: {kpi.weight || 0}%
-                              </span>
-                              {kpi.linkedSessions > 0 && (
-                                <span className="text-[7px] font-bold text-slate-500">
-                                  {kpi.completedSessions}/{kpi.linkedSessions}{" "}
-                                  {t("pmMisc.workspace.sessionsLower")}
-                                </span>
-                              )}
-                              {kpi.linkedDocs > 0 && (
+                              {isMeasurable ? (
                                 <span className="text-[10px] font-bold text-slate-500">
-                                  {kpi.completedDocs}/{kpi.linkedDocs} {t("pmMisc.workspace.docsLower")}
+                                  {kpi.linkedDocs} {t("pmMisc.workspace.docsLower")}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold text-slate-600">
+                                  {t("pmMisc.workspace.nonMeasurable")}
                                 </span>
                               )}
-                              {kpi.linkedSessions === 0 &&
-                                kpi.linkedDocs === 0 && (
-                                  <span className="text-[10px] font-bold text-slate-600">
-                                    {t("pmMisc.workspace.noLinkedItems")}
-                                  </span>
-                                )}
                             </div>
                           </div>
                         );
@@ -5114,10 +5081,8 @@ function ProgramWorkspace() {
                     if (linked.length === 0) {
                       return <p className="text-[8px] text-slate-500 italic">{t("pmMisc.workspace.gradingKpiHint")}</p>;
                     }
-                    const avgWeight = (linked.reduce((sum, kpi) => sum + (parseFloat(kpi.weight) || 0), 0) / linked.length).toFixed(1);
-                    return <div className="grid grid-cols-2 gap-2 text-[10px]">
+                    return <div className="grid grid-cols-1 gap-2 text-[10px]">
                       <div><span className="text-slate-500">{t("pmMisc.workspace.kpisLinked")}</span> <span className="font-bold text-purple-400">{linked.length}</span></div>
-                      <div><span className="text-slate-500">{t("pmMisc.workspace.avgWeight")}</span> <span className="font-bold text-purple-400">{avgWeight}%</span></div>
                     </div>;
                   })()}
                 </div>
@@ -6678,122 +6643,6 @@ function ProgramWorkspace() {
             </div>
           </div>
         )}
-
-      {/* Confirmation Modal for Approve/Promote */}
-      {promoteTarget && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          onClick={() => setPromoteTarget(null)}
-          style={{ background: "rgba(0,0,0,0.6)" }}
-        >
-          <div
-            className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-md mx-4"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="p-6">
-              {promoteTarget.action === "approve" ? (
-                <>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 bg-emerald-500/10 rounded-xl">
-                      <CheckCircle2 className="w-6 h-6 text-emerald-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold">{t("pmMisc.workspace.approveTeam")}</h3>
-                      <p className="text-sm text-gray-400">
-                        {t("pmMisc.workspace.approveTeamConfirm", { teamName: promoteTarget.team.name })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setPromoteTarget(null)}
-                      className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b]"
-                    >
-                      {t("pmMisc.workspace.cancel")}
-                    </button>
-                    <button
-                      onClick={async () => {
-                        const team = promoteTarget.team;
-                        setPromoteTarget(null);
-                        try {
-                          const response = await fetch("/api/pm/teams", {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              team_id: team.id,
-                              action: "set_venture_ready",
-                              is_venture_ready: true,
-                            }),
-                          });
-                          const data = await response.json();
-                          if (data.success) {
-                            notify(t("pmMisc.workspace.teamApproved"));
-                            fetchProgramData(true);
-                          } else {
-                            notify(t((data.error || t("pmMisc.workspace.approvalFailed")) || "") || (data.error || t("pmMisc.workspace.approvalFailed")), "error");
-                          }
-                        } catch {
-                          notify(t("pmMisc.workspace.networkError"), "error");
-                        }
-                      }}
-                      className="flex-1 px-4 py-2.5 bg-emerald-500 rounded-lg text-sm font-medium hover:bg-emerald-600"
-                    >
-                      {t("pmMisc.workspace.approve")}
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 bg-brand-orange/10 rounded-xl">
-                      <Zap className="w-6 h-6 text-[var(--brand-orange)]" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold">{t("pmMisc.workspace.promoteToVenture")}</h3>
-                      <p className="text-sm text-gray-400">
-                        {t("pmMisc.workspace.promoteConfirm", { teamName: promoteTarget.team.name })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setPromoteTarget(null)}
-                      className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b]"
-                    >
-                      {t("pmMisc.workspace.cancel")}
-                    </button>
-                    <button
-                      onClick={async () => {
-                        const team = promoteTarget.team;
-                        setPromoteTarget(null);
-                        try {
-                          const response = await fetch("/api/ventures/promote", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ team_id: team.id }),
-                          });
-                          const data = await response.json();
-                          if (data.success) {
-                            notify(t("pmMisc.workspace.venturePromoted"));
-                            fetchProgramData(true);
-                          } else {
-                            notify(t((data.error || t("pmMisc.workspace.promotionFailed")) || "") || (data.error || t("pmMisc.workspace.promotionFailed")), "error");
-                          }
-                        } catch {
-                          notify(t("pmMisc.workspace.networkError"), "error");
-                        }
-                      }}
-                      className="flex-1 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-sm font-bold hover:opacity-90"
-                    >
-                      {t("pmMisc.workspace.promote")}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* CONFIRMATION MODAL */}
       {confirmTarget && (

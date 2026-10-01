@@ -49,6 +49,28 @@ function loadKkiapayScript() {
   return window.__kkiapayCheckoutScript;
 }
 
+/**
+ * Ask the SERVER to re-verify a payment with the provider (fire-and-forget).
+ *
+ * The Kkiapay notification is the primary path, but it can be missed — and a
+ * real payment must not stay stuck on "en cours" because of it. The payer's own
+ * tab is a second, independent way to reach the truth, but the BROWSER never
+ * decides: it only asks, and the server answers with the verified result.
+ */
+function requestPaymentVerification(reference, email, transactionId = null) {
+  if (!reference || !email) return;
+  fetch("/api/public/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "verify",
+      reference,
+      email,
+      ...(transactionId ? { transactionId } : {}),
+    }),
+  }).catch(() => {});
+}
+
 // ─── What the screen starts from (module scope: built once per run) ──────────
 
 const EMPTY_RUN = {
@@ -140,11 +162,6 @@ export default function PublicSubmitPage() {
   const [notification, setNotification] = useState(null);
   const [errors, setErrors] = useState({});
 
-  // ─── The paid Execution ───────────────────────────────────────────────────
-  // When this run sells a course, the same submission also captures the
-  // registration and the payment follows, here, in this page.
-  const checkout = raw.checkout;
-  const paidRun = Boolean(checkout && !checkout.misconfigured);
   const [consent, setConsent] = useState(false);
   const [payment, setPayment] = useState(null);
   const [payStage, setPayStage] = useState("idle");
@@ -166,12 +183,16 @@ export default function PublicSubmitPage() {
    */
   const pollPayment = useCallback((reference, email) => {
     const startedAt = Date.now();
+    let verifyTick = 0;
     const tick = async () => {
       try {
         const response = await fetch(
           `/api/public/checkout?reference=${encodeURIComponent(reference)}&email=${encodeURIComponent(email)}`,
         );
         const payload = await response.json();
+        // The window is open and we are now asking the server: the wait is a
+        // CONFIRMATION of the payment, never "opening" the window again.
+        setPayStage((stage) => (stage === "opening" ? "confirming" : stage));
         if (payload.success && payload.payment === "paid") {
           // Ask for the access link: served only inside the short window, so
           // past it the email is the door (and we say so).
@@ -196,6 +217,11 @@ export default function PublicSubmitPage() {
       } catch (_) {
         // A transient poll failure must not abort the wait.
       }
+      // Still not settled: ask the SERVER to re-check with the provider, so a
+      // missed notification cannot leave a REAL payment stuck on "en cours".
+      // Every third tick (~9s) is plenty; the server is the one that decides.
+      if (verifyTick % 3 === 0) requestPaymentVerification(reference, email);
+      verifyTick += 1;
       if (Date.now() - startedAt >= 2 * 60 * 1000) {
         setPayStage("pending");
         return;
@@ -207,25 +233,22 @@ export default function PublicSubmitPage() {
 
   const openPaymentWindow = useCallback(
     async (context, email) => {
+      setPayStage("opening");
       const ready = await loadKkiapayScript();
       if (!ready || !context.payment?.key) {
         setPayStage("unavailable");
         return;
       }
-      setPayStage("opening");
 
       // The plain SDK's own listeners. The server is asked regardless.
       if (typeof window.addSuccessListener === "function") {
         window.addSuccessListener((result) => {
           const transactionId = result?.transactionId || result?.transaction_id || null;
           if (transactionId && context.reference) {
-            // A HINT for later lookups. It never grants anything.
-            fetch("/api/public/checkout", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "hint", reference: context.reference, transactionId }),
-            }).catch(() => {});
+            // Recorded as a trace… and handed to the server to re-verify at once.
+            requestPaymentVerification(context.reference, email, transactionId);
           }
+          setPayStage("confirming");
           stopPayPolling();
           pollPayment(context.reference, email);
         });
@@ -286,6 +309,14 @@ export default function PublicSubmitPage() {
     { defaultValue: EMPTY_RUN, transform: pickRun },
   );
   const raw = runRead.data;
+
+  // ─── The paid Execution ───────────────────────────────────────────────────
+  // When this run sells a course, the same submission also captures the
+  // registration and the payment follows, here, in this page.
+  // Derived AFTER the read: `raw` is the read's own result.
+  const checkout = raw.checkout;
+  const paidRun = Boolean(checkout && !checkout.misconfigured);
+
   const run = raw.run;
   const loading = runRead.loading;
   const error = raw.failure
@@ -622,6 +653,13 @@ export default function PublicSubmitPage() {
               t("forms.paymentOpening"),
             )}
 
+          {payStage === "confirming" &&
+            panel(
+              <Loader2 className="w-9 h-9 animate-spin text-orange-500" />,
+              t("forms.paymentConfirming"),
+              t("forms.paymentVerifyingHint"),
+            )}
+
           {payStage === "verifying" &&
             panel(
               <Loader2 className="w-9 h-9 animate-spin text-orange-500" />,
@@ -633,7 +671,10 @@ export default function PublicSubmitPage() {
             panel(
               <CheckCircle2 className="w-10 h-10 text-emerald-500" />,
               t("forms.paymentSuccess"),
-              t("forms.paymentSuccessBody"),
+              // With a link in hand, access is genuinely ready. Without one (the
+              // short window has closed), the link travels by email — saying
+              // "your access is ready" with no button would be a dead end.
+              t(payAccessUrl ? "forms.paymentSuccessBody" : "forms.paymentSuccessByEmail"),
               <div className="space-y-3">
                 {payAccessUrl ? (
                   <a
@@ -806,6 +847,13 @@ export default function PublicSubmitPage() {
           {form?.description && <p className="text-sm text-slate-400 mt-2">{form.description}</p>}
           {run?.closes_at && <p className="text-xs text-slate-400 mt-2 flex items-center gap-1"><Clock className="w-3 h-3" /> {t("forms.closes")} {new Date(run.closes_at).toLocaleDateString()}</p>}
         </div>
+
+        {/* The run's own instructions — the same text the internal form shows. */}
+        {run?.settings?.instructions && (
+          <div className="p-4 rounded-2xl border border-orange-500/20 bg-orange-500/5">
+            <p className="text-xs font-medium text-slate-200 whitespace-pre-wrap">{run.settings.instructions}</p>
+          </div>
+        )}
 
         {/* Sections — step-by-step navigation */}
         {(() => {

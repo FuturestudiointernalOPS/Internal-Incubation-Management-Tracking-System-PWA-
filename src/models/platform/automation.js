@@ -191,6 +191,14 @@ const RULES = [
     action: async (ctx) => {
       const { submission, run } = ctx;
 
+      // A PAID Execution sends NO email on submission. The submission only
+      // CAPTURES a registration: the money is not confirmed yet, so an
+      // acknowledgement would announce a course the person has not paid for.
+      // The receipt and the access link go out from the payment confirmation
+      // (the checkout webhook) — and only then. An unpaid registration sends
+      // nothing at all. A free Execution (no course) is untouched.
+      const sellsCourse = Boolean(run?.lms_course_id);
+
       // The confirmation message is a decision, so the RUN owns it and the form
       // supplies the default (run -> form -> on). Absent means ON, so nothing
       // changes for a form or run that has never configured this.
@@ -214,7 +222,7 @@ const RULES = [
       // workflow email (run → form → default template, shared transport, logged
       // under "acknowledgement") so a designed template actually reaches the
       // applicant and a failed send is visible and retryable.
-      if (shouldAcknowledge && submission?.id) {
+      if (shouldAcknowledge && !sellsCourse && submission?.id) {
         try {
           const ack = await sendAcknowledgementForSubmission({ submission_id: submission.id });
           if (ack.status === "failed") {
@@ -869,28 +877,6 @@ const RULES = [
       } catch (error) {
         console.error("[Automation] Notion sync failed:", error.message);
       }
-    },
-  },
-
-  // ── Venture Application approval → create the Venture (Phase 2 pipeline) ──
-  // The single official Venture creation path. Form-scoped via
-  // settings.venture_application (set by the Venture Application form seed),
-  // so no other run/submission is affected.
-  {
-    event: PLATFORM_EVENTS.REVIEW_COMPLETED,
-    description: "Create Venture when a Venture Application submission is approved",
-    condition: (ctx) =>
-      ctx.review?.decision === "approved" &&
-      ctx.form?.settings?.venture_application === true,
-    action: async (ctx) => {
-      const { createVentureFromSubmission } = await import("@/lib/venturePipeline");
-      const result = await createVentureFromSubmission({
-        submission: ctx.submission,
-        run: ctx.run,
-        form: ctx.form,
-        review: ctx.review,
-      });
-      console.log("[Automation] Venture creation result:", result);
     },
   },
 ];

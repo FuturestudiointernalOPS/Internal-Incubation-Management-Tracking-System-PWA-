@@ -46,7 +46,6 @@ export const FEATURE_SUBSECTIONS = {
   ],
   ventures: [
     { id: "all_ventures", labelKey: "navigation.allVentures", module: "ventures" },
-    { id: "register_venture", labelKey: "navigation.registerVenture" },
   ],
   investors: [
     { id: "investors_manage", labelKey: "navigation.investorsManage", module: "investor" },

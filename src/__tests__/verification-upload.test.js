@@ -197,6 +197,7 @@ describe("GET /api/ventures/[id]/verification — signed document URLs", () => {
       "history",
       "reviews",
       "comments",
+      "readiness",
     ]);
     expect(body.documents).toHaveLength(documents.length);
   });

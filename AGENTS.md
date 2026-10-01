@@ -214,12 +214,17 @@ src/
 └── locales/              ← Translation files (en + fr)
 ```
 
-### MVC layering (see `docs/MVC_REFACTOR.md` for the full guide)
+### MVC layering (see `docs/MVC_REFACTOR.md` and `docs/LAYER_SPLIT.md`)
 
-- **M — `src/models/`**: every `db.execute` lives here as a named function.
-  API routes, pages and components must **never** run SQL or import `@/lib/db`.
+- **M (repository) — `src/models/`**: every `db.execute` lives here as a named
+  function. API routes, pages, components and services must **never** run SQL or
+  import `@/lib/db`. Models hold data access only — no decisions, no HTTP.
+- **S — `src/services/<domain>/`**: use-case and decision logic ("may they?",
+  "what runs next?"). Services read through `src/models/**`, never run SQL, and
+  never import `@/lib/db`. New decision code goes here. Guarded by
+  `src/__tests__/server/services-boundaries.test.js`.
 - **C — `src/app/api/**/route.js`**: thin controllers — auth, validation,
-  model orchestration, response shaping.
+  service/model orchestration, response shaping.
 - **V — pages + `src/components/`**: rendering only; fetch via controllers.
 - Legacy domain modules were relocated to `src/models/` behind facades: some
   `src/lib/*` files (e.g. `src/lib/taskAudit.js`) now only re-export

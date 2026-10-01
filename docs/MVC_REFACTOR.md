@@ -3,9 +3,14 @@
 > Status: **mostly done** — Waves 0–6 ✅ for the main domains (SQL relocated to
 > `src/models/**`, legacy domain libs behind facades). Remaining: ~290 files under
 > `src/app/api` still import the db layer, so the "0 inline SQL" gate is not yet
-> met. Tests: 169 suites green, eslint 0 errors, build green.
+> met. Tests: 228 suites, 2955 tests green, eslint 0 errors, build green.
 > This document is the master plan for refactoring the *entire* codebase into a
 > Model–View–Controller (MVC) layering that fits Next.js App Router.
+>
+> **Sequel — the service layer.** This refactor moved SQL into models but left
+> decision logic mixed in with it. [LAYER_SPLIT.md](LAYER_SPLIT.md) is the
+> follow-on: it splits decisions into a new `src/services/<domain>/` layer on top
+> of the repository (`src/models/**`). Read it before adding decision code.
 
 ---
 

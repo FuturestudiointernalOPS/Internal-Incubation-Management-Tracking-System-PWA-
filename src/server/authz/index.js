@@ -9,6 +9,8 @@
  *   programAccess.js — which assignment does this person hold in this program,
  *                      and at which level
  *   guards.js        — the 401/403/404/409 answers routes return as-is
+ *   responses.js     — turns an authorization decision into that response
+ *                      (the only place a service decision meets HTTP)
  *
  * The SQL behind all of it lives in @/models/authorization/accessQueries.
  * New code imports from here; @/lib/auth re-exports the same symbols for the
@@ -18,3 +20,4 @@
 export * from "./capabilities";
 export * from "./programAccess";
 export * from "./guards";
+export * from "./responses";

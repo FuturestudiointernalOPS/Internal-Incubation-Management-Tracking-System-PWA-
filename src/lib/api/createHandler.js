@@ -1,6 +1,8 @@
 import { initDb } from "@/lib/db";
 import { requireAuth, getSession } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
+import { setRequestContext, withRequestContext } from "@/lib/request-context";
 
 /**
  * createHandler — eliminates the try/catch/initDb/requireAuth boilerplate
@@ -25,6 +27,11 @@ import { NextResponse } from "next/server";
  *   - Handler's return value is passed through directly (NextResponse or plain object).
  *   - Uncaught errors → 500 { success: false, error: "errors.somethingWrong" } (stable i18n key; the real message is logged server-side only).
  *   - Auth errors (401/403) are returned directly from requireAuth.
+ *   - Every request is given a correlation id (an incoming `x-request-id` is
+ *     reused, otherwise one is generated), exposed to all downstream code via
+ *     AsyncLocalStorage — so a database warning, an authorization denial and
+ *     this request's own error line share one id. The id is echoed back on the
+ *     `x-request-id` response header.
  */
 
 export function createHandler(handlerOrOptions, maybeHandler) {
@@ -40,7 +47,8 @@ export function createHandler(handlerOrOptions, maybeHandler) {
 
   const { roles, public: isPublic } = options;
 
-  return async function (req, ...args) {
+  return withRequestContext(async (req, ...args) => {
+    const started = Date.now();
     try {
       if (!isPublic) {
         await initDb();
@@ -51,18 +59,43 @@ export function createHandler(handlerOrOptions, maybeHandler) {
         // security/events).
         const session = await getSession();
         const authError = await requireAuth(roles, session);
-        if (authError) return authError;
+        if (authError) {
+          // An expected 401/403 is not a server fault; it is logged at debug
+          // so a real denial spike can still be found without flooding prod.
+          logger.debug("request_rejected", {
+            status: authError.status,
+            userId: session?.cid ?? null,
+          });
+          return authError;
+        }
         req.session = session;
+        if (session?.cid) {
+          setRequestContext({ userId: session.cid, role: session.role });
+        }
       } else {
         await initDb();
       }
-      return await handler(req, ...args);
+
+      const response = await handler(req, ...args);
+      logger.debug("request_completed", {
+        status: response?.status ?? 200,
+        durationMs: Date.now() - started,
+      });
+      return response;
     } catch (error) {
-      console.error("API Error:", error.message);
+      logger.error("request_failed", {
+        status: 500,
+        durationMs: Date.now() - started,
+        error: {
+          name: error?.name,
+          message: error?.message,
+          stack: error?.stack,
+        },
+      });
       return NextResponse.json(
         { success: false, error: "errors.somethingWrong" },
         { status: 500 },
       );
     }
-  };
+  });
 }

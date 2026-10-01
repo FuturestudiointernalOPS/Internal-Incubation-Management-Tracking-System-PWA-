@@ -41,10 +41,9 @@ describe("session hardening", () => {
     }
   });
 
-  test("impersonation is persisted on the session row and returned", () => {
-    expect(sessionSql).toMatch(/is_impersonation\)\s*\n?\s*VALUES \(\?, \?, \?, \?, \?, \?\)/);
-    expect(session).toMatch(/is_impersonation: session\.is_impersonation === true/);
-    expect(session).toMatch(/ensureSessionColumns/);
+  test("impersonation is fully removed from the session layer", () => {
+    expect(session).not.toMatch(/impersonat/i);
+    expect(sessionSql).not.toMatch(/impersonat/i);
   });
 });
 
@@ -86,9 +85,11 @@ describe("no raw HTML and server-controlled fields", () => {
   });
 
   test("the project invitation cancel compares a cid, not a name", () => {
-    const src = read("src/app/api/projects/invitations/respond/route.js");
+    // The cancel rule moved to the service layer with the layer split; the
+    // invariant is unchanged — the inviter is compared by cid, never by name.
+    const src = read("src/services/projects/collaboration.js");
     expect(src).not.toMatch(/session\.name !== invitation\.inviter_id/);
-    expect(src).toMatch(/String\(session\.cid\) === String\(inviterCid\)/);
+    expect(src).toMatch(/String\(sessionCid\) === String\(inviterCid\)/);
   });
 
   test("audit actors come from the session", () => {
@@ -116,6 +117,21 @@ describe("person references are validated", () => {
     expect(isValidCid({})).toBe(false);
   });
 
+  // A cleared owner arrives as "", not null — that is what a form sends. It
+  // normalizes to NULL, so it is ABSENT, not malformed. Rejecting it made a
+  // milestone with an EXTERNAL owner (a name and no platform identity)
+  // impossible to save: the panel sends `owner_cid: ""` beside
+  // `owner_name: "Amina"`, and the route answered 400 "Invalid milestone owner."
+  test("a cleared owner is absent, not malformed", () => {
+    expect(isValidCid("")).toBe(true);
+    expect(isValidCid("   ")).toBe(true);
+    expect(cidOrNull("")).toBeNull();
+    // Still refused: values that are not bounded strings at all.
+    expect(isValidCid(42)).toBe(false);
+    expect(isValidCid(["CNT-1"])).toBe(false);
+    expect(isValidCid("x".repeat(65))).toBe(false);
+  });
+
   test("the milestone routes validate the owner before writing", () => {
     const src = read("src/app/api/ventures/[id]/milestones/route.js");
     expect(src).toMatch(/isValidCid\(body\.owner_cid\)/);
@@ -123,7 +139,7 @@ describe("person references are validated", () => {
   });
 });
 
-describe("legacy dependencies are typed and integer-keyed", () => {
+describe("legacy dependency endpoints are typed and shape-checked", () => {
   const src = read("src/app/api/ventures/[id]/timeline/route.js");
 
   test("only milestone/task dependencies are accepted", () => {
@@ -132,11 +148,14 @@ describe("legacy dependencies are typed and integer-keyed", () => {
     expect(src).toMatch(/DEPENDENCY_TYPES\.has\(targetType\)/);
   });
 
-  test("both add and remove require positive integer ids", () => {
-    expect(src).toMatch(/Number\.isInteger\(sourceId\) \|\| sourceId <= 0/);
-    expect(src).toMatch(/Number\.isInteger\(targetId\) \|\| targetId <= 0/);
-    expect(src).toMatch(/Number\.isInteger\(dependencyId\) \|\| dependencyId <= 0/);
+  test("both add and remove require the id shape the entity really has", () => {
+    // Milestones are UUIDs, tasks are integers — validated by shape, so a
+    // malformed body cannot insert a row no reader can resolve.
+    expect(src).toMatch(/isValidEntityId\(sourceType, sourceId\)/);
+    expect(src).toMatch(/isValidEntityId\(targetType, targetId\)/);
+    expect(src).toMatch(/UUID_ID\.test\(dependencyId\)/);
     expect(src).not.toMatch(/parseInt\(body\.source_id\)/);
+    expect(src).not.toMatch(/Number\.parseInt\(body\.dependency_id/);
   });
 });
 

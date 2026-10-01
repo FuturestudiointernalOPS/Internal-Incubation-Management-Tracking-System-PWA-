@@ -6,6 +6,9 @@ import { getClientIp } from "@/lib/rate-limit";
 import { defaultPaymentProvider } from "@/lib/integrations/payments";
 import { findRegistrationByCourseAndEmail, providerAmountOf } from "@/lib/lms/registrations";
 import { getPaidRunContext, startCheckoutForSubmission } from "@/lib/lms/checkout";
+import { formHasAiEvaluation, evaluateSubmission, submissionHasEvaluation } from "@/lib/platform/ai/evaluate";
+import { maybeAutoApprove } from "@/models/platform/ai/autoApprove";
+import { countNonDraftSubmissionsByRunId, updateRunStatusById } from "@/models/formRuns";
 import {
   ensurePublicSubmitInvitationColumn,
   ensurePublicSubmitInvitationIndex,
@@ -24,9 +27,8 @@ import {
   getFormById,
 } from "@/models/publicFormRuns";
 
-// The pipeline adds platform_form_submissions.invitation_id lazily via
-// ensureVentureSchema() (seed/approval paths). Public submit inserts that
-// column too, so this route self-heals its own schema — cached once per
+// platform_form_submissions.invitation_id self-heal stays: the column is
+// written by the submission inserts below, so this route keeps it present —
 // process, idempotent, never destructive.
 let submitSchemaPromise = null;
 async function ensurePublicSubmitSchema() {
@@ -47,13 +49,38 @@ async function ensurePublicSubmitSchema() {
   return submitSchemaPromise;
 }
 
-/**
- * Shape the checkout payload the public page reasons about.
- *
- * `neutralCheckoutPayload` is the answer for an EXISTING registration: it says
- * only that one exists and whether it is paid. No reference — the browser has no
- * business holding one it did not just create.
- */
+// The cookie that proves WHICH browser captured a registration. It carries a
+// one-way token (only its hash is stored server-side) and is httpOnly, so no
+// script and no stranger who merely knows the email can present it. It is what
+// lets an unpaid payment be RESUMED by its own browser while everyone else is
+// answered neutrally.
+const CHECKOUT_COOKIE = "impactos_checkout";
+const CHECKOUT_COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days
+
+function readBrowserToken(req) {
+  const fromCookies = req?.cookies?.get?.(CHECKOUT_COOKIE)?.value;
+  if (fromCookies) return fromCookies;
+  // Fallback for a plain Request (and for any runtime where `cookies` is absent).
+  const header = req?.headers?.get?.("cookie") || "";
+  const match = new RegExp(`(?:^|;\\s*)${CHECKOUT_COOKIE}=([^;]+)`).exec(header);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+/** Attach the capture cookie — but only when a fresh registration minted one. */
+function withBrowserCookie(response, browserToken) {
+  if (!browserToken) return response;
+  response.cookies.set({
+    name: CHECKOUT_COOKIE,
+    value: browserToken,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: CHECKOUT_COOKIE_MAX_AGE,
+  });
+  return response;
+}
+
 function courseSummary(course) {
   return { title: course.title, amount: course.amount, currency: course.currency };
 }
@@ -63,6 +90,12 @@ function paymentConfig() {
   return { ...provider.publicConfig(), configured: provider.isConfigured() };
 }
 
+/**
+ * The answer for an EXISTING registration: it says only that one exists and
+ * whether it is paid. No reference — the browser has no business holding one it
+ * did not just create. This is the NEUTRAL reply; a payable retry is built from
+ * `freshCheckoutPayload` instead.
+ */
 function neutralCheckoutPayload(paidContext, registration) {
   return {
     existing: Boolean(registration),
@@ -89,6 +122,49 @@ function freshCheckoutPayload(paidContext, registration) {
     course: courseSummary(paidContext.course),
     payment: paymentConfig(),
   };
+}
+
+/**
+ * Resolve the checkout for a paid Execution in ONE place.
+ *
+ * A FRESH (or a still-UNPAID one whose own browser is recognised by `browserToken`)
+ * registration gets a payable payload with the reference: a person whose payment
+ * failed must be able to pay again with the SAME record and the SAME reference.
+ * A PAID one, and an unpaid one claimed by a stranger who knows only the email,
+ * are answered NEUTRALLY — the reference is never handed back.
+ */
+async function preparePaidCheckout({ paidContext, submissionId, fullName, email, phone, language, browserToken }) {
+  try {
+    const started = await startCheckoutForSubmission({
+      run: paidContext.run,
+      course: paidContext.course,
+      submissionId,
+      fullName,
+      email,
+      phone,
+      language: language || "fr",
+      consent: true,
+      browserToken,
+    });
+    if (started.registration) {
+      return {
+        checkout: freshCheckoutPayload(paidContext, started.registration),
+        browserToken: started.browserToken || null,
+      };
+    }
+    return {
+      checkout: neutralCheckoutPayload(
+        paidContext,
+        await findRegistrationByCourseAndEmail(paidContext.course.id, email),
+      ),
+      browserToken: null,
+    };
+  } catch (error) {
+    // The submission is already saved, so nothing is lost — but the payer must be
+    // told the payment could not be prepared, not shown a blank end.
+    console.warn("[Public Submit] checkout capture failed:", error.message);
+    return { checkout: { failed: true, error: "lms.errors.checkoutUnavailable" }, browserToken: null };
+  }
 }
 
 /**
@@ -119,7 +195,7 @@ export async function POST(req) {
     }
 
     body = await req.json();
-    const { data, slug, invitation_token, consent, language } = body;
+    const { data, slug, consent, language } = body;
 
     if (!slug || !data || typeof data !== "object") {
       return NextResponse.json({ success: false, error: "slug and data required" }, { status: 400 });
@@ -146,8 +222,14 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Run not found or not active" }, { status: 404 });
     }
 
-    // Check deadline
+    const runSettings = runResult.rows[0].settings || {};
+
+    // Check deadline — and, when the run asks for it, close it for good so the
+    // status matches the refusal the applicant just received.
     if (runResult.rows[0].closes_at && new Date(runResult.rows[0].closes_at) < new Date()) {
+      if (runSettings.auto_close === true) {
+        try { await updateRunStatusById(run_id, "closed"); } catch (_) {}
+      }
       return NextResponse.json({ success: false, error: "Submission deadline has passed" }, { status: 400 });
     }
 
@@ -169,19 +251,9 @@ export async function POST(req) {
       }
     }
 
-    // Optional Venture Run invitation: link the submission to the invitation
-    // so provenance (invitation → submission → Venture) is preserved.
-    let invitationId = null;
-    if (invitation_token) {
-      try {
-        const { getVentureInvitationByToken, markVentureInvitationStatus } = await import("@/lib/ventureInvitations");
-        const { invitation } = await getVentureInvitationByToken(invitation_token);
-        if (invitation && Number(invitation.run_id) === Number(run_id)) {
-          invitationId = invitation.id;
-          markVentureInvitationStatus(invitation.id, "submitted").catch(() => {});
-        }
-      } catch (_) {}
-    }
+    // Optional run invitation provenance is no longer resolved here: the
+    // Venture intake flow has been retired.
+    const invitationId = null;
 
     // IP-based rate limiting: max 5 submissions per IP per run per hour
     // Gracefully skip if rate table doesn't exist yet
@@ -257,28 +329,39 @@ export async function POST(req) {
     // Prevent duplicate SUBMITTED entries by same email — idempotent:
     // a repeat submission returns success (not an error) so a participant who
     // resubmits after a misleading error is NOT told their application failed.
-    if (submitterEmail) {
+    // "Multiple Submissions" on turns this off on purpose: a repeat response is
+    // then a NEW response, not a repeat of the first.
+    if (runSettings.allow_multiple !== true && submitterEmail) {
       const existing = await getSubmittedSubmissionBySubmitter(run_id, submitterEmail);
       if (existing.rows.length > 0) {
-        // A paid Execution: a repeat submission is not simply "already done" —
-        // the page must know whether to offer the TWO exits (sign in, or be
-        // emailed a fresh link). The reference is deliberately ABSENT here.
-        let repeatCheckout = null;
+        // A paid Execution: a repeat submission is NOT simply "already done".
+        // The SAME browser that captured the registration (its cookie) resumes
+        // the SAME record and reference — a failed payment must not block the
+        // person. Anyone else, and any PAID registration, is answered neutrally
+        // (the reference is deliberately ABSENT) so the page offers the TWO exits.
+        let prepared = { checkout: null, browserToken: null };
         if (paidContext?.hasCourse) {
-          const registration = await findRegistrationByCourseAndEmail(
-            paidContext.course.id,
-            submitterEmail,
-          );
-          repeatCheckout = neutralCheckoutPayload(paidContext, registration);
+          prepared = await preparePaidCheckout({
+            paidContext,
+            submissionId: existing.rows[0].id,
+            fullName: submitterName,
+            email: submitterEmail,
+            phone: submitterPhone,
+            language,
+            browserToken: readBrowserToken(req),
+          });
         }
-        return NextResponse.json({
-          success: true,
-          id: existing.rows[0].id,
-          already_submitted: true,
-          success_message: null,
-          redirect_url: null,
-          checkout: repeatCheckout,
-        });
+        return withBrowserCookie(
+          NextResponse.json({
+            success: true,
+            id: existing.rows[0].id,
+            already_submitted: true,
+            success_message: null,
+            redirect_url: null,
+            checkout: prepared.checkout,
+          }),
+          prepared.browserToken,
+        );
       }
     }
 
@@ -286,6 +369,18 @@ export async function POST(req) {
     try {
       await insertRateEntryForSubmission(run_id, ip);
     } catch (_) {}
+
+    // "Submission Limit": cap how many responses the run accepts (0 = unlimited).
+    // A returning submitter whose response already exists was answered above, so
+    // only a genuinely NEW response is counted here.
+    const submissionLimit = parseInt(runSettings.submission_limit) || 0;
+    if (submissionLimit > 0) {
+      const countRes = await countNonDraftSubmissionsByRunId(run_id);
+      const current = parseInt(countRes.rows[0]?.c) || 0;
+      if (current >= submissionLimit) {
+        return NextResponse.json({ success: false, error: "platformMisc.runs.submissionLimitReached" }, { status: 400 });
+      }
+    }
 
     // Insert submission — or upgrade existing draft
     let submissionId;
@@ -310,7 +405,9 @@ export async function POST(req) {
         const settings = formSettingsResult.rows[0].settings;
         const automationSettings = settings.automation || {};
         successConfig = {
-          message: automationSettings.success_message || null,
+          // The RUN's confirmation message is the one the operator wrote for THIS
+          // execution; the form's is the fallback every run of it inherits.
+          message: runSettings.confirmation_message || automationSettings.success_message || null,
           redirect_url: automationSettings.redirect_after_submit || null,
         };
       }
@@ -318,31 +415,24 @@ export async function POST(req) {
 
     // ── PAID EXECUTION: the SAME request captures the registration ──
     // One submission = one registration. Nothing about the money is trusted
-    // from the browser: the price and the reference are decided here, and an
-    // EXISTING registration is answered NEUTRALLY — its reference is never
-    // handed back, which is what made an account takeover possible.
+    // from the browser: the price and the reference are decided here. A FRESH or
+    // still-UNPAID registration is payable; a PAID one is answered neutrally —
+    // its reference is never handed back, which is what made an account takeover
+    // possible.
     let checkout = null;
+    let mintedBrowserToken = null;
     if (paidContext?.hasCourse) {
-      try {
-        const started = await startCheckoutForSubmission({
-          run: paidContext.run,
-          course: paidContext.course,
-          submissionId,
-          fullName: submitterName,
-          email: submitterEmail,
-          phone: submitterPhone,
-          language: language || "fr",
-          consent: true,
-        });
-        checkout = started.existing
-          ? neutralCheckoutPayload(paidContext, await findRegistrationByCourseAndEmail(paidContext.course.id, submitterEmail))
-          : freshCheckoutPayload(paidContext, started.registration);
-      } catch (error) {
-        // The submission is already saved, so nothing is lost — but the payer
-        // must be told the payment could not be prepared, not shown a blank end.
-        console.warn("[Public Submit] checkout capture failed:", error.message);
-        checkout = { failed: true, error: "lms.errors.checkoutUnavailable" };
-      }
+      const prepared = await preparePaidCheckout({
+        paidContext,
+        submissionId,
+        fullName: submitterName,
+        email: submitterEmail,
+        phone: submitterPhone,
+        language,
+        browserToken: readBrowserToken(req),
+      });
+      checkout = prepared.checkout;
+      mintedBrowserToken = prepared.browserToken;
     }
 
     // Fire post-submission automation (CRM contact, confirmation email, owner
@@ -354,7 +444,7 @@ export async function POST(req) {
       let formForAuto = null;
       const formResult = await getFormById(runForAuto?.form_id);
       formForAuto = formResult.rows[0] || null;
-      after(() => {
+      after(async () => {
         onSubmission(
           {
             id: submissionId,
@@ -369,18 +459,41 @@ export async function POST(req) {
           formForAuto,
           null,
         );
+        // AI evaluation is AUTOMATIC for a form that has it enabled: the
+        // submission is scored the moment it arrives (and, when its score meets
+        // the configured cutoff, approved) — nobody has to open the run first.
+        // Without this the public path created submissions that were never
+        // evaluated, so no result document and no result email could ever exist.
+        try {
+          const formIdForEval = runForAuto?.form_id;
+          // A PAID Execution is a registration CAPTURE, not an application: the
+          // money is not confirmed yet, so nothing is scored or approved before
+          // payment — the same rule that already suppresses its acknowledgement.
+          if (!paidContext?.hasCourse && formIdForEval && await formHasAiEvaluation(formIdForEval)) {
+            const already = await submissionHasEvaluation(submissionId).catch(() => true);
+            if (!already) {
+              const evaluation = await evaluateSubmission(submissionId);
+              if (evaluation) await maybeAutoApprove(submissionId, evaluation);
+            }
+          }
+        } catch (error) {
+          console.error("[Public Submit] AI evaluation failed:", error?.message || error);
+        }
       });
     } catch (_) {}
 
-    return NextResponse.json({
-      success: true,
-      id: submissionId,
-      success_message: successConfig?.message || null,
-      // A paid Execution must not be redirected away: the page has to open the
-      // payment window next.
-      redirect_url: paidContext?.hasCourse ? null : successConfig?.redirect_url || null,
-      checkout,
-    });
+    return withBrowserCookie(
+      NextResponse.json({
+        success: true,
+        id: submissionId,
+        success_message: successConfig?.message || null,
+        // A paid Execution must not be redirected away: the page has to open the
+        // payment window next.
+        redirect_url: paidContext?.hasCourse ? null : successConfig?.redirect_url || null,
+        checkout,
+      }),
+      mintedBrowserToken,
+    );
   } catch (error) {
     console.error("[Public Submit] Error:", error.message, error.stack);
     console.error("[Public Submit] Request body snippet:", JSON.stringify(body || {}).substring(0, 200));

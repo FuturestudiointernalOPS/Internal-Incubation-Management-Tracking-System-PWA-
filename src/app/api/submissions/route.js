@@ -1,35 +1,26 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
+import { requireAuth, getSession, requireAssignmentAccess, hasProgramManagementAccess } from "@/lib/auth";
 import { requireProgramScope } from "@/lib/programScopedAccess";
 import { serverError } from "@/lib/apiError";
 import {
-  getSubmissionProgramStatus,
-  getParticipantProgramSubmissionStatus,
-  ensureSubmissionsTeamIdColumn,
-  findMaxSubmissionVersion,
-  createSubmission,
   ensureSubmissionsRoleLockColumn,
   getSubmissionProgramId,
-  checkSubmissionInFacilitatorTeamScope,
-  getSubmissionReviewDetails,
-  ensureSubmissionsScoreColumn,
-  ensureSubmissionsReviewedByRoleColumn,
-  ensureSubmissionsUpdatedAtColumn,
-  ensureSubmissionsFollowupsParticipantCidColumn,
-  updateSubmissionReview,
-  createSubmissionFollowupEvent,
-  createSubmissionFollowup,
-  createSubmissionNotification,
-  propagateSubmissionToTeamMembers,
   ensureSubmissionsTeamIdColumnForListing,
   listSubmissions,
-  ensureSubmissionScoresColumn,
-  ensureSubmissionEvaluationScoreColumn,
-  updateSubmissionScoreById,
-  updateSubmissionsScoreForParticipant,
 } from "@/models/forms";
-import { getTeamForOwnershipCheck } from "@/models/teams";
+import {
+  createSubmissionRecord,
+  isSubmissionWithinFacilitatorScope,
+  applySubmissionReview,
+  bindSubmissionTeamScope,
+  applyOwnSubmissionScope,
+  needsFacilitatorSubmissionScope,
+  resolveFacilitatorSubmissionScope,
+  formatSubmissionRows,
+  groupSubmissionVersions,
+  saveSubmissionScore,
+} from "@/services/ventures/submissions";
 
 /**
  * SUBMISSIONS API — TRACK 3 ENHANCED
@@ -39,187 +30,23 @@ import { getTeamForOwnershipCheck } from "@/models/teams";
 export async function POST(req) {
   try {
     await initDb();
-    // Phase 1.1 (watchlist): self-service identity binding + membership checks
-    // below decide; staff/management keep their on-behalf path. Authentication
-    // only here.
+    // Phase 1.1 (watchlist): the self-service identity binding + membership
+    // checks now live in `@/services/ventures/submissions`; authentication only
+    // here.
     const authError = await requireAuth();
     if (authError) return authError;
     const body = await req.json();
     const session = await getSession();
-    const role = String(session?.role || "").toLowerCase();
 
-    // Phase 1.1 identity binding (self-service):
-    //  - participant/member sessions may only submit AS THEMSELVES and only
-    //    into a program where they hold an active participant membership;
-    //  - team-entity sessions may only submit AS THEIR OWN TEAM and only into
-    //    the program that owns the team.
-    // The caller-chosen participant_id/team_id can no longer target someone
-    // else's record.
-    if (session && (role === "participant" || role === "member")) {
-      if (body.participant_id && String(body.participant_id) !== String(session.cid)) {
-        return NextResponse.json(
-          { success: false, error: "errors.insufficientPermissions" },
-          { status: 403 },
-        );
-      }
-      if (!body.program_id) {
-        return NextResponse.json(
-          { success: false, error: "Missing required fields (program_id and deliverable_id or document_id)" },
-          { status: 400 },
-        );
-      }
-      const participationCheck = await getParticipantProgramSubmissionStatus(session.cid, body.program_id);
-      const participationRow = participationCheck.rows?.[0];
-      if (!participationRow || String(participationRow.status || "").toLowerCase() === "completed") {
-        return NextResponse.json(
-          { success: false, error: "errors.insufficientPermissions" },
-          { status: 403 },
-        );
-      }
-      body.participant_id = session.cid;
-      delete body.team_id;
-    } else if (session && role === "team") {
-      if (!body.program_id) {
-        return NextResponse.json(
-          { success: false, error: "Missing required fields (program_id and deliverable_id or document_id)" },
-          { status: 400 },
-        );
-      }
-      const ownTeam = await getTeamForOwnershipCheck(session.cid);
-      const teamRow = ownTeam.rows?.[0];
-      if (!teamRow || String(teamRow.program_id) !== String(body.program_id)) {
-        return NextResponse.json(
-          { success: false, error: "errors.insufficientPermissions" },
-          { status: 403 },
-        );
-      }
-      if (body.team_id && String(body.team_id) !== String(session.cid)) {
-        return NextResponse.json(
-          { success: false, error: "errors.insufficientPermissions" },
-          { status: 403 },
-        );
-      }
-      body.team_id = session.cid;
-      delete body.participant_id;
-    } else if (
-      session &&
-      !["staff", "super_admin", "program_manager"].includes(role)
-    ) {
-      // Parity guard: every other role (founder, investor, …) was
-      // denied by the old pre-filter and stays denied — only staff/PM/SA may
-      // submit on behalf of others.
+    const outcome = await createSubmissionRecord({ session, body });
+    if (outcome.denied) {
       return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
+        { success: false, error: outcome.denied.error },
+        { status: outcome.denied.status },
       );
     }
 
-    const {
-      program_id,
-      deliverable_id,
-      group_id,
-      participant_id,
-      team_id,
-      submission_link,
-      file_path,
-      file_url,
-      supporting_url,
-      status,
-      feedback,
-      document_id,
-    } = body;
-
-    if (!program_id || (!deliverable_id && !document_id)) {
-      return NextResponse.json(
-        { success: false, error: "Missing required fields (program_id and deliverable_id or document_id)" },
-        { status: 400 },
-      );
-    }
-
-    // View-only gate: participants/teams cannot submit into a program that is
-    // no longer active (completed/archived). Staff/PM/SA manage programs
-    // regardless of its status. Also blocks a participant whose own membership
-    // is completed even when the program is still active (Phase 2 acceptance).
-    if (session && ["participant", "team"].includes(session.role)) {
-      try {
-        const programCheckResult = await getSubmissionProgramStatus(program_id);
-        const programStatus = programCheckResult.rows[0]?.status;
-        if (programStatus && String(programStatus).toLowerCase() !== "active") {
-          return NextResponse.json(
-            { success: false, error: "errors.programCompletedViewOnly" },
-            { status: 403 },
-          );
-        }
-        // Person-level completion: the participant's own membership is closed
-        // even if the program itself is still active.
-        if (session.role === "participant") {
-          const participationCheck = await getParticipantProgramSubmissionStatus(session.cid, program_id);
-          const participationStatus = String(participationCheck.rows[0]?.status || "").toLowerCase();
-          if (participationStatus === "completed") {
-            return NextResponse.json(
-              { success: false, error: "errors.programCompletedViewOnly" },
-              { status: 403 },
-            );
-          }
-        }
-      } catch (_) {}
-    }
-
-    // Resolve file URL (database requires this field to be non-null)
-    const resolvedFileUrl = file_url || submission_link || file_path || supporting_url || "";
-
-    // Ensure team_id column exists (teams submit as a unit; the PM table
-    // matches submissions to members by team_id).
-    try {
-      await ensureSubmissionsTeamIdColumn();
-    } catch (_) {}
-
-    // Auto-detect deliverable_id from document_id if needed
-    const finalDeliverableId = deliverable_id || null;
-    const finalDocumentId = document_id || 
-      (deliverable_id && !isNaN(Number(deliverable_id)) ? Number(deliverable_id) : null);
-
-    // Determine version number: find the highest existing version for this participant+deliverable
-    let nextVersion = 1;
-    try {
-      const existingVersionResult = await findMaxSubmissionVersion({
-        participant_id,
-        program_id,
-        deliverable_id: finalDeliverableId,
-        document_id: finalDocumentId,
-      });
-      const existingVersion = existingVersionResult.rows[0]?.max_ver;
-      if (existingVersion) {
-        nextVersion = Number(existingVersion) + 1;
-      }
-    } catch (_) {
-      // version_number column might not exist yet (pre-migration)
-    }
-
-    const result = await createSubmission({
-      program_id,
-      deliverable_id: finalDeliverableId,
-      document_id: finalDocumentId,
-      group_id,
-      team_id,
-      participant_id,
-      file_url: resolvedFileUrl,
-      supporting_url,
-      status,
-      feedback,
-      version_number: nextVersion,
-    });
-
-    return NextResponse.json({
-      success: true,
-      submission: {
-        id: Number(result.rows[0]?.id ?? result.lastInsertRowid),
-        program_id,
-        deliverable_id,
-        version_number: nextVersion,
-        status: status || "pending",
-      },
-    });
+    return NextResponse.json({ success: true, submission: outcome.submission });
   } catch (error) {
     return serverError(error, { log: "submissions POST" });
   }
@@ -230,23 +57,11 @@ export async function PATCH(req) {
     await initDb();
     // Phase I5: the assignment + assignments.grade check below is the
     // security decision for every non-management session (facilitator or
-    // staff, role-agnostic). The removed pre-filter blocked members who
-    // hold a legitimate facilitator assignment in the program.
+    // staff, role-agnostic).
     const authError = await requireAuth();
     if (authError) return authError;
-    const {
-      id,
-      status,
-      feedback,
-      score,
-      review_action,
-      rejection_reason,
-      followup_date,
-      followup_time,
-      followup_duration,
-      meeting_link,
-      followup_notes,
-    } = await req.json();
+    const body = await req.json();
+    const { id, status } = body;
 
     if (!id || !status) {
       return NextResponse.json(
@@ -276,191 +91,29 @@ export async function PATCH(req) {
         minLevel: 1,
       });
       if (facError) return facError;
-      const scope = await getFacilitatorTeamScope(programId, session.cid);
-      if (scope.scope !== "all") {
-        // Fail closed: a facilitator with NO assigned teams has no record scope
-        // in this program. The previous guard only ran when teamIds was
-        // non-empty, so `scope: 'none'` (no teams, or a scope lookup error)
-        // skipped the check entirely and let them grade any submission in the
-        // program. Mirror the GET path (:525-528) — empty scope denies.
-        if (scope.teamIds.length === 0) {
-          return NextResponse.json(
-            { success: false, error: "errors.insufficientPermissions" },
-            { status: 403 },
-          );
-        }
-        const scopeCheckResult = await checkSubmissionInFacilitatorTeamScope(id, scope.teamIds);
-        if (scopeCheckResult.rows.length === 0) {
-          return NextResponse.json(
-            { success: false, error: "errors.insufficientPermissions" },
-            { status: 403 },
-          );
-        }
-      }
-    }
-
-    // ─── Business Rules ──────────────────────────────────────────────
-    if (status === "revision_requested" && !feedback) {
-      return NextResponse.json(
-        { success: false, error: "Written feedback is required when requesting a revision" },
-        { status: 400 },
-      );
-    }
-
-    if (status === "rejected" && !rejection_reason) {
-      return NextResponse.json(
-        { success: false, error: "Rejection reason is required" },
-        { status: 400 },
-      );
-    }
-    // ─────────────────────────────────────────────────────────────────
-
-    const statusLabel = { approved: "Approved", rejected: "Rejected", revision_requested: "Revision Requested", pending: "Pending", pending_followup: "Follow-up Scheduled" }[status] || status;
-
-    // 1. Fetch current submission & participant details for notification
-    const reviewDetailsResult = await getSubmissionReviewDetails(id);
-
-    const submission = reviewDetailsResult.rows[0];
-
-    // ─── Role Lock: a facilitator and program management cannot override
-    //     each other's decisions. Once a final decision (approved/rejected)
-    //     exists, only the role that made it may change it. super_admin and
-    //     staff are exempt.
-    const roleCamp = (role) => {
-      if (role === "facilitator") return "facilitator";
-      if (role === "program_manager") return "management";
-      // The retired teacher role is deliberately absent. A live session role can
-      // no longer hold it, and a historical grading row that stored it simply
-      // resolves to no camp — an inert lock, exactly like staff and super_admin.
-      return null; // super_admin / staff → not locked
-    };
-    const FINAL_STATUSES = ["approved", "rejected"];
-    if (submission && FINAL_STATUSES.includes(submission.status) && submission.reviewed_by_role) {
-      const requesterCamp = roleCamp(session?.role);
-      const reviewerCamp = roleCamp(submission.reviewed_by_role);
-      if (requesterCamp && reviewerCamp && requesterCamp !== reviewerCamp) {
-        const actorLabel =
-          reviewerCamp === "facilitator"
-            ? "a facilitator"
-            : "the program manager";
+      // Fail closed: a facilitator with NO assigned teams has no record scope
+      // in this program (mirrors the GET path).
+      const inScope = await isSubmissionWithinFacilitatorScope({
+        id,
+        sessionCid: session.cid,
+        programId,
+      });
+      if (!inScope) {
         return NextResponse.json(
-          {
-            success: false,
-            error: `This submission was already ${submission.status} by ${actorLabel}. Only that role can change the decision.`,
-          },
+          { success: false, error: "errors.insufficientPermissions" },
           { status: 403 },
         );
       }
     }
 
-    // 2. Ensure score column exists (migration safety)
-    try { await ensureSubmissionsScoreColumn(); } catch (_) {}
-    try { await ensureSubmissionsReviewedByRoleColumn(); } catch (_) {}
-    try { await ensureSubmissionsUpdatedAtColumn(); } catch (_) {}
-    try { await ensureSubmissionsFollowupsParticipantCidColumn(); } catch (_) {}
-
-    // 3. Update Database with all review fields
-    // Preserve an existing score when the reviewer does not send a new one
-    // (facilitators review without a score; the PM grades via the dashboard).
-    const hasNewScore = score !== undefined && score !== null && score !== "";
-    await updateSubmissionReview({
-      id,
-      status,
-      feedback,
-      score,
-      hasNewScore,
-      review_action,
-      rejection_reason,
-      role: session?.role,
-      teacherId: session?.cid || session?.email || null,
-    });
-
-    // 3. Handle Follow-up Scheduling (creates calendar event)
-    if (status === "pending_followup" && followup_date && submission) {
-      try {
-        // Create event in v2_events for calendar sync
-        const eventTitle = `Follow-up: ${submission.deliverable_title || "Submission Review"}`;
-        const eventStart = followup_time
-          ? new Date(`${followup_date}T${followup_time}`)
-          : new Date(followup_date);
-
-        await createSubmissionFollowupEvent({
-          program_id: submission.program_id,
-          title: eventTitle,
-          description: followup_notes || null,
-          start_time: eventStart.toISOString(),
-          end_time: new Date(eventStart.getTime() + (followup_duration || 30) * 60000).toISOString(),
-          location: meeting_link || null,
-          participant_id: submission.participant_id,
-          created_by: "instructor",
-        });
-
-        // Also create a followup record
-        await createSubmissionFollowup({
-          program_id: submission.program_id,
-          participant_cid: submission.participant_cid || submission.participant_id,
-          submission_id: id,
-          comment: followup_notes || `Follow-up meeting for ${submission.deliverable_title || "submission"}`,
-          scheduled_at: eventStart.toISOString(),
-          duration_minutes: followup_duration || 30,
-          meeting_link: meeting_link || null,
-          notes: followup_notes || null,
-        });
-      } catch (_) {
-        // Calendar creation failure is non-blocking
-      }
-    }
-
-    // 4. Dispatch In-App Notification to Participant (non-blocking)
-    if (submission && submission.participant_id) {
-      try {
-        let notificationTitle = `Submission ${statusLabel}`;
-        let notificationMessage = feedback
-          ? `Your deliverable "${submission.deliverable_title || ""}" for ${submission.program_name || ""} was ${statusLabel}. Feedback: ${feedback}`
-          : `Your deliverable "${submission.deliverable_title || ""}" for ${submission.program_name || ""} was ${statusLabel}.`;
-
-        if (status === "rejected" && rejection_reason) {
-          notificationMessage += ` Reason: ${rejection_reason}`;
-        }
-
-        await createSubmissionNotification(submission.participant_id, notificationTitle, notificationMessage);
-      } catch (_) {}
-
-      // NOTE: No email is sent for program-deliverable reviews. In-app
-      // notification only — the participant sees the unread count badge.
-    }
-
-    // 5. Group Assessment Propagation: if this submission belongs to a team,
-    //    propagate the same score/status to all team members for this deliverable.
-    //    Never overwrite a sibling submission that was already decided by the
-    //    other role camp (role lock).
-    if (submission?.team_id && (score != null || status === "approved")) {
-      try {
-        const requesterCampForProp = roleCamp(session?.role);
-        await propagateSubmissionToTeamMembers({
-          status,
-          score,
-          hasNewScore,
-          feedback,
-          review_action,
-          rejection_reason,
-          role: session?.role,
-          teacherId: session?.cid || session?.email || null,
-          teamId: submission.team_id,
-          deliverableId: submission.deliverable_id,
-          documentId: submission.document_id,
-          id,
-          requesterCampForProp,
-        });
-      } catch (_) {}
-    }
-
-    // 6. Recalculate KPI progress if status changed to approved/rejected
-    if ((status === "approved" || status === "rejected") && submission?.program_id) {
-      try {
-        const { recalculateKpiProgress } = await import("@/lib/kpi-progress");
-        await recalculateKpiProgress(submission.program_id);
-      } catch (_) {}
+    // The review decision itself (business rules, role lock, write, follow-up,
+    // notification, team propagation, KPI recalculation).
+    const outcome = await applySubmissionReview({ session, payload: body });
+    if (outcome.denied) {
+      return NextResponse.json(
+        { success: false, error: outcome.denied.error },
+        { status: outcome.denied.status },
+      );
     }
 
     return NextResponse.json({ success: true });
@@ -498,43 +151,27 @@ export async function GET(req) {
     // program and hold assignments.view. Scope restricts to their assigned
     // groups. Participants/teams/staff read their own submissions directly.
     const session = await getSession();
-    let facilitatorScopeFilter = null;
-    let facilitatorScopeArgs = [];
 
     // Team-entity sessions (role "team", cid = their own team id) may only ever
     // read THEIR OWN team's submissions: the team filter is bound server-side,
     // so a chosen team_id / program_id cannot widen the read.
-    if (session?.role === "team") {
-      const ownTeamId = String(session.cid || "");
-      if (team_id && String(team_id) !== ownTeamId) {
-        return NextResponse.json(
-          { success: false, error: "errors.insufficientPermissions" },
-          { status: 403 },
-        );
-      }
-      team_id = ownTeamId;
+    const teamBinding = bindSubmissionTeamScope({ session, teamId: team_id });
+    if (teamBinding.denied) {
+      return NextResponse.json(
+        { success: false, error: teamBinding.denied.error },
+        { status: teamBinding.denied.status },
+      );
     }
+    team_id = teamBinding.teamId;
 
     // Own-scope (Phase I6B): without a program context, non-management,
     // non-staff, non-team sessions (participants, members, …) may only list
     // their own submissions — participant_id is bound server-side.
-    if (
-      session &&
-      !program_id &&
-      !hasProgramManagementAccess(session.role) &&
-      session.role !== "staff" &&
-      session.role !== "team"
-    ) {
-      participant_id = session.cid;
-    }
+    participant_id = applyOwnSubmissionScope({ session, participantId: participant_id, programId: program_id });
 
-    if (
-      session &&
-      program_id &&
-      !hasProgramManagementAccess(session.role) &&
-      session.role !== "staff" &&
-      session.role !== "team"
-    ) {
+    let facilitatorScopeFilter = null;
+    let facilitatorScopeArgs = [];
+    if (needsFacilitatorSubmissionScope(session, program_id)) {
       const facError = await requireAssignmentAccess({
         resource: "program",
         contextId: program_id,
@@ -542,17 +179,15 @@ export async function GET(req) {
         minLevel: 1,
       });
       if (facError) return facError;
-      const scope = await getFacilitatorTeamScope(program_id, session.cid);
-      if (scope.scope !== "all") {
-        if (scope.teamIds.length === 0) {
-          return NextResponse.json({ success: true, submissions: [] });
-        }
-        facilitatorScopeFilter =
-          "s.participant_id IN (SELECT c.cid FROM contacts c WHERE c.v2_team_id IN (" +
-          scope.teamIds.map(() => "?").join(",") +
-          "))";
-        facilitatorScopeArgs = scope.teamIds;
+      const scopeOutcome = await resolveFacilitatorSubmissionScope({
+        programId: program_id,
+        sessionCid: session.cid,
+      });
+      if (scopeOutcome.empty) {
+        return NextResponse.json({ success: true, submissions: [] });
       }
+      facilitatorScopeFilter = scopeOutcome.facScopeFilter;
+      facilitatorScopeArgs = scopeOutcome.facScopeArgs;
     }
 
     const { rows } = await listSubmissions({
@@ -569,45 +204,15 @@ export async function GET(req) {
     });
 
     // Format for UI
-    const submissions = rows.map((row) => ({
-      ...row,
-      v2_deliverables: {
-        title: row.deliverable_title,
-        week_number: row.deliverable_week,
-        due_date: row.deliverable_due_date,
-      },
-      v2_participants: row.participant_name ? { name: row.participant_name } : null,
-      v2_groups: row.group_name ? { name: row.group_name } : null,
-    }));
+    const submissions = formatSubmissionRows(rows);
 
     // If include_versions, group and include version history
     if (include_versions && (participant_id || group_id)) {
-      const grouped = {};
-      for (const submission of submissions) {
-        const groupId = submission.deliverable_id || submission.document_id || `doc-${submission.id}`;
-        const key = `${submission.program_id}-${groupId}`;
-        if (!grouped[key]) {
-          grouped[key] = {
-            deliverable_id: submission.deliverable_id,
-            program_id: submission.program_id,
-            deliverable_title: submission.deliverable_title,
-            deliverable_week: submission.deliverable_week,
-            deliverable_due_date: submission.deliverable_due_date,
-            latest: submission,
-            versions: [],
-          };
-        }
-        grouped[key].versions.push(submission);
-        // Sort versions by version_number
-        grouped[key].versions.sort(
-          (first, second) => (second.version_number || 0) - (first.version_number || 0),
-        );
-      }
-
+      const grouped = groupSubmissionVersions(submissions);
       return NextResponse.json({
         success: true,
-        grouped: Object.values(grouped),
-        total: Object.keys(grouped).length,
+        grouped,
+        total: grouped.length,
       });
     }
 
@@ -644,28 +249,14 @@ export async function PUT(req) {
     const scopeError = await requireProgramScope({ programId: targetProgramId, wave: "content" });
     if (scopeError) return scopeError;
 
-    // Ensure both score columns exist (migration safety).
-    try { await ensureSubmissionScoresColumn(); } catch (_) {}
-    try { await ensureSubmissionEvaluationScoreColumn(); } catch (_) {}
-
-    const payload = {
-      score: score != null ? parseInt(score) : null,
-      evaluation_score: score != null ? parseInt(score) : null,
-      evaluation_data: evaluation_data ? JSON.stringify(evaluation_data) : null,
-    };
-
-    if (id) {
-      await updateSubmissionScoreById({
-        ...payload,
-        id,
-      });
-    } else {
-      await updateSubmissionsScoreForParticipant({
-        ...payload,
-        participant_id,
-        program_id,
-      });
-    }
+    // Ensure both score columns exist (migration safety), then write.
+    await saveSubmissionScore({
+      id,
+      participantId: participant_id,
+      programId: program_id,
+      score,
+      evaluationData: evaluation_data,
+    });
 
     return NextResponse.json({ success: true, message: "Evaluation updated" });
   } catch (error) {

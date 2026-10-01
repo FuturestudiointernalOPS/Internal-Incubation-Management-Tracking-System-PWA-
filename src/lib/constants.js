@@ -278,31 +278,27 @@ export const TEMPLATE_VARIABLES = {
 // ─── NUMBER UTILITIES ──────────────────────────────────────────────────
 
 /**
- * Weighted KPI progress — one 0–100 number for a set of KPIs.
+ * Average objective progress — one 0–100 number for a set of strategic objectives.
  *
- * Each KPI contributes its own achievement rate (`progress`, itself a 0–100
- * figure) in proportion to its `weight`. When no KPI carries a weight, all are
- * treated as equally important. This is the single definition of "KPI progress"
- * so every screen (PM dashboard, program detail) shows the same number.
+ * Every objective weighs the same, so the programme figure is simply their
+ * average. Each objective's own `progress` is already a 0–100 rate: the share of
+ * its expected approved deliverables that the programme's active participants
+ * reached. This is the single definition of "objective progress", so every screen
+ * (PM dashboard, programme detail) shows the same number.
  *
- * @param {Array<{ weight?: number|string, progress?: number|string }>} kpis
- * @returns {number|null} 0–100, or null when there is no KPI to average
+ * @param {Array<{ progress?: number|string }>} objectives
+ * @returns {number|null} 0–100, or null when there is no objective to average
  */
-export function weightedKpiProgress(kpis) {
-  const list = (kpis || []).filter(Boolean);
+export function averageKpiProgress(objectives) {
+  const list = (objectives || []).filter(Boolean);
   if (list.length === 0) return null;
 
-  const rawWeights = list.map((kpi) => parseFloat(kpi.weight) || 0);
-  const totalWeight = rawWeights.reduce((sum, weight) => sum + weight, 0);
-  const weights = totalWeight > 0 ? rawWeights : list.map(() => 1);
-  const weightSum = totalWeight > 0 ? totalWeight : list.length;
-
   const score = list.reduce(
-    (sum, kpi, index) => sum + (parseFloat(kpi.progress) || 0) * weights[index],
+    (sum, objective) => sum + (parseFloat(objective.progress) || 0),
     0,
   );
 
-  return Math.max(0, Math.min(100, Math.round(score / weightSum)));
+  return Math.max(0, Math.min(100, Math.round(score / list.length)));
 }
 
 // ─── COLOR CONSTANTS ───────────────────────────────────────────────────

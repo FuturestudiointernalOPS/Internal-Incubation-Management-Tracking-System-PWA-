@@ -137,31 +137,31 @@ beforeEach(() => {
 
 describe("resolveCoachContact — coach is a platform user (Future Studio staff or invited)", () => {
   test("explicit contact id wins", async () => {
-    const contact = await resolveCoachContact(mockDb, { coachContactId: "c-sarah" });
+    const contact = await resolveCoachContact({ coachContactId: "c-sarah" });
     expect(contact).toEqual({ cid: "c-sarah", name: "Sarah", email: "sarah@future.studio" });
   });
 
   test("legacy catalog coach resolves to a contact by email", async () => {
-    const contact = await resolveCoachContact(mockDb, { coachId: 12 });
+    const contact = await resolveCoachContact({ coachId: 12 });
     expect(contact.cid).toBe("c-sarah");
   });
 
   test("unmatched catalog coach degrades to null (catalog fallback preserved)", async () => {
     mockDb.flags.contactByEmail = false;
-    const contact = await resolveCoachContact(mockDb, { coachId: 12 });
+    const contact = await resolveCoachContact({ coachId: 12 });
     expect(contact).toBeNull();
   });
 
   test("unknown explicit contact degrades to null", async () => {
     mockDb.flags.contactByCid = false;
-    const contact = await resolveCoachContact(mockDb, { coachContactId: "ghost" });
+    const contact = await resolveCoachContact({ coachContactId: "ghost" });
     expect(contact).toBeNull();
   });
 });
 
 describe("notifyVentureCoach — automatic coach delivery (in-app + email)", () => {
   test("writes context notification with dedupe and emails the coach", async () => {
-    const out = await notifyVentureCoach(mockDb, {
+    const out = await notifyVentureCoach({
       dbId: "11111111-1111-4111-8111-111111111111",
       coachContactId: "c-sarah",
       title: "Session scheduled",
@@ -186,7 +186,7 @@ describe("notifyVentureCoach — automatic coach delivery (in-app + email)", () 
 
   test("skips silently when the coach contact cannot be resolved", async () => {
     mockDb.flags.contactByCid = false;
-    const out = await notifyVentureCoach(mockDb, { dbId: "x", coachContactId: "ghost", title: "t", message: "m", emailSubject: "s" });
+    const out = await notifyVentureCoach({ dbId: "x", coachContactId: "ghost", title: "t", message: "m", emailSubject: "s" });
     expect(out.skipped).toBe(true);
     expect(sendStandaloneEmail).not.toHaveBeenCalled();
     const notifInsert = executed.find((query) => query.sql.includes("INSERT INTO v2_notifications"));
@@ -194,7 +194,7 @@ describe("notifyVentureCoach — automatic coach delivery (in-app + email)", () 
   });
 
   test("no coach_contact_id → no-op", async () => {
-    const out = await notifyVentureCoach(mockDb, { dbId: "x", coachContactId: null, title: "t", message: "m" });
+    const out = await notifyVentureCoach({ dbId: "x", coachContactId: null, title: "t", message: "m" });
     expect(out.skipped).toBe(true);
   });
 });
@@ -204,7 +204,7 @@ describe("notifyVentureLeadManagers — Lead Manager delivery (in-app + email)",
 
   test("writes context notification with dedupe and emails every active lead manager", async () => {
     mockDb.flags.leadManagers = [{ cid: "lm-1", name: "Lena", email: "lena@future.studio" }];
-    const out = await notifyVentureLeadManagers(mockDb, {
+    const out = await notifyVentureLeadManagers({
       dbId: VENTURE_UUID,
       ventureCode: "VNT-X",
       title: "Session scheduled",
@@ -234,7 +234,7 @@ describe("notifyVentureLeadManagers — Lead Manager delivery (in-app + email)",
 
   test("excluded lead managers (creator / coach) get nothing", async () => {
     mockDb.flags.leadManagers = [{ cid: "lm-1", name: "Lena", email: "lena@future.studio" }];
-    const out = await notifyVentureLeadManagers(mockDb, {
+    const out = await notifyVentureLeadManagers({
       dbId: VENTURE_UUID, ventureCode: "VNT-X", title: "t", message: "m", emailSubject: "s",
       dedupeKey: "session-scheduled:9", excludeCids: ["lm-1"],
     });
@@ -244,7 +244,7 @@ describe("notifyVentureLeadManagers — Lead Manager delivery (in-app + email)",
   });
 
   test("no active lead-manager assignment → nothing written, no throw", async () => {
-    const out = await notifyVentureLeadManagers(mockDb, {
+    const out = await notifyVentureLeadManagers({
       dbId: VENTURE_UUID, ventureCode: "VNT-X", title: "t", message: "m", emailSubject: "s",
     });
     expect(out.sent).toBe(0);
@@ -254,7 +254,7 @@ describe("notifyVentureLeadManagers — Lead Manager delivery (in-app + email)",
 
   test("lead manager without an email still gets the in-app notification", async () => {
     mockDb.flags.leadManagers = [{ cid: "lm-1", name: "Lena", email: null }];
-    const out = await notifyVentureLeadManagers(mockDb, {
+    const out = await notifyVentureLeadManagers({
       dbId: VENTURE_UUID, ventureCode: "VNT-X", title: "t", message: "m", emailSubject: "s",
     });
     expect(out.sent).toBe(0);
@@ -266,7 +266,7 @@ describe("notifyVentureLeadManagers — Lead Manager delivery (in-app + email)",
 
   test("missing venture code is resolved from the internal id", async () => {
     mockDb.flags.leadManagers = [{ cid: "lm-1", name: "Lena", email: null }];
-    const out = await notifyVentureLeadManagers(mockDb, {
+    const out = await notifyVentureLeadManagers({
       dbId: VENTURE_UUID, title: "t", message: "m", emailSubject: "s",
     });
     expect(out.sent).toBe(0);
@@ -278,7 +278,7 @@ describe("notifyVentureLeadManagers — Lead Manager delivery (in-app + email)",
 
 describe("inviteCoachByEmail — Venture coach invite (program blueprint)", () => {
   test("new external coach → contact created (narrow role) + assignment + activation email", async () => {
-    const out = await inviteCoachByEmail(mockDb, {
+    const out = await inviteCoachByEmail({
       code: "VNT-X", ventureName: "AgriNova", email: "new.coach@example.com", name: "New Coach", actorCid: "manager-1", preview: false,
     });
     expect(out.results[0].status).toBe("activation_sent");
@@ -299,7 +299,7 @@ describe("inviteCoachByEmail — Venture coach invite (program blueprint)", () =
   test("existing Future Studio staff contact → assigned as-is, login email, no contact insert", async () => {
     mockDb.flags.inviteContact = "c-staff";
     mockDb.flags.inviteActivated = true;
-    const out = await inviteCoachByEmail(mockDb, {
+    const out = await inviteCoachByEmail({
       code: "VNT-X", ventureName: "AgriNova", email: "david@future.studio", responsibilityCode: "lead_manager", actorCid: "sa-1",
     });
     expect(out.results[0].status).toBe("invited");
@@ -315,14 +315,14 @@ describe("inviteCoachByEmail — Venture coach invite (program blueprint)", () =
     mockDb.flags.inviteContact = "c-staff";
     mockDb.flags.inviteActivated = true;
     mockDb.flags.alreadyAssigned = true;
-    const out = await inviteCoachByEmail(mockDb, { code: "VNT-X", email: "david@future.studio" });
+    const out = await inviteCoachByEmail({ code: "VNT-X", email: "david@future.studio" });
     expect(out.results[0].status).toBe("already_assigned");
     expect(executed.some((query) => query.sql.includes("INSERT INTO venture_staff_assignments"))).toBe(false);
     expect(sendLoginEmail).not.toHaveBeenCalled();
   });
 
   test("preview reports without writing", async () => {
-    const out = await inviteCoachByEmail(mockDb, { code: "VNT-X", email: "fresh@example.com", preview: true });
+    const out = await inviteCoachByEmail({ code: "VNT-X", email: "fresh@example.com", preview: true });
     expect(out.results[0].status).toBe("new_contact");
     expect(executed.some((query) => query.sql.startsWith("INSERT INTO contacts"))).toBe(false);
     expect(executed.some((query) => query.sql.includes("INSERT INTO venture_staff_assignments"))).toBe(false);
@@ -330,7 +330,7 @@ describe("inviteCoachByEmail — Venture coach invite (program blueprint)", () =
   });
 
   test("invalid email rejected without side effects", async () => {
-    const out = await inviteCoachByEmail(mockDb, { code: "VNT-X", email: "not-an-email" });
+    const out = await inviteCoachByEmail({ code: "VNT-X", email: "not-an-email" });
     expect(out.results[0].status).toBe("invalid");
     expect(sendInviteEmail).not.toHaveBeenCalled();
   });

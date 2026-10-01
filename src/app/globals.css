@@ -297,6 +297,73 @@
 }
 
 /* --------------------------------------------------------------------------
+   ENTRANCE ANIMATIONS FOR THE SHARED SHELL COMPONENTS (toast + modal).
+   These two used to pull `framer-motion` (~790 kB of client JS) into every
+   authenticated page, for what is a one-shot entrance. CSS does the same
+   natively, so the animation layer no longer rides on the initial bundle.
+   -------------------------------------------------------------------------- */
+@keyframes toastIn {
+    from {
+        opacity: 0;
+        transform: translateY(24px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.toast-item {
+    animation: toastIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalBackdropIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.modal-backdrop-in {
+    animation: modalBackdropIn 0.2s ease-out;
+}
+
+@keyframes modalPanelIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-panel-in {
+    animation: modalPanelIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .toast-item,
+    .modal-backdrop-in,
+    .modal-panel-in,
+    .animate-in {
+        animation: none;
+    }
+}
+
+/* Keyboard focus must stay visible. Many inputs and buttons set
+   `outline: none` for the mouse, which left keyboard users with no indicator
+   at all. This restores one for keyboard navigation only — never for a mouse
+   click, which is what :focus-visible distinguishes. */
+:focus-visible {
+    outline: 2px solid var(--brand-orange);
+    outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
    RICH TEXT — authored LMS descriptions (RichTextEditor / RichTextContent).
    Plain CSS, outside @layer, so it wins over Tailwind's list/heading resets.
    -------------------------------------------------------------------------- */

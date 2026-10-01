@@ -416,7 +416,7 @@ describe("Startup Profile Wizard — Business Logic", () => {
         cid: "staff-001",
       });
       expect(result).toBe(true);
-      expect(hasActiveVentureAssignment).toHaveBeenCalledWith("VNT-001", "staff-001", db);
+      expect(hasActiveVentureAssignment).toHaveBeenCalledWith("VNT-001", "staff-001");
     });
 
     it("should reject program_manager without a venture assignment (Phase 2)", async () => {

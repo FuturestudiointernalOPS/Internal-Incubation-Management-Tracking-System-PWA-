@@ -82,7 +82,6 @@ export const MASTER_NAVIGATION = [
     children: [
       { id: "all_ventures", name: "ALL VENTURES", href: "/admin/ventures" },
       { id: "journey_reports", name: "JOURNEY REPORTS", href: "/admin/journey-reports" },
-      { id: "register_venture", name: "REGISTER STARTUP", href: "/admin/ventures/register" },
       { id: "document_types", name: "DATA BANK DOCUMENTS", href: "/admin/ventures/document-types" },
     ],
   },

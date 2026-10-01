@@ -5,8 +5,6 @@ import db from "@/lib/db";
  *   - `src/app/api/s/public-submit/route.js`
  *   - `src/app/api/s/public-draft/route.js`
  *   - `src/app/api/s/public-run/route.js`
- *   - `src/app/api/platform/venture-invitations/route.js`
- *   - `src/app/api/platform/venture-invitations/[token]/route.js`
  *
  * Each function wraps exactly one SQL statement. SQL is byte-identical to the
  * queries that used to live inline in the controllers, so behavior is unchanged.
@@ -238,65 +236,4 @@ export async function getGroupNameForRun(run_id) {
 }
 
 // ---------------------------------------------------------------------------
-// Venture invitations (api/platform/venture-invitations) — 6 queries
-// ---------------------------------------------------------------------------
-
-/** Full run row by id (explicit run_id on the invite request). */
-export async function getRunById(run_id) {
-  return db.execute({
-    sql: "SELECT * FROM platform_form_runs WHERE id = ?",
-    args: [run_id],
-  });
-}
-
-/** PM assigned to a program (PM scope check for invitations). */
-export async function getProgramAssignedPmId(program_id) {
-  return db.execute({
-    sql: "SELECT assigned_pm_id FROM v2_programs WHERE id::text = ?",
-    args: [program_id],
-  });
-}
-
-/** Contact identity (cid/name/email) for a participant invitee. */
-export async function getContactByCid(contact_id) {
-  return db.execute({
-    sql: "SELECT cid, name, email FROM contacts WHERE cid = ?",
-    args: [contact_id],
-  });
-}
-
-/** Most recent program enrollment for a participant (invite fallback). */
-export async function getParticipantProgramByContactId(contact_id) {
-  return db.execute({
-    sql: "SELECT program_id FROM participant_programs WHERE participant_id = ? ORDER BY assigned_at DESC LIMIT 1",
-    args: [contact_id],
-  });
-}
-
-/** Full team row by id (team-channel invites). */
-export async function getTeamById(team_id) {
-  return db.execute({
-    sql: "SELECT * FROM v2_teams WHERE id::text = ?",
-    args: [team_id],
-  });
-}
-
-/** Contact identity (cid/name/email) for a team-lead invitee. */
-export async function getLeadContactByCid(lead_cid) {
-  return db.execute({
-    sql: "SELECT cid, name, email FROM contacts WHERE cid = ?",
-    args: [lead_cid],
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Venture invitation token (api/platform/venture-invitations/[token]) — 1 query
-// ---------------------------------------------------------------------------
-
-/** Run id/name/slug for an invitation (resolves the run URL). */
-export async function getVentureInvitationRunById(run_id) {
-  return db.execute({
-    sql: "SELECT id, name, public_slug FROM platform_form_runs WHERE id = ?",
-    args: [run_id],
-  });
-}
+// Venture Run invitations were removed with the retired Venture intake flow.

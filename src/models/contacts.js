@@ -121,6 +121,16 @@ export async function findContactCidByPhone(phone, excludeCid, excludeEmail) {
   });
 }
 
+/**
+ * The person an email address belongs to, or nothing.
+ *
+ * The normalisation and the empty-input guard moved to
+ * `@/services/contacts/contactLookup` (the decision), with the statement in
+ * `@/models/contactLookupStore`. Re-exported here so existing importers (the
+ * people and invites routes) keep working — see docs/LAYER_SPLIT.md.
+ */
+export { findContactByEmail } from "@/services/contacts/contactLookup";
+
 /** Flag a phone-based duplicate pair (idempotent regardless of pair order). */
 export async function createDuplicatePhoneFlag(cidA, cidB) {
   return db.execute({

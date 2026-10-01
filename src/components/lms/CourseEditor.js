@@ -60,6 +60,56 @@ const formBase = (course) => ({
   payment_consent_text: course?.payment_consent_text || "",
 });
 
+// A publish error's `field` is shaped `<kind>.<id>`. Point it at the exact item
+// it concerns: without this the panel can only repeat the same generic sentence,
+// and an author with several lessons has no way to tell which one to fix.
+// Course-level fields (title, sections, lessons) have no id and stay generic.
+const FIELD_KINDS = {
+  sections: "lms.sections.title",
+  lessons: "lms.lessons.title",
+  assessments: "lms.assessments.title",
+  questions: "lms.questions.title",
+};
+
+const findTitle = (items, id, titleKey) =>
+  items.find((item) => String(item.id) === id)?.[titleKey];
+
+/**
+ * Name the item a publish error points at, or null when it is course-level or
+ * the id no longer exists in the course being edited.
+ * @returns {{kindKey: string, title: string} | null}
+ */
+const describeValidationField = (field, course) => {
+  const dot = field?.indexOf(".") ?? -1;
+  if (!course || dot === -1) return null;
+  const kindKey = FIELD_KINDS[field.slice(0, dot)];
+  if (!kindKey) return null;
+  const id = field.slice(dot + 1);
+
+  const sections = course.sections || [];
+  const assessments = [
+    ...sections.map((section) => section.assessment).filter(Boolean),
+    ...(course.courseAssessments || []),
+  ];
+
+  let title;
+  if (kindKey === FIELD_KINDS.lessons) {
+    title = findTitle(sections.flatMap((section) => section.lessons || []), id, "title");
+  } else if (kindKey === FIELD_KINDS.sections) {
+    title = findTitle(sections, id, "title");
+  } else if (kindKey === FIELD_KINDS.assessments) {
+    title = findTitle(assessments, id, "title");
+  } else {
+    title = findTitle(
+      assessments.flatMap((assessment) => assessment.questions || []),
+      id,
+      "question",
+    );
+  }
+
+  return title ? { kindKey, title } : null;
+};
+
 export default function CourseEditor({ courseId, basePath = "/admin/lms/courses" }) {
   const { t } = useI18n();
   const { confirm } = useDialogs();
@@ -144,7 +194,7 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
       const data = await res.json();
       if (!data.success) {
         if (data.details && data.details.length) {
-          setValidationErrors(data.details.map((detail) => detail.key));
+          setValidationErrors(data.details);
           notify("error", "lms.errors.publishValidationFailed");
         } else {
           throw new Error(data.error || "lms.errors.saveFailed");
@@ -272,11 +322,22 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
             {t("lms.errors.publishValidationFailed")}
           </p>
           <ul className="space-y-1">
-            {validationErrors.map((key, index) => (
-              <li key={index} className="text-xs font-bold" style={{ color: "var(--text-primary)" }}>
-                • {t(key)}
-              </li>
-            ))}
+            {validationErrors.map((detail, index) => {
+              // Name the item the error concerns when we can, so "each video
+              // lesson needs a valid YouTube video" says WHICH lesson.
+              const item = describeValidationField(detail.field, course);
+              return (
+                <li key={index} className="text-xs font-bold" style={{ color: "var(--text-primary)" }}>
+                  • {item
+                    ? t("lms.errors.validationItem", {
+                        kind: t(item.kindKey),
+                        title: item.title,
+                        message: t(detail.key),
+                      })
+                    : t(detail.key)}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

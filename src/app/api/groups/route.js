@@ -5,19 +5,10 @@ import { requireProgramScope } from "@/lib/programScopedAccess";
 import { requireAuthorization } from "@/lib/authorization";
 import {
   getGroups,
-  createGroup,
-  createGroupAfterColumnSelfHeal,
-  updateGroup,
-  updateGroupAfterColumnSelfHeal,
-  addFamilyDescriptionColumn,
-  addFamilyDefaultRoleColumn,
-  addFamilyIsArchivedColumn,
-  addFamilyDescriptionColumnOnUpdate,
-  addFamilyDefaultRoleColumnOnUpdate,
-  addFamilyIsArchivedColumnOnUpdate,
   deleteGroup,
   getFamilyProgramId,
 } from "@/models/groups";
+import { createContactGroup, updateContactGroup } from "@/services/contacts/groups";
 export const dynamic = "force-dynamic";
 
 /**
@@ -72,34 +63,17 @@ export async function POST(req) {
       if (scopeError) return scopeError;
     }
 
-    // Generate a unique registration_id (matches families route pattern: GRP-XXXX123)
-    const registration_id =
-      "GRP-" +
-      Math.random().toString(36).slice(2, 6).toUpperCase() +
-      Math.floor(Math.random() * 1000);
-
-    const insertArgs = [program_id || null, name, type || "individual", description || null, body.default_role || null, registration_id];
-
-    let result;
-    try {
-      // Fast path: no extra queries when schema is healthy
-      result = await createGroup(insertArgs);
-    } catch (insertError) {
-      // Self-heal only on failure: add missing columns once, then retry once
-      if (!/does not exist/i.test(insertError.message || "")) throw insertError;
-      await addFamilyDescriptionColumn();
-      await addFamilyDefaultRoleColumn();
-      await addFamilyIsArchivedColumn();
-      result = await createGroupAfterColumnSelfHeal(insertArgs);
-    }
-
-    const row = result.rows?.[0];
-    const id = row?.id ?? result.lastInsertRowid;
-    const registrationId = row?.registration_id ?? registration_id;
+    const created = await createContactGroup({
+      programId: program_id,
+      name,
+      type,
+      description,
+      defaultRole: body.default_role,
+    });
 
     return NextResponse.json({
       success: true,
-      group: { id, registration_id: registrationId, program_id, name, type, description },
+      group: { id: created.id, registration_id: created.registration_id, program_id, name, type, description },
     });
   } catch (error) {
     return NextResponse.json(
@@ -135,34 +109,20 @@ export async function PUT(req) {
     });
     if (scopeError) return scopeError;
 
-    const updates = [];
-    const args = [];
+    const result = await updateContactGroup({
+      id,
+      name,
+      type,
+      description,
+      isArchived: is_archived,
+      defaultRole: default_role,
+    });
 
-    if (name !== undefined) { updates.push("name = ?"); args.push(name); }
-    if (type !== undefined) { updates.push("type = ?"); args.push(type); }
-    if (description !== undefined) { updates.push("description = ?"); args.push(description); }
-    if (is_archived !== undefined) { updates.push("is_archived = ?"); args.push(is_archived ? 1 : 0); }
-    if (default_role !== undefined) { updates.push("default_role = ?"); args.push(default_role || null); }
-
-    if (updates.length === 0) {
+    if (!result.updated) {
       return NextResponse.json(
         { success: false, error: "No fields to update" },
         { status: 400 }
       );
-    }
-
-    args.push(id);
-
-    try {
-      // Fast path: no extra queries when schema is healthy
-      await updateGroup(updates, args);
-    } catch (updateError) {
-      // Self-heal only on failure: add missing columns once, then retry once
-      if (!/does not exist/i.test(updateError.message || "")) throw updateError;
-      await addFamilyDescriptionColumnOnUpdate();
-      await addFamilyDefaultRoleColumnOnUpdate();
-      await addFamilyIsArchivedColumnOnUpdate();
-      await updateGroupAfterColumnSelfHeal(updates, args);
     }
 
     return NextResponse.json({ success: true });

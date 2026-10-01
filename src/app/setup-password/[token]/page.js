@@ -9,6 +9,7 @@ import {
   ArrowRight, Loader2
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { safeNextPath } from "@/lib/safeNextPath";
 
 export default function SetupPasswordPage({ params }) {
   const { t } = useI18n();
@@ -74,8 +75,17 @@ export default function SetupPasswordPage({ params }) {
 
       if (payload.success) {
         setState("success");
+        // If the link carried a destination, hand it to the login page so the
+        // person lands in their course — not on a generic home screen.
+        const requested =
+          typeof window !== "undefined"
+            ? safeNextPath(new URLSearchParams(window.location.search).get("next"))
+            : null;
+        const destination = requested
+          ? `/login?next=${encodeURIComponent(requested)}`
+          : "/login";
         setTimeout(() => {
-          router.push("/login");
+          router.push(destination);
         }, 2500);
       } else {
         setError(t((payload.error || t("rootMisc.setupPassword.errorSetFailed")) || "") || (payload.error || t("rootMisc.setupPassword.errorSetFailed")));

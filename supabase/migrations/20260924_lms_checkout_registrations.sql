@@ -88,6 +88,10 @@ CREATE TABLE IF NOT EXISTS lms_registrations (
     -- registration. Stored as a HASH only: the link never sits at rest usable.
     resume_token_hash TEXT,
     resume_token_expires_at TIMESTAMPTZ,
+    -- The browser that CAPTURED the registration receives a one-way token in an
+    -- httpOnly cookie (HASH stored here, raw never). It is the proof of ownership
+    -- that lets that same browser resume an unpaid payment directly.
+    browser_token_hash TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
@@ -109,6 +113,9 @@ CREATE INDEX IF NOT EXISTS idx_lms_registrations_email
 CREATE UNIQUE INDEX IF NOT EXISTS idx_lms_registrations_resume_token
     ON lms_registrations(resume_token_hash)
     WHERE resume_token_hash IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_lms_registrations_browser_token
+    ON lms_registrations(browser_token_hash)
+    WHERE browser_token_hash IS NOT NULL;
 
 -- 'revoked' is the FOURTH access state: the team refunded and then deliberately
 -- took the course access back. The constraint is recreated so a table built

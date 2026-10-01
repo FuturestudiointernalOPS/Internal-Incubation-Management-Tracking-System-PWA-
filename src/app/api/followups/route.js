@@ -2,22 +2,16 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
 import {
-  ensureFollowupsCreatedByColumn,
   getFollowupById,
-  insertFollowup,
-  insertFollowupCalendarEvent,
   isContactInFacilitatorTeams,
   isContactInFacilitatorTeamsForUpdate,
   listFollowups,
-  markSubmissionPendingFollowup,
-  updateFollowup,
 } from "@/models/communications";
-
-async function ensureFollowupSchema() {
-  try {
-    await ensureFollowupsCreatedByColumn();
-  } catch (_) {}
-}
+import {
+  ensureFollowupSchema,
+  createFollowup,
+  updateFollowupRecord,
+} from "@/services/communications/followups";
 
 /**
  * For facilitators, resolve program assignment + team scope and return a guard.
@@ -82,17 +76,7 @@ export const POST = createHandler(
     await ensureFollowupSchema();
     const session = await getSession();
     const body = await req.json();
-    const {
-      program_id,
-      participant_id,
-      submission_id,
-      week_number,
-      comment,
-      scheduled_at,
-      duration_minutes,
-      meeting_link,
-      notes,
-    } = body;
+    const { program_id, participant_id, scheduled_at } = body;
 
     if (!program_id || !scheduled_at) {
       return NextResponse.json(
@@ -123,46 +107,10 @@ export const POST = createHandler(
       }
     }
 
-    // Create follow-up record
-    const result = await insertFollowup({
-      programId: program_id,
-      participantId: participant_id,
-      submissionId: submission_id,
-      weekNumber: week_number,
-      comment,
-      scheduledAt: scheduled_at,
-      durationMinutes: duration_minutes,
-      meetingLink: meeting_link,
-      notes,
-      createdBy: session.cid,
-    });
+    // Create follow-up record + calendar event + submission move
+    const followup = await createFollowup({ session, payload: body });
 
-    // Create calendar event in v2_events
-    try {
-      const scheduledDate = new Date(scheduled_at);
-      const endDate = new Date(scheduledDate.getTime() + (duration_minutes || 30) * 60000);
-
-      await insertFollowupCalendarEvent({
-        programId: program_id,
-        title: comment ? `Follow-up: ${comment.substring(0, 50)}` : "Follow-up Meeting",
-        description: notes || comment || null,
-        startTime: scheduledDate.toISOString(),
-        endTime: endDate.toISOString(),
-        participantId: participant_id,
-        createdBy: session.cid,
-      });
-    } catch (_) {
-      // Calendar event creation is non-blocking
-    }
-
-    // If linked to a submission, update submission status to pending_followup
-    if (submission_id) {
-      try {
-        await markSubmissionPendingFollowup(submission_id);
-      } catch (_) {}
-    }
-
-    return NextResponse.json({ success: true, followup: result.rows[0] });
+    return NextResponse.json({ success: true, followup });
   },
 );
 
@@ -204,7 +152,7 @@ export const PATCH = createHandler(
       }
     }
 
-    await updateFollowup({
+    await updateFollowupRecord({
       id,
       status,
       notes,

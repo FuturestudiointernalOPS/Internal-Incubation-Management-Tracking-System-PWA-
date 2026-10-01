@@ -102,8 +102,9 @@ curl -X POST "https://<domaine>/api/lms/registrations?action=link-run" \
 | Échec | « le paiement n'a pas abouti », **aucun** accès |
 | Abandon avant paiement | inscription conservée, aucun accès |
 | Nouvelle tentative après échec | **même fiche**, même référence |
+| Retour sur le formulaire après un échec (même e-mail) | la personne **n'est pas bloquée** : le paiement **reprend** sur la même fiche, même référence |
 | Notification reçue deux fois | aucune double inscription |
-| Même personne qui recommence | réponse **neutre**, sans référence |
+| Même personne qui recommence (inscription **payée**) | réponse **neutre**, sans référence |
 | Montant falsifié | refusé, journalisé |
 | **Paiement confirmé, accès en échec** | reçu envoyé quand même, **aucun bouton de payer** |
 | Remboursement | inscription remboursée, **accès conservé** |
@@ -114,10 +115,7 @@ curl -X POST "https://<domaine>/api/lms/registrations?action=link-run" \
 ## 6. Ce qu'il faut savoir
 
 - **Le schéma s'applique tout seul.** La migration `supabase/migrations/20260924_lms_checkout_registrations.sql` est fournie pour l'explicite, mais le code crée la colonne et les deux tables **au premier usage** (`IF NOT EXISTS`, une fois par processus) — comme le reste du projet. Aucune étape SQL manuelle n'est nécessaire.
-- **Sécurité** : la référence d'une inscription **existante** n'est jamais
-  renvoyée au navigateur. Le lien d'accès n'est servi que dans la fenêtre
-  courte, ou par e-mail. Les codes à usage unique ne sont stockés qu'en
-  **empreinte** — une fuite de base ne donne aucun lien utilisable.
+- **Sécurité** : la référence d'une inscription **déjà payée** n'est jamais renvoyée au navigateur. Une inscription **non payée** peut reprendre le paiement avec la même référence, mais **seulement depuis le navigateur qui l'a capturée** : celui-ci reçoit un témoin à usage unique (cookie `httpOnly`, dont seule l'**empreinte** est stockée) ; un tiers qui ne connaît que l'e-mail obtient la réponse neutre et passe par l'e-mail. Le lien d'accès n'est servi que dans la fenêtre courte, ou par e-mail. Les codes à usage unique ne sont stockés qu'en **empreinte** — une fuite de base ne donne aucun lien utilisable.
 - **Aucun identifiant dans les e-mails** : le lien mène à la page où la personne
   **choisit elle-même** son mot de passe.
 - **Accès au cours** = se connecter et retrouver le cours dans **My Learning**.
@@ -129,9 +127,16 @@ curl -X POST "https://<domaine>/api/lms/registrations?action=link-run" \
   ensuite — réservé aux inscriptions **remboursées**. L'état d'accès passe alors à
   **Retiré** (`revoked`) et l'inscription de cours est suspendue : le cours
   disparaît de **My Learning**, mais le paiement et sa trace restent.
+- **Notification manquée** : la confirmation ne dépend pas de la seule
+  notification Kkiapay. L'onglet du payeur demande lui-même au serveur de
+  **r/vérifier** la transaction auprès de Kkiapay (mêmes garanties : vérification
+  serveur + contrôle du montant). Un paiement réel ne reste donc pas bloqué
+  « en cours » quand le webhook n'arrive pas — et la **réconciliation** reprend le
+  cas où l'onglet est déjà fermé.
 - **Réconciliation** : `POST /api/lms/registrations?action=reconcile`
-  (capacité `lms.edit`) rejoue les accès échoués et revérifie les succès non
-  confirmés.
+  (capacité `lms.edit`) rejoue les accès échoués, revérifie les succès non
+  confirmés, et revient sur les inscriptions encore « en cours » qui portent un
+  identifiant de transaction.
 
 ## 7. Ce dont le SITE a besoin (raccordement)
 

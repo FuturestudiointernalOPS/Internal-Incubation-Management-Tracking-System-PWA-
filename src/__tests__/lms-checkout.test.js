@@ -4,8 +4,10 @@
  * The contract this suite pins, in the order the corrections were asked for:
  *
  *   - the price is decided SERVER-side and a browser-sent amount is ignored;
- *   - an EXISTING registration is answered NEUTRALLY — its reference is NEVER
- *     handed back (the account-takeover fix), and the two exits are offered;
+ *   - a repeat on an UNPAID registration RESUMES the same reference (a failed
+ *     payment must never block the person); an EXISTING PAID registration is
+ *     answered NEUTRALLY — its reference is NEVER handed back (the
+ *     account-takeover fix), and the two exits are offered;
  *   - the notification carries NO status: it must not be the decider, and a
  *     `event`/`isPaymentSucces` payload must still be recognised;
  *   - the notification is verified server-side and the amount must match;
@@ -16,7 +18,9 @@
  *   - the receipt goes out as soon as the payment is confirmed;
  *   - the access link is served only inside the short window, and the account is
  *     created pending (the password is chosen by the person) with a HASH-only
- *     one-time code.
+ *     one-time code;
+ *   - a MISSED notification is not a dead end: the payer's own tab can ask the
+ *     server to re-verify with the provider, and the SERVER still decides.
  */
 
 const { createFakeDb } = require("./helpers/fakeLmsDb");
@@ -128,14 +132,21 @@ function seedRun({ id = 7, slug = "run-slug", courseId = null, status = "active"
 
 const FORM_DATA = { "f-name": "John Doe", "f-email": "john@example.com" };
 
-const submitRequest = (body) =>
+const submitRequest = (body, cookie = null) =>
   submitPOST(
     new Request("http://localhost/api/s/public-submit", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(cookie ? { cookie } : {}) },
       body: JSON.stringify(body),
     }),
   );
+
+/** The capture cookie a submission response sets (if any), as a Cookie header. */
+function captureCookie(res) {
+  const header = res.headers.get("set-cookie") || "";
+  const match = /impactos_checkout=([^;]+)/.exec(header);
+  return match ? `impactos_checkout=${match[1]}` : null;
+}
 
 const webhookRequest = (body, headers = {}) =>
   webhookPOST(
@@ -248,19 +259,65 @@ describe("capturing the person", () => {
     expect(mockFake.state.lms_registrations.length).toBe(0);
   });
 
-  test("an EXISTING registration is answered NEUTRALLY — the reference is never handed back", async () => {
+  test("a repeat on an UNPAID registration RESUMES the same reference for its OWN browser", async () => {
     configureKkiapay();
     const courseId = seedCourse();
     seedRun({ courseId });
 
-    const first = await readJson(await submitRequest({ slug: "run-slug", data: FORM_DATA, consent: true }));
+    const firstResponse = await submitRequest({ slug: "run-slug", data: FORM_DATA, consent: true });
+    const cookie = captureCookie(firstResponse);
+    expect(cookie).toBeTruthy();
+    const first = await readJson(firstResponse);
     expect(first.checkout.reference).toBeDefined();
 
-    const second = await readJson(await submitRequest({ slug: "run-slug", data: FORM_DATA, consent: true }));
+    const second = await readJson(
+      await submitRequest({ slug: "run-slug", data: FORM_DATA, consent: true }, cookie),
+    );
 
     // Still ONE registration…
     expect(mockFake.state.lms_registrations.length).toBe(1);
-    // …and the repeat learns only that it exists.
+    // …and the retry pays with the SAME record and the SAME reference.
+    expect(second.checkout.reference).toBe(first.checkout.reference);
+    expect(second.checkout.email).toBe("john@example.com");
+    expect(second.checkout.amount).toBe(25000);
+  });
+
+  test("a stranger who knows only the email is answered NEUTRALLY — no reference", async () => {
+    configureKkiapay();
+    const courseId = seedCourse();
+    seedRun({ courseId });
+
+    const created = await readJson(await submitRequest({ slug: "run-slug", data: FORM_DATA, consent: true }));
+    expect(created.checkout.reference).toBeDefined();
+
+    // A different browser: no capture cookie, same email.
+    const stranger = await readJson(await submitRequest({ slug: "run-slug", data: FORM_DATA, consent: true }));
+
+    expect(mockFake.state.lms_registrations.length).toBe(1);
+    expect(stranger.checkout.existing).toBe(true);
+    expect(stranger.checkout.reference).toBeUndefined();
+    expect(JSON.stringify(stranger)).not.toContain(created.checkout.reference);
+  });
+
+  test("a repeat on a PAID registration is answered NEUTRALLY even for its own browser", async () => {
+    configureKkiapay();
+    const courseId = seedCourse();
+    seedRun({ courseId });
+
+    const firstResponse = await submitRequest({ slug: "run-slug", data: FORM_DATA, consent: true });
+    const cookie = captureCookie(firstResponse);
+    const first = await readJson(firstResponse);
+    global.fetch = jest.fn(async () => verifiedResponse(25000));
+    await webhookRequest(successNotification(first.checkout.reference), { "x-kkiapay-secret": WEBHOOK_SECRET });
+    expect(mockFake.state.lms_registrations[0].status).toBe("paid");
+
+    const second = await readJson(
+      await submitRequest({ slug: "run-slug", data: FORM_DATA, consent: true }, cookie),
+    );
+
+    // Still ONE registration…
+    expect(mockFake.state.lms_registrations.length).toBe(1);
+    // …and the repeat learns only that it exists — never the reference.
     expect(second.checkout.existing).toBe(true);
     expect(second.checkout.reference).toBeUndefined();
     expect(JSON.stringify(second)).not.toContain(first.checkout.reference);
@@ -345,6 +402,8 @@ describe("the payment notification", () => {
     expect(sendStandaloneEmail).toHaveBeenCalledTimes(1);
     const mail = sendStandaloneEmail.mock.calls[0][0];
     expect(mail.html).toContain("/setup-password/");
+    // The one-time link carries WHERE to land, so the payer reaches the course.
+    expect(mail.html).toContain(`next=${encodeURIComponent("/participant/learning/crs-1")}`);
     expect(mail.html).not.toContain("password:");
   });
 
@@ -378,6 +437,32 @@ describe("the payment notification", () => {
     expect(mockFake.state.lms_registrations[0].status).toBe("failed");
     expect(mockFake.state.lms_enrollments.length).toBe(0);
     expect(sendStandaloneEmail).not.toHaveBeenCalled();
+  });
+
+  test("a FAILED payment leaves its own browser able to pay again — same record, same reference", async () => {
+    configureKkiapay();
+    const courseId = seedCourse();
+    seedRun({ courseId });
+    const firstResponse = await submitRequest({ slug: "run-slug", data: FORM_DATA, consent: true });
+    const cookie = captureCookie(firstResponse);
+    const first = await readJson(firstResponse);
+
+    await webhookRequest(
+      { ...successNotification(first.checkout.reference), isPaymentSucces: false, event: "transaction.failed" },
+      { "x-kkiapay-secret": WEBHOOK_SECRET },
+    );
+    expect(mockFake.state.lms_registrations[0].status).toBe("failed");
+
+    // The SAME browser comes back with the SAME email: it is NOT blocked. The
+    // failure is cleared so the payer's own tab keeps waiting, and the retry
+    // pays with the SAME record and the SAME reference.
+    const retry = await readJson(
+      await submitRequest({ slug: "run-slug", data: FORM_DATA, consent: true }, cookie),
+    );
+
+    expect(mockFake.state.lms_registrations.length).toBe(1);
+    expect(retry.checkout.reference).toBe(first.checkout.reference);
+    expect(mockFake.state.lms_registrations[0].status).toBe("pending");
   });
 
   test("a falsified amount is refused, journaled, and grants nothing", async () => {
@@ -488,6 +573,8 @@ describe("the payer's own tab", () => {
     );
     expect(served.served).toBe(true);
     expect(served.url).toContain("/setup-password/");
+    // The password link points the person at their course, not a home screen.
+    expect(served.url).toContain(`next=${encodeURIComponent("/participant/learning/crs-1")}`);
 
     // Age the payment past the window.
     mockFake.state.lms_registrations[0].paid_at = new Date(Date.now() - 60 * 60 * 1000).toISOString();
@@ -585,6 +672,88 @@ describe("the payer's own tab", () => {
     // …and the payment is still NOT confirmed.
     expect(mockFake.state.lms_registrations[0].status).toBe("pending");
     expect(mockFake.state.lms_enrollments.length).toBe(0);
+  });
+
+  test("a MISSED notification is still closed when the payer's own tab re-verifies", async () => {
+    configureKkiapay();
+    const courseId = seedCourse();
+    seedRun({ courseId });
+    const created = await readJson(await submitRequest({ slug: "run-slug", data: FORM_DATA, consent: true }));
+    expect(mockFake.state.lms_registrations[0].status).toBe("pending");
+
+    // No webhook ever arrived. The provider, asked again, says the money moved.
+    global.fetch = jest.fn(async () => verifiedResponse(25000));
+
+    const res = await checkoutPOST(
+      new Request("http://localhost/api/public/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "verify",
+          reference: created.checkout.reference,
+          email: "john@example.com",
+          transactionId: "TX-FROM-BROWSER",
+        }),
+      }),
+    );
+    const data = await readJson(res);
+
+    expect(data.success).toBe(true);
+    expect(data.payment).toBe("paid");
+    expect(mockFake.state.lms_registrations[0].status).toBe("paid");
+    // The access is finished too, exactly as the notification path would.
+    expect(mockFake.state.lms_registrations[0].access_status).toBe("granted");
+  });
+
+  test("the tab's re-verify grants NOTHING while the provider has not settled", async () => {
+    configureKkiapay();
+    const courseId = seedCourse();
+    seedRun({ courseId });
+    const created = await readJson(await submitRequest({ slug: "run-slug", data: FORM_DATA, consent: true }));
+
+    global.fetch = jest.fn(async () => verifiedResponse(25000, "PENDING"));
+
+    const data = await readJson(
+      await checkoutPOST(
+        new Request("http://localhost/api/public/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "verify",
+            reference: created.checkout.reference,
+            email: "john@example.com",
+            transactionId: "TX-FROM-BROWSER",
+          }),
+        }),
+      ),
+    );
+
+    expect(data.payment).toBe("pending");
+    expect(mockFake.state.lms_registrations[0].status).toBe("pending");
+  });
+
+  test("the tab's re-verify refuses an email that does not match the registration", async () => {
+    configureKkiapay();
+    const courseId = seedCourse();
+    seedRun({ courseId });
+    const created = await readJson(await submitRequest({ slug: "run-slug", data: FORM_DATA, consent: true }));
+    global.fetch = jest.fn(async () => verifiedResponse(25000));
+
+    const res = await checkoutPOST(
+      new Request("http://localhost/api/public/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "verify",
+          reference: created.checkout.reference,
+          email: "someone-else@example.com",
+          transactionId: "TX-FROM-BROWSER",
+        }),
+      }),
+    );
+
+    expect(res.status).toBe(404);
+    expect(mockFake.state.lms_registrations[0].status).toBe("pending");
   });
 });
 

@@ -1,10 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import {
-  listPlatformNotifications,
-  markAllPlatformNotificationsRead,
-  markPlatformNotificationRead,
-} from "@/models/forms";
+import { listNotifications, markNotificationsRead } from "@/services/platform/notifications";
 
 /**
  * PLATFORM NOTIFICATIONS API
@@ -13,6 +9,9 @@ import {
  * GET  /api/platform/notifications?all=true   — List all notifications for user
  * POST /api/platform/notifications            — Mark notification(s) as read
  *   { id: number } or { mark_all: true }
+ *
+ * Thin controller: gates the session and delegates to
+ * `@/services/platform/notifications` (see docs/LAYER_SPLIT.md).
  */
 export async function GET(req) {
   try {
@@ -24,8 +23,8 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const all = searchParams.get("all") === "true";
 
-    const result = await listPlatformNotifications(session.cid, all);
-    return NextResponse.json({ success: true, notifications: result.rows });
+    const { body } = await listNotifications({ cid: session.cid, all });
+    return NextResponse.json(body);
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -39,18 +38,8 @@ export async function POST(req) {
     if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
 
     const body = await req.json();
-
-    if (body.mark_all) {
-      await markAllPlatformNotificationsRead(session.cid);
-      return NextResponse.json({ success: true });
-    }
-
-    if (body.id) {
-      await markPlatformNotificationRead(body.id, session.cid);
-      return NextResponse.json({ success: true });
-    }
-
-    return NextResponse.json({ success: false, error: "id or mark_all required" }, { status: 400 });
+    const { status, body: responseBody } = await markNotificationsRead({ body, cid: session.cid });
+    return NextResponse.json(responseBody, { status });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

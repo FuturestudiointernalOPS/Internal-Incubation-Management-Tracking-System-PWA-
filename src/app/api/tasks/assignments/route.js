@@ -1,27 +1,19 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-import { standupUpsert } from "@/lib/standupUpsert";
 import {
-  getAssignments,
-  getAssignmentById,
-  getTaskAssignmentMeta,
-  declineAssignment,
-  createAssignmentDeclinedNotification,
-  acceptAssignment,
-  updateTaskAssignedTo,
-  getContactById,
-  createAssignmentAcceptedNotification,
-  getTaskAssignmentContext,
-  declineAssignmentForReassign,
-  clearTaskAssignee,
-  createAssignment,
-  createAssignmentReassignedNotification,
-} from "@/models/taskAssignments";
+  listTaskAssignments,
+  respondToTaskAssignment,
+} from "@/services/tasks/assignments";
 
 /**
+ * TASK ASSIGNMENTS API — controller layer.
+ *
  * GET  /api/tasks/assignments?assignee_id=X&status=pending
- * POST /api/tasks/assignments/respond  { assignment_id, action: "accept"|"decline" }
+ * POST /api/tasks/assignments  { assignment_id, action: "accept"|"decline"|"reassign", new_assignee_id }
+ *
+ * The own-scope rule, the accept/decline/reassign permissions and the contact
+ * group check live in `@/services/tasks/assignments`.
  */
 export async function GET(req) {
   try {
@@ -30,28 +22,21 @@ export async function GET(req) {
     if (authError) return authError;
     const session = await getSession();
     const { searchParams } = new URL(req.url);
-    const staffSide = [
-      "super_admin",
-      "staff",
-      "program_manager",
-    ];
-    let assignee_id = searchParams.get("assignee_id");
-    if (!staffSide.includes(session.role)) {
-      if (assignee_id && String(assignee_id) !== String(session.cid)) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "You can only view your own assignments.",
-          },
-          { status: 403 },
-        );
-      }
-      assignee_id = assignee_id || session.cid;
-    }
-    const status = searchParams.get("status") || "pending";
 
-    const result = await getAssignments(assignee_id, status);
-    return NextResponse.json({ success: true, assignments: result.rows });
+    const result = await listTaskAssignments({
+      role: session.role,
+      sessionCid: session.cid,
+      requestedCid: searchParams.get("assignee_id"),
+      status: searchParams.get("status"),
+    });
+
+    if (result.error) {
+      return NextResponse.json(
+        result.body || { success: false, error: result.error },
+        { status: result.status },
+      );
+    }
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },
@@ -75,151 +60,22 @@ export async function POST(req) {
       );
     }
 
-    const assignmentResult = await getAssignmentById(assignment_id);
-    if (assignmentResult.rows.length === 0) {
+    const result = await respondToTaskAssignment({
+      assignmentId: assignment_id,
+      action,
+      newAssigneeId: new_assignee_id,
+      sessionCid: session.cid,
+      sessionName: session.name,
+      role: session.role,
+    });
+
+    if (result.error) {
       return NextResponse.json(
-        { success: false, error: "Assignment not found" },
-        { status: 404 },
+        result.body || { success: false, error: result.error },
+        { status: result.status },
       );
     }
-    const assignment = assignmentResult.rows[0];
-
-    // Accept/decline only valid for pending assignments
-    if (action !== "reassign" && assignment.status !== "pending") {
-      return NextResponse.json(
-        { success: false, error: "Assignment no longer pending" },
-        { status: 400 },
-      );
-    }
-
-    const userCid = session.cid;
-
-    // Reassign: only assigner or super_admin may act
-    if (action === "reassign") {
-      if (!new_assignee_id) {
-        return NextResponse.json(
-          { success: false, error: "new_assignee_id required for reassign" },
-          { status: 400 },
-        );
-      }
-      if (session.role !== "super_admin" && assignment.assigner_id !== userCid) {
-        return NextResponse.json(
-          { success: false, error: "Only the assigner can reassign" },
-          { status: 403 },
-        );
-      }
-    } else {
-      // Accept/decline: only the assignee can respond
-      if (assignment.assignee_id !== userCid) {
-        return NextResponse.json(
-          { success: false, error: "Only the assignee can respond" },
-          { status: 403 },
-        );
-      }
-    }
-
-    // Get task info
-    const taskResult = await getTaskAssignmentMeta(assignment.task_id);
-    const task = taskResult.rows[0];
-
-    if (action === "decline") {
-      await declineAssignment(assignment_id);
-      // Notify assigner
-      await createAssignmentDeclinedNotification(
-        assignment.assigner_id,
-        "Assignment Declined",
-        `${session.name || userCid} declined task "${task?.title || "#" + assignment.task_id}"`,
-        "task_assignment",
-      );
-      return NextResponse.json({ success: true, action: "declined" });
-    }
-
-    if (action === "accept") {
-      await acceptAssignment(assignment_id);
-
-      // Update task's assigned_to
-      await updateTaskAssignedTo(assignment.assignee_id, assignment.task_id);
-
-      // Sync to assignee's standup
-      if (task) {
-        const contactResult = await getContactById(assignment.assignee_id);
-        const contact = contactResult.rows[0] || {};
-        try {
-          await standupUpsert({
-            user_id: assignment.assignee_id,
-            user_name: contact.name || assignment.assignee_id,
-            user_role: contact.role || "staff",
-            week_number: task.created_week || 0,
-            year: task.created_year || 0,
-            taskContext: { title: task.title, status: "in_progress" },
-          });
-        } catch (_) {}
-      }
-
-      // Notify assigner
-      await createAssignmentAcceptedNotification(
-        assignment.assigner_id,
-        "Assignment Accepted",
-        `${session.name || userCid} accepted task "${task?.title || "#" + assignment.task_id}"`,
-        "task_assignment",
-      );
-
-      return NextResponse.json({ success: true, action: "accepted" });
-    }
-
-    if (action === "reassign") {
-      // Permission already checked above — only assigner/super_admin reaches here
-
-      // PHASE 2: Contact Group enforcement
-      if (session.role !== "super_admin") {
-        const { validateTaskAssignment } = await import("@/lib/contactGroups");
-        // Fetch task context for venture check
-        const taskContextResult = await getTaskAssignmentContext(assignment.task_id);
-        const taskContext = taskContextResult.rows[0] || {};
-        const groupCheck = await validateTaskAssignment(
-          userCid,
-          new_assignee_id,
-          { context_type: taskContext.context_type || "staff", context_id: taskContext.context_id || null },
-        );
-        if (!groupCheck.allowed) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: `Cannot reassign outside your Contact Group. ${groupCheck.reason || "No shared group found."}`,
-            },
-            { status: 403 },
-          );
-        }
-      }
-
-      // If old assignment was pending, mark it declined so it drops from old assignee's list
-      if (assignment.status === "pending") {
-        await declineAssignmentForReassign(assignment_id);
-      }
-
-      // If old assignment was already accepted, clear tasks.assigned_to back to NULL
-      if (assignment.status === "accepted") {
-        await clearTaskAssignee(assignment.task_id);
-      }
-
-      // Insert new pending row for the new assignee
-      await createAssignment(assignment.task_id, userCid, new_assignee_id);
-
-      // Notify new assignee
-      await createAssignmentReassignedNotification(
-        new_assignee_id,
-        "New Task Assignment",
-        `${session.name || userCid} reassigned you task "${task?.title || "#" + assignment.task_id}"`,
-        "task_assignment",
-      );
-
-      return NextResponse.json({ success: true, action: "reassigned" });
-    }
-
-    return NextResponse.json(
-      { success: false, error: "Invalid action" },
-      { status: 400 },
-    );
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error("POST assignments error:", error);
     return NextResponse.json(

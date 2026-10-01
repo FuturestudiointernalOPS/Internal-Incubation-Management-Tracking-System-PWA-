@@ -3,9 +3,7 @@ import { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import { isWithinScope } from "@/lib/authorization/scope";
-import { getProgramManager, setProgramManager } from "@/models/programs";
-import { getContactNameAndRole } from "@/models/authorization";
-import { syncContextGrantsForUser } from "@/models/authorization/contextGrants";
+import { changeProgramManager } from "@/services/programs/programManager";
 
 export const dynamic = "force-dynamic";
 
@@ -36,20 +34,10 @@ export const dynamic = "force-dynamic";
  * A staff member holding only `programs.edit` still cannot touch a program they
  * are not staffed on — the rule the whole mechanism exists for is intact.
  *
- * ASSIGNMENT-DERIVED ACCESS FOLLOWS THE RELATIONSHIP. Two people change when the
- * manager changes, so both are reconciled here:
- *
- *   - the NEW manager receives the assignment-derived capabilities for this
- *     program (additive, expiring with the program);
- *   - the PREVIOUS manager's grants are reconciled too, which withdraws the ones
- *     this program alone justified.
- *
- * A manual grant and an explicit block are never touched by either reconcile:
- * grants carry the mechanism's own stamp, and blocks live outside the merge.
- *
- * The capability is `programs.edit` — changing who runs a program is a program
- * management write, not a permissions-console write. Super Admin passes through
- * the resolver; a permission administrator without that capability does not.
+ * The domain work (what recording a manager does, and the reconciliation of both
+ * sides) lives in `@/services/programs/programManager`; the capability is
+ * `programs.edit` — changing who runs a program is a program management write,
+ * not a permissions-console write.
  */
 export async function PUT(req, { params }) {
   try {
@@ -68,14 +56,14 @@ export async function PUT(req, { params }) {
     // staffed on the program (the ordinary case) or hold the authority to
     // configure access, which is what changing its manager is. Without the second
     // branch an unmanaged program could only ever be repaired by Super Admin.
-    const sessionEarly = await getSession();
-    const isSuperAdmin = sessionEarly?.role === "super_admin";
+    const session = await getSession();
+    const isSuperAdmin = session?.role === "super_admin";
     if (!isSuperAdmin) {
       const staffedOnProgram = await isWithinScope(
         "program_staffed",
-        sessionEarly?.cid,
+        session?.cid,
         id,
-        { email: sessionEarly?.email },
+        { email: session?.email },
       );
       if (!staffedOnProgram) {
         const consoleAuthority = await requireAuthorization(
@@ -97,80 +85,19 @@ export async function PUT(req, { params }) {
       );
     }
 
-    const current = await getProgramManager(id);
-    const program = current.rows?.[0];
-    if (!program) {
+    const result = await changeProgramManager({
+      programId: id,
+      managerCid,
+      actorCid: session?.cid || null,
+    });
+
+    if (result.errorKey) {
       return NextResponse.json(
-        { success: false, error: "errors.notFound" },
-        { status: 404 },
+        { success: false, error: result.errorKey },
+        { status: result.status },
       );
     }
-
-    const nextManager = managerCid ? String(managerCid) : null;
-    const previousManager = program.assigned_pm_id
-      ? String(program.assigned_pm_id)
-      : null;
-
-    if (nextManager === previousManager) {
-      // Nothing to record and nothing to reconcile — report the honest state
-      // rather than rewriting the row.
-      return NextResponse.json({
-        success: true,
-        unchanged: true,
-        program: { id: String(program.id), name: program.name || null },
-        manager: nextManager ? { cid: nextManager } : null,
-      });
-    }
-
-    // The person must exist before we point a program at them: a dangling cid
-    // would create an attachment that resolves to nobody.
-    if (nextManager) {
-      const contact = await getContactNameAndRole(nextManager);
-      if (!contact.rows?.length) {
-        return NextResponse.json(
-          { success: false, error: "errors.notFound" },
-          { status: 404 },
-        );
-      }
-    }
-
-    await setProgramManager(id, nextManager);
-
-    // Reconcile the relationship change for BOTH sides. Reconcile failures must
-    // not lose the recorded relationship: the assignment is the source of truth,
-    // and the scheduled sweep (or the next connect) re-derives from it.
-    const reconciled = [];
-    const reconcile = async (cid) => {
-      if (!cid) return;
-      try {
-        const result = await syncContextGrantsForUser(cid, {
-          context: "program",
-          roleKey: "program_manager",
-        });
-        reconciled.push({
-          cid,
-          applied: result.applied || [],
-          revoked: result.revoked || [],
-        });
-      } catch (error) {
-        console.warn(
-          `[program manager] reconcile failed for ${cid}:`,
-          error.message,
-        );
-      }
-    };
-    await reconcile(nextManager);
-    await reconcile(previousManager);
-
-    const session = await getSession();
-    return NextResponse.json({
-      success: true,
-      program: { id: String(program.id), name: program.name || null },
-      manager: nextManager ? { cid: nextManager } : null,
-      previous: previousManager ? { cid: previousManager } : null,
-      reconciled,
-      actor: session?.cid || null,
-    });
+    return NextResponse.json(result.body, { status: result.status });
   } catch (err) {
     console.error("[program manager] error:", err);
     return NextResponse.json(

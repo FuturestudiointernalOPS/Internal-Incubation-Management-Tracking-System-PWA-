@@ -82,14 +82,19 @@ jest.mock("@/server/auth/session", () => ({
 }));
 
 const mockAuthzContext = { isSuperAdmin: false, eligibility: {}, effective: {} };
-let mockCapabilityDecision = null; // null = capability allowed
-jest.mock("@/lib/authorization", () => ({
+let mockCapabilityDecision = { allowed: true }; // the decision the service returns
+// The scoped-access service gets its capability decision from the
+// authorization-context SERVICE (same layer). jest.mock is hoisted.
+jest.mock("@/services/authorization/context", () => ({
   getAuthorizationContext: jest.fn().mockImplementation(async () => mockAuthzContext),
-  requireAuthorization: jest.fn().mockImplementation(async () => mockCapabilityDecision),
+  evaluateAuthorization: jest.fn().mockImplementation(async () => mockCapabilityDecision),
 }));
 
-const { requireScopedAccess, resolveContextAssignment } = require("@/lib/authorization/context");
-const { requireAuthorization } = require("@/lib/authorization");
+// requireScopedAccess is the HTTP boundary (decision -> response);
+// resolveContextAssignment is the service's assignment resolver.
+const { requireScopedAccess } = require("@/server/authz/responses");
+const { resolveContextAssignment } = require("@/lib/authorization/context");
+const { evaluateAuthorization } = require("@/services/authorization/context");
 
 const allow = { resource: "program", contextId: "P1", module: "programs", capability: "view" };
 
@@ -99,7 +104,7 @@ beforeEach(() => {
   mockDbRows.projectMembers = [];
   mockDbRows.ventureMembers = [];
   mockAuthzContext.isSuperAdmin = false;
-  mockCapabilityDecision = null;
+  mockCapabilityDecision = { allowed: true };
   jest.clearAllMocks();
 });
 
@@ -119,10 +124,11 @@ describe("A/B — staff: capability AND assignment required", () => {
     mockDbRows.contactRoles = [
       { context_type: "program", context_id: "P1", contact_cid: "USR_X", is_current: true, role: "assistant" },
     ];
-    mockCapabilityDecision = new Response(JSON.stringify({ success: false }), {
+    mockCapabilityDecision = {
+      allowed: false,
       status: 403,
-      headers: { "Content-Type": "application/json" },
-    });
+      errorKey: "errors.insufficientPermissions",
+    };
     expect(await status(await requireScopedAccess(allow))).toBe(403);
   });
 });
@@ -217,7 +223,7 @@ describe("L — Super Admin bypass + context integrity", () => {
     mockAuthzContext.isSuperAdmin = true;
     const res = await requireScopedAccess(allow);
     expect(await status(res)).toBe(200);
-    expect(requireAuthorization).not.toHaveBeenCalled();
+    expect(evaluateAuthorization).not.toHaveBeenCalled();
   });
 
   test("missing contextId → 403 (no URL/body manipulation can target nothing)", async () => {

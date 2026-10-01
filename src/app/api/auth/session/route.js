@@ -17,7 +17,6 @@ export async function GET() {
         email: session.email,
         role: session.role,
         group_name: session.group_name,
-        is_impersonation: session.is_impersonation || false,
       },
     });
   } catch (error) {

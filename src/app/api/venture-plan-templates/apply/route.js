@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { resolvePlanAccess, allowsPlanAction, applyTemplateToVenture } from "@/lib/ventureOperatingPlans";
 
@@ -20,13 +20,13 @@ export const POST = createHandler(
       return NextResponse.json({ success: false, error: "template_id and venture are required." }, { status: 400 });
     }
 
-    const access = await resolvePlanAccess(db, body.venture, session);
+    const access = await resolvePlanAccess(body.venture, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    if (!(await allowsPlanAction(db, access, "create"))) {
+    if (!(await allowsPlanAction(access, "create"))) {
       return NextResponse.json({ success: false, error: "Your assignment does not allow creating operating plans." }, { status: 403 });
     }
 
-    const result = await applyTemplateToVenture(db, {
+    const result = await applyTemplateToVenture({
       templateId: body.template_id,
       ventureCode: access.code,
       name: body.name || null,

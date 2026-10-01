@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LifeBuoy, XCircle, Loader2 } from "lucide-react";
+import { LifeBuoy, XCircle, Loader2, CreditCard } from "lucide-react";
 import AppModal from "@/components/ui/AppModal";
 import AppButton from "@/components/ui/AppButton";
 import { notify } from "./notify";
@@ -25,7 +25,15 @@ import { useApi } from "@/lib/hooks/useApi";
  *
  * Access is enforced server-side from the enrollment table — the button never
  * grants anything by itself.
+ *
+ * Alongside the free request, the modal offers the optional PAID 1-on-1 session:
+ * it is sold directly through Kkiapay (not part of a course on ImpactOS), so the
+ * address lives here, and the link simply opens that payment page in a new tab.
  */
+
+/** The optional 1-on-1 coaching session, sold through Kkiapay. */
+const COACHING_URL =
+  "https://direct.kkiapay.me/39209/launch-lab-coaching-1-on-1-0sMdM-k_l";
 
 // ─── Module-scope reader ─────────────────────────────────────────────────────
 // The reading hook keys its internal work on this, so it is built once here
@@ -303,6 +311,36 @@ export default function LearnerCoachingButton({ courseId = null, lessonId = null
               </AppButton>
             </div>
           )}
+
+          {/* Optional PAID session — an alternative to the free request above. */}
+          <div
+            className="pt-4 border-t space-y-2"
+            style={{ borderColor: "var(--border-primary)" }}
+          >
+            <p
+              className="text-[10px] font-black uppercase tracking-widest"
+              style={{ color: "var(--text-primary)" }}
+            >
+              {t("lms.coaching.paidTitle")}
+            </p>
+            <p className="text-[10px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+              {t("lms.coaching.paidHint")}
+            </p>
+            <a
+              href={COACHING_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-full items-center justify-center gap-2 px-4 py-2.5 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-all"
+              style={{
+                background: "var(--surface-2)",
+                borderColor: "var(--border-primary)",
+                color: "var(--text-primary)",
+              }}
+            >
+              <CreditCard className="w-3.5 h-3.5 shrink-0" />
+              {t("lms.coaching.paidCta")}
+            </a>
+          </div>
         </div>
       </AppModal>
     </>

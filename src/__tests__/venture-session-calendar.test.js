@@ -2,7 +2,8 @@
  * Contract tests — getCalendarVentureSessions (Vinance 3, Phase 3).
  *
  * Locks the visibility contract of the personal-calendar Venture session
- * source in src/models/workspace.js:
+ * source (service `src/services/workspace/calendar.js`, re-exported by
+ * `src/models/workspace.js`):
  *
  *   1. one scope query: venture_members (contact_id OR user_cid, not removed)
  *      UNION venture_staff_assignments (staff_contact_id, active) — user id

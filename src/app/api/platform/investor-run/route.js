@@ -7,13 +7,15 @@
  *
  * Mirrors GET /api/platform/venture-run. The screen that hands out the investor
  * intake link uses this instead of copy/pasting a URL.
+ *
+ * Thin controller: gates `super_admin` and delegates to
+ * `@/services/platform/investorIntake` (see docs/LAYER_SPLIT.md).
  */
 
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
-import { resolveAppUrl } from "@/lib/appUrl";
-import { resolveInvestorRun } from "@/models/investorApplication";
+import { getInvestorRunReference } from "@/services/platform/investorIntake";
 
 export async function GET() {
   await initDb();
@@ -21,21 +23,8 @@ export async function GET() {
   if (authError) return authError;
 
   try {
-    const run = await resolveInvestorRun();
-    if (!run || !run.public_slug) {
-      return NextResponse.json(
-        { success: false, error: "No Investor Run configured. Run the Investor Application seed first." },
-        { status: 404 },
-      );
-    }
-    return NextResponse.json({
-      success: true,
-      run_id: run.id,
-      name: run.name,
-      status: run.status,
-      slug: run.public_slug,
-      url: `${resolveAppUrl()}/s/${run.public_slug}`,
-    });
+    const { status, body } = await getInvestorRunReference();
+    return NextResponse.json(body, { status });
   } catch (error) {
     console.error("Investor run resolution error:", error);
     return NextResponse.json(

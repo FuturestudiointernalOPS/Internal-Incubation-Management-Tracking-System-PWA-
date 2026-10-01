@@ -35,7 +35,8 @@ import crypto from "crypto";
  *   KKIAPAY_WEBHOOK_SECRET           the webhook "secret hash" from the
  *                                    dashboard (`x-kkiapay-secret`) — this is a
  *                                    DIFFERENT secret from KKIAPAY_SECRET_KEY
- *   KKIAPAY_SANDBOX                  "true" = test mode; anything else = live
+ *   KKIAPAY_SANDBOX                  "true" = test mode; anything else
+ *                                    (including unset) = live
  */
 const NAME = "kkiapay";
 
@@ -56,7 +57,10 @@ function config() {
     privateKey: process.env.KKIAPAY_PRIVATE_KEY || null,
     secretKey: process.env.KKIAPAY_SECRET_KEY || null,
     webhookSecret: process.env.KKIAPAY_WEBHOOK_SECRET || null,
-    sandbox: String(process.env.KKIAPAY_SANDBOX || "").toLowerCase() === "true",
+    // `true` (surrounding whitespace tolerated) = test mode; anything else,
+    // including unset, = live. The trim matters: a stray space in the env file
+    // used to read as "not true" and silently flip a test setup to live keys.
+    sandbox: String(process.env.KKIAPAY_SANDBOX || "").trim().toLowerCase() === "true",
   };
 }
 

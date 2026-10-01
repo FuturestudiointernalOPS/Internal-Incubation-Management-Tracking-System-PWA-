@@ -13,7 +13,12 @@ const { TEMPLATE_SPECS, variableGuide, specVariableNames } = require("@/models/p
 const { TEMPLATE_VARIABLES } = require("@/lib/constants");
 
 const ROOT = path.resolve(__dirname, "..", "..");
-const ROUTE = fs.readFileSync(path.join(ROOT, "src/app/api/platform/ai/personalize-template/route.js"), "utf8");
+// The personalization prompt + allowed-variable set moved to the service layer
+// (docs/LAYER_SPLIT.md); the contract is unchanged, only its home.
+const PERSONALIZE_SERVICE = fs.readFileSync(
+  path.join(ROOT, "src/services/platform/personalize.js"),
+  "utf8"
+);
 
 describe("the AI's variable list is the editors' list", () => {
   test("every editable template takes its variables from the shared list", () => {
@@ -48,16 +53,16 @@ describe("the AI's variable list is the editors' list", () => {
 
 describe("the personalization prompt asks for the variables back", () => {
   test("both tiers replace a concrete value and are forbidden to invent a variable", () => {
-    expect(ROUTE).toContain("replace that value with the variable that stands for it");
-    expect(ROUTE).toContain("never invent one");
-    expect(ROUTE).toContain("never invent a variable that is not in that list");
+    expect(PERSONALIZE_SERVICE).toContain("replace that value with the variable that stands for it");
+    expect(PERSONALIZE_SERVICE).toContain("never invent one");
+    expect(PERSONALIZE_SERVICE).toContain("never invent a variable that is not in that list");
   });
 
   test("the guide is interpolated into both prompts", () => {
-    expect((ROUTE.match(/\$\{variableGuide\(spec\)\}/g) || []).length).toBe(2);
+    expect((PERSONALIZE_SERVICE.match(/\$\{variableGuide\(spec\)\}/g) || []).length).toBe(2);
   });
 
   test("the allowed set is the message's own list, never the model's imagination", () => {
-    expect(ROUTE).toContain("...specVariableNames(spec),");
+    expect(PERSONALIZE_SERVICE).toContain("...specVariableNames(spec),");
   });
 });

@@ -156,65 +156,14 @@ export async function ensureMessagesIsDeletedColumn() {
 }
 
 /**
- * GET /api/internal-comms — inbox rows for the requester's visibility scope.
- * SA sees everything (individual + broadcasts); other users see their own
- * individual messages plus group/program messages for the groups/programs
- * they belong to. Broadcasts stay SA-only.
+ * GET /api/internal-comms — the inbox rows for the requester's visibility scope.
+ *
+ * The policy moved to `@/services/communications/messageScope` (the decision),
+ * with its statement in `@/models/messageScopeStore`. Re-exported here so
+ * existing importers (the internal-comms route) keep working — see
+ * docs/LAYER_SPLIT.md.
  */
-export async function listMessagesForScope({
-  isSuperAdmin,
-  targetCid,
-  groupIds,
-  programIds,
-  isFutureStudioStaff,
-}) {
-  let query = "SELECT * FROM v2_messages";
-  let args = [];
-
-  if (isSuperAdmin) {
-    // SA sees everything (individual + broadcasts)
-    query = "SELECT * FROM v2_messages";
-    args = [];
-    if (targetCid) {
-      query +=
-        " WHERE (recipient_id = ? OR sender_id = ? OR target_type = 'all')";
-      args = [targetCid, targetCid];
-    }
-  } else {
-    // Users see their own individual messages + group/program messages
-    // for the groups/programs they belong to. Broadcasts stay SA-only.
-    const visibility = ["(recipient_id = ? OR sender_id = ?)"];
-    const visArgs = [targetCid, targetCid];
-
-    if (isFutureStudioStaff) {
-      visibility.push("(target_type = 'role' AND target_id = '__staff__')");
-    }
-    if (groupIds.length > 0) {
-      visibility.push(
-        `(target_type = 'role' AND target_id IN (${groupIds
-          .map(() => "?")
-          .join(",")}))`,
-      );
-      visArgs.push(...groupIds);
-    }
-    if (programIds.length > 0) {
-      visibility.push(
-        `(target_type = 'program' AND target_id IN (${programIds
-          .map(() => "?")
-          .join(",")}))`,
-      );
-      visArgs.push(...programIds);
-    }
-
-    query = `SELECT * FROM v2_messages WHERE (${visibility.join(" OR ")})`;
-    args = visArgs;
-  }
-
-  query +=
-    " AND (is_deleted IS NULL OR is_deleted = 0) ORDER BY created_at DESC";
-
-  return db.execute({ sql: query, args });
-}
+export { listMessagesForScope } from "@/services/communications/messageScope";
 
 // POST /api/internal-comms
 
@@ -782,6 +731,33 @@ export async function deleteCampaignContacts(campaignId, contactCids) {
     sql: `DELETE FROM campaign_contacts WHERE campaign_id = ? AND contact_cid IN (${contactCids.map(() => "?").join(",")}) AND status != 'sent'`,
     args: [campaignId, ...contactCids],
   });
+}
+
+/** Insert a campaign's step sequence, in order, in one wave (POST/PUT). */
+export async function insertCampaignSteps(campaignId, steps) {
+  const queries = steps.map((step, stepOrder) => ({
+    sql: "INSERT INTO campaign_steps (campaign_id, step_order, subject, body, delay_hours) VALUES (?, ?, ?, ?, ?)",
+    args: [campaignId, stepOrder, step.subject, step.body, step.delayHours],
+  }));
+  return db.batch(queries);
+}
+
+/** Insert campaigns contacts as 'pending', in one wave (POST/PUT). */
+export async function insertCampaignContacts(campaignId, contactCids) {
+  const queries = contactCids.map((contactCid) => ({
+    sql: "INSERT INTO campaign_contacts (campaign_id, contact_cid, status) VALUES (?, ?, 'pending')",
+    args: [campaignId, contactCid],
+  }));
+  return db.batch(queries);
+}
+
+/** Delete a campaign together with its steps and contacts, in one wave. */
+export async function deleteCampaignCascade(campaignId) {
+  return db.batch([
+    { sql: "DELETE FROM campaigns WHERE id = ?", args: [campaignId] },
+    { sql: "DELETE FROM campaign_steps WHERE campaign_id = ?", args: [campaignId] },
+    { sql: "DELETE FROM campaign_contacts WHERE campaign_id = ?", args: [campaignId] },
+  ]);
 }
 
 // ── /api/events ──────────────────────────────────────────────────────────────

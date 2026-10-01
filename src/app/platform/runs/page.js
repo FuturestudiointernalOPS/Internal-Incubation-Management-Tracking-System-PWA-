@@ -157,7 +157,7 @@ async function fetchResultPdf(submissionId) {
 }
 
 // ─── Optimized Runs Table (memoized for performance) ───
-const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, sortField, sortDir, page, perPage, total, onSort, onPage, openRun, groups, onArchive, onRestore }) {
+const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, sortField, sortDir, page, perPage, total, onSort, onPage, openRun, groups, onArchive, onRestore, onDelete }) {
   const { t } = useI18n();
   const filtered = useMemo(() => {
     return runs.filter((run) => {
@@ -242,11 +242,14 @@ const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, so
                 <td className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] whitespace-nowrap">{run.closes_at ? new Date(run.closes_at).toLocaleDateString() : "—"}</td>
                 <td className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] whitespace-nowrap">{new Date(run.created_at).toLocaleDateString()}</td>
                 <td className="px-3 py-3 text-right" onClick={(event) => event.stopPropagation()}>
-                  {run.status === "archived" ? (
-                    <button onClick={() => onRestore(run.id)} title={t("platformMisc.runs.restore")} className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-500/10 transition-colors"><RotateCcw className="w-3.5 h-3.5" /></button>
-                  ) : run.status !== "active" ? (
-                    <button onClick={() => onArchive(run.id)} title={t("platformMisc.runs.archive")} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-500/10 transition-colors"><Archive className="w-3.5 h-3.5" /></button>
-                  ) : null}
+                  <div className="flex items-center justify-end gap-1">
+                    {run.status === "archived" ? (
+                      <button onClick={() => onRestore(run.id)} title={t("platformMisc.runs.restore")} className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-500/10 transition-colors"><RotateCcw className="w-3.5 h-3.5" /></button>
+                    ) : run.status !== "active" ? (
+                      <button onClick={() => onArchive(run.id)} title={t("platformMisc.runs.archive")} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-500/10 transition-colors"><Archive className="w-3.5 h-3.5" /></button>
+                    ) : null}
+                    <button onClick={() => onDelete(run.id)} title={t("platformMisc.runs.delete")} className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
                 </td>
               </tr>
             );
@@ -2569,6 +2572,9 @@ export default function FormRunsPage() {
               <button onClick={() => handleStatusChange(selectedRun.id, "draft")} className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-500/20 flex items-center gap-1"><RotateCcw className="w-3 h-3" /> {t("platformMisc.runs.restore")}</button>
               <button onClick={() => handleDeleteRun(selectedRun.id)} className="px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20 flex items-center gap-1"><Trash2 className="w-3 h-3" /> {t("platformMisc.runs.delete")}</button>
             </>
+          )}
+          {selectedRun.status !== "archived" && (
+            <button onClick={() => handleDeleteRun(selectedRun.id)} className="px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20 flex items-center gap-1"><Trash2 className="w-3 h-3" /> {t("platformMisc.runs.delete")}</button>
           )}
           {(selectedRun.status === "closed" || selectedRun.status === "cancelled") && (
             <button onClick={() => handleStatusChange(selectedRun.id, "active")} className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-500/20 flex items-center gap-1"><RefreshCw className="w-3 h-3" /> {t("platformMisc.runs.reactivate")}</button>
@@ -5023,7 +5029,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
         </select>
       </div>
       {loading ? <div className="flex justify-center py-20"><Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" /></div> : (
-        <RunsTable runs={runs} search={search} statusFilter={statusFilter} sortField={sortField} sortDir={sortDir} page={page} perPage={perPage} total={totalRuns} onSort={(field, direction) => { setSortField(field); setSortDir(direction); setPage(1); }} onPage={setPage} openRun={openRun} groups={groups} onArchive={handleArchiveRun} onRestore={handleRestoreRun} />
+        <RunsTable runs={runs} search={search} statusFilter={statusFilter} sortField={sortField} sortDir={sortDir} page={page} perPage={perPage} total={totalRuns} onSort={(field, direction) => { setSortField(field); setSortDir(direction); setPage(1); }} onPage={setPage} openRun={openRun} groups={groups} onArchive={handleArchiveRun} onRestore={handleRestoreRun} onDelete={handleDeleteRun} />
       )}
 
       {/* Create modal */}

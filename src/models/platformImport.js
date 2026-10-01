@@ -38,6 +38,37 @@ export async function getFormFieldLabels(formId) {
   });
 }
 
+// ── Row → existing contact lookup (import matching) ──────────────────────────
+
+/** A contact by its CRM id (lookup-first import matching). */
+export async function findContactByCidForImport(cid) {
+  return db.execute({
+    sql: "SELECT * FROM contacts WHERE cid = ? LIMIT 1",
+    args: [String(cid)],
+  });
+}
+
+/** A contact by exact lowercase email (lookup-first import matching). */
+export async function findContactByLowerEmailForImport(email) {
+  return db.execute({
+    sql: "SELECT * FROM contacts WHERE LOWER(email) = ? LIMIT 1",
+    args: [String(email).toLowerCase().trim()],
+  });
+}
+
+/** A contact by normalised phone (lookup-first import matching). */
+export async function findContactByPhoneForImport(phone) {
+  return db.execute({
+    sql: "SELECT * FROM contacts WHERE phone = ? LIMIT 1",
+    args: [phone],
+  });
+}
+
+/** Every contact (the name-match pass of import matching). */
+export async function selectAllContactsForImport() {
+  return db.execute({ sql: "SELECT * FROM contacts", args: [] });
+}
+
 /** Self-heal: ensure the import batch table exists (additive, idempotent). */
 export async function ensureImportBatchesTable() {
   return db.execute(`CREATE TABLE IF NOT EXISTS platform_import_batches (

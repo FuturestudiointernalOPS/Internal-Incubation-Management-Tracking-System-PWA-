@@ -6,11 +6,12 @@
  *    signs them, so a material is never world-readable and a path that did not
  *    come from that route is refused at booking time.
  *
- * 2. WHO is booking decides WHERE: the Venture books strictly against the ONE
- *    milestone its chain has released; Future Studio staff plan ahead and may
+ * 2. WHO is booking decides WHERE: the Venture books against a milestone of
+ *    its active Journey (availability is set by the Journey — locked and
+ *    finished states are refused); Future Studio staff plan ahead and may
  *    book against any milestone. A refusal carries the REASON, because "you
- *    cannot book" without a why is the kind of dead end that generates support
- *    tickets.
+ *    cannot book" without a why is the kind of dead end that generates
+ *    support tickets.
  */
 const {
   SESSION_MATERIALS_MAX,
@@ -21,15 +22,25 @@ const {
 const { assertBookableMilestone } = require("@/lib/ventureMilestoneEngine");
 const { signSessionMaterials } = require("@/lib/ventureEvidence");
 
-/** A db stub keyed on the DISTINCTIVE clause of each query the engine runs. */
-function makeDb({ milestone = null, stage = null, list = [] } = {}) {
+jest.mock("@/lib/db", () => {
+  const state = { executeImpl: async () => ({ rows: [] }) };
   return {
-    execute: jest.fn(async ({ sql }) => {
-      if (String(sql).includes("ORDER BY COALESCE(display_order")) return { rows: list };
-      if (String(sql).includes("FROM venture_journey_stages")) return { rows: stage ? [stage] : [] };
-      if (String(sql).includes("FROM venture_milestones")) return { rows: milestone ? [milestone] : [] };
-      return { rows: [] };
-    }),
+    __esModule: true,
+    default: { execute: jest.fn(async ({ sql, args = [] }) => state.executeImpl({ sql, args })) },
+    initDb: jest.fn().mockResolvedValue(true),
+    __state: state,
+  };
+});
+
+const { __state: mockState } = require("@/lib/db");
+
+/** Install a db stub keyed on the DISTINCTIVE clause of each query the engine runs. */
+function installDb({ milestone = null, stage = null, list = [] } = {}) {
+  mockState.executeImpl = async ({ sql }) => {
+    if (String(sql).includes("ORDER BY COALESCE(display_order")) return { rows: list };
+    if (String(sql).includes("FROM venture_journey_stages")) return { rows: stage ? [stage] : [] };
+    if (String(sql).includes("FROM venture_milestones")) return { rows: milestone ? [milestone] : [] };
+    return { rows: [] };
   };
 }
 
@@ -80,89 +91,65 @@ describe("normalizeSessionMaterials", () => {
   });
 });
 
-describe("assertBookableMilestone — strictly the current milestone", () => {
-  test("allows the milestone the chain has released", async () => {
-    const out = await assertBookableMilestone(makeDb({ milestone: MILESTONE, stage: STAGE, list: [MILESTONE] }), {
-      dbId: 7,
-      milestoneId: "MS-1",
-    });
+describe("assertBookableMilestone — availability follows the Journey", () => {
+  test("allows a milestone of the active Journey", async () => {
+    installDb({ milestone: MILESTONE, stage: STAGE, list: [MILESTONE] });
+    const out = await assertBookableMilestone({ dbId: 7, milestoneId: "MS-1" });
     expect(out.ok).toBe(true);
   });
 
-  test("refuses a locked milestone and says it is locked", async () => {
-    const out = await assertBookableMilestone(
-      makeDb({ milestone: { ...MILESTONE, status: "locked" }, stage: STAGE }),
-      { dbId: 7, milestoneId: "MS-1" },
-    );
+  test("refuses an upcoming milestone and says it is upcoming", async () => {
+    installDb({ milestone: { ...MILESTONE, status: "upcoming" }, stage: STAGE });
+    const out = await assertBookableMilestone({ dbId: 7, milestoneId: "MS-1" });
     expect(out.ok).toBe(false);
-    expect(out.reason).toMatch(/locked/i);
+    expect(out.reason).toMatch(/upcoming/i);
+  });
+
+  test("refuses a blocked milestone and names the dependency", async () => {
+    installDb({ milestone: { ...MILESTONE, status: "blocked" }, stage: STAGE });
+    const out = await assertBookableMilestone({ dbId: 7, milestoneId: "MS-1" });
+    expect(out.ok).toBe(false);
+    expect(out.reason).toMatch(/blocked/i);
   });
 
   test("refuses a completed milestone and says it is completed", async () => {
-    const out = await assertBookableMilestone(
-      makeDb({ milestone: { ...MILESTONE, status: "completed" }, stage: STAGE }),
-      { dbId: 7, milestoneId: "MS-1" },
-    );
+    installDb({ milestone: { ...MILESTONE, status: "completed" }, stage: STAGE });
+    const out = await assertBookableMilestone({ dbId: 7, milestoneId: "MS-1" });
     expect(out.ok).toBe(false);
     expect(out.reason).toMatch(/already completed/i);
   });
 
   test("refuses a milestone in a Journey that has not started", async () => {
-    const out = await assertBookableMilestone(
-      makeDb({ milestone: MILESTONE, stage: { ...STAGE, status: "locked" } }),
-      { dbId: 7, milestoneId: "MS-1" },
-    );
+    installDb({ milestone: MILESTONE, stage: { ...STAGE, status: "upcoming" } });
+    const out = await assertBookableMilestone({ dbId: 7, milestoneId: "MS-1" });
     expect(out.ok).toBe(false);
     expect(out.reason).toMatch(/not started/i);
   });
 
   test("refuses a milestone in a finished Journey", async () => {
-    const out = await assertBookableMilestone(
-      makeDb({ milestone: MILESTONE, stage: { ...STAGE, status: "completed" } }),
-      { dbId: 7, milestoneId: "MS-1" },
-    );
+    installDb({ milestone: MILESTONE, stage: { ...STAGE, status: "completed" } });
+    const out = await assertBookableMilestone({ dbId: 7, milestoneId: "MS-1" });
     expect(out.ok).toBe(false);
     expect(out.reason).toMatch(/finished/i);
   });
 
-  test("refuses a later milestone and NAMES the one that is actually current", async () => {
-    const later = { id: "MS-2", title: "Business Plan", status: "locked", journey_stage_id: "ST-1" };
-    const out = await assertBookableMilestone(
-      makeDb({
-        // The list is what the chain says is open; the milestone asked for is
-        // later in the same Journey.
-        milestone: later,
-        stage: STAGE,
-        list: [MILESTONE, later],
-      }),
-      { dbId: 7, milestoneId: "MS-2" },
-    );
-    // Locked is refused first, and that reason is the most specific one.
-    expect(out.ok).toBe(false);
-    expect(out.reason).toMatch(/locked/i);
-  });
-
-  test("a released-but-not-first milestone is refused with the current one named", async () => {
-    const second = { id: "MS-2", title: "Business Plan", status: "not_started", journey_stage_id: "ST-1" };
-    const out = await assertBookableMilestone(
-      makeDb({ milestone: second, stage: STAGE, list: [MILESTONE, second] }),
-      { dbId: 7, milestoneId: "MS-2" },
-    );
-    expect(out.ok).toBe(false);
-    expect(out.reason).toContain("Pitch Deck");
+  test("a later milestone in the same active Journey is bookable — position never restricts", async () => {
+    const later = { id: "MS-2", title: "Business Plan", status: "not_started", journey_stage_id: "ST-1" };
+    installDb({ milestone: later, stage: STAGE, list: [MILESTONE, later] });
+    const out = await assertBookableMilestone({ dbId: 7, milestoneId: "MS-2" });
+    expect(out.ok).toBe(true);
   });
 
   test("an archived milestone is refused", async () => {
-    const out = await assertBookableMilestone(
-      makeDb({ milestone: { ...MILESTONE, is_archived: true }, stage: STAGE }),
-      { dbId: 7, milestoneId: "MS-1" },
-    );
+    installDb({ milestone: { ...MILESTONE, is_archived: true }, stage: STAGE });
+    const out = await assertBookableMilestone({ dbId: 7, milestoneId: "MS-1" });
     expect(out.ok).toBe(false);
     expect(out.reason).toMatch(/archived/i);
   });
 
   test("an unknown milestone is refused", async () => {
-    const out = await assertBookableMilestone(makeDb({}), { dbId: 7, milestoneId: "MS-9" });
+    installDb({});
+    const out = await assertBookableMilestone({ dbId: 7, milestoneId: "MS-9" });
     expect(out.ok).toBe(false);
     expect(out.reason).toMatch(/no longer exists/i);
   });

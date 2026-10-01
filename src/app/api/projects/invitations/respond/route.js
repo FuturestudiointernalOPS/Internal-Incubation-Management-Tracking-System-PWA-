@@ -1,24 +1,18 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-import {
-  getProjectInvitationById,
-  cancelProjectInvitation,
-  declineProjectInvitation,
-  addProjectMemberFromInvitation,
-  acceptProjectInvitation,
-  getProjectNameForInvitation,
-  getContactCidByName,
-  createInvitationAcceptedNotification,
-} from "@/models/projectCollaboration";
+import { respondToProjectInvitation } from "@/services/projects/collaboration";
 
 /**
- * POST /api/projects/invitations/respond
+ * POST /api/projects/invitations/respond — controller layer.
  * Body: { invitation_id, action: "accept" | "decline" | "cancel" }
  *
  * Accept: adds user to project_members + marks invitation accepted
  * Decline: marks invitation declined
  * Cancel: inviter cancels pending invitation
+ *
+ * The permission rules (only the inviter cancels, only the invitee responds)
+ * and the accept flow live in `@/services/projects/collaboration`.
  */
 export async function POST(req) {
   try {
@@ -35,90 +29,22 @@ export async function POST(req) {
       );
     }
 
-    // Fetch invitation
-    const invitationResult = await getProjectInvitationById(invitation_id);
-    if (invitationResult.rows.length === 0) {
+    const result = await respondToProjectInvitation({
+      invitationId: invitation_id,
+      action,
+      sessionCid: session.cid,
+      sessionName: session.name,
+      role: session.role,
+    });
+
+    if (result.error) {
       return NextResponse.json(
-        { success: false, error: "Invitation not found" },
-        { status: 404 },
-      );
-    }
-    const invitation = invitationResult.rows[0];
-
-    if (invitation.status !== "pending") {
-      return NextResponse.json(
-        { success: false, error: "Invitation is no longer pending" },
-        { status: 400 },
+        { success: false, error: result.error },
+        { status: result.status },
       );
     }
 
-    if (action === "cancel") {
-      // Only the inviter can cancel. `inviter_id` stores a NAME, so comparing it
-      // to the session NAME let a namesake cancel somebody else's invitation —
-      // resolve the inviter's actual cid and compare that.
-      let inviterCid = null;
-      try {
-        const inviterResult = await getContactCidByName(invitation.inviter_id);
-        inviterCid = inviterResult.rows?.[0]?.cid || null;
-      } catch (_) {}
-      const isInviter = Boolean(inviterCid) && String(session.cid) === String(inviterCid);
-      if (!isInviter && session.role !== "super_admin") {
-        return NextResponse.json(
-          { success: false, error: "Only the inviter can cancel" },
-          { status: 403 },
-        );
-      }
-      await cancelProjectInvitation(invitation_id);
-      return NextResponse.json({ success: true, action: "cancelled" });
-    }
-
-    // Accept or decline: only the invitee
-    const userCid = session.cid;
-    if (invitation.invitee_id !== userCid) {
-      return NextResponse.json(
-        { success: false, error: "Only the invited user can respond" },
-        { status: 403 },
-      );
-    }
-
-    if (action === "decline") {
-      await declineProjectInvitation(invitation_id);
-      return NextResponse.json({ success: true, action: "declined" });
-    }
-
-    if (action === "accept") {
-      // Add to project_members
-      await addProjectMemberFromInvitation(
-        invitation.project_id,
-        invitation.invitee_id,
-        invitation.role,
-      );
-
-      // Mark invitation accepted
-      await acceptProjectInvitation(invitation_id);
-
-      // Notify inviter
-      const projectResult = await getProjectNameForInvitation(invitation.project_id);
-      const projectName = projectResult.rows[0]?.name || "Unknown Project";
-
-      // Find inviter's cid to send notification
-      const inviterResult = await getContactCidByName(invitation.inviter_id);
-      if (inviterResult.rows.length > 0) {
-        await createInvitationAcceptedNotification(
-          inviterResult.rows[0].cid,
-          "Invitation Accepted",
-          `${session.name || invitation.invitee_id} accepted your invitation to "${projectName}"`,
-          "project_invite",
-        );
-      }
-
-      return NextResponse.json({ success: true, action: "accepted" });
-    }
-
-    return NextResponse.json(
-      { success: false, error: "Invalid action" },
-      { status: 400 },
-    );
+    return NextResponse.json({ success: true, action: result.action });
   } catch (error) {
     console.error("POST invitations/respond error:", error);
     return NextResponse.json(

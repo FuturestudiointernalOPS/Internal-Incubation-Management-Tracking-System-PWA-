@@ -48,8 +48,8 @@ import AppErrorBoundary from "@/components/ui/AppErrorBoundary";
 import ContextSwitcher from "@/components/layout/ContextSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
-import { fetchSwrJson, useApi } from "@/lib/hooks/useApi";
-import { buildAccessNav } from "@/lib/masterNavigation";
+import { fetchSwrJson, useApi, clearResponseCache } from "@/lib/hooks/useApi";
+import { buildAccessNav, hasCapability } from "@/lib/masterNavigation";
 import {
   HOVER_CAPABLE_QUERY,
   canUseHoverIntent,
@@ -148,7 +148,6 @@ const NAV_KEY_MAP = {
   ventures: "navigation.ventures",
   all_ventures: "navigation.allVentures",
   journey_reports: "navigation.journeyReports",
-  register_venture: "navigation.registerVenture",
   document_types: "navigation.documentTypes",
   investors: "navigation.investors",
   investor: "navigation.investor",
@@ -436,6 +435,7 @@ const SidebarContent = ({
           <button
             onClick={() => toggleSection(item.id)}
             aria-expanded={expanded}
+            aria-label={show ? undefined : label(item)}
             onMouseEnter={
               collapsed && !showLabels
                 ? (event) => openFlyout(event, item.id)
@@ -499,6 +499,7 @@ const SidebarContent = ({
       <Link
         key={item.id || item.href}
         href={item.href}
+        aria-label={show ? undefined : label(item)}
         onClick={() => {
           setMobileMenuOpen(false);
           setFlyout(null);
@@ -766,6 +767,26 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
 
+  // Effective capability matrix for the whole surface, read ONCE from the shared
+  // permission context (the server remains authoritative). It sits here, above
+  // the badge fetchers, because they consult it — see `canReadMessages` below.
+  const { permissions: effectiveCaps } = usePermissions();
+
+  // Whether this person may use the Messages feature at all.
+  //
+  // The unread badge is the ONLY consumer of the messages endpoint in the shell,
+  // and the badge is only ever painted beside the Messages menu item. For
+  // somebody whose sidebar has no Messages item — a member's sidebar is the
+  // dashboard alone — the request is refused by the server, written into the
+  // error log, and its answer thrown away. Every page load. Asking for an answer
+  // that cannot be used is not a permission problem; it is a request that should
+  // not be made.
+  //
+  // False while the matrix is still loading, which is deliberate: every caller
+  // depends on this value, so the read fires the moment the answer arrives
+  // rather than being skipped for the session.
+  const canReadMessages = hasCapability(effectiveCaps, "messaging", "view");
+
   // When the inbox was last read — shared by every trigger through
   // fetchNotifications, so they throttle each other instead of each keeping
   // their own idea of "recently".
@@ -825,6 +846,8 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
 
   // ── Fetch actual unread message count (not from notifications) ──
   const fetchUnreadMessageCount = useCallback(async () => {
+    // No Messages feature, no badge, no request. See `canReadMessages`.
+    if (!canReadMessages) return;
     const savedUser = localStorage.getItem("user");
     if (!savedUser) return;
     let parsedUser;
@@ -845,7 +868,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
       );
       setUnreadMessageCount(myMessages.length);
     });
-  }, []);
+  }, [canReadMessages]);
 
   // ── Fetch pending user approvals count ──
   const fetchPendingUsersCount = useCallback(async () => {
@@ -947,10 +970,6 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     }
     if (currentPath.startsWith("/admin/communications/announcements")) {
       writeSeenWatermark(SEEN_KEYS.announcements);
-      fetchNotifications();
-    }
-    if (currentPath.startsWith("/admin/communications/forms")) {
-      writeSeenWatermark(SEEN_KEYS.forms);
       fetchNotifications();
     }
   }, [
@@ -1074,14 +1093,9 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
   // The learner door is derived from the enrolment read above and from nothing
   // else, so there is no state here to keep in step with it.
 
-  // Effective capability matrix for sidebar visibility, read ONCE for the whole
-  // surface from the shared permission context (the server remains
-  // authoritative). Every gated affordance under this shell reads the same
-  // value instead of firing its own request.
-  const { permissions: effectiveCaps } = usePermissions();
-
   // The capabilities are restored by PermissionProvider (which mounts above this
-  // shell) — the sidebar reads them from that context.
+  // shell) — the sidebar reads them from that context, and the badge fetchers
+  // read `canReadMessages` from it at the top of this component.
 
   // Load user from session API first, fallback to localStorage
   useEffect(() => {
@@ -1107,11 +1121,19 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
           };
           publishUser(userWithFullData);
 
-          // Fetch user groups + responsibilities + notifications in parallel
+          // One wave, not two. The badge reads at the end of this list depend on
+          // nothing in the three before them, yet the shell used to AWAIT those
+          // three and only then start the badges — a serial round-trip per page
+          // load for no reason. All eight leave together now.
           const [groupsRes, respRes, notifRes] = await Promise.allSettled([
             fetch(`/api/user-groups?user_cid=${sessionData.user.cid}`),
             fetch(`/api/responsibilities?user_cid=${sessionData.user.cid}`),
             fetch(`/api/notifications?recipient_id=${sessionData.user.cid}`),
+            fetchAnnouncements(),
+            fetchUnreadMessageCount(),
+            fetchPendingUsersCount(),
+            fetchPendingInvites(),
+            fetchPendingAssignments(),
           ]);
 
           // User groups
@@ -1159,17 +1181,6 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
               }
             } catch (_) {}
           }
-
-          // Pre-fetch announcements for banner
-          fetchAnnouncements();
-
-          // Pre-fetch unread message count for badge
-          fetchUnreadMessageCount();
-          // Pre-fetch pending users count
-          fetchPendingUsersCount();
-          // Pre-fetch pending invitations & task assignments for banners
-          fetchPendingInvites();
-          fetchPendingAssignments();
         } else {
           // Session API failed — fallback to localStorage
           const savedUser = localStorage.getItem("user");
@@ -1519,6 +1530,10 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     } catch (error) {
       console.error("Logout error:", error);
     }
+    // The response cache is module-level and survives this client-side
+    // navigation; without purging it the next account could read the previous
+    // one's answers (capability matrix included) for up to the cache TTL.
+    clearResponseCache();
     localStorage.clear();
     setDashboardSession(null);
     router.replace("/login");
@@ -1656,9 +1671,15 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                     if (!showNotifications) fetchNotifications();
                     setShowNotifications((previousValue) => !previousValue);
                   }}
+                  aria-label={
+                    unreadCount > 0
+                      ? `${t("navigation.notifications")} (${unreadCount})`
+                      : t("navigation.notifications")
+                  }
+                  aria-expanded={showNotifications}
                   className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 >
-                  <Bell className="w-4 h-4" />
+                  <Bell className="w-4 h-4" aria-hidden="true" />
                   {unreadCount > 0 && (
                     <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-[var(--brand-orange)] text-black text-[10px] font-black rounded-full flex items-center justify-center">
                       {unreadCount > 99 ? "99+" : unreadCount}
@@ -1989,20 +2010,6 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
           </header>
 
           <main className="flex-1 p-6 lg:p-10 overflow-y-auto bg-primary">
-            {/* Staging Impersonation Banner */}
-            {user?.is_impersonation && (
-              <div className="mb-6 p-3 rounded-lg bg-amber-500/15 border border-amber-500/40 flex items-center gap-3">
-                <Wrench className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">
-                    STAGING ENVIRONMENT — Impersonating: {user?.name || "Unknown"} ({user?.role || "unknown"})
-                  </p>
-                  <p className="text-[10px] font-medium text-amber-500/70 mt-0.5">
-                    You are viewing the application as this user. Log out to return to your own account.
-                  </p>
-                </div>
-              </div>
-            )}
             {/* Pinned Announcements Banner */}
             {pinnedAnnouncements.length > 0 && (
               <div className="mb-6 space-y-2">

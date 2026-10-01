@@ -424,6 +424,39 @@ export default function VentureReportsPage() {
                           </span>
                         </div>
                         {progressBar(stage.milestones?.progress_pct || 0)}
+                        {/* The stage's milestones and the evidence handed in against
+                            them — the file behind the count, openable from here. */}
+                        {(stage.milestone_items || []).length > 0 && (
+                          <div className="mt-3 space-y-2">
+                            {stage.milestone_items.map((milestone) => {
+                              const evidence = (milestone.deliverables || []).filter((deliverable) => deliverable.evidence_download_url);
+                              return (
+                                <div key={milestone.id} className="rounded-lg border border-[var(--border-primary)] px-3 py-2">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[11px] font-bold text-[var(--text-primary)]">{milestone.title}</span>
+                                    <span className="text-[9px] uppercase tracking-widest text-[var(--text-secondary)] shrink-0">{milestone.status?.replace(/_/g, " ")}</span>
+                                  </div>
+                                  {evidence.length > 0 && (
+                                    <ul className="mt-1 space-y-0.5">
+                                      {evidence.map((deliverable) => (
+                                        <li key={deliverable.id}>
+                                          <a
+                                            href={deliverable.evidence_download_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-[10px] font-bold text-[var(--brand-orange)] hover:underline inline-flex items-center gap-1"
+                                          >
+                                            <Download className="w-3 h-3 shrink-0" /> {deliverable.attachment_name || deliverable.title}
+                                          </a>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

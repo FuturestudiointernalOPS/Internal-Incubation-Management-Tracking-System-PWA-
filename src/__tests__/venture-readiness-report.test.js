@@ -30,7 +30,7 @@ const mockDb = {
     }
     // ── readiness engine (lib/ventureReadiness) ──
     if (sql.startsWith("SELECT status FROM venture_journey_stages")) {
-      return { rows: [{ status: "completed" }, { status: "active" }, { status: "locked" }] };
+      return { rows: [{ status: "completed" }, { status: "active" }, { status: "upcoming" }] };
     }
     if (sql.startsWith("SELECT status FROM venture_milestones")) {
       return { rows: [{ status: "completed" }, { status: "completed" }, { status: "not_started" }] };

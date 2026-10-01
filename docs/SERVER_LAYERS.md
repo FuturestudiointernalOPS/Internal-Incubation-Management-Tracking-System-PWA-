@@ -6,11 +6,11 @@ The request path, and what each layer is allowed to know about:
 app/**/route.js  (controllers: auth, validation, orchestration, response shape)
         │
         ▼
-server/**        (application layer — policy, no SQL)
-   ├── auth/     authentication: "who is calling?"
-   ├── authz/    authorization:  "may they do this, to this?"
-   └── <feature> business services (created per feature as they migrate)
-        │
+application layer — decisions and policy, no SQL
+   ├── server/auth/**   authentication: "who is calling?"
+   ├── server/authz/**  authorization guards: "may they do this, to this?"
+   └── services/**      use-case / decision code — the new service layer
+        │               (one folder per domain as it migrates)
         ▼
 models/**        data access: one named function per query, all SQL lives here
         │
@@ -18,12 +18,17 @@ models/**        data access: one named function per query, all SQL lives here
 lib/db.js        the pool (pg); no ORM
 ```
 
+**Where a new decision goes:** `src/services/<domain>/`. It may read through
+`models/**`; it must never run SQL and never import `lib/db`. The split is
+documented — and its backlog tracked — in [LAYER_SPLIT.md](LAYER_SPLIT.md).
+
 ## Import rules
 
 | Layer | May import | Must never import |
 |---|---|---|
 | `app/**` (pages, components) | `server/**`, `models/**` via controllers, `lib/**` | `lib/db` directly |
-| `app/api/**/route.js` | `server/**`, `models/**`, `lib/api` | — (still no inline SQL) |
+| `app/api/**/route.js` | `server/**`, `services/**`, `models/**`, `lib/api` | — (still no inline SQL) |
+| `services/**` | `models/**`, `server/auth/**`, `lib/**` (infra) | `lib/db` directly, `app/**`, `components/**` |
 | `server/auth/**` | `lib/**` (infra), `models/**` | `server/authz/**`, `app/**`, `components/**` |
 | `server/authz/**` | `server/auth/**`, `models/**`, `lib/**` | `server/auth/**` is *not* allowed to import it back |
 | `models/**` | `lib/db`, other models, pure helpers | `next/server`, `NextResponse`, `server/**`, UI |
@@ -62,6 +67,13 @@ or a membership check — and runs after an identity exists.
 5. **No new dependency is added to reach a layer.** `server/authz` calls models
    directly; models never call services.
 
+   *Known exceptions while the layer split is in progress* (tracked in
+   [LAYER_SPLIT.md](LAYER_SPLIT.md)): the `resolver`, `scope`,
+   `contextGrantReadiness`, `eligibility-admin`, `context`, `contextGrants` and
+   `programAssignments` model files are **temporary re-export facades** to
+   `services/authorization/*`. They hold no logic and are removed as the split
+   completes.
+
 ## State of the migration
 
 | Area | Home | Status |
@@ -71,6 +83,32 @@ or a membership check — and runs after an identity exists.
 | Program access resolution + resource guards | `server/authz/{programAccess,guards}.js` + `models/authorization/accessQueries.js` | ✅ moved |
 | Authorization reads (project membership, assignment probes, team scope, supervision) + the permission audit write | `models/authorization/accessQueries.js` | ✅ moved |
 | Runtime schema self-heal + default grants (role capabilities, Access Profiles, responsibilities catalogue) | `models/authorization/bootstrap.js` | ✅ moved |
+| Authorization context decision (resolve/merge/authorize) + its 8 reads | `services/authorization/context.js` + `models/authorization/contextReads.js` | ✅ moved (slice 1 of the layer split — see [LAYER_SPLIT.md](LAYER_SPLIT.md)) |
+| Readiness / impact report + its 2 reads | `services/authorization/contextGrantReadiness.js` + `models/authorization/contextGrantReadinessReads.js` | ✅ moved (slice 2) |
+| Scope engine (policy dispatch, `isWithinScope`) + its 6 reads | `services/authorization/scope.js` + `models/authorization/scopeReads.js` | ✅ moved (slice 3) |
+| Eligibility decision | `services/authorization/eligibility.js` | ✅ moved (slice 4) — schema/seeds/vocabulary stay in `models/authorization/eligibility.js` |
+| Membership decisions (effective groups, lifecycle) | `services/authorization/membership.js` | ✅ moved (slice 4) — schema/bootstrap/raw reads/vocabulary stay in `models/authorization/membership.js` |
+| Eligibility-change validation (`eligibility-admin`) | `services/authorization/eligibilityAdmin.js` + `models/authorization/eligibilityAdminReads.js` | ✅ moved (slice 5) — model file is a re-export facade |
+| Scoped-access guard (`requireScopedAccess`) + its 4 assignment reads | `services/authorization/scopedAccess.js` + `models/authorization/contextAssignmentReads.js` | ✅ moved (slice 6) — model file is a re-export facade |
+| Context-grant reconcile (plan, justification, sync) + every statement | `services/authorization/contextGrants.js` + `models/authorization/contextGrantsStore.js` | ✅ moved (slice 7) — model file is a re-export facade; the store both reads and writes |
+| Program-assignment derivation (levels, expiry) + its reads | `services/authorization/programAssignments.js` + `models/authorization/programAssignmentReads.js` | ✅ moved (slice 8 — authorization domain complete) |
+| Refusal responses (`requireAuthorization` / `requireScopedAccess`) | `server/authz/responses.js` (decisions stay in `services/authorization/*`) | ✅ moved (slice 9) — services are HTTP-free |
+| Finance ingestion (sheet parsing + sync) | `services/finance/ingest.js` + `models/finance/ingestStore.js` | ✅ moved (slice 10 — first slice outside authorization) |
+| Finance reads/aggregation (summary, monthly, transactions, budget lines) | `services/finance/queries.js` + `models/finance/queriesStore.js` | ✅ moved (slice 11 — finance domain complete) |
+| Objective (KPI) progress rate + cache policy | `services/programs/kpiProgress.js` + `models/kpiProgressStore.js` | ✅ moved (slice 12 — first programs module) |
+| Program manager change (repair action) | `services/programs/programManager.js` | ✅ moved (slice 13 — controller orchestration) |
+| Contact ↔ program/group sync + reconciliation | `services/contacts/contactGroupSync.js` + `models/contactGroupSyncStore.js` | ✅ moved (slice 14 — first contacts module) |
+| Venture document types (decisions + 12 statements) | `services/ventures/ventureDocumentTypes.js` + `models/ventureDocumentTypesStore.js` | ✅ moved (slice 15 — first ventures module) |
+| Projects controller use cases (portfolio access, lead resolution, meta merge, write order) | `services/projects/workspace.js` + `models/projects.js` (`projectUpdateClause`) | ✅ moved (slice 37 — **first controller-layer slice**) |
+| Projects collaboration use cases (members, assignments, discussions, invitations, response rules) | `services/projects/collaboration.js` | ✅ moved (slice 38 — projects domain controller-clean) |
+| The portfolio listing rule (who sees others' rows), shared | `services/authorization/listingScope.js` | ✅ extracted (slice 39) — projects/services delegate to it |
+| Task action use cases (carry-over, approval, reconcile, assignment list/respond, assignment action) | `services/tasks/{carryover,approval,reconcile,assignments,assignmentAction}.js` | ✅ moved (slice 39 — tasks domain started) |
+| The shared task-access rule (portfolio / owner / assignee / supervisor) | `services/tasks/access.js` | ✅ extracted (slice 40) |
+| Task sub-resource use cases (comments, resources, duplicate, logs, deadline reminders) | `services/tasks/{comments,resources,duplicate,logs,deadlines}.js` | ✅ moved (slice 40 — only the `tasks/route.js` monolith remains) |
+| `tasks/route.js` GET (listing scope, id lookup access check, batch enrichment) | `services/tasks/query.js` | ✅ moved (slice 41 — the monolith's read path) |
+| `tasks/route.js` DELETE & PATCH (delete guards, pending-assignment response) | `services/tasks/remove.js` + `services/tasks/assignments.js` | ✅ moved (slice 42) |
+| `tasks/route.js` POST (creation scope, project/date/assignment guards, follow-on effects) + the date helpers | `services/tasks/create.js` + `services/tasks/dates.js` | ✅ moved (slice 43) |
+| `tasks/route.js` PUT (lock, completion guards, field assembly, assignment branches, cascade) | `services/tasks/update.js` | ✅ moved (slice 44 — **`tasks/route.js` monolith done**) |
 | Effective access-profile resolution, responsibilities domain | still `src/lib/auth.js` (6 functions, 8 SQL statements) | ⏸ **blocked on a decision** — see below |
 
 Two overlaps are **known and deliberately left alone** until a decision is made,

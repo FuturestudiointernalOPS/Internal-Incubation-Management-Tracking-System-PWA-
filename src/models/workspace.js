@@ -62,12 +62,34 @@ export async function getStaffAssignmentsForUser(cid, emailOrCid) {
 }
 
 /** Active participant enrollments (program id + name) for a user. */
+/**
+ * ACTIVE program enrollments — active membership AND a program still running.
+ *
+ * BOTH halves are required, and for different reasons:
+ *
+ *   pp.status — the person's own membership. A participant whose membership is
+ *     closed (`completed`) is an alumnus of that program even while the program
+ *     itself runs on.
+ *   p.status  — the program. A program that is no longer `active` is view-only,
+ *     so nobody may act inside it — including a participant whose own membership
+ *     row was never closed.
+ *
+ * Either one ending is enough to end the entitlement. This mirrors the rule the
+ * submissions route already enforces via `getSubmissionProgramStatus` ("a
+ * program that is no longer active is view-only"), so uploads and submissions
+ * cannot disagree about who is still taking part.
+ *
+ * Sole caller: POST /api/upload — the gate that decides whether a participant
+ * may attach a file. Alumni must not, in the programs they have finished.
+ */
 export async function getActiveParticipantEnrollments(cid) {
   return db.execute({
     sql: `SELECT CAST(pp.program_id AS TEXT) AS program_id, p.name AS program_name
             FROM participant_programs pp
             JOIN v2_programs p ON CAST(p.id AS TEXT) = CAST(pp.program_id AS TEXT)
-            WHERE pp.participant_id = ? AND (pp.status IS NULL OR pp.status = 'active')
+            WHERE pp.participant_id = ?
+              AND (pp.status IS NULL OR pp.status = 'active')
+              AND (p.status IS NULL OR LOWER(p.status) = 'active')
             ORDER BY p.name ASC`,
     args: [cid],
   });
@@ -232,63 +254,6 @@ export async function getCalendarFollowups(programScopeSql, programScopeArgs, vi
               WHERE f.scheduled_at IS NOT NULL${programScopeSql}${visibilitySql}`;
   const args = [...programScopeArgs, ...visibilityArgs];
   return db.execute({ sql, args });
-}
-
-/**
- * Venture sessions for one person's own calendar (Vinance 3, Phase 3).
- *
- *   - the coach's own sessions, whatever their visibility (coach_contact_id)
- *   - venture-facing sessions of the Ventures the person belongs to as a
- *     member (venture_members) or is actively assigned to as staff
- *     (venture_staff_assignments)
- *
- * Cancelled and no-show sessions are never calendar events. Venture ids are
- * stored in both key styles (the VNT code and the internal UUID), so the scope
- * list is expanded to cover both. Returns { rows } like the other getters.
- */
-export async function getCalendarVentureSessions(userId) {
-  const empty = { rows: [] };
-  if (!userId) return empty;
-
-  // 1. The person's Venture scope (membership ∪ active staff assignment).
-  const scopeRes = await db
-    .execute({
-      sql: `SELECT venture_id FROM venture_members
-              WHERE (contact_id = ? OR user_cid = ?) AND removed_at IS NULL
-            UNION
-            SELECT venture_id FROM venture_staff_assignments
-              WHERE staff_contact_id = ? AND status = 'active'`,
-      args: [userId, userId, userId],
-    })
-    .catch(() => empty);
-  const ventureCodes = (scopeRes.rows || []).map((row) => row.venture_id).filter(Boolean);
-
-  // 2. Expand to the internal ids too (rows may be keyed either way).
-  let internalVentureIds = [];
-  if (ventureCodes.length > 0) {
-    const idRes = await db
-      .execute({
-        sql: `SELECT id::text AS id FROM ventures WHERE venture_id IN (${ventureCodes.map(() => "?").join(",")})`,
-        args: ventureCodes,
-      })
-      .catch(() => empty);
-    internalVentureIds = (idRes.rows || []).map((row) => row.id).filter(Boolean);
-  }
-  const scope = [...new Set([...ventureCodes, ...internalVentureIds])];
-  // Sentinel: a person with no Ventures still gets their own coach sessions,
-  // and the IN list can never match a real venture id.
-  const scopeList = scope.length > 0 ? scope : ["__no_venture_scope__"];
-
-  return db.execute({
-    sql: `SELECT id, title, start_time, coach_name, status, venture_id,
-                 milestone_ref, journey_stage_id, deliverable_id
-          FROM venture_sessions
-          WHERE start_time IS NOT NULL
-            AND status NOT IN ('cancelled', 'no_show')
-            AND (coach_contact_id = ?
-                 OR (venture_facing = TRUE AND venture_id IN (${scopeList.map(() => "?").join(",")})))`,
-    args: [userId, ...scopeList],
-  });
 }
 
 // ────────────────────────────────────────────────────────────
@@ -768,3 +733,16 @@ export async function completeCampaignContact(campaignContactId) {
     args: [campaignContactId],
   });
 }
+
+// ────────────────────────────────────────────────────────────
+// Compatibility shim — moved to the service layer
+// ────────────────────────────────────────────────────────────
+
+/**
+ * `getCalendarVentureSessions` now lives in `@/services/workspace/calendar`
+ * (the derivation of the Venture scope) with its three statements in
+ * `@/models/workspaceCalendarStore`. Re-exported here so existing importers
+ * (the dashboard route, the calendar suite) keep working — see
+ * docs/LAYER_SPLIT.md.
+ */
+export { getCalendarVentureSessions } from "@/services/workspace/calendar";

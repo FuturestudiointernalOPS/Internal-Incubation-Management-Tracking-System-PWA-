@@ -1,4 +1,3 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans";
@@ -23,9 +22,9 @@ export async function POST(req, { params }) {
     const session = await getSession();
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
-    const access = await resolvePlanAccess(db, id, session);
+    const access = await resolvePlanAccess(id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    if (!(await allowsPlanAction(db, access, "manage"))) {
+    if (!(await allowsPlanAction(access, "manage"))) {
       return NextResponse.json({ success: false, error: "Your assignment does not allow saving this Venture's journey as a template." }, { status: 403 });
     }
 
@@ -44,11 +43,11 @@ export async function POST(req, { params }) {
       // Best effort — the save below reports the real error if the schema
       // still cannot support it.
     }
-    await ensureJourneyTable(db);
-    const dbId = await resolveVentureInternalId(db, id);
+    await ensureJourneyTable();
+    const dbId = await resolveVentureInternalId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const result = await saveJourneyAsTemplate(db, { dbId, name, description, actorCid: session.cid || null });
+    const result = await saveJourneyAsTemplate({ dbId, name, description, actorCid: session.cid || null });
     if (result.error) {
       return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     }

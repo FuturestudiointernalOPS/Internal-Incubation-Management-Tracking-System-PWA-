@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { getProjectInvitations } from "@/models/projectCollaboration";
+import { listProjectInvitations } from "@/services/projects/collaboration";
 
+/**
+ * PROJECT INVITATIONS API — controller layer.
+ *
+ * GET /api/projects/invitations?invitee_id=X&status=pending&project_id=Y
+ *
+ * The scope rule (portfolio roles see everyone, others only their own) and the
+ * "pending by default" policy live in `@/services/projects/collaboration`.
+ */
 export const GET = createHandler(async (req) => {
   const { searchParams } = new URL(req.url);
   const { getSession } = await import("@/lib/auth");
@@ -12,24 +20,21 @@ export const GET = createHandler(async (req) => {
       { status: 401 },
     );
   }
-  const staffSide = [
-    "super_admin",
-    "staff",
-    "program_manager",
-  ];
-  let invitee_id = searchParams.get("invitee_id");
-  if (!staffSide.includes(session.role)) {
-    if (invitee_id && String(invitee_id) !== String(session.cid)) {
-      return NextResponse.json(
-        { success: false, error: "You can only view your own invitations." },
-        { status: 403 },
-      );
-    }
-    invitee_id = invitee_id || session.cid;
-  }
-  const status = searchParams.get("status") || "pending";
-  const project_id = searchParams.get("project_id");
 
-  const result = await getProjectInvitations(invitee_id, status, project_id);
-  return NextResponse.json({ success: true, invitations: result.rows });
+  const result = await listProjectInvitations({
+    role: session.role,
+    sessionCid: session.cid,
+    inviteeId: searchParams.get("invitee_id"),
+    status: searchParams.get("status"),
+    projectId: searchParams.get("project_id"),
+  });
+
+  if (result.error) {
+    return NextResponse.json(
+      { success: false, error: result.error },
+      { status: result.status },
+    );
+  }
+
+  return NextResponse.json({ success: true, invitations: result.invitations });
 });

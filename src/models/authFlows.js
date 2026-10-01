@@ -2,8 +2,8 @@ import db from "@/lib/db";
 
 /**
  * Auth flows model — data access for the `/api/auth/*` controllers
- * (`session-login`, `login`, `impersonate`, `invite`, `activate`,
- * `invite-family`, `quick-login`, `forgot-password`, `setup-password`,
+ * (`session-login`, `login`, `invite`, `activate`,
+ * `invite-family`, `forgot-password`, `setup-password`,
  * `reset-password`, `resend-invite`, `language`).
  *
  * Each function wraps exactly one SQL statement that used to live inline in the
@@ -162,38 +162,6 @@ export async function recordContactLoginActivityForLogin(cid) {
   return db.execute({
     sql: "UPDATE contacts SET last_login_at = NOW(), login_count = COALESCE(login_count, 0) + 1 WHERE cid = ?",
     args: [cid],
-  });
-}
-
-/** Impersonation target by exact cid. */
-export async function getImpersonationTargetByCid(cid) {
-  return db.execute({
-    sql: "SELECT * FROM contacts WHERE cid = ? AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
-    args: [cid],
-  });
-}
-
-/** Impersonation target by email. */
-export async function getImpersonationTargetByEmail(email) {
-  return db.execute({
-    sql: "SELECT * FROM contacts WHERE email = ? AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
-    args: [email],
-  });
-}
-
-/** Impersonation target lookup treating the cid as an email. */
-export async function getImpersonationTargetUsingCidAsEmail(cid) {
-  return db.execute({
-    sql: "SELECT * FROM contacts WHERE email = ? AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
-    args: [cid],
-  });
-}
-
-/** All active/approved contacts for the impersonation picker (GET). */
-export async function listActiveContactsForImpersonation() {
-  return db.execute({
-    sql: "SELECT cid, name, email, role, group_name, status FROM contacts WHERE deleted = 0 AND deleted_at IS NULL AND status IN ('active','approved') ORDER BY role, name",
-    args: [],
   });
 }
 
@@ -400,22 +368,6 @@ export async function createFamilyInviteSetupToken(token, tokenHash, contactCid)
   return db.execute({
     sql: "INSERT INTO password_setup_tokens (token, token_hash, contact_cid, expires_at) VALUES (?, ?, ?, NOW() + INTERVAL '48 hours')",
     args: [token, tokenHash, contactCid],
-  });
-}
-
-/** Contact lookup by email (quick-login staging endpoint). */
-export async function getContactByEmailForQuickLogin(email) {
-  return db.execute({
-    sql: "SELECT * FROM contacts WHERE email = ? AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
-    args: [email],
-  });
-}
-
-/** Insert a real impersonation session row (quick-login staging endpoint). */
-export async function createImpersonationUserSession(token, tokenHash, userCid, role, expiresAtStr) {
-  return db.execute({
-    sql: "INSERT INTO user_sessions (token, token_hash, user_cid, role, expires_at, is_impersonation) VALUES (?, ?, ?, ?, ?, ?)",
-    args: [token, tokenHash, userCid, role, expiresAtStr, 1],
   });
 }
 

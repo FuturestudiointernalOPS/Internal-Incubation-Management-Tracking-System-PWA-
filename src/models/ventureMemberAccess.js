@@ -63,7 +63,7 @@ export async function checkVentureMemberViewAccess(db, ventureId, userRole, user
   if (!userCid) return false;
   if (await isVentureMember(db, ventureId, userCid)) return true;
   const code = await resolveVentureCode(db, ventureId);
-  return hasAnyVentureAssignment(db, { ventureId: code, contactId: userCid });
+  return hasAnyVentureAssignment({ ventureId: code, contactId: userCid });
 }
 
 export async function checkVentureMemberMutateAccess(db, ventureId, userRole, userCid) {
@@ -71,7 +71,7 @@ export async function checkVentureMemberMutateAccess(db, ventureId, userRole, us
   if (!userCid) return false;
   if (await isVentureFounder(db, ventureId, userCid)) return true;
   const code = await resolveVentureCode(db, ventureId);
-  return hasVentureCapability(db, { ventureId: code, contactId: userCid, area: "founders", action: "manage" });
+  return hasVentureCapability({ ventureId: code, contactId: userCid, area: "founders", action: "manage" });
 }
 
 export default {

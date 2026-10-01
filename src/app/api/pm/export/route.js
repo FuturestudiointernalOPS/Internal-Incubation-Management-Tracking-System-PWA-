@@ -2,31 +2,9 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
 import { requireProgramScope } from "@/lib/programScopedAccess";
-import writeXlsxFile from "write-excel-file/node";
-import { objectsToAoa } from "@/lib/spreadsheet";
-import { getProgramExportRows } from "@/models/programWorkspace";
+import { buildProgramExport } from "@/services/programs/export";
 
 export const dynamic = "force-dynamic";
-
-function jsonToCsv(rows) {
-  if (!rows || rows.length === 0) return "";
-  const headers = Object.keys(rows[0]);
-  const csvRows = [headers.join(",")];
-  for (const row of rows) {
-    const values = headers.map((header) => {
-      const cellValue = row[header];
-      if (cellValue === null || cellValue === undefined) return "";
-      const stringValue = String(cellValue);
-      // Escape commas and quotes
-      if (stringValue.includes(",") || stringValue.includes('"') || stringValue.includes("\n")) {
-        return `"${stringValue.replace(/"/g, '""')}"`;
-      }
-      return stringValue;
-    });
-    csvRows.push(values.join(","));
-  }
-  return csvRows.join("\n");
-}
 
 export async function GET(req) {
   try {
@@ -48,85 +26,14 @@ export async function GET(req) {
     const scopeError = await requireProgramScope({ programId, wave: "content" });
     if (scopeError) return scopeError;
 
-    let filename;
+    const out = await buildProgramExport({ type, programId, format });
+    if (out.json) return NextResponse.json(out.json, { status: out.status });
 
-    switch (type) {
-      case "participants":
-        filename = `participants-${programId}.csv`;
-        break;
-      case "attendance":
-        filename = `attendance-${programId}.csv`;
-        break;
-      case "submissions":
-        filename = `submissions-${programId}.csv`;
-        break;
-      case "teams":
-        filename = `teams-${programId}.csv`;
-        break;
-      case "ical":
-        filename = `calendar-${programId}.ics`;
-        break;
-      default:
-        return NextResponse.json({ error: "Invalid type" }, { status: 400 });
-    }
-
-    const result = await getProgramExportRows(type, programId);
-    const rows = result.rows;
-
-    if (format === "xlsx" || format === "excel") {
-      const buffer = await writeXlsxFile(objectsToAoa(rows), { sheet: type }).toBuffer();
-      const xlsxFilename = filename.replace(/\.csv$/, ".xlsx");
-      return new NextResponse(buffer, {
-        status: 200,
-        headers: {
-          "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          "Content-Disposition": `attachment; filename="${xlsxFilename}"`,
-          "Cache-Control": "no-cache",
-        },
-      });
-    }
-
-    if (format === "ical" || format === "ics") {
-      const icsLines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//ImpactOS//Program Calendar//EN"];
-      for (const row of rows) {
-        if (!row.scheduled_date) continue;
-        const dt = new Date(row.scheduled_date);
-        const datePart = dt.toISOString().split("T")[0].replace(/-/g, "");
-        const start = (row.start_time || "09:00").replace(/:/g, "") + "00";
-        const end = (row.end_time || "12:00").replace(/:/g, "") + "00";
-        const tz = row.timezone || "Europe/Paris";
-        icsLines.push("BEGIN:VEVENT");
-        icsLines.push(`DTSTART;TZID=${tz}:${datePart}T${start}`);
-        icsLines.push(`DTEND;TZID=${tz}:${datePart}T${end}`);
-        icsLines.push(`SUMMARY:${row.summary || "Session"}`);
-        if (row.description) icsLines.push(`DESCRIPTION:${row.description.replace(/[,\n]/g, " ")}`);
-        icsLines.push("END:VEVENT");
-      }
-      icsLines.push("END:VCALENDAR");
-      const ics = icsLines.join("\r\n");
-      return new NextResponse(ics, {
-        status: 200,
-        headers: {
-          "Content-Type": "text/calendar; charset=utf-8",
-          "Content-Disposition": `attachment; filename="${filename}"`,
-          "Cache-Control": "no-cache",
-        },
-      });
-    }
-
-    if (format === "pdf") {
-      // Return JSON for client-side PDF generation via jspdf
-      return NextResponse.json({ success: true, rows, type, filename: filename.replace(/\.csv$/, ".pdf") });
-    }
-
-    // Default: CSV
-    const csv = jsonToCsv(rows);
-
-    return new NextResponse(csv, {
-      status: 200,
+    return new NextResponse(out.body, {
+      status: out.status,
       headers: {
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Type": out.contentType,
+        "Content-Disposition": out.contentDisposition,
         "Cache-Control": "no-cache",
       },
     });

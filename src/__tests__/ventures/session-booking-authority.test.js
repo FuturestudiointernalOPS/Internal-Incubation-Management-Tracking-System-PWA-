@@ -80,6 +80,8 @@ jest.mock("@/lib/ventureOperatingPlans", () => ({
 
 jest.mock("@/lib/ventureMilestoneEngine", () => ({
   assertBookableMilestone: jest.fn(async () => mockBookable),
+  // The route sweeps due Journeys before the booking gate; nothing to do here.
+  activateDueStages: jest.fn(async () => ({ activated_stage_ids: [], released_milestone_ids: [] })),
 }));
 
 jest.mock("@/lib/ventureCoach", () => ({
@@ -195,8 +197,8 @@ describe("a Coach supports the Venture; a manager schedules it", () => {
 
     // Assignments store the VNT code while the route may receive a UUID; reading
     // the matrix with the raw UUID would deny every delegated manager.
-    expect(resolveVentureCode).toHaveBeenCalledWith(expect.anything(), VENTURE_ID);
-    const options = hasVentureCapability.mock.calls[0][1];
+    expect(resolveVentureCode).toHaveBeenCalledWith(VENTURE_ID);
+    const options = hasVentureCapability.mock.calls[0][0];
     expect(options).toMatchObject({
       ventureId: "VNT-7",
       contactId: "lm-1",

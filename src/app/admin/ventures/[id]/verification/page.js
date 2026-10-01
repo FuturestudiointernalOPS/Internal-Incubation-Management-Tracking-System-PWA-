@@ -11,17 +11,16 @@ import {
   Clock,
   Loader2,
   Upload,
-  Trash2,
   Send,
   X,
   FileText,
-  Download,
   MessageCircle,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
 import { DEFAULT_VENTURE_DOCUMENT_TYPES } from "@/lib/ventureDocumentTypeDefaults";
 import { documentTypeIcon, documentTypeName, isUploadDocumentType } from "@/components/ventures/documentTypeMeta";
+import DataBankDocumentRow from "@/components/ventures/DataBankDocumentRow";
 
 // The documents the Data bank asks for are CONFIGURED (Super Admin / Lead
 // Manager, see /admin/ventures/document-types) and read from the API below; the
@@ -49,15 +48,6 @@ const ITEM_STATUS_CONFIG = {
   verified: { label: "vadmin.verification.statusVerified", color: "text-emerald-400 bg-emerald-500/10" },
   rejected: { label: "vadmin.verification.statusRejected", color: "text-rose-400 bg-rose-500/10" },
   not_applicable: { label: "vadmin.verification.itemStatusNotApplicable", color: "text-slate-500 bg-slate-500/5" },
-};
-
-// Documents are private: prefer the short-lived signed URL minted by the read
-// path, and fall back to the raw value only when it is an external link
-// (pasted links carry no storage path and need no signature).
-const documentHref = (documentEntry) => {
-  if (documentEntry?.file_url_signed) return documentEntry.file_url_signed;
-  const raw = String(documentEntry?.file_url || "").trim();
-  return /^https?:\/\//i.test(raw) ? raw : null;
 };
 
 export default function VentureVerificationPage() {
@@ -213,15 +203,6 @@ export default function VentureVerificationPage() {
     } finally {
       setUploading((previous) => ({ ...previous, [category]: false }));
     }
-  };
-
-  const handleDeleteDoc = async (docId) => {
-    await fetch(`/api/ventures/${id}/verification`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete_document", document_id: docId }),
-    });
-    notify(t("vadmin.verification.documentRemoved"));
-    fetchData(true);
   };
 
   const handleSubmit = async () => {
@@ -458,25 +439,15 @@ export default function VentureVerificationPage() {
                   {/* Uploaded documents */}
                   {stepDocs.length > 0 && (
                     <div className="space-y-1.5 mb-3">
-                      {stepDocs.map((documentEntry) => {
-                        const href = documentHref(documentEntry);
-                        return (
-                        <div key={documentEntry.id} className="flex items-center justify-between p-2 bg-primary rounded-lg border border-[var(--border-primary)]">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <FileText className="w-3 h-3 text-[var(--brand-orange)] shrink-0" />
-                            <span className="text-[10px] font-bold text-[var(--text-primary)] truncate">{documentEntry.file_name}</span>
-                            {documentEntry.file_size && <span className="text-[10px] text-[var(--text-secondary)]">({(documentEntry.file_size / 1024).toFixed(0)} KB)</span>}
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            {href && (
-                              <a href={href} target="_blank" rel="noreferrer" title={t("common.view")}
-                                className="p-1 text-[var(--brand-orange)] hover:bg-brand-orange/10 rounded"><Download className="w-3 h-3" /></a>
-                            )}
-                            <button onClick={() => handleDeleteDoc(documentEntry.id)} className="p-1 text-rose-500 hover:bg-rose-500/10 rounded shrink-0"><Trash2 className="w-3 h-3" /></button>
-                          </div>
-                        </div>
-                        );
-                      })}
+                      {stepDocs.map((documentEntry) => (
+                        <DataBankDocumentRow
+                          key={documentEntry.id}
+                          ventureId={id}
+                          doc={documentEntry}
+                          canUpload={isUpload && item?.status !== "verified"}
+                          onChanged={() => fetchData(true)}
+                        />
+                      ))}
                     </div>
                   )}
 

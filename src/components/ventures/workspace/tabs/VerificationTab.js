@@ -6,20 +6,19 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
-  Download,
   FileText,
   Loader2,
   MessageCircle,
   RefreshCw,
   Send,
   Shield,
-  Trash2,
   Upload,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { DEFAULT_VENTURE_DOCUMENT_TYPES } from "@/lib/ventureDocumentTypeDefaults";
 import { documentTypeIcon, documentTypeName, isUploadDocumentType } from "../../documentTypeMeta";
+import DataBankDocumentRow from "../../DataBankDocumentRow";
 import { useVenture } from "../VentureContext";
 
 /**
@@ -61,15 +60,6 @@ const ITEM_STATUS = {
   not_applicable: { label: "vadmin.verification.itemStatusNotApplicable", cls: "bg-white/5 text-slate-500" },
 };
 
-// Documents are private: prefer the short-lived signed URL minted by the read
-// path, and fall back to the raw value only when it is an external link
-// (pasted links carry no storage path and need no signature).
-const documentHref = (doc) => {
-  if (doc?.file_url_signed) return doc.file_url_signed;
-  const raw = String(doc?.file_url || "").trim();
-  return /^https?:\/\//i.test(raw) ? raw : null;
-};
-
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are built once here
 // rather than on every render.
@@ -85,7 +75,6 @@ export function VerificationTab() {
   const ventureId = params?.id;
   const [actionError, setActionError] = useState(null);
   const [uploadingCategory, setUploadingCategory] = useState(null);
-  const [deletingDoc, setDeletingDoc] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [comment, setComment] = useState("");
   const [sendingComment, setSendingComment] = useState(false);
@@ -216,17 +205,6 @@ export function VerificationTab() {
     }, "vadmin.verification.uploadFailed");
     if (result) notify(t("vadmin.verification.documentUploaded"));
     setUploadingCategory(null);
-  };
-
-  const handleDeleteDocument = async (documentId) => {
-    if (!ventureId) return;
-    setDeletingDoc(documentId);
-    const result = await runAction(
-      () => post({ action: "delete_document", document_id: documentId }),
-      "venture.manager.actionFailed",
-    );
-    if (result) notify(t("vadmin.verification.documentRemoved"));
-    setDeletingDoc(null);
   };
 
   const runSubmission = async (action) => {
@@ -393,50 +371,15 @@ export function VerificationTab() {
                       {t("venture.verificationTab.yourDocuments")}
                     </p>
                     <div className="space-y-1.5">
-                      {stepDocs.map((doc) => {
-                        const href = documentHref(doc);
-                        return (
-                        <div
+                      {stepDocs.map((doc) => (
+                        <DataBankDocumentRow
                           key={doc.id}
-                          className="flex items-center justify-between gap-2 rounded-lg border border-[var(--border-primary)] bg-surface-3 px-3 py-2"
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <FileText size={12} className="text-[var(--brand-orange)] shrink-0" />
-                            <span className="text-[10px] font-bold text-[var(--text-primary)] truncate">{doc.file_name}</span>
-                            {doc.file_size ? (
-                              <span className="text-[10px] text-[var(--text-secondary)] shrink-0">
-                                ({(doc.file_size / 1024).toFixed(0)} KB)
-                              </span>
-                            ) : null}
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            {href && (
-                              <a
-                                href={href}
-                                target="_blank"
-                                rel="noreferrer"
-                                title={t("common.view")}
-                                className="p-1 text-[var(--brand-orange)] hover:bg-brand-orange/10 rounded"
-                              >
-                                <Download size={12} />
-                              </a>
-                            )}
-                            <button
-                              onClick={() => handleDeleteDocument(doc.id)}
-                              disabled={deletingDoc === doc.id}
-                              title={t("venture.verificationTab.deleteDocument")}
-                              className="p-1 text-rose-500 hover:bg-rose-500/10 rounded shrink-0 disabled:opacity-30"
-                            >
-                              {deletingDoc === doc.id ? (
-                                <Loader2 size={12} className="animate-spin" />
-                              ) : (
-                                <Trash2 size={12} />
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                        );
-                      })}
+                          ventureId={ventureId}
+                          doc={doc}
+                          canUpload={isUpload && item?.status !== "verified"}
+                          onChanged={() => refresh()}
+                        />
+                      ))}
                     </div>
                   </div>
                 )}

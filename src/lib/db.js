@@ -1,4 +1,6 @@
 import { Pool } from "pg";
+import { logger } from "@/lib/logger";
+import { getRequestId } from "@/lib/request-context";
 
 /**
  * IMPACTOS DATA ARCHITECTURE — UNIFIED DB ENGINE (SUPABASE EDITION)
@@ -107,19 +109,81 @@ let skipFlagLogged = false;
  *   dbMs        — accumulated time spent inside the database
  *   slow        — statements above the forensic slow threshold
  */
+/**
+ * Latency thresholds. Calibrated to a ~130ms round trip on the current link:
+ * under one round trip is normal, one to four is worth watching, four or more
+ * is a defect to investigate. These are DEFAULTS — tune with DB_SLOW_MS /
+ * DB_CRITICAL_MS rather than editing this file per environment.
+ */
+const SLOW_QUERY_MS = Number(process.env.DB_SLOW_MS) || 500;
+const CRITICAL_QUERY_MS = Number(process.env.DB_CRITICAL_MS) || 1000;
+
+/** Leading SQL keyword — the operation label a metric/log is grouped by. */
+const operationOf = (sql) => {
+  const match = String(sql).trim().match(/^[a-z]+/i);
+  return (match ? match[0] : "unknown").toUpperCase();
+};
+
+/**
+ * Lightweight process counters, so the cost of a change can be measured
+ * instead of guessed (see `scripts/db-roundtrip-report.mjs`):
+ *   queries     — statements actually sent to the database
+ *   skippedDdl  — maintenance statements answered locally instead of sent
+ *   ddl         — maintenance statements that were sent
+ *   dbMs        — accumulated time spent inside the database
+ *   slow        — statements above the critical threshold
+ *   slowWarn    — statements above the slow (but below critical) threshold
+ *   maxMs       — slowest single statement observed this process
+ *   histogram   — count of statements per latency band (for p50/p95 shape)
+ */
 const metrics = {
   queries: 0,
   skippedDdl: 0,
   ddl: 0,
   dbMs: 0,
   slow: 0,
+  slowWarn: 0,
+  maxMs: 0,
+  histogram: { lt100: 0, lt500: 0, lt1000: 0, gte1000: 0 },
   reset() {
     this.queries = 0;
     this.skippedDdl = 0;
     this.ddl = 0;
     this.dbMs = 0;
     this.slow = 0;
+    this.slowWarn = 0;
+    this.maxMs = 0;
+    this.histogram = { lt100: 0, lt500: 0, lt1000: 0, gte1000: 0 };
   },
+};
+
+/** Record one statement's duration into the process counters. */
+const recordDuration = (duration) => {
+  metrics.dbMs += duration;
+  if (duration > metrics.maxMs) metrics.maxMs = duration;
+  const h = metrics.histogram;
+  if (duration < 100) h.lt100++;
+  else if (duration < SLOW_QUERY_MS) h.lt500++;
+  else if (duration < CRITICAL_QUERY_MS) h.lt1000++;
+  else h.gte1000++;
+};
+
+/**
+ * Log a slow statement as a structured event — never the SQL or the arguments,
+ * which can carry personal data. The operation label plus the request id are
+ * enough to find the offending call site in code.
+ */
+const reportSlowQuery = (sql, duration) => {
+  const level = duration >= CRITICAL_QUERY_MS ? "error" : "warn";
+  if (level === "error") metrics.slow++;
+  else metrics.slowWarn++;
+  logger[level](duration >= CRITICAL_QUERY_MS ? "db_slow_query" : "db_medium_query", {
+    requestId: getRequestId(),
+    operation: operationOf(sql),
+    durationMs: duration,
+    thresholdMs: duration >= CRITICAL_QUERY_MS ? CRITICAL_QUERY_MS : SLOW_QUERY_MS,
+    poolWaiting: getPoolStats().waiting,
+  });
 };
 
 export const getDbMetrics = () => ({
@@ -128,7 +192,25 @@ export const getDbMetrics = () => ({
   ddl: metrics.ddl,
   dbMs: metrics.dbMs,
   slow: metrics.slow,
+  slowWarn: metrics.slowWarn,
+  maxMs: metrics.maxMs,
+  histogram: { ...metrics.histogram },
+  avgMs: metrics.queries ? Math.round(metrics.dbMs / metrics.queries) : 0,
 });
+
+/**
+ * Connection-pool visibility — the signal that separates "slow SQL" from
+ * "waiting for a free connection". `waiting > 0` on a slow request means the
+ * pool was exhausted, not the query; that distinction must exist BEFORE the
+ * pool size is changed.
+ */
+export const getPoolStats = () => {
+  if (!pgPool) return { initialized: false, total: 0, idle: 0, active: 0, waiting: 0, max: 0 };
+  const total = pgPool.totalCount ?? 0;
+  const idle = pgPool.idleCount ?? 0;
+  const waiting = pgPool.waitingCount ?? 0;
+  return { initialized: true, total, idle, active: total - idle, waiting, max: 10 };
+};
 
 // Minimum elapsed time before a FULL pool teardown is allowed after the
 // previous one. Prevents a burst of transient errors from repeatedly dropping
@@ -283,15 +365,19 @@ const execute = async (queryObj) => {
     const duration = Date.now() - start;
 
     metrics.queries++;
-    metrics.dbMs += duration;
+    recordDuration(duration);
 
     if (isMaintenanceDdl(sql)) appliedMaintenanceDdl.add(pgSql);
 
-    if (duration > 1000) {
-      metrics.slow++;
-      console.warn(
-        ` forensics | SLOW QUERY (${duration}ms): ${pgSql.substring(0, 100)}...`,
-      );
+    if (duration >= SLOW_QUERY_MS) {
+      reportSlowQuery(pgSql, duration);
+    } else {
+      logger.debug("db_query", {
+        requestId: getRequestId(),
+        operation: operationOf(pgSql),
+        durationMs: duration,
+        rows: result.rowCount,
+      });
     }
 
     return {
@@ -312,9 +398,11 @@ const execute = async (queryObj) => {
       err.code === "ETIMEDOUT";
 
     if (isConnError) {
-      console.warn(
-        ` forensics | Connection error detected, recovering and retrying...`,
-      );
+      logger.warn("db_connection_recovering", {
+        requestId: getRequestId(),
+        operation: operationOf(pgSql),
+        error: err.message,
+      });
       // Bounded recovery: only tear down the whole pool when allowed by the
       // backoff window; otherwise this is a transient per-connection flake.
       if (!resetPool()) {
@@ -325,9 +413,12 @@ const execute = async (queryObj) => {
         try {
           const retryResult = await freshPool.query(pgSql, args);
           const retryDuration = Date.now() - start;
-          console.warn(
-            ` forensics | Retry succeeded (${retryDuration}ms)`,
-          );
+          recordDuration(retryDuration);
+          logger.warn("db_connection_retry_succeeded", {
+            requestId: getRequestId(),
+            operation: operationOf(pgSql),
+            durationMs: retryDuration,
+          });
           return {
             rows: retryResult.rows,
             columns: retryResult.fields ? retryResult.fields.map((field) => field.name) : [],
@@ -335,20 +426,36 @@ const execute = async (queryObj) => {
             lastInsertRowid: retryResult.rows[0]?.id || null,
           };
         } catch (retryErr) {
-          console.error(
-            ` forensics | Retry also failed: ${retryErr.message}`,
-          );
+          logger.error("db_connection_retry_failed", {
+            requestId: getRequestId(),
+            operation: operationOf(pgSql),
+            error: retryErr.message,
+          });
         }
       }
     }
 
-    console.error(" forensics | Supabase DB Error:", err.message);
-    console.error(" forensics | Failing Query:", sql);
+    logger.error("db_query_failed", {
+      requestId: getRequestId(),
+      operation: operationOf(sql),
+      // Statement HEAD only (no arguments): enough to locate the call site,
+      // bounded so a literal-bearing statement cannot dump its values.
+      statement: String(sql).replace(/\s+/g, " ").trim().slice(0, 120),
+      error: err.message,
+      code: err.code,
+    });
     throw err;
   }
 };
 
 const db = { execute };
+
+/**
+ * The canonical readiness probe — the ONE place a `SELECT 1` lives. Kept here
+ * (not in the route) so the layering rule "no SQL outside the data layer" holds
+ * even for infrastructure probes.
+ */
+export const pingDatabase = () => execute({ sql: "SELECT 1 AS ok", args: [] });
 
 /**
  * Role-level `statement_timeout`, so pooled connections get it too.
@@ -401,6 +508,8 @@ db.transaction = async (callback) => {
   const pool = getPool();
   if (!pool) throw new Error("Database connection pool is offline.");
   const client = await pool.connect();
+  const start = Date.now();
+  let statements = 0;
   try {
     await client.query("BEGIN");
     const result = await callback(async (sql, args = []) => {
@@ -409,6 +518,7 @@ db.transaction = async (callback) => {
         count++;
         return `$${count}`;
       });
+      statements++;
       const queryResult = await client.query(pgSql, args);
       return {
         rows: queryResult.rows,
@@ -417,9 +527,20 @@ db.transaction = async (callback) => {
       };
     });
     await client.query("COMMIT");
+    logger.debug("db_transaction_committed", {
+      requestId: getRequestId(),
+      statements,
+      durationMs: Date.now() - start,
+    });
     return result;
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});
+    logger.warn("db_transaction_rolled_back", {
+      requestId: getRequestId(),
+      statements,
+      durationMs: Date.now() - start,
+      error: err.message,
+    });
     throw err;
   } finally {
     client.release();

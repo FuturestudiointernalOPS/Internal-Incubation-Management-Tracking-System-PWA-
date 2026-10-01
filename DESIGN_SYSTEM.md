@@ -200,6 +200,17 @@ import { Skeleton, TableSkeleton } from "@/components/ui/Skeleton";
   error={validationError}
 />
 
+// Select — same label/error contract as AppInput
+// (both associate the label with the field and announce `error` to screen
+// readers via aria-invalid + aria-describedby)
+<AppSelect
+  label="Role"
+  options={roles}
+  value={role}
+  onChange={(event) => setRole(event.target.value)}
+  error={roleError}
+/>
+
 // Button
 <AppButton variant="primary" size="lg" icon={Plus} onClick={handleCreate}>
   Create Program

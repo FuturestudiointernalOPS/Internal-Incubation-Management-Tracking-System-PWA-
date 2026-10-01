@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight, CalendarPlus, X, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import {
+  stageStatusWord,
   milestoneStatusWord,
   deliverableStatusWord,
   statusWord,
@@ -25,7 +26,7 @@ import { useVenture } from "../VentureContext";
    review each submission (approved / changes requested). */
 export function JourneyTab() {
   const { t, lang } = useI18n();
-  const { journeyStages, cardStyle, params, notifyMsg, fetchJourney } = useVenture();
+  const { journeyStages, cardStyle, params, notifyMsg, fetchJourney, journeyDeliverablesUnavailable } = useVenture();
   const [openId, setOpenId] = useState(null);
   const [tasksByMilestone, setTasksByMilestone] = useState({});
   const [subsByTask, setSubsByTask] = useState({});
@@ -181,7 +182,7 @@ export function JourneyTab() {
     const next = openId === stage.id ? null : stage.id;
     setOpenId(next);
     setOpenTaskId(null);
-    if (next && stage.status !== "locked" && stage.milestones) {
+    if (next && stage.status !== "upcoming" && stage.milestones) {
       stage.milestones.forEach((milestone) => loadMilestoneTasks(milestone.id));
       loadVentureSessions();
     }
@@ -291,6 +292,11 @@ export function JourneyTab() {
   return (
     <div className="space-y-4">
       <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('venture.journeyDesc') || 'Your journey is defined by the team supporting your Venture.'}</p>
+      {journeyDeliverablesUnavailable && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs font-bold text-amber-400">
+          {t('venture.evidenceUnavailable')}
+        </div>
+      )}
       {journeyStages.length === 0 ? (
         <div className="rounded-xl p-8 border text-center" style={cardStyle}>
           <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t('venture.noJourneyYet') || 'No journey milestones have been defined yet.'}</p>
@@ -302,7 +308,7 @@ export function JourneyTab() {
             const isOpen = openId === stage.id;
             const milestoneCounts = stage.milestone_counts || { total: 0, completed: 0 };
             return (
-              <div key={stage.id} className={`rounded-xl border overflow-hidden ${stage.status === 'locked' ? 'opacity-75' : ''}`} style={cardStyle}>
+              <div key={stage.id} className={`rounded-xl border overflow-hidden ${stage.status === 'upcoming' ? 'opacity-75' : ''}`} style={cardStyle}>
                 <button type="button" onClick={() => openStage(stage)} className="w-full flex items-center gap-4 p-4 text-left">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
                     stage.status === 'completed' ? 'bg-green-600 text-white' :
@@ -314,9 +320,7 @@ export function JourneyTab() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className={`font-medium ${stage.status === 'completed' ? 'line-through' : ''}`} style={{ color: stage.status === 'completed' ? 'var(--text-secondary)' : 'var(--text-primary)' }}>{stage.name}</p>
-                      {stage.status === 'active' && <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-blue-500/15 text-blue-400">{t('venture.statuses.active')}</span>}
-                      {stage.status === 'completed' && <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-green-500/15 text-green-400">{t('venture.completed')}</span>}
-                      {stage.status === 'locked' && <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-slate-500/10 text-slate-400">🔒 {t('venture.locked') || 'Locked'}</span>}
+                      <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${statusChipClass(stageStatusWord(stage.status))}`}>{statusLabel(stageStatusWord(stage.status), t)}</span>
                       {milestoneCounts.total > 0 && (
                         <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-white/10 text-slate-400">{milestoneCounts.completed}/{milestoneCounts.total} {t('venture.milestones')}</span>
                       )}
@@ -350,9 +354,10 @@ export function JourneyTab() {
                           const tasks = tasksByMilestone[milestone.id] || [];
                           const normalizedMilestoneStatus = milestoneStatusWord(milestone.status);
                           // STRICTLY the one milestone the Venture may book against:
-                          // the first unfinished milestone of the Journey that is
-                          // actually current. Locked milestones are already filtered
-                          // out by the journey API, so this is the only open one.
+                          // the first unfinished, open milestone of the Journey that
+                          // is actually current. Upcoming and blocked milestones are
+                          // already filtered out by the journey API, so this is the
+                          // only open one.
                           const firstOpenId = (stage.milestones || []).find((candidateMilestone) => candidateMilestone.status !== "completed")?.id;
                           const isCurrent =
                             stage.status === "active" &&
@@ -365,6 +370,15 @@ export function JourneyTab() {
                                 <div className="flex items-center gap-2">
                                   {milestone.status && <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${statusChipClass(normalizedMilestoneStatus)}`}>{statusLabel(normalizedMilestoneStatus, t)}</span>}
                                   {milestone.progress > 0 && <span className="text-[10px] font-bold" style={{ color: 'var(--brand-orange)' }}>{milestone.progress}%</span>}
+                                  {/* The WORK under the outcome, shown beside it: the badge
+                                      says what the milestone is, this says how much of it is
+                                      done. Deliberately separate from the % — that stays
+                                      evidence-driven, so nothing downstream changes meaning. */}
+                                  {milestone.task_counts?.total > 0 && (
+                                    <span className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>
+                                      {t('venture.manager.tasksDone', { done: milestone.task_counts.done, total: milestone.task_counts.total })}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                               {milestone.target_date && <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.targetDate') || 'Target Date'}: {new Date(`${milestone.target_date}T00:00:00`).toLocaleDateString()}</p>}
@@ -544,16 +558,16 @@ export function JourneyTab() {
                                   ))}
                                 </div>
                               )}
-                              {stage.status === 'locked' ? null : tasks.length === 0 && tasksByMilestone[milestone.id] !== undefined ? (
+                              {stage.status === 'upcoming' ? null : tasks.length === 0 && tasksByMilestone[milestone.id] !== undefined ? (
                                 <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{t('venture.noTasksYet')}</p>
                               ) : null}
-                              {stage.status !== 'locked' && (tasksByMilestone[milestone.id] === undefined ? (
+                              {stage.status !== 'upcoming' && (tasksByMilestone[milestone.id] === undefined ? (
                                 <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.loading') || 'Loading...'}</p>
                               ) : tasks.length > 0 ? (
                                 <div className="space-y-1.5">
                                   {tasks.map((task) => {
                                     const isTaskOpen = openTaskId === task.id;
-                                    const canSubmit = stage.status === 'active' && !['done', 'completed', 'accepted', 'cancelled'].includes(task.status);
+                                    const canSubmit = stage.status === 'active' && !task.dependency_blocked && !['done', 'completed', 'accepted', 'cancelled'].includes(task.status);
                                     return (
                                       <div key={task.id} className="rounded-lg border p-2.5" style={{ borderColor: 'rgb(255 255 255 / 0.08)' }}>
                                         <button type="button" onClick={() => toggleTask(task.id)} className="w-full flex items-center gap-2 text-left">
@@ -569,6 +583,11 @@ export function JourneyTab() {
                                         {isTaskOpen && (
                                           <div className="mt-2 pt-2 border-t space-y-2" style={{ borderColor: 'rgb(255 255 255 / 0.06)' }}>
                                             {task.description && <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{task.description}</p>}
+                                            {task.dependency_blocked && (
+                                              <p className="text-[10px] px-2 py-1 rounded-lg bg-rose-500/10 text-rose-400">
+                                                {t('status.blocked')}: {(task.blocked_by_titles || []).join(', ')}
+                                              </p>
+                                            )}
                                             {subsByTask[task.id] && subsByTask[task.id] !== null && (
                                               <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.latestSubmission')}: v{subsByTask[task.id].version} {submissionChip(task.id)}</p>
                                             )}

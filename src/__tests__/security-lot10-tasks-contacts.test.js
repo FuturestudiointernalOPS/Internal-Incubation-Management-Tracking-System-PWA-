@@ -55,22 +55,28 @@ describe("task listing fails closed", () => {
 });
 
 describe("supervisor_id is a management field", () => {
-  const src = read("src/app/api/tasks/route.js");
-
-  test("the role list exists and gates the supervisor on create", () => {
-    expect(src).toContain('const STAFF_SIDE_ROLES = ["super_admin", "staff", "program_manager"]');
-    expect(src).toMatch(
-      /supervisor_id: STAFF_SIDE_ROLES\.includes\(session\.role\) \? supervisor_id \|\| null : null/,
+  test("the create-side gate only lets a staff-side caller set a supervisor", () => {
+    // The create gate moved to the service layer with the layer split; the rule
+    // is unchanged (staff-side roles only), now expressed through the shared
+    // portfolio rule.
+    const createSrc = read("src/services/tasks/create.js");
+    expect(createSrc).toMatch(
+      /supervisor_id: seesWholePortfolio\(role\) \? supervisor_id \|\| null : null/,
     );
   });
 
-  test("the supervisor cannot be changed on update by a non-staff caller", () => {
-    expect(src).toMatch(/STAFF_SIDE_ROLES\.includes\(session\.role\) &&\s*\n\s*supervisor_id !== undefined/);
+  test("the update-side gate only lets a staff-side caller change a supervisor", () => {
+    const updateSrc = read("src/services/tasks/update.js");
+    expect(updateSrc).toMatch(
+      /seesWholePortfolio\(role\) &&\s*\n\s*supervisor_id !== undefined/,
+    );
   });
 });
 
 describe("anonymous contacts cannot enroll into a program", () => {
-  const src = read("src/app/api/contacts/route.js");
+  // The mapping moved to the registration service; the route no longer decides
+  // what an anonymous submission may carry.
+  const src = read("src/services/contacts/registration.js");
 
   test("program_id and program_name are only honoured for an authenticated caller", () => {
     expect(src).toMatch(/program_id: session \? contact\.program_id \|\| null : null/);

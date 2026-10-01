@@ -71,7 +71,6 @@ function asUser(cid, token, overrides = {}) {
     group_name: "FUTURE STUDIO",
     token,
     token_hash: `hash-${token}`,
-    is_impersonation: false,
     ...overrides,
   };
 }
@@ -91,7 +90,7 @@ describe("createSession", () => {
   it("issues a token, stores its hash, and never stores the token in clear", async () => {
     serveSessions();
 
-    const { token, maxAge, isImpersonation } = await createSession("USR1", "staff");
+    const { token, maxAge } = await createSession("USR1", "staff");
 
     const insert = calls("INSERT INTO user_sessions")[0][0];
     expect(token).toEqual(expect.any(String));
@@ -100,9 +99,7 @@ describe("createSession", () => {
     expect(insert.args[1]).toBe(`hash-${token}`);
     expect(insert.args[2]).toBe("USR1");
     expect(insert.args[3]).toBe("staff");
-    expect(insert.args[5]).toBe(false);
     expect(maxAge).toBe(24 * 60 * 60);
-    expect(isImpersonation).toBe(false);
   });
 
   it("stores an expiry one day out by default", async () => {
@@ -145,14 +142,6 @@ describe("createSession", () => {
     expect(deletions).toHaveLength(1);
     expect(deletions[0][0].args).toEqual(["s1"]);
   });
-
-  it("marks an impersonation session", async () => {
-    serveSessions();
-
-    await createSession("USR5", "staff", false, true);
-
-    expect(calls("INSERT INTO user_sessions")[0][0].args[5]).toBe(true);
-  });
 });
 
 describe("getSession", () => {
@@ -173,7 +162,6 @@ describe("getSession", () => {
       role: "staff",
       group_name: "FUTURE STUDIO",
       token: "token-shape",
-      is_impersonation: false,
     });
   });
 

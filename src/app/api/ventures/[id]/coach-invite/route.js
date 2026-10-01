@@ -1,10 +1,10 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans";
 import { resolveVentureCode } from "@/lib/ventureOperatingPlans";
 import { VENTURE_SCOPE_TYPES } from "@/lib/venturePermissions";
 import { inviteCoachByEmail } from "@/lib/ventureCoach";
+import { getVentureNameByIdOrCode } from "@/models/ventureWorkspace";
 
 export const dynamic = "force-dynamic";
 
@@ -25,9 +25,9 @@ export async function POST(req, { params }) {
     const session = await getSession();
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
-    const access = await resolvePlanAccess(db, id, session);
+    const access = await resolvePlanAccess(id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    if (!(await allowsPlanAction(db, access, "manage"))) {
+    if (!(await allowsPlanAction(access, "manage"))) {
       return NextResponse.json({ success: false, error: "Your assignment does not allow inviting coaches to this Venture." }, { status: 403 });
     }
 
@@ -35,13 +35,10 @@ export async function POST(req, { params }) {
     const email = String(body.email || "").trim();
     if (!email) return NextResponse.json({ success: false, error: "email is required." }, { status: 400 });
 
-    const code = await resolveVentureCode(db, id);
+    const code = await resolveVentureCode(id);
     if (!code) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const ventureResult = await db.execute({
-      sql: "SELECT company_name, name FROM ventures WHERE venture_id = ? OR id::text = ?",
-      args: [id, id],
-    }).catch(() => ({ rows: [] }));
+    const ventureResult = await getVentureNameByIdOrCode(id).catch(() => ({ rows: [] }));
     const ventureName = ventureResult.rows?.[0]?.company_name || ventureResult.rows?.[0]?.name || code;
 
     // The invitee's responsibility is a PRIVILEGE boundary: this endpoint invites
@@ -60,7 +57,7 @@ export async function POST(req, { params }) {
       ? requestedScope
       : "venture_wide";
 
-    const result = await inviteCoachByEmail(db, {
+    const result = await inviteCoachByEmail({
       code,
       ventureName,
       email,

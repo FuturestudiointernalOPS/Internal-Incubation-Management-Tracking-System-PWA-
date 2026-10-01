@@ -9,7 +9,7 @@
  *   - copies are INDEPENDENT rows (new ids, never references to the source)
  *   - structure is preserved, execution data (submissions/reviews/history)
  *     is never copied
- *   - statuses reset (locked / not_started / backlog)
+ *   - statuses reset (upcoming / upcoming / backlog)
  *   - journey stage copies are inserted with a collision-safe
  *     re-serialization (UNIQUE venture_id, stage_order)
  *   - permission gates behave like the sibling routes
@@ -204,17 +204,17 @@ describe("POST /journey/duplicate", () => {
     const data = await readJson(res);
     expect(data.success).toBe(true);
     expect(data.stage.name).toBe("Family & Friends — Copy");
-    expect(data.stage.status).toBe("locked");
+    expect(data.stage.status).toBe("upcoming");
     expect(data.milestones_copied).toBe(2);
     expect(data.tasks_copied).toBe(3);
 
-    // Stage insert: independent row, locked, ordered right after the source.
+    // Stage insert: independent row, upcoming, ordered right after the source.
     const stageInserts = insertsMatching("INSERT INTO venture_journey_stages");
     expect(stageInserts.length).toBe(1);
     const stageArgs = stageInserts[0].args;
     expect(stageArgs[0]).not.toBe(STAGE_ID); // new id
     expect(stageArgs[2]).toBe("Family & Friends — Copy");
-    expect(stageInserts[0].sql).toContain("'locked'");
+    expect(stageInserts[0].sql).toContain("'upcoming'");
     expect(stageArgs[6]).toBe(2); // temp order = max(1) + 1 before re-serialization
 
     // Collision-safe re-serialization: park on negatives, then assign 1..n.
@@ -224,7 +224,7 @@ describe("POST /journey/duplicate", () => {
     expect(parked.length).toBeGreaterThan(0);
     expect(finalAssignments.length).toBeGreaterThan(0);
 
-    // Milestone copies: 2, bound to the NEW stage id, reset to not_started.
+    // Milestone copies: 2, bound to the NEW stage id, reset to upcoming.
     const msInserts = insertsMatching("INSERT INTO venture_milestones");
     expect(msInserts.length).toBe(2);
     const newStageId = stageArgs[0];

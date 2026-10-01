@@ -3,14 +3,22 @@ import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import {
-  getPendingDuplicateFlags,
-  dismissDuplicateFlag,
-} from "@/models/contacts";
+  listPendingDuplicateFlags,
+  dismissPendingDuplicateFlag,
+} from "@/services/contacts/duplicateFlags";
 
 export const dynamic = "force-dynamic";
 
-const DEFAULT_LIMIT = 200;
-const MAX_LIMIT = 500;
+/**
+ * /api/contacts/duplicates — the candidate-duplicate review queue.
+ *
+ * GET    /api/contacts/duplicates?limit=   list pending flags (capped)
+ * DELETE /api/contacts/duplicates?id=       dismiss a pending flag
+ *
+ * The page-size clamp, the flag shaping and the "only dismiss a pending flag"
+ * rule live in `@/services/contacts/duplicateFlags`; this route authenticates,
+ * gates on the capability and shapes the HTTP answer.
+ */
 
 export async function GET(req) {
   try {
@@ -20,26 +28,10 @@ export async function GET(req) {
     const capError = await requireAuthorization("contacts", "view");
     if (capError) return capError;
 
-    // Cap the result set so a large backlog of pending flags can't blow up
-    // the response. Defaults to 200, override with ?limit= (max 500).
     const { searchParams } = new URL(req.url);
-    const limitRaw = parseInt(searchParams.get("limit") || "", 10);
-    const limit =
-      Number.isFinite(limitRaw) && limitRaw > 0
-        ? Math.min(limitRaw, MAX_LIMIT)
-        : DEFAULT_LIMIT;
+    const flags = await listPendingDuplicateFlags(searchParams.get("limit"));
 
-    const flags = await getPendingDuplicateFlags(limit);
-
-    const result = flags.rows.map(
-      ({ contact_a_name, contact_a_email, contact_b_name, contact_b_email, ...rest }) => ({
-        ...rest,
-        contact_a: { name: contact_a_name, email: contact_a_email },
-        contact_b: { name: contact_b_name, email: contact_b_email },
-      }),
-    );
-
-    return NextResponse.json({ success: true, flags: result });
+    return NextResponse.json({ success: true, flags });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error?.message || "errors.somethingWrong" },
@@ -66,9 +58,8 @@ export async function DELETE(req) {
       );
 
     // Only dismiss flags that are still pending; never overwrite a merged flag.
-    const result = await dismissDuplicateFlag(id, session?.cid || null);
-
-    if (!result.rowsAffected) {
+    const dismissed = await dismissPendingDuplicateFlag(id, session?.cid || null);
+    if (!dismissed) {
       return NextResponse.json(
         { success: false, error: "errors.notFound" },
         { status: 404 },

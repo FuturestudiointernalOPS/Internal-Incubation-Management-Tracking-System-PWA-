@@ -39,9 +39,11 @@ import {
   createContext,
   useContext,
   useCallback,
+  useEffect,
+  useState,
   useSyncExternalStore,
 } from "react";
-import { LOCALE_REGISTRY } from "@/lib/locales";
+import { EN as BASE_LOCALE, getLoadedLocale, loadLocale } from "@/lib/locales";
 
 // ─── Supported Languages ───
 export const SUPPORTED_LANGUAGES = [
@@ -52,8 +54,10 @@ export const SUPPORTED_LANGUAGES = [
 export const DEFAULT_LANGUAGE = "en";
 
 // ─── Language Registry ───
-// Add new languages here. Only English is required to have all keys.
-const LANGUAGES = LOCALE_REGISTRY;
+// Only English is bundled; the others are chunks loaded on demand (see
+// src/lib/locales.js). This set is only the list of admissible language codes.
+const SUPPORTED_CODES = new Set(SUPPORTED_LANGUAGES.map((language) => language.code));
+const isSupportedLang = (code) => SUPPORTED_CODES.has(code);
 
 // ─── The chosen language, as a store ─────────────────────────────────────────
 //
@@ -73,10 +77,10 @@ function readLanguage() {
     const userStr = localStorage.getItem("user");
     if (userStr) {
       const user = JSON.parse(userStr);
-      if (user.language && LANGUAGES[user.language]) return user.language;
+      if (user.language && isSupportedLang(user.language)) return user.language;
     }
     const saved = localStorage.getItem("impactos_lang");
-    if (saved && LANGUAGES[saved]) return saved;
+    if (saved && isSupportedLang(saved)) return saved;
   } catch {
     // A browser with storage disabled falls through to the browser's own choice.
   }
@@ -86,7 +90,7 @@ function readLanguage() {
           .toLowerCase()
           .slice(0, 2)
       : DEFAULT_LANGUAGE;
-  return LANGUAGES[detected] ? detected : DEFAULT_LANGUAGE;
+  return isSupportedLang(detected) ? detected : DEFAULT_LANGUAGE;
 }
 
 function getLanguageSnapshot() {
@@ -151,14 +155,33 @@ export function I18nProvider({ children }) {
     getLanguageServerSnapshot,
   );
 
+  // English ships with the bundle; every other language is a chunk that arrives
+  // the first time it is selected. Until it lands, `t` falls back to English
+  // (which is also what a missing key does), and the read below re-renders the
+  // tree the moment the corpus is ready — no reload, no lost interaction.
+  const [, reloadLocale] = useState(0);
+  useEffect(() => {
+    if (getLoadedLocale(lang)) return;
+    let cancelled = false;
+    loadLocale(lang).then((locale) => {
+      if (!cancelled && locale) reloadLocale((version) => version + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [lang]);
+
+  // A new object reference once `lang` has loaded, which is what rebuilds `t`
+  // and turns the English fallback into the chosen language.
+  const activeLocale = getLoadedLocale(lang) || BASE_LOCALE;
+
   const t = useCallback(
     (key, params = {}) => {
       // Try active language first
-      const activeLang = LANGUAGES[lang];
-      let result = resolveKey(activeLang, key);
+      let result = resolveKey(activeLocale, key);
       if (result == null) {
         // Fallback to English
-        result = resolveKey(LANGUAGES[DEFAULT_LANGUAGE], key);
+        result = resolveKey(BASE_LOCALE, key);
       }
       if (result == null) return key;
 
@@ -167,11 +190,11 @@ export function I18nProvider({ children }) {
         return params[name] !== undefined ? params[name] : `{${name}}`;
       });
     },
-    [lang],
+    [activeLocale],
   );
 
   const switchLang = useCallback((newLang) => {
-    if (!LANGUAGES[newLang]) return;
+    if (!isSupportedLang(newLang)) return;
     writeLanguage(newLang);
 
     // If a language endpoint exists, persist to account

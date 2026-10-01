@@ -1,23 +1,16 @@
 import { NextResponse } from "next/server";
-import { taskExists } from "@/lib/db/queries/tasks";
-import {
-  getTaskAccessById,
-  getCommentsByTaskId,
-  getTaskAccessForCreate,
-  createComment,
-  getTaskNotifyFieldsById,
-  createNotification,
-  getContactsByNames,
-  getCommentSenderById,
-  deleteComment,
-  getCommentSenderForEdit,
-  updateCommentBody,
-} from "@/models/taskComments";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/lib/auth";
+import {
+  listTaskComments,
+  postTaskComment,
+  deleteTaskComment,
+  editTaskComment,
+} from "@/services/tasks/comments";
 
 /**
- * TASK COMMENTS API (Ticket 1.3 / 1.9 / 4.2 — Task Discussions)
+ * TASK COMMENTS API (Ticket 1.3 / 1.9 / 4.2 — Task Discussions) — controller
+ * layer.
  *
  * GET  /api/tasks/comments?task_id=X
  *   - Returns all comments for a task (or subtask), oldest first
@@ -28,6 +21,13 @@ import { getSession } from "@/lib/auth";
  *
  * DELETE /api/tasks/comments?id=X&user_id=Y
  *   - Deletes a comment — only the author can delete their own comment
+ *
+ * PUT  /api/tasks/comments
+ *   - Edits a comment body — only the author can edit their own comment
+ *
+ * The access rule, the notification fan-out and the author-only rules live in
+ * `@/services/tasks/comments`. The sender identity is resolved here: it is
+ * always the authenticated session user, never a client-supplied value.
  */
 
 export const GET = createHandler(async (req) => {
@@ -48,57 +48,29 @@ export const GET = createHandler(async (req) => {
       { status: 401 },
     );
   }
-  const taskResult = await getTaskAccessById(task_id);
-  const task = taskResult.rows[0];
-  if (!task) {
+
+  const result = await listTaskComments({
+    taskId: task_id,
+    role: session.role,
+    sessionCid: session.cid,
+  });
+  if (result.error) {
     return NextResponse.json(
-      { success: false, error: "Task not found" },
-      { status: 404 },
+      result.body || { success: false, error: result.error },
+      { status: result.status },
     );
   }
-  const staffSide = [
-    "super_admin",
-    "staff",
-    "program_manager",
-  ];
-  if (
-    !staffSide.includes(session.role) &&
-    String(task.user_id) !== String(session.cid) &&
-    String(task.assigned_to || "") !== String(session.cid) &&
-    String(task.supervisor_id || "") !== String(session.cid)
-  ) {
-    return NextResponse.json(
-      { success: false, error: "You do not have access to this task." },
-      { status: 403 },
-    );
-  }
-
-  const result = await getCommentsByTaskId(task_id);
-
-  return NextResponse.json({ success: true, comments: result.rows });
+  return NextResponse.json(result.body, { status: result.status });
 });
 
 export const POST = createHandler(async (req) => {
   const body = await req.json();
-  let { sender_id } = body;
-  const {
-    task_id,
-    sender_name,
-    body: commentBody,
-    parent_id,
-  } = body;
+  const { task_id, sender_name, body: commentBody, parent_id } = body;
 
-  if (!task_id || !sender_id || !commentBody || !commentBody.trim()) {
+  if (!task_id || !body.sender_id || !commentBody || !commentBody.trim()) {
     return NextResponse.json(
       { success: false, error: "task_id, sender_id, and body are required" },
       { status: 400 },
-    );
-  }
-
-  if (!(await taskExists(task_id))) {
-    return NextResponse.json(
-      { success: false, error: "Task not found" },
-      { status: 404 },
     );
   }
 
@@ -109,98 +81,29 @@ export const POST = createHandler(async (req) => {
       { status: 401 },
     );
   }
-  const taskResult = await getTaskAccessForCreate(task_id);
-  const task = taskResult.rows[0];
-  if (!task) {
-    return NextResponse.json(
-      { success: false, error: "Task not found" },
-      { status: 404 },
-    );
-  }
-  const staffSide = [
-    "super_admin",
-    "staff",
-    "program_manager",
-  ];
-  if (
-    !staffSide.includes(session.role) &&
-    String(task.user_id) !== String(session.cid) &&
-    String(task.assigned_to || "") !== String(session.cid) &&
-    String(task.supervisor_id || "") !== String(session.cid)
-  ) {
-    return NextResponse.json(
-      { success: false, error: "You do not have access to this task." },
-      { status: 403 },
-    );
-  }
-  // Sender is always the authenticated session user, not a client-supplied value
-  sender_id = session.cid;
 
-  const result = await createComment(
-    task_id,
-    sender_id,
-    // The display name is the session's, never a client-supplied one.
-    session.name || sender_name || session.cid,
-    commentBody,
-    parent_id,
-  );
+  // Sender is always the authenticated session user, never a client value; the
+  // display name prefers the session's name.
+  const authorName = session.name || sender_name || session.cid;
 
-  const row = result.rows[0] || {};
-
-  // Notify the task owner / assignee if someone else commented
-  try {
-    const notifyFieldsResult = await getTaskNotifyFieldsById(task_id);
-    const taskToNotify = notifyFieldsResult.rows[0];
-    const alreadyNotified = new Set();
-
-    const insertNotification = async (recipientId, title, message, type) => {
-      await createNotification(recipientId, title, message, type);
-    };
-
-    if (taskToNotify) {
-      const recipients = new Set(
-        [taskToNotify.user_id, taskToNotify.assigned_to].filter((recipient) => recipient && recipient !== sender_id),
-      );
-      for (const recipientId of recipients) {
-        alreadyNotified.add(recipientId);
-        await insertNotification(
-          recipientId,
-          "New Comment",
-          `${sender_name || "Someone"} commented on "${taskToNotify.title}"`,
-          "comment",
-        );
-      }
-    }
-
-    const mentionRegex = /@(\w[\w\s.-]*?\w)\b/g;
-    let match;
-    const mentionedNames = new Set();
-    while ((match = mentionRegex.exec(commentBody)) !== null) {
-      mentionedNames.add(match[1].trim().toLowerCase());
-    }
-
-    if (mentionedNames.size > 0) {
-      const namesArray = [...mentionedNames];
-      const mentionResult = await getContactsByNames(namesArray);
-
-      for (const mentioned of mentionResult.rows) {
-        if (alreadyNotified.has(mentioned.cid)) continue;
-        if (mentioned.cid === sender_id) continue;
-        await insertNotification(
-          mentioned.cid,
-          "Mention in Comment",
-          `${sender_name || "Someone"} mentioned you in a comment on "${taskToNotify?.title || "a task"}"`,
-          "mention",
-        );
-      }
-    }
-  } catch (_) {}
-
-  return NextResponse.json({
-    success: true,
-    id: Number(row.id),
-    created_at: row.created_at,
+  const result = await postTaskComment({
+    taskId: task_id,
+    senderId: session.cid,
+    authorName,
+    notifyName: sender_name,
+    body: commentBody,
+    parentId: parent_id,
+    role: session.role,
+    sessionCid: session.cid,
   });
+
+  if (result.error) {
+    return NextResponse.json(
+      result.body || { success: false, error: result.error },
+      { status: result.status },
+    );
+  }
+  return NextResponse.json(result.body, { status: result.status });
 });
 
 export const DELETE = createHandler(async (req) => {
@@ -221,26 +124,18 @@ export const DELETE = createHandler(async (req) => {
     );
   }
 
-  const commentResult = await getCommentSenderById(id);
-
-  if (commentResult.rows.length > 0) {
-    const comment = commentResult.rows[0];
-    if (
-      String(comment.sender_id) !== String(session.cid) &&
-      session.role !== "super_admin"
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Only the author can delete this comment.",
-        },
-        { status: 403 },
-      );
-    }
-    await deleteComment(id);
+  const result = await deleteTaskComment({
+    id,
+    role: session.role,
+    sessionCid: session.cid,
+  });
+  if (result.error) {
+    return NextResponse.json(
+      result.body || { success: false, error: result.error },
+      { status: result.status },
+    );
   }
-
-  return NextResponse.json({ success: true });
+  return NextResponse.json(result.body, { status: result.status });
 });
 
 export const PUT = createHandler(async (req) => {
@@ -261,24 +156,17 @@ export const PUT = createHandler(async (req) => {
     );
   }
 
-  const commentResult = await getCommentSenderForEdit(id);
-
-  if (commentResult.rows.length === 0) {
+  const result = await editTaskComment({
+    id,
+    body: newBody,
+    role: session.role,
+    sessionCid: session.cid,
+  });
+  if (result.error) {
     return NextResponse.json(
-      { success: false, error: "Comment not found" },
-      { status: 404 },
+      result.body || { success: false, error: result.error },
+      { status: result.status },
     );
   }
-
-  if (String(commentResult.rows[0].sender_id) !== String(session.cid) &&
-      session.role !== "super_admin") {
-    return NextResponse.json(
-      { success: false, error: "Only the author can edit this comment." },
-      { status: 403 },
-    );
-  }
-
-  await updateCommentBody(id, newBody);
-
-  return NextResponse.json({ success: true });
+  return NextResponse.json(result.body, { status: result.status });
 });
