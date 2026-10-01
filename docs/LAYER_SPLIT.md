@@ -40,12 +40,14 @@
 > submissions controller frontier has since begun and is now complete (the submit
 > path, the review, the list read, the score write). The platform frontier has
 > since begun — the `form-runs` email/report-document cluster (slice 95), then
-> the platform wave (slices 96–109): the import preview/execute/review-flag
+> the platform wave (slices 96–111): the import preview/execute/review-flag
 > routes, the two seeds, the AI form generation, the template personalizer, the
 > advisory analysis, the evaluation scoreboard, the form-runs scoring engine, the
-> review workflow, the forms/collections controllers and the whole `form-runs`
+> review workflow, the forms/collections controllers, the whole `form-runs`
 > action vocabulary (respondent write path, run lifecycle, email actions,
-> messaging actions, link/document/run actions, then the PUT/DELETE verbs).
+> messaging actions, link/document/run actions, then the PUT/DELETE verbs) and
+> the remaining platform controllers (notifications, integrations, investor-run,
+> evaluation-config, report-file).
 > The remaining mixed model modules are itemised in §4. This document is the
 > running log. Update it at the end of every slice.
 
@@ -1963,7 +1965,7 @@ vocabulary are the next platform slices.**
 
 ---
 
-### Domain 76 — the platform controller frontier (slices 96–104)
+### Domain 76 — the platform controller frontier (slices 96–111)
 
 With the model layer clear (§4), the platform controllers carried the last
 domain logic. This wave thins them route by route; each keeps its `initDb`, its
@@ -2103,6 +2105,24 @@ instruction in the service (same assertion, new home). `npm test` (243 suites,
 3530 tests), `npx eslint` (0 errors) and `npm run build` are green. **The whole
 `form-runs` route is now a thin controller over `services/platform/formRuns.js`.**
 
+**Slice 111 — the remaining platform controllers** →
+`services/platform/{notifications,integrations,investorIntake,evaluationConfig,reportFiles}.js`.
+The last thin-but-deciding platform routes move: the notification list +
+mark-one/mark-all, the calendar/Notion health probes and sync vocabulary (sync /
+unsync / sync-all, with the required-id and unknown-action refusals), the
+Investor Run reference + public URL (404 when unconfigured), the form
+evaluation-framework read/save/remove and the Run report-file attach/read/detach
+(validate before any byte is read or written, the replace-then-remove ordering,
+the signed read link that never hands out the storage path, and "detach = row
+first, object after"). The gates stay in the routes: `settings.view` for the
+health reads, `super_admin`/`program_manager` for the syncs, `runs.edit`/`runs.view`
+for the report file and the session (no capability) for notifications.
+**Source-pins repointed:** `run-report-file` (the signed link is now minted in
+the service) and `investor-application-intake` (the run resolution is now in the
+service). New characterisation net `platform-misc-controllers.test.js`. `npm
+test` (243 suites, 3530 tests), `npx eslint` (0 errors) and `npm run build` are
+green.
+
 ---
 
 ## 3. Left aside on purpose (deferred, with reasons)
@@ -2145,7 +2165,7 @@ cleanup, not layering:
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
-| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85), the `form-runs` Run-detail read (93), the `form-runs` email/report-document cluster (95), the import routes (96), the seeds (97), the AI form generation (98), the template personalizer (99), the advisory analysis (100), the evaluation scoreboard (101), the form-runs scoring engine (102), the review workflow (103), the forms/collections controllers (104) and the rest of the `form-runs` POST vocabulary — the respondent write path, the run lifecycle, the email actions, the messaging actions, the link/document/run actions (105–109) and the PUT/DELETE verbs (110) — **`/api/platform/form-runs` is now a thin controller over `services/platform/formRuns.js`** |
+| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85), the `form-runs` Run-detail read (93), the `form-runs` email/report-document cluster (95), the import routes (96), the seeds (97), the AI form generation (98), the template personalizer (99), the advisory analysis (100), the evaluation scoreboard (101), the form-runs scoring engine (102), the review workflow (103), the forms/collections controllers (104) and the rest of the `form-runs` POST vocabulary — the respondent write path, the run lifecycle, the email actions, the messaging actions, the link/document/run actions (105–109), the PUT/DELETE verbs (110) and the remaining platform controllers — notifications, integrations, investor-run, evaluation-config, report-file (111) — **`/api/platform/form-runs` is now a thin controller over `services/platform/formRuns.js`** |
 | Communications | `services/communications/*` | ✅ **controller frontier complete** — message scope (earlier), campaigns (86), internal messages (87), announcements (88), follow-ups and events (89–90) |
 | Submissions | `services/ventures/submissions.js` | ✅ **controller frontier complete** — the submit POST (91), the review PATCH (92), the list GET (93) and the score PUT (94) |
 
