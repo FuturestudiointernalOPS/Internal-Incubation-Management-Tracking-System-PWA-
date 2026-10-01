@@ -8,6 +8,8 @@
  *   context.js — resolve a person's effective access, and answer "may they?"
  *   contextGrantReadiness.js — the read-only readiness/impact report an
  *                              administrator consults before narrowing access
+ *   resourceGuards.js — the decisions behind the project/program-guard helpers
+ *                              (`@/server/authz/guards` maps them to responses)
  *
  * Who imports it:
  *   - endpoints (controllers) call `requireAuthorization` at the top of a handler
@@ -29,3 +31,4 @@ export * from "./programAssignments";
 export * from "./programScopeReadiness";
 export * from "./scope";
 export * from "./scopedAccess";
+export * from "./resourceGuards";

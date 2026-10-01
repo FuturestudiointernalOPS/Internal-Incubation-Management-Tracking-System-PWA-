@@ -10,20 +10,27 @@
  *
  * These are authorization decisions ("may this account touch this resource?"),
  * not authentication ones: they run once an identity exists.
+ *
+ * The DECISION now lives in `@/services/authorization/resourceGuards` (HTTP-free,
+ * testable without a request); this module is the HTTP boundary that turns the
+ * decision into a `NextResponse`. The public signatures are unchanged, so every
+ * caller reads exactly as before.
  */
 
 import { NextResponse } from "next/server";
-import { requireSession } from "@/server/auth/guards";
-import { getSession } from "@/server/auth/session";
-import { FACILITATOR_BYPASS_ROLES } from "./capabilities";
-import { resolveProgramAssignment, getFacilitatorPermissionLevel } from "./programAccess";
 import {
-  projectExists,
-  isProjectMember,
-  findParticipantFacilitatorConflict,
-  getAssignmentStatus,
-} from "@/models/authorization/accessQueries";
+  evaluateProjectAccess,
+  evaluateProgramFacilitator,
+  evaluateFacilitatorProgramAccess,
+  evaluateParticipantFacilitatorConflict,
+  evaluateAssignmentAccess,
+} from "@/services/authorization/resourceGuards";
 
+/** Map a decision to the refusal response, or null when it is allowed. */
+function toResponse({ allowed, status, errorKey }) {
+  if (allowed) return null;
+  return NextResponse.json({ success: false, error: errorKey }, { status });
+}
 
 /**
  * requireProjectAccess — Auth guard for project-scoped endpoints.
@@ -37,40 +44,7 @@ import {
  *   if (authError) return authError;
  */
 export async function requireProjectAccess(projectId) {
-  try {
-    const session = await requireSession(); // any authenticated user
-
-    // Super_admin bypass
-    if (session.role === "super_admin") return null;
-
-    // Check if project exists
-    if (!(await projectExists(projectId))) {
-      return NextResponse.json(
-        { success: false, error: "Project not found" },
-        { status: 404 },
-      );
-    }
-
-    // Check if user is a project member or lead (covers both owners and collaborators)
-    if (await isProjectMember(projectId, session.cid)) return null;
-
-    // Deny
-    return NextResponse.json(
-      { success: false, error: "errors.insufficientPermissions" },
-      { status: 403 },
-    );
-  } catch (err) {
-    if (err.message === "Unauthorized") {
-      return NextResponse.json(
-        { success: false, error: "errors.authRequired" },
-        { status: 401 },
-      );
-    }
-    return NextResponse.json(
-      { success: false, error: "errors.authSystemFailure" },
-      { status: 500 },
-    );
-  }
+  return toResponse(await evaluateProjectAccess(projectId));
 }
 
 /**
@@ -80,27 +54,7 @@ export async function requireProjectAccess(projectId) {
  * keep their existing bypass access.
  */
 export async function requireProgramFacilitator(programId) {
-  try {
-    const session = await getSession();
-    if (!session)
-      return NextResponse.json(
-        { success: false, error: "errors.authRequired" },
-        { status: 401 },
-      );
-    if (session.role === "super_admin") return null;
-    const resolved = await resolveProgramAssignment(programId, session.cid, session.email);
-    if (!resolved)
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      );
-    return null;
-  } catch {
-    return NextResponse.json(
-      { success: false, error: "errors.authzSystemFailure" },
-      { status: 500 },
-    );
-  }
+  return toResponse(await evaluateProgramFacilitator(programId));
 }
 
 /**
@@ -110,35 +64,7 @@ export async function requireProgramFacilitator(programId) {
  * access is preserved.
  */
 export async function enforceFacilitatorProgramAccess(programId, capability = null, minLevel = 1) {
-  try {
-    const session = await getSession();
-    if (!session)
-      return NextResponse.json(
-        { success: false, error: "errors.authRequired" },
-        { status: 401 },
-      );
-    if (session.role === "super_admin") return null;
-    const resolved = await resolveProgramAssignment(programId, session.cid, session.email);
-    if (!resolved)
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      );
-    if (capability) {
-      const level = await getFacilitatorPermissionLevel(programId, resolved.assignment, capability);
-      if (level < minLevel)
-        return NextResponse.json(
-          { success: false, error: "errors.insufficientPermissions" },
-          { status: 403 },
-        );
-    }
-    return null;
-  } catch {
-    return NextResponse.json(
-      { success: false, error: "errors.authzSystemFailure" },
-      { status: 500 },
-    );
-  }
+  return toResponse(await evaluateFacilitatorProgramAccess(programId, capability, minLevel));
 }
 
 /**
@@ -155,20 +81,7 @@ export async function assertNoParticipantFacilitatorConflict(
   contactCid,
   contactEmail = null,
 ) {
-  try {
-    if (!programId || !contactCid) return null;
-    const conflict = await findParticipantFacilitatorConflict(programId, contactCid, contactEmail);
-    if (conflict) {
-      return NextResponse.json(
-        { success: false, error: "errors.roleConflictParticipantFacilitator" },
-        { status: 409 },
-      );
-    }
-    return null;
-  } catch (error) {
-    console.error("assertNoParticipantFacilitatorConflict error:", error.message);
-    return null;
-  }
+  return toResponse(await evaluateParticipantFacilitatorConflict(programId, contactCid, contactEmail));
 }
 
 /**
@@ -178,52 +91,6 @@ export async function assertNoParticipantFacilitatorConflict(
  * behavior is preserved exactly. Non-program resources are not wired yet and are
  * denied. `requireStatus` optionally enforces an assignment status on top.
  */
-export async function requireAssignmentAccess({
-  resource = "program",
-  contextId,
-  capability = null,
-  minLevel = 1,
-  requireStatus = null,
-}) {
-  try {
-    const session = await getSession();
-    if (!session)
-      return NextResponse.json(
-        { success: false, error: "errors.authRequired" },
-        { status: 401 },
-      );
-
-    if (FACILITATOR_BYPASS_ROLES.includes(session.role)) return null;
-
-    if (resource !== "program") {
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      );
-    }
-
-    const base = await enforceFacilitatorProgramAccess(
-      contextId,
-      capability,
-      minLevel,
-    );
-    if (base) return base;
-
-    if (requireStatus) {
-      const status = await getAssignmentStatus(resource, contextId, session.cid);
-      if (status !== requireStatus) {
-        return NextResponse.json(
-          { success: false, error: "errors.insufficientPermissions" },
-          { status: 403 },
-        );
-      }
-    }
-
-    return null;
-  } catch {
-    return NextResponse.json(
-      { success: false, error: "errors.authzSystemFailure" },
-      { status: 500 },
-    );
-  }
+export async function requireAssignmentAccess(params) {
+  return toResponse(await evaluateAssignmentAccess(params));
 }
