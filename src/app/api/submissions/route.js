@@ -6,17 +6,6 @@ import { serverError } from "@/lib/apiError";
 import {
   ensureSubmissionsRoleLockColumn,
   getSubmissionProgramId,
-  checkSubmissionInFacilitatorTeamScope,
-  getSubmissionReviewDetails,
-  ensureSubmissionsScoreColumn,
-  ensureSubmissionsReviewedByRoleColumn,
-  ensureSubmissionsUpdatedAtColumn,
-  ensureSubmissionsFollowupsParticipantCidColumn,
-  updateSubmissionReview,
-  createSubmissionFollowupEvent,
-  createSubmissionFollowup,
-  createSubmissionNotification,
-  propagateSubmissionToTeamMembers,
   ensureSubmissionsTeamIdColumnForListing,
   listSubmissions,
   ensureSubmissionScoresColumn,
@@ -24,7 +13,11 @@ import {
   updateSubmissionScoreById,
   updateSubmissionsScoreForParticipant,
 } from "@/models/forms";
-import { createSubmissionRecord } from "@/services/ventures/submissions";
+import {
+  createSubmissionRecord,
+  isSubmissionWithinFacilitatorScope,
+  applySubmissionReview,
+} from "@/services/ventures/submissions";
 
 /**
  * SUBMISSIONS API — TRACK 3 ENHANCED
@@ -61,23 +54,11 @@ export async function PATCH(req) {
     await initDb();
     // Phase I5: the assignment + assignments.grade check below is the
     // security decision for every non-management session (facilitator or
-    // staff, role-agnostic). The removed pre-filter blocked members who
-    // hold a legitimate facilitator assignment in the program.
+    // staff, role-agnostic).
     const authError = await requireAuth();
     if (authError) return authError;
-    const {
-      id,
-      status,
-      feedback,
-      score,
-      review_action,
-      rejection_reason,
-      followup_date,
-      followup_time,
-      followup_duration,
-      meeting_link,
-      followup_notes,
-    } = await req.json();
+    const body = await req.json();
+    const { id, status } = body;
 
     if (!id || !status) {
       return NextResponse.json(
@@ -107,191 +88,29 @@ export async function PATCH(req) {
         minLevel: 1,
       });
       if (facError) return facError;
-      const scope = await getFacilitatorTeamScope(programId, session.cid);
-      if (scope.scope !== "all") {
-        // Fail closed: a facilitator with NO assigned teams has no record scope
-        // in this program. The previous guard only ran when teamIds was
-        // non-empty, so `scope: 'none'` (no teams, or a scope lookup error)
-        // skipped the check entirely and let them grade any submission in the
-        // program. Mirror the GET path (:525-528) — empty scope denies.
-        if (scope.teamIds.length === 0) {
-          return NextResponse.json(
-            { success: false, error: "errors.insufficientPermissions" },
-            { status: 403 },
-          );
-        }
-        const scopeCheckResult = await checkSubmissionInFacilitatorTeamScope(id, scope.teamIds);
-        if (scopeCheckResult.rows.length === 0) {
-          return NextResponse.json(
-            { success: false, error: "errors.insufficientPermissions" },
-            { status: 403 },
-          );
-        }
-      }
-    }
-
-    // ─── Business Rules ──────────────────────────────────────────────
-    if (status === "revision_requested" && !feedback) {
-      return NextResponse.json(
-        { success: false, error: "Written feedback is required when requesting a revision" },
-        { status: 400 },
-      );
-    }
-
-    if (status === "rejected" && !rejection_reason) {
-      return NextResponse.json(
-        { success: false, error: "Rejection reason is required" },
-        { status: 400 },
-      );
-    }
-    // ─────────────────────────────────────────────────────────────────
-
-    const statusLabel = { approved: "Approved", rejected: "Rejected", revision_requested: "Revision Requested", pending: "Pending", pending_followup: "Follow-up Scheduled" }[status] || status;
-
-    // 1. Fetch current submission & participant details for notification
-    const reviewDetailsResult = await getSubmissionReviewDetails(id);
-
-    const submission = reviewDetailsResult.rows[0];
-
-    // ─── Role Lock: a facilitator and program management cannot override
-    //     each other's decisions. Once a final decision (approved/rejected)
-    //     exists, only the role that made it may change it. super_admin and
-    //     staff are exempt.
-    const roleCamp = (role) => {
-      if (role === "facilitator") return "facilitator";
-      if (role === "program_manager") return "management";
-      // The retired teacher role is deliberately absent. A live session role can
-      // no longer hold it, and a historical grading row that stored it simply
-      // resolves to no camp — an inert lock, exactly like staff and super_admin.
-      return null; // super_admin / staff → not locked
-    };
-    const FINAL_STATUSES = ["approved", "rejected"];
-    if (submission && FINAL_STATUSES.includes(submission.status) && submission.reviewed_by_role) {
-      const requesterCamp = roleCamp(session?.role);
-      const reviewerCamp = roleCamp(submission.reviewed_by_role);
-      if (requesterCamp && reviewerCamp && requesterCamp !== reviewerCamp) {
-        const actorLabel =
-          reviewerCamp === "facilitator"
-            ? "a facilitator"
-            : "the program manager";
+      // Fail closed: a facilitator with NO assigned teams has no record scope
+      // in this program (mirrors the GET path).
+      const inScope = await isSubmissionWithinFacilitatorScope({
+        id,
+        sessionCid: session.cid,
+        programId,
+      });
+      if (!inScope) {
         return NextResponse.json(
-          {
-            success: false,
-            error: `This submission was already ${submission.status} by ${actorLabel}. Only that role can change the decision.`,
-          },
+          { success: false, error: "errors.insufficientPermissions" },
           { status: 403 },
         );
       }
     }
 
-    // 2. Ensure score column exists (migration safety)
-    try { await ensureSubmissionsScoreColumn(); } catch (_) {}
-    try { await ensureSubmissionsReviewedByRoleColumn(); } catch (_) {}
-    try { await ensureSubmissionsUpdatedAtColumn(); } catch (_) {}
-    try { await ensureSubmissionsFollowupsParticipantCidColumn(); } catch (_) {}
-
-    // 3. Update Database with all review fields
-    // Preserve an existing score when the reviewer does not send a new one
-    // (facilitators review without a score; the PM grades via the dashboard).
-    const hasNewScore = score !== undefined && score !== null && score !== "";
-    await updateSubmissionReview({
-      id,
-      status,
-      feedback,
-      score,
-      hasNewScore,
-      review_action,
-      rejection_reason,
-      role: session?.role,
-      teacherId: session?.cid || session?.email || null,
-    });
-
-    // 3. Handle Follow-up Scheduling (creates calendar event)
-    if (status === "pending_followup" && followup_date && submission) {
-      try {
-        // Create event in v2_events for calendar sync
-        const eventTitle = `Follow-up: ${submission.deliverable_title || "Submission Review"}`;
-        const eventStart = followup_time
-          ? new Date(`${followup_date}T${followup_time}`)
-          : new Date(followup_date);
-
-        await createSubmissionFollowupEvent({
-          program_id: submission.program_id,
-          title: eventTitle,
-          description: followup_notes || null,
-          start_time: eventStart.toISOString(),
-          end_time: new Date(eventStart.getTime() + (followup_duration || 30) * 60000).toISOString(),
-          location: meeting_link || null,
-          participant_id: submission.participant_id,
-          created_by: "instructor",
-        });
-
-        // Also create a followup record
-        await createSubmissionFollowup({
-          program_id: submission.program_id,
-          participant_cid: submission.participant_cid || submission.participant_id,
-          submission_id: id,
-          comment: followup_notes || `Follow-up meeting for ${submission.deliverable_title || "submission"}`,
-          scheduled_at: eventStart.toISOString(),
-          duration_minutes: followup_duration || 30,
-          meeting_link: meeting_link || null,
-          notes: followup_notes || null,
-        });
-      } catch (_) {
-        // Calendar creation failure is non-blocking
-      }
-    }
-
-    // 4. Dispatch In-App Notification to Participant (non-blocking)
-    if (submission && submission.participant_id) {
-      try {
-        let notificationTitle = `Submission ${statusLabel}`;
-        let notificationMessage = feedback
-          ? `Your deliverable "${submission.deliverable_title || ""}" for ${submission.program_name || ""} was ${statusLabel}. Feedback: ${feedback}`
-          : `Your deliverable "${submission.deliverable_title || ""}" for ${submission.program_name || ""} was ${statusLabel}.`;
-
-        if (status === "rejected" && rejection_reason) {
-          notificationMessage += ` Reason: ${rejection_reason}`;
-        }
-
-        await createSubmissionNotification(submission.participant_id, notificationTitle, notificationMessage);
-      } catch (_) {}
-
-      // NOTE: No email is sent for program-deliverable reviews. In-app
-      // notification only — the participant sees the unread count badge.
-    }
-
-    // 5. Group Assessment Propagation: if this submission belongs to a team,
-    //    propagate the same score/status to all team members for this deliverable.
-    //    Never overwrite a sibling submission that was already decided by the
-    //    other role camp (role lock).
-    if (submission?.team_id && (score != null || status === "approved")) {
-      try {
-        const requesterCampForProp = roleCamp(session?.role);
-        await propagateSubmissionToTeamMembers({
-          status,
-          score,
-          hasNewScore,
-          feedback,
-          review_action,
-          rejection_reason,
-          role: session?.role,
-          teacherId: session?.cid || session?.email || null,
-          teamId: submission.team_id,
-          deliverableId: submission.deliverable_id,
-          documentId: submission.document_id,
-          id,
-          requesterCampForProp,
-        });
-      } catch (_) {}
-    }
-
-    // 6. Recalculate KPI progress if status changed to approved/rejected
-    if ((status === "approved" || status === "rejected") && submission?.program_id) {
-      try {
-        const { recalculateKpiProgress } = await import("@/lib/kpi-progress");
-        await recalculateKpiProgress(submission.program_id);
-      } catch (_) {}
+    // The review decision itself (business rules, role lock, write, follow-up,
+    // notification, team propagation, KPI recalculation).
+    const outcome = await applySubmissionReview({ session, payload: body });
+    if (outcome.denied) {
+      return NextResponse.json(
+        { success: false, error: outcome.denied.error },
+        { status: outcome.denied.status },
+      );
     }
 
     return NextResponse.json({ success: true });
