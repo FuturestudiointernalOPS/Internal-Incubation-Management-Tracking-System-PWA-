@@ -5,13 +5,9 @@ import {
   getRegistrationByReference,
   getRegistrationByTransactionId,
   markRegistrationFailed,
-  markRegistrationPaid,
-  providerAmountOf,
   recordPaymentEvent,
-  setEmailState,
 } from "@/lib/lms/registrations";
-import { fulfillRegistration } from "@/lib/lms/checkout";
-import { deliverCheckoutEmail } from "@/lib/lms/checkoutMail";
+import { settleVerifiedPayment } from "@/services/lms/checkout";
 
 export const dynamic = "force-dynamic";
 
@@ -128,38 +124,29 @@ export async function POST(req) {
       return NextResponse.json({ success: true, recorded: true, verified: true, payment: "pending" });
     }
 
-    // The provider reports in ITS unit; the price is stored in whole units, and
-    // the amount actually asked for is remembered on the registration.
-    const expected = providerAmountOf(registration);
-    if (verified.amount != null && Number(verified.amount) !== Number(expected)) {
-      // A divergent amount is a fraud/error signal: record it and refuse.
-      await journal("notification", "failed", "amount_mismatch");
-      return NextResponse.json({ success: true, ignored: true, reason: "amount_mismatch" });
+    // The amount check, the mark-paid, the access step and the receipt are the
+    // shared settlement (also used by the payer's own verify), so the two paths
+    // cannot diverge.
+    const settled = await settleVerifiedPayment({
+      registration,
+      provider,
+      verified,
+      eventType: "notification",
+      journalTransactionId: event.transactionId,
+      journalPartnerId: event.partnerId,
+      journalAmount: event.amount,
+      payload: body,
+    });
+
+    if (!settled.ok) {
+      return NextResponse.json({ success: true, ignored: true, reason: settled.reason });
     }
-
-    await markRegistrationPaid(registration.id, {
-      provider: provider.name,
-      transactionId: event.transactionId,
-      partnerId: event.partnerId || verified.partnerId,
-    });
-
-    // The receipt goes out as soon as the MONEY is confirmed — even when the
-    // access step is still in progress. Otherwise a payer whose access failed
-    // has no receipt and a reason to pay twice.
-    const fulfillment = await fulfillRegistration(registration.id);
-    const delivery = await deliverCheckoutEmail({
-      registration: { ...registration, status: "paid" },
-      accessToken: fulfillment.ok ? fulfillment.accessToken : null,
-    });
-    await setEmailState(registration.id, { status: delivery.sent ? "sent" : "failed" });
-
-    await journal("notification", "processed", fulfillment.ok ? "granted" : "access_failed");
 
     return NextResponse.json({
       success: true,
       payment: "paid",
-      access: fulfillment.ok ? "granted" : "failed",
-      email: delivery.sent ? "sent" : "failed",
+      access: settled.fulfillment.ok ? "granted" : "failed",
+      email: settled.delivery.sent ? "sent" : "failed",
     });
   } catch (error) {
     console.error("[kkiapay webhook]", error);

@@ -6,15 +6,12 @@ import { defaultPaymentProvider } from "@/lib/integrations/payments";
 import {
   getRegistrationByReference,
   normalizeRegistrationEmail,
-  markRegistrationPaid,
   providerAmountOf,
-  recordPaymentEvent,
   setEmailState,
   setPaymentHint,
 } from "@/lib/lms/registrations";
 import {
   findResumableRegistration,
-  fulfillRegistration,
   getCheckoutStateForPayer,
   issueResumeLink,
   mintAccessLinkForPayer,
@@ -23,6 +20,7 @@ import {
   resolveResumeToken,
 } from "@/lib/lms/checkout";
 import { deliverCheckoutEmail } from "@/lib/lms/checkoutMail";
+import { settleVerifiedPayment } from "@/services/lms/checkout";
 
 export const dynamic = "force-dynamic";
 
@@ -201,56 +199,27 @@ async function handleVerify(req, body) {
     return NextResponse.json({ success: true, payment: registration.status, verified: false });
   }
 
-  const expected = providerAmountOf(registration);
-  if (verified.amount != null && Number(verified.amount) !== Number(expected)) {
-    // A divergent amount is a fraud/error signal: record it and refuse.
-    await recordPaymentEvent({
-      registrationId: registration.id,
-      reference: registration.reference,
-      runId: registration.run_id,
-      provider: provider.name,
-      eventType: "verify",
-      transactionId,
-      partnerId: verified.partnerId,
-      amount: verified.amount,
-      status: "failed",
-      message: "amount_mismatch",
-    });
+  // The amount check, the mark-paid, the access step and the receipt are the
+  // shared settlement (also used by the Kkiapay notification), so the two paths
+  // cannot diverge.
+  const settled = await settleVerifiedPayment({
+    registration,
+    provider,
+    verified,
+    eventType: "verify",
+    journalTransactionId: transactionId,
+    journalPartnerId: verified.partnerId,
+    journalAmount: verified.amount,
+  });
+
+  if (!settled.ok) {
     return NextResponse.json({ success: true, payment: registration.status });
   }
-
-  await markRegistrationPaid(registration.id, {
-    provider: provider.name,
-    transactionId,
-    partnerId: verified.partnerId,
-  });
-
-  // The receipt goes out as soon as the MONEY is confirmed — even when the
-  // access step is still in progress, exactly as the notification path does.
-  const fulfillment = await fulfillRegistration(registration.id);
-  const delivery = await deliverCheckoutEmail({
-    registration: { ...registration, status: "paid" },
-    accessToken: fulfillment.ok ? fulfillment.accessToken : null,
-  });
-  await setEmailState(registration.id, { status: delivery.sent ? "sent" : "failed" });
-
-  await recordPaymentEvent({
-    registrationId: registration.id,
-    reference: registration.reference,
-    runId: registration.run_id,
-    provider: provider.name,
-    eventType: "verify",
-    transactionId,
-    partnerId: verified.partnerId,
-    amount: verified.amount,
-    status: "processed",
-    message: fulfillment.ok ? "granted" : "access_failed",
-  });
 
   return NextResponse.json({
     success: true,
     payment: "paid",
-    access: fulfillment.ok ? "granted" : "failed",
+    access: settled.fulfillment.ok ? "granted" : "failed",
   });
 }
 

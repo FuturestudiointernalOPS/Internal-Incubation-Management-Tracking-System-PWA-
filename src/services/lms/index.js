@@ -8,7 +8,10 @@
  *   learning.js — the learner experience: progress, completion, access,
  *                 assessment submission and certificate finalisation
  *   checkout.js — the paid-course checkout: price resolution, registration
- *                 capture, access grant and the one-time access/resume links
+ *                 capture, access grant, the shared verified-payment settlement
+ *                 and the one-time access/resume links
+ *   checkoutReconcile.js — the checkout reconciliation sweep: replay a failed
+ *                 access step and re-verify a success we could not confirm
  *   coaching.js — the learner coaching-request queue (create, staff decision,
  *                 cancel) and its notification fan-out
  *   registrations.js — the team's registration decisions (retry, resend,
@@ -17,5 +20,6 @@
 
 export * from "./learning";
 export * from "./checkout";
+export * from "./checkoutReconcile";
 export * from "./coaching";
 export * from "./registrations";
