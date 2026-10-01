@@ -63,7 +63,7 @@ describe("UI-3 — one pending-changes presentation", () => {
 
 describe("UI-3 — card mode below md", () => {
   test("the people matrix renders cards on small screens", () => {
-    const src = read(`${PERMS}PeopleView.js`);
+    const src = read(`${PERMS}people-view/PeopleMatrix.js`);
     expect(src).toContain("hidden md:block");
     expect(src).toContain("md:hidden");
     // The effective result and the source layers must survive the card layout.

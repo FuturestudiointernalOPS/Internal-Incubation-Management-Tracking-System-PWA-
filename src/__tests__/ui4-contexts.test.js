@@ -209,7 +209,7 @@ describe("UI-4c — the screens use them", () => {
   });
 
   test("Individual Access renders the contexts panel", () => {
-    const src = read("src/components/permissions/PeopleView.js");
+    const src = read("src/components/permissions/people-view/PeopleContextsCard.js");
     expect(src).toContain("peopleContextsTitle");
     expect(src).toContain("contextKind_");
     expect(src).toContain("peopleContextsPartial");
