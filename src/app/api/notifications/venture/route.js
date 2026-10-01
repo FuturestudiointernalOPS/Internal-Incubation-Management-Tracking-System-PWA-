@@ -6,20 +6,17 @@ import {
   archiveNotification, deleteNotification, getUnreadCount, sendTemplatedNotification,
   getNotificationTemplates, getNotificationPreferences, updateNotificationPreferences,
 } from "@/lib/ventures";
+import {
+  resolveNotificationRecipient,
+  canAccessNotification,
+} from "@/services/communications/ventureNotifications";
 
 export const GET = createHandler(async (req) => {
   const session = await getSession();
   if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
 
   const queryParams = new URL(req.url).searchParams;
-  let recipientId = queryParams.get("recipient_id") || session.cid || "sa";
-  if (
-    queryParams.get("recipient_id") &&
-    String(queryParams.get("recipient_id")) !== String(session.cid) &&
-    session.role !== "super_admin"
-  ) {
-    recipientId = session.cid;
-  }
+  const recipientId = resolveNotificationRecipient(session, queryParams.get("recipient_id"));
   const type = queryParams.get("type") || "list";
 
   if (type === "list") {
@@ -49,7 +46,7 @@ export const GET = createHandler(async (req) => {
   if (type === "detail" && queryParams.get("notification_id")) {
     const notification = await getNotification(parseInt(queryParams.get("notification_id")));
     if (!notification) return NextResponse.json({ success: false, error: "Notification not found." }, { status: 404 });
-    if (String(notification.recipient_id) !== String(session.cid) && session.role !== "super_admin") {
+    if (!canAccessNotification(session, notification)) {
       return NextResponse.json({ success: false, error: "You cannot view this notification." }, { status: 403 });
     }
     return NextResponse.json({ success: true, notification });
@@ -63,19 +60,12 @@ export const POST = createHandler(async (req) => {
   if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
 
   const body = await req.json();
-  let recipientId = body.recipient_id || session.cid || "sa";
-  if (
-    body.recipient_id &&
-    String(body.recipient_id) !== String(session.cid) &&
-    session.role !== "super_admin"
-  ) {
-    recipientId = session.cid;
-  }
+  const recipientId = resolveNotificationRecipient(session, body.recipient_id);
 
   if (body.action === "mark_read") {
     const notification = await getNotification(parseInt(body.notification_id));
     if (!notification) return NextResponse.json({ success: false, error: "Notification not found." }, { status: 404 });
-    if (String(notification.recipient_id) !== String(session.cid) && session.role !== "super_admin") {
+    if (!canAccessNotification(session, notification)) {
       return NextResponse.json({ success: false, error: "You cannot modify this notification." }, { status: 403 });
     }
     await markNotificationRead(parseInt(body.notification_id));
@@ -90,7 +80,7 @@ export const POST = createHandler(async (req) => {
   if (body.action === "archive") {
     const notification = await getNotification(parseInt(body.notification_id));
     if (!notification) return NextResponse.json({ success: false, error: "Notification not found." }, { status: 404 });
-    if (String(notification.recipient_id) !== String(session.cid) && session.role !== "super_admin") {
+    if (!canAccessNotification(session, notification)) {
       return NextResponse.json({ success: false, error: "You cannot modify this notification." }, { status: 403 });
     }
     await archiveNotification(parseInt(body.notification_id));
@@ -100,7 +90,7 @@ export const POST = createHandler(async (req) => {
   if (body.action === "delete") {
     const notification = await getNotification(parseInt(body.notification_id));
     if (!notification) return NextResponse.json({ success: false, error: "Notification not found." }, { status: 404 });
-    if (String(notification.recipient_id) !== String(session.cid) && session.role !== "super_admin") {
+    if (!canAccessNotification(session, notification)) {
       return NextResponse.json({ success: false, error: "You cannot modify this notification." }, { status: 403 });
     }
     await deleteNotification(parseInt(body.notification_id));

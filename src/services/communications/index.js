@@ -21,3 +21,4 @@ export * from "./announcements";
 export * from "./followups";
 export * from "./events";
 export * from "./notifications";
+export * from "./ventureNotifications";
