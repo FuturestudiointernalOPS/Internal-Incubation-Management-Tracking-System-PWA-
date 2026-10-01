@@ -8,7 +8,10 @@
  *   report.js — composing a Run's AI report from its Output Instruction and
  *               attached reference document
  *   formRunList.js — one page of runs and its matching total
+ *   evaluation.js — the AI submission evaluation: the claim/release batch,
+ *               the progress counts and the single evaluation
  */
 
 export * from "./report";
 export * from "./formRunList";
+export * from "./evaluation";
