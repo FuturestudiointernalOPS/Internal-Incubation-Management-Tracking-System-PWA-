@@ -34,7 +34,6 @@ import {
   StickyNote,
   Flag,
   Upload,
-  CalendarPlus,
 } from "lucide-react";
 import ScopedNotes from "@/components/ventures/ScopedNotes";
 import PlanImportPanel from "@/components/ventures/PlanImportPanel";
@@ -42,7 +41,7 @@ import VentureChangeLogPanel from "@/components/ventures/VentureChangeLogPanel";
 import VenturePersonField from "@/components/ventures/VenturePersonField";
 import AppMenu from "@/components/ui/AppMenu";
 import { useDialogs } from "@/components/ui/DialogProvider";
-import { minSessionStartInput, isValidSessionStart, SESSION_MATERIALS_MAX, toDateInput, toTimeInput } from "@/lib/ventureSessionRules";
+import { minSessionStartInput, isValidSessionStart, toDateInput, toTimeInput } from "@/lib/ventureSessionRules";
 import {
   nextMilestoneDate,
   milestoneDateIssue,
@@ -64,6 +63,15 @@ import {
 } from "@/components/ventures/journey/journeyShapers";
 import JourneyConfirmModal from "@/components/ventures/journey/JourneyConfirmModal";
 import MilestoneSessionsList from "@/components/ventures/journey/MilestoneSessionsList";
+import AddMilestoneForm from "@/components/ventures/journey/AddMilestoneForm";
+import JourneyAddStageForm from "@/components/ventures/journey/JourneyAddStageForm";
+import JourneyApplyTemplateBar from "@/components/ventures/journey/JourneyApplyTemplateBar";
+import JourneyArchiveToolbar from "@/components/ventures/journey/JourneyArchiveToolbar";
+import JourneyReportSection from "@/components/ventures/journey/JourneyReportSection";
+import JourneySaveTemplateForm from "@/components/ventures/journey/JourneySaveTemplateForm";
+import MilestoneDeliverables from "@/components/ventures/journey/MilestoneDeliverables";
+import MilestoneReviewInbox from "@/components/ventures/journey/MilestoneReviewInbox";
+import MilestoneSessionBooking from "@/components/ventures/journey/MilestoneSessionBooking";
 
 /**
  * JourneyManagerPanel — staff instrument for a Venture's Journey.
@@ -1280,139 +1288,49 @@ export default function JourneyManagerPanel({ ventureId }) {
       {/* Journey archive toolbar: Active/Archived views, select all, bulk
           archive/delete (each with a double confirmation). */}
       {access.manage && stages.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          <button
-            onClick={() => { setViewArchived(false); setSelectedStageIds(new Set()); }}
-            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${!viewArchived ? "bg-brand-orange/15 text-[var(--brand-orange)] border-brand-orange/30" : "bg-tertiary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"}`}
-          >
-            {t("venture.manager.viewActiveJourneys", { n: activeStages.length })}
-          </button>
-          <button
-            onClick={() => { setViewArchived(true); setSelectedStageIds(new Set()); }}
-            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${viewArchived ? "bg-brand-orange/15 text-[var(--brand-orange)] border-brand-orange/30" : "bg-tertiary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"}`}
-          >
-            {t("venture.manager.viewArchivedJourneys", { n: archivedStages.length })}
-          </button>
-          {!viewArchived && activeStages.length > 0 && (
-            <button
-              onClick={toggleSelectAllStages}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-[var(--text-primary)] border border-[var(--border-primary)] transition-all"
-            >
-              {allSelected ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
-              {t("venture.manager.selectAllJourneys")}
-            </button>
-          )}
-          {!viewArchived && selectedStageIds.size > 0 && (
-            <>
-              <button
-                onClick={askArchiveSelected}
-                disabled={bulkBusy}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 disabled:opacity-40"
-              >
-                {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Archive className="w-3.5 h-3.5" />}
-                {t("venture.manager.archiveSelectedJourneys", { n: selectedStageIds.size })}
-              </button>
-              <button
-                onClick={askDeleteSelected}
-                disabled={bulkBusy}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25 disabled:opacity-40"
-              >
-                {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                {t("venture.manager.deleteSelectedJourneys", { n: selectedStageIds.size })}
-              </button>
-            </>
-          )}
-        </div>
+        <JourneyArchiveToolbar
+          activeStages={activeStages}
+          allSelected={allSelected}
+          archivedStages={archivedStages}
+          askArchiveSelected={askArchiveSelected}
+          askDeleteSelected={askDeleteSelected}
+          bulkBusy={bulkBusy}
+          selectedStageIds={selectedStageIds}
+          setSelectedStageIds={setSelectedStageIds}
+          setViewArchived={setViewArchived}
+          toggleSelectAllStages={toggleSelectAllStages}
+          viewArchived={viewArchived}
+        />
       )}
 
       {saveOpen && (
-        <form onSubmit={saveJourneyTemplate} className="mb-4 p-3 rounded-xl border border-brand-orange/30 bg-tertiary space-y-2">
-          <p className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
-            {t("venture.manager.saveTemplateTitle")}
-          </p>
-          <input
-            value={saveForm.name}
-            onChange={(event) => setSaveForm({ ...saveForm, name: event.target.value })}
-            placeholder={t("venture.manager.saveTemplateNamePlaceholder")}
-            className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
-          />
-          <textarea
-            rows={2}
-            value={saveForm.description}
-            onChange={(event) => setSaveForm({ ...saveForm, description: event.target.value })}
-            placeholder={t("venture.manager.saveTemplateDescPlaceholder")}
-            className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
-          />
-          <div className="flex items-center gap-2 justify-end">
-            <button type="button" onClick={() => { setSaveOpen(false); setSaveForm({ name: "", description: "" }); }} className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]">
-              {t("common.cancel")}
-            </button>
-            <button type="submit" disabled={savingSave} className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5 disabled:opacity-50">
-              {savingSave ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} {t("venture.manager.saveTemplate")}
-            </button>
-          </div>
-        </form>
+        <JourneySaveTemplateForm
+          saveForm={saveForm}
+          saveJourneyTemplate={saveJourneyTemplate}
+          savingSave={savingSave}
+          setSaveForm={setSaveForm}
+          setSaveOpen={setSaveOpen}
+        />
       )}
 
       {applyOpen && (
-        <div className="mb-4 p-3 rounded-xl border border-[var(--border-primary)] bg-tertiary flex flex-wrap items-end gap-3">
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">{t("venture.manager.generateFromTemplate")}</label>
-            <select value={selectedTemplateId} onChange={(event) => setSelectedTemplateId(event.target.value)} className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]">
-              <option value="">{t("venture.manager.selectTemplate")}</option>
-              {journeyTemplates.map((template) => (
-                <option key={`j-${template.id}`} value={`journey:${template.id}`}>{t("venture.manager.journeyTplOption", { name: template.name, count: template.stage_count || 0 })}</option>
-              ))}
-              {journeyTemplates.length > 0 && templates.length > 0 && <option disabled>──────────</option>}
-              {templates.map((template) => (
-                <option key={`p-${template.id}`} value={`plan:${template.id}`}>{t("venture.manager.planTplOption", { name: template.name, count: template.section_count || 0 })}</option>
-              ))}
-            </select>
-          </div>
-          <button onClick={applyTemplate} disabled={savingTemplate || !selectedTemplateId} className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
-            {savingTemplate ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />} {t("venture.manager.generate")}
-          </button>
-        </div>
+        <JourneyApplyTemplateBar
+          applyTemplate={applyTemplate}
+          journeyTemplates={journeyTemplates}
+          savingTemplate={savingTemplate}
+          selectedTemplateId={selectedTemplateId}
+          setSelectedTemplateId={setSelectedTemplateId}
+          templates={templates}
+        />
       )}
 
       {addOpen && (
-        <form onSubmit={addStage} className="mb-4 p-4 rounded-xl border border-[var(--border-primary)] bg-tertiary space-y-3">
-          <input
-            value={form.name}
-            onChange={(event) => setForm({ ...form, name: event.target.value })}
-            placeholder={t("venture.manager.stageNamePlaceholder")}
-            className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
-            required
-          />
-          <textarea
-            value={form.description}
-            onChange={(event) => setForm({ ...form, description: event.target.value })}
-            rows={2}
-            placeholder={t("venture.manager.stageDescPlaceholder")}
-            className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
-          />
-          <input
-            value={form.objective}
-            onChange={(event) => setForm({ ...form, objective: event.target.value })}
-            placeholder={t("venture.manager.stageObjectivePlaceholder")}
-            className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
-          />
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-[var(--text-secondary)]">{t("venture.manager.stageStartDate")}</label>
-            <input
-              type="date"
-              value={form.start_date || ""}
-              onChange={(event) => setForm({ ...form, start_date: event.target.value })}
-              className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
-            />
-            <p className="text-[10px] text-[var(--text-secondary)]">{t("venture.manager.stageStartDateHint")}</p>
-          </div>
-          <div className="flex justify-end">
-            <button type="submit" disabled={saving} className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} {t("venture.manager.addStage")}
-            </button>
-          </div>
-        </form>
+        <JourneyAddStageForm
+          addStage={addStage}
+          form={form}
+          saving={saving}
+          setForm={setForm}
+        />
       )}
 
       {loading ? (
@@ -1572,161 +1490,22 @@ export default function JourneyManagerPanel({ ventureId }) {
                           journey, so it is written here — where the journey lives —
                           and never in a separate module. */}
                       {!stage.is_archived && (
-                        <div className="px-4 pb-3">
-                          <div className="rounded-xl border border-[var(--border-primary)] p-3 space-y-2">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">
-                                {t("venture.manager.journeyReport")}
-                              </p>
-                                <div className="flex flex-wrap items-center gap-2">
-                                  {(reportsByStage[String(stage.id)] || []).map((report) => (
-                                    <button
-                                      key={report.id}
-                                      type="button"
-                                      onClick={() => setReportOpenId(reportOpenId === report.id ? null : report.id)}
-                                      className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded transition-colors ${reportOpenId === report.id ? "bg-brand-orange/20 text-[var(--brand-orange)]" : "bg-white/10 text-slate-400 hover:text-[var(--text-primary)]"}`}
-                                    >
-                                      {report.report_kind === "closing" ? t("venture.manager.closingReport") : t("venture.manager.progressReport")} · {reportStatusLabel(report.status)}
-                                    </button>
-                                  ))}
-                                  {reportFor !== stage.id && (
-                                    <button
-                                      type="button"
-                                      onClick={() => openReportComposer(stage, closingMissing ? "closing" : "progress")}
-                                      className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]"
-                                    >
-                                      {closingMissing ? t("venture.manager.writeClosingReport") : t("venture.manager.writeReport")}
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* The gap, visible in place: a journey that closed without its
-                                  closing report says so, and the button above writes that
-                                  report. Nothing is blocked; the omission is simply not silent. */}
-                              {closingMissing && (
-                                <p className="text-[10px] text-amber-400">{t("venture.manager.closingReportMissing")}</p>
-                              )}
-
-                              {/* Reading a report — what Super Admin comes here for. */}
-                              {(reportsByStage[String(stage.id)] || [])
-                                .filter((report) => report.id === reportOpenId)
-                                .map((report) => (
-                                  <div key={`read-${report.id}`} className="rounded-lg border border-[var(--border-primary)] p-2.5 space-y-1.5 text-[11px]">
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                      <p className="font-bold text-[var(--text-primary)]">{report.title}</p>
-                                      {report.reporting_period && (
-                                        <span className="text-[9px] uppercase tracking-widest text-slate-500">
-                                          {t("venture.manager.reportPeriodLabel")}: {report.reporting_period}
-                                        </span>
-                                      )}
-                                    </div>
-                                    {report.summary && <p className="text-[var(--text-secondary)] whitespace-pre-wrap">{report.summary}</p>}
-                                    {[
-                                      ["completed_items", "reportCompleted"],
-                                      ["outstanding_items", "reportOutstanding"],
-                                    ].map(([field, key]) =>
-                                      Array.isArray(report[field]) && report[field].length > 0 ? (
-                                        <div key={field}>
-                                          <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">{t(`venture.manager.${key}`)}</p>
-                                          <ul className="list-disc pl-4 text-[var(--text-secondary)]">
-                                            {report[field].map((item, index) => (<li key={index}>{item}</li>))}
-                                          </ul>
-                                        </div>
-                                      ) : null,
-                                    )}
-                                    {[
-                                      ["support_delivered", "reportSupport"],
-                                      ["challenges", "reportChallenges"],
-                                      ["recommendation", "reportRecommendation"],
-                                    ].map(([field, key]) =>
-                                      report[field] ? (
-                                        <div key={field}>
-                                          <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">{t(`venture.manager.${key}`)}</p>
-                                          <p className="text-[var(--text-secondary)] whitespace-pre-wrap">{report[field]}</p>
-                                        </div>
-                                      ) : null,
-                                    )}
-                                    {report.submitted_at && (
-                                      <p className="text-[9px] text-slate-500">
-                                        {t("venture.manager.reportSubmittedOn", { date: new Date(report.submitted_at).toLocaleDateString(lang) })}
-                                      </p>
-                                    )}
-                                  </div>
-                                ))}
-
-                            {reportFor === stage.id && reportForm && (
-                              <form onSubmit={(event) => { event.preventDefault(); saveReport(stage, false); }} className="space-y-2">
-                                {reportForm.kind === "closing" && (
-                                  <p className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
-                                    {t("venture.manager.closingReport")}
-                                  </p>
-                                )}
-                                <div className="flex flex-wrap gap-2">
-                                  <input
-                                    value={reportForm.title}
-                                    onChange={(event) => setReportForm({ ...reportForm, title: event.target.value })}
-                                    required
-                                    placeholder={t("venture.manager.reportTitlePlaceholder")}
-                                    className="flex-1 min-w-[180px] px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                  />
-                                  <input
-                                    value={reportForm.period}
-                                    onChange={(event) => setReportForm({ ...reportForm, period: event.target.value })}
-                                    placeholder={t("venture.manager.reportPeriodPlaceholder")}
-                                    className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                  />
-                                </div>
-                                {[
-                                  ["summary", "reportSummary"],
-                                  ["completed", "reportCompleted"],
-                                  ["outstanding", "reportOutstanding"],
-                                  ["support", "reportSupport"],
-                                  ["challenges", "reportChallenges"],
-                                  ["recommendation", "reportRecommendation"],
-                                ].map(([field, key]) => (
-                                  <label key={field} className="block space-y-1">
-                                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">
-                                      {t(`venture.manager.${key}`)}
-                                    </span>
-                                    <textarea
-                                      value={reportForm[field]}
-                                      onChange={(event) => setReportForm({ ...reportForm, [field]: event.target.value })}
-                                      onInput={autoGrow}
-                                      rows={2}
-                                      placeholder={field === "completed" || field === "outstanding" ? t("venture.manager.reportOnePerLine") : undefined}
-                                      className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)] resize-none overflow-hidden min-h-[44px]"
-                                    />
-                                  </label>
-                                ))}
-                                <div className="flex flex-wrap justify-end gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => { setReportFor(null); setReportForm(null); }}
-                                    className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500"
-                                  >
-                                    {t("common.cancel")}
-                                  </button>
-                                  <button
-                                    type="submit"
-                                    disabled={reportSaving}
-                                    className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-[var(--border-primary)] text-[var(--text-primary)] disabled:opacity-50"
-                                  >
-                                    {t("venture.manager.saveDraft")}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={reportSaving}
-                                    onClick={() => saveReport(stage, true)}
-                                    className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-[var(--brand-orange)] text-black disabled:opacity-50"
-                                  >
-                                    {t("venture.manager.submitReport")}
-                                  </button>
-                                </div>
-                              </form>
-                            )}
-                          </div>
-                        </div>
+                        <JourneyReportSection
+                          autoGrow={autoGrow}
+                          closingMissing={closingMissing}
+                          openReportComposer={openReportComposer}
+                          reportFor={reportFor}
+                          reportForm={reportForm}
+                          reportOpenId={reportOpenId}
+                          reportSaving={reportSaving}
+                          reportStatusLabel={reportStatusLabel}
+                          reportsByStage={reportsByStage}
+                          saveReport={saveReport}
+                          setReportFor={setReportFor}
+                          setReportForm={setReportForm}
+                          setReportOpenId={setReportOpenId}
+                          stage={stage}
+                        />
                       )}
 
                       {(milestones.length > 0 || (milestoneAuthority && !stage.is_archived)) && (
@@ -1841,410 +1620,66 @@ export default function JourneyManagerPanel({ ventureId }) {
 
                                       {/* Review inbox: what the Venture submitted for the tasks in this milestone */}
                                       {isOpen && (milestoneSubmissions[milestone.id] || []).length > 0 && (
-                                        <div className="mt-2 ml-5 space-y-1.5">
-                                          <p className="text-[8px] font-black uppercase tracking-widest text-amber-400">
-                                            {t("venture.manager.submissionsToReview", { n: (milestoneSubmissions[milestone.id] || []).length })}
-                                          </p>
-                                          {(milestoneSubmissions[milestone.id] || []).map((item) => (
-                                            <div key={item.submission_id} className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-2.5 py-2 space-y-1.5">
-                                              <div className="flex items-center gap-2">
-                                                <p className="flex-1 min-w-0 text-[11px] font-bold text-[var(--text-primary)] truncate">{item.task_title}</p>
-                                                <span className="text-[9px] text-slate-500 shrink-0">
-                                                  v{item.version} · {item.submitted_by_name || t("venture.manager.theVenture")} · {new Date(item.created_at).toLocaleDateString()}
-                                                </span>
-                                              </div>
-                                              {item.notes && <p className="text-[10px] text-slate-400">{item.notes}</p>}
-                                              {item.file_url && (
-                                                <a href={item.file_url} target="_blank" rel="noreferrer" className="text-[9px] font-bold text-sky-300 hover:underline">
-                                                  {item.file_name || t("venture.manager.viewSubmission")}
-                                                </a>
-                                              )}
-                                              {submissionReview?.submission_id === item.submission_id ? (
-                                                <div className="space-y-1.5">
-                                                  <textarea
-                                                    value={submissionComment}
-                                                    onChange={(event) => setSubmissionComment(event.target.value)}
-                                                    rows={2}
-                                                    placeholder={t("venture.manager.reviewCommentsPlaceholder")}
-                                                    className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                                  />
-                                                  <div className="flex justify-end gap-2">
-                                                    <button type="button" onClick={() => { setSubmissionReview(null); setSubmissionComment(""); }} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
-                                                      {t("common.cancel")}
-                                                    </button>
-                                                    <button type="button" disabled={submissionsBusy === item.submission_id || !submissionComment.trim()} onClick={() => decideSubmission(milestone.id, item, "changes_requested", submissionComment)} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/30 disabled:opacity-50">
-                                                      {t("venture.manager.requestChanges")}
-                                                    </button>
-                                                  </div>
-                                                </div>
-                                              ) : (
-                                                <div className="flex items-center gap-2">
-                                                  <button type="button" disabled={submissionsBusy === item.submission_id} onClick={() => decideSubmission(milestone.id, item, "approved")} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 disabled:opacity-50">
-                                                    {t("venture.manager.approveDeliverable")}
-                                                  </button>
-                                                  <button type="button" disabled={submissionsBusy === item.submission_id} onClick={() => { setSubmissionReview({ submission_id: item.submission_id, task_id: item.task_id }); setSubmissionComment(""); }} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/30 disabled:opacity-50">
-                                                    {t("venture.manager.requestChanges")}
-                                                  </button>
-                                                  {submissionsBusy === item.submission_id && <Loader2 className="w-3 h-3 animate-spin text-slate-400" />}
-                                                </div>
-                                              )}
-                                            </div>
-                                          ))}
-                                        </div>
+                                        <MilestoneReviewInbox
+                                          decideSubmission={decideSubmission}
+                                          milestone={milestone}
+                                          milestoneSubmissions={milestoneSubmissions}
+                                          setSubmissionComment={setSubmissionComment}
+                                          setSubmissionReview={setSubmissionReview}
+                                          submissionComment={submissionComment}
+                                          submissionReview={submissionReview}
+                                          submissionsBusy={submissionsBusy}
+                                        />
                                       )}
 
                                       {isOpen && (deliverableList.length > 0 || milestoneAuthority) && (
-                                        <div className="mt-2 ml-5 space-y-1.5">
-                                          <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
-                                            {t("venture.manager.deliverables")}
-                                          </p>
-                                          {deliverableList.map((deliverable) => {
-                                            const status = deliverableStatus(deliverable);
-                                            const mode = deliverableAction?.id === deliverable.id ? deliverableAction.mode : null;
-                                            return (
-                                              <div key={deliverable.id} className="rounded-lg border border-divider/70 px-2.5 py-2">
-                                                {mode === "edit" ? (
-                                                  <form onSubmit={(event) => saveDeliverableEdit(event, deliverable, milestone)} className="space-y-2">
-                                                    <input
-                                                      value={deliverableForm.title}
-                                                      onChange={(event) => setDeliverableForm({ ...deliverableForm, title: event.target.value })}
-                                                      placeholder={t("venture.manager.deliverableTitlePlaceholder")}
-                                                      className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                                      required
-                                                    />
-                                                    <textarea
-                                                      value={deliverableForm.description}
-                                                      onChange={(event) => setDeliverableForm({ ...deliverableForm, description: event.target.value })}
-                                                      rows={2}
-                                                      placeholder={t("venture.manager.deliverableDescPlaceholder")}
-                                                      className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                                    />
-                                                    <div className="space-y-1 mt-2">
-                                                      <label className="text-[10px] font-bold text-[var(--text-secondary)]">{t("venture.manager.deliverableAssignee")}</label>
-                                                      <VenturePersonField
-                                                        value={{ cid: deliverableForm.assigned_cid, name: deliverableForm.assigned_name }}
-                                                        onChange={({ cid, name }) =>
-                                                          setDeliverableForm({ ...deliverableForm, assigned_cid: cid || "", assigned_name: name || "" })
-                                                        }
-                                                        listId="deliverable-assignee-options"
-                                                      />
-                                                    </div>
-                                                    <div className="flex flex-wrap items-center gap-2">
-                                                      <input
-                                                        type="date"
-                                                        value={deliverableForm.due_date}
-                                                        min={datePickerFloor(dateOnly(milestone.target_date) || todayDateInput(), deliverable.due_date)}
-                                                        onChange={(event) => setDeliverableForm({ ...deliverableForm, due_date: event.target.value })}
-                                                        className="flex-1 min-w-[140px] px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                                      />
-                                                      <select
-                                                        value={deliverableForm.deliverable_type}
-                                                        onChange={(event) => setDeliverableForm({ ...deliverableForm, deliverable_type: event.target.value })}
-                                                        className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                                      >
-                                                        {DELIVERABLE_TYPES.map((deliverableType) => (
-                                                          <option key={deliverableType} value={deliverableType}>{t(`venture.manager.deliverableTypes.${deliverableType}`)}</option>
-                                                        ))}
-                                                      </select>
-                                                    </div>
-                                                    <div className="flex justify-end gap-2">
-                                                      <button type="button" onClick={() => setDeliverableAction(null)} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
-                                                        {t("common.cancel")}
-                                                      </button>
-                                                      <button type="submit" disabled={deliverableSaving} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1 disabled:opacity-50">
-                                                        {deliverableSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} {t("common.save")}
-                                                      </button>
-                                                    </div>
-                                                  </form>
-                                                ) : mode === "submit" ? (
-                                                  <div className="space-y-2">
-                                                    <p className="text-[11px] font-bold text-[var(--text-primary)]">{deliverable.title}</p>
-                                                    <p className="text-[9px] uppercase tracking-widest text-slate-500">{t("venture.manager.attachFile")}</p>
-                                                    <input
-                                                      type="file"
-                                                      onChange={(event) => setDeliverableFile(event.target.files?.[0] || null)}
-                                                      className="w-full text-[10px] text-slate-400 file:mr-2 file:px-2.5 file:py-1 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:uppercase file:tracking-widest file:bg-[var(--brand-orange)] file:text-black"
-                                                    />
-                                                    <p className="text-[9px] uppercase tracking-widest text-slate-500">{t("venture.manager.orPasteLink")}</p>
-                                                    <input
-                                                      value={deliverableText}
-                                                      onChange={(event) => setDeliverableText(event.target.value)}
-                                                      placeholder={t("venture.manager.evidenceUrlPlaceholder")}
-                                                      className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                                    />
-                                                    <div className="flex justify-end gap-2">
-                                                      <button type="button" onClick={() => { setDeliverableAction(null); setDeliverableFile(null); }} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
-                                                        {t("common.cancel")}
-                                                      </button>
-                                                      <button type="button" onClick={submitDeliverableEvidence} disabled={deliverableSaving || (!deliverableFile && !deliverableText.trim())} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-[var(--brand-orange)] text-black disabled:opacity-50">
-                                                        {deliverableSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : null} {t("venture.manager.submitEvidence")}
-                                                      </button>
-                                                    </div>
-                                                  </div>
-                                                ) : mode === "review" ? (
-                                                  <div className="space-y-2">
-                                                    <p className="text-[11px] font-bold text-[var(--text-primary)]">{deliverable.title}</p>
-                                                    <textarea
-                                                      value={deliverableText}
-                                                      onChange={(event) => setDeliverableText(event.target.value)}
-                                                      rows={2}
-                                                      placeholder={t("venture.manager.reviewCommentsPlaceholder")}
-                                                      className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                                    />
-                                                    <div className="flex justify-end gap-2">
-                                                      <button type="button" onClick={() => setDeliverableAction(null)} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
-                                                        {t("common.cancel")}
-                                                      </button>
-                                                      <button type="button" onClick={() => reviewDeliverable(deliverable, "changes_requested")} disabled={deliverableBusy === deliverable.id || !deliverableText.trim()} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/30 disabled:opacity-50">
-                                                        {t("venture.manager.requestChanges")}
-                                                      </button>
-                                                    </div>
-                                                  </div>
-                                                ) : (
-                                                  <div className="flex items-center gap-2">
-                                                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDotClass(status)}`} />
-                                                    <p className="flex-1 min-w-0 text-[11px] font-bold text-[var(--text-primary)] truncate">{deliverable.title}</p>
-                                                    {deliverable.due_date && <span className="hidden sm:inline text-[9px] text-slate-500">{fmtDate(deliverable.due_date)}</span>}
-                                                    {deliverable.attachment_url && (
-                                                      <a href={deliverable.evidence_download_url || deliverable.attachment_url} target="_blank" rel="noreferrer" className="text-[9px] font-bold text-sky-300 hover:underline shrink-0">
-                                                        {deliverable.attachment_name || t("venture.manager.viewEvidence")}
-                                                      </a>
-                                                    )}
-                                                    <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0 ${statusChipClass(status)}`}>
-                                                      {statusLabel(status, t)}
-                                                    </span>
-                                                    {milestoneAuthority && (
-                                                      <AppMenu
-                                                        label={t("venture.manager.deliverableActions")}
-                                                        align="right"
-                                                        buttonClassName="!p-1"
-                                                        items={deliverableMenuItems(deliverable)}
-                                                      />
-                                                    )}
-                                                    {deliverableBusy === deliverable.id && <Loader2 className="w-3 h-3 animate-spin text-slate-400 shrink-0" />}
-                                                  </div>
-                                                )}
-                                                {!mode && deliverable.approval_status === "rejected" && deliverable.rejection_reason && (
-                                                  <p className="text-[9px] text-rose-400 mt-1">
-                                                    {t("venture.manager.changesRequestedReason", { reason: deliverable.rejection_reason })}
-                                                  </p>
-                                                )}
-                                              </div>
-                                            );
-                                          })}
-
-                                          {milestoneAuthority && (
-                                            deliverableAddFor === milestone.id ? (
-                                              <form onSubmit={(event) => addDeliverable(event, milestone)} className="rounded-lg border border-[var(--border-primary)] bg-tertiary p-2.5 space-y-2">
-                                                <input
-                                                  value={deliverableForm.title}
-                                                  onChange={(event) => setDeliverableForm({ ...deliverableForm, title: event.target.value })}
-                                                  placeholder={t("venture.manager.deliverableTitlePlaceholder")}
-                                                  className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                                  required
-                                                />
-                                                <textarea
-                                                  value={deliverableForm.description}
-                                                  onChange={(event) => setDeliverableForm({ ...deliverableForm, description: event.target.value })}
-                                                  rows={2}
-                                                  placeholder={t("venture.manager.deliverableDescPlaceholder")}
-                                                  className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                                />
-                                                <div className="space-y-1 mt-2">
-                                                  <label className="text-[10px] font-bold text-[var(--text-secondary)]">{t("venture.manager.deliverableAssignee")}</label>
-                                                  <VenturePersonField
-                                                    value={{ cid: deliverableForm.assigned_cid, name: deliverableForm.assigned_name }}
-                                                    onChange={({ cid, name }) =>
-                                                      setDeliverableForm({ ...deliverableForm, assigned_cid: cid || "", assigned_name: name || "" })
-                                                    }
-                                                    listId="deliverable-assignee-options"
-                                                  />
-                                                </div>
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                  <input
-                                                    type="date"
-                                                    value={deliverableForm.due_date}
-                                                    min={dateOnly(milestone.target_date) || todayDateInput()}
-                                                    onChange={(event) => setDeliverableForm({ ...deliverableForm, due_date: event.target.value })}
-                                                    className="flex-1 min-w-[140px] px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                                  />
-                                                  <select
-                                                    value={deliverableForm.deliverable_type}
-                                                    onChange={(event) => setDeliverableForm({ ...deliverableForm, deliverable_type: event.target.value })}
-                                                    className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                                  >
-                                                    {DELIVERABLE_TYPES.map((deliverableType) => (
-                                                      <option key={deliverableType} value={deliverableType}>{t(`venture.manager.deliverableTypes.${deliverableType}`)}</option>
-                                                    ))}
-                                                  </select>
-                                                </div>
-                                                {/* Optional: attach the document itself now. */}
-                                                <p className="text-[9px] uppercase tracking-widest text-slate-500">{t("venture.manager.attachFile")}</p>
-                                                <input
-                                                  type="file"
-                                                  onChange={(event) => setDeliverableNewFile(event.target.files?.[0] || null)}
-                                                  className="w-full text-[10px] text-slate-400 file:mr-2 file:px-2.5 file:py-1 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:uppercase file:tracking-widest file:bg-[var(--brand-orange)] file:text-black"
-                                                />
-                                                <input
-                                                  value={deliverableNewUrl}
-                                                  onChange={(event) => setDeliverableNewUrl(event.target.value)}
-                                                  placeholder={t("venture.manager.orPasteLink")}
-                                                  className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                                />
-                                                <div className="flex justify-end gap-2">
-                                                  <button type="button" onClick={() => { setDeliverableAddFor(null); setDeliverableForm(emptyDeliverableForm); setDeliverableNewFile(null); setDeliverableNewUrl(""); }} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
-                                                    {t("common.cancel")}
-                                                  </button>
-                                                  <button type="submit" disabled={deliverableSaving} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1 disabled:opacity-50">
-                                                    {deliverableSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} {t("venture.manager.addDeliverable")}
-                                                  </button>
-                                                </div>
-                                              </form>
-                                            ) : (
-                                              <button
-                                                onClick={() => { setDeliverableAddFor(milestone.id); setDeliverableForm(emptyDeliverableForm); setDeliverableNewFile(null); setDeliverableNewUrl(""); }}
-                                                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest text-slate-400 border border-[var(--border-primary)] hover:text-[var(--brand-orange)]"
-                                              >
-                                                <Plus className="w-3 h-3" /> {t("venture.manager.addDeliverable")}
-                                              </button>
-                                            )
-                                          )}
-                                        </div>
+                                        <MilestoneDeliverables
+                                          DELIVERABLE_TYPES={DELIVERABLE_TYPES}
+                                          addDeliverable={addDeliverable}
+                                          deliverableAction={deliverableAction}
+                                          deliverableAddFor={deliverableAddFor}
+                                          deliverableBusy={deliverableBusy}
+                                          deliverableFile={deliverableFile}
+                                          deliverableForm={deliverableForm}
+                                          deliverableList={deliverableList}
+                                          deliverableMenuItems={deliverableMenuItems}
+                                          deliverableNewUrl={deliverableNewUrl}
+                                          deliverableSaving={deliverableSaving}
+                                          deliverableStatus={deliverableStatus}
+                                          deliverableText={deliverableText}
+                                          emptyDeliverableForm={emptyDeliverableForm}
+                                          fmtDate={fmtDate}
+                                          milestone={milestone}
+                                          milestoneAuthority={milestoneAuthority}
+                                          reviewDeliverable={reviewDeliverable}
+                                          saveDeliverableEdit={saveDeliverableEdit}
+                                          setDeliverableAction={setDeliverableAction}
+                                          setDeliverableAddFor={setDeliverableAddFor}
+                                          setDeliverableFile={setDeliverableFile}
+                                          setDeliverableForm={setDeliverableForm}
+                                          setDeliverableNewFile={setDeliverableNewFile}
+                                          setDeliverableNewUrl={setDeliverableNewUrl}
+                                          setDeliverableText={setDeliverableText}
+                                          submitDeliverableEvidence={submitDeliverableEvidence}
+                                        />
                                       )}
 
                                       {/* Book a session on this milestone (date + exact time) */}
                                       {isOpen && (milestoneAuthority || access.manage) && !stage.is_archived && (
-                                        <div className="mt-2 ml-5">
-                                          {bookFor === milestone.id ? (
-                                            <form onSubmit={(event) => bookSession(event, stage, milestone)} className="rounded-lg border border-[var(--border-primary)] p-2.5 space-y-2">
-                                              <p className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] flex items-center gap-1.5">
-                                                <CalendarPlus className="w-3.5 h-3.5" /> {t("venture.manager.bookSession")}
-                                              </p>
-                                              <input
-                                                value={bookForm.title}
-                                                onChange={(event) => setBookForm({ ...bookForm, title: event.target.value })}
-                                                placeholder={t("venture.manager.sessionTitlePlaceholder")}
-                                                className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                              />
-                                              <textarea
-                                                value={bookForm.note}
-                                                onChange={(event) => setBookForm({ ...bookForm, note: event.target.value })}
-                                                onInput={autoGrow}
-                                                rows={3}
-                                                required
-                                                placeholder={t("venture.manager.memoPlaceholder")}
-                                                className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)] resize-none overflow-hidden min-h-[72px]"
-                                              />
-                                              <div className="space-y-1">
-                                                <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
-                                                  {t("venture.manager.sessionMaterials")}
-                                                </p>
-                                                <input
-                                                  type="file"
-                                                  multiple
-                                                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-                                                  onChange={(event) =>
-                                                    setBookForm({
-                                                      ...bookForm,
-                                                      files: Array.from(event.target.files || []).slice(0, SESSION_MATERIALS_MAX),
-                                                    })
-                                                  }
-                                                  className="w-full text-[10px] text-[var(--text-secondary)]"
-                                                />
-                                                {(bookForm.files || []).length > 0 && (
-                                                  <ul className="space-y-0.5">
-                                                    {bookForm.files.map((file, index) => (
-                                                      <li key={`${file.name}-${index}`} className="flex items-center justify-between gap-2 text-[9px] text-[var(--text-secondary)]">
-                                                        <span className="truncate">{file.name}</span>
-                                                        <button
-                                                          type="button"
-                                                          aria-label={t("venture.manager.sessionMaterialsRemove")}
-                                                          onClick={() =>
-                                                            setBookForm({ ...bookForm, files: bookForm.files.filter((_, fileIndex) => fileIndex !== index) })
-                                                          }
-                                                          className="shrink-0 text-slate-500 hover:text-[var(--text-primary)]"
-                                                        >
-                                                          <X className="w-3 h-3" />
-                                                        </button>
-                                                      </li>
-                                                    ))}
-                                                  </ul>
-                                                )}
-                                                <p className="text-[9px] text-slate-500">{t("venture.manager.sessionMaterialsHint")}</p>
-                                              </div>
-                                              <div className="space-y-1">
-                                                <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
-                                                  {t("venture.manager.sessionDeliverable")}
-                                                </p>
-                                                <select
-                                                  value={bookForm.deliverable_id}
-                                                  onChange={(event) => setBookForm({ ...bookForm, deliverable_id: event.target.value })}
-                                                  className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                                >
-                                                  <option value="">{t("venture.manager.sessionNoDeliverable")}</option>
-                                                  {deliverableList.map((deliverable) => (
-                                                    <option key={deliverable.id} value={deliverable.id}>{deliverable.title}</option>
-                                                  ))}
-                                                </select>
-                                              </div>
-                                              <div className="flex flex-wrap items-center gap-2">
-                                                <input
-                                                  type="date"
-                                                  required
-                                                  min={toDateInput(new Date())}
-                                                  value={bookForm.date}
-                                                  onChange={(event) => setBookForm({ ...bookForm, date: event.target.value })}
-                                                  className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                                />
-                                                <input
-                                                  type="time"
-                                                  required
-                                                  min={bookForm.min_time || undefined}
-                                                  value={bookForm.time}
-                                                  onChange={(event) => setBookForm({ ...bookForm, time: event.target.value })}
-                                                  className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                                />
-                                                <select
-                                                  value={bookForm.duration}
-                                                  onChange={(event) => setBookForm({ ...bookForm, duration: event.target.value })}
-                                                  className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                                >
-                                                  {["30", "45", "60", "90"].map((durationOption) => (
-                                                    <option key={durationOption} value={durationOption}>{t("venture.manager.minutes", { n: durationOption })}</option>
-                                                  ))}
-                                                </select>
-                                                <select
-                                                  value={bookForm.coach_id}
-                                                  onChange={(event) => setBookForm({ ...bookForm, coach_id: event.target.value })}
-                                                  className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                                >
-                                                  <option value="">{t("venture.manager.noCoach")}</option>
-                                                  {coachOptions.map((coach) => (
-                                                    <option key={coach.id || coach.coach_id} value={coach.coach_id}>{coach.full_name || coach.email}</option>
-                                                  ))}
-                                                </select>
-                                              </div>
-                                              <p className="text-[9px] text-slate-500">{t("venture.manager.sessionLeadHint")}</p>
-                                              <p className="text-[9px] text-slate-500">{t("venture.manager.sessionNotifyHint")}</p>
-                                              <div className="flex justify-end gap-2">
-                                                <button type="button" onClick={() => setBookFor(null)} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
-                                                  {t("common.cancel")}
-                                                </button>
-                                                <button type="submit" disabled={bookSaving} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5 disabled:opacity-50">
-                                                  {bookSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <CalendarPlus className="w-3 h-3" />} {t("venture.manager.bookSession")}
-                                                </button>
-                                              </div>
-                                            </form>
-                                          ) : (
-                                            <button
-                                              type="button"
-                                              onClick={() => openBooking(milestone)}
-                                              className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]"
-                                            >
-                                              <CalendarPlus className="w-3 h-3" /> {t("venture.manager.bookSession")}
-                                            </button>
-                                          )}
-                                        </div>
+                                        <MilestoneSessionBooking
+                                          autoGrow={autoGrow}
+                                          bookFor={bookFor}
+                                          bookForm={bookForm}
+                                          bookSaving={bookSaving}
+                                          bookSession={bookSession}
+                                          coachOptions={coachOptions}
+                                          deliverableList={deliverableList}
+                                          milestone={milestone}
+                                          openBooking={openBooking}
+                                          setBookFor={setBookFor}
+                                          setBookForm={setBookForm}
+                                          stage={stage}
+                                        />
                                       )}
 
                                       {/* Sessions already booked on this milestone — the milestone stays the home of its sessions. */}
@@ -2283,106 +1718,23 @@ export default function JourneyManagerPanel({ ventureId }) {
                           )}
 
                           {milestoneAuthority && !stage.is_archived && (
-                            milestoneAddFor === stage.id ? (
-                              <form onSubmit={(event) => addMilestone(event, stage)} className="rounded-xl border border-[var(--border-primary)] bg-tertiary p-3 space-y-2">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] flex items-center gap-1.5">
-                                  <Flag className="w-3.5 h-3.5" /> {t("venture.manager.addMilestone")}
-                                </p>
-                                <input
-                                  value={milestoneForm.title}
-                                  onChange={(event) => setMilestoneForm({ ...milestoneForm, title: event.target.value })}
-                                  placeholder={t("venture.manager.milestoneTitlePlaceholder")}
-                                  className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
-                                  required
-                                />
-                                <textarea
-                                  value={milestoneForm.description}
-                                  onChange={(event) => setMilestoneForm({ ...milestoneForm, description: event.target.value })}
-                                  rows={2}
-                                  placeholder={t("venture.manager.milestoneDescPlaceholder")}
-                                  className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                />
-                                <input
-                                  value={milestoneForm.objective}
-                                  onChange={(event) => setMilestoneForm({ ...milestoneForm, objective: event.target.value })}
-                                  placeholder={t("venture.manager.stageObjectivePlaceholder")}
-                                  className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                />
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold text-[var(--text-secondary)]">{t("venture.manager.milestoneOwner")}</label>
-                                  <VenturePersonField
-                                    value={{ cid: milestoneForm.owner_cid, name: milestoneForm.owner_name }}
-                                    onChange={({ cid, name }) =>
-                                      setMilestoneForm({ ...milestoneForm, owner_cid: cid || "", owner_name: name || "" })
-                                    }
-                                    listId="milestone-owner-options"
-                                  />
-                                </div>
-                                <input
-                                  type="date"
-                                  value={milestoneForm.target_date}
-                                  min={todayDateInput()}
-                                  max={nextMilestoneDate(stages, { stageId: stage.id }) || undefined}
-                                  onChange={(event) => setMilestoneForm({ ...milestoneForm, target_date: event.target.value })}
-                                  className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                />
-
-                                {/* Deliverables are defined with the milestone, so
-                                    the milestone is never created empty. */}
-                                <div className="space-y-2 rounded-lg border border-[var(--border-primary)] p-2.5">
-                                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">
-                                    {t("venture.manager.deliverables")}
-                                  </p>
-                                  {milestoneDeliverables.map((deliverable, deliverableIndex) => (
-                                    <div key={deliverableIndex} className="flex flex-wrap items-center gap-2">
-                                      <input
-                                        value={deliverable.title}
-                                        onChange={(event) => updateMilestoneDeliverable(deliverableIndex, { title: event.target.value })}
-                                        placeholder={t("venture.manager.deliverableTitlePlaceholder")}
-                                        className="flex-1 min-w-[150px] px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                      />
-                                      <select
-                                        value={deliverable.deliverable_type}
-                                        onChange={(event) => updateMilestoneDeliverable(deliverableIndex, { deliverable_type: event.target.value })}
-                                        className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                      >
-                                        {DELIVERABLE_TYPES.map((deliverableType) => (
-                                          <option key={deliverableType} value={deliverableType}>{t(`venture.manager.deliverableTypes.${deliverableType}`)}</option>
-                                        ))}
-                                      </select>
-                                      <input
-                                        type="date"
-                                        value={deliverable.due_date}
-                                        min={milestoneForm.target_date || todayDateInput()}
-                                        onChange={(event) => updateMilestoneDeliverable(deliverableIndex, { due_date: event.target.value })}
-                                        className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                      />
-                                      <button type="button" onClick={() => removeMilestoneDeliverable(deliverableIndex)} className="p-1 text-slate-500 hover:text-rose-400" title={t("common.delete")}>
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </button>
-                                    </div>
-                                  ))}
-                                  <button type="button" onClick={addMilestoneDeliverable} className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
-                                    <Plus className="w-3 h-3" /> {t("venture.manager.addDeliverable")}
-                                  </button>
-                                </div>
-                                <div className="flex justify-end gap-2">
-                                  <button type="button" onClick={() => { setMilestoneAddFor(null); setMilestoneForm(emptyMilestoneForm); }} className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]">
-                                    {t("common.cancel")}
-                                  </button>
-                                  <button type="submit" disabled={milestoneSaving} className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5 disabled:opacity-50">
-                                    {milestoneSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} {t("venture.manager.addMilestone")}
-                                  </button>
-                                </div>
-                              </form>
-                            ) : (
-                              <button
-                                onClick={() => { setMilestoneAddFor(stage.id); setMilestoneForm(emptyMilestoneForm); setMilestoneDeliverables([]); }}
-                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] border border-brand-orange/30 hover:bg-brand-orange/10"
-                              >
-                                <Plus className="w-3.5 h-3.5" /> {t("venture.manager.addMilestone")}
-                              </button>
-                            )
+                            <AddMilestoneForm
+                              DELIVERABLE_TYPES={DELIVERABLE_TYPES}
+                              addMilestone={addMilestone}
+                              addMilestoneDeliverable={addMilestoneDeliverable}
+                              emptyMilestoneForm={emptyMilestoneForm}
+                              milestoneAddFor={milestoneAddFor}
+                              milestoneDeliverables={milestoneDeliverables}
+                              milestoneForm={milestoneForm}
+                              milestoneSaving={milestoneSaving}
+                              removeMilestoneDeliverable={removeMilestoneDeliverable}
+                              setMilestoneAddFor={setMilestoneAddFor}
+                              setMilestoneDeliverables={setMilestoneDeliverables}
+                              setMilestoneForm={setMilestoneForm}
+                              stage={stage}
+                              stages={stages}
+                              updateMilestoneDeliverable={updateMilestoneDeliverable}
+                            />
                           )}
                         </div>
                       )}
