@@ -3,14 +3,13 @@ import { createHandler } from "@/lib/api/createHandler";
 import { getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
 import {
   getFollowupById,
-  isContactInFacilitatorTeams,
-  isContactInFacilitatorTeamsForUpdate,
   listFollowups,
 } from "@/models/communications";
 import {
   ensureFollowupSchema,
   createFollowup,
   updateFollowupRecord,
+  isParticipantInFacilitatorScope,
 } from "@/services/communications/followups";
 
 /**
@@ -89,17 +88,11 @@ export const POST = createHandler(
     const scopeGuard = await getFacilitatorScopeGuard(req, program_id);
     if (scopeGuard?.deny) return scopeGuard.response;
     if (scopeGuard && scopeGuard.scope.scope !== "all") {
-      if (!participant_id || scopeGuard.scope.teamIds.length === 0) {
-        return NextResponse.json(
-          { success: false, error: "errors.insufficientPermissions" },
-          { status: 403 },
-        );
-      }
-      const inScope = await isContactInFacilitatorTeams(
+      const inScope = await isParticipantInFacilitatorScope(
+        scopeGuard.scope,
         participant_id,
-        scopeGuard.scope.teamIds,
       );
-      if (inScope.rows.length === 0) {
+      if (!inScope) {
         return NextResponse.json(
           { success: false, error: "errors.insufficientPermissions" },
           { status: 403 },
@@ -133,17 +126,12 @@ export const PATCH = createHandler(
       const scopeGuard = await getFacilitatorScopeGuard(req, followup.program_id);
       if (scopeGuard?.deny) return scopeGuard.response;
       if (scopeGuard && scopeGuard.scope.scope !== "all") {
-        if (!followup.participant_id || scopeGuard.scope.teamIds.length === 0) {
-          return NextResponse.json(
-            { success: false, error: "errors.insufficientPermissions" },
-            { status: 403 },
-          );
-        }
-        const inScope = await isContactInFacilitatorTeamsForUpdate(
+        const inScope = await isParticipantInFacilitatorScope(
+          scopeGuard.scope,
           followup.participant_id,
-          scopeGuard.scope.teamIds,
+          { forUpdate: true },
         );
-        if (inScope.rows.length === 0) {
+        if (!inScope) {
           return NextResponse.json(
             { success: false, error: "errors.insufficientPermissions" },
             { status: 403 },
