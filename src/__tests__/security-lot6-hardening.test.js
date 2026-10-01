@@ -85,9 +85,11 @@ describe("no raw HTML and server-controlled fields", () => {
   });
 
   test("the project invitation cancel compares a cid, not a name", () => {
-    const src = read("src/app/api/projects/invitations/respond/route.js");
+    // The cancel rule moved to the service layer with the layer split; the
+    // invariant is unchanged — the inviter is compared by cid, never by name.
+    const src = read("src/services/projects/collaboration.js");
     expect(src).not.toMatch(/session\.name !== invitation\.inviter_id/);
-    expect(src).toMatch(/String\(session\.cid\) === String\(inviterCid\)/);
+    expect(src).toMatch(/String\(sessionCid\) === String\(inviterCid\)/);
   });
 
   test("audit actors come from the session", () => {

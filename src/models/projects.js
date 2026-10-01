@@ -147,6 +147,22 @@ export async function updateProject(updateFields, updateArgs) {
   });
 }
 
+/**
+ * Repository shaping: turn an ordered `{ column: value }` map into the SET
+ * fragments and args that `updateProject` joins. Key order is kept, so the SQL
+ * stays byte-identical to the previous inline assembly.
+ *
+ * It lives here, not in the service that decides which columns change, so no
+ * SQL text crosses back into the service layer (docs/LAYER_SPLIT.md §5).
+ */
+export function projectUpdateClause(columnValues) {
+  const entries = Object.entries(columnValues);
+  return {
+    fields: entries.map(([column]) => `${column} = ?`),
+    args: entries.map(([, value]) => value),
+  };
+}
+
 /** Remove all lead members of a project (PUT /api/projects lead sync). */
 export async function deleteProjectLeads(id) {
   return db.execute({

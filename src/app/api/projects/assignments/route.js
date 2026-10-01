@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import {
-  getOwnedProjectsByUser,
-  getCollaboratingProjectsByUser,
-  getAllActiveProjects,
-} from "@/models/projectCollaboration";
+import { listProjectAssignments } from "@/services/projects/collaboration";
 
 /**
- * PROJECT ASSIGNMENTS API
+ * PROJECT ASSIGNMENTS API — controller layer.
  *
  * GET /api/projects/assignments?user_cid=X
  *
@@ -15,6 +11,9 @@ import {
  *   owned:     projects where owner_id = user
  *   collab:    projects where user is in project_members
  *   all_active: all active projects (for dropdown)
+ *
+ * The scope rule, the fail-open reads and the deduplication live in
+ * `@/services/projects/collaboration`.
  */
 export const GET = createHandler(async (req) => {
   const { searchParams } = new URL(req.url);
@@ -26,71 +25,25 @@ export const GET = createHandler(async (req) => {
       { status: 401 },
     );
   }
-  const staffSide = [
-    "super_admin",
-    "staff",
-    "program_manager",
-  ];
-  let userCid = searchParams.get("user_cid");
-  if (!staffSide.includes(session.role)) {
-    if (userCid && String(userCid) !== String(session.cid)) {
-      return NextResponse.json(
-        { success: false, error: "You can only view your own assignments." },
-        { status: 403 },
-      );
-    }
-    userCid = userCid || session.cid;
-  }
 
-  if (!userCid) {
+  const result = await listProjectAssignments({
+    role: session.role,
+    sessionCid: session.cid,
+    requestedCid: searchParams.get("user_cid"),
+  });
+
+  if (result.error) {
     return NextResponse.json(
-      { success: false, error: "user_cid is required." },
-      { status: 400 },
+      { success: false, error: result.error },
+      { status: result.status },
     );
   }
 
-  // Owned: projects where user is the owner
-  let owned = [];
-  try {
-    const result = await getOwnedProjectsByUser(userCid);
-    owned = result.rows;
-  } catch {
-    owned = [];
-  }
-
-  // Collaborating: projects where user is in project_members
-  let collab = [];
-  try {
-    const result = await getCollaboratingProjectsByUser(userCid);
-    collab = result.rows;
-  } catch {
-    collab = [];
-  }
-
-  // All active projects (for unlinked dropdown) — staff-side roles only
-  let all_active = [];
-  if (staffSide.includes(session.role)) {
-    try {
-      const result = await getAllActiveProjects();
-      all_active = result.rows;
-    } catch {
-      all_active = [];
-    }
-  }
-
-  // Combine owned + collab into a single deduplicated myProjects list
-  const seen = new Set();
-  const myProjects = [...owned, ...collab].filter((project) => {
-    if (seen.has(project.id)) return false;
-    seen.add(project.id);
-    return true;
-  });
-
   return NextResponse.json({
     success: true,
-    owned,
-    collab,
-    myProjects,
-    all_active,
+    owned: result.owned,
+    collab: result.collab,
+    myProjects: result.myProjects,
+    all_active: result.all_active,
   });
 });
