@@ -2164,6 +2164,23 @@ are green.
 
 ---
 
+### Domain 79 — the permission-matrix read (slice 114)
+
+`GET /api/engineering/permissions` was the largest remaining controller. Its read
+assembly moves to `services/authorization/permissionMatrix.js`
+(`preparePermissionReads`, `readPermissionMatrix`): the table view's enriched users
+(explicit profile or role default, groups merged from the user_groups table and
+the legacy group column, responsibilities), the module catalog with its
+role/group/profile defaults, and one user's effective-permissions matrix with the
+"who has access and why" explanation. The service answers `{ status, body }`; the
+route keeps the `permissions.view_matrix` gate, `initDb`, the query parsing and
+the envelope. The PUT (the grant/revoke/… writes) stays for a later slice.
+
+`npm test` (244 suites, 3550 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
