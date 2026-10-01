@@ -21,6 +21,13 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import { Info, Loader2, Shield } from "lucide-react";
 
+// The rows below are persisted in `feature_eligibility`, and the SAME resolver
+// enforces every API route that guards an eligibility write. Read authority is
+// `permissions.view_matrix`; write authority is `permissions.configure_eligibility`
+// — a dedicated authority on purpose, deliberately separate from
+// `assign_capabilities`, so that configuring the matrix can never be laundered
+// through the permission a person already holds.
+
 export default function EligibilityView() {
   const { t } = useI18n();
   const [data, setData] = useState(null);

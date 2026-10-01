@@ -2629,11 +2629,6 @@ function AccessProfilesView({ initialProfileId = null }) {
   );
 }
 
-// Persisted in feature_eligibility; consumed by the same resolver that
-// enforces every API route. Read = permissions.view_matrix; write =
-// permissions.configure_eligibility (a dedicated authority, deliberately
-// separate from assign_capabilities).
-
 /* ─── Phase 7: Permission Audit viewer ───────────────────────────────────── */
 
 const AUDIT_ACTIONS = [
@@ -3335,6 +3330,3 @@ export function GovernanceView() {
     </div>
   );
 }
-
-/* ─── Phase 7: "Why this access?" per-capability explanation ────────────── */
-
