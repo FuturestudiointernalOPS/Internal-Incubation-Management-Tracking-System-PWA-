@@ -10,8 +10,18 @@
  *                    calendar)
  *   progress.js    — the participant progress report (per-program metrics,
  *                    milestones, history, overall)
+ *   followups.js   — the participant follow-up meetings (merged, shaped)
+ *   fullState.js   — the full participant state bundle (access, cid, grades)
+ *   rituals.js     — the weekly rituals (check-in, stand-up, retro, reflection)
+ *   timeline.js    — the self timeline page size
+ *   submissions.js — participant / team submissions (access + view-only gate)
  */
 
 export * from "./assignments";
 export * from "./home";
 export * from "./progress";
+export * from "./followups";
+export * from "./fullState";
+export * from "./rituals";
+export * from "./timeline";
+export * from "./submissions";

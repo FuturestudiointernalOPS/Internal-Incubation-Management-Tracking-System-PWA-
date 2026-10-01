@@ -339,11 +339,10 @@ Du plus rentable / débloquant au plus tard :
 
 1. ✅ **Couloir « espace de travail & calendrier »** — **terminé** : calendrier
    et workspaces migrés (voir le journal ci-dessous).
-2. 🟰 **Portail participant** — domaine ouvert (`services/participant/**`).
-   Fait : les affectations, l'accueil (`home`) **et** la progression
-   (`progress`). Reste : `full-state`, `submissions`, `rituals/*`, `followups`,
-   `timeline`, `certificates`, puis `api/me/**` et `api/profile/**`. Le filet se
-   pose route par route.
+2. ✅ **Portail participant** — domaine **terminé** (`services/participant/**`) :
+   affectations, accueil, progression, relances, état complet, rituels,
+   chronologie, soumissions. `certificates` reste tel quel (pure lecture, aucune
+   décision). Restent **hors domaine** : `api/me/**` et `api/profile/**`.
 3. **Investisseur** (domaine à ouvrir) — `api/investor/**` →
    `services/investor/**`.
 4. **LMS & paiement** et **e-mail / intégrations** — vérifier d'abord : routes
@@ -369,7 +368,14 @@ Du plus rentable / débloquant au plus tard :
 | Portail participant — **assignations** | ✅ fait | Les décisions de `api/participant/assignments/route.js` (périmètre des livrables selon la portée tout/équipe/individu, rattachement de la soumission, tri « en retard d'abord », première version vs nouvelle version) déplacées dans `services/participant/assignments.js`. Route amaigrie. Test de comportement ajouté (`src/__tests__/participant-assignments.test.js`). Tests 398 ✅, lint 0 erreur, build ✅. |
 | Portail participant — **accueil (home)** | ✅ fait | Les décisions de `api/participant/home/route.js` (règles de déblocage et de semaine, taux d'achèvement / assiduité / affectations / indicateurs, classification retard / échéance proche / à venir, assemblage du calendrier et des annonces) déplacées dans `services/participant/home.js`. Fonctions pures testables + route amaigrie. Test de comportement ajouté (`src/__tests__/participant-home.test.js`). Tests 410 ✅, lint 0 erreur, build ✅. |
 | Portail participant — **progression** | ✅ fait | Les décisions de `api/participant/progress/route.js` (métriques par programme, jalons, historique par semaine, agrégation globale) déplacées dans `services/participant/progress.js`. Les règles de déblocage/semaine sont réutilisées depuis `home.js` pour que les deux vues ne divergent jamais. Test de comportement ajouté (`src/__tests__/participant-progress.test.js`). Tests 418 ✅, lint 0 erreur, build ✅. |
-| Portail participant — **le reste** | ⬜ à faire | `full-state`, `submissions`, `rituals/*`, `followups`, `timeline`, `certificates`, `me`, `profile`. |
+| Portail participant — **lot léger** | ✅ fait | Décisions de `followups` (fusion événements + table, mise en forme, tri), `full-state` (accès « soi ou rôle interne », résolution du cid, agrégation des notes), `rituals/*` (assemblage du texte de réflexion, défauts statut/semaine/année), `timeline` (bornage de la taille) déplacées dans `services/participant/{followups,fullState,rituals,timeline}.js`. Test ajouté (`src/__tests__/participant-misc.test.js`). |
+| Portail participant — **soumissions** | ✅ fait | Décisions d'accès (lecture / écriture, soi ou rôle interne) et barrière « programme terminé = lecture seule » déplacées dans `services/participant/submissions.js`. Tests 445 ✅, lint 0 erreur, build ✅. |
+| Portail participant — **certificats** | ➖ sans objet | `certificates` est une pure lecture : aucune décision à déplacer. |
+
+> **Domaine participant : ✅ terminé.** Les huit routes à décision de
+> `api/participant/**` (hors `programs/**`, chez le stagiaire 3) sont migrées
+> vers `services/participant/**`. Restent hors domaine : `api/me/**` et
+> `api/profile/**`. |
 
 ---
 
