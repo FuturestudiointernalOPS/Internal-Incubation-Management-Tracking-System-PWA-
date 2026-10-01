@@ -72,26 +72,17 @@ jest.mock("@/models/groups", () => ({
   linkOrgTeamContactsByEmail: jest.fn(async () => ({})),
   linkOrgTeamContactsByCid: jest.fn(async () => ({})),
   linkOrgTeamContactsByCidOnUpdate: jest.fn(async () => ({})),
+  getGroupProgramId: jest.fn(async () => ({ rows: [{ program_id: "P1" }] })),
+  getParticipantGroupPrograms: jest.fn(async () => ({ rows: [] })),
+  insertGroupMember: jest.fn(async () => ({ rows: [{ id: 1 }] })),
+  getGroupMembers: jest.fn(async () => ({ rows: [] })),
+  getGroupMemberParticipants: jest.fn(async () => ({ rows: [] })),
 }));
-
-jest.mock("@/lib/supabase", () => {
-  const insert = jest.fn(() => ({
-    select: jest.fn(async () => ({ data: [{ id: 1 }], error: null })),
-  }));
-  const builder = {
-    select: jest.fn(() => builder),
-    eq: jest.fn(() => builder),
-    single: jest.fn(async () => ({ data: { program_id: "P1" }, error: null })),
-    insert,
-  };
-  return { supabase: { from: jest.fn(() => builder) }, __builder: builder };
-});
 
 const { isWithinScope } = require("@/lib/authorization/scope");
 const { getAuthorizationContext } = require("@/lib/authorization");
 const teamsModel = require("@/models/teams");
 const groupsModel = require("@/models/groups");
-const { __builder } = require("@/lib/supabase");
 
 const pmTeams = require("@/app/api/pm/teams/route");
 const teams = require("@/app/api/teams/route");
@@ -210,7 +201,7 @@ describe("a team write outside your programs is refused, with nothing written", 
     );
 
     expect(res.status).toBe(403);
-    expect(__builder.insert).not.toHaveBeenCalled();
+    expect(groupsModel.insertGroupMember).not.toHaveBeenCalled();
   });
 
   test("an unresolvable team program is refused, never allowed", async () => {
@@ -243,6 +234,6 @@ describe("Super Admin is never scoped", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(__builder.insert).toHaveBeenCalled();
+    expect(groupsModel.insertGroupMember).toHaveBeenCalled();
   });
 });

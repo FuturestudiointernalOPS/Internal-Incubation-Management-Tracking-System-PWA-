@@ -4,6 +4,7 @@ import db from "@/lib/db";
  * Groups model — data access for the group / people-organization controllers:
  * `src/app/api/groups/route.js` (contact groups — families table),
  * `src/app/api/user-groups/route.js` (user ⇄ group membership),
+ * `src/app/api/group-members/route.js` (v2 team membership),
  * `src/app/api/participants/route.js` (enrollment + contact credential sync),
  * `src/app/api/segments/route.js` + `src/app/api/segments/run/route.js` (retired),
  * `src/app/api/invites/route.js` + `src/app/api/invites/[token]/route.js` (invites),
@@ -721,6 +722,54 @@ export async function getV2GroupRowsByProgram(programId) {
     args.push(programId);
   }
   return db.execute({ sql, args });
+}
+
+// ── POST / GET /api/group-members ────────────────────────────────────────────
+
+/** The owning program of a group (POST — resolves the membership write's scope). */
+export async function getGroupProgramId(groupId) {
+  return db.execute({
+    sql: "SELECT program_id FROM v2_groups WHERE CAST(id AS TEXT) = ?",
+    args: [String(groupId)],
+  });
+}
+
+/** A participant's memberships with each group's program id (POST duplicate rule). */
+export async function getParticipantGroupPrograms(participantId) {
+  return db.execute({
+    sql: `SELECT gm.id, g.program_id
+              FROM v2_group_members gm
+              LEFT JOIN v2_groups g ON g.id = gm.group_id
+             WHERE CAST(gm.participant_id AS TEXT) = ?`,
+    args: [String(participantId)],
+  });
+}
+
+/** Insert one group membership (POST). */
+export async function insertGroupMember(groupId, participantId) {
+  return db.execute({
+    sql: "INSERT INTO v2_group_members (group_id, participant_id) VALUES (?, ?) RETURNING *",
+    args: [groupId, participantId],
+  });
+}
+
+/** A group's memberships (GET). */
+export async function getGroupMembers(groupId) {
+  return db.execute({
+    sql: "SELECT * FROM v2_group_members WHERE CAST(group_id AS TEXT) = ?",
+    args: [String(groupId)],
+  });
+}
+
+/** The participant rows behind a group's memberships (GET embedded resource). */
+export async function getGroupMemberParticipants(groupId) {
+  return db.execute({
+    sql: `SELECT p.*
+              FROM v2_participants p
+              JOIN v2_group_members gm ON gm.participant_id = p.id
+             WHERE CAST(gm.group_id AS TEXT) = ?`,
+    args: [String(groupId)],
+  });
 }
 
 // ── POST /api/superadmin/groups/assignment ───────────────────────────────────
