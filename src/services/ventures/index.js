@@ -12,6 +12,7 @@
  *   journeyRead.js — the work a Journey read attaches (milestones, deliverables, task counts, template)
  *   journeyStageActions.js — Journey stage transitions and their change log
  *   memberRoster.js — what follows a roster change (invitation delivery, access, history, grants)
+ *   taskBoard.js — the task board, the status-change gates and what follows an update
  */
 
 export * from "./ventureDocumentTypes";
@@ -21,3 +22,4 @@ export * from "./sessionNotices";
 export * from "./journeyRead";
 export * from "./journeyStageActions";
 export * from "./memberRoster";
+export * from "./taskBoard";

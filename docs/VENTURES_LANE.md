@@ -179,7 +179,7 @@ journey / milestone, reports, deliverables).
 | `ventures/[id]/submissions/review-queue/route.js` | 78 |
 | `ventures/[id]/tasks/archive/route.js` | 45 |
 | `ventures/[id]/tasks/duplicate/route.js` | 50 |
-| `ventures/[id]/tasks/route.js` | 330 |
+| `ventures/[id]/tasks/route.js` | 230 (was 330 — slice L2.4) |
 | `ventures/[id]/tasks/[taskId]/submissions/route.js` | 224 |
 | `ventures/[id]/timeline/route.js` | 110 |
 | `ventures/[id]/validations/route.js` | 92 |
@@ -245,3 +245,16 @@ little above 250 lines.
 
 Checks: `npm test` 3569/3569 (incl. `ventures/member-invite-api`),
 `npx eslint` 0 errors.
+
+### Slice L2.4 — `ventures/[id]/tasks` (330 → 230 lines) — ✅ done
+
+| New file | What moved into it |
+|---|---|
+| `src/services/ventures/taskBoard.js` | `buildTaskBoard(tasks, edges, includeArchived)` (archived filter, Kanban columns, dependency decoration — pure), `checkTaskStatusChange` (the hard dependency gate for Venture-side actors → 409 with `blocked_by`, then the review-required completion gate → 403), `afterTaskUpdate` (release the tasks a completed task was blocking, sync the block state, milestone follows a status change), `syncMilestoneForTask`, `TASK_PROCEED_STATUSES` |
+| `src/__tests__/ventures/task-board.test.js` | 4 characterisation tests of `buildTaskBoard` |
+
+Stays in the route: scoped access, object-level ownership, the comments /
+attachments / review actions, request validation, the writes, every response.
+
+Checks: `npm test` 3575/3575 (incl. `venture-task-dependency-gate`,
+`security-lot1-idor`), `npx eslint` 0 errors.
