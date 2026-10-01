@@ -2270,6 +2270,70 @@ are green.
 
 ---
 
+### Domain 83 — the investor relationship workspaces and meetings (slice 119)
+
+`api/investor/relationships` and `api/investor/relationships/meetings` were the
+largest remaining investor controllers after the due-diligence, campaigns and
+pipeline slices. Their decisions move to `services/investor/relationships.js`
+(the own-scope binding of a workspace — the id comes from the request — the list
+scope, and the create/update orchestration with its timeline entries and the
+best-effort introduction notification) and
+`services/investor/relationshipMeetings.js` (the own-scope binding of a
+workspace's meetings, the creation with its scheduled timeline entry, and the
+completion cascade — the completed timeline entry plus the workspace
+`next_action` seeded from the first action item). Every statement stays in
+`@/models/investorRelations`; both routes keep only `initDb`, the
+capability/role gate and the envelope.
+
+`security-lot2-investor-scope.test.js` still drives the route end to end over the
+same mocked models, and a focused `investor-relationships.test.js` pins the moved
+decisions.
+
+`npm test` (254 suites, 3717 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
+### Domain 84 — the rest of the investor portal (slice 120)
+
+The remaining `api/investor/**` controllers that still held a decision, after
+slices 119:
+
+- **`evaluation`** — the own-scope binding of a pipeline (the id comes from the
+  request) and the write dispatch by `type` (founder vs risk) move to
+  `services/investor/evaluation.js`.
+- **`decisions`** — the profile resolution (no profile = an empty page), the
+  valid decision types, the own-scope binding and the decision→stage table move
+  to `services/investor/decisions.js`.
+- **`organizations`** — an organization is visible only to its members (or
+  management), the listing is scoped to the caller's own profile, and only an
+  administrator OF THAT organization may add or re-role a member — in
+  `services/investor/organizations.js`.
+- **`watchlist`**, **`preferences`**, **`meetings`** — the toggle, the profile
+  guard, and the "a self-service caller must name a venture, or the query returns
+  every investor's meetings" rule move to `watchlist.js`, `preferences.js` and
+  `meetings.js`.
+- **`dashboard`** — the recommendation scoring (industry 30 / country 25 /
+  stage 20 / ticket 15 / readiness 10) and its ordering, plus the block assembly,
+  move to `services/investor/dashboard.js`, with a pure `scoreVentures` helper.
+- **`executive-dashboard`** and **`admin-overview`** — the two super-admin
+  aggregations move to `services/investor/executiveDashboard.js` and
+  `adminOverview.js` (no decision beyond a row's shape; the `requireAuth`
+  super-admin gate stays at the boundary).
+- **`setup-password`** — the required fields, the length rule, the setup-token
+  lookup and its expiry move to `services/investor/setupPassword.js`.
+
+`register` is a retired 410 with no decision, so it is left as-is. The routes
+keep only `initDb`, the capability/role gate and the envelope; every statement
+stays in `@/models/investor*`. A focused `investor-portal.test.js` pins the moved
+decisions, and the existing `security-lot2-investor-scope.test.js` keeps driving
+the routes end to end over the same mocked models.
+
+`npm test` (255 suites, 3775 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** — **deleted** (slice 117): `resolver`, `scope`,

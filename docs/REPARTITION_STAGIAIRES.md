@@ -343,21 +343,15 @@ Du plus rentable / débloquant au plus tard :
    affectations, accueil, progression, relances, état complet, rituels,
    chronologie, soumissions. `certificates` reste tel quel (pure lecture, aucune
    décision). Restent **hors domaine** : `api/me/**` et `api/profile/**`.
-3. 🟰 **Investisseur** — domaine **ouvert** (`services/investor/**`). Premier
-   morceau fait : la due diligence (`api/investor/diligence`). Reste :
-   `campaigns`, `pipeline`, `relationships`, `dashboard`, `organizations`,
-   `evaluation`, `decisions`, `meetings`, `preferences`, `watchlist`,
-   `executive-dashboard`, `admin-overview`, `register`, `setup-password`.
+3. ✅ **Investisseur** — domaine **terminé** (`services/investor/**`) : due
+   diligence, campagnes, pipeline, relations, évaluation, décisions,
+   organisations, liste de suivi, préférences, réunions, tableau de bord,
+   agrégateurs et mot de passe. `register` est un 410 sans décision.
 4. 🟰 **LMS & paiement** et **e-mail / intégrations** — vérifier d'abord : routes
    probablement déjà minces ; ne traiter que ce qui contient une décision. Fait :
    le **règlement partagé** (`settleVerifiedPayment`) et la **réconciliation**
    (`checkoutReconcile`). Reste à vérifier `api/public/**`, `api/webhooks/**`,
    `api/gmail-v1-test/**`, le reste de `api/lms/**`, et `api/integrations/**`.
-   🟰 **en cours** — le socle de règlement (`settleVerifiedPayment`) est partagé
-   par la vérification du payeur et la notification Kkiapay, et le balayage de
-   réconciliation est passé en `services/lms/**` (voir le journal). Reste :
-   `api/public/**` (hors checkout) et `api/integrations/**`, `api/webhooks/**`,
-   `api/gmail-v1-test/**`.
 5. **Vues et composants réservés** (V1, V3, V4, V5, V7, V9–V12, V14, V15, V17 et
    B3, B4, B5, B8, B9, B11, B12, B13) — à intercaler avec les couloirs.
 6. **Tableau de bord & ops admin** (agrégateurs : `api/dashboard/**`,
@@ -392,11 +386,29 @@ Du plus rentable / débloquant au plus tard :
 | Investisseur — **due diligence** | ✅ fait | Décisions de `api/investor/diligence/route.js` (binding « soi », transitions de statut par rôle RM/IM/admin, historique de versions, questions de suivi, dispatch des actions) déplacées dans `services/investor/diligence.js`. Route amaigrie. Test ajouté (`src/__tests__/investor-diligence.test.js`). Tests 422 ✅, lint 0 erreur, build ✅. |
 | Investisseur — **campagnes** | ✅ fait | Décisions de `api/investor/campaigns/route.js` (portée de la liste, normalisation des entrées, appariement des préférences investisseur/venture, franchissement des paliers de financement 25/50/75/100, notifications de publication et de palier) déplacées dans `services/investor/campaigns.js`. Route amaigrie. Test ajouté (`src/__tests__/investor-campaigns.test.js`). |
 | Investisseur — **pipeline** | ✅ fait | Décisions de `api/investor/pipeline/route.js` (portée de la liste, stades valides, extraction du montant investi, cascades « demande de réunion » et « investi ») déplacées dans `services/investor/pipeline.js`. Route amaigrie. Test ajouté (`src/__tests__/investor-pipeline.test.js`). |
-| Investisseur — **le reste** | ⬜ à faire | `relationships`, `dashboard`, `organizations`, `evaluation`, `decisions`, `meetings`, `preferences`, `watchlist`, `executive-dashboard`, `admin-overview`, `register`, `setup-password`. |
+| Investisseur — **relations** | ✅ fait | Décisions de `api/investor/relationships/route.js` et `api/investor/relationships/meetings/route.js` (binding « soi » du workspace, portée de la liste, création/réactivation avec entrée de chronologie et notification d'introduction au mieux, mise à jour avec entrée de changement de statut, création de réunion avec entrée de planification, cascade d'achèvement : entrée + amorçage de `next_action`) déplacées dans `services/investor/relationships.js` et `services/investor/relationshipMeetings.js`. Routes amaigries. Test ajouté (`src/__tests__/investor-relationships.test.js`). |
+| Investisseur — **évaluation** | ✅ fait | Décisions de `api/investor/evaluation/route.js` (binding « soi » du pipeline, dispatch d'écriture par type fondateur/risque) déplacées dans `services/investor/evaluation.js`. Route amaigrie. |
+| Investisseur — **décisions** | ✅ fait | Décisions de `api/investor/decisions/route.js` (résolution du profil, types valides, binding « soi » du pipeline, table de correspondance décision → stade) déplacées dans `services/investor/decisions.js`. Route amaigrie. |
+| Investisseur — **organisations** | ✅ fait | Décisions de `api/investor/organizations/route.js` (une organisation n'est visible que de ses membres, liste bornée au profil, seul un administrateur DE CETTE organisation peut ajouter/re-rôler un membre) déplacées dans `services/investor/organizations.js`. Route amaigrie. |
+| Investisseur — **liste de suivi, préférences, réunions** | ✅ fait | Décisions de `watchlist` (bascule ajout/retrait), `preferences` (garde de profil, défauts d'écriture) et `meetings` (un appelant libre-service doit nommer une venture, sinon la requête renverrait les réunions de tous les investisseurs) déplacées dans `services/investor/{watchlist,preferences,meetings}.js`. Routes amaigries. |
+| Investisseur — **tableau de bord** | ✅ fait | Décisions de `api/investor/dashboard/route.js` (notation des recommandations selon les pondérations industrie 30 / pays 25 / stade 20 / ticket 15 / complétude 10 et son tri) et assemblage des blocs (pipeline, liste de suivi, campagnes, relations et leurs prochaines réunions, statistiques) déplacées dans `services/investor/dashboard.js` (fonction pure `scoreVentures` testable). Route amaigrie. |
+| Investisseur — **agrégateurs** | ✅ fait | Assemblages de `api/investor/executive-dashboard/route.js` et `api/investor/admin-overview/route.js` déplacés dans `services/investor/{executiveDashboard,adminOverview}.js` (aucune décision hors la forme d'une ligne ; gardés sous `requireAuth(["super_admin"])`). Routes amaigries. |
+| Investisseur — **mot de passe** | ✅ fait | Décisions de `api/investor/setup-password/route.js` (champs requis, longueur minimale, recherche du jeton d'installation et son expiration, hachage + écriture) déplacées dans `services/investor/setupPassword.js`. Route amaigrie. |
+| Investisseur — **register** | ➖ sans objet | `api/investor/register` est un 410 « flux retiré » : aucune décision, aucune écriture. Laissé tel quel. |
+
+> **Domaine investisseur : ✅ terminé.** Toutes les routes à décision de
+> `api/investor/**` sont migrées vers `services/investor/**` (diligence,
+> campagnes, pipeline, relations, évaluation, décisions, organisations, liste de
+> suivi, préférences, réunions, tableau de bord, agrégateurs, mot de passe).
+> `register` est un 410 sans décision ; `profile` (lecture « soi ») et
+> `diligence/documents`, `approval`, `ventures`, `kpis`, `updates`,
+> `venture-kpis` (lectures/écritures sans décision) restent au contrôleur.
+> Tests 255 suites / 3775 ✅ (dont `investor-portal.test.js`), lint 0 erreur,
+> build ✅.
 | LMS & paiement — **règlement partagé** | ✅ fait | La décision « régler un paiement VÉRIFIÉ » (contrôle du montant vs prix décidé côté serveur, passage en payé, octroi de l'accès, envoi du reçu, journalisation), dupliquée dans `api/webhooks/kkiapay/route.js` et `api/public/checkout/route.js` (action `verify`), est désormais dans `services/lms/checkout.js` (`settleVerifiedPayment`), appelée par les deux. Les journaux restent identiques : les valeurs `event` (webhook) vs `verified` (checkout) sont passées en paramètre, donc le SQL et les écritures sont inchangés. Le test end-to-end `src/__tests__/lms-checkout.test.js` reste vert. |
 | LMS & paiement — **réconciliation** | ✅ fait | `lib/lms/checkoutReconcile.js` (module de DÉCISION logé dans `lib/`) déplacé vers `services/lms/checkoutReconcile.js` ; `lib/lms/checkoutReconcile.js` devient une simple façade, donc aucun importateur ne change (dont `src/__tests__/lms-checkout-reconcile-cron.test.js`, qui mocke ce chemin lib). Tests 253 suites / 3689 ✅, lint 0 erreur, build ✅. |
 
-| LMS & paiement — **socle de règlement partagé** | ✅ fait | La règle de règlement d'un paiement vérifié (contrôle du montant, passage à « payé », octroi de l'accès, envoi du reçu, journalisation) était écrite **deux fois** — dans la vérification du payeur (`api/public/checkout`) et dans la notification Kkiapay (`api/webhooks/kkiapay`). Elle vit maintenant à un seul endroit : `services/lms/checkout.js` → `settleVerifiedPayment(...)`. Les deux contrôleurs n'ont plus que l'authentification et l'enveloppe ; les valeurs journalistées restent celles que le fournisseur a réellement rapportées, donc la piste d'audit est identique. Test de comportement ajouté (`src/__tests__/lms-checkout-settlement.test.js`). |
+| LMS & paiement — **socle de règlement partagé** | ✅ fait | La règle de règlement d'un paiement vérifié (contrôle du montant, passage à « payé », octroi de l'accès, envoi du reçu, journalisation) était écrite **deux fois** — dans la vérification du payeur (`api/public/checkout`) et dans la notification Kkiapay (`api/webhooks/kkiapay`). Elle vit maintenant à un seul endroit : `services/lms/checkout.js` → `settleVerifiedPayment(...)`. Les deux contrôleurs n'ont plus que l'authentification et l'enveloppe ; les valeurs journalistées restent celles que le fournisseur a réellement rapportées, donc la piste d'audit est identique. Le filet de comportement est le test d'intégration existant `lms-checkout.test.js`, qui fait passer les deux chemins par le socle partagé (montant falsifié refusé et journalisé, reçu envoyé même quand l'accès échoue). |
 | LMS & paiement — **balayage de réconciliation** | ✅ fait | `lib/lms/checkoutReconcile.js` — le filet de sécurité qui rejoue une étape d'accès échouée et revérifie un succès non confirmé — est passé en `services/lms/checkoutReconcile.js`. La façade `lib/lms/checkoutReconcile` est conservée : ses deux importateurs (`api/lms/registrations`, `api/lms/checkout-reconcile`) et le test du cron résolvent inchangés. |
 
 ---
