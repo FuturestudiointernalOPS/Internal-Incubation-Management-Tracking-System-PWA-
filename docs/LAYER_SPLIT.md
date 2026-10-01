@@ -15,8 +15,9 @@
 > `syncMilestoneFromWork` is gone), 29 the assignment-scope layer and the
 > operating-plan access helpers, 30 the roadmap readiness engine and the Venture
 > notification helpers, 31 the venture progress reports, 32 the Venture coach
-> identity/invitation layer, 33–34 the first `ventures.js` domains out of the
-> monolith (activity/history/notifications, then the startup-profile wizard). The
+> identity/invitation layer, 33–35 the first `ventures.js` domains out of the
+> monolith (activity/history/notifications, the startup-profile wizard, then
+> founders/co-founders). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -688,6 +689,24 @@ member, delegated staff by assignment) and the document file-type allow-list.
 
 ---
 
+### Domain 22 — the `ventures.js` monolith: founders & co-founders (slice 35)
+
+**Domain 3.** The founder roster: the role catalogue and labels, the manage
+check, the roster read, invitation / re-invitation, role and detail edits,
+removal (with the last-owner guards), ownership transfer and suspension /
+reactivation. The decisions move to `services/ventures/founders.js`; every
+statement to `models/ventureFoundersStore.js`; `src/lib/ventures.js` re-exports
+the whole surface so the five founder routes and the admin page are untouched.
+The three activity log calls (`FOUNDER_REMOVED`, `OWNERSHIP_TRANSFERRED`,
+`USER_SUSPENDED`/`USER_REACTIVATED`) now import the sibling
+`services/ventures/activity` instead of dynamically importing the monolith.
+
+**Unchanged:** the SQL (byte-identical), the role list, the last-owner / ownership
+transfer guards, the suspension rules and the append-only `ownership_history`
+write.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -872,8 +891,9 @@ Two source-pinning suites were repointed (same assertion, new home):
   and `ventureNotify.js` (slice 30), `ventureReports.js` (slice 31) and
   `ventureCoach.js` (slice 32) are done — all facades over `services/ventures/*`.
   `ventures.js` (5.8k lines) is being emptied domain by domain: its
-  activity/history/notification domain is out (slice 33) and its startup-profile
-  wizard is out (slice 34), both re-exported through the barrel. A long tail of
+  activity/history/notification domain is out (slice 33), its startup-profile
+  wizard is out (slice 34) and its founders/co-founders domain is out (slice 35),
+  all re-exported through the barrel. A long tail of
   `src/lib` modules still
   holds SQL (the remaining domains of `ventures.js`, plus the
   non-venture ones `auth.js`, `email.js`, `audit.js`, `token-hashing.js`,
