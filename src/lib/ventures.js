@@ -53,6 +53,18 @@ export async function ensureVentureSchema() {
     "ALTER TABLE venture_founders ALTER COLUMN contact_id DROP NOT NULL",
     // Venture members columns
     "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS joined_at TIMESTAMP DEFAULT NOW()",
+    // THE TWO HALVES OF AN ASSIGNMENT. A person on a plan does not need an
+    // account, so each assigned/owned object carries an identity (nullable) AND
+    // the name the tracker wrote. Deliverables were the one table missing the
+    // name half: the plan-import apply step wrote it, Postgres refused the whole
+    // import, and nothing healed it because this list never mentioned the table.
+    // Stated here so every environment converges, not only the one that broke.
+    "ALTER TABLE venture_deliverables ADD COLUMN IF NOT EXISTS assigned_cid TEXT",
+    "ALTER TABLE venture_deliverables ADD COLUMN IF NOT EXISTS assigned_name TEXT",
+    "ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS assigned_cid TEXT",
+    "ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS assigned_name TEXT",
+    "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS owner_cid TEXT",
+    "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS owner_name TEXT",
     // Ensure name column is nullable (legacy constraint issue)
     "ALTER TABLE ventures ALTER COLUMN name DROP NOT NULL",
     // Fix missing venture_history columns
