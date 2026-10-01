@@ -18,11 +18,11 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–47 the next `ventures.js`
+> controller (workspace, then collaboration), 39–48 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
 > project timeline & dependencies, reports & project analytics, coach & mentor
 > management, mentoring sessions & scheduling, knowledge hub & learning,
-> mentor feedback & analytics, then investment readiness). The
+> mentor feedback & analytics, investment readiness, then investor matching). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -998,6 +998,20 @@ recommendation templates/priority.
 
 ---
 
+### Domain 34 — the `ventures.js` monolith: investor matching (slice 48)
+
+**Domain 15** (ENHANCEMENT 4.2). The investor catalogue (list / read / create),
+the match score (industry, stage, readiness, traction, team), the stored matches
+and the scoped match-status updates with their history. Decisions move to
+`services/ventures/investorMatching.js`; every statement to
+`models/ventureInvestorMatchingStore.js`; `src/lib/ventures.js` re-exports the
+seven functions.
+
+**Unchanged:** the SQL (byte-identical), the score weights/reasons, the
+strengths/weaknesses and the status side-effects.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1192,7 +1206,8 @@ Two source-pinning suites were repointed (same assertion, new home):
   mentoring sessions & scheduling domain is out (slice 44), and its knowledge hub
   & learning domain is out (slice 45), and its mentor feedback & analytics domain
   is out (slice 46), and its investment readiness domain
-  is out (slice 47), all
+  is out (slice 47), and its investor matching domain
+  is out (slice 48), all
   re-exported through the barrel. A
   long tail of
   `src/lib` modules still
