@@ -18,7 +18,7 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–58 the next `ventures.js`
+> controller (workspace, then collaboration), 39–59 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
 > project timeline & dependencies, reports & project analytics, coach & mentor
 > management, mentoring sessions & scheduling, knowledge hub & learning,
@@ -26,7 +26,8 @@
 > & data room, the fundraising pipeline, investment analytics, administration &
 > system config, the notification centre, audit logs & security, then external
 > integrations & public APIs, system monitoring, health & reporting, then the core
-> schema bootstrap and intake). The
+> schema bootstrap, intake, then the core record — **`ventures.js` is now a
+> barrel**). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1200,6 +1201,25 @@ duplicate conflicts and the company_name fallback.
 
 ---
 
+### Domain 45 — the `ventures.js` core: record (slice 59)
+
+**The last slice of the monolith.** The assembled Venture read (row + founders +
+members + activity + history + progress), the rename/update with the
+name↔company_name mirroring, and the lead change (clear the previous lead,
+promote the new one, append the ownership history, mirror the roles, refresh the
+context grants). Decisions move to `services/ventures/record.js`; every statement
+to `models/ventureRecordStore.js` (the members read delegates to
+`@/models/ventureMembers` with its own `db`); `src/lib/ventures.js` re-exports the
+three functions. The `my-ventures-name` source-pinning assertion was
+repointed to the service (same assertion, new home).
+
+**`src/lib/ventures.js` is now a barrel** — 412 lines, zero `db.execute`, no `db`
+import; every public name resolves to `src/services/ventures/*`. The monolith
+started this session at ~5 800 lines. **Unchanged:** the SQL (byte-identical),
+the id normalization, the mirrored columns and the lead-change sequence.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1383,31 +1403,13 @@ Two source-pinning suites were repointed (same assertion, new home):
   `ventureScope.js` and `ventureOperatingPlans.js` (slice 29), `ventureReadiness.js`
   and `ventureNotify.js` (slice 30), `ventureReports.js` (slice 31) and
   `ventureCoach.js` (slice 32) are done — all facades over `services/ventures/*`.
-  `ventures.js` (5.8k lines) is being emptied domain by domain: its
-  activity/history/notification domain is out (slice 33), its startup-profile
-  wizard is out (slice 34), its founders/co-founders domain is out (slice 35),
-  its Data-bank verification domain is out (slice 36), its milestones &
-  deliverables domain is out (slice 39), its tasks/dependencies/comments/
-  attachments domain is out (slice 40), its project timeline & dependencies
-  domain is out (slice 41) and its reports & project analytics domain is out
-  (slice 42) and its coach & mentor management domain is out (slice 43), and its
-  mentoring sessions & scheduling domain is out (slice 44), and its knowledge hub
-  & learning domain is out (slice 45), and its mentor feedback & analytics domain
-  is out (slice 46), and its investment readiness domain
-  is out (slice 47), and its investor matching domain
-  is out (slice 48), and its pitch deck & data room domain
-  is out (slice 49), and its fundraising pipeline domain
-  is out (slice 50), and its investment analytics domain
-  is out (slice 51), and its administration & system config domain
-  is out (slice 52), and its notification centre domain
-  is out (slice 53), and its audit logs & security domain
-  is out (slice 54), and its external integrations & public APIs
-  domain is out (slice 55), and its system monitoring, health & reporting domain
-  is out (slice 56) — the ENHANCEMENT blocks are fully extracted — and the core
-  schema bootstrap is out (slice 57) and its intake domain is out (slice 58), all
-  re-exported through the barrel. A long tail of
+  **`ventures.js` (5.8k lines at the start of the wave) is now a barrel**: all
+  23 domains (activity/history/notifications → system monitoring, slices 33–56)
+  plus the core (schema, intake, record, slices 57–59) are out, re-exported
+  through `src/lib/ventures.js` over `services/ventures/*` and
+  `models/venture*Store.js`. A long tail of
   `src/lib` modules still
-  holds SQL (the remaining domains of `ventures.js`, plus the
+  holds SQL (the
   non-venture ones `auth.js`, `email.js`, `audit.js`, `token-hashing.js`,
   `request-context.js`, `lms/coaching.js`) — the next repository-extraction
   targets, one module at a time, tracked in `MVC_REFACTOR.md`.

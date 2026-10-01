@@ -29,7 +29,9 @@ describe("My Ventures shows the company name", () => {
   });
 
   test("a rename keeps the legacy name column in step with company_name", () => {
-    const src = read("src/lib/ventures.js");
+    // The mirroring moved to the record service (slice 59); the assertion is
+    // unchanged, only its home.
+    const src = read("src/services/ventures/record.js");
     expect(src).toMatch(/mirrored\.name = mirrored\.company_name/);
     expect(src).toMatch(/mirrored\.company_name = mirrored\.name/);
   });
