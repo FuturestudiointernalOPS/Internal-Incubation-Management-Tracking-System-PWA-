@@ -2,13 +2,17 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
-import {
-  countMergeParticipantPrograms,
-  countMergeVentureMemberships,
-  countMergeTimelineEvents,
-} from "@/models/contacts";
+import { previewContactMerge } from "@/services/contacts/merge";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * GET /api/contacts/merge/preview?a=<survivor>&b=<duplicate>
+ *
+ * Counts what a merge would move (program enrollments, venture memberships,
+ * timeline events). The counting lives in `@/services/contacts/merge`; this route
+ * authenticates, gates on the capability and shapes the HTTP answer.
+ */
 
 export async function GET(req) {
   try {
@@ -27,22 +31,9 @@ export async function GET(req) {
         { status: 400 },
       );
 
-    // Count what will be reassigned
-    const [participantProgramsCount, ventureMembershipsCount, timelineEventsCount] =
-      await Promise.all([
-        countMergeParticipantPrograms(duplicateCid),
-        countMergeVentureMemberships(duplicateCid),
-        countMergeTimelineEvents(duplicateCid),
-      ]);
+    const summary = await previewContactMerge(duplicateCid);
 
-    return NextResponse.json({
-      success: true,
-      summary: {
-        program_enrollments: participantProgramsCount.rows[0]?.c || 0,
-        venture_memberships: ventureMembershipsCount.rows[0]?.c || 0,
-        timeline_events: timelineEventsCount.rows[0]?.c || 0,
-      },
-    });
+    return NextResponse.json({ success: true, summary });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
