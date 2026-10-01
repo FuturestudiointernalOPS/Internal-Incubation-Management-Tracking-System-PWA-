@@ -18,14 +18,14 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–55 the next `ventures.js`
+> controller (workspace, then collaboration), 39–56 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
 > project timeline & dependencies, reports & project analytics, coach & mentor
 > management, mentoring sessions & scheduling, knowledge hub & learning,
 > mentor feedback & analytics, investment readiness, investor matching, pitch deck
 > & data room, the fundraising pipeline, investment analytics, administration &
 > system config, the notification centre, audit logs & security, then external
-> integrations & public APIs). The
+> integrations & public APIs, then system monitoring, health & reporting). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1151,6 +1151,22 @@ hash scheme, the HTTPS + event guards.
 
 ---
 
+### Domain 42 — the `ventures.js` monolith: system monitoring, health & reporting (slice 56)
+
+**Domain 23** (ENHANCEMENT 5.5, the last ENHANCEMENT block). The health checks
+(run with per-component probes and record, latest, history, overall), the
+metrics, the system status, the alerts stats, the jobs, the queues, the storage /
+database / cache / API probes and the generated reports. Decisions move to
+`services/ventures/monitoring.js`; every statement to
+`models/ventureMonitoringStore.js`; `src/lib/ventures.js` re-exports the nineteen
+functions.
+
+**Unchanged:** the SQL (byte-identical), the probe thresholds, the env reads, the
+aggregation maths and the report period/summary. **The ENHANCEMENT blocks are now
+all out** — only the original core (schema, ids, create/read/update) remains.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1353,9 +1369,10 @@ Two source-pinning suites were repointed (same assertion, new home):
   is out (slice 52), and its notification centre domain
   is out (slice 53), and its audit logs & security domain
   is out (slice 54), and its external integrations & public APIs
-  domain is out (slice 55), all
-  re-exported through the barrel. A
-  long tail of
+  domain is out (slice 55), and its system monitoring, health & reporting domain
+  is out (slice 56) — the ENHANCEMENT blocks are fully extracted and only the
+  original core (schema, ids, create/read/update) remains — all
+  re-exported through the barrel. A long tail of
   `src/lib` modules still
   holds SQL (the remaining domains of `ventures.js`, plus the
   non-venture ones `auth.js`, `email.js`, `audit.js`, `token-hashing.js`,
