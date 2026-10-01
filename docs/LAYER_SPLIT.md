@@ -15,9 +15,10 @@
 > `syncMilestoneFromWork` is gone), 29 the assignment-scope layer and the
 > operating-plan access helpers, 30 the roadmap readiness engine and the Venture
 > notification helpers, 31 the venture progress reports, 32 the Venture coach
-> identity/invitation layer, 33–36 the first `ventures.js` domains out of the
+> identity/invitation layer, 33–37 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
-> founders/co-founders, then the Data-bank verification). The
+> founders/co-founders, the Data-bank verification, then milestones &
+> deliverables). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -725,6 +726,21 @@ transitions and the version-numbering rule (first upload = version 1).
 
 ---
 
+### Domain 24 — the `ventures.js` monolith: milestones & deliverables (slice 37)
+
+**Domain 5.** The milestone read, the deliverables of a milestone, and the
+deliverable create / update — including the evidence-submission and review
+workflow and the milestone progress recount. Decisions move to
+`services/ventures/deliverables.js`; every statement to
+`models/ventureDeliverablesStore.js`; `src/lib/ventures.js` re-exports the five
+functions. The critical `deliverable-update-sql` suite (one assignment per
+column, `status` once, canonical `progress` column) still passes byte-for-byte.
+
+**Unchanged:** the SQL (byte-identical), the allowed-column list, the Map-based
+approval workflow and the progress percentage.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -910,9 +926,10 @@ Two source-pinning suites were repointed (same assertion, new home):
   `ventureCoach.js` (slice 32) are done — all facades over `services/ventures/*`.
   `ventures.js` (5.8k lines) is being emptied domain by domain: its
   activity/history/notification domain is out (slice 33), its startup-profile
-  wizard is out (slice 34), its founders/co-founders domain is out (slice 35) and
-  its Data-bank verification domain is out (slice 36), all re-exported through the
-  barrel. A long tail of
+  wizard is out (slice 34), its founders/co-founders domain is out (slice 35),
+  its Data-bank verification domain is out (slice 36) and its milestones &
+  deliverables domain is out (slice 37), all re-exported through the barrel. A
+  long tail of
   `src/lib` modules still
   holds SQL (the remaining domains of `ventures.js`, plus the
   non-venture ones `auth.js`, `email.js`, `audit.js`, `token-hashing.js`,

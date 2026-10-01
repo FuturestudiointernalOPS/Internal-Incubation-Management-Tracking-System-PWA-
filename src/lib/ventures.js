@@ -933,102 +933,16 @@ export {
   addVerificationComment,
 } from "@/services/ventures/verification";
 
-// =============================================================================
-// ENHANCEMENT 2.2: MILESTONES & DELIVERABLES
-// =============================================================================
-
-export async function getMilestone(milestoneId) {
-  const res = await db.execute({ sql: "SELECT * FROM venture_milestones WHERE id = ?", args: [milestoneId] });
-  if (res.rows.length === 0) return null;
-  const milestone = res.rows[0];
-  milestone.assigned_members = typeof milestone.assigned_members === "string" ? JSON.parse(milestone.assigned_members) : (milestone.assigned_members || []);
-  return milestone;
-}
-
-// ─── Deliverables ─────────────────────────────────────────────────────────
-
-export async function listDeliverables(milestoneId) {
-  const res = await db.execute({
-    sql: `SELECT vd.*, (SELECT COUNT(*) FROM venture_deliverable_reviews vdr WHERE vdr.deliverable_id = vd.id) as review_count
-          FROM venture_deliverables vd WHERE vd.milestone_id = ? ORDER BY vd.created_at ASC`,
-    args: [milestoneId],
-  });
-  return res.rows || [];
-}
-
-export async function getDeliverable(deliverableId) {
-  const res = await db.execute({ sql: "SELECT * FROM venture_deliverables WHERE id = ?", args: [deliverableId] });
-  return res.rows[0] || null;
-}
-
-export async function createDeliverable({ milestoneId, ventureId, title, description, deliverableType, dueDate, assignedCid, assignedName, createdBy }) {
-  const res = await db.execute({
-    sql: `INSERT INTO venture_deliverables (milestone_id, venture_id, title, description, deliverable_type, due_date, assigned_cid, assigned_name, created_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-    args: [milestoneId, ventureId, title.trim(), description?.trim() || null, deliverableType || "document", dueDate || null, assignedCid || null, assignedName ? String(assignedName).trim() : null, createdBy || "system"],
-  });
-  return { id: res.rows[0]?.id || res.lastInsertRowid };
-}
-
-export async function updateDeliverable(deliverableId, updates, actorCid, actorName) {
-  const allowed = ["title", "description", "deliverable_type", "status", "due_date", "assigned_cid", "attachment_url", "attachment_name", "approval_status", "reviewer_cid", "reviewer_name", "rejection_reason"];
-  // One assignment per column. The list used to be built by pushing, and the
-  // approval workflow pushed a column the caller may already have supplied —
-  // `status` on a submission, `reviewer_cid` / `reviewer_name` on a review —
-  // which Postgres refuses outright ("multiple assignments to same column"),
-  // losing the submission the founder had just uploaded. A Map cannot.
-  const assignments = new Map();
-  for (const column of allowed) {
-    if (updates[column] !== undefined) assignments.set(column, updates[column]);
-  }
-
-  // Handle approval workflow. Its values win over the caller's, exactly as they
-  // did when the same column was assigned twice and the last one took effect.
-  const reviewed = updates.approval_status === "approved" || updates.approval_status === "rejected";
-  if (reviewed) {
-    assignments.set("reviewer_cid", updates.reviewer_cid || actorCid);
-    assignments.set("reviewer_name", updates.reviewer_name || actorName);
-    if (updates.approval_status === "approved") assignments.set("status", "completed");
-
-    await db.execute({
-      sql: `INSERT INTO venture_deliverable_reviews (deliverable_id, reviewer_cid, reviewer_name, decision, comments)
-            VALUES (?, ?, ?, ?, ?)`,
-      args: [deliverableId, actorCid || "system", actorName || "System", updates.approval_status, updates.rejection_reason || null],
-    });
-  }
-
-  const sets = []; const args = [];
-  for (const [column, value] of assignments) {
-    sets.push(`${column} = ?`);
-    args.push(value);
-  }
-  if (reviewed) sets.push("reviewed_at = NOW()");
-
-  if (sets.length === 0) return { updated: false };
-  sets.push("updated_at = NOW()");
-  args.push(deliverableId);
-  await db.execute({ sql: `UPDATE venture_deliverables SET ${sets.join(", ")} WHERE id = ?`, args });
-
-  // Recalculate milestone completion
-  const deliverable = await getDeliverable(deliverableId);
-  if (deliverable) {
-    const countResult = await db.execute({
-      sql: "SELECT COUNT(*) as t, SUM(CASE WHEN status IN ('approved','completed') THEN 1 ELSE 0 END) as d FROM venture_deliverables WHERE milestone_id = ?",
-      args: [deliverable.milestone_id],
-    });
-    const counts = countResult.rows[0] || { t: 0, d: 0 };
-    const pct = counts.t > 0 ? Math.round((counts.d / counts.t) * 100) : 0;
-    // `progress` is the canonical milestone progress column (the one the Journey
-    // spine and the milestone PATCH route read/write). The 016-era
-    // `completion_percentage` only exists on databases whose milestone table was
-    // created by that legacy DDL — on production it does NOT exist, and this
-    // write is what made a founder's deliverable submission 500 *after* the file
-    // was already stored.
-    await db.execute({ sql: "UPDATE venture_milestones SET progress = ?, updated_at = NOW() WHERE id = ?", args: [pct, deliverable.milestone_id] });
-  }
-
-  return { updated: true };
-}
+// ── ENHANCEMENT 2.2: Milestones & deliverables ─────────────────────────────
+// Extracted to the service layer; re-exported for existing importers
+// (see docs/LAYER_SPLIT.md).
+export {
+  getMilestone,
+  listDeliverables,
+  getDeliverable,
+  createDeliverable,
+  updateDeliverable,
+} from "@/services/ventures/deliverables";
 
 // =============================================================================
 // ENHANCEMENT 2.3: TASK MANAGEMENT & KANBAN
