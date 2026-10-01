@@ -1044,119 +1044,18 @@ export {
   assignLearningPath,
 } from "@/services/ventures/knowledge";
 
-// =============================================================================
-// ENHANCEMENT 3.5: MENTOR FEEDBACK & ANALYTICS
-// =============================================================================
-
-export async function submitFeedback({ sessionId, ventureId, coachId, founderCid, ratingOverall, ratingCommunication, ratingExpertise, ratingAvailability, ratingHelpfulness, comments, isAnonymous }) {
-  const sessionResult = await db.execute({ sql: "SELECT status FROM venture_sessions WHERE id = ?", args: [sessionId] });
-  if (sessionResult.rows.length === 0) throw new Error("Session not found.");
-  if (!["completed", "in_progress"].includes(sessionResult.rows[0].status)) throw new Error("Feedback requires a completed or in-progress session.");
-  if (!ratingOverall || ratingOverall < 1 || ratingOverall > 5) throw new Error("Rating must be 1-5.");
-
-  const id = (await db.execute({
-    sql: `INSERT INTO venture_mentor_feedback (session_id, venture_id, coach_id, founder_cid, rating_overall, rating_communication, rating_expertise, rating_availability, rating_helpfulness, comments, is_anonymous)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (session_id, coach_id) DO UPDATE SET
-          rating_overall=EXCLUDED.rating_overall, comments=EXCLUDED.comments, updated_at=NOW() RETURNING id`,
-    args: [sessionId, ventureId, coachId||null, founderCid||null, ratingOverall, ratingCommunication||null, ratingExpertise||null, ratingAvailability||null, ratingHelpfulness||null, comments||null, isAnonymous?1:0],
-  })).rows[0]?.id;
-  if (coachId) await recalculateCoachAnalytics(coachId);
-  await db.execute({ sql: `INSERT INTO venture_feedback_activity (feedback_id, coach_id, venture_id, action, actor_cid) VALUES (?, ?, ?, 'FEEDBACK_SUBMITTED', ?)`, args: [id, coachId, ventureId, founderCid||"system"] });
-  return { id };
-}
-
-export async function getFeedback(feedbackId) {
-  const result = await db.execute({ sql: "SELECT vmf.*, vs.title as session_title FROM venture_mentor_feedback vmf LEFT JOIN venture_sessions vs ON vmf.session_id = vs.id WHERE vmf.id = ?", args: [feedbackId] });
-  return result.rows[0] || null;
-}
-
-export async function listFeedback({ ventureId, coachId, sessionId }) {
-  let sql = `SELECT vmf.*, vs.title as session_title, vs.session_type, vc.full_name as coach_name FROM venture_mentor_feedback vmf LEFT JOIN venture_sessions vs ON vmf.session_id = vs.id LEFT JOIN venture_coaches vc ON vmf.coach_id = vc.id WHERE 1=1`;
-  const args = [];
-  if (ventureId) { sql += " AND vmf.venture_id = ?"; args.push(ventureId); }
-  if (coachId) { sql += " AND vmf.coach_id = ?"; args.push(parseInt(coachId)); }
-  if (sessionId) { sql += " AND vmf.session_id = ?"; args.push(parseInt(sessionId)); }
-  sql += " ORDER BY vmf.created_at DESC LIMIT 50";
-  const result = await db.execute({ sql, args });
-  return result.rows || [];
-}
-
-export async function deleteFeedback(feedbackId) {
-  const feedback = await getFeedback(feedbackId);
-  if (!feedback) return { success: false };
-  await db.execute({ sql: "DELETE FROM venture_mentor_feedback WHERE id = ?", args: [feedbackId] });
-  if (feedback.coach_id) await recalculateCoachAnalytics(feedback.coach_id);
-  return { success: true };
-}
-
-async function recalculateCoachAnalytics(coachId) {
-  if (!coachId) return;
-  const [ratingResult, sessionResult, attendanceResult, cancelledResult, assignmentResult, actionItemResult, hoursResult] = await Promise.all([
-    db.execute({ sql: "SELECT AVG(rating_overall) as r, COUNT(*) as c FROM venture_mentor_feedback WHERE coach_id=?", args: [coachId] }),
-    db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE coach_id=? AND status='completed'", args: [coachId] }),
-    db.execute({ sql: `SELECT COUNT(*) as a FROM venture_session_attendance WHERE session_id IN (SELECT id FROM venture_sessions WHERE coach_id=?) AND status='attended'`, args: [coachId] }),
-    db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE coach_id=? AND status='cancelled'", args: [coachId] }),
-    db.execute({ sql: "SELECT COUNT(*) as c FROM venture_coach_assignments WHERE coach_id=? AND status='active'", args: [coachId] }),
-    db.execute({ sql: `SELECT COUNT(*) as c FROM venture_session_action_items vai JOIN venture_sessions vs ON vai.session_id=vs.id WHERE vs.coach_id=? AND vai.status='completed'`, args: [coachId] }),
-    db.execute({ sql: `SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (end_time-start_time))/3600),0) as h FROM venture_sessions WHERE coach_id=? AND status='completed'`, args: [coachId] }),
-  ]);
-  const averageRating = parseFloat(ratingResult.rows[0]?.r)||0;
-  const feedbackCount = parseInt(ratingResult.rows[0]?.c)||0;
-  const sessionsCompleted = parseInt(sessionResult.rows[0]?.c)||0;
-  const attended = parseInt(attendanceResult.rows[0]?.a)||0;
-  const cancelled = parseInt(cancelledResult.rows[0]?.c)||0;
-  const totalSessions = sessionsCompleted + cancelled || 1;
-  const coachTypeResult = await db.execute({ sql: "SELECT coach_type FROM venture_coaches WHERE id=?", args: [coachId] });
-  const coachType = coachTypeResult.rows[0]?.coach_type || "coach";
-
-  await db.execute({
-    sql: `INSERT INTO venture_mentor_analytics (coach_id, coach_type, average_rating, sessions_completed, attendance_rate, cancellation_rate, assigned_ventures, completed_action_items, mentoring_hours, founder_satisfaction, engagement_score, last_calculated)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-          ON CONFLICT (coach_id) DO UPDATE SET average_rating=EXCLUDED.average_rating, sessions_completed=EXCLUDED.sessions_completed,
-          attendance_rate=EXCLUDED.attendance_rate, cancellation_rate=EXCLUDED.cancellation_rate,
-          assigned_ventures=EXCLUDED.assigned_ventures, completed_action_items=EXCLUDED.completed_action_items,
-          mentoring_hours=EXCLUDED.mentoring_hours, founder_satisfaction=EXCLUDED.founder_satisfaction,
-          engagement_score=EXCLUDED.engagement_score, last_calculated=NOW(), updated_at=NOW()`,
-    args: [coachId, coachType, Math.round(averageRating*100)/100, sessionsCompleted, sessionsCompleted>0?Math.round((attended/sessionsCompleted)*100):0, Math.round((cancelled/totalSessions)*100),
-      parseInt(assignmentResult.rows[0]?.c)||0, parseInt(actionItemResult.rows[0]?.c)||0, Math.round(parseFloat(hoursResult.rows[0]?.h||0)*100)/100,
-      feedbackCount>0?Math.round(averageRating*20):0, Math.min(100, Math.round((sessionsCompleted*5)+(parseInt(assignmentResult.rows[0]?.c||0)*10)+(parseInt(actionItemResult.rows[0]?.c||0)*3)+(parseFloat(hoursResult.rows[0]?.h||0)*2)))],
-  });
-}
-
-export async function getMentorAnalytics(coachType) {
-  const result = await db.execute({
-    sql: `SELECT vma.*, vc.full_name, vc.email, vc.photo_url, vc.organization, vc.areas_of_expertise FROM venture_mentor_analytics vma JOIN venture_coaches vc ON vma.coach_id = vc.id WHERE vma.coach_type=? AND vc.status='active' ORDER BY vma.engagement_score DESC LIMIT 50`,
-    args: [coachType],
-  });
-  return (result.rows||[]).map((row) => ({...row, areas_of_expertise: typeof row.areas_of_expertise==="string"?JSON.parse(row.areas_of_expertise):(row.areas_of_expertise||[])}));
-}
-
-export async function getSessionAnalytics(ventureId) {
-  const [totalResult, completedResult, cancelledResult, noShowResult, hoursResult, feedbackResult] = await Promise.all([
-    db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE venture_id=?", args: [ventureId] }),
-    db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE venture_id=? AND status='completed'", args: [ventureId] }),
-    db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE venture_id=? AND status='cancelled'", args: [ventureId] }),
-    db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE venture_id=? AND status='no_show'", args: [ventureId] }),
-    db.execute({ sql: `SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (end_time-start_time))/3600),0) as h FROM venture_sessions WHERE venture_id=? AND status='completed'`, args: [ventureId] }),
-    db.execute({ sql: "SELECT AVG(rating_overall) as r, COUNT(*) as c FROM venture_mentor_feedback WHERE venture_id=?", args: [ventureId] }),
-  ]);
-  const total = parseInt(totalResult.rows[0]?.c||0);
-  return {
-    total_sessions: total, completed: parseInt(completedResult.rows[0]?.c||0),
-    cancelled: parseInt(cancelledResult.rows[0]?.c||0), no_shows: parseInt(noShowResult.rows[0]?.c||0),
-    total_hours: Math.round(parseFloat(hoursResult.rows[0]?.h||0)*10)/10,
-    average_rating: parseFloat(feedbackResult.rows[0]?.r)||0, feedback_count: parseInt(feedbackResult.rows[0]?.c||0),
-    completion_rate: total>0?Math.round((parseInt(completedResult.rows[0]?.c||0)/total)*100):0,
-  };
-}
-
-export async function getFeedbackAnalytics(ventureId) {
-  const [trend, dist] = await Promise.all([
-    db.execute({ sql: `SELECT DATE(created_at) as d, AVG(rating_overall) as r, COUNT(*) as c FROM venture_mentor_feedback WHERE venture_id=? GROUP BY DATE(created_at) ORDER BY d LIMIT 30`, args: [ventureId] }),
-    db.execute({ sql: `SELECT rating_overall, COUNT(*) as c FROM venture_mentor_feedback WHERE venture_id=? GROUP BY rating_overall ORDER BY rating_overall`, args: [ventureId] }),
-  ]);
-  return { trend: trend.rows||[], distribution: dist.rows||[] };
-}
+// ── ENHANCEMENT 3.5: Mentor feedback & analytics ────────────────────────────
+// Extracted to the service layer; re-exported for existing importers
+// (see docs/LAYER_SPLIT.md).
+export {
+  submitFeedback,
+  getFeedback,
+  listFeedback,
+  deleteFeedback,
+  getMentorAnalytics,
+  getSessionAnalytics,
+  getFeedbackAnalytics,
+} from "@/services/ventures/feedback";
 
 // =============================================================================
 // ENHANCEMENT 4.1: INVESTMENT READINESS ASSESSMENT

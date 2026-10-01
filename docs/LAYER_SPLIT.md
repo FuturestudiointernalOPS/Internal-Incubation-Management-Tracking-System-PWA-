@@ -18,10 +18,11 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–45 the next `ventures.js`
+> controller (workspace, then collaboration), 39–46 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
 > project timeline & dependencies, reports & project analytics, coach & mentor
-> management, mentoring sessions & scheduling, then knowledge hub & learning). The
+> management, mentoring sessions & scheduling, knowledge hub & learning, then
+> mentor feedback & analytics). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -966,6 +967,21 @@ completion/streak maths.
 
 ---
 
+### Domain 32 — the `ventures.js` monolith: mentor feedback & analytics (slice 46)
+
+**Domain 13** (ENHANCEMENT 3.5). The founder-to-coach feedback (submit with its
+session gate, read, list, delete), the coach-analytics recalculation it triggers,
+and the mentor / session / feedback analytics views. Decisions move to
+`services/ventures/feedback.js`; every statement to
+`models/ventureFeedbackStore.js`; `src/lib/ventures.js` re-exports the seven
+functions.
+
+**Unchanged:** the SQL (byte-identical), the session-status gate, the rating
+range and the analytics formulas (attendance, cancellation, satisfaction,
+engagement).
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1158,7 +1174,8 @@ Two source-pinning suites were repointed (same assertion, new home):
   domain is out (slice 41) and its reports & project analytics domain is out
   (slice 42) and its coach & mentor management domain is out (slice 43), and its
   mentoring sessions & scheduling domain is out (slice 44), and its knowledge hub
-  & learning domain is out (slice 45), all
+  & learning domain is out (slice 45), and its mentor feedback & analytics domain
+  is out (slice 46), all
   re-exported through the barrel. A
   long tail of
   `src/lib` modules still
