@@ -16,6 +16,10 @@
  *                 cancel) and its notification fan-out
  *   registrations.js — the team's registration decisions (retry, resend,
  *                 refund, revoke access)
+ *   publicRegistration.js — the public registration surfaces: the group lookup
+ *                 and fallback, the anonymous-submission rule, the
+ *                 facilitator/participant conflict guard, and the public group
+ *                 info (group + registration window)
  */
 
 export * from "./learning";
@@ -23,3 +27,4 @@ export * from "./checkout";
 export * from "./checkoutReconcile";
 export * from "./coaching";
 export * from "./registrations";
+export * from "./publicRegistration";

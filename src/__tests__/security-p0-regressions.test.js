@@ -200,8 +200,9 @@ describe("static guarantees for the remaining P0 fixes", () => {
   });
 
   test("public registration never rewrites an existing account's credentials", () => {
-    const src = read("src/app/api/public/register/route.js");
-    expect(src).not.toMatch(/updateContactForRegistration/);
-    expect(src).toMatch(/existingContact.rows.length === 0/);
+    // The route stays a thin envelope; the ownership rule moved to the service.
+    const service = read("src/services/lms/publicRegistration.js");
+    expect(service).not.toMatch(/updateContactForRegistration/);
+    expect(service).toMatch(/existingContact.rows.length === 0/);
   });
 });
