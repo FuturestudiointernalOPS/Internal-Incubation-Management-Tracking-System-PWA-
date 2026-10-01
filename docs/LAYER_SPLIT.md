@@ -1484,6 +1484,67 @@ precedence (`sent` wins for `lastSentAt`).
 
 ---
 
+### Domain 54 — the Programs controller frontier (slices 68–72)
+
+The programs domain's **route** layer, taken one route at a time. Slice 13 had
+only the manager-change repair; this wave takes the lifecycle, the workspace
+bundle, the weekly reports, the exports and the teams. `services/programs/*`
+grew from one decision module (`programManager.js`) to six.
+
+**Slice 68 — `pm/programs`, the program lifecycle** →
+`services/programs/workspace.js` (`listProgramRecords`, `createProgramRecord`,
+`updateProgramRecord`, `deleteProgramRecord`). The list read with its completion
+index (four weighted blocks, computed in JS, capped at 100%), the duplicate-name
+rule, the date rules, the segment assignment + participant sync, the default
+objectives, the quick-archive shortcut, the manager-change notification and the
+protected-data guard all move; the route keeps `requireAuth` (GET/PUT bare, POST
+`[staff, super_admin]`), the `programs.*` capabilities, the `wave: "content"`
+record scope (PUT/DELETE) and the response envelope.
+
+New characterisation net `programs-api.test.js` (13 tests); no SQL moved, so the
+existing suites are untouched.
+
+**Slice 69 — `pm/full-state`, the program bundle** →
+`services/programs/fullState.js` (`buildProgramFullState`). The fourteen-read
+bundle assembly, the materials/attachment de-double-stringify, the
+participant/facilitator/staff merge, the optional metrics block and the
+calendar-day normalisation move; the route keeps the assigned-PM /
+`requireProgramFacilitator` gate. `db-sequencing-audit` (one wave, ≤ 15
+statements) is unchanged and green.
+
+**Slice 70 — `pm/export`** → `services/programs/export.js`
+(`buildProgramExport`). The export-type vocabulary, each type's filename and the
+serialisation (CSV, Excel, iCalendar, client-PDF JSON) move; the route keeps the
+`reports.export` capability, the `wave: "content"` scope and the header shaping.
+
+**Slice 71 — `pm/reports`, the weekly reports** →
+`services/programs/weeklyReports.js` (`listWeeklyReportsForSession`,
+`saveWeeklyReport`). The own-scope filter, the KPI-name lookup and the
+status → score mapping move; the route keeps `requireAuth`, the
+`requireAssignmentAccess` gate (GET) and the `programs.edit` + `wave: "content"`
+gates (POST).
+
+**Slice 72 — `pm/teams`, the program teams** → `services/programs/teams.js`
+(`listProgramTeams`, `createTeamWithMembers`, `applyTeamPatch`). The
+credential-stripping rule, the cryptographic credential generation, the member
+classification/linking and the credential e-mails move; the route keeps the
+management / `programs.view` / assignment gate (GET), the `programs.edit` +
+`wave: "groups"` gates and the team resolution that feeds the scope check
+(PATCH/DELETE).
+
+**Source-pin repointed:** `security-request-origin-and-scope` pinned the
+credential generator inside `pm/teams/route.js`; the same assertion now reads it
+in `services/programs/teams.js` (and still asserts the org-team route generates
+inline). `program-scope-coverage` and `identity-gate-bridge` are unchanged — the
+auth, capability and scope guards stayed on the routes.
+
+`npm test` (236 suites, 3380 tests), `npx eslint` (0 errors) and `npm run build`
+are green. **`pm/curriculum` (the session/requirement controller) is the one
+programs route left** — it is the largest and carries its own action vocabulary,
+so it is the next programs slice.
+
+---
+
 ### Domain 55 — the CRM controller frontier: contact alternative emails (slice 73)
 
 The `/api/contact-emails` route (list / add / remove a contact's alternative
@@ -1567,7 +1628,7 @@ cleanup, not layering:
 | Domain | Service to create | Notes |
 |---|---|---|
 | Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
-| Programs | `services/programs/*` | ✅ **models done** (slice 12) · ⏳ controller orchestration started (slice 13) |
+| Programs | `services/programs/*` | ✅ **controller frontier** (slices 13, 68–72) — lifecycle, workspace bundle, exports, weekly reports, teams; `pm/curriculum` remains |
 | Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22), the groups controller (slice 65), user groups (slice 66), the registry feed (slice 67) + the contact alternative emails (slice 73), then group members (slice 74, retiring the last Supabase route); `contacts/route.js` and the rest of the CRM routes remain |
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
