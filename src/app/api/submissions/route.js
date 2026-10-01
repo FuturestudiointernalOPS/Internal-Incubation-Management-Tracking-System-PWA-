@@ -8,10 +8,6 @@ import {
   getSubmissionProgramId,
   ensureSubmissionsTeamIdColumnForListing,
   listSubmissions,
-  ensureSubmissionScoresColumn,
-  ensureSubmissionEvaluationScoreColumn,
-  updateSubmissionScoreById,
-  updateSubmissionsScoreForParticipant,
 } from "@/models/forms";
 import {
   createSubmissionRecord,
@@ -23,6 +19,7 @@ import {
   resolveFacilitatorSubmissionScope,
   formatSubmissionRows,
   groupSubmissionVersions,
+  saveSubmissionScore,
 } from "@/services/ventures/submissions";
 
 /**
@@ -252,28 +249,14 @@ export async function PUT(req) {
     const scopeError = await requireProgramScope({ programId: targetProgramId, wave: "content" });
     if (scopeError) return scopeError;
 
-    // Ensure both score columns exist (migration safety).
-    try { await ensureSubmissionScoresColumn(); } catch (_) {}
-    try { await ensureSubmissionEvaluationScoreColumn(); } catch (_) {}
-
-    const payload = {
-      score: score != null ? parseInt(score) : null,
-      evaluation_score: score != null ? parseInt(score) : null,
-      evaluation_data: evaluation_data ? JSON.stringify(evaluation_data) : null,
-    };
-
-    if (id) {
-      await updateSubmissionScoreById({
-        ...payload,
-        id,
-      });
-    } else {
-      await updateSubmissionsScoreForParticipant({
-        ...payload,
-        participant_id,
-        program_id,
-      });
-    }
+    // Ensure both score columns exist (migration safety), then write.
+    await saveSubmissionScore({
+      id,
+      participantId: participant_id,
+      programId: program_id,
+      score,
+      evaluationData: evaluation_data,
+    });
 
     return NextResponse.json({ success: true, message: "Evaluation updated" });
   } catch (error) {
