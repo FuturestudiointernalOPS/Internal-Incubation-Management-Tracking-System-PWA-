@@ -40,9 +40,10 @@
 > submissions controller frontier has since begun and is now complete (the submit
 > path, the review, the list read, the score write). The platform frontier has
 > since begun — the `form-runs` email/report-document cluster (slice 95), then
-> the AI/import/seed wave (slices 96–102): the import preview/execute/review-flag
+> the platform wave (slices 96–104): the import preview/execute/review-flag
 > routes, the two seeds, the AI form generation, the template personalizer, the
-> advisory analysis, the evaluation scoreboard and the form-runs scoring engine.
+> advisory analysis, the evaluation scoreboard, the form-runs scoring engine, the
+> review workflow and the forms/collections controllers.
 > The remaining mixed model modules are itemised in §4. This document is the
 > running log. Update it at the end of every slice.
 
@@ -1960,7 +1961,7 @@ vocabulary are the next platform slices.**
 
 ---
 
-### Domain 76 — the platform AI/import/seed controller frontier (slices 96–102)
+### Domain 76 — the platform controller frontier (slices 96–104)
 
 With the model layer clear (§4), the platform controllers carried the last
 domain logic. This wave thins them route by route; each keeps its `initDb`, its
@@ -2019,12 +2020,42 @@ and the ranking label) moves out of the route, which now imports it. This is the
 first piece of the heavy `form-runs` write half; the POST action vocabulary
 remains.
 
+**Slice 103 — `processReviewInternal`** → `services/platform/formRuns.js`. The
+approval/rejection workflow behind the `review` and `bulk_review` actions moves
+as one function: the idempotency guard, the "also send the AI result PDF"
+evaluation gate (refusing the WHOLE action as a 409 *before* any side effect),
+the dimension-override write, the status transition, the decision email, the
+result-PDF send, the `REVIEW_COMPLETED` automation and the synchronous
+program/group sync. The service is HTTP-free, so the two HTTP-boundary pieces
+are **injected by the controller**: `after` (the `next/server` deferred-task
+hook) and `scheduleResultSweep`. The route now imports the function and passes
+both; its `review` and `bulk_review` handlers are pure orchestration (capability
+→ validate → call → shape). **Source-pins repointed**, same assertions, new home
+(the service): `result-pdf-on-approval` (the gate order and the single build
+site) and `result-email-schedule` (the post-approval sweep). The controller
+still owns the `runs.review` capability, the request parsing and the response
+envelope.
+
+**Slice 104 — `/api/platform/forms` and `/api/platform/collections`** →
+`services/platform/forms.js` and `services/platform/collections.js`. The Forms
+decisions move: the version-snapshot fallback for a published-but-empty form
+(only when it was not edited since the publish), the publish (snapshot + version
+bump), the create, the **FK-safe builder save** (sections upserted, fields
+re-pointed to null when their section is going away, deletions last) and the
+permanent-delete cascade. The Collections decisions move too: the list + the
+recursive tree, the slug, the parent-reference guard and the audit trail. The
+single-active-Investor guard becomes `guardInvestorIntake`, called by both write
+paths in the route. **Source-pin repointed:** `investor-application-intake` now
+reads the guard in the route + the assertion in the service.
+
 New characterisation nets `platform-import-api.test.js` (the fuzzy match, the
-run→form resolution, the row loop, the flag guards) and `platform-scoring.test.js`
+run→form resolution, the row loop, the flag guards), `platform-scoring.test.js`
 (config precedence, the weighted overall, the ranking, the unanswered-question
-rule). `npm test` (241 suites, 3483 tests), `npx eslint` (0 errors) and
-`npm run build` are green. **The rest of the write half of `platform/form-runs`
-(the POST action vocabulary: submit, manual-add, review, bulk-review, email
+rule) and `platform-forms-collections.test.js` (the snapshot fallback, the
+FK-safe save, the investor guard, the collections tree/slug). `npm test` (242
+suites, 3499 tests), `npx eslint` (0 errors) and `npm run build` are green. **The
+rest of the write half of `platform/form-runs`
+(the POST action vocabulary: submit, manual-add, email
 retry/mark, slug, assign/unassign, result PDFs) is the remaining heavy
 controller.**
 
@@ -2070,7 +2101,7 @@ cleanup, not layering:
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
-| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85), the `form-runs` Run-detail read (93), the `form-runs` email/report-document cluster (95), the import routes (96), the seeds (97), the AI form generation (98), the template personalizer (99), the advisory analysis (100), the evaluation scoreboard (101) and the form-runs scoring engine (102); the rest of the `form-runs` write half remains |
+| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85), the `form-runs` Run-detail read (93), the `form-runs` email/report-document cluster (95), the import routes (96), the seeds (97), the AI form generation (98), the template personalizer (99), the advisory analysis (100), the evaluation scoreboard (101), the form-runs scoring engine (102), the review workflow (103) and the forms/collections controllers (104); the rest of the `form-runs` POST action vocabulary remains |
 | Communications | `services/communications/*` | ✅ **controller frontier complete** — message scope (earlier), campaigns (86), internal messages (87), announcements (88), follow-ups and events (89–90) |
 | Submissions | `services/ventures/submissions.js` | ✅ **controller frontier complete** — the submit POST (91), the review PATCH (92), the list GET (93) and the score PUT (94) |
 
