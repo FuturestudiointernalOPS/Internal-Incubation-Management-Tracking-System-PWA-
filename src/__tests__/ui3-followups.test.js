@@ -46,7 +46,11 @@ describe("UI-3 — pending changes diff", () => {
 
 describe("UI-3 — one pending-changes presentation", () => {
   test("the template editor uses the shared pending-changes list", () => {
-    expect(read(`${PERMS}PermissionCenter.js`)).toContain("PendingChangesList");
+    // Pinned to the file that owns it. The template editor was extracted into
+    // its own module, so reading the shim would pass while guarding nothing —
+    // that exact regression is what permission-center-extraction-integrity
+    // exists to catch.
+    expect(read(`${PERMS}permission-center/AccessProfilesView.js`)).toContain("PendingChangesList");
     expect(read(`${PERMS}ui/PendingChangesList.js`)).toContain("pendingLevelOff");
   });
 

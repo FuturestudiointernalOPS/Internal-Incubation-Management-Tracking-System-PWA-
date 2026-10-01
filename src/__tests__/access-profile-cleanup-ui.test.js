@@ -18,13 +18,18 @@
  * Every assertion below is a regression guard for a defect found in the audit,
  * so a failure means the defect is back, not that the test is stale.
  */
-const fs = require("node:fs");
 const path = require("node:path");
 
 const ROOT = path.join(__dirname, "..", "..");
-const SCREEN = "src/components/permissions/PermissionCenter.js";
+const { readPermissionCenterSurface } = require("./helpers/permissionCenterSource");
 
-const screen = fs.readFileSync(path.join(ROOT, SCREEN), "utf8");
+// Read the WHOLE surface, shim + every extracted module. AccessProfilesView was
+// extracted out of the shim, so pinning positives against the shim alone would
+// pass vacuously. The seven `not.toMatch` assertions are the reason to widen
+// rather than repoint: "this defect must not exist anywhere on this screen" is a
+// property of the whole surface, and reading one file would let it reappear in
+// the other.
+const screen = readPermissionCenterSurface();
 const en = require(path.join(ROOT, "src/locales/en/engineering.json"));
 const fr = require(path.join(ROOT, "src/locales/fr/engineering.json"));
 

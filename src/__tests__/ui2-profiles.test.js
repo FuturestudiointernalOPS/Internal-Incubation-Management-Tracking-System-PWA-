@@ -50,7 +50,9 @@ describe("UI-2c — profile badges", () => {
 
 describe("UI-2c — screen contracts", () => {
   const route = "src/app/admin/security/permissions/profiles/page.js";
-  const center = "src/components/permissions/PermissionCenter.js";
+  // Pinned to the file that owns the behaviour: the editor moved out of the
+  // shim, so reading the shim would pass vacuously.
+  const center = "src/components/permissions/permission-center/AccessProfilesView.js";
 
   test("the route forwards a ?profile= deep link into the editor", () => {
     const src = read(route);

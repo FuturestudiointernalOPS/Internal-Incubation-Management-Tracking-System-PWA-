@@ -22,7 +22,9 @@ const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const resolveKey = (bundle, dotted) =>
   dotted.split(".").reduce((acc, part) => (acc == null ? undefined : acc[part]), bundle);
 
-const CENTER = "src/components/permissions/PermissionCenter.js";
+// The editor moved out of the shim into its own module, so the positives below
+// are pinned against the file that holds them rather than against the shim.
+const CENTER = "src/components/permissions/permission-center/AccessProfilesView.js";
 
 describe("UI-4b — the editor reads the server catalog", () => {
   const src = read(CENTER);

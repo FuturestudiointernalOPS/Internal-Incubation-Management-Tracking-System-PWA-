@@ -24,22 +24,17 @@ const path = require("node:path");
 const ROOT = path.join(__dirname, "..", "..");
 const PERMS = "src/components/permissions/";
 const SHIM_REL = `${PERMS}PermissionCenter.js`;
-const EXTRACTED_REL = `${PERMS}permission-center`;
 
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
-
 const readShim = () => read(SHIM_REL);
 
-function readSurface() {
-  const dir = path.join(ROOT, EXTRACTED_REL);
-  const files = fs.existsSync(dir)
-    ? fs
-        .readdirSync(dir)
-        .filter((f) => f.endsWith(".js"))
-        .sort()
-    : [];
-  return files.map((f) => read(`${EXTRACTED_REL}/${f}`)).join("\n");
-}
+// Reuse the helper rather than rebuilding the surface here. My first version
+// walked `permission-center/` with a flat readdirSync, which silently EXCLUDED
+// `shared/` once the first shared module landed — a second, private definition
+// of "the surface" that disagreed with the one the behavioural guards use. A
+// guard that inspects a different region than the code it guards is worse than
+// no guard, so there is now exactly one definition of the surface.
+const { readPermissionCenterSurface } = require("./helpers/permissionCenterSource");
 
 // ── 1. No test may pin a string against a file that no longer holds it ──────
 
@@ -73,7 +68,7 @@ function shimBackedVariables(lines) {
 
 describe("P3 — the split did not leave a guard guarding nothing", () => {
   const shim = readShim();
-  const surface = readSurface();
+  const surface = readPermissionCenterSurface();
 
   const vacuous = [];
 
@@ -85,18 +80,24 @@ describe("P3 — the split did not leave a guard guarding nothing", () => {
 
     lines.forEach((line, index) => {
       const lineNo = index + 1;
-      // Only pins made against the shim are in scope.
+      // Only pins made against the shim are in scope. Two shapes qualify: a
+      // variable we resolved to the shim's text, and an inline path literal
+      // (e.g. read(`${PERMS}PermissionCenter.js`)), which binds no variable at
+      // all. Missing the second shape is how this guard stayed silent on
+      // ui3-followups while its pin was already broken.
+      const target = (line.match(/expect\(\s*(\w+)/) || [])[1];
       const pinnedAgainstShim =
-        roots.size > 0 &&
-        (roots.has((line.match(/expect\(\s*(\w+)/) || [])[1]) ||
-          line.includes("PermissionCenter.js"));
+        line.includes("PermissionCenter.js") ||
+        (roots.size > 0 && roots.has(target));
       if (!pinnedAgainstShim) return;
 
+      // Named groups, not positional ones: a group added here silently shifted
+      // every index below and the guard went quiet instead of failing.
       const contains = line.match(
-        /expect\(\s*\w+\s*\)\.(not\.)?toContain\(\s*[`"']([^`"']{4,})/,
+        /expect\([\s\S]*?\)\.(?:not\.)?toContain\(\s*[`"'](?<lit>[^`"']{4,})/,
       );
       if (contains) {
-        const literal = contains[3];
+        const literal = contains.groups.lit;
         // Vacuous exactly when the shim lost it and the surface still has it.
         if (!shim.includes(literal) && surface.includes(literal)) {
           vacuous.push(`${file}:${lineNo} toContain(${JSON.stringify(literal.slice(0, 60))})`);
@@ -105,12 +106,12 @@ describe("P3 — the split did not leave a guard guarding nothing", () => {
       }
 
       const matches = line.match(
-        /expect\(\s*\w+\s*\)\.(not\.)?toMatch\(\s*\n?\s*\/((?:[^/\\]|\\.)+)\/[a-z]*\s*,?\s*\)/,
+        /expect\([\s\S]*?\)\.(?:not\.)?toMatch\(\s*\n?\s*\/(?<re>(?:[^/\\]|\\.)+)\/[a-z]*\s*,?\s*\)/,
       );
       if (matches) {
         let re;
         try {
-          re = new RegExp(matches[2]);
+          re = new RegExp(matches.groups.re);
         } catch {
           return; // a dynamic or non-portable pattern; not this guard's business
         }
@@ -132,6 +133,7 @@ describe("P3 — the split did not leave a guard guarding nothing", () => {
     // "absent from the shim, absent from the surface" and the guard above would
     // pass while covering nothing. This pins the premise, not the behaviour.
     expect(surface.length).toBeGreaterThan(1000);
+    expect(surface).toContain("buildEditableModules");
   });
 });
 
