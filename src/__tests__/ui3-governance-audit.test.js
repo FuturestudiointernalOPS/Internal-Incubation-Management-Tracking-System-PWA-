@@ -58,7 +58,11 @@ describe("UI-3a — design-system fixes", () => {
   });
 
   test("the audit detail uses the shared drawer and highlights the reason", () => {
-    const src = read(center);
+    // On the file that owns the audit reader, not on the shim: `WhyDrawer` and
+    // `splitAuditReason` are a behaviour of the audit screen, so pinning them
+    // against the shim would have gone vacuous the day the screen was split out
+    // — while still passing. Caught by the vacuous-pin guard, not by this test.
+    const src = read("src/components/permissions/permission-center/AuditView.js");
     expect(src).toContain("WhyDrawer");
     expect(src).toContain("splitAuditReason");
     expect(src).toContain("auditReason");
