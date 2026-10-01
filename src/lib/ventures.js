@@ -1098,137 +1098,20 @@ export {
   getDocumentShares,
 } from "@/services/ventures/documents";
 
-// =============================================================================
-// ENHANCEMENT 4.4: FUNDRAISING PIPELINE
-// =============================================================================
-
-export const ACTIVITY_TYPES = ["email", "call", "meeting", "demo", "reminder", "follow_up", "task"];
-
-/**
- * List opportunities for a venture, optionally by stage.
- */
-export async function listOpportunities(ventureId, stage) {
-  let sql = `SELECT fo.*, fi.name as ref_investor_name, fi.organization as ref_organization
-             FROM fundraising_opportunities fo
-             LEFT JOIN venture_investors fi ON fo.investor_id = fi.id
-             WHERE fo.venture_id=?`;
-  const args = [ventureId];
-  if (stage) { sql += " AND fo.stage=?"; args.push(stage); }
-  sql += " ORDER BY fo.expected_close_date ASC, fo.created_at DESC";
-  return (await db.execute({ sql, args })).rows || [];
-}
-
-export async function getOpportunity(oppId) {
-  const [oRes, hRes, aRes, nRes] = await Promise.all([
-    db.execute({ sql: `SELECT fo.*, fi.name as ref_investor_name, fi.organization as ref_organization FROM fundraising_opportunities fo LEFT JOIN venture_investors fi ON fo.investor_id = fi.id WHERE fo.id=?`, args: [oppId] }),
-    db.execute({ sql: "SELECT * FROM fundraising_stage_history WHERE opportunity_id=? ORDER BY created_at DESC", args: [oppId] }),
-    db.execute({ sql: "SELECT * FROM fundraising_activities WHERE opportunity_id=? ORDER BY activity_date DESC", args: [oppId] }),
-    db.execute({ sql: "SELECT * FROM fundraising_notes WHERE opportunity_id=? ORDER BY created_at DESC", args: [oppId] }),
-  ]);
-  if (oRes.rows.length === 0) return null;
-  return { ...oRes.rows[0], stage_history: hRes.rows||[], activities: aRes.rows||[], notes: nRes.rows||[] };
-}
-
-export async function createOpportunity({ ventureId, investorId, investorName, investorEmail, expectedAmount, currency, probability, expectedCloseDate, ownerCid, ownerName, tags, nextAction, nextActionDate, createdBy }) {
-  if (expectedAmount && expectedAmount < 0) throw new Error("Amount cannot be negative.");
-  if (expectedCloseDate && new Date(expectedCloseDate) < new Date(new Date().toDateString())) throw new Error("Close date cannot be in the past.");
-
-  const id = (await db.execute({
-    sql: `INSERT INTO fundraising_opportunities (venture_id, investor_id, investor_name, investor_email, expected_amount, currency, probability, expected_close_date, owner_cid, owner_name, tags, next_action, next_action_date, created_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?) RETURNING id`,
-    args: [ventureId, investorId||null, investorName||null, investorEmail||null, expectedAmount||null, currency||"USD", probability||10, expectedCloseDate||null, ownerCid||null, ownerName||null, JSON.stringify(tags||[]), nextAction||null, nextActionDate||null, createdBy||"system"],
-  })).rows[0]?.id;
-
-  // Log initial stage
-  await db.execute({
-    sql: `INSERT INTO fundraising_stage_history (opportunity_id, previous_stage, new_stage, probability, changed_by) VALUES (?, NULL, 'prospect', ?, ?)`,
-    args: [id, probability||10, createdBy||"system"],
-  });
-
-  return { id };
-}
-
-export async function updateOpportunity(oppId, updates) {
-  const allowed = ["investor_id", "investor_name", "investor_email", "stage", "expected_amount", "currency", "probability", "expected_close_date", "owner_cid", "owner_name", "tags", "next_action", "next_action_date", "notes_summary"];
-  const sets = []; const args = [];
-
-  // Track stage changes
-  if (updates.stage) {
-    const current = await db.execute({ sql: "SELECT stage, probability FROM fundraising_opportunities WHERE id=?", args: [oppId] });
-    if (current.rows.length > 0 && current.rows[0].stage !== updates.stage) {
-      await db.execute({
-        sql: `INSERT INTO fundraising_stage_history (opportunity_id, previous_stage, new_stage, probability, changed_by, notes) VALUES (?, ?, ?, ?, ?, ?)`,
-        args: [oppId, current.rows[0].stage, updates.stage, updates.probability||current.rows[0].probability, updates._changed_by||"system", updates._stage_change_notes||null],
-      });
-    }
-  }
-
-  for (const column of allowed) {
-    if (updates[column] !== undefined) {
-      if (column === "tags") { sets.push("tags=?::jsonb"); args.push(JSON.stringify(updates[column])); }
-      else { sets.push(`${column}=?`); args.push(updates[column]); }
-    }
-  }
-  if (sets.length === 0) return { updated: false };
-  sets.push("updated_at=NOW()"); args.push(oppId);
-  await db.execute({ sql: `UPDATE fundraising_opportunities SET ${sets.join(",")} WHERE id=?`, args });
-  return { updated: true };
-}
-
-export async function deleteOpportunity(oppId) {
-  await db.execute({ sql: "DELETE FROM fundraising_opportunities WHERE id=?", args: [oppId] });
-  return { success: true };
-}
-
-export async function addOpportunityNote({ opportunityId, content, authorCid, authorName }) {
-  const id = (await db.execute({
-    sql: `INSERT INTO fundraising_notes (opportunity_id, content, author_cid, author_name) VALUES (?, ?, ?, ?) RETURNING id`,
-    args: [opportunityId, content, authorCid||null, authorName||null],
-  })).rows[0]?.id;
-  return { id };
-}
-
-export async function addOpportunityActivity({ opportunityId, activityType, title, description, activityDate, createdBy }) {
-  const id = (await db.execute({
-    sql: `INSERT INTO fundraising_activities (opportunity_id, activity_type, title, description, activity_date, created_by) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
-    args: [opportunityId, activityType, title, description||null, activityDate||new Date().toISOString(), createdBy||"system"],
-  })).rows[0]?.id;
-  return { id };
-}
-
-/**
- * Get pipeline analytics (value by stage).
- */
-export async function getPipelineAnalytics(ventureId) {
-  const stages = await db.execute({
-    sql: `SELECT stage, COUNT(*) as count, COALESCE(SUM(expected_amount), 0) as total_value,
-       AVG(probability) as avg_probability
-       FROM fundraising_opportunities WHERE venture_id=? GROUP BY stage ORDER BY
-       CASE stage WHEN 'prospect' THEN 0 WHEN 'contacted' THEN 1 WHEN 'meeting_scheduled' THEN 2
-       WHEN 'pitch_delivered' THEN 3 WHEN 'due_diligence' THEN 4 WHEN 'negotiation' THEN 5
-       WHEN 'term_sheet' THEN 6 WHEN 'closed_won' THEN 7 WHEN 'closed_lost' THEN 8 ELSE 9 END`,
-    args: [ventureId],
-  });
-
-  const total = await db.execute({
-    sql: `SELECT COUNT(*) as total_opps, COALESCE(SUM(expected_amount), 0) as total_pipeline,
-       SUM(CASE WHEN stage='closed_won' THEN 1 ELSE 0 END) as won,
-       SUM(CASE WHEN stage='closed_lost' THEN 1 ELSE 0 END) as lost
-       FROM fundraising_opportunities WHERE venture_id=?`,
-    args: [ventureId],
-  });
-
-  const totals = total.rows[0] || {};
-  return {
-    by_stage: stages.rows || [],
-    total_opportunities: parseInt(totals.total_opps) || 0,
-    total_pipeline_value: parseFloat(totals.total_pipeline) || 0,
-    won: parseInt(totals.won) || 0,
-    lost: parseInt(totals.lost) || 0,
-    win_rate: (parseInt(totals.won) + parseInt(totals.lost)) > 0
-      ? Math.round((parseInt(totals.won) / (parseInt(totals.won) + parseInt(totals.lost))) * 100) : 0,
-  };
-}
+// ── ENHANCEMENT 4.4: Fundraising pipeline ───────────────────────────────────
+// Extracted to the service layer; re-exported for existing importers
+// (see docs/LAYER_SPLIT.md).
+export {
+  ACTIVITY_TYPES,
+  listOpportunities,
+  getOpportunity,
+  createOpportunity,
+  updateOpportunity,
+  deleteOpportunity,
+  addOpportunityNote,
+  addOpportunityActivity,
+  getPipelineAnalytics,
+} from "@/services/ventures/fundraising";
 
 // =============================================================================
 // ENHANCEMENT 4.5: INVESTMENT ANALYTICS & REPORTS
