@@ -148,6 +148,6 @@ Shim `PermissionCenter.js` + sous `permission-center/` :
 | P1 : barillet +4 modules | `services/authorization/index.js` (additif : accessProfiles, permissionMatrix, permissionWrites, listingScope) | services-boundaries, authz-boundaries, authorization-resolver, permissions-admin-api : 567 ✓ | ✅ eslint 0, build ✓ |
 | P1 : extractions a–i | routes + services + tests | | |
 | ~~P2 : split context.js~~ | **fait** → `capabilityMerge.js`, `contextBootstrap.js`, `contextResolver.js`, `contextCache.js`, `contextDecisions.js`, `contextAccess.js` ; `context.js` devient façade (36 l.) ; filet `block-p2-context-module-decisions.test.js` (42 tests) | authorization-resolver + block-p2 : 154 ✓ | ✅ 255 suites / 3892, eslint 0, build ✓ |
-| P2 : split contextGrants.js | services/authorization + facade + readiness | | |
+| ~~P2 : split contextGrants.js~~ | **fait** → `contextGrantPlan.js` (pur), `contextGrantJustification.js`, `contextGrantCache.js`, `contextGrantReconcile.js`, `contextGrantSweep.js`, `contextGrantOnConnect.js`, `contextGrantRevoke.js` ; `contextGrants.js` devient façade (47 l.) ; filet `block-p2b-context-grants-decisions.test.js` (22 tests) | phase6 + program-assignment + block-p2b : 61 ✓ ; +14 tests auto par services-boundaries (2/fichier service) | ✅ 256 suites / 3928, eslint 0, build ✓ |
 | P3 : B10 PermissionCenter | shim + permission-center/ | | |
 | P4 : LAYER_SPLIT + rebase | docs/LAYER_SPLIT.md | | |
