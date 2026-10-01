@@ -7,7 +7,9 @@
  *
  *   diligence.js — the due-diligence workspace and its action dispatch
  *   campaigns.js — the fundraising campaigns (scope, matching, milestones)
+ *   pipeline.js  — the investment pipeline (scope, stages, invested cascade)
  */
 
 export * from "./diligence";
 export * from "./campaigns";
+export * from "./pipeline";

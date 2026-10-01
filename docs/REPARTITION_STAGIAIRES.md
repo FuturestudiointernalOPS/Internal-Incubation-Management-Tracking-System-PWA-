@@ -383,7 +383,8 @@ Du plus rentable / débloquant au plus tard :
 | Investisseur — **domaine ouvert** | ✅ fait | Créé `services/investor/**`. |
 | Investisseur — **due diligence** | ✅ fait | Décisions de `api/investor/diligence/route.js` (binding « soi », transitions de statut par rôle RM/IM/admin, historique de versions, questions de suivi, dispatch des actions) déplacées dans `services/investor/diligence.js`. Route amaigrie. Test ajouté (`src/__tests__/investor-diligence.test.js`). Tests 422 ✅, lint 0 erreur, build ✅. |
 | Investisseur — **campagnes** | ✅ fait | Décisions de `api/investor/campaigns/route.js` (portée de la liste, normalisation des entrées, appariement des préférences investisseur/venture, franchissement des paliers de financement 25/50/75/100, notifications de publication et de palier) déplacées dans `services/investor/campaigns.js`. Route amaigrie. Test ajouté (`src/__tests__/investor-campaigns.test.js`). |
-| Investisseur — **le reste** | ⬜ à faire | `pipeline`, `relationships`, `dashboard`, `organizations`, `evaluation`, `decisions`, `meetings`, `preferences`, `watchlist`, `executive-dashboard`, `admin-overview`, `register`, `setup-password`. |
+| Investisseur — **pipeline** | ✅ fait | Décisions de `api/investor/pipeline/route.js` (portée de la liste, stades valides, extraction du montant investi, cascades « demande de réunion » et « investi ») déplacées dans `services/investor/pipeline.js`. Route amaigrie. Test ajouté (`src/__tests__/investor-pipeline.test.js`). |
+| Investisseur — **le reste** | ⬜ à faire | `relationships`, `dashboard`, `organizations`, `evaluation`, `decisions`, `meetings`, `preferences`, `watchlist`, `executive-dashboard`, `admin-overview`, `register`, `setup-password`. |
 
 ---
 
