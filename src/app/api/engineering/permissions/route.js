@@ -2,41 +2,18 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import {
   getSession,
-  PERMISSION_MODULES,
-  ACCESS_LEVELS,
-  getUserGroups,
-  getUserEffectiveProfile,
   logPermissionAudit,
-  ensureResponsibilitiesSchema,
   ensurePermissionsSchema,
-  seedDefaultResponsibilities,
 } from "@/lib/auth";
 import {
   getAuthorizationContext,
-  effectivePermissionsFromContext,
   invalidateAuthorizationContext,
-  buildPermissionExplanation,
   requireAuthorization,
   MODULE_TO_FEATURE,
 } from "@/lib/authorization";
-import { CAPABILITY_CATALOG } from "@/lib/authorization/capability-catalog";
+import { preparePermissionReads, readPermissionMatrix } from "@/services/authorization/permissionMatrix";
 import {
-  listUserGroupNames,
-  listUserResponsibilitiesForTable,
-  listActiveAccessProfiles,
-  listRoleAccessProfileDefaultsForTable,
-  listUserCapabilitiesForUser,
-  listUserCapabilityRestrictionsForUser,
-  listRoleCapabilities,
-  listGroupCapabilities,
-  listRoleCapabilitiesForRole,
-  listGroupCapabilitiesForGroup,
-  listPermissionTableContacts,
-  listAccessProfileDefinitions,
-  getRoleDefaultProfileMappings,
-  getContactForEffectivePermissions,
   getContactForAssignment,
-  getCurrentSupervisor,
   getContactNameAndRole,
   promoteContactToSuperAdmin,
   demoteContactFromSuperAdmin,
@@ -78,210 +55,18 @@ export async function GET(req) {
     if (capError) return capError;
 
     await initDb();
-    await ensureResponsibilitiesSchema();
-    await ensurePermissionsSchema();
-    await seedDefaultResponsibilities();
+    await preparePermissionReads();
+
     const { searchParams } = new URL(req.url);
-    const userCid = searchParams.get("user_cid");
-    const role = searchParams.get("role");
-    const group = searchParams.get("group");
-    const users = searchParams.get("users");
-
-    // Return enriched user list for the table view
-    if (users === "true") {
-      // Fetch all contacts with their enriched data
-      const contactsResult = await listPermissionTableContacts();
-
-      // Fetch all user_groups
-      const groupsResult = await listUserGroupNames();
-      const groupMap = {};
-      for (const row of groupsResult.rows) {
-        if (!groupMap[row.user_cid]) groupMap[row.user_cid] = [];
-        groupMap[row.user_cid].push(row.group_name);
-      }
-
-      // Fetch all user responsibilities
-      const responsibilitiesResult = await listUserResponsibilitiesForTable();
-      const respMap = {};
-      for (const row of responsibilitiesResult.rows) {
-        if (!respMap[row.user_cid]) respMap[row.user_cid] = [];
-        respMap[row.user_cid].push({ id: row.id, name: row.name, key: row.key, icon: row.icon });
-      }
-
-      // Fetch all access profiles
-      const profilesResult = await listActiveAccessProfiles();
-      const profileMap = {};
-      for (const row of profilesResult.rows) {
-        profileMap[row.id] = row;
-      }
-
-      // Fetch role-to-profile defaults
-      const roleProfileDefaultsResult = await listRoleAccessProfileDefaultsForTable();
-      const roleProfileMap = {};
-      for (const row of roleProfileDefaultsResult.rows) {
-        roleProfileMap[row.role_name] = { id: row.profile_id, name: row.profile_name };
-      }
-
-      // Build enriched users
-      const enrichedUsers = contactsResult.rows.map((contact) => {
-        let profile = null;
-        // Check explicit profile assignment
-        if (contact.access_profile_id && profileMap[contact.access_profile_id]) {
-          profile = {
-            id: contact.access_profile_id,
-            name: profileMap[contact.access_profile_id].name,
-            source: "user",
-          };
-        }
-        // Fall back to role default
-        if (!profile && roleProfileMap[contact.role]) {
-          profile = {
-            id: roleProfileMap[contact.role].id,
-            name: roleProfileMap[contact.role].name,
-            source: "role",
-          };
-        }
-        // Merge groups from user_groups + legacy group_name
-        const groups = groupMap[contact.cid] || [];
-        if (contact.group_name && !groups.includes(contact.group_name)) {
-          groups.unshift(contact.group_name);
-        }
-
-        return {
-          cid: contact.cid,
-          name: contact.name,
-          email: contact.email,
-          role: contact.role,
-          status: contact.status,
-          access_profile: profile,
-          groups,
-          responsibilities: respMap[contact.cid] || [],
-          created_at: contact.created_at,
-        };
-      });
-
-      return NextResponse.json({ success: true, users: enrichedUsers });
-    }
-
-    // Return full modules definition
-    if (!userCid && !role && !group) {
-      // Get all role defaults
-      const roleCapabilities = await listRoleCapabilities();
-      // Get all group defaults
-      const groupCapabilities = await listGroupCapabilities();
-
-      // Get access profile defaults
-      let accessProfiles = [];
-      let accessProfileDefaults = {};
-      try {
-        const profiles = await listAccessProfileDefinitions();
-        accessProfiles = profiles.rows;
-
-        const roleDefaults = await getRoleDefaultProfileMappings();
-        for (const row of roleDefaults.rows) {
-          accessProfileDefaults[row.role_name] = {
-            profileId: row.profile_id,
-            profileName: row.profile_name,
-          };
-        }
-      } catch (_) {}
-
-      return NextResponse.json({
-        success: true,
-        modules: PERMISSION_MODULES,
-        accessLevels: ACCESS_LEVELS,
-        catalog: CAPABILITY_CATALOG,
-        roleDefaults: roleCapabilities.rows,
-        groupDefaults: groupCapabilities.rows,
-        accessProfiles,
-        accessProfileDefaults,
-      });
-    }
-
-    // Get effective permissions for a specific user
-    if (userCid) {
-      const userResult = await getContactForEffectivePermissions(userCid);
-      if (userResult.rows.length === 0) {
-        return NextResponse.json(
-          { success: false, error: "User not found" },
-          { status: 404 },
-        );
-      }
-      const user = userResult.rows[0];
-      const groups = await getUserGroups(userCid);
-      // Canonical authorization context (V2-equivalent + eligibility).
-      // Phase 0: the admin UI no longer depends on V1 for the effective
-      // permission matrix; V1 remains in the codebase but is unused here.
-      const authorizationContext = await getAuthorizationContext({
-        cid: userCid,
-        role: user.role,
-        group_name: user.group_name,
-      });
-      const matrix = effectivePermissionsFromContext(authorizationContext);
-      // "Who has access and why": per-feature eligibility (with the identity
-      // rows that produced it) + the raw capability inputs per module.
-      const explanation = buildPermissionExplanation(authorizationContext);
-
-      // Get individual grants
-      const grants = await listUserCapabilitiesForUser(userCid);
-
-      // Get individual restrictions
-      const restrictions = await listUserCapabilityRestrictionsForUser(userCid);
-
-      // Get access profile info
-      const effectiveProfile = await getUserEffectiveProfile(
-        userCid,
-        user.role,
-      );
-
-      // Get the persisted supervisor relationship (contact_roles,
-      // context_type='supervision'). Null when none exists.
-      let supervisorCid = null;
-      try {
-        const supervisorResult = await getCurrentSupervisor(userCid);
-        supervisorCid = supervisorResult.rows[0]?.supervisor_cid || null;
-      } catch (_) {}
-
-      return NextResponse.json({
-        success: true,
-        user: {
-          cid: user.cid,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          status: user.status,
-          access_profile_id: user.access_profile_id,
-          supervisor_cid: supervisorCid,
-        },
-        groups,
-        effectiveProfile,
-        effectivePermissions: matrix,
-        explanation,
-        moduleToFeature: MODULE_TO_FEATURE,
-        individualGrants: grants.rows,
-        individualRestrictions: restrictions.rows,
-      });
-    }
-
-    // Get role defaults
-    if (role) {
-      const capabilitiesResult = await listRoleCapabilitiesForRole(role);
-      return NextResponse.json({
-        success: true,
-        role,
-        capabilities: capabilitiesResult.rows,
-      });
-    }
-
-    // Get group defaults
-    if (group) {
-      const capabilitiesResult = await listGroupCapabilitiesForGroup(group);
-      return NextResponse.json({
-        success: true,
-        group,
-        capabilities: capabilitiesResult.rows,
-      });
-    }
+    // The read assembly (table users, catalog, one user's matrix, role/group
+    // defaults) and the branch order live in the service.
+    const { status, body } = await readPermissionMatrix({
+      users: searchParams.get("users"),
+      userCid: searchParams.get("user_cid"),
+      role: searchParams.get("role"),
+      group: searchParams.get("group"),
+    });
+    return NextResponse.json(body, { status });
   } catch (error) {
     console.error("[Permissions] GET error:", error);
     return NextResponse.json(
