@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
-import { syncSubmission, syncAllSubmissions, checkNotionHealth } from "@/lib/integrations/notion/sync";
+import { getNotionHealth, runNotionAction } from "@/services/platform/integrations";
 
 /**
  * Platform Notion Integration API
  *
  * GET  /api/platform/integrations/notion?action=health
  * POST /api/platform/integrations/notion  { action, submissionId }
+ *
+ * Thin controller: gates the capabilities and delegates to
+ * `@/services/platform/integrations` (see docs/LAYER_SPLIT.md).
  */
 
 export async function GET(req) {
@@ -22,8 +25,8 @@ export async function GET(req) {
   const action = searchParams.get("action") || "health";
 
   if (action === "health") {
-    const health = checkNotionHealth();
-    return NextResponse.json({ success: true, ...health });
+    const { body } = await getNotionHealth();
+    return NextResponse.json(body);
   }
 
   return NextResponse.json({ success: false, error: "Unknown action" }, { status: 400 });
@@ -35,22 +38,8 @@ export async function POST(req) {
     if (authError) return authError;
 
     const { action, submissionId } = await req.json();
-
-    switch (action) {
-      case "sync": {
-        if (!submissionId) return NextResponse.json({ success: false, error: "submissionId required" }, { status: 400 });
-        const result = await syncSubmission(submissionId);
-        return NextResponse.json({ success: true, ...result });
-      }
-
-      case "sync-all": {
-        const result = await syncAllSubmissions();
-        return NextResponse.json({ success: true, ...result });
-      }
-
-      default:
-        return NextResponse.json({ success: false, error: `Unknown action: ${action}` }, { status: 400 });
-    }
+    const { status, body } = await runNotionAction({ action, submissionId });
+    return NextResponse.json(body, { status });
   } catch (error) {
     console.error("[Platform Notion API] Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

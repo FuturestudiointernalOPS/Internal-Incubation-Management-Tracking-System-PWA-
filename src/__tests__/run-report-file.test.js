@@ -541,9 +541,11 @@ describe("the run screens and the builder are wired to the document", () => {
     const src = read(REPORT_FILE_ROUTE);
     expect((src.match(/requireAuthorization\("runs", "edit"\)/g) || []).length).toBe(2); // POST + DELETE
     expect(src).toContain('requireAuthorization("runs", "view")');
-    // The path is never handed to a browser.
-    expect(src).not.toMatch(/storage_path:\s*row\.storage_path/);
-    expect(src).toContain("signRunReportFilePath");
+    // The path is never handed to a browser — the signed link is minted in the
+    // service (docs/LAYER_SPLIT.md), which is where the check now lives.
+    const service = read("src/services/platform/reportFiles.js");
+    expect(service).not.toMatch(/storage_path:\s*row\.storage_path/);
+    expect(service).toContain("signRunReportFilePath");
   });
 
   test("the report builder takes the document's text as the reference", () => {

@@ -74,7 +74,8 @@ describe("static contract — the investor intake wiring", () => {
   test("the run route resolves the flagged form's single active run, super-admin only", () => {
     const src = read(RUN_ROUTE);
     expect(src).toMatch(/requireAuth\(\["super_admin"\]\)/);
-    expect(src).toMatch(/resolveInvestorRun/);
+    // The resolution itself moved to the service (docs/LAYER_SPLIT.md).
+    expect(read("src/services/platform/investorIntake.js")).toMatch(/resolveInvestorRun/);
   });
 
   test("no write path may flag a second investor form (API guard)", () => {
