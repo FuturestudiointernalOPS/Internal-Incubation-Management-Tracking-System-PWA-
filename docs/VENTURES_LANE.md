@@ -349,7 +349,31 @@ New services in `src/services/ventures/` (all listed in `index.js`):
 New tests in `src/__tests__/ventures/`: `session-booking-rules`, `task-board`,
 `deliverable-decision`, `plan-sheet-choice`.
 
-**Still open in L2:** splitting the big services (`planImport.js` 1 178,
+**Still open in L2:** splitting the big services (~~`planImport.js` 1 178~~ → L2.10,
 `milestoneEngine.js` 548, `submissions.js` 526, `journey.js` 520,
 `verification.js` 487, `profile.js` 441, `schema.js` 410) and the smaller
 routes that still import a model directly.
+
+### Slice L2.10 — splitting `services/ventures/planImport.js` (1 178 lines) — ✅ done
+
+The module is now a folder; `planImport.js` stays as a 113-line barrel that
+re-exports **exactly** the former public surface (named exports + default), so
+`@/models/venturePlanImport`, the controller and the six plan-import test
+suites are unchanged. Code moved verbatim (checked token by token against the
+original).
+
+| File in `src/services/ventures/planImport/` | Lines | Content |
+|---|---|---|
+| `prompt.js` | 162 | the analyst's system prompt, `MAX_PLAN_PROMPT_CHARS` / `MAX_PLAN_CONTEXT_CHARS`, `renderPlanSheets`, `buildPlanPrompt` |
+| `proposal.js` | 284 | `deriveProposalDates`, `normalizeJourneys`, `collectTaskRefs`, `validateDependencyRefs`, `resolveProposalOwners`, `knownOwnerCids`, `computeProposalStats`, `collectUnmatchedOwners` (+ internal helpers) |
+| `interpret.js` | 148 | `buildExistingProgramme`, `interpretPlanSheet` |
+| `draft.js` | 137 | `getOpenPlanImport`, `getPlanImport`, `createPlanImport`, `updatePlanImportProposal`, `discardPlanImport` |
+| `revise.js` | 246 | the correction prompt, `diffProposals`, `revisePlanProposal` |
+| `apply.js` | 224 | `applyPlanImport` (one transaction) |
+
+Helpers shared between parts (`newUuid`, `toText`…) are exported from their
+part for the sibling imports only; the barrel does not re-export them.
+
+Checks: `npm test` 3607/3607 (incl. `venture-plan-import`, `venture-plan-draft`,
+`venture-plan-apply`, `venture-decisions`, `venture-phase4`,
+`venture-external-assignments`), `npx eslint` 0 errors, `npm run build` OK.
