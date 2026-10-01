@@ -18,9 +18,9 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–40 the next `ventures.js`
-> domains (milestones & deliverables, then tasks/dependencies/comments/
-> attachments). The
+> controller (workspace, then collaboration), 39–41 the next `ventures.js`
+> domains (milestones & deliverables, tasks/dependencies/comments/attachments,
+> then project timeline & dependencies). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -834,6 +834,21 @@ whole, and the manual-block-preserving rule.
 
 ---
 
+### Domain 27 — the `ventures.js` monolith: project timeline & dependencies (slice 41)
+
+**Domain 7.** The project progress roll-up (weighted milestones/tasks/
+deliverables), the timeline rows and their Gantt arrangement, the delay
+detection summary, and the generic dependency edges. Decisions move to
+`services/ventures/timeline.js`; every statement to
+`models/ventureTimelineStore.js`; `src/lib/ventures.js` re-exports the six
+functions. `services/ventures/planImport.js` (which calls `addDependency`) still
+imports it through the barrel — unchanged.
+
+**Unchanged:** the SQL (byte-identical), the 40/40/20 weighting, the per-status
+progress mapping, the overdue/delay rules and the transitive cycle refusal.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1021,8 +1036,9 @@ Two source-pinning suites were repointed (same assertion, new home):
   activity/history/notification domain is out (slice 33), its startup-profile
   wizard is out (slice 34), its founders/co-founders domain is out (slice 35),
   its Data-bank verification domain is out (slice 36), its milestones &
-  deliverables domain is out (slice 39) and its tasks/dependencies/comments/
-  attachments domain is out (slice 40), all re-exported through the barrel. A
+  deliverables domain is out (slice 39), its tasks/dependencies/comments/
+  attachments domain is out (slice 40) and its project timeline & dependencies
+  domain is out (slice 41), all re-exported through the barrel. A
   long tail of
   `src/lib` modules still
   holds SQL (the remaining domains of `ventures.js`, plus the
