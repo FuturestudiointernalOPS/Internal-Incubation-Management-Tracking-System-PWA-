@@ -1,1 +1,1 @@
-export * from "@/models/authorization/resolver";
+export * from "@/services/authorization/context";

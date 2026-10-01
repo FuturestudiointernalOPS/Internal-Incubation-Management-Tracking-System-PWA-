@@ -230,7 +230,7 @@ export async function changeVentureLead({ ventureId, memberId, actorCid }) {
   // grants what the Context Roles registry maps for venture:founder. Kept last
   // so it never disturbs the ownership-history/audit writes above.
   try {
-    const { syncContextGrantsForUser } = await import("@/models/authorization/contextGrants");
+    const { syncContextGrantsForUser } = await import("@/services/authorization/contextGrants");
     await syncContextGrantsForUser(member.contact_id || member.user_cid);
   } catch (_) {}
 

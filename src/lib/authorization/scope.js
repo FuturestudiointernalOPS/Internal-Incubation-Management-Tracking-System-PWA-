@@ -1,1 +1,1 @@
-export * from "@/models/authorization/scope";
+export * from "@/services/authorization/scope";

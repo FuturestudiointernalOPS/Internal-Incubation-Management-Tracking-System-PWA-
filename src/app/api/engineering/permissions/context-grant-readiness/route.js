@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
-import { buildContextGrantReadiness } from "@/models/authorization/contextGrantReadiness";
+import { buildContextGrantReadiness } from "@/services/authorization/contextGrantReadiness";
 
 export const dynamic = "force-dynamic";
 

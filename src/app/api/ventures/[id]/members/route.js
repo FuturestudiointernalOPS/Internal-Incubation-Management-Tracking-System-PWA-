@@ -33,7 +33,7 @@ import {
 async function applyContextGrants(cid) {
   if (!cid) return;
   try {
-    const { syncContextGrantsForUser } = await import("@/models/authorization/contextGrants");
+    const { syncContextGrantsForUser } = await import("@/services/authorization/contextGrants");
     await syncContextGrantsForUser(cid);
   } catch (_) {}
 }

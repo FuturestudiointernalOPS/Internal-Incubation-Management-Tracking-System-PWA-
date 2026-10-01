@@ -161,7 +161,7 @@ const {
   contextGrantSentinel,
   syncContextGrantsForUser,
   syncAllContextGrants,
-} = require("@/models/authorization/contextGrants");
+} = require("@/services/authorization/contextGrants");
 
 const SENTINEL = contextGrantSentinel("venture", "founder");
 

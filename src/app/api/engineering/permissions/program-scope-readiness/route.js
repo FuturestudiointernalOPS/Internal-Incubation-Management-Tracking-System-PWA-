@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
-import { buildProgramScopeReadiness } from "@/models/authorization/programScopeReadiness";
+import { buildProgramScopeReadiness } from "@/services/authorization/programScopeReadiness";
 
 export const dynamic = "force-dynamic";
 

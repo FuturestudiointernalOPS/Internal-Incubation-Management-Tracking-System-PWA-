@@ -71,7 +71,7 @@ const {
   BASELINE_IDENTITIES,
   CONTEXT_ROLES,
   ELIGIBILITY_IDENTITY_GROUPS,
-} = require("@/models/authorization/eligibility-admin");
+} = require("@/services/authorization/eligibilityAdmin");
 
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");

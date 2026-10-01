@@ -245,7 +245,7 @@ describe("GET /api/workspaces", () => {
 
 describe("authorization resolution", () => {
   test("a cold resolution costs three waves and never more", async () => {
-    const { resolveAuthorizationContext } = require("@/models/authorization/resolver");
+    const { resolveAuthorizationContext } = require("@/services/authorization/context");
 
     // First call pays the once-per-process boot (schema, eligibility seed,
     // capability backfills). Measuring after it isolates the resolution itself.
@@ -282,7 +282,7 @@ describe("the authorization migration ledger", () => {
     mockSequencer.reset();
     const { runAuthzMigration } = require("@/lib/authorization");
     const { resolveAuthorizationContext } = require(
-      "@/models/authorization/resolver",
+      "@/services/authorization/context",
     );
 
     // A FRESH database: the capability backfills and the eligibility seed both
@@ -335,7 +335,7 @@ describe("the authorization migration ledger", () => {
     jest.resetModules();
     mockSequencer.reset();
     const { resolveAuthorizationContext: coldGate } = require(
-      "@/models/authorization/resolver",
+      "@/services/authorization/context",
     );
     await coldGate({ cid: "USER_SEQ_MIGRATED", role: "staff" });
 

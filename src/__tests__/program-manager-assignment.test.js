@@ -37,7 +37,7 @@ jest.mock("@/models/authorization", () => ({
   getContactNameAndRole: jest.fn(async () => ({ rows: [{ name: "New PM", role: "staff" }] })),
 }));
 
-jest.mock("@/models/authorization/contextGrants", () => ({
+jest.mock("@/services/authorization/contextGrants", () => ({
   syncContextGrantsForUser: jest.fn(async () => ({ applied: [], revoked: [] })),
 }));
 
@@ -45,7 +45,7 @@ const { requireAuthorization } = require("@/lib/authorization");
 const { isWithinScope } = require("@/lib/authorization/scope");
 const { getProgramManager, setProgramManager } = require("@/models/programs");
 const { getContactNameAndRole } = require("@/models/authorization");
-const { syncContextGrantsForUser } = require("@/models/authorization/contextGrants");
+const { syncContextGrantsForUser } = require("@/services/authorization/contextGrants");
 const { PUT } = require("@/app/api/pm/programs/[id]/manager/route");
 
 const denied = () => new Response("{}", { status: 403 });

@@ -4,7 +4,7 @@ import {
   getAuthorizationContext,
   effectivePermissionsFromContext,
 } from "@/lib/authorization";
-import { syncContextGrantsOnConnect } from "@/models/authorization/contextGrants";
+import { syncContextGrantsOnConnect } from "@/services/authorization/contextGrants";
 
 export const dynamic = "force-dynamic";
 

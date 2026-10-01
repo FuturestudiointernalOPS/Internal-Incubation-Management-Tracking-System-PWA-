@@ -1,1 +1,1 @@
-export * from "@/models/authorization/context";
+export * from "@/services/authorization/scopedAccess";

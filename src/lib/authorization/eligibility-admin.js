@@ -1,1 +1,1 @@
-export * from "@/models/authorization/eligibility-admin";
+export * from "@/services/authorization/eligibilityAdmin";
