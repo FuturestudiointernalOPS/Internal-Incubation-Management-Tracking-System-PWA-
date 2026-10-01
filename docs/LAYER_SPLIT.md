@@ -18,14 +18,15 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–56 the next `ventures.js`
+> controller (workspace, then collaboration), 39–57 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
 > project timeline & dependencies, reports & project analytics, coach & mentor
 > management, mentoring sessions & scheduling, knowledge hub & learning,
 > mentor feedback & analytics, investment readiness, investor matching, pitch deck
 > & data room, the fundraising pipeline, investment analytics, administration &
 > system config, the notification centre, audit logs & security, then external
-> integrations & public APIs, then system monitoring, health & reporting). The
+> integrations & public APIs, system monitoring, health & reporting, then the core
+> schema bootstrap). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1167,6 +1168,23 @@ all out** — only the original core (schema, ids, create/read/update) remains.
 
 ---
 
+### Domain 43 — the `ventures.js` core: schema bootstrap (slice 57)
+
+Start of the original core. `ensureVentureSchema` kept the Venture tables up to
+date with a fixed, idempotent list of `ADD COLUMN IF NOT EXISTS` migrations plus
+two `name`/`company_name` backfills and a permission-catalog seed. It decides
+nothing (the list is data), so it moves wholesale to
+`services/ventures/schema.js`; the three statements go to
+`models/ventureSchemaStore.js` (the migration runner keeps the bare-string
+`db.execute(sql)` form). `src/lib/ventures.js` re-exports it. The
+`my-ventures-name` source-pinning assertion for the self-heal UPDATE was
+repointed to the store (same assertion, new home).
+
+**Unchanged:** every migration string (byte-identical), the bare-string execute
+form, the two backfills and the seeding order.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1370,8 +1388,8 @@ Two source-pinning suites were repointed (same assertion, new home):
   is out (slice 53), and its audit logs & security domain
   is out (slice 54), and its external integrations & public APIs
   domain is out (slice 55), and its system monitoring, health & reporting domain
-  is out (slice 56) — the ENHANCEMENT blocks are fully extracted and only the
-  original core (schema, ids, create/read/update) remains — all
+  is out (slice 56) — the ENHANCEMENT blocks are fully extracted — and the core
+  schema bootstrap is out (slice 57), all
   re-exported through the barrel. A long tail of
   `src/lib` modules still
   holds SQL (the remaining domains of `ventures.js`, plus the

@@ -35,7 +35,9 @@ describe("My Ventures shows the company name", () => {
   });
 
   test("existing drifted rows are repaired by the Venture schema self-heal", () => {
-    const src = read("src/lib/ventures.js");
+    // The self-heal SQL moved to the schema store (slice 57); the assertion is
+    // unchanged, only its home.
+    const src = read("src/models/ventureSchemaStore.js");
     expect(src).toMatch(/SET name = company_name WHERE company_name IS NOT NULL/);
   });
 });
