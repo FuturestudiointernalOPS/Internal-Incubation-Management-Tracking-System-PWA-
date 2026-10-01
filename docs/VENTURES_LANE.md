@@ -117,7 +117,7 @@ journey / milestone, reports, deliverables).
 | `ventures/[id]/coaching/route.js` | 87 |
 | `ventures/[id]/coach-invite/route.js` | 85 |
 | `ventures/[id]/dashboard/route.js` | 307 |
-| `ventures/[id]/deliverables/route.js` | 309 |
+| `ventures/[id]/deliverables/route.js` | 243 (was 309 — slice L2.5) |
 | `ventures/[id]/deliverables/upload/route.js` | 45 |
 | `ventures/[id]/documents/[docId]/permissions/route.js` | 87 |
 | `ventures/[id]/documents/[docId]/reviews/route.js` | 64 |
@@ -258,3 +258,17 @@ attachments / review actions, request validation, the writes, every response.
 
 Checks: `npm test` 3575/3575 (incl. `venture-task-dependency-gate`,
 `security-lot1-idor`), `npx eslint` 0 errors.
+
+### Slice L2.5 — `ventures/[id]/deliverables` (309 → 243 lines) — ✅ done
+
+| New file | What moved into it |
+|---|---|
+| `src/services/ventures/deliverableReview.js` | `readDeliverableDecision(body)` (approved / changes_requested, comments required for changes — pure), `afterDeliverableSubmitted` (milestone status follows its deliverables, never completed by a submission), `afterDeliverableReviewed` (history row, milestone status with completion authority, milestone / journey completion notices and history) |
+| `src/__tests__/ventures/deliverable-decision.test.js` | 3 characterisation tests of `readDeliverableDecision` |
+
+Stays in the route: `requireVentureAccess` / `requireVentureScopedAccess`
+(`module: "ventures"`, review on `capability: "view"`), `canDefineDeliverables`,
+`canReviewDeliverable`, the evidence fields and `dateOrNull(body[field])` —
+all pinned to the controller by `deliverable-upload-access` and `venture-input`.
+
+Checks: `npm test` 3580/3580, `npx eslint` 0 errors.
