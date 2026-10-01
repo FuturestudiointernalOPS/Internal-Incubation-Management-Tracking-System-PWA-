@@ -1,61 +1,12 @@
-import db from "@/lib/db";
-
 /**
- * Audit Logger Utility
+ * Audit Logger — facade over `@/services/tasks/auditLog`.
  *
- * Logs lifecycle events for tasks and blockers.
- * Designed for future Notion sync readiness.
+ * Logs lifecycle events for tasks and blockers (Notion-sync readiness) and the
+ * task lock check. The decisions and statements moved to the tasks service and
+ * `@/models/taskAuditLogStore`; this module re-exports them so existing importers
+ * keep working (see docs/LAYER_SPLIT.md).
+ *
+ * New code should import from `@/services/tasks/auditLog` directly.
  */
 
-export async function logAuditEvent({
-  entity_type,
-  entity_id,
-  user_id,
-  user_name,
-  action,
-  details,
-  metadata,
-}) {
-  try {
-    await db.execute({
-      sql: `INSERT INTO audit_log
-        (entity_type, entity_id, user_id, user_name, action, details, metadata)
-        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      args: [
-        entity_type,
-        entity_id,
-        user_id,
-        user_name || "",
-        action,
-        details || null,
-        metadata ? JSON.stringify(metadata) : null,
-      ],
-    });
-  } catch (error) {
-    console.error("Audit log error:", error.message);
-  }
-}
-
-/**
- * Check if a task is locked (older than 6 days)
- * Locked tasks cannot have their title/description modified or be deleted.
- * Status updates are still allowed.
- */
-export async function isTaskLocked(taskId) {
-  try {
-    const result = await db.execute({
-      sql: "SELECT created_at FROM tasks WHERE id = ?",
-      args: [parseInt(taskId)],
-    });
-
-    if (result.rows.length === 0) return false;
-
-    const createdAt = new Date(result.rows[0].created_at);
-    const now = new Date();
-    const hoursDiff = (now - createdAt) / (1000 * 60 * 60);
-    return hoursDiff >= 144; // 6 days
-  } catch (error) {
-    console.error("Task lock check error:", error.message);
-    return false;
-  }
-}
+export { logAuditEvent, isTaskLocked } from "@/services/tasks/auditLog";

@@ -18,7 +18,7 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–59 the next `ventures.js`
+> controller (workspace, then collaboration), 39–61 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
 > project timeline & dependencies, reports & project analytics, coach & mentor
 > management, mentoring sessions & scheduling, knowledge hub & learning,
@@ -27,7 +27,8 @@
 > system config, the notification centre, audit logs & security, then external
 > integrations & public APIs, system monitoring, health & reporting, then the core
 > schema bootstrap, intake, then the core record — **`ventures.js` is now a
-> barrel**). The
+> barrel**), then the non-venture `src/lib` tail began (token hashing, task audit
+> log). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1220,6 +1221,33 @@ the id normalization, the mirrored columns and the lead-change sequence.
 
 ---
 
+### Domain 46 — the non-venture `src/lib` tail: token hashing (slice 60)
+
+First of the non-venture tail. `src/lib/token-hashing.js` kept a pure
+`hashToken` (crypto only) next to the token_hash column self-heal (a fixed list
+of `IF NOT EXISTS` statements). The self-heal moves to
+`services/platform/tokenHash.js` over `models/tokenHashStore.js`; the `src/lib`
+file keeps `hashToken` (pure infrastructure) and re-exports the self-heal. The
+`request-context.js` "SQL" the audit flagged is only a comment — it stays pure.
+
+**Unchanged:** the hashing, every migration string (byte-identical, bare-string
+execute form), the once-per-process cache and the retry-on-failure reset.
+
+---
+
+### Domain 47 — the non-venture `src/lib` tail: task audit log (slice 61)
+
+`src/lib/audit.js` wrote lifecycle events and decided whether a task is locked
+(older than 6 days). The decisions move to `services/tasks/auditLog.js`; every
+statement to `models/taskAuditLogStore.js`; `src/lib/audit.js` is a facade. The
+many importers (routes, services and `models/platform/integrations.js`) keep
+working unchanged.
+
+**Unchanged:** the SQL (byte-identical), the non-blocking write and the 6-day
+lock rule.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1410,8 +1438,9 @@ Two source-pinning suites were repointed (same assertion, new home):
   `models/venture*Store.js`. A long tail of
   `src/lib` modules still
   holds SQL (the
-  non-venture ones `auth.js`, `email.js`, `audit.js`, `token-hashing.js`,
-  `request-context.js`, `lms/coaching.js`) — the next repository-extraction
+  non-venture ones `auth.js`, `email.js`, `lms/coaching.js`; `audit.js` and
+  `token-hashing.js` are done, and `request-context.js` held only a comment) — the
+  next repository-extraction
   targets, one module at a time, tracked in `MVC_REFACTOR.md`.
 - Giant page files (>600 LOC) still need splitting into feature components.
 
