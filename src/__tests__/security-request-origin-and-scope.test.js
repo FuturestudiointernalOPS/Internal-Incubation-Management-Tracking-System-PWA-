@@ -124,11 +124,20 @@ describe("SECRET-3 — shared team credentials come from a CSPRNG", () => {
   });
 
   test("both team routes generate with the helper, not Math.random", () => {
-    for (const file of ["src/app/api/teams/route.js", "src/app/api/pm/teams/route.js"]) {
-      const source = read(file);
+    // The org-team route generates inline; the pm-team route generates in its
+    // service (the Programs controller frontier moved the use case out of the
+    // route). The same helper must be used in both homes.
+    for (const source of [
+      read("src/app/api/teams/route.js"),
+      read("src/services/programs/teams.js"),
+    ]) {
       expect(source).toMatch(/generateTeamPassword\(\)/);
       expect(source).not.toMatch(/generatedPassword\s*=\s*`FST\$\{/);
     }
+    // The pm route itself no longer generates — it delegates to the service.
+    expect(read("src/app/api/pm/teams/route.js")).toMatch(
+      /@\/services\/programs\/teams/,
+    );
   });
 });
 
