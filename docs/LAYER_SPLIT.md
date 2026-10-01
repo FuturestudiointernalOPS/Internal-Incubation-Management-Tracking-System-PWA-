@@ -253,6 +253,38 @@ dans le contrôleur.
 rapport) : 40/40. Suite complète : 227/227, 2 940/2 940. `npx eslint .` :
 0 erreur. `npm run build` : vert.
 
+### Tranche 7 — `src/services/platform/programEvaluation.js` (`api/evaluation`) — et l'audit de `api/run-export`
+
+**Date :** 2026-10-01. **Qui :** même session.
+
+**`api/evaluation`** (210 lignes, 14 `if`) avait une vraie décision : la
+validation du PUT dépend du mode de notation du programme (score académique
+borné 0-100, scores de dimension « incubation » bornés 1-5, liste de
+dimensions lue depuis la config du programme avec un repli par défaut).
+Aucun test ne référence ce fichier.
+- `src/services/platform/programEvaluation.js` (nouveau, 129 lignes) :
+  `getProgramConfig`, `getSubmissionEvaluationDetail`,
+  `saveSubmissionEvaluation`, `configureProgramEvaluation`.
+- `route.js` : 210 → 71 lignes.
+
+**`api/run-export`** (191 lignes, 13 `if`) a été **lu en entier et laissé tel
+quel** : c'est du rendu (construction d'un classeur XLSX et d'un PDF), pas une
+décision métier — pas de règle d'éligibilité, pas de workflow, juste mettre en
+forme les données déjà lues. Les `if` sont de la pagination PDF et du choix
+de format. Rien à extraire.
+
+**Audit rapide des petites routes restantes du couloir L1** (`platform/ai/*`,
+`platform/seed/*`, `platform/integrations/*`, `platform/notifications`,
+`responses*`, `respond`, `platform/collections`, `form-runs/report-file`) :
+toutes font entre 36 et 354 lignes avec au plus 18 `if`. **Pas encore lues
+une par une en détail** — à faire avant de clore complètement le couloir
+L1, mais leur taille les rend a priori proches du cas `run-export`/`intents`
+(contrôleurs déjà minces) plutôt que du cas `form-runs`/`import` (décision
+dense ou SQL en direct). À vérifier, pas à supposer.
+
+**Vérifié (tranche 7 seule).** `npm test` : 227/227, 2 940/2 940. `npx eslint
+.` : 0 erreur. `npm run build` : vert.
+
 ## 3. Backlog (L1 — platform, ce qu'il reste)
 
 | Élément | Statut |
@@ -267,9 +299,10 @@ rapport) : 40/40. Suite complète : 227/227, 2 940/2 940. `npx eslint .` :
 | `services/platform/import.js` — `api/platform/import/execute` | ✅ fait (tranche 5) — contenait du SQL en direct |
 | Garde-fou automatique « aucun SQL / HTTP dans les services » (`services-boundaries.test.js`) | n'existe pas encore sur `frontend_b` — à porter depuis `origin/interns` |
 | `services/platform/evaluation.js` — `api/platform/ai/evaluate-submission` | ✅ fait (tranche 6) |
-| `api/evaluation` (210 lignes, 14 `if`) | non commencé |
-| `api/run-export` (191 lignes, 13 `if`) | non commencé |
-| Petites routes `platform/ai/*`, `platform/seed/*`, `platform/integrations/*`, `platform/notifications` (déjà < 100-200 lignes) | à confirmer qu'elles sont déjà minces |
+| `services/platform/programEvaluation.js` — `api/evaluation` | ✅ fait (tranche 7) |
+| `api/run-export` (191 lignes) | ✅ audité, laissé tel quel — rendu XLSX/PDF, pas une décision (tranche 7) |
+| ~19 petites routes restantes (`platform/ai/*`, `platform/seed/*`, `platform/integrations/*`, `platform/notifications`, `responses*`, `respond`, `platform/collections`, `form-runs/report-file`) | **non auditées en détail** — tailles mesurées (36 à 354 lignes, ≤ 18 `if`), probablement déjà minces mais à lire une par une avant de clore le couloir |
+| **`src/app/platform/runs/page.js`** (5 353 lignes, tâche **V2** du catalogue) → `src/components/platform/runs/**` | **non commencé** — un chantier à part (découpage de vue React, pas extraction de service) |
 | `services/platform/import.js` (609 lignes) | non commencé |
 | `services/platform/seed.js` (535 lignes) | non commencé |
 | `services/platform/report.js` (426 lignes) | non commencé |
