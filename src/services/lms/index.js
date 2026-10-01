@@ -9,7 +9,10 @@
  *                 assessment submission and certificate finalisation
  *   checkout.js — the paid-course checkout: price resolution, registration
  *                 capture, access grant and the one-time access/resume links
+ *   coaching.js — the learner coaching-request queue (create, staff decision,
+ *                 cancel) and its notification fan-out
  */
 
 export * from "./learning";
 export * from "./checkout";
+export * from "./coaching";

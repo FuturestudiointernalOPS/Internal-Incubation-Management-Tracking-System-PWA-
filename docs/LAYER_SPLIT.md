@@ -18,7 +18,7 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–62 the next `ventures.js`
+> controller (workspace, then collaboration), 39–63 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
 > project timeline & dependencies, reports & project analytics, coach & mentor
 > management, mentoring sessions & scheduling, knowledge hub & learning,
@@ -28,7 +28,7 @@
 > integrations & public APIs, system monitoring, health & reporting, then the core
 > schema bootstrap, intake, then the core record — **`ventures.js` is now a
 > barrel**), then the non-venture `src/lib` tail began (token hashing, task audit
-> log, access profiles + responsibilities). The
+> log, access profiles + responsibilities, LMS coaching requests). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1325,6 +1325,20 @@ merged** with the parallel implementations.
 
 ---
 
+### Domain 49 — the non-venture `src/lib` tail: LMS coaching requests (slice 63)
+
+`src/lib/lms/coaching.js` was the last real implementation under `src/lib/lms/`
+(the other files there are already facades). The learner coaching-request queue
+(enrollment-derived access, server-side program resolution, the one-open-request
+rule, the staff decision and the notification fan-out) moves its decisions to
+`services/lms/coaching.js`; every statement to `models/lms/coachingStore.js`;
+`src/lib/lms/coaching.js` is a facade and `services/lms/index.js` re-exports it.
+
+**Unchanged:** the SQL (byte-identical), the access/enrollment rule, the
+duplicate-request behaviour and the never-throwing notifications.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1515,8 +1529,9 @@ Two source-pinning suites were repointed (same assertion, new home):
   `models/venture*Store.js`. A long tail of
   `src/lib` modules still
   holds SQL (the
-  non-venture ones `email.js`, `lms/coaching.js`; `auth.js`, `audit.js` and
-  `token-hashing.js` are done, and `request-context.js` held only a comment) — the
+  non-venture ones `email.js`, and now `lms/coaching.js` is done too;
+  `auth.js`, `audit.js` and `token-hashing.js` are done, and `request-context.js`
+  held only a comment) — the
   next repository-extraction
   targets, one module at a time, tracked in `MVC_REFACTOR.md`.
 - Giant page files (>600 LOC) still need splitting into feature components.
