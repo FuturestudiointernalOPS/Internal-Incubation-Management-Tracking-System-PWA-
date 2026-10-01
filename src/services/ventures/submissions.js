@@ -32,7 +32,7 @@ import {
   updateSubmissionReview,
 } from "@/models/forms";
 import { getTeamForOwnershipCheck } from "@/models/teams";
-import { getFacilitatorTeamScope } from "@/lib/auth";
+import { getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
 
 const MANAGEMENT_ROLES = ["staff", "super_admin", "program_manager"];
 
@@ -395,4 +395,102 @@ export async function applySubmissionReview({ session, payload }) {
   }
 
   return { ok: true };
+}
+
+/** Bind a team-entity session to its own team; others keep the chosen teamId. */
+export function bindSubmissionTeamScope({ session, teamId }) {
+  if (session?.role === "team") {
+    const ownTeamId = String(session.cid || "");
+    if (teamId && String(teamId) !== ownTeamId) {
+      return { denied: { error: "errors.insufficientPermissions", status: 403 } };
+    }
+    return { teamId: ownTeamId };
+  }
+  return { teamId };
+}
+
+/**
+ * Own-scope fallback: without a program context, non-management / non-staff /
+ * non-team sessions (participants, members, …) read only their own rows.
+ */
+export function applyOwnSubmissionScope({ session, participantId, programId }) {
+  if (
+    session &&
+    !programId &&
+    !hasProgramManagementAccess(session.role) &&
+    session.role !== "staff" &&
+    session.role !== "team"
+  ) {
+    return session.cid;
+  }
+  return participantId;
+}
+
+/** Whether a program-scoped read needs the facilitator scope filter. */
+export function needsFacilitatorSubmissionScope(session, programId) {
+  return Boolean(
+    session &&
+      programId &&
+      !hasProgramManagementAccess(session.role) &&
+      session.role !== "staff" &&
+      session.role !== "team",
+  );
+}
+
+/**
+ * The facilitator's group/team scope filter for a program read, or
+ * `{ empty: true }` when they have no record scope (deny-closed).
+ */
+export async function resolveFacilitatorSubmissionScope({ programId, sessionCid }) {
+  const scope = await getFacilitatorTeamScope(programId, sessionCid);
+  if (scope.scope === "all") return { facScopeFilter: null, facScopeArgs: [] };
+  if (scope.teamIds.length === 0) return { empty: true };
+  return {
+    facScopeFilter:
+      "s.participant_id IN (SELECT c.cid FROM contacts c WHERE c.v2_team_id IN (" +
+      scope.teamIds.map(() => "?").join(",") +
+      "))",
+    facScopeArgs: scope.teamIds,
+  };
+}
+
+/** The UI shape of a submission row (deliverable / participant / group blocks). */
+export function formatSubmissionRows(rows) {
+  return rows.map((row) => ({
+    ...row,
+    v2_deliverables: {
+      title: row.deliverable_title,
+      week_number: row.deliverable_week,
+      due_date: row.deliverable_due_date,
+    },
+    v2_participants: row.participant_name ? { name: row.participant_name } : null,
+    v2_groups: row.group_name ? { name: row.group_name } : null,
+  }));
+}
+
+/** Group submissions into deliverable buckets, each with its version history. */
+export function groupSubmissionVersions(submissions) {
+  const grouped = {};
+  for (const submission of submissions) {
+    const groupId =
+      submission.deliverable_id || submission.document_id || `doc-${submission.id}`;
+    const key = `${submission.program_id}-${groupId}`;
+    if (!grouped[key]) {
+      grouped[key] = {
+        deliverable_id: submission.deliverable_id,
+        program_id: submission.program_id,
+        deliverable_title: submission.deliverable_title,
+        deliverable_week: submission.deliverable_week,
+        deliverable_due_date: submission.deliverable_due_date,
+        latest: submission,
+        versions: [],
+      };
+    }
+    grouped[key].versions.push(submission);
+    // Sort versions by version_number
+    grouped[key].versions.sort(
+      (first, second) => (second.version_number || 0) - (first.version_number || 0),
+    );
+  }
+  return Object.values(grouped);
 }

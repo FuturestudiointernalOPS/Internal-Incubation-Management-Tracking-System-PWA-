@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
+import { requireAuth, getSession, requireAssignmentAccess, hasProgramManagementAccess } from "@/lib/auth";
 import { requireProgramScope } from "@/lib/programScopedAccess";
 import { serverError } from "@/lib/apiError";
 import {
@@ -17,6 +17,12 @@ import {
   createSubmissionRecord,
   isSubmissionWithinFacilitatorScope,
   applySubmissionReview,
+  bindSubmissionTeamScope,
+  applyOwnSubmissionScope,
+  needsFacilitatorSubmissionScope,
+  resolveFacilitatorSubmissionScope,
+  formatSubmissionRows,
+  groupSubmissionVersions,
 } from "@/services/ventures/submissions";
 
 /**
@@ -148,43 +154,27 @@ export async function GET(req) {
     // program and hold assignments.view. Scope restricts to their assigned
     // groups. Participants/teams/staff read their own submissions directly.
     const session = await getSession();
-    let facilitatorScopeFilter = null;
-    let facilitatorScopeArgs = [];
 
     // Team-entity sessions (role "team", cid = their own team id) may only ever
     // read THEIR OWN team's submissions: the team filter is bound server-side,
     // so a chosen team_id / program_id cannot widen the read.
-    if (session?.role === "team") {
-      const ownTeamId = String(session.cid || "");
-      if (team_id && String(team_id) !== ownTeamId) {
-        return NextResponse.json(
-          { success: false, error: "errors.insufficientPermissions" },
-          { status: 403 },
-        );
-      }
-      team_id = ownTeamId;
+    const teamBinding = bindSubmissionTeamScope({ session, teamId: team_id });
+    if (teamBinding.denied) {
+      return NextResponse.json(
+        { success: false, error: teamBinding.denied.error },
+        { status: teamBinding.denied.status },
+      );
     }
+    team_id = teamBinding.teamId;
 
     // Own-scope (Phase I6B): without a program context, non-management,
     // non-staff, non-team sessions (participants, members, …) may only list
     // their own submissions — participant_id is bound server-side.
-    if (
-      session &&
-      !program_id &&
-      !hasProgramManagementAccess(session.role) &&
-      session.role !== "staff" &&
-      session.role !== "team"
-    ) {
-      participant_id = session.cid;
-    }
+    participant_id = applyOwnSubmissionScope({ session, participantId: participant_id, programId: program_id });
 
-    if (
-      session &&
-      program_id &&
-      !hasProgramManagementAccess(session.role) &&
-      session.role !== "staff" &&
-      session.role !== "team"
-    ) {
+    let facilitatorScopeFilter = null;
+    let facilitatorScopeArgs = [];
+    if (needsFacilitatorSubmissionScope(session, program_id)) {
       const facError = await requireAssignmentAccess({
         resource: "program",
         contextId: program_id,
@@ -192,17 +182,15 @@ export async function GET(req) {
         minLevel: 1,
       });
       if (facError) return facError;
-      const scope = await getFacilitatorTeamScope(program_id, session.cid);
-      if (scope.scope !== "all") {
-        if (scope.teamIds.length === 0) {
-          return NextResponse.json({ success: true, submissions: [] });
-        }
-        facilitatorScopeFilter =
-          "s.participant_id IN (SELECT c.cid FROM contacts c WHERE c.v2_team_id IN (" +
-          scope.teamIds.map(() => "?").join(",") +
-          "))";
-        facilitatorScopeArgs = scope.teamIds;
+      const scopeOutcome = await resolveFacilitatorSubmissionScope({
+        programId: program_id,
+        sessionCid: session.cid,
+      });
+      if (scopeOutcome.empty) {
+        return NextResponse.json({ success: true, submissions: [] });
       }
+      facilitatorScopeFilter = scopeOutcome.facScopeFilter;
+      facilitatorScopeArgs = scopeOutcome.facScopeArgs;
     }
 
     const { rows } = await listSubmissions({
@@ -219,45 +207,15 @@ export async function GET(req) {
     });
 
     // Format for UI
-    const submissions = rows.map((row) => ({
-      ...row,
-      v2_deliverables: {
-        title: row.deliverable_title,
-        week_number: row.deliverable_week,
-        due_date: row.deliverable_due_date,
-      },
-      v2_participants: row.participant_name ? { name: row.participant_name } : null,
-      v2_groups: row.group_name ? { name: row.group_name } : null,
-    }));
+    const submissions = formatSubmissionRows(rows);
 
     // If include_versions, group and include version history
     if (include_versions && (participant_id || group_id)) {
-      const grouped = {};
-      for (const submission of submissions) {
-        const groupId = submission.deliverable_id || submission.document_id || `doc-${submission.id}`;
-        const key = `${submission.program_id}-${groupId}`;
-        if (!grouped[key]) {
-          grouped[key] = {
-            deliverable_id: submission.deliverable_id,
-            program_id: submission.program_id,
-            deliverable_title: submission.deliverable_title,
-            deliverable_week: submission.deliverable_week,
-            deliverable_due_date: submission.deliverable_due_date,
-            latest: submission,
-            versions: [],
-          };
-        }
-        grouped[key].versions.push(submission);
-        // Sort versions by version_number
-        grouped[key].versions.sort(
-          (first, second) => (second.version_number || 0) - (first.version_number || 0),
-        );
-      }
-
+      const grouped = groupSubmissionVersions(submissions);
       return NextResponse.json({
         success: true,
-        grouped: Object.values(grouped),
-        total: Object.keys(grouped).length,
+        grouped,
+        total: grouped.length,
       });
     }
 

@@ -93,13 +93,15 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     const lists = authBlocks("src/app/api/submissions/route.js");
     expect(lists).toHaveLength(1); // one pure-global handler stays listed
     expect(containsContextual(lists[0])).toBe(false);
-    // Own-scope fallback for no-programId reads + self-service identity binding.
-    expect(src).toMatch(/participant_id = session\.cid/);
-    // The self-service identity binding moved to the service.
+    // Own-scope fallback for no-programId reads + self-service identity binding
+    // — both now live in the service.
+    expect(src).toMatch(/applyOwnSubmissionScope/);
     const service = fs.readFileSync(
       path.join(ROOT, "src/services/ventures/submissions.js"),
       "utf8",
     );
+    expect(service).toMatch(/export function applyOwnSubmissionScope/);
+    expect(service).toMatch(/return session\.cid;/);
     expect(service).toMatch(/body\.participant_id = session\.cid/);
     expect(service).toMatch(/body\.team_id = session\.cid/);
   });
