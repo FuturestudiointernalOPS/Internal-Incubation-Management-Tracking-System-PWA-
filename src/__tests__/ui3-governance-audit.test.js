@@ -16,6 +16,7 @@ const { splitAuditReason } = require("@/components/permissions/auditHelpers");
 
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
+const { readPermissionCenterSurface } = require("./helpers/permissionCenterSource");
 
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const resolveKey = (bundle, dotted) =>
@@ -45,11 +46,15 @@ describe("UI-3a — design-system fixes", () => {
   const center = "src/components/permissions/PermissionCenter.js";
 
   test("the governance stat cards no longer use hardcoded hex colors", () => {
-    const src = read(center);
+    // Two halves on purpose. The hex ban is an invariant about EVERY surface in
+    // the center — it must not become a guard that only covers the shim. The
+    // `StatCard` usage is a behaviour of the governance screen, so it is asserted
+    // on the file that owns it, which is stricter than before the split.
+    const surface = readPermissionCenterSurface();
     for (const hexColor of ["#10B981", "#F59E0B", "#EF4444", "#94A3B8"]) {
-      expect(src).not.toContain(hexColor);
+      expect(surface).not.toContain(hexColor);
     }
-    expect(src).toContain("StatCard");
+    expect(read(center)).toContain("StatCard");
   });
 
   test("the audit detail uses the shared drawer and highlights the reason", () => {

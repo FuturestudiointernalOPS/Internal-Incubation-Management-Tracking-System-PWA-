@@ -16,6 +16,7 @@ const path = require("path");
 
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
+const { readPermissionCenterSurface } = require("./helpers/permissionCenterSource");
 
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const resolveKey = (bundle, dotted) =>
@@ -27,11 +28,16 @@ describe("UI-4b — the editor reads the server catalog", () => {
   const src = read(CENTER);
 
   test("no local copy of the module catalog survives", () => {
+    // Read across the whole surface: the defect this guards was a HARDCODED
+    // catalog copy, and such a copy would be just as wrong in an extracted
+    // module as it was in the monolith. Asserting only on the shim would let it
+    // return unnoticed.
+    const surface = readPermissionCenterSurface();
     // The global that fed the fallback is gone…
-    expect(src).not.toContain("window.availableModules");
+    expect(surface).not.toContain("window.availableModules");
     // …and so is the literal it fell back to.
-    expect(src).not.toContain('capabilities: ["view", "create", "edit", "delete", "archive"]');
-    expect(src).not.toContain('name: "Internal Communication"');
+    expect(surface).not.toContain('capabilities: ["view", "create", "edit", "delete", "archive"]');
+    expect(surface).not.toContain('name: "Internal Communication"');
   });
 
   test("the catalog comes from the response, and a failure is stated", () => {

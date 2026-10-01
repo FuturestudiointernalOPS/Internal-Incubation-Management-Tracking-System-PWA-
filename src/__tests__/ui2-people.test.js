@@ -19,6 +19,7 @@ const {
 
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
+const { readPermissionCenterSurface } = require("./helpers/permissionCenterSource");
 
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const resolveKey = (bundle, dotted) =>
@@ -104,7 +105,9 @@ describe("UI-2b — screen wiring", () => {
     expect(src).toContain("person={person}");
     expect(src).toContain("cid={person.cid}");
     // One picker in the whole flow: the editor no longer fetches a user list.
-    const editor = read("src/components/permissions/PermissionCenter.js");
+    // The whole surface, because a second user list anywhere in the center would
+    // break that claim just as much as one in the shim.
+    const editor = readPermissionCenterSurface();
     expect(editor).not.toContain("fetchAllUsers");
   });
 

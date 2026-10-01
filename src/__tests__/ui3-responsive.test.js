@@ -14,13 +14,27 @@ const fs = require("fs");
 const path = require("path");
 
 const DIR = path.join(process.cwd(), "src/components/permissions");
+const {
+  readPermissionCenterSurface,
+  extractedFiles,
+  count,
+} = require("./helpers/permissionCenterSource");
 
 const read = (file) => fs.readFileSync(path.join(DIR, file), "utf8");
-const count = (src, needle) => src.split(needle).length - 1;
 
-const componentFiles = fs
-  .readdirSync(DIR)
-  .filter((file) => file.endsWith(".js"));
+/**
+ * Every component file, RECURSIVELY.
+ *
+ * This used to be a flat `readdirSync(DIR)`, which meant the moment the center
+ * was split into `permission-center/`, every extracted screen would have
+ * silently dropped out of BOTH tests below — a screen could lose its card
+ * companion and the parity guard would never see it. Recursing is what keeps the
+ * promise of this suite.
+ */
+const componentFiles = [
+  ...fs.readdirSync(DIR).filter((file) => file.endsWith(".js")),
+  ...extractedFiles().map((file) => path.relative(DIR, file)),
+];
 
 describe("UI-3d — small-screen parity", () => {
   test("every table hidden below md has a card companion", () => {
@@ -39,14 +53,21 @@ describe("UI-3d — small-screen parity", () => {
   test("the table-heavy surfaces are actually covered", () => {
     // Guards the counts above from silently passing because a surface lost its
     // table (e.g. a refactor that deletes the md+ branch).
+    //
+    // The permission center is one entry read as a WHOLE SURFACE: its two wide
+    // tables live in the shim and in `permission-center/`, and the point of the
+    // count is "the center still has exactly two table surfaces". Reading only
+    // the shim would report 0 once the tables move, which is a false failure,
+    // and reading only one file would miss one of them, which is a false pass.
     for (const [file, expected] of [
-      ["PermissionCenter.js", 2],
+      [null, 2],
       ["FeatureMatrixSection.js", 1],
       ["PeopleView.js", 1],
       ["ContextRolesView.js", 1],
     ]) {
-      expect(count(read(file), "md:hidden")).toBe(expected);
-      expect(count(read(file), "hidden md:block")).toBe(expected);
+      const src = file === null ? readPermissionCenterSurface() : read(file);
+      expect(count(src, "md:hidden")).toBe(expected);
+      expect(count(src, "hidden md:block")).toBe(expected);
     }
   });
 
