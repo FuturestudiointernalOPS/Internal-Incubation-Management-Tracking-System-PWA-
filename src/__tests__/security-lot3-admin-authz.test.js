@@ -74,10 +74,14 @@ describe("object-level authorization added in this lot", () => {
   });
 
   test("tasks/carryover checks ownership and takes attribution from the session", () => {
-    const src = read("src/app/api/tasks/carryover/route.js");
+    // The ownership rule moved to the service layer with the layer split; the
+    // route keeps the session-derived attribution and no longer reads the body's
+    // user_id/user_name.
+    const src = read("src/services/tasks/carryover.js");
     expect(src).toMatch(/You can only carry over your own tasks/);
+    const route = read("src/app/api/tasks/carryover/route.js");
     // The body's user_id/user_name must no longer drive the clone.
-    expect(src).not.toMatch(/const \{ task_id, target_week, target_year, user_id, user_name \}/);
+    expect(route).not.toMatch(/const \{ task_id, target_week, target_year, user_id, user_name \}/);
   });
 
   test("contacts/full-state scopes the PM parameter for non-management", () => {

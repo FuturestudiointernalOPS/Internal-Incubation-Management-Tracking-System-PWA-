@@ -1,27 +1,18 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { logAuditEvent } from "@/lib/audit";
 import { requireAuth } from "@/lib/auth";
-import { getTaskById } from "@/lib/db/queries/tasks";
-import {
-  approveTask,
-  markApprovalRequestApproved,
-  rejectTaskAsStandalone,
-  markApprovalRequestRejected,
-} from "@/models/taskLifecycle";
+import { reviewTaskApproval } from "@/services/tasks/approval";
 
 /**
- * TASK APPROVAL API
+ * TASK APPROVAL API — controller layer.
  *
  * POST /api/tasks/approve
- *   Body: { task_id, reviewer_id, reviewer_name }
- *   Approves a pending_project_approval task — links it to the requested project
+ *   Body: { task_id, reviewer_id, reviewer_name, action, reason }
+ *   Approves or rejects a pending_project_approval task.
  *
- * POST /api/tasks/reject
- *   Body: { task_id, reviewer_id, reviewer_name, reason }
- *   Rejects — converts task to standalone (removes project_id, sets category)
+ * The approve/reject domain (project link, standalone conversion, audit) lives
+ * in `@/services/tasks/approval`.
  */
-
 export async function POST(req) {
   try {
     await initDb();
@@ -47,75 +38,21 @@ export async function POST(req) {
       );
     }
 
-    // Fetch the task
-    const task = await getTaskById(task_id);
-
-    if (!task) {
-      return NextResponse.json(
-        { success: false, error: "Task not found." },
-        { status: 404 },
-      );
-    }
-
-    if (task.status !== "pending_project_approval") {
-      return NextResponse.json(
-        { success: false, error: "Task is not pending approval." },
-        { status: 400 },
-      );
-    }
-
-    if (action === "approve") {
-      // Set task to active/pending under the project
-      await approveTask(reviewer_id, task_id);
-
-      // Update approval request
-      try {
-        await markApprovalRequestApproved(reviewer_id, task_id);
-      } catch (error) {
-        console.error("Failed to update project_approval_request (approve):", error.message);
-        return NextResponse.json(
-          { success: false, error: "Approval workflow not available in this schema" },
-          { status: 200 },
-        );
-      }
-    } else {
-      // Reject — remove project_id, set as standalone with 'other' category
-      await rejectTaskAsStandalone(reason ? "rejected" : "other", task_id);
-
-      // Update approval request
-      try {
-        await markApprovalRequestRejected(reviewer_id, reason || "No reason provided", task_id);
-      } catch (error) {
-        console.error("Failed to update project_approval_request (reject):", error.message);
-        return NextResponse.json(
-          { success: false, error: "Approval workflow not available in this schema" },
-          { status: 200 },
-        );
-      }
-    }
-
-    // Audit log
-    await logAuditEvent({
-      entity_type: "task",
-      entity_id: parseInt(task_id),
-      user_id: reviewer_id,
-      user_name: reviewer_name || "",
-      action: action === "approve" ? "approved" : "rejected",
-      details: `Task "${task.title}" ${action === "approve" ? "approved" : "rejected"} by ${reviewer_name || reviewer_id}${reason ? `: ${reason}` : ""}`,
-      metadata: {
-        title: task.title,
-        action,
-        project_id: task.project_id,
-        reviewer_id,
-        reason: reason || null,
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
+    const result = await reviewTaskApproval({
+      taskId: task_id,
       action,
-      taskId: parseInt(task_id),
+      reviewerId: reviewer_id,
+      reviewerName: reviewer_name,
+      reason,
     });
+
+    if (result.error) {
+      return NextResponse.json(
+        result.body || { success: false, error: result.error },
+        { status: result.status },
+      );
+    }
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error("POST tasks/approve error:", error);
     return NextResponse.json(
