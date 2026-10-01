@@ -2144,6 +2144,19 @@ are green.
 
 ---
 
+### Domain 78 — the last `db` threading (slice 113)
+
+`listVentureMembers` was the only repository read that still took the pool as its
+first argument, which forced the Ventures dashboard controller to import the raw
+pool just to pass it through. The read now uses the module-level pool like every
+other model; the dashboard and `ventureRecordStore` call it without the argument,
+and no `src/app/api/**/route.js` imports the raw pool any longer (only `initDb`).
+
+`npm test` (243 suites, 3532 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
