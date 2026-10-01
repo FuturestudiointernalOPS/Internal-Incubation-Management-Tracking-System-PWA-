@@ -17,7 +17,7 @@ const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const ROUTE = "src/app/api/platform/form-runs/route.js";
-const src = fs.readFileSync(path.join(ROOT, ROUTE), "utf8");
+const src = fs.readFileSync(path.join(ROOT, "src/services/platform/formRuns.js"), "utf8") + "\n" + fs.readFileSync(path.join(ROOT, ROUTE), "utf8"); // slice 1: processReviewInternal + its decision cluster moved to the service (searched first — POST also calls sendDecisionEmailForSubmission directly, and that occurrence must not be found before the gate)
 
 const indexOf = (needle) => src.indexOf(needle);
 

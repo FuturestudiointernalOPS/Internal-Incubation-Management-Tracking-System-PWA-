@@ -12,7 +12,7 @@ const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const EMAIL = fs.readFileSync(path.join(ROOT, "src/lib/email.js"), "utf8");
-const ROUTE = fs.readFileSync(path.join(ROOT, "src/app/api/platform/form-runs/route.js"), "utf8");
+const ROUTE = fs.readFileSync(path.join(ROOT, "src/services/platform/formRuns.js"), "utf8") + "\n" + fs.readFileSync(path.join(ROOT, "src/app/api/platform/form-runs/route.js"), "utf8"); // slice 1: review/email/result cluster moved to the service (searched first)
 
 describe("result email copy — Founder Fit Score scope", () => {
   test("exactly two copies exist", () => {

@@ -25,7 +25,7 @@ const { readResultDelayMinutes } = require("@/lib/constants");
 const ROOT = path.resolve(__dirname, "..", "..");
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
-const ROUTE_SRC = read("src/app/api/platform/form-runs/route.js");
+const ROUTE_SRC = read("src/services/platform/formRuns.js") + "\n" + read("src/app/api/platform/form-runs/route.js"); // slice 1: review/email/result cluster moved to the service (searched first, so a same-named call still in the route is never found before it)
 const MODEL_SRC = read("src/models/formRuns.js");
 const RUNS_PAGE = read("src/app/platform/runs/page.js");
 const FORMS_PAGE = read("src/app/platform/forms/page.js");
