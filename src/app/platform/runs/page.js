@@ -7,7 +7,7 @@ import {
   ArrowLeft, Settings, Link2, Trash2, AlertTriangle, BarChart3,
   History, Calendar, Hash, EyeOff, PauseCircle,
   StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, Info, Sparkles, Mail, Key, LogIn, Download,
-  Paperclip, Upload, ExternalLink, Clock,
+  Paperclip, Upload, ExternalLink, Clock, Pencil,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
@@ -501,7 +501,7 @@ export default function FormRunsPage() {
   // an applicant. Watching batch PROGRESS only needs runs.view, so the progress
   // panel stays visible to everyone who can open the run.
   const { can } = usePermissions();
-  const { confirm } = useDialogs();
+  const { confirm, prompt } = useDialogs();
   const canReview = can("runs", "review");
   const [forms, setForms] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -2146,6 +2146,44 @@ export default function FormRunsPage() {
     setManualAdding(false);
   };
 
+  // ─── Correct a respondent's email (a wrong address typed on the form / manual add) ───
+  const editRespondentEmail = async (submission) => {
+    const current = String(submission.email || "").trim();
+    const next = await prompt({
+      message: t("platformMisc.runs.editEmailPrompt"),
+      inputLabel: t("platformMisc.runs.editEmailLabel"),
+      defaultValue: current,
+      inputType: "email",
+      placeholder: t("platformMisc.runs.editEmailPlaceholder"),
+      confirmLabel: t("platformMisc.runs.editEmailSave"),
+      validate: (value) =>
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value).trim()) ? null : t("errors.invalidEmail"),
+    });
+    if (next == null) return;
+    const cleanEmail = String(next).trim();
+    if (!cleanEmail || cleanEmail.toLowerCase() === current.toLowerCase()) return;
+    try {
+      const response = await fetch("/api/platform/form-runs?action=update_respondent_email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ run_id: selectedRun?.id, submission_id: submission.id, email: cleanEmail }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        notify(
+          data.contact_conflict
+            ? t("platformMisc.runs.editEmailConflict")
+            : t("platformMisc.runs.editEmailSuccess"),
+        );
+        if (selectedRun) await openRun(selectedRun, { keepTab: true });
+      } else {
+        notify(data.error || t("platformMisc.runs.editEmailFailed"));
+      }
+    } catch (_) {
+      notify(t("platformMisc.runs.editEmailFailed"));
+    }
+  };
+
   const personalizeMessage = async () => {
     setAiPersonalizing(true);
     try {
@@ -3279,6 +3317,9 @@ export default function FormRunsPage() {
                                 {submission.status === "submitted" && (
                                   <button onClick={() => openReview(submission)} className="px-2 py-1 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:bg-brand-orange/20">{t("platformMisc.runs.review")}</button>
                                 )}
+                                <button onClick={() => editRespondentEmail(submission)} title={t("platformMisc.runs.editEmailTitle")} className="px-2 py-1 rounded-lg bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase tracking-wide hover:bg-amber-500/20 flex items-center gap-1">
+                                  <Pencil className="w-3 h-3" /> {t("platformMisc.runs.editEmail")}
+                                </button>
                                 <button onClick={() => handleDeleteSubmission(submission.id)} className="px-2 py-1 rounded-lg bg-rose-500/10 text-rose-500 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20">{t("platformMisc.runs.delete")}</button>
                               </div>
                             </td>

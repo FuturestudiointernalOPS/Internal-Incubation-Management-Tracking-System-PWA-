@@ -34,6 +34,13 @@ jest.mock("@/models/formRuns", () => ({
   getAssignmentsAfterAssignByRunId: jest.fn(),
   getFullRunAfterAssignById: jest.fn(),
   insertTimelineEntry: jest.fn(),
+  getSubmissionById: jest.fn(),
+  getRunFormContextBySubmissionId: jest.fn(),
+  getFormFieldsForRunById: jest.fn(),
+  getContactNameEmailByCid: jest.fn(),
+  findContactByLowerEmailForManualAdd: jest.fn(),
+  updateSubmissionDataById: jest.fn(),
+  updateContactEmailById: jest.fn(),
 }));
 
 const { onAssignmentAdded } = require("@/lib/platform/automation");
@@ -47,6 +54,7 @@ const {
   updateRunMetadata,
   submitResponse,
   processReviewInternal,
+  updateRespondentEmail,
 } = require("@/services/platform/formRuns");
 
 const session = { cid: "USR_REVIEWER", email: "reviewer@example.com" };
@@ -56,6 +64,12 @@ beforeEach(() => {
   models.getAssignmentsAfterAssignByRunId.mockResolvedValue({ rows: [] });
   models.getFullRunAfterAssignById.mockResolvedValue({ rows: [] });
   models.insertTimelineEntry.mockResolvedValue({});
+  models.getRunFormContextBySubmissionId.mockResolvedValue({ rows: [] });
+  models.getFormFieldsForRunById.mockResolvedValue({ rows: [] });
+  models.getContactNameEmailByCid.mockResolvedValue({ rows: [] });
+  models.findContactByLowerEmailForManualAdd.mockResolvedValue({ rows: [] });
+  models.updateSubmissionDataById.mockResolvedValue({ rows: [] });
+  models.updateContactEmailById.mockResolvedValue({ rows: [] });
 });
 
 describe("the run-status vocabulary", () => {
@@ -243,5 +257,92 @@ describe("processReviewInternal — the guards before any side effect", () => {
     });
     // The refusal is above the review row, so nothing was written.
     expect(models.insertTimelineEntry).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateRespondentEmail — correct a wrong address", () => {
+  const submission = { id: 5, run_id: 7, submitter_id: "USR_1", data: { "11": "wrong@mailbox.io", "12": "Ada" } };
+
+  beforeEach(() => {
+    models.getSubmissionById.mockResolvedValue({ rows: [submission] });
+    models.getRunFormContextBySubmissionId.mockResolvedValue({ rows: [{ form_id: 3 }] });
+    models.getFormFieldsForRunById.mockResolvedValue({ rows: [{ id: 11, label: "Email" }, { id: 12, label: "Name" }] });
+    models.getContactNameEmailByCid.mockResolvedValue({ rows: [{ name: "Ada", email: "wrong@mailbox.io" }] });
+  });
+
+  test("an invalid address is refused without touching anything", async () => {
+    await expect(updateRespondentEmail({ run_id: 7, submission_id: 5, email: "not-an-email" })).resolves.toEqual({
+      ok: false,
+      statusCode: 400,
+      error: "Enter a valid email address.",
+    });
+    expect(models.updateSubmissionDataById).not.toHaveBeenCalled();
+  });
+
+  test("an unknown submission is a 404", async () => {
+    models.getSubmissionById.mockResolvedValue({ rows: [] });
+    await expect(updateRespondentEmail({ run_id: 7, submission_id: 5, email: "right@example.com" })).resolves.toEqual({
+      ok: false,
+      statusCode: 404,
+      error: "Submission not found",
+    });
+  });
+
+  test("a submission from another run is refused", async () => {
+    await expect(updateRespondentEmail({ run_id: 99, submission_id: 5, email: "right@example.com" })).resolves.toEqual({
+      ok: false,
+      statusCode: 400,
+      error: "Submission is not in this run",
+    });
+  });
+
+  test("the email answer is rewritten and the CRM contact follows it", async () => {
+    const result = await updateRespondentEmail({ run_id: 7, submission_id: 5, email: "Right@Mailbox.io", session });
+
+    expect(result).toEqual({
+      ok: true,
+      email: "right@mailbox.io",
+      data_updated: true,
+      contact_updated: true,
+      contact_conflict: false,
+    });
+    expect(models.updateSubmissionDataById).toHaveBeenCalledWith(5, { "11": "right@mailbox.io", "12": "Ada" });
+    expect(models.updateContactEmailById).toHaveBeenCalledWith("USR_1", "right@mailbox.io");
+    // The correction is left on the submission timeline.
+    expect(models.insertTimelineEntry).toHaveBeenCalledWith(
+      5,
+      "email_corrected",
+      session.cid,
+      null,
+      { from: "wrong@mailbox.io", to: "right@mailbox.io" },
+    );
+  });
+
+  test("an address already owned by another contact is never overwritten", async () => {
+    models.findContactByLowerEmailForManualAdd.mockResolvedValue({ rows: [{ cid: "USR_OTHER" }] });
+
+    const result = await updateRespondentEmail({ run_id: 7, submission_id: 5, email: "right@mailbox.io" });
+
+    expect(result).toEqual({
+      ok: true,
+      email: "right@mailbox.io",
+      data_updated: true,
+      contact_updated: false,
+      contact_conflict: true,
+    });
+    expect(models.updateSubmissionDataById).toHaveBeenCalled();
+    expect(models.updateContactEmailById).not.toHaveBeenCalled();
+  });
+
+  test("with no email question and no contact the correction is refused as a no-op", async () => {
+    models.getFormFieldsForRunById.mockResolvedValue({ rows: [{ id: 12, label: "Name" }] });
+    models.getSubmissionById.mockResolvedValue({ rows: [{ ...submission, data: { "12": "Ada" } }] });
+    models.getContactNameEmailByCid.mockResolvedValue({ rows: [] });
+
+    await expect(updateRespondentEmail({ run_id: 7, submission_id: 5, email: "right@mailbox.io" })).resolves.toEqual({
+      ok: false,
+      statusCode: 400,
+      error: "This run captures no email address to edit.",
+    });
   });
 });

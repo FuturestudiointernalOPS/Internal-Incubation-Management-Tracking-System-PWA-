@@ -108,6 +108,7 @@ import {
   getRunSubmissionGateById,
   getRunTemplateSettingsForDecisionById,
   getSubmissionCurrentStatusById,
+  getSubmissionById,
   getSubmissionForActivationRetryById,
   getSubmissionReviewStateById,
   getSubmissionReviewsBySubmissionId,
@@ -121,6 +122,7 @@ import {
   launchRunById,
   listApprovedSubmissionsAwaitingResultEmail,
   updateContactNameById,
+  updateContactEmailById,
   updateEvaluationDimensionsById,
   updatePublicSlugForRegeneratedLinkById,
   updatePublicSlugRetryAfterAlterById,
@@ -128,6 +130,7 @@ import {
   updateRunPublicSlugById,
   updateRunStatusById,
   updateSubmissionContentAndStatusById,
+  updateSubmissionDataById,
   updateSubmissionStatusById,
 } from "@/models/formRuns";
 import { getPlatformFormFields, getPlatformFormSections } from "@/models/forms";
@@ -1674,6 +1677,130 @@ export async function manualAddRespondent({ run_id, name, email, data, status: s
   }
 
   return { ok: true, submission: result.rows[0] };
+}
+
+// Email correction — a wrong address is fixable after the fact.
+//
+// `resolveSubmissionEmail` reads the applicant's answer to the form's email
+// question first, then the linked CRM contact. Every run sender (the
+// acknowledgement, decision, activation and result emails, and the Run view
+// itself) goes through that one resolver, so correcting whichever source holds
+// the address is what makes the fix take effect everywhere at once.
+const RESPONDENT_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const RESPONDENT_EMAIL_LABEL_HINTS = /(e-?mail|courriel|m[eé]l|adresse\s*(e-?mail|mail))/i;
+
+/**
+ * Correct the email a run's respondent is contacted at — the fix for an address
+ * typed wrong on the form or in a manual add.
+ *
+ * The stored email ANSWER is rewritten when the form has a labelled email
+ * question (the source every sender prefers); otherwise the linked CRM contact
+ * is re-pointed at the new address (the fallback every sender reads). The
+ * contact is only renamed while the new address is still free — when it already
+ * belongs to someone else the submission is still corrected and the conflict is
+ * reported, so a correction can never hijack another person's identity.
+ *
+ * Returns { ok:true, email, data_updated, contact_updated, contact_conflict }
+ * or { ok:false, statusCode, error }.
+ */
+export async function updateRespondentEmail({ run_id, submission_id, email, session }) {
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  if (!RESPONDENT_EMAIL_PATTERN.test(cleanEmail)) {
+    return { ok: false, statusCode: 400, error: "Enter a valid email address." };
+  }
+
+  const submissionResult = await getSubmissionById(submission_id);
+  const submission = submissionResult.rows[0];
+  if (!submission) return { ok: false, statusCode: 404, error: "Submission not found" };
+  if (String(submission.run_id) !== String(run_id)) {
+    return { ok: false, statusCode: 400, error: "Submission is not in this run" };
+  }
+
+  // The Run's form answers are keyed by field id; the labels decide which key is
+  // the email question (the same EN/FR hint set the resolver uses).
+  const contextResult = await getRunFormContextBySubmissionId(submission_id);
+  const formId = contextResult.rows[0]?.form_id ?? null;
+  const fieldLabels = {};
+  let emailFieldKey = null;
+  if (formId != null) {
+    const fieldsResult = await getFormFieldsForRunById(formId);
+    for (const field of fieldsResult.rows || []) {
+      fieldLabels[String(field.id)] = field.label;
+      if (emailFieldKey == null && RESPONDENT_EMAIL_LABEL_HINTS.test(String(field.label || ""))) {
+        emailFieldKey = String(field.id);
+      }
+    }
+  }
+
+  const previousEmail = resolveSubmissionEmail({ submissionData: submission.data || {}, fieldLabels, contactEmail: "" });
+  const data = { ...(submission.data || {}) };
+  let dataUpdated = false;
+
+  if (emailFieldKey != null) {
+    if (String(data[emailFieldKey] ?? "").trim().toLowerCase() !== cleanEmail) {
+      data[emailFieldKey] = cleanEmail;
+      dataUpdated = true;
+    }
+  } else if (previousEmail) {
+    // No labelled email question — retarget the value the senders already read.
+    for (const [key, value] of Object.entries(data)) {
+      if (typeof value === "string" && value.trim().toLowerCase() === previousEmail) {
+        if (previousEmail !== cleanEmail) {
+          data[key] = cleanEmail;
+          dataUpdated = true;
+        }
+        break;
+      }
+    }
+  }
+
+  if (dataUpdated) await updateSubmissionDataById(submission_id, data);
+
+  // Keep the CRM identity (the account/activation record) in step. Skipped when
+  // the new address is already owned by a DIFFERENT contact — the submission is
+  // still corrected, and the conflict is surfaced rather than overwritten.
+  let contactUpdated = false;
+  let contactConflict = false;
+  if (submission.submitter_id) {
+    const contactResult = await getContactNameEmailByCid(submission.submitter_id);
+    const contact = contactResult.rows[0];
+    const contactEmail = String(contact?.email || "").trim().toLowerCase();
+    if (contactEmail && contactEmail !== cleanEmail) {
+      const existing = await findContactByLowerEmailForManualAdd(cleanEmail);
+      const takenByAnother = (existing.rows || []).some((row) => String(row.cid) !== String(submission.submitter_id));
+      if (takenByAnother) {
+        contactConflict = true;
+      } else {
+        try {
+          await updateContactEmailById(submission.submitter_id, cleanEmail);
+          contactUpdated = true;
+        } catch (_) {
+          contactConflict = true;
+        }
+      }
+    }
+  }
+
+  if (!dataUpdated && !contactUpdated && !contactConflict) {
+    return { ok: false, statusCode: 400, error: "This run captures no email address to edit." };
+  }
+
+  // One audit line so a corrected address is traceable in the submission history.
+  logTimeline(
+    submission_id,
+    "email_corrected",
+    session?.cid || null,
+    session?.name || null,
+    { from: previousEmail || null, to: cleanEmail },
+  );
+
+  return {
+    ok: true,
+    email: cleanEmail,
+    data_updated: dataUpdated,
+    contact_updated: contactUpdated,
+    contact_conflict: contactConflict,
+  };
 }
 
 // ── Email actions: retry, cancel, bulk result send ──────────────────────────
