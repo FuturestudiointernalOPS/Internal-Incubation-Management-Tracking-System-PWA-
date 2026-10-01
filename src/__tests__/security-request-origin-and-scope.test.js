@@ -31,7 +31,15 @@ jest.mock("@/models/publicFormRuns", () => ({
 }));
 
 const ROOT = path.join(__dirname, "..", "..");
-const read = (file) => fs.readFileSync(path.join(ROOT, file), "utf8");
+const read = (file) => {
+  const text = fs.readFileSync(path.join(ROOT, file), "utf8");
+  // The PUB-3 identity-anchoring decision moved from the route to the
+  // service — prepend it so the assertion against either half still matches.
+  if (file === "src/app/api/respond/route.js") {
+    return fs.readFileSync(path.join(ROOT, "src/services/platformRespond.js"), "utf8") + "\n" + text;
+  }
+  return text;
+};
 
 const { isSameOriginRequest } = require("@/lib/requestOrigin");
 const { getClientIp } = require("@/lib/rate-limit");

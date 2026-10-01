@@ -285,6 +285,71 @@ dense ou SQL en direct). À vérifier, pas à supposer.
 **Vérifié (tranche 7 seule).** `npm test` : 227/227, 2 940/2 940. `npx eslint
 .` : 0 erreur. `npm run build` : vert.
 
+### Tranche 8 — audit des ~19 petites routes restantes, et 2 extractions (`aiGenerate`, `emailPersonalize`, `platformRespond`)
+
+**Date :** 2026-10-01. **Qui :** même session.
+
+Lecture complète des routes restantes du couloir L1 (celles seulement
+size/SQL-sweepées en tranche 7), jugement un par un : décision réelle mêlée au
+transport → extraction ; déjà un contrôleur mince (valider → appeler un
+modèle → mettre en forme) → laissé tel quel.
+
+**Laissés tels quels (lus en entier, contrôleurs déjà minces) :**
+- `api/platform/collections` (223 lignes) : CRUD classique, `slugify`, audit
+  fire-and-forget, garde anti-référence-circulaire sur le parent — aucune
+  règle métier multi-étapes, juste valider → appeler un modèle → répondre.
+- `api/platform/ai/evaluation-scores` (233 lignes, GET seul) : agrégation de
+  lecture (comptes, moyenne, respondants) déjà entièrement portée par les
+  modèles ; les helpers `normalizeOptions`/`answerValue` sont de la mise en
+  forme de réponse, pas une décision.
+- `api/platform/form-runs/report-file` (189 lignes) : POST a un invariant
+  d'ordre réel (lire l'ancien fichier avant de remplacer, ne retirer l'objet
+  de stockage qu'après le nouvel upload réussi) mais GET contient
+  `signRunReportFilePath` en littéral, pinné directement par
+  `run-report-file.test.js` sur le fichier `route.js` (pas de wrapper
+  concat) — déplacer cette ligne casserait ce test sans changer le
+  comportement. Vu la taille et l'absence de vraie branche métier
+  (POST/GET/DELETE sont déjà validate → modèle(s) → réponse), laissé tel
+  quel plutôt que de fragmenter artificiellement GET et POST/DELETE entre
+  deux couches.
+
+**Extrait — `src/services/platform/aiGenerate.js`** (nouveau, 180 lignes) :
+`api/platform/ai/generate-all` (167 lignes) mêlait le contrôleur avec un
+vrai pipeline de décision : prompt IA, validation/normalisation du JSON
+(valeurs par défaut des champs, options de notation, numérotation séquentielle,
+normalisation des poids d'évaluation), et une création atomique en 3 étapes
+(formulaire → sections/champs → framework) avec rollback du formulaire
+orphelin en cas d'échec. `route.js` : 167 → 42 lignes. Aucun test ne
+référence ce fichier.
+
+**Extrait — `src/services/platform/emailPersonalize.js`** (nouveau, 232
+lignes) : `api/platform/ai/personalize-template` (233 lignes) mêlait le
+contrôleur avec toute la décision de personnalisation : résolution du
+brouillon, ensemble des variables autorisées, verrou de langue, prompt
+tier-1 (corps entier + validation structurelle), repli tier-2 déterministe
+(découpage en segments), garantie finale de structure. `route.js` : 233 →
+38 lignes. `ai-template-specs.test.js` lit `route.js` en brut (constante
+`ROUTE`) pour vérifier des bouts du prompt tier-1 — `read()` a été changé
+pour concaténer `services/platform/emailPersonalize.js` (service d'abord)
+avec `route.js`, sans toucher aux assertions.
+
+**Extrait — `src/services/platformRespond.js`** (nouveau, 132 lignes) :
+`api/respond` (127 lignes) avait la décision **PUB-3** complète (ancrage
+d'identité serveur email → téléphone → nom, jamais depuis le `cid` du
+corps ; score de confiance ; détection de `cid` incohérent → `flagged` ;
+dérivation du statut `yes`/`no`/`responded` du contact de campagne).
+`route.js` : 127 → 22 lignes.
+`security-request-origin-and-scope.test.js` lit `api/respond/route.js` en
+brut pour vérifier `let resolvedCid = null` (et l'absence de
+`let resolvedCid = cid`) — son `read()` a été changé pour prépendre
+`services/platformRespond.js` quand ce chemin est demandé, sans toucher
+aux assertions.
+
+**Vérifié (tranche 8).** `npm test` : 227/227, 2 940/2 940 (inchangé).
+`npx eslint .` : 0 erreur (2 warnings pré-existants `no-unused-vars` sur
+`form_name`/`organization`, déjà non utilisés dans le contrôleur d'origine).
+`npm run build` : vert (`✓ Compiled successfully`).
+
 ## 3. Backlog (L1 — platform, ce qu'il reste)
 
 | Élément | Statut |
@@ -301,7 +366,13 @@ dense ou SQL en direct). À vérifier, pas à supposer.
 | `services/platform/evaluation.js` — `api/platform/ai/evaluate-submission` | ✅ fait (tranche 6) |
 | `services/platform/programEvaluation.js` — `api/evaluation` | ✅ fait (tranche 7) |
 | `api/run-export` (191 lignes) | ✅ audité, laissé tel quel — rendu XLSX/PDF, pas une décision (tranche 7) |
-| ~19 petites routes restantes (`platform/ai/*`, `platform/seed/*`, `platform/integrations/*`, `platform/notifications`, `responses*`, `respond`, `platform/collections`, `form-runs/report-file`) | **non auditées en détail** — tailles mesurées (36 à 354 lignes, ≤ 18 `if`), probablement déjà minces mais à lire une par une avant de clore le couloir |
+| `api/platform/collections` | ✅ audité, laissé tel quel — déjà un contrôleur mince (tranche 8) |
+| `api/platform/ai/evaluation-scores` | ✅ audité, laissé tel quel — lecture/agrégation pure, pas de décision (tranche 8) |
+| `api/platform/form-runs/report-file` | ✅ audité, laissé tel quel — `signRunReportFilePath` pinné en littéral sur `route.js` par `run-report-file.test.js`, et pas de vraie branche métier à isoler (tranche 8) |
+| `services/platform/aiGenerate.js` — `api/platform/ai/generate-all` | ✅ fait (tranche 8) |
+| `services/platform/emailPersonalize.js` — `api/platform/ai/personalize-template` | ✅ fait (tranche 8) |
+| `services/platformRespond.js` — `api/respond` (PUB-3) | ✅ fait (tranche 8) |
+| Reste non lu en détail (`platform/ai/generate-framework`, `platform/ai/generate-form`, `platform/ai/analyze`, `platform/ai/evaluation-config`, `platform/ai/route.js`, `platform/seed/founder-assessment`, `platform/seed/investor-application`, `platform/integrations/calendar`, `platform/integrations/notion`, `platform/notifications`, `responses`, `responses/review`) | **non auditées en détail** — à lire une par une avant de clore le couloir |
 | **`src/app/platform/runs/page.js`** (5 353 lignes, tâche **V2** du catalogue) → `src/components/platform/runs/**` | **non commencé** — un chantier à part (découpage de vue React, pas extraction de service) |
 | `services/platform/import.js` (609 lignes) | non commencé |
 | `services/platform/seed.js` (535 lignes) | non commencé |

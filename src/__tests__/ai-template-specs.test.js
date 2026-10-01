@@ -13,7 +13,10 @@ const { TEMPLATE_SPECS, variableGuide, specVariableNames } = require("@/models/p
 const { TEMPLATE_VARIABLES } = require("@/lib/constants");
 
 const ROOT = path.resolve(__dirname, "..", "..");
-const ROUTE = fs.readFileSync(path.join(ROOT, "src/app/api/platform/ai/personalize-template/route.js"), "utf8");
+const ROUTE =
+  fs.readFileSync(path.join(ROOT, "src/services/platform/emailPersonalize.js"), "utf8") +
+  "\n" +
+  fs.readFileSync(path.join(ROOT, "src/app/api/platform/ai/personalize-template/route.js"), "utf8");
 
 describe("the AI's variable list is the editors' list", () => {
   test("every editable template takes its variables from the shared list", () => {
