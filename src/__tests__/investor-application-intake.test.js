@@ -41,6 +41,12 @@ const read = (rel) => {
   if (rel === "src/app/api/platform/forms/route.js") {
     return text + "\n" + fs.readFileSync(path.join(ROOT, "src/services/platform/forms.js"), "utf8");
   }
+  // Slice 8: the seed pipeline moved from the route into
+  // services/platform/seed.js — append it so assertions against either half
+  // still match.
+  if (rel === "src/app/api/platform/seed/investor-application/route.js") {
+    return text + "\n" + fs.readFileSync(path.join(ROOT, "src/services/platform/seed.js"), "utf8");
+  }
   return text;
 };
 

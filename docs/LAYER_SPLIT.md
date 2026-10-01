@@ -350,6 +350,64 @@ aux assertions.
 `form_name`/`organization`, déjà non utilisés dans le contrôleur d'origine).
 `npm run build` : vert (`✓ Compiled successfully`).
 
+### Tranche 9 — audit du reste du couloir L1 (IA, intégrations, notifications, responses) + `services/platform/seed.js`
+
+**Date :** 2026-10-01. **Qui :** même session.
+
+**Laissés tels quels (lus en entier, contrôleurs déjà minces) :**
+- `api/platform/ai/generate-framework`, `api/platform/ai/generate-form`,
+  `api/platform/ai/analyze`, `api/platform/ai/evaluation-config`,
+  `api/platform/ai/route.js` : chacun valide → appelle une fonction de
+  `lib/platform/ai/**` ou un modèle → met en forme. La décision (génération
+  IA, analyse) vit déjà dans `lib/platform/ai/**`, pas dans le contrôleur.
+- `api/platform/integrations/calendar`, `api/platform/integrations/notion` :
+  un `switch(action)` qui appelle une fonction de `lib/integrations/**` par
+  action — pas de règle métier dans le contrôleur.
+- `api/platform/notifications` : CRUD minimal (list / mark-read / mark-all).
+- `api/responses`, `api/responses/review` : **RETIRED** (403 systématique,
+  commentaire explicite "intentionally kept — set RETIRED = false to
+  re-enable"). Toucher du code mort retiré intentionnellement serait du
+  churn sans bénéfice ; laissé tel quel.
+
+**Extrait — `src/services/platform/seed.js`** (nouveau, 527 lignes) :
+`api/platform/seed/founder-assessment` (354 lignes) et
+`api/platform/seed/investor-application` (193 lignes) contenaient chacun un
+vrai pipeline de décision idempotent (upsert formulaire/collection/run,
+construction des sections/champs, logique conditionnelle, publication —
+pour le premier ; garde single-active-form, création form+sections+run — pour
+le second), mêlé à l'auth et à la mise en forme de réponse. Ce fichier était
+déjà anticipé dans le backlog (`services/platform/seed.js`, 535 lignes
+estimées — 527 lignes réelles, à 8 lignes près). Moved verbatim — aucun SQL
+(déjà dans `@/models/platformAi` et `@/models/investorApplication`), aucun
+HTTP. L'auth (`requireAuth`, `requireSameOrigin`) reste dans les
+contrôleurs :
+- `founder-assessment/route.js` : 354 → 39 lignes (POST + GET CSRF-gated
+  inchangés).
+- `investor-application/route.js` : 193 → 37 lignes.
+- `investor-application-intake.test.js` lit
+  `api/platform/seed/investor-application/route.js` en brut pour vérifier
+  `assertSingleInvestorForm`, `findActiveInvestorRun`,
+  `investor_application: true`, etc. — son `read()` a été étendu pour
+  concaténer ce chemin avec `services/platform/seed.js` (route d'abord,
+  aucun ordre relatif n'est testé ici), sans toucher aux assertions.
+- `security-request-origin-and-scope.test.js` vérifie `requireSameOrigin(req)`
+  sur `founder-assessment/route.js` : cette ligne reste littéralement dans
+  le contrôleur (frontière de transport/CSRF), donc aucune modification de
+  test n'était nécessaire.
+
+**Le couloir L1 (plateforme & formulaires publics) est maintenant
+entièrement audité** : chaque route de
+`src/app/api/platform/**`, `src/app/api/forms/**`, `src/app/api/s/**`,
+`src/app/api/intents/**`, `src/app/api/evaluation/**`,
+`src/app/api/respond/**`, `src/app/api/responses/**`,
+`src/app/api/run-export/**` a été lue en entier et jugée : extraite quand une
+vraie décision métier était mêlée au transport, laissée telle quelle quand le
+contrôleur était déjà mince. Il ne reste que la tâche **V2** (découpage de
+`src/app/platform/runs/page.js`, 5 353 lignes, en composants).
+
+**Vérifié (tranche 9).** `npm test` : 227/227, 2 940/2 940 (inchangé).
+`npx eslint .` : 0 erreur. `npm run build` : vert (`✓ Compiled successfully`).
+
 ## 3. Backlog (L1 — platform, ce qu'il reste)
 
 | Élément | Statut |
@@ -372,13 +430,14 @@ aux assertions.
 | `services/platform/aiGenerate.js` — `api/platform/ai/generate-all` | ✅ fait (tranche 8) |
 | `services/platform/emailPersonalize.js` — `api/platform/ai/personalize-template` | ✅ fait (tranche 8) |
 | `services/platformRespond.js` — `api/respond` (PUB-3) | ✅ fait (tranche 8) |
-| Reste non lu en détail (`platform/ai/generate-framework`, `platform/ai/generate-form`, `platform/ai/analyze`, `platform/ai/evaluation-config`, `platform/ai/route.js`, `platform/seed/founder-assessment`, `platform/seed/investor-application`, `platform/integrations/calendar`, `platform/integrations/notion`, `platform/notifications`, `responses`, `responses/review`) | **non auditées en détail** — à lire une par une avant de clore le couloir |
+| `platform/ai/generate-framework`, `platform/ai/generate-form`, `platform/ai/analyze`, `platform/ai/evaluation-config`, `platform/ai/route.js` | ✅ audités, laissés tels quels — contrôleurs déjà minces (tranche 9) |
+| `platform/integrations/calendar`, `platform/integrations/notion` | ✅ audités, laissés tels quels — dispatch par action, pas de décision (tranche 9) |
+| `platform/notifications` | ✅ audité, laissé tel quel — CRUD minimal (tranche 9) |
+| `api/responses`, `api/responses/review` | ✅ audités, laissés tels quels — RETIRED (403), code mort intentionnellement conservé (tranche 9) |
+| `services/platform/seed.js` — `platform/seed/founder-assessment` + `platform/seed/investor-application` | ✅ fait (tranche 9) |
+| **Couloir L1 — audit des contrôleurs** | ✅ **terminé** (tranches 1-9) — il ne reste que la tâche V2 (vue) |
 | **`src/app/platform/runs/page.js`** (5 353 lignes, tâche **V2** du catalogue) → `src/components/platform/runs/**` | **non commencé** — un chantier à part (découpage de vue React, pas extraction de service) |
-| `services/platform/import.js` (609 lignes) | non commencé |
-| `services/platform/seed.js` (535 lignes) | non commencé |
-| `services/platform/report.js` (426 lignes) | non commencé |
-| `src/app/platform/runs/page.js` → `src/components/platform/runs/**` (V2) | non commencé |
-| Autres routes du couloir (`api/s/public-submit`, `api/intents`, `api/evaluation`, `api/respond`, `api/responses`, `api/run-export`, le reste de `api/platform/**`) | à délimiter (`ls`/`grep` du §1 de `PLAN_DE_TRAVAIL_STAGIAIRES.md`) |
+| `services/platform/report.js` (~426 lignes estimées, pas encore audité — pas de route identifiée dans le couloir L1 pour ce nom ; à vérifier contre `origin/interns` avant toute réconciliation) | non commencé / à clarifier |
 
 ## 4. Note — deux journaux, une divergence connue
 
