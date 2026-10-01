@@ -429,10 +429,13 @@ Du plus rentable / débloquant au plus tard :
 > décision métier à déplacer (aiguillage ou délégation).
 
 | CH-1 — **V15** (scores plateforme) | ✅ fait | `src/app/admin/platform/scores/page.js` (894 l.) découpée : composants présentationnels dans `src/components/admin/platform-scores/` (`ScoresHeader`, `ScoresControls`, `ScoresStats`, `ScoresFilters`, `BulkActionBar`, `RespondentsTable`, `BulkConfirmModal`, `statusConfig`). L'état, les chargements, les mémoïses, l'export CSV et les actions restent dans la page ; rendu inchangé. Tests 258 suites / 3803 ✅, lint 0 erreur, build ✅. |
+| CH-1 — **V12** (relations investisseurs, admin) | ✅ fait | `src/app/admin/investors/relationships/page.js` (947 l.) découpée : composants dans `src/components/admin/investor-relationships/` (`RelationshipsToast`, `RelationshipsHeader`, `WorkspaceSummaryCard`, `DetailTabs`, `MeetingsPanel`, `DiligencePanel`, `WorkspaceListView`, `CreateMeetingModal`, `CompleteMeetingModal`, `AddDdRequestModal`, `constants`). Toutes les lectures, l'état et les actions restent dans la page ; rendu inchangé. Tests 258 suites / 3803 ✅, lint 0 erreur, build ✅. |
+| CH-1 — **V11** (tableau de bord investisseur) | ✅ fait | `src/app/investor/dashboard/page.js` (948 l.) découpée : composants dans `src/components/investor/dashboard-page/` (`DashboardStats`, `DashboardTabs`, `CampaignsSection`, `UpcomingMeetingsSection`, `VentureFilters`, `VentureGrid`, `PipelineTab`, `WatchlistTab`, `IntroRequestModal`, `VentureDetailModal`, `ComparisonBar`, `ComparisonModal`, `ProfileGate`, `constants`). Les lectures (`useApi`), l'état, les actions et l'export restent dans la page ; rendu inchangé. Tests 258 suites / 3803 ✅, lint 0 erreur, build ✅. |
 
-> **CH-1 / CH-2 (vues et composants réservés) : en cours.** Côté vues, **V15**
-> est faite ; côté composants, **B5, B8, B9** et **B13** sont faits. Restent les
-> vues V1, V3, V4, V5, V7, V9–V12, V14, V17 et les composants B3, B4, B11, B12.
+> **CH-1 / CH-2 (vues et composants réservés) : en cours.** Côté vues, **V15**,
+> **V12** et **V11** sont faites ; côté composants, **B4, B5, B8, B9, B12** et
+> **B13** sont faits. Restent les vues V1, V3, V4, V5, V7, V9, V10, V14, V17 et
+> les composants B3, B11.
 
 ---
 
