@@ -1932,6 +1932,31 @@ That closes the submissions controller frontier — `/api/submissions` went from
 
 ---
 
+### Domain 75 — the platform controller frontier: the form-runs emails & report document (slice 95)
+
+The second slice of the platform monolith `form-runs`, after the Run-detail read
+(93): the decision/result email and document cluster.
+`sendDecisionEmailForSubmission` (the run→form→default template chain, the group
+gate, the duplicate-recipient sentinel), `buildResultDocument` (the answer
+rebuild, the weighted score with the human overrides, the composed-report brief —
+Output Instruction *or* attached document — and the PDF renderer selection),
+`sendResultEmailForSubmission`, the scheduled `dispatchScheduledResultEmails` and
+`logTimeline` move to `services/platform/formRuns.js`, together with the
+`formatResultAnswer` / `isFounderFitResultRun` helpers. The route keeps
+`scheduleResultSweep` and `processReviewInternal` — both use the `next/server`
+`after` — and imports the moved functions from the service.
+
+**Source-pins repointed**, same assertions, new home (the service):
+`result-email-founder-fit`, `result-email-schedule`, `result-pdf-on-approval`,
+`run-output-instruction` and `run-report-file`. `db-sequencing-audit` is
+unchanged.
+
+`npm test` (240 suites, 3468 tests), `npx eslint` (0 errors) and `npm run build`
+are green. **`processReviewInternal` and the rest of the `form-runs` POST action
+vocabulary are the next platform slices.**
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1972,7 +1997,7 @@ cleanup, not layering:
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
-| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85) and the `form-runs` Run-detail read (93); the `form-runs` write half and the remaining platform AI/import/seed routes to do |
+| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85), the `form-runs` Run-detail read (93) and its email/report-document cluster (95); the `form-runs` review + POST action vocabulary and the remaining platform AI/import/seed routes to do |
 | Communications | `services/communications/*` | ✅ **controller frontier complete** — message scope (earlier), campaigns (86), internal messages (87), announcements (88), follow-ups and events (89–90) |
 | Submissions | `services/ventures/submissions.js` | ✅ **controller frontier complete** — the submit POST (91), the review PATCH (92), the list GET (93) and the score PUT (94) |
 
