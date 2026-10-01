@@ -1732,6 +1732,35 @@ That closes the CRM controller frontier: every CRM route is a thin controller.
 
 ---
 
+### Domain 65 — the LMS / platform controller frontier (slices 84–85)
+
+**Slice 84 — `lms/registrations/[id]`, the registration team actions** →
+`services/lms/registrations.js` (`applyRegistrationAction`). The four team
+actions and their rules move: retry-access (replay the access step, then hand
+over a FRESH one-time link), resend-email, refund at the provider with an
+optional same-step access revocation (refunding and revoking stay two separate
+decisions), and revoke-access (only for a refunded registration, leaving a
+journal line). The route keeps `lms.edit` and the response envelope. New
+characterisation net `lms-registrations-review.test.js`; the fake-database
+`lms-checkout` suite still drives refund/revoke end to end.
+
+**Slice 85 — `platform/ai/evaluate-submission`, the AI evaluation** →
+`services/platform/evaluation.js` (`handleEvaluationPost`,
+`getEvaluationResult`). The client-driven batch model (claim an expiry-stamped
+row so two processes never double-evaluate, evaluate with bounded concurrency,
+release, record failures for a targeted retry), the progress counts and the
+single evaluation (with the `force` re-evaluate) move; the route keeps the
+`runs.*` capability split — `runs.view` for watching progress, `runs.review` for
+evaluating (it can auto-approve). `withTimeout` now clears its timer so a
+finished batch leaves no dangling handle. New characterisation net
+`platform-evaluation-api.test.js`.
+
+`npm test` (239 suites, 3440 tests), `npx eslint` (0 errors) and `npm run build`
+are green. **`platform/form-runs` (2691 lines) and the rest of the platform
+AI/import/seed routes are the remaining heavy controllers.**
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1772,7 +1801,7 @@ cleanup, not layering:
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
-| LMS / platform / integrations | `services/<domain>/*` | ⏳ **LMS + platform started** — learner experience (slice 17), checkout (slice 18), Run report (slice 21); registrations/email-personalize checked (no split needed) |
+| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85); `platform/form-runs` and the remaining platform AI/import/seed routes to do |
 
 #### Remaining mixed model modules (the actual backlog)
 
