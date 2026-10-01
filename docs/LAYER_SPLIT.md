@@ -15,9 +15,10 @@
 > `syncMilestoneFromWork` is gone), 29 the assignment-scope layer and the
 > operating-plan access helpers, 30 the roadmap readiness engine and the Venture
 > notification helpers, 31 the venture progress reports, 32 the Venture coach
-> identity/invitation layer, 33 the first `ventures.js` domain (activity, history
-> and notifications) out of the monolith. The remaining mixed model modules are
-> itemised in §4. This document is the running log. Update it
+> identity/invitation layer, 33–34 the first `ventures.js` domains out of the
+> monolith (activity/history/notifications, then the startup-profile wizard). The
+> remaining mixed model modules are itemised in §4. This document is the running
+> log. Update it
 > at the end of every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
@@ -669,6 +670,24 @@ dedupe keys (including the `sa:` suffix) and the founder/`sa` audience.
 
 ---
 
+### Domain 21 — the `ventures.js` monolith: the startup-profile wizard (slice 34)
+
+**Domain 2.** The 6-step startup-profile wizard: its per-step validation rules
+and completion weighting (pure), the profile/progress readers and writers, the
+document upsert, and the edit/read access checks. Everything moves to
+`services/ventures/profile.js`; every statement to
+`models/ventureProfileStore.js`; `src/lib/ventures.js` re-exports the whole
+surface (constants included) so the wizard page, its two routes and the
+dashboard route are untouched. `submitStartupProfile` now imports the activity
+helpers from the sibling `services/ventures/activity` instead of dynamically
+importing the monolith — the barrel was only needed before the split.
+
+**Unchanged:** the SQL (byte-identical), the step keys and column names, the
+completion weights, the access rules (super-admin, founder by email, founder
+member, delegated staff by assignment) and the document file-type allow-list.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -853,8 +872,9 @@ Two source-pinning suites were repointed (same assertion, new home):
   and `ventureNotify.js` (slice 30), `ventureReports.js` (slice 31) and
   `ventureCoach.js` (slice 32) are done — all facades over `services/ventures/*`.
   `ventures.js` (5.8k lines) is being emptied domain by domain: its
-  activity/history/notification domain is out (slice 33) and re-exported through
-  the barrel. A long tail of `src/lib` modules still
+  activity/history/notification domain is out (slice 33) and its startup-profile
+  wizard is out (slice 34), both re-exported through the barrel. A long tail of
+  `src/lib` modules still
   holds SQL (the remaining domains of `ventures.js`, plus the
   non-venture ones `auth.js`, `email.js`, `audit.js`, `token-hashing.js`,
   `request-context.js`, `lms/coaching.js`) — the next repository-extraction
