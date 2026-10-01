@@ -43,6 +43,7 @@ const SEED_ROUTE = "src/app/api/platform/seed/investor-application/route.js";
 const SEED_SERVICE = "src/services/platform/seed.js";
 const RUN_ROUTE = "src/app/api/platform/investor-run/route.js";
 const FORMS_ROUTE = "src/app/api/platform/forms/route.js";
+const FORMS_SERVICE = "src/services/platform/forms.js";
 const AUTOMATION = "src/models/platform/automation.js";
 const INTAKE_MODEL = "src/models/investorIntake.js";
 const ADMIN_PAGE = "src/app/admin/investors/page.js";
@@ -77,11 +78,15 @@ describe("static contract — the investor intake wiring", () => {
   });
 
   test("no write path may flag a second investor form (API guard)", () => {
-    const src = read(FORMS_ROUTE);
-    const guardUsages = [...src.matchAll(/assertSingleInvestorForm\(/g)];
+    // The route calls the shared guard on both write paths (create + update);
+    // the assertion and the refusal code live in the service.
+    const route = read(FORMS_ROUTE);
+    const guardUsages = [...route.matchAll(/guardInvestorIntake\(/g)];
     // One guard on create, one on update.
     expect(guardUsages.length).toBe(2);
-    expect(src).toMatch(/SINGLE_INVESTOR_FORM/);
+    const service = read(FORMS_SERVICE);
+    expect(service).toMatch(/assertSingleInvestorForm\(/);
+    expect(service).toMatch(/SINGLE_INVESTOR_FORM/);
   });
 
   test("the DB backstop is a partial unique index on the investor flag", () => {

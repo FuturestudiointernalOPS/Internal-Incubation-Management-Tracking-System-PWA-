@@ -24,6 +24,9 @@
  *   analysis.js — the advisory AI summary/analysis of one submission
  *   evaluationScores.js — the run-scoped evaluation scoreboard
  *   scoring.js — the assessment scoring (per-section, weighted, ranked)
+ *   forms.js — the Forms CRUD + versioning (snapshot fallback, publish,
+ *               the FK-safe builder save, the investor-intake guard)
+ *   collections.js — the Collections CRUD (list + tree, slug, audit)
  */
 
 export * from "./report";
@@ -37,3 +40,5 @@ export * from "./personalize";
 export * from "./analysis";
 export * from "./evaluationScores";
 export * from "./scoring";
+export * from "./forms";
+export * from "./collections";
