@@ -2215,11 +2215,37 @@ are green.
 
 ---
 
+### Domain 81 — the model facades are gone (slice 117)
+
+The eight compatibility facades that §3 held back are now deleted — every
+importer points straight at the service (or the reads store):
+`models/authorization/{resolver,scope,contextGrantReadiness,eligibility-admin,context,contextGrants,programAssignments,programScopeReadiness}.js`.
+The lib shims (`lib/authorization/{resolver,context,scope,eligibility-admin}.js`)
+now re-export the service directly, and the `models/authorization` barrel takes
+the decision surface from
+`@/services/authorization/{context,scopedAccess,eligibilityAdmin}`.
+`programAssignments` (which also re-exported its reads store) splits cleanly:
+callers take the reads from `models/authorization/programAssignmentReads` and the
+decisions from `services/authorization/programAssignments`. The
+`services-boundaries` façade assertion now reads the lib façade.
+
+Two model→service edges survive and stay listed in §3:
+`programAssignmentBackfill.js` and `models/authorization/contactContexts.js`
+(it needs `resolveScopeIds`).
+
+`npm test` (252 suites, 3675 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
-1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
-   `eligibility-admin`, `context`, `contextGrants`, `programAssignments`) create
-   shim-only model→service edges; they are deleted once nothing imports them.
+1. **Model facades** — **deleted** (slice 117): `resolver`, `scope`,
+   `contextGrantReadiness`, `eligibility-admin`, `context`, `contextGrants`,
+   `programAssignments`, `programScopeReadiness`. Two model→service edges
+   remain: `programAssignmentBackfill.js` (item 2) and
+   `models/authorization/contactContexts.js`, which calls the scope service for
+   `resolveScopeIds`.
 2. **`models/authorization/programAssignmentBackfill.js` imports the level
    decision from the service** — a backfill (data work) that needs a decision;
    it stays in models for now.
