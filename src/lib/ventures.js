@@ -1188,204 +1188,24 @@ export {
   getLoginStats,
 };
 
-// =============================================================================
-// ENHANCEMENT 5.4: EXTERNAL INTEGRATIONS & PUBLIC APIs
-// =============================================================================
-
-import crypto from "crypto";
-
-const API_KEY_PREFIX = "IMP";
-
-// ─── Integration Providers ──────────────────────────────────────────────────
-
-export async function getIntegrationProviders() {
-  return (await db.execute({ sql: "SELECT * FROM integration_providers WHERE is_available=TRUE ORDER BY name" })).rows || [];
-}
-
-export async function getIntegrations({ ventureId, provider, status, limit=50, offset=0 } = {}) {
-  let sql = "SELECT ic.*, ip.name as provider_name, ip.description as provider_description, ip.icon as provider_icon FROM integration_configs ic LEFT JOIN integration_providers ip ON ic.provider=ip.provider_key WHERE 1=1";
-  const args = [];
-  if (ventureId) { sql += " AND ic.venture_id=?"; args.push(ventureId); }
-  if (provider) { sql += " AND ic.provider=?"; args.push(provider); }
-  if (status) { sql += " AND ic.status=?"; args.push(status); }
-  sql += " ORDER BY ic.created_at DESC LIMIT ? OFFSET ?"; args.push(limit, offset);
-  return (await db.execute({ sql, args })).rows || [];
-}
-
-export async function createIntegration({ provider, label, ventureId, config, createdBy }) {
-  // Verify provider exists
-  const providerExists = await db.execute({ sql: "SELECT id FROM integration_providers WHERE provider_key=? AND is_available=TRUE", args: [provider] });
-  if (providerExists.rows.length === 0) throw new Error("Invalid or unavailable integration provider.");
-
-  const id = (await db.execute({
-    sql: `INSERT INTO integration_configs (provider, label, venture_id, config, status, created_by) VALUES (?, ?, ?, ?::jsonb, 'connected', ?) RETURNING id`,
-    args: [provider, label||null, ventureId||null, JSON.stringify(config||{}), createdBy||"system"],
-  })).rows[0]?.id;
-
-  await logAuditEvent({
-    eventType: "INTEGRATION_CONNECTED", actorCid: createdBy,
-    entityType: "integration", entityId: String(id),
-    description: `Integration connected: ${provider}`,
-    severity: "info",
-  });
-
-  return { id };
-}
-
-export async function updateIntegration(id, updates, updatedBy) {
-  const allowed = ["label", "config", "credentials_encrypted", "status"];
-  const sets = []; const args = [];
-  for (const column of allowed) {
-    if (updates[column] !== undefined) {
-      if (column === "config") { sets.push("config=?::jsonb"); args.push(JSON.stringify(updates[column])); }
-      else { sets.push(`${column}=?`); args.push(updates[column]); }
-    }
-  }
-  if (updates.status === "disconnected") {
-    await logAuditEvent({
-      eventType: "INTEGRATION_REMOVED", actorCid: updatedBy,
-      entityType: "integration", entityId: String(id),
-      description: `Integration disconnected: ${id}`,
-      severity: "info",
-    });
-  }
-  if (sets.length === 0) return { updated: false };
-  sets.push("updated_at=NOW()"); args.push(id);
-  await db.execute({ sql: `UPDATE integration_configs SET ${sets.join(",")} WHERE id=?`, args });
-  return { updated: true };
-}
-
-export async function deleteIntegration(id, deletedBy) {
-  const integration = (await db.execute({ sql: "SELECT * FROM integration_configs WHERE id=?", args: [id] })).rows[0];
-  if (!integration) throw new Error("Integration not found.");
-  await db.execute({ sql: "DELETE FROM integration_configs WHERE id=?", args: [id] });
-  await logAuditEvent({
-    eventType: "INTEGRATION_REMOVED", actorCid: deletedBy,
-    entityType: "integration", entityId: String(id),
-    description: `Integration deleted: ${integration.provider}`,
-    severity: "warning",
-  });
-  return { success: true };
-}
-
-// ─── API Keys ───────────────────────────────────────────────────────────────
-
-function generateApiKeyId() {
-  const suffix = crypto.randomBytes(6).toString("hex").toUpperCase();
-  return `${API_KEY_PREFIX}-${suffix}`;
-}
-
-function generateApiKeySecret() {
-  return `sk-${crypto.randomBytes(24).toString("hex")}`;
-}
-
-function hashApiKey(secret) {
-  return crypto.createHash("sha256").update(secret).digest("hex");
-}
-
-export async function createApiKey({ name, description, scopes, expiresAt, allowedIps, rateLimit, createdBy }) {
-  const keyId = generateApiKeyId();
-  const secret = generateApiKeySecret();
-  const keyHash = hashApiKey(secret);
-
-  if (!scopes || scopes.length === 0) throw new Error("At least one scope is required.");
-
-  const id = (await db.execute({
-    sql: `INSERT INTO api_keys (key_id, key_hash, name, description, scopes, created_by, expires_at, allowed_ips, rate_limit) VALUES (?, ?, ?, ?, ?::jsonb, ?, ?, ?::jsonb, ?) RETURNING id`,
-    args: [keyId, keyHash, name.trim(), description||null, JSON.stringify(scopes), createdBy, expiresAt||null, JSON.stringify(allowedIps||[]), rateLimit||100],
-  })).rows[0]?.id;
-
-  await logAuditEvent({
-    eventType: "API_KEY_CREATED", actorCid: createdBy,
-    entityType: "api_key", entityId: keyId,
-    description: `API key created: ${name}`,
-    severity: "info",
-  });
-
-  // Return the secret ONCE — it will never be shown again
-  return { id, key_id: keyId, secret, name };
-}
-
-export async function getApiKeys({ createdBy, isActive, limit=50, offset=0 } = {}) {
-  let sql = "SELECT id, key_id, name, description, scopes, created_by, expires_at, last_used_at, is_active, rate_limit, created_at, updated_at FROM api_keys WHERE 1=1";
-  const args = [];
-  if (createdBy) { sql += " AND created_by=?"; args.push(createdBy); }
-  if (isActive !== undefined) { sql += " AND is_active=?"; args.push(isActive ? 1 : 0); }
-  sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?"; args.push(limit, offset);
-  return (await db.execute({ sql, args })).rows || [];
-}
-
-export async function revokeApiKey(keyId, revokedBy) {
-  const key = (await db.execute({ sql: "SELECT * FROM api_keys WHERE key_id=? AND is_active=TRUE", args: [keyId] })).rows[0];
-  if (!key) throw new Error("API key not found or already revoked.");
-  await db.execute({ sql: "UPDATE api_keys SET is_active=FALSE, updated_at=NOW() WHERE key_id=?", args: [keyId] });
-  await logAuditEvent({
-    eventType: "API_KEY_REVOKED", actorCid: revokedBy,
-    entityType: "api_key", entityId: keyId,
-    description: `API key revoked: ${key.name}`,
-    severity: "warning",
-  });
-  return { success: true };
-}
-
-export async function rotateApiKey(keyId, _rotatedBy) {
-  const key = (await db.execute({ sql: "SELECT * FROM api_keys WHERE key_id=? AND is_active=TRUE", args: [keyId] })).rows[0];
-  if (!key) throw new Error("API key not found or inactive.");
-  const newSecret = generateApiKeySecret();
-  const newHash = hashApiKey(newSecret);
-  await db.execute({ sql: "UPDATE api_keys SET key_hash=?, updated_at=NOW() WHERE key_id=?", args: [newHash, keyId] });
-  return { key_id: keyId, secret: newSecret };
-}
-
-// ─── API Usage Logging & Rate Limiting ──────────────────────────────────────
-
-// ─── Webhooks ───────────────────────────────────────────────────────────────
-
-export async function createWebhook({ name, url, secret, events, ventureId, retryCount, timeoutMs, createdBy }) {
-  if (!url || !url.startsWith("https://")) throw new Error("Webhook URL must use HTTPS.");
-  if (!events || events.length === 0) throw new Error("At least one event is required.");
-
-  const id = (await db.execute({
-    sql: `INSERT INTO webhooks (name, url, secret, events, venture_id, retry_count, timeout_ms, created_by) VALUES (?, ?, ?, ?::jsonb, ?, ?, ?, ?) RETURNING id`,
-    args: [name.trim(), url, secret||null, JSON.stringify(events), ventureId||null, retryCount||3, timeoutMs||10000, createdBy||"system"],
-  })).rows[0]?.id;
-
-  await logAuditEvent({
-    eventType: "WEBHOOK_CREATED", actorCid: createdBy,
-    entityType: "webhook", entityId: String(id),
-    description: `Webhook created: ${name} → ${url}`,
-    severity: "info",
-  });
-
-  return { id };
-}
-
-export async function getWebhooks({ ventureId, event, isActive, limit=50, offset=0 } = {}) {
-  let sql = "SELECT * FROM webhooks WHERE 1=1";
-  const args = [];
-  if (ventureId) { sql += " AND venture_id=?"; args.push(ventureId); }
-  if (event) { sql += " AND events::jsonb @> ?::jsonb"; args.push(JSON.stringify([event])); }
-  if (isActive !== undefined) { sql += " AND is_active=?"; args.push(isActive ? 1 : 0); }
-  sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?"; args.push(limit, offset);
-  return (await db.execute({ sql, args })).rows || [];
-}
-
-export async function deleteWebhook(id, _deletedBy) {
-  const webhook = (await db.execute({ sql: "SELECT * FROM webhooks WHERE id=?", args: [id] })).rows[0];
-  if (!webhook) throw new Error("Webhook not found.");
-  await db.execute({ sql: "DELETE FROM webhooks WHERE id=?", args: [id] });
-  return { success: true };
-}
-
-// ─── Webhook Delivery Logs ──────────────────────────────────────────────────
-
-export async function getWebhookDeliveryLogs(webhookId, { limit=50, offset=0, status } = {}) {
-  let sql = "SELECT * FROM webhook_delivery_logs WHERE webhook_id=?";
-  const args = [webhookId];
-  if (status) { sql += " AND status=?"; args.push(status); }
-  sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?"; args.push(limit, offset);
-  return (await db.execute({ sql, args })).rows || [];
-}
+// ── ENHANCEMENT 5.4: External integrations & public APIs ────────────────────
+// Extracted to the service layer; re-exported for existing importers
+// (see docs/LAYER_SPLIT.md).
+export {
+  getIntegrationProviders,
+  getIntegrations,
+  createIntegration,
+  updateIntegration,
+  deleteIntegration,
+  createApiKey,
+  getApiKeys,
+  revokeApiKey,
+  rotateApiKey,
+  createWebhook,
+  getWebhooks,
+  deleteWebhook,
+  getWebhookDeliveryLogs,
+} from "@/services/ventures/integrations";
 
 // =============================================================================
 // ENHANCEMENT 5.5: SYSTEM MONITORING, HEALTH & REPORTING

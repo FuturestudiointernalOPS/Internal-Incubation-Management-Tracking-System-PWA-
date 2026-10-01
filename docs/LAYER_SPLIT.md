@@ -18,13 +18,14 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–54 the next `ventures.js`
+> controller (workspace, then collaboration), 39–55 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
 > project timeline & dependencies, reports & project analytics, coach & mentor
 > management, mentoring sessions & scheduling, knowledge hub & learning,
 > mentor feedback & analytics, investment readiness, investor matching, pitch deck
 > & data room, the fundraising pipeline, investment analytics, administration &
-> system config, the notification centre, then audit logs & security). The
+> system config, the notification centre, audit logs & security, then external
+> integrations & public APIs). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1135,6 +1136,21 @@ non-blocking audit write and the login-stat keys.
 
 ---
 
+### Domain 41 — the `ventures.js` monolith: external integrations & public APIs (slice 55)
+
+**Domain 22** (ENHANCEMENT 5.4). The integration providers/configs, the API keys
+(mint with the one-time secret, list, revoke, rotate) and the webhooks (with the
+HTTPS/event guards) plus their delivery logs; every mutation writes an audit
+event. Decisions move to `services/ventures/integrations.js`; every statement to
+`models/ventureIntegrationsStore.js`; `src/lib/ventures.js` re-exports the
+thirteen functions. The `crypto` import and the key-id/secret/hash helpers left
+the monolith with the domain.
+
+**Unchanged:** the SQL (byte-identical), the provider check, the key id/secret/
+hash scheme, the HTTPS + event guards.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1336,7 +1352,8 @@ Two source-pinning suites were repointed (same assertion, new home):
   is out (slice 51), and its administration & system config domain
   is out (slice 52), and its notification centre domain
   is out (slice 53), and its audit logs & security domain
-  is out (slice 54), all
+  is out (slice 54), and its external integrations & public APIs
+  domain is out (slice 55), all
   re-exported through the barrel. A
   long tail of
   `src/lib` modules still
