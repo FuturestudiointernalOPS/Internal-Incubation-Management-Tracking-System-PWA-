@@ -89,7 +89,7 @@ statique `createHandler({ roles })`, pas de bascule matrix)*
 |---|---|---|
 | ~~a~~ | ~~`access-profiles/route.js`~~ | **fait** → `services/authorization/accessProfileWrites.js` (`normalizeCapabilities`, gate désactivation, `assertCapsEligibleForProfile`, `replaceProfileCapabilities`, `assertProfileDeletable`) ; filet `access-profile-decisions.test.js` |
 | ~~b~~ | ~~`access-profiles/assign/route.js`~~ | **fait** → `services/authorization/profileAssignment.js` (`isSelfAssignment`, `assertAssignmentEligible`, `evaluateCapabilityLoss`, `resolveRemovalFallback`) ; filet `access-profile-assign-decisions.test.js` |
-| c | `responsibilities/assign/route.js` | SoD self-assign, branches assign/remove (garder le swallow loggé de base-access), fallthrough inconnu |
+| ~~c~~ | ~~`responsibilities/assign/route.js`~~ | **fait** → `services/authorization/responsibilityAssignment.js` (`isSelfResponsibilityChange`, `grantBaseAccessForResponsibility`, `revokeBaseAccessForResponsibility`, `formatBaseAccessNote`) ; filet `responsibility-assign-decisions.test.js` |
 | d | `responsibilities/route.js` + `access/route.js` | 5 écritures conditionnelles PUT, count-then-delete, distinction `null` vs `[]` + dédupe |
 | e | `org-membership/route.js` | 2 WHERE builders + args, N+1 groupes protégés → batch, chaîne de transition lifecycle |
 | f | `eligibility/route.js` | gate faible `canConfigure`, dérivation `extraRoles`, probe d'impact C2 (409 templates), boucle audit |

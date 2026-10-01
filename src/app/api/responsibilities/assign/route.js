@@ -15,9 +15,13 @@ import {
   getContactByCid,
   getContactName,
   getResponsibilityName,
-  grantResponsibilityBaseAccess,
-  revokeResponsibilityBaseAccess,
 } from "@/models/responsibilities";
+import {
+  isSelfResponsibilityChange,
+  grantBaseAccessForResponsibility,
+  revokeBaseAccessForResponsibility,
+  formatBaseAccessNote,
+} from "@/services/authorization/responsibilityAssignment";
 
 /**
  * PUT /api/responsibilities/assign
@@ -44,7 +48,7 @@ export async function PUT(req) {
     // Separation of duties: nobody changes their OWN responsibilities, not even
     // a Super Admin. Self-granting a responsibility (and its base module access)
     // is the escalation this refuses.
-    if (session?.cid && String(session.cid) === String(user_cid)) {
+    if (isSelfResponsibilityChange(session, user_cid)) {
       return NextResponse.json(
         { success: false, error: "You cannot change your own responsibilities." },
         { status: 403 },
@@ -75,22 +79,13 @@ export async function PUT(req) {
       // fails the assignment (best-effort; a failure only leaves the area
       // without module access, like before).
       const responsibilityKey = responsibilityResult.rows[0]?.key || null;
-      let grantedModules = [];
-      if (responsibilityKey) {
-        try {
-          grantedModules = await grantResponsibilityBaseAccess({
-            userCid: user_cid,
-            responsibilityKey,
-            grantedBy: session?.cid,
-          });
-        } catch (grantErr) {
-          console.error("[Responsibilities Assign] base access grant failed:", grantErr.message);
-        }
-      }
+      const grantedModules = await grantBaseAccessForResponsibility({
+        userCid: user_cid,
+        responsibilityKey,
+        grantedBy: session?.cid,
+      });
 
-      const baseAccessNote = grantedModules.length
-        ? `. Base access granted: ${grantedModules.join(", ")}`
-        : "";
+      const baseAccessNote = formatBaseAccessNote("granted", grantedModules);
 
       await logPermissionAudit({
         actorCid: session?.cid,
@@ -121,21 +116,12 @@ export async function PUT(req) {
       // longer leaves its area silently reachable. Best-effort — a failure only
       // leaves the grants in place, as before.
       const responsibilityKey = responsibilityResult.rows[0]?.key || null;
-      let revokedModules = [];
-      if (responsibilityKey) {
-        try {
-          revokedModules = await revokeResponsibilityBaseAccess({
-            userCid: user_cid,
-            responsibilityKey,
-          });
-        } catch (revokeErr) {
-          console.error("[Responsibilities Assign] base access revoke failed:", revokeErr.message);
-        }
-      }
+      const revokedModules = await revokeBaseAccessForResponsibility({
+        userCid: user_cid,
+        responsibilityKey,
+      });
 
-      const revokeNote = revokedModules.length
-        ? `. Base access revoked: ${revokedModules.join(", ")}`
-        : "";
+      const revokeNote = formatBaseAccessNote("revoked", revokedModules);
 
       await logPermissionAudit({
         actorCid: session?.cid,
