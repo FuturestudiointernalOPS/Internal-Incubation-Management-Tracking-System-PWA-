@@ -40,7 +40,6 @@ import ScopedNotes from "@/components/ventures/ScopedNotes";
 import PlanImportPanel from "@/components/ventures/PlanImportPanel";
 import VentureChangeLogPanel from "@/components/ventures/VentureChangeLogPanel";
 import VenturePersonField from "@/components/ventures/VenturePersonField";
-import AppModal from "@/components/ui/AppModal";
 import AppMenu from "@/components/ui/AppMenu";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { minSessionStartInput, isValidSessionStart, SESSION_MATERIALS_MAX, toDateInput, toTimeInput } from "@/lib/ventureSessionRules";
@@ -53,6 +52,18 @@ import {
   todayDateInput,
 } from "@/lib/ventureMilestoneDates";
 import { useApi } from "@/lib/hooks/useApi";
+import {
+  EMPTY_JOURNEY,
+  pickJourney,
+  pickSessions,
+  DATE_ISSUE_KEYS,
+  findStageMilestone,
+  datePickerFloor,
+  datePickerCeiling,
+  pickReportsByStage,
+} from "@/components/ventures/journey/journeyShapers";
+import JourneyConfirmModal from "@/components/ventures/journey/JourneyConfirmModal";
+import MilestoneSessionsList from "@/components/ventures/journey/MilestoneSessionsList";
 
 /**
  * JourneyManagerPanel — staff instrument for a Venture's Journey.
@@ -68,79 +79,6 @@ import { useApi } from "@/lib/hooks/useApi";
  * global permission matrix (`operating_plan` area) + venture-wide assignment.
  * Members only ever see the published stages on their own Journey tab.
  */
-
-// ─── Read shapers (module scope: built once, never per render) ───────────
-
-// What the journey read starts from, and what a refused answer leaves standing.
-const EMPTY_JOURNEY = {
-  stages: [],
-  access: { create: false, edit: false, manage: false },
-  templateSource: null,
-  milestoneAuthority: false,
-  deliverablesUnavailable: false,
-};
-
-const pickJourney = (payload) =>
-  payload?.success
-    ? {
-        stages: payload.stages || [],
-        access: payload.access || EMPTY_JOURNEY.access,
-        templateSource: payload.template_source || null,
-        milestoneAuthority: Boolean(payload.milestone_authority),
-        deliverablesUnavailable: Boolean(payload.deliverables_unavailable),
-      }
-    : EMPTY_JOURNEY;
-
-const pickSessions = (payload) => (payload?.success ? payload.sessions || [] : []);
-
-// Why a milestone or deliverable date was refused, in the reader's language.
-const DATE_ISSUE_KEYS = {
-  milestone_date_past: "venture.manager.milestoneDatePast",
-  milestone_date_after_next: "venture.manager.milestoneDateAfterNext",
-  milestone_date_after_deliverable: "venture.manager.milestoneDateAfterDeliverable",
-  deliverable_date_before: "venture.manager.deliverableDateBeforeMilestone",
-  deliverable_date_past: "venture.manager.deliverableDatePast",
-};
-
-/** The milestone being edited, as the journey read gave it (deliverables included). */
-const findStageMilestone = (stages, milestoneId) =>
-  (stages || []).flatMap((stage) => stage.milestones || []).find((milestone) => String(milestone.id) === String(milestoneId)) || null;
-
-/**
- * The floor a date picker may show: the natural floor, unless the stored date
- * is already earlier — an existing record is corrected, never blocked, by the
- * picker itself (an untouched stored date is re-validated on save instead).
- */
-const datePickerFloor = (naturalFloor, storedDate) => {
-  const stored = dateOnly(storedDate);
-  return stored && stored < naturalFloor ? stored : naturalFloor;
-};
-
-/**
- * The ceiling a date picker may show, on the same principle: a milestone whose
- * stored date already sits past the bound it is measured against stays
- * selectable, so a legacy roadmap is never locked out of its own edit form.
- * Returns null when nothing bounds it.
- */
-const datePickerCeiling = (naturalCeiling, storedDate) => {
-  if (!naturalCeiling) return null;
-  const stored = dateOnly(storedDate);
-  return stored && stored > naturalCeiling ? stored : naturalCeiling;
-};
-
-// A report BELONGS to a journey, so the payload is grouped by the journey it is
-// anchored to. Legacy period-based reports are not journey-anchored: they stay
-// readable in history and are simply not shown against a journey.
-const pickReportsByStage = (payload) => {
-  const grouped = {};
-  if (!payload?.success) return grouped;
-  for (const report of payload.reports || []) {
-    const key = String(report.journey_stage_id || "");
-    if (!key) continue;
-    (grouped[key] ||= []).push(report);
-  }
-  return grouped;
-};
 
 export default function JourneyManagerPanel({ ventureId }) {
   const { t, lang } = useI18n();
@@ -1069,49 +1007,6 @@ export default function JourneyManagerPanel({ ventureId }) {
     { key: "archive", label: t("venture.manager.archiveJourney"), icon: Archive, disabled: !access.manage, onSelect: () => archiveOneJourney(stage) },
     { key: "delete", label: t("venture.manager.deleteJourney"), icon: Trash2, danger: true, disabled: !access.manage, onSelect: () => deleteOneJourney(stage) },
   ].filter(Boolean);
-
-  const confirmCopy = (state) => {
-    if (!state) return { title: "", body: "", confirm: "" };
-    if (state.kind === "milestone-complete") {
-      return {
-        title: t("venture.manager.markCompleted"),
-        body: t("venture.manager.completeMilestoneConfirm", { name: state.name }),
-        confirm: t("venture.manager.markCompleted"),
-      };
-    }
-    if (state.kind === "milestone-archive") {
-      return {
-        title: t("venture.manager.archiveMilestone"),
-        body: t("venture.manager.milestoneArchiveConfirm", { name: state.name }),
-        confirm: t("venture.manager.archiveMilestone"),
-      };
-    }
-    if (state.kind === "archive") {
-      return {
-        title: t("venture.manager.archiveJourney"),
-        body:
-          state.step === 1
-            ? t("venture.manager.archiveJourneysConfirm", { n: state.n })
-            : t("venture.manager.archiveJourneysConfirm2", { n: state.n }),
-        confirm: t("venture.manager.archiveJourney"),
-      };
-    }
-    if (state.kind === "restore") {
-      return {
-        title: t("venture.manager.restoreJourney"),
-        body: t("venture.manager.restoreJourneyConfirm", { name: state.name }),
-        confirm: t("venture.manager.restoreJourney"),
-      };
-    }
-    return {
-      title: t("venture.manager.deleteJourney"),
-      body:
-        state.step === 1
-          ? t("venture.manager.deleteJourneysConfirm", { n: state.n })
-          : t("venture.manager.deleteJourneysConfirm2", { n: state.n }),
-      confirm: t("common.delete"),
-    };
-  };
 
   const confirmBusy = bulkBusy;
 
@@ -2357,90 +2252,19 @@ export default function JourneyManagerPanel({ ventureId }) {
                                         const mine = ventureSessions.filter((session) => String(session.milestone_ref) === String(milestone.id) && session.status !== "cancelled");
                                         if (mine.length === 0) return null;
                                         return (
-                                          <div className="mt-2 ml-5 space-y-1">
-                                            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
-                                              {t("venture.manager.milestoneSessions", { n: mine.length })}
-                                            </p>
-                                            {mine.map((session) => {
-                                              const deliverable = deliverableList.find((candidate) => String(candidate.id) === String(session.deliverable_id));
-                                              return (
-                                                <div key={session.id} className="space-y-0.5">
-                                                  <div className="flex flex-wrap items-center gap-2 text-[10px] text-[var(--text-secondary)]">
-                                                  <span className="font-bold text-[var(--text-primary)]">{new Date(session.start_time).toLocaleString(lang || undefined)}</span>
-                                                  <span>{session.title}</span>
-                                                  {session.coach_name && <span>· {session.coach_name}</span>}
-                                                  {deliverable && <span>· {deliverable.title}</span>}
-                                                  <span className="uppercase tracking-widest">{t(sessionStatusKey(session.status))}</span>
-                                                  {(session.materials || []).length > 0 && (
-                                                    <span className="flex flex-wrap items-center gap-1.5">
-                                                      {(session.materials || []).map((material, index) =>
-                                                        material.url ? (
-                                                          <a
-                                                            key={`${material.name}-${index}`}
-                                                            href={material.url}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="text-[var(--brand-orange)] hover:underline"
-                                                          >
-                                                            {material.name}
-                                                          </a>
-                                                        ) : (
-                                                          <span key={`${material.name}-${index}`} className="text-slate-500">{material.name}</span>
-                                                        ),
-                                                      )}
-                                                    </span>
-                                                  )}
-                                                  </div>
-                                                  {/* The session's ONE note — shown here and edited
-                                                      in place, never appended to. */}
-                                                  {noteEditFor === session.id ? (
-                                                    <div className="space-y-1 pt-0.5">
-                                                      <textarea
-                                                        value={noteDraft}
-                                                        onChange={(event) => setNoteDraft(event.target.value)}
-                                                        onInput={autoGrow}
-                                                        rows={2}
-                                                        className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-[11px] text-[var(--text-primary)] resize-none overflow-hidden min-h-[48px]"
-                                                      />
-                                                      <div className="flex justify-end gap-2">
-                                                        <button
-                                                          type="button"
-                                                          onClick={() => { setNoteEditFor(null); setNoteDraft(""); }}
-                                                          className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500"
-                                                        >
-                                                          {t("common.cancel")}
-                                                        </button>
-                                                        <button
-                                                          type="button"
-                                                          disabled={noteSaving || !noteDraft.trim()}
-                                                          onClick={() => saveSessionNote(session.id)}
-                                                          className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-[var(--brand-orange)] text-black disabled:opacity-50"
-                                                        >
-                                                          {t("common.save")}
-                                                        </button>
-                                                      </div>
-                                                    </div>
-                                                  ) : (
-                                                    <div className="flex items-start gap-2">
-                                                      {session.description && (
-                                                        <p className="flex-1 min-w-0 text-[10px]" style={{ color: "var(--text-secondary)" }}>
-                                                          <span className="font-black uppercase tracking-widest mr-1.5">{t("venture.manager.memoLabel")}</span>
-                                                          <span className="whitespace-pre-wrap">{session.description}</span>
-                                                        </p>
-                                                      )}
-                                                      <button
-                                                        type="button"
-                                                        onClick={() => { setNoteEditFor(session.id); setNoteDraft(session.description || ""); }}
-                                                        className="shrink-0 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]"
-                                                      >
-                                                        {t("venture.manager.editMemo")}
-                                                      </button>
-                                                    </div>
-                                                  )}
-                                                </div>
-                                              );
-                                            })}
-                                          </div>
+                                          <MilestoneSessionsList
+                                            sessions={mine}
+                                            deliverables={deliverableList}
+                                            statusKey={sessionStatusKey}
+                                            noteEditFor={noteEditFor}
+                                            noteDraft={noteDraft}
+                                            onNoteDraftChange={setNoteDraft}
+                                            noteSaving={noteSaving}
+                                            onEditNote={(session) => { setNoteEditFor(session.id); setNoteDraft(session.description || ""); }}
+                                            onCancelNote={() => { setNoteEditFor(null); setNoteDraft(""); }}
+                                            onSaveNote={saveSessionNote}
+                                            autoGrow={autoGrow}
+                                          />
                                         );
                                       })()}
 
@@ -2574,44 +2398,12 @@ export default function JourneyManagerPanel({ ventureId }) {
 
       {/* In-app confirmation — replaces browser dialogs. Archive/delete ask
           twice; restore asks once. */}
-      <AppModal
-        isOpen={Boolean(confirmState)}
-        onClose={() => { if (!confirmBusy) setConfirmState(null); }}
-        title={confirmCopy(confirmState).title}
-        size="sm"
-      >
-        <div className="space-y-4">
-          <div className="flex items-start gap-2">
-            {confirmState?.step === 2 && <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />}
-            <p className="text-sm text-[var(--text-secondary)]">{confirmCopy(confirmState).body}</p>
-          </div>
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setConfirmState(null)}
-              disabled={confirmBusy}
-              className="text-[9px] font-black uppercase tracking-widest px-3 py-2 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)] disabled:opacity-40"
-            >
-              {t("common.cancel")}
-            </button>
-            <button
-              type="button"
-              onClick={runConfirmedAction}
-              disabled={confirmBusy}
-              className={`text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-lg flex items-center gap-2 disabled:opacity-50 ${
-                confirmState?.kind === "delete" && confirmState?.step === 2
-                  ? "bg-rose-500 text-white"
-                  : "bg-[var(--brand-orange)] text-black"
-              }`}
-            >
-              {confirmBusy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              {confirmState?.kind !== "restore" && confirmState?.step === 1
-                ? t("common.continue")
-                : confirmCopy(confirmState).confirm}
-            </button>
-          </div>
-        </div>
-      </AppModal>
+      <JourneyConfirmModal
+        confirmState={confirmState}
+        busy={confirmBusy}
+        onCancel={() => setConfirmState(null)}
+        onConfirm={runConfirmedAction}
+      />
     </div>
   );
 }
