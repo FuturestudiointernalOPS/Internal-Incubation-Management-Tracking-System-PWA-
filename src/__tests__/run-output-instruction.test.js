@@ -317,8 +317,10 @@ describe("the run's report builder selects the renderer by instruction", () => {
   test("preview and send still share the one builder", () => {
     // One PDF build site, in the builder both preview and send call.
     expect((read(FORM_RUNS_SERVICE).match(/buildSubmissionResultPdf\(\{/g) || []).length).toBe(1);
-    // The route still reaches the sender from more than one action.
-    expect((read(FORM_RUNS).match(/await sendResultEmailForSubmission\(/g) || []).length).toBeGreaterThanOrEqual(2);
+    // The sender is still reached from more than one action — approval, the
+    // scheduled dispatcher, retries and the bulk result send — all in the
+    // service now (see docs/LAYER_SPLIT.md).
+    expect((read(FORM_RUNS_SERVICE).match(/await sendResultEmailForSubmission\(/g) || []).length).toBeGreaterThanOrEqual(2);
   });
 
   test("the instruction is bounded and trimmed at the API boundary", () => {

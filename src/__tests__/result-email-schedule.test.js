@@ -121,8 +121,12 @@ describe("the dispatcher — one sender, time-based, idempotent by construction"
   });
 
   test("a timer is a convenience, not the only way a result leaves", () => {
+    // Opening a run sweeps: the read asks for it (route), and the approval flow
+    // asks for it too (service) — the service is HTTP-free, so the controller
+    // injects `scheduleResultSweep` rather than letting the service import it.
     expect(ROUTE_SRC).toMatch(/scheduleResultSweep\(id\);/);
-    expect(ROUTE_SRC).toMatch(/scheduleResultSweep\(submissionRunResult\.rows\[0\]\.run_id\);/);
+    expect(SERVICE_SRC).toMatch(/scheduleResultSweep\(submissionRunResult\.rows\[0\]\.run_id\);/);
+    expect(ROUTE_SRC).toMatch(/scheduleResultSweep,\n\s*\}\);/);
   });
 });
 
