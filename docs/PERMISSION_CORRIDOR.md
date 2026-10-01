@@ -91,7 +91,7 @@ statique `createHandler({ roles })`, pas de bascule matrix)*
 | ~~b~~ | ~~`access-profiles/assign/route.js`~~ | **fait** → `services/authorization/profileAssignment.js` (`isSelfAssignment`, `assertAssignmentEligible`, `evaluateCapabilityLoss`, `resolveRemovalFallback`) ; filet `access-profile-assign-decisions.test.js` |
 | ~~c~~ | ~~`responsibilities/assign/route.js`~~ | **fait** → `services/authorization/responsibilityAssignment.js` (`isSelfResponsibilityChange`, `grantBaseAccessForResponsibility`, `revokeBaseAccessForResponsibility`, `formatBaseAccessNote`) ; filet `responsibility-assign-decisions.test.js` |
 | ~~d~~ | ~~`responsibilities/route.js`~~ + ~~`access/route.js`~~ | **fait** → `services/authorization/responsibilityCatalog.js` (`presentResponsibilityFields`, `resolveAllowedRolesValue`) ; filet `responsibility-catalog-decisions.test.js` |
-| e | `org-membership/route.js` | 2 WHERE builders + args, N+1 groupes protégés → batch, chaîne de transition lifecycle |
+| ~~e~~ | ~~`org-membership/route.js`~~ | **fait** → `services/authorization/membershipQueries.js` (`buildMembershipFilter`, `resolveProtectedGroupFlags`, `resolveMembershipOperation`, `parseMembershipExpiry`) + **`getProtectedGroupFlags` (N+1 → 1 statement)** ; filet `org-membership-queries-decisions.test.js` |
 | f | `eligibility/route.js` | gate faible `canConfigure`, dérivation `extraRoles`, probe d'impact C2 (409 templates), boucle audit |
 | g | `venture-strict-audit/route.js` | regroupement par cid + probe per-person fail-closed (session synthétique + scope) |
 | h | `audit/route.js` + `context-roles/route.js` | assembly WHERE/ILIKE + clamp pagination → dépôt ; N+1 `countContextRoleHolders` → batch |
