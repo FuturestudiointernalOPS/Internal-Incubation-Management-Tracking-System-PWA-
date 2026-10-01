@@ -8,13 +8,8 @@ import {
 import {
   requireAuthorization,
   invalidateAllAuthorizationContexts,
-  MODULE_TO_FEATURE,
-  evaluateEligibility,
-  validateCapabilitiesWithinEligibility,
 } from "@/lib/authorization";
 import {
-  getRoleDefaultRoles,
-  getRoleEligibilityRows,
   getAccessProfileById,
   getProfileCapabilities,
   listAccessProfiles,
@@ -24,81 +19,17 @@ import {
   getAccessProfileMeta,
   updateAccessProfileName,
   updateAccessProfileDescription,
-  getRoleDefaultRefs,
   updateAccessProfileActiveState,
-  clearProfileCapabilities,
-  replaceProfileCapability,
-  getRoleDefaultsForProfile,
-  countProfileUsers,
-  listProfileAssignedNames,
   getAccessProfileName,
   deleteAccessProfile,
-  getProfileImpactCounts,
 } from "@/models/authorization";
-
-/**
- * Dependency normalization for profile capabilities.
- *
- * View is the base capability: in any module that carries a `view`
- * capability, granting another action (edit / create / delete / …) without
- * view is impossible — view is auto-granted (level 1). Zero rows are dropped
- * (absence already means level 0).
- */
-function normalizeCapabilities(capabilities) {
-  const normalized = {};
-  for (const [module, capMap] of Object.entries(capabilities || {})) {
-    if (!capMap || typeof capMap !== "object") continue;
-    const moduleLevels = {};
-    for (const [capability, level] of Object.entries(capMap)) {
-      const normalizedLevel = Math.max(0, Number(level) || 0);
-      if (normalizedLevel > 0) moduleLevels[capability] = normalizedLevel;
-    }
-    // Zero rows were dropped above, so a cleared `view` is ABSENT (not 0).
-    // Any other active capability in a module that CARRIES view implies it.
-    const supportsView =
-      PERMISSION_MODULES[module]?.capabilities?.includes("view") ?? false;
-    const othersActive = Object.keys(moduleLevels).some(
-      (capability) => capability !== "view" && moduleLevels[capability] > 0,
-    );
-    if (supportsView && othersActive && !moduleLevels.view) moduleLevels.view = 1; // edit/create/delete imply view
-    if (Object.keys(moduleLevels).length > 0) normalized[module] = moduleLevels;
-  }
-  return normalized;
-}
-
-/** Roles that use this profile as their default access template. */
-async function profileDefaultRoles(profileId) {
-  const result = await getRoleDefaultRoles(profileId);
-  return result.rows.map((row) => row.role_name);
-}
-
-/** Per-feature eligibility map for a role (fail closed on missing rows). */
-async function eligibilityForRole(role) {
-  const result = await getRoleEligibilityRows(role);
-  const eligibilityMap = {};
-  for (const feature of Object.values(MODULE_TO_FEATURE)) {
-    eligibilityMap[feature] = evaluateEligibility(result.rows, feature);
-  }
-  return eligibilityMap;
-}
-
-/**
- * A profile that is the default for role(s) must never grant a capability
- * whose feature one of those roles is not eligible for. Mirrors
- * assertTemplateCapsEligible (role-defaults route) but validates the incoming
- * payload instead of the persisted rows.
- */
-async function assertCapsEligibleForRoles(capabilities, roles) {
-  for (const role of roles) {
-    const eligibility = await eligibilityForRole(role);
-    const { valid, violations } = validateCapabilitiesWithinEligibility(
-      capabilities,
-      eligibility,
-    );
-    if (!valid) return { valid: false, violations, role };
-  }
-  return { valid: true, violations: [], role: null };
-}
+import {
+  normalizeCapabilities,
+  assertProfileCanBeDeactivated,
+  assertCapsEligibleForProfile,
+  replaceProfileCapabilities,
+  assertProfileDeletable,
+} from "@/services/authorization/accessProfileWrites";
 
 /**
  * GET /api/access-profiles
@@ -281,13 +212,12 @@ export async function PUT(req) {
       // default access (resolver falls back to legacy role_capabilities).
       // Change the role default first.
       if (!is_active) {
-        const refs = await getRoleDefaultRefs(id);
-        if (refs.rows.length > 0) {
-          const roles = refs.rows.map((row) => row.role_name).join(", ");
+        const gate = await assertProfileCanBeDeactivated(id);
+        if (!gate.allowed) {
           return NextResponse.json(
             {
               success: false,
-              error: `Cannot disable: profile is the default for role(s): ${roles}. Change the role default first.`,
+              error: `Cannot disable: profile is the default for role(s): ${gate.roles.join(", ")}. Change the role default first.`,
             },
             { status: 400 },
           );
@@ -298,36 +228,23 @@ export async function PUT(req) {
 
     // Replace capabilities if provided
     if (capabilities && typeof capabilities === "object") {
-      const normalizedCapabilities = normalizeCapabilities(capabilities);
-
       // Eligibility is the boundary: when this profile is the default for
       // role(s), none of those roles may receive a capability whose feature
       // they are not eligible for.
-      const defaultRoles = await profileDefaultRoles(id);
-      if (defaultRoles.length > 0) {
-        const check = await assertCapsEligibleForRoles(normalizedCapabilities, defaultRoles);
-        if (!check.valid) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: "errors.ineligibleTemplateCaps",
-              violations: check.violations,
-              role: check.role,
-            },
-            { status: 400 },
-          );
-        }
+      const check = await assertCapsEligibleForProfile(capabilities, id);
+      if (!check.valid) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "errors.ineligibleTemplateCaps",
+            violations: check.violations,
+            role: check.role,
+          },
+          { status: 400 },
+        );
       }
 
-      // Clear existing
-      await clearProfileCapabilities(id);
-
-      // Insert new
-      for (const [module, moduleCapabilities] of Object.entries(normalizedCapabilities)) {
-        for (const [capability, level] of Object.entries(moduleCapabilities)) {
-          await replaceProfileCapability(id, module, capability, level);
-        }
-      }
+      await replaceProfileCapabilities(id, capabilities);
     }
 
     const reasonNote =
@@ -380,54 +297,12 @@ export async function DELETE(req) {
 
     await initDb();
 
-    // Check if any role defaults reference this profile
-    const roleRefs = await getRoleDefaultsForProfile(id);
-
-    if (roleRefs.rows.length > 0) {
-      const roles = roleRefs.rows.map((row) => row.role_name);
+    // Reference guards: role default → people → context mappings, in that order.
+    const gate = await assertProfileDeletable(id);
+    if (gate.blocked) {
+      const { blocked: _blocked, ...refusal } = gate;
       return NextResponse.json(
-        {
-          success: false,
-          error: "profile_in_use_role_default",
-          message: `Cannot delete: profile is the default for role(s): ${roles.join(", ")}. Change the role default first.`,
-          roles,
-        },
-        { status: 400 },
-      );
-    }
-
-    // Check B — people: a profile still carried by users must not vanish under
-    // them. Deleting it would silently drop those users to the legacy fallback.
-    const userRefs = await countProfileUsers(id);
-    const assignedCount = Number(userRefs.rows[0]?.cnt || 0);
-    if (assignedCount > 0) {
-      const nameRows = await listProfileAssignedNames(id);
-      return NextResponse.json(
-        {
-          success: false,
-          error: "profile_in_use_assignments",
-          message: `Cannot delete: ${assignedCount} user(s) still use this profile. Remove it from them first.`,
-          assignedCount,
-          assignedNames: nameRows.rows.map((row) => row.name).filter(Boolean),
-        },
-        { status: 400 },
-      );
-    }
-
-    // Check C — context bindings: context_role_profiles.profile_id carries NO
-    // foreign key to access_profiles, so deleting this profile would leave
-    // those rows pointing at a dead id (dangling reference). Block until the
-    // mappings are re-pointed.
-    const impact = await getProfileImpactCounts(id);
-    if (impact.contextBindings > 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "profile_in_use_context",
-          message: `Cannot delete: ${impact.contextBindings} context role(s) still map to this profile. Change them first.`,
-          contextCount: impact.contextBindings,
-          contextRoles: impact.contextRoles,
-        },
+        { success: false, ...refusal },
         { status: 400 },
       );
     }

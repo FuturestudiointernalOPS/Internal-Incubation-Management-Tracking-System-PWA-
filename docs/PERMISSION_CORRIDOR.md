@@ -87,7 +87,7 @@ statique `createHandler({ roles })`, pas de bascule matrix)*
 
 | Bloc | Route(s) | Décision à exporter vers service |
 |---|---|---|
-| a | `access-profiles/route.js` | `normalizeCapabilities` (edit/create/delete→view, drop zero), éligibilité payload, 3 gardes référentielles DELETE, séquence clear-then-replace |
+| ~~a~~ | ~~`access-profiles/route.js`~~ | **fait** → `services/authorization/accessProfileWrites.js` (`normalizeCapabilities`, gate désactivation, `assertCapsEligibleForProfile`, `replaceProfileCapabilities`, `assertProfileDeletable`) ; filet `access-profile-decisions.test.js` |
 | b | `access-profiles/assign/route.js` | SoD self-assign (incl. Super Admin), diff perte/ajout de capacités (409 + `confirm:true`), retrait override + fallback role-default |
 | c | `responsibilities/assign/route.js` | SoD self-assign, branches assign/remove (garder le swallow loggé de base-access), fallthrough inconnu |
 | d | `responsibilities/route.js` + `access/route.js` | 5 écritures conditionnelles PUT, count-then-delete, distinction `null` vs `[]` + dédupe |
