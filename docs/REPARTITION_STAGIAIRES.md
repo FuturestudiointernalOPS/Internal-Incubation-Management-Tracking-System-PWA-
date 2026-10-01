@@ -343,8 +343,11 @@ Du plus rentable / débloquant au plus tard :
    affectations, accueil, progression, relances, état complet, rituels,
    chronologie, soumissions. `certificates` reste tel quel (pure lecture, aucune
    décision). Restent **hors domaine** : `api/me/**` et `api/profile/**`.
-3. **Investisseur** (domaine à ouvrir) — `api/investor/**` →
-   `services/investor/**`.
+3. 🟰 **Investisseur** — domaine **ouvert** (`services/investor/**`). Premier
+   morceau fait : la due diligence (`api/investor/diligence`). Reste :
+   `campaigns`, `pipeline`, `relationships`, `dashboard`, `organizations`,
+   `evaluation`, `decisions`, `meetings`, `preferences`, `watchlist`,
+   `executive-dashboard`, `admin-overview`, `register`, `setup-password`.
 4. **LMS & paiement** et **e-mail / intégrations** — vérifier d'abord : routes
    probablement déjà minces ; ne traiter que ce qui contient une décision.
 5. **Vues et composants réservés** (V1, V3, V4, V5, V7, V9–V12, V14, V15, V17 et
@@ -375,7 +378,11 @@ Du plus rentable / débloquant au plus tard :
 > **Domaine participant : ✅ terminé.** Les huit routes à décision de
 > `api/participant/**` (hors `programs/**`, chez le stagiaire 3) sont migrées
 > vers `services/participant/**`. Restent hors domaine : `api/me/**` et
-> `api/profile/**`. |
+> `api/profile/**`.
+
+| Investisseur — **domaine ouvert** | ✅ fait | Créé `services/investor/**`. |
+| Investisseur — **due diligence** | ✅ fait | Décisions de `api/investor/diligence/route.js` (binding « soi », transitions de statut par rôle RM/IM/admin, historique de versions, questions de suivi, dispatch des actions) déplacées dans `services/investor/diligence.js`. Route amaigrie. Test ajouté (`src/__tests__/investor-diligence.test.js`). Tests 422 ✅, lint 0 erreur, build ✅. |
+| Investisseur — **le reste** | ⬜ à faire | `campaigns`, `pipeline`, `relationships`, `dashboard`, `organizations`, `evaluation`, `decisions`, `meetings`, `preferences`, `watchlist`, `executive-dashboard`, `admin-overview`, `register`, `setup-password`. |
 
 ---
 
