@@ -35,7 +35,8 @@
 > duplicate flags, then the contact timeline, then the contact merge, then the
 > contacts list read, then the soft-delete, then the registration, then the
 > contact update — **the CRM controller frontier is complete**. The
-> Communications controller frontier has since begun (campaigns). The
+> Communications controller frontier has since begun (campaigns, internal
+> messages). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1783,6 +1784,25 @@ surface.
 
 ---
 
+### Domain 67 — the Communications controller frontier: internal messages (slice 87)
+
+`/api/internal-comms` (488 lines) was the biggest communications controller: it
+carried the message-scope engine inline — the program-member resolution
+(participants, staff, PM, assistants, legacy contacts), the group-member
+resolution (`__staff__` or a family, plus the family's program), the three-wave
+user scope (contact / groups / programs, then the membership + family-name
+lookups, then the program's families) and the direct-message "share a program"
+rule. Those now live in `services/communications/internalComms.js` alongside the
+three use-cases — the inbox (`readMessageInbox`, feeding the `messageScope`
+policy), the send (`sendInternalMessage`, with the sender-identity,
+broadcast-to-all and program/group-scope guards and the recipient notification
+fan-out) and the read marking (`markMessagesRead`, with the
+conversation-participant guard). The route keeps `messaging.view` /
+`messaging.send`, the own-inbox 403 and the envelope; the scope decisions return
+`{ denied: { error, status } }`.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1824,7 +1844,7 @@ cleanup, not layering:
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
 | LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85); `platform/form-runs` and the remaining platform AI/import/seed routes to do |
-| Communications | `services/communications/*` | ⏳ **started** — message scope (earlier), campaigns (86); the messages / announcements / followups / events controllers remain |
+| Communications | `services/communications/*` | ⏳ **started** — message scope (earlier), campaigns (86), internal messages (87); the announcements / followups / events controllers remain |
 
 #### Remaining mixed model modules (the actual backlog)
 
