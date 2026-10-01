@@ -16,6 +16,7 @@
  *   deliverableReview.js — reading a review decision and what follows a submission / review
  *   dashboard.js — the Venture dashboard aggregate (widgets + audience rules)
  *   milestoneCompletion.js — milestone edit history and the Journey settling on completion
+ *   planImportFlow.js — the plan-import controller decisions (sheet choice, propose, apply)
  */
 
 export * from "./ventureDocumentTypes";
@@ -29,3 +30,4 @@ export * from "./taskBoard";
 export * from "./deliverableReview";
 export * from "./dashboard";
 export * from "./milestoneCompletion";
+export * from "./planImportFlow";

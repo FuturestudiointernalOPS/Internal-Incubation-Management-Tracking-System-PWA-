@@ -162,7 +162,7 @@ journey / milestone, reports, deliverables).
 | `ventures/[id]/operating-plans/[planId]/route.js` | 100 |
 | `ventures/[id]/operating-plans/[planId]/sections/route.js` | 133 |
 | `ventures/[id]/operating-plans/route.js` | 63 |
-| `ventures/[id]/plan-import/route.js` | 284 |
+| `ventures/[id]/plan-import/route.js` | 217 (was 284 — slice L2.8) |
 | `ventures/[id]/playbook/route.js` | 170 |
 | `ventures/[id]/pmf/route.js` | 53 |
 | `ventures/[id]/progress-reports/route.js` | 130 |
@@ -299,3 +299,41 @@ Stays in the route: scoped access, `canManageMilestones` /
 
 Checks: `npm test` 3584/3584 (incl. `venture-milestone-gating`,
 `staging-venture-progression`), `npx eslint` 0 errors.
+
+### Slice L2.8 — `ventures/[id]/plan-import` (284 → 217 lines) — ✅ done
+
+| New file | What moved into it |
+|---|---|
+| `src/services/ventures/planImportFlow.js` | `choosePlanSheet(sheets, requestedSheet)` (the caller's answer, else "Tracker", else the only sheet; otherwise a question with the sheet list — pure), `proposePlanFromSheet` (existing programme, interpretation, sheet summary, stored draft), `applyPlanDraft` (open-draft check, last edits saved first, apply → `{ error, status }` or `{ result }`) |
+| `src/__tests__/ventures/plan-sheet-choice.test.js` | 5 characterisation tests of `choosePlanSheet` |
+
+Stays in the route: scoped access (`ventures.view` / `ventures.edit`), the
+multipart reading, the 5 MB limit, the file read, the correction flow
+(`revisePlanProposal`), discard, every response and status code.
+
+Checks: `npm test` 3591/3591, `npx eslint` 0 errors, `npm run build` OK.
+
+### Lane status after L2.8
+Every lane route that was above 250 lines is now under it, except
+`ventures/[id]/members` (284): its remaining lines are the gates and the
+validation that three tests pin to the controller (see L2.3).
+
+| Route | Before | After |
+|---|---|---|
+| `ventures/[id]/sessions` | 555 | 298 → see note ¹ |
+| `ventures/[id]/journey` | 445 | 267 → see note ¹ |
+| `ventures/[id]/members` | 383 | 284 |
+| `ventures/[id]/tasks` | 330 | 230 |
+| `ventures/[id]/deliverables` | 309 | 243 |
+| `ventures/[id]/dashboard` | 307 | 38 |
+| `ventures/[id]/milestones` | 306 | 221 |
+| `ventures/[id]/plan-import` | 284 | 217 |
+
+¹ What remains in `sessions` and `journey` is HTTP boundary: several action
+branches, each with its own gate, ownership check and response (sessions has
+11 actions). The decisions they held are in the services above.
+
+**Still open in L2:** splitting the big services (`planImport.js` 1 178,
+`milestoneEngine.js` 548, `submissions.js` 526, `journey.js` 520,
+`verification.js` 487, `profile.js` 441, `schema.js` 410) and the smaller
+routes that still import a model directly.
