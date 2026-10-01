@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import db from "@/lib/db";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
@@ -86,7 +85,7 @@ export const GET = createHandler(
     // had a founder report "Team 0" and "no team members yet".
     const teamData = (async () => {
       try {
-        const members = await listVentureMembers(db, id);
+        const members = await listVentureMembers(id);
         const summary = summarizeVentureMembers(members);
         return {
           total: summary.total,

@@ -34,7 +34,7 @@ export function selectFoundersByVenture(key) {
 
 /** A Venture's live members (delegates to the members model). */
 export function selectVentureMembersForRecord(key) {
-  return listVentureMembers(db, key);
+  return listVentureMembers(key);
 }
 
 /** A Venture's recent activity with the actor resolved to a person. */
