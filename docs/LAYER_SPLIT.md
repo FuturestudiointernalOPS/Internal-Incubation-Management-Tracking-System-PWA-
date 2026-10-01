@@ -36,7 +36,7 @@
 > contacts list read, then the soft-delete, then the registration, then the
 > contact update — **the CRM controller frontier is complete**. The
 > Communications controller frontier has since begun (campaigns, internal
-> messages). The
+> messages, announcements). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1803,6 +1803,22 @@ conversation-participant guard). The route keeps `messaging.view` /
 
 ---
 
+### Domain 68 — the Communications controller frontier: announcements (slice 88)
+
+`/api/announcements` (280 lines, four verbs) carried its decisions inline: the
+feed selection (active vs all, and the audience), the publish (the author always
+taken from the session, the notification fan-out to all or to a group), and the
+author-or-Super-Admin ownership rule for edit and archive. Those now live in
+`services/communications/announcements.js` (`listAnnouncementFeed`,
+`publishAnnouncement`, `updateAnnouncement`, `archiveAnnouncement`). The route
+keeps the `internal_comms.create_announcements` / `internal_comms.moderate` gates,
+the required-field checks and the envelope.
+
+**Unchanged:** `identity-in-writes` still drives POST and asserts the write's
+author is the session — it now reaches the model through the service.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1844,7 +1860,7 @@ cleanup, not layering:
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
 | LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85); `platform/form-runs` and the remaining platform AI/import/seed routes to do |
-| Communications | `services/communications/*` | ⏳ **started** — message scope (earlier), campaigns (86), internal messages (87); the announcements / followups / events controllers remain |
+| Communications | `services/communications/*` | ⏳ **started** — message scope (earlier), campaigns (86), internal messages (87), announcements (88); the followups / events controllers remain |
 
 #### Remaining mixed model modules (the actual backlog)
 
