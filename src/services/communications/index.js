@@ -10,9 +10,13 @@
  *   campaigns.js — the campaign step/audience use-cases
  *   internalComms.js — the internal message scope engine + inbox/send/read
  *   announcements.js — the announcement feed/publish/moderate use-cases
+ *   followups.js — the follow-up create/update use-cases
+ *   events.js — the calendar-event create use-case
  */
 
 export * from "./messageScope";
 export * from "./campaigns";
 export * from "./internalComms";
 export * from "./announcements";
+export * from "./followups";
+export * from "./events";
