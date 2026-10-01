@@ -17,6 +17,8 @@
  *   duplicate.js       — task (and subtask) duplication
  *   logs.js            — the assignment log
  *   deadlines.js       — the 24-hour deadline reminders
+ *   query.js           — the GET read path (listing scope, id lookup, enrichment)
+ *   remove.js          — the DELETE guards and order
  */
 
 export * from "./carryover";
@@ -30,3 +32,5 @@ export * from "./resources";
 export * from "./duplicate";
 export * from "./logs";
 export * from "./deadlines";
+export * from "./query";
+export * from "./remove";

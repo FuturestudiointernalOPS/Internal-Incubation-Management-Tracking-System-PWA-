@@ -37,6 +37,15 @@ import {
 } from "@/models/taskAssignments";
 import { standupUpsert } from "@/models/standupUpsert";
 import { validateTaskAssignment } from "@/models/contactGroups";
+import {
+  getPendingAssignmentById,
+  getPendingAssignmentByTaskAndAssignee,
+  updateAssignmentStatus,
+  assignTaskToUser,
+  getTaskTitleRowById,
+  insertNotification,
+} from "@/models/tasks";
+import { logAuditEvent } from "@/lib/audit";
 import { resolveListingScope } from "@/services/authorization/listingScope";
 
 /** The assignments a caller may see (their own unless they hold a portfolio role). */
@@ -184,4 +193,104 @@ export async function respondToTaskAssignment({
   }
 
   return { status: 400, error: "Invalid action" };
+}
+
+/**
+ * Accept or decline a PENDING assignment (the PATCH /api/tasks endpoint).
+ *
+ * The assignment is located either by its own id, or by the task id plus the
+ * session user (their pending assignment on that task). Only the assignee may
+ * respond.
+ *
+ * @returns {Promise<{status: number, error?: string, body?: Object}>}
+ */
+export async function respondToPendingAssignment({
+  action,
+  taskAssignmentId,
+  taskId,
+  sessionCid,
+  sessionName,
+}) {
+  let assignment;
+  if (taskAssignmentId) {
+    const res = await getPendingAssignmentById(parseInt(taskAssignmentId));
+    assignment = res.rows[0];
+  } else {
+    const res = await getPendingAssignmentByTaskAndAssignee(
+      parseInt(taskId),
+      sessionCid,
+    );
+    assignment = res.rows[0];
+  }
+
+  if (!assignment) {
+    return { status: 404, error: "No pending assignment found." };
+  }
+
+  // Only the assignee can accept or decline.
+  if (String(assignment.assignee_id) !== String(sessionCid)) {
+    return {
+      status: 403,
+      error: "You can only respond to your own assignments.",
+    };
+  }
+
+  const newStatus = action === "accept" ? "accepted" : "declined";
+  await updateAssignmentStatus(newStatus, assignment.id);
+
+  // Accepting points the task at its assignee.
+  if (action === "accept") {
+    await assignTaskToUser(assignment.assignee_id, assignment.task_id);
+  }
+
+  // The current title, for the notification and the audit entry.
+  let taskTitle = `Task #${assignment.task_id}`;
+  try {
+    const taskResult = await getTaskTitleRowById(assignment.task_id);
+    if (taskResult.rows.length > 0) {
+      taskTitle = taskResult.rows[0].title;
+    }
+  } catch {
+    /* title lookup is best-effort */
+  }
+
+  const actor = sessionName || sessionCid;
+  const notificationTitle =
+    action === "accept"
+      ? "Task Assignment Accepted"
+      : "Task Assignment Declined";
+  const notificationMessage =
+    action === "accept"
+      ? `${actor} accepted your assignment for task "${taskTitle}"`
+      : `${actor} declined your assignment for task "${taskTitle}"`;
+
+  try {
+    await insertNotification(
+      assignment.assigner_id,
+      notificationTitle,
+      notificationMessage,
+      "task_assignment",
+    );
+  } catch (notifErr) {
+    console.error(
+      "Assignment response notification failed:",
+      notifErr.message,
+    );
+  }
+
+  await logAuditEvent({
+    entity_type: "task",
+    entity_id: assignment.task_id,
+    user_id: sessionCid,
+    user_name: sessionName || "",
+    action:
+      action === "accept" ? "assignment_accepted" : "assignment_declined",
+    details: `Task "${taskTitle}" assignment ${action === "accept" ? "accepted" : "declined"} by ${actor}`,
+    metadata: {
+      task_id: assignment.task_id,
+      assigner_id: assignment.assigner_id,
+    },
+  });
+
+  return { status: 200, body: { success: true, action: newStatus } };
 }

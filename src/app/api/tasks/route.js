@@ -11,13 +11,9 @@ import {
   getTaskEndDateById,
 } from "@/lib/db/queries/tasks";
 import {
-  assignTaskToUser,
   completeSubtasks,
   countIncompleteSubtasks,
   createTask,
-  deleteBlockersForTaskAndSubtasks,
-  deleteSubtasksForTask,
-  deleteTaskById,
   getActiveBlockersForTask,
   getActiveBlockersForTaskWithTitle,
   getActiveBlockersOnSubtasks,
@@ -27,17 +23,12 @@ import {
   getContactRoleByCid,
   getIntentResponsibleId,
   getParentProjectCategory,
-  getPendingAssignmentByTaskAndAssignee,
-  getPendingAssignmentById,
   getPendingAssignmentId,
   getProjectMembership,
   getProjectOwnerId,
   getProjectStatus,
   getSuperAdminContact,
-  getTaskDeleteInfo,
   getTaskEndDateRowById,
-  getTaskStandupInfo,
-  getTaskTitleRowById,
   incrementTaskRescheduleCount,
   insertNotification,
   insertNotificationWithCreatedAt,
@@ -47,11 +38,12 @@ import {
   markTaskCompleted,
   reopenCompletedTask,
   reopenCompletedSubtasks,
-  updateAssignmentStatus,
   updateTaskEndDate,
   updateTaskFields,
 } from "@/models/tasks";
 import { listTasks } from "@/services/tasks/query";
+import { deleteTaskRecord } from "@/services/tasks/remove";
+import { respondToPendingAssignment } from "@/services/tasks/assignments";
 
 /**
  * TASKS API
@@ -1264,92 +1256,19 @@ export async function DELETE(req) {
       );
     }
 
-    // SECURITY (Phase 0/6): Only the task owner, assignee, supervisor, or SA can delete
-    const taskCheckResult = await getTaskDeleteInfo(parseInt(id));
-    if (taskCheckResult.rows.length > 0) {
-      const taskRow = taskCheckResult.rows[0];
-      if (
-        session.role !== "super_admin" &&
-        String(taskRow.user_id) !== String(session.cid) &&
-        String(taskRow.assigned_to || "") !== String(session.cid) &&
-        String(taskRow.supervisor_id || "") !== String(session.cid)
-      ) {
-        return NextResponse.json(
-          { success: false, error: "You can only delete your own tasks, assigned tasks, or supervised tasks." },
-          { status: 403 },
-        );
-      }
-    }
-
-    // Phase 6: Locking enforcement - locked tasks cannot be deleted
-    const locked = await isTaskLocked(id);
-    if (locked) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Task is locked (older than 12 hours) and cannot be deleted.",
-          locked: true,
-        },
-        { status: 403 },
-      );
-    }
-
-    // Carry-over tasks cannot be deleted (standup commitment rule)
-    if (
-      taskCheckResult.rows.length > 0 &&
-      taskCheckResult.rows[0].status === "carried_over"
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Carry-over tasks cannot be deleted. They must be completed or resolved.",
-        },
-        { status: 403 },
-      );
-    }
-
-    // Get task info before deleting (need all fields for standup rebuild)
-    const taskInfo = await getTaskStandupInfo(parseInt(id));
-
-    // Delete associated blockers, subtasks, and audit logs first
-    await deleteBlockersForTaskAndSubtasks(parseInt(id));
-
-    // Delete subtasks first (parent_task_id pointing to this task)
-    await deleteSubtasksForTask(parseInt(id));
-
-    await deleteTaskById(parseInt(id));
-
-    if (taskInfo.rows.length > 0) {
-      const task = taskInfo.rows[0];
-      // Audit log
-      await logAuditEvent({
-        entity_type: "task",
-        entity_id: parseInt(id),
-        user_id: session.cid || task.user_id,
-        user_name: session.name || task.user_name,
-        action: "deleted",
-        details: `Task "${task.title}" deleted`,
-        metadata: { title: task.title },
-      });
-
-      // ─── Rebuild standup after task deletion ───
-      try {
-        const { rebuildStandupTasks } = await import("@/lib/standupUpsert");
-        await rebuildStandupTasks(
-          task.user_id,
-          task.created_week,
-          task.created_year,
-        );
-      } catch (error) {
-        console.error("Standup rebuild failed (non-blocking):", error.message);
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      action: "deleted",
+    const result = await deleteTaskRecord({
+      id,
+      role: session.role,
+      sessionCid: session.cid,
+      sessionName: session.name,
     });
+    if (result.error) {
+      return NextResponse.json(
+        result.body || { success: false, error: result.error },
+        { status: result.status },
+      );
+    }
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error("DELETE tasks error:", error);
     return NextResponse.json(
@@ -1404,95 +1323,20 @@ export async function PATCH(req) {
       );
     }
 
-    // Look up pending assignment
-    let assignment;
-    if (task_assignment_id) {
-      const res = await getPendingAssignmentById(parseInt(task_assignment_id));
-      assignment = res.rows[0];
-    } else {
-      const res = await getPendingAssignmentByTaskAndAssignee(parseInt(task_id), session.cid);
-      assignment = res.rows[0];
-    }
-
-    if (!assignment) {
-      return NextResponse.json(
-        { success: false, error: "No pending assignment found." },
-        { status: 404 },
-      );
-    }
-
-    // Only the assignee can accept or decline
-    if (String(assignment.assignee_id) !== String(session.cid)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "You can only respond to your own assignments.",
-        },
-        { status: 403 },
-      );
-    }
-
-    const newStatus = action === "accept" ? "accepted" : "declined";
-
-    // Update the assignment status
-    await updateAssignmentStatus(newStatus, assignment.id);
-
-    // If accepted, assign the task to the user
-    if (action === "accept") {
-      await assignTaskToUser(assignment.assignee_id, assignment.task_id);
-    }
-
-    // Fetch task title for notifications and audit
-    let taskTitle = `Task #${assignment.task_id}`;
-    try {
-      const taskResult = await getTaskTitleRowById(assignment.task_id);
-      if (taskResult.rows.length > 0) {
-        taskTitle = taskResult.rows[0].title;
-      }
-    } catch (_) {}
-
-    // Notify the original assigner
-    const notificationTitle =
-      action === "accept"
-        ? "Task Assignment Accepted"
-        : "Task Assignment Declined";
-    const notificationMessage =
-      action === "accept"
-        ? `${session.name || session.cid} accepted your assignment for task "${taskTitle}"`
-        : `${session.name || session.cid} declined your assignment for task "${taskTitle}"`;
-
-    try {
-      await insertNotification(
-        assignment.assigner_id,
-        notificationTitle,
-        notificationMessage,
-        "task_assignment",
-      );
-    } catch (notifErr) {
-      console.error(
-        "Assignment response notification failed:",
-        notifErr.message,
-      );
-    }
-
-    // Audit log
-    await logAuditEvent({
-      entity_type: "task",
-      entity_id: assignment.task_id,
-      user_id: session.cid,
-      user_name: session.name || "",
-      action:
-        action === "accept"
-          ? "assignment_accepted"
-          : "assignment_declined",
-      details: `Task "${taskTitle}" assignment ${action === "accept" ? "accepted" : "declined"} by ${session.name || session.cid}`,
-      metadata: {
-        task_id: assignment.task_id,
-        assigner_id: assignment.assigner_id,
-      },
+    const result = await respondToPendingAssignment({
+      action,
+      taskAssignmentId: task_assignment_id,
+      taskId: task_id,
+      sessionCid: session.cid,
+      sessionName: session.name,
     });
-
-    return NextResponse.json({ success: true, action: newStatus });
+    if (result.error) {
+      return NextResponse.json(
+        result.body || { success: false, error: result.error },
+        { status: result.status },
+      );
+    }
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error("PATCH tasks error:", error);
     return NextResponse.json(

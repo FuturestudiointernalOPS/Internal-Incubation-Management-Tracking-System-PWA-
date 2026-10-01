@@ -929,6 +929,31 @@ keep: a portfolio caller with **no** filter is scoped to their own tasks
 
 ---
 
+### Domain 25 (cont.) — the controller frontier: `tasks/route.js`, delete & patch (slice 42)
+
+The monolith's two short write paths.
+
+- **DELETE** → `services/tasks/remove.js` (`deleteTaskRecord`): the access rule
+  (owner / assignee / supervisor / Super Admin), the lock guard (with its
+  `locked: true` body), the carry-over protection (a standup commitment cannot be
+  deleted), and the dependant-first order (blockers → subtasks → task) with the
+  audit and the best-effort standup rebuild.
+- **PATCH** → `services/tasks/assignments.js` (`respondToPendingAssignment`):
+  accepting or declining a pending assignment, located by assignment id or by
+  task id + session user, assignee-only, with the assigner notification and the
+  audit.
+
+Ten now-unused model imports left the route. New characterisation net
+`tasks-mutations-api.test.js` (12 tests); `tasks-api.test.js`, `tasks-query-api`
+and `security-lot10` are unchanged and green.
+
+`npm test` (233 suites, 3313 tests), `npx eslint` (0 errors) and
+`npm run build` are green.
+
+**Left:** the two large write paths — POST and PUT.
+
+---
+
 ### Domain 25 — the `ventures.js` monolith: milestones & deliverables (slice 39)
 
 **Domain 5.** The milestone read, the deliverables of a milestone, and the
