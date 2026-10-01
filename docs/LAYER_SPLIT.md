@@ -1873,6 +1873,31 @@ role-lock column migration and the envelope.
 
 ---
 
+### Domain 72 — the platform controller frontier: the Run-detail read (slice 93)
+
+`src/app/api/platform/form-runs/route.js` (2691 lines) is the platform monolith;
+this slice takes its **read path** — the run screen. The `GET ?id=` assembly
+moves to `services/platform/formRuns.js` (`buildRunDetail`): the
+auto-close-on-open rule, the one-wave bundle (assignments, submissions, reviews,
+evaluations, email logs, activation logs, the form's fields and the report file),
+the respondent enrichment (real email and name, `account_created` /
+`account_status`, the activation history built from the email log and the token
+state) and the anonymous presentation rule. `enrichAssignments` moves with it and
+is re-exported (the POST assign/unassign actions still call it). The route keeps
+the capabilities, the branch routing and the deferred `scheduleResultSweep` (the
+`after` trigger is HTTP infrastructure).
+
+**Source-pin repointed:** `run-report-file` now reads `report_file` /
+`runReportFileDescriptor` in the service (same assertion, new home).
+`db-sequencing-audit` is unchanged — the run detail is still 12 statements in 5
+waves.
+
+`npm test` (239 suites, 3452 tests), `npx eslint` (0 errors) and `npm run build`
+are green. **The write half of `form-runs` (the POST action vocabulary) and the
+remaining platform AI/import/seed routes are the next slices.**
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1913,7 +1938,7 @@ cleanup, not layering:
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
-| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85); `platform/form-runs` and the remaining platform AI/import/seed routes to do |
+| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85) and the `form-runs` Run-detail read (93); the `form-runs` write half and the remaining platform AI/import/seed routes to do |
 | Communications | `services/communications/*` | ✅ **controller frontier complete** — message scope (earlier), campaigns (86), internal messages (87), announcements (88), follow-ups and events (89–90) |
 | Submissions | `services/ventures/submissions.js` | ⏳ **started** — the submit POST (91) and the review PATCH (92); the list GET and the score PUT remain |
 
