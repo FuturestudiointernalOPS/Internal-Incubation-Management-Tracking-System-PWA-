@@ -18,11 +18,11 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–46 the next `ventures.js`
+> controller (workspace, then collaboration), 39–47 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
 > project timeline & dependencies, reports & project analytics, coach & mentor
-> management, mentoring sessions & scheduling, knowledge hub & learning, then
-> mentor feedback & analytics). The
+> management, mentoring sessions & scheduling, knowledge hub & learning,
+> mentor feedback & analytics, then investment readiness). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -982,6 +982,22 @@ engagement).
 
 ---
 
+### Domain 33 — the `ventures.js` monolith: investment readiness (slice 47)
+
+**Domain 14** (ENHANCEMENT 4.1). The 10-category readiness score (fixed weights
+over the Venture's existing data), the stored assessment / scores / history, and
+the recommendations generated for weak categories. Decisions move to
+`services/ventures/investmentReadiness.js`; every statement to
+`models/ventureInvestmentReadinessStore.js`; `src/lib/ventures.js` re-exports the
+whole surface.
+
+**Unchanged:** the SQL (byte-identical, including the pre-existing
+`countVentureVerificationDocuments` call that carries a placeholder but no bound
+args — preserved verbatim), the category weights, the level thresholds and the
+recommendation templates/priority.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1175,7 +1191,8 @@ Two source-pinning suites were repointed (same assertion, new home):
   (slice 42) and its coach & mentor management domain is out (slice 43), and its
   mentoring sessions & scheduling domain is out (slice 44), and its knowledge hub
   & learning domain is out (slice 45), and its mentor feedback & analytics domain
-  is out (slice 46), all
+  is out (slice 46), and its investment readiness domain
+  is out (slice 47), all
   re-exported through the barrel. A
   long tail of
   `src/lib` modules still
