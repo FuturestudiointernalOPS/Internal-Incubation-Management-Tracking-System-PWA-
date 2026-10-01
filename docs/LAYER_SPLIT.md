@@ -31,7 +31,7 @@
 > of SQL** (token hashing, task audit, access profiles + responsibilities, LMS
 > coaching, then the email delivery log). Its CRM controller frontier has since
 > begun — contact groups, user groups, the registry feed, then the contact
-> alternative emails. The
+> alternative emails, then the group members. The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1507,6 +1507,31 @@ consulted, via `canManageContactEmails`).
 
 ---
 
+### Domain 56 — the CRM controller frontier: group members (slice 74)
+
+`/api/group-members` (add / list a v2 team's members) was the **last route still
+reading through the Supabase client** — `supabase.from("v2_groups")` /
+`v2_group_members` inline. Its reads and writes now go through `@/models/groups`
+(`getGroupProgramId`, `getParticipantGroupPrograms`, `insertGroupMember`,
+`getGroupMembers`, `getGroupMemberParticipants`), and the decisions — resolving
+the group's program and the one-team-per-program rule — moved to
+`services/contacts/groupMembers.js`. The route keeps
+`requireAuth(["staff", "super_admin"])`, the validation, the record-scope guard
+(`requireProgramScope({ programId, wave: "groups" })`) and the response envelope.
+
+**Behaviour kept:** the 404 on an unknown group, the 400 "Participant already
+assigned to a team in this program.", the GET `group_id is required` guard and
+the `members` payload (each membership with its participant row nested under
+`v2_participants`).
+
+**Test repointed:** `security-lot7-program-scope` used to mock `@/lib/supabase`
+and assert `__builder.insert`; it now mocks the model functions (adding the five
+group-member reads/writes) and asserts `insertGroupMember`. `src/lib/supabase.js`
+is **not** dead — the storage layer (`src/lib/storage.js`) still uses it; only the
+routes are now Supabase-free.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1543,7 +1568,7 @@ cleanup, not layering:
 |---|---|---|
 | Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
 | Programs | `services/programs/*` | ✅ **models done** (slice 12) · ⏳ controller orchestration started (slice 13) |
-| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22), the groups controller (slice 65), user groups (slice 66), the registry feed (slice 67) + the contact alternative emails (slice 73); `contacts/route.js` and the rest of the CRM routes remain |
+| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22), the groups controller (slice 65), user groups (slice 66), the registry feed (slice 67) + the contact alternative emails (slice 73), then group members (slice 74, retiring the last Supabase route); `contacts/route.js` and the rest of the CRM routes remain |
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
