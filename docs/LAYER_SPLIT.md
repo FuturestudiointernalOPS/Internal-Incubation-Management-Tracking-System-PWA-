@@ -35,6 +35,7 @@
 > duplicate flags, then the contact timeline, then the contact merge, then the
 > contacts list read, then the soft-delete, then the registration, then the
 > contact update — **the CRM controller frontier is complete**. The
+> Communications controller frontier has since begun (campaigns). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1761,6 +1762,27 @@ AI/import/seed routes are the remaining heavy controllers.**
 
 ---
 
+### Domain 66 — the Communications controller frontier: campaigns (slice 86)
+
+The two `/api/campaigns` controllers (retired behind `RETIRED = true`, kept
+re-enableable) still ran their own SQL: the step-sequence and target-contact
+multi-row inserts (`db.batch`) and the three-table delete cascade. Those
+statements moved to `@/models/communications` (`insertCampaignSteps`,
+`insertCampaignContacts`, `deleteCampaignCascade`), and the decisions — the wait
+(days / hours / minutes) collapsed into the stored `delay_hours`, and the additive
+audience sync (keep the sent records, insert the new identities as pending, drop
+the ones no longer listed while still pending) — moved to
+`services/communications/campaigns.js` (`campaignStepRows`, `addCampaignSteps`,
+`addCampaignContacts`, `syncCampaignAudience`). The routes keep the
+`staff`/`super_admin` gate, the name-required check, the retirement 403 and the
+envelope.
+
+**With this, no `src/app/api/**/route.js` runs SQL at all** — the anti-SQL audit
+(`grep … '\.execute|\.transaction|\.batch\('`) returns nothing across the API
+surface.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1802,6 +1824,7 @@ cleanup, not layering:
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
 | LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85); `platform/form-runs` and the remaining platform AI/import/seed routes to do |
+| Communications | `services/communications/*` | ⏳ **started** — message scope (earlier), campaigns (86); the messages / announcements / followups / events controllers remain |
 
 #### Remaining mixed model modules (the actual backlog)
 
