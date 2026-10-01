@@ -95,8 +95,13 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(containsContextual(lists[0])).toBe(false);
     // Own-scope fallback for no-programId reads + self-service identity binding.
     expect(src).toMatch(/participant_id = session\.cid/);
-    expect(src).toMatch(/body\.participant_id = session\.cid/);
-    expect(src).toMatch(/body\.team_id = session\.cid/);
+    // The self-service identity binding moved to the service.
+    const service = fs.readFileSync(
+      path.join(ROOT, "src/services/ventures/submissions.js"),
+      "utf8",
+    );
+    expect(service).toMatch(/body\.participant_id = session\.cid/);
+    expect(service).toMatch(/body\.team_id = session\.cid/);
   });
 
   test("phase 1.1: ventures/[id]/history — bare + unified membership/assignment gate", () => {
