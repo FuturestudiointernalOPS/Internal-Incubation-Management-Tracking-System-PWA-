@@ -1,23 +1,13 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-import { requireAuthorization, invalidateAuthorizationContext } from "@/lib/authorization";
+import { requireAuthorization } from "@/lib/authorization";
+import { isGroupProtected } from "@/lib/authorization/membership";
 import {
-  isGroupProtected,
-  normalizeGroupName,
-  getMembership,
-  applyMembershipAction,
-} from "@/lib/authorization/membership";
-import {
-  getUserGroups,
-  getContactLegacyGroup,
-  assignUserToGroup,
-  createGroupMembership,
-  createGroupMembershipEvent,
-  unassignUserFromGroup,
-  endGroupMembership,
-  createGroupMembershipEndEvent,
-} from "@/models/groups";
+  listUserGroups,
+  joinUserGroup,
+  leaveUserGroup,
+} from "@/services/contacts/userGroups";
 
 /**
  * GET /api/user-groups?user_cid=X
@@ -43,25 +33,7 @@ export async function GET(req) {
 
     await initDb();
 
-    // First try user_groups table (may not exist yet — migration pending)
-    let groups = [];
-    try {
-      const result = await getUserGroups(userCid);
-      groups = result.rows.map((row) => row.group_name);
-    } catch {
-      // user_groups table may not exist yet — fall through to legacy group_name
-      groups = [];
-    }
-
-    // Fallback to legacy group_name on contacts
-    if (groups.length === 0) {
-      try {
-        const contactResult = await getContactLegacyGroup(userCid);
-        if (contactResult.rows.length > 0 && contactResult.rows[0].group_name) {
-          groups = [contactResult.rows[0].group_name];
-        }
-      } catch (_) {}
-    }
+    const groups = await listUserGroups(userCid);
 
     return NextResponse.json({ success: true, groups, user_cid: userCid });
   } catch (err) {
@@ -102,39 +74,8 @@ export async function POST(req) {
       if (protectError) return protectError;
     }
 
-    const normalized = normalizeGroupName(group_name);
-    await assignUserToGroup(user_cid, normalized);
-    // P1 freshness: group membership feeds group_capabilities + group
-    // eligibility rows — drop the user's cached context so the new edge is
-    // effective immediately (freshness mechanism only; server authorization
-    // stays authoritative).
-    invalidateAuthorizationContext(user_cid);
-    // Keep the membership layer in sync so the new edge is effective
-    // immediately (active, no expiry) and has history.
-    const existing = await getMembership(user_cid, normalized);
-    if (!existing) {
-      const { row, event } = applyMembershipAction(
-        { user_cid, group_name: normalized, started_at: null, expires_at: null, status: null },
-        "joined",
-        { actor: "admin" },
-      );
-      const session = await getSession();
-      await createGroupMembership(
-        user_cid,
-        normalized,
-        row.started_at,
-        row.expires_at,
-        row.status,
-        session?.cid || "admin",
-      );
-      await createGroupMembershipEvent(
-        user_cid,
-        normalized,
-        event.action,
-        event.actor_cid,
-        "legacy group API",
-      );
-    }
+    const session = await getSession();
+    await joinUserGroup({ userCid: user_cid, groupName: group_name, actorCid: session?.cid });
 
     return NextResponse.json({
       success: true,
@@ -178,23 +119,8 @@ export async function DELETE(req) {
       if (protectError) return protectError;
     }
 
-    const normalized = normalizeGroupName(group_name);
-    await unassignUserFromGroup(user_cid, normalized);
-    // P1 freshness: same rationale as POST — membership removal must not linger
-    // in the cached authorization context.
-    invalidateAuthorizationContext(user_cid);
-    // End (never delete) the membership record — the person, account, CRM
-    // record and history stay; only active authorization stops.
-    const existing = await getMembership(user_cid, normalized);
-    if (existing) {
-      const session = await getSession();
-      await endGroupMembership(session?.cid || "admin", user_cid, normalized);
-      await createGroupMembershipEndEvent(
-        user_cid,
-        normalized,
-        session?.cid || "admin",
-      );
-    }
+    const session = await getSession();
+    await leaveUserGroup({ userCid: user_cid, groupName: group_name, actorCid: session?.cid });
 
     return NextResponse.json({
       success: true,

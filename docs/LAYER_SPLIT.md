@@ -1448,6 +1448,23 @@ order, the "No fields to update" refusal and every statement (byte-identical).
 
 ---
 
+### Domain 52 — the CRM controller frontier: user groups (slice 66)
+
+`src/app/api/user-groups/route.js` decided the group-membership use-cases
+inline. The GET fallback chain (`user_groups` table first, then the legacy
+`contacts.group_name`) and the join/leave orchestration — write the raw edge,
+drop the caller's cached authorization context (freshness), then keep the
+membership layer in sync with history, only when the edge is new / present — move
+to `services/contacts/userGroups.js` (`listUserGroups` / `joinUserGroup` /
+`leaveUserGroup`). The route keeps auth, body validation, the protected-group
+guard and the response envelope.
+
+**Unchanged:** the SQL (byte-identical), the fallback order, the
+sync-only-if-missing rule, the freshness invalidation and the end-never-delete
+membership rule.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1484,7 +1501,7 @@ cleanup, not layering:
 |---|---|---|
 | Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
 | Programs | `services/programs/*` | ✅ **models done** (slice 12) · ⏳ controller orchestration started (slice 13) |
-| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22) + the groups controller (slice 65) |
+| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22), the groups controller (slice 65) + user groups (slice 66) |
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
