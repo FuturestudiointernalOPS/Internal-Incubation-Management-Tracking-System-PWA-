@@ -20,7 +20,7 @@
 | Task | What | Branch | Status |
 |---|---|---|---|
 | **B7** | Split the Journey manager panel and the founder Journey tab | `ventures-b7` | ✅ done (`8a6d3559`, `58e9f5b8`) |
-| **L2** | Move decision logic out of the ventures routes into `services/ventures/`, split the big services | `ventures-l2` | ⏳ in progress — slice L2.1 (sessions) to test |
+| **L2** | Move decision logic out of the ventures routes into `services/ventures/`, split the big services | `ventures-l2` | ✅ done (L2.1 → L2.11) — see « L2 — summary » |
 
 ---
 
@@ -406,3 +406,45 @@ multi-line — `venture-engine-exports.test.js` scans single lines containing
 `ventureMilestoneEngine` and would read the store's names as engine imports.
 
 Checks: `npm test` 3631/3631, `npx eslint` 0 errors, `npm run build` OK.
+
+---
+
+## L2 — summary
+
+**Controllers.** The eight lane routes that were above 250 lines carried the
+decisions; those decisions now live in 12 new modules of `src/services/ventures/`
+(listed in its `index.js`). Every route keeps the HTTP boundary — access gates,
+object-level ownership, request validation, writes, responses — and every
+response shape, status code and message is unchanged.
+
+| Route | Before | After | Slice |
+|---|---|---|---|
+| `ventures/[id]/sessions` | 555 | 234 | L2.1, L2.9 |
+| `ventures/[id]/journey` | 445 | 247 | L2.2, L2.9 |
+| `ventures/[id]/members` | 383 | 284 ¹ | L2.3 |
+| `ventures/[id]/tasks` | 330 | 230 | L2.4 |
+| `ventures/[id]/deliverables` | 309 | 243 | L2.5 |
+| `ventures/[id]/dashboard` | 307 | 38 | L2.6 |
+| `ventures/[id]/milestones` | 306 | 221 | L2.7 |
+| `ventures/[id]/plan-import` | 284 | 217 | L2.8 |
+
+¹ gates and validation pinned to the controller by three tests (see L2.3).
+
+The other lane routes (under 250 lines) read and write through `@/models/*` /
+`@/lib/*` directly, which is the controller's job ("model orchestration"); they
+hold no decision block worth a service of its own.
+
+**Services.** Split into folders, the original file kept as a barrel with the
+same public surface: `planImport.js` (1 178), `milestoneEngine.js` (548),
+`journey.js` (520), `verification.js` (487), `profile.js` (441). Not split:
+`submissions.js` (pinned by `identity-gate-bridge.test.js`) and `schema.js`
+(one DDL function).
+
+**Tests added** (`src/__tests__/ventures/`): `session-booking-rules`,
+`task-board`, `deliverable-decision`, `plan-sheet-choice`.
+
+**To raise with the lead:** `identity-gate-bridge.test.js` pins the source of
+`services/ventures/submissions.js`; changing it to read the split parts would
+let that service be split too.
+
+Final checks: `npm test` 3631/3631, `npx eslint` 0 errors, `npm run build` OK.

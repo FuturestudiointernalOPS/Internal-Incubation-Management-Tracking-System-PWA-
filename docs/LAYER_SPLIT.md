@@ -2214,6 +2214,27 @@ latter re-exported). The `@/lib/ventureStatuses` usages stay in both parents
 
 `npm test` (3552 tests), `npx eslint` (0 errors) and `npm run build` are green.
 
+### Ventures lane — controllers and big services (task L2)
+
+The ventures lane (Fiche 2). Decisions leave eight controllers for 12 new
+modules in `src/services/ventures/` (listed in its `index.js`): session
+booking rules, booking targets, calendar authority and notices; the journey
+read assembly and stage actions; roster follow-ups; the task board and status
+gates; deliverable review; the Venture dashboard aggregate; milestone
+completion settling; the plan-import flow. The routes keep the HTTP boundary
+and their response contracts: `sessions` 555 → 234, `journey` 445 → 247,
+`members` 383 → 284, `tasks` 330 → 230, `deliverables` 309 → 243,
+`dashboard` 307 → 38, `milestones` 306 → 221, `plan-import` 284 → 217.
+Services import the same facades the controllers used, so route-level
+`jest.mock`s keep intercepting. Five big services are split into folders with
+the original file kept as a same-surface barrel: `planImport` (1 178),
+`milestoneEngine` (548), `journey` (520), `verification` (487), `profile` (441).
+`submissions` stays whole (`identity-gate-bridge.test.js` reads its source) and
+`schema` is one DDL function. Branch `ventures-l2`; the slice-by-slice log is in
+`docs/VENTURES_LANE.md`.
+
+`npm test` (3631 tests), `npx eslint` (0 errors) and `npm run build` are green.
+
 ---
 
 ## 3. Left aside on purpose (deferred, with reasons)

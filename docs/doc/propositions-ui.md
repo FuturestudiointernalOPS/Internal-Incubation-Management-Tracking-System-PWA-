@@ -294,3 +294,21 @@ ne pas créer de données de test.
   `.next`) : le serveur de dev s'est bloqué.
 - Les comptes de test du README (`@impactos.staging`) n'existent plus dans cette
   base.
+
+---
+
+# Tâche L2 — Couloir ventures (2026-10-01)
+
+Branche `ventures-l2`. Journal détaillé, tranche par tranche (L2.1 → L2.11) :
+**`docs/VENTURES_LANE.md`**, section « L2 ».
+
+En bref :
+- 8 contrôleurs allégés : la logique de décision part dans 12 nouveaux modules
+  de `src/services/ventures/` ; les routes gardent les vérifications d'accès,
+  la validation, les écritures et les réponses (inchangées).
+- 5 gros services découpés en dossiers (`planImport`, `milestoneEngine`,
+  `journey`, `verification`, `profile`), le fichier d'origine gardé comme
+  point d'entrée identique.
+- Non découpés exprès : `submissions.js` (un test lit ce fichier précis) et
+  `schema.js` (une seule fonction de création de tables).
+- 4 fichiers de tests ajoutés ; tests 3631/3631, lint 0 erreur, build OK.
