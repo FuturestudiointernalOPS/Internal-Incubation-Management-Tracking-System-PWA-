@@ -44,6 +44,18 @@ jest.mock("@/lib/db", () => ({
       if (String(sql).includes("SELECT ap.*")) {
         return { rows: [{ id: 7, name: "Mentor", is_active: 1 }] };
       }
+      // The holder counts are now read as ONE statement that labels each count
+      // with its "context:role_key" pair (a UNION ALL when there is more than
+      // one, so the label — not "UNION ALL" — is what identifies the batch).
+      if (String(sql).includes(" AS pair")) {
+        return {
+          rows: String(sql)
+            .split("UNION ALL")
+            .map((part) => part.match(/SELECT '([^']+)' AS pair/))
+            .filter(Boolean)
+            .map((match) => ({ pair: match[1], c: 4 })),
+        };
+      }
       if (String(sql).includes("COUNT(")) return { rows: [{ c: 4 }] };
       return { rows: [] };
     }),
