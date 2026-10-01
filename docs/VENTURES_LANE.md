@@ -156,7 +156,7 @@ journey / milestone, reports, deliverables).
 | `ventures/[id]/milestones/archive/route.js` | 68 |
 | `ventures/[id]/milestones/duplicate/route.js` | 62 |
 | `ventures/[id]/milestones/reorder/route.js` | 54 |
-| `ventures/[id]/milestones/route.js` | 306 |
+| `ventures/[id]/milestones/route.js` | 221 (was 306 — slice L2.7) |
 | `ventures/[id]/my-access/route.js` | 166 |
 | `ventures/[id]/notes/route.js` | 233 |
 | `ventures/[id]/operating-plans/[planId]/route.js` | 100 |
@@ -284,3 +284,18 @@ Stays in the route: `requireVentureScopedAccess` (`module: "ventures"`, pinned b
 timing (`meta.duration_ms`) and the response.
 
 Checks: `npm test` 3584/3584, `npx eslint` 0 errors.
+
+### Slice L2.7 — `ventures/[id]/milestones` (306 → 221 lines) — ✅ done
+
+| New file | What moved into it |
+|---|---|
+| `src/services/ventures/milestoneCompletion.js` | `recordMilestoneEdit` (field-level history of a save, non-fatal), `settleMilestoneCompletion` (complete the milestone, immediate release, founders notified, history, automatic close of a journey whose milestones are all done → returns the closed journey for `journey_completed`) |
+
+Stays in the route: scoped access, `canManageMilestones` /
+`isMilestoneLeadAuthority`, the field validation and the update clauses
+(`isValidCid(body.owner_cid)`, `cidOrNull(body.owner_cid)`,
+`dateOrNull(target_date)`, `dateOrNull(body.start_date)` — pinned by
+`security-lot6-hardening` and `venture-input`), the write and the response.
+
+Checks: `npm test` 3584/3584 (incl. `venture-milestone-gating`,
+`staging-venture-progression`), `npx eslint` 0 errors.
