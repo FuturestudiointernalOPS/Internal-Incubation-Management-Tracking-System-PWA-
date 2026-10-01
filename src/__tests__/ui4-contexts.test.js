@@ -222,7 +222,9 @@ describe("UI-4c — the screens use them", () => {
   });
 
   test("the eligibility matrix lists baseline identities, not context roles", () => {
-    const center = read("src/components/permissions/PermissionCenter.js");
+    // Pinned to the file that owns the behaviour: EligibilityView was extracted
+    // out of PermissionCenter.js, so reading the shim would pass vacuously.
+    const center = read("src/components/permissions/permission-center/EligibilityView.js");
     // Matrix rows exclude context roles...
     expect(center).toContain("matrixRoles");
     expect(center).toContain("!contextRoles.has(role)");
