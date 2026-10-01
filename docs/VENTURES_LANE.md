@@ -145,7 +145,7 @@ journey / milestone, reports, deliverables).
 | `ventures/[id]/journey/delete/route.js` | 47 |
 | `ventures/[id]/journey/duplicate/route.js` | 67 |
 | `ventures/[id]/journey-report/route.js` | 197 |
-| `ventures/[id]/journey/route.js` | 445 |
+| `ventures/[id]/journey/route.js` | 267 (was 445 — slice L2.2) |
 | `ventures/[id]/journey/save-template/route.js` | 83 |
 | `ventures/[id]/knowledge/route.js` | 146 |
 | `ventures/[id]/kpis/route.js` | 131 |
@@ -212,3 +212,19 @@ Checks: `npm test` 3563/3563 (incl. the existing route suites
 Manual test: `/admin/ventures/<id>/journey` → open a milestone → Book session
 (a memo, a date at least the minimum lead time ahead) → the session appears in
 the milestone list; refusals (no memo, too soon) show the same messages.
+
+### Slice L2.2 — `ventures/[id]/journey` (445 → 267 lines) — ✅ done
+
+| New file | What moved into it |
+|---|---|
+| `src/services/ventures/journeyRead.js` | `attachJourneyWork({ ventureParam, dbId, stages, signEvidence })` (GET): attaches milestones per stage, deliverables per milestone (the failed-read flag `deliverablesUnavailable`), task execution counts, `milestone_counts`, and resolves the template provenance (`templateSource`) |
+| `src/services/ventures/journeyStageActions.js` | `runJourneyStageTransition` (PATCH: activate / lock / complete / reset / delete / move — refusals as `{ error, status }`, same messages and codes), `recordJourneyStageEdit` (field history of an edit), `recordJourneyStageTransition` (history of a transition) |
+
+Stays in the route: the session and `operating_plan` gates (create / edit /
+manage), the date-driven activation, the stage lookup, the audience projection
+(sealed / unsealed), every response — and the **evidence signing**
+(`signEvidence`, passed to the service): `deliverable-upload-access.test.js`
+requires the controller to own who receives a usable evidence URL.
+
+Checks: `npm test` 3567/3567 (incl. `venture-journey-gating`,
+`deliverable-upload-access`), `npx eslint` 0 errors, `npm run build` OK.
