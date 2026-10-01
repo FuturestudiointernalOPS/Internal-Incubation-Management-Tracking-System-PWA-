@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireAuthorization } from "@/lib/authorization";
-import { resolveAuthorizationContext, restrictionsToJson } from "@/models/authorization/resolver";
+import { resolveAuthorizationContext } from "@/models/authorization/resolver";
 import { getContactContexts } from "@/models/authorization/contactContexts";
 import { getContactByCid } from "@/models/responsibilities";
+import {
+  projectUserContext,
+  toResolverIdentity,
+} from "@/services/authorization/userContextProjection";
 
 export const dynamic = "force-dynamic";
 
@@ -46,11 +50,9 @@ export async function GET(req) {
       );
     }
 
-    const authorizationContext = await resolveAuthorizationContext({
-      cid,
-      role: contact.role || null,
-      group_name: contact.group_name || null,
-    });
+    const authorizationContext = await resolveAuthorizationContext(
+      toResolverIdentity({ cid, ...contact }),
+    );
 
     // Contextual relationships (UI-4c): additive, per context, read from the
     // same assignment data the scope predicates use. Fail-soft per kind — an
@@ -59,28 +61,9 @@ export async function GET(req) {
       email: contact.email || null,
     });
 
-    return NextResponse.json({
-      success: true,
-      cid,
-      role: authorizationContext.role,
-      isSuperAdmin: authorizationContext.isSuperAdmin,
-      profile: authorizationContext.profile,
-      groups: authorizationContext.groups,
-      eligibility: authorizationContext.eligibility,
-      sources: {
-        profile: authorizationContext.baseCaps,
-        groups: authorizationContext.groupCaps,
-        grants: authorizationContext.grants,
-        restrictions: restrictionsToJson(authorizationContext.restrictions),
-      },
-      effective: authorizationContext.effective,
-      contexts: contextData.contexts,
-      contextsUnavailable: contextData.unavailable,
-      scope: {
-        engine: "implemented",
-        note: "venture_own · program_assigned · learning_own (team_own pending)",
-      },
-    });
+    return NextResponse.json(
+      projectUserContext(cid, authorizationContext, contextData),
+    );
   } catch (error) {
     console.error(
       "GET /api/engineering/permissions/user-context error:",
