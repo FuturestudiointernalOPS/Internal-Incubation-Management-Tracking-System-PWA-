@@ -11,8 +11,11 @@
  *                 capture, access grant and the one-time access/resume links
  *   coaching.js — the learner coaching-request queue (create, staff decision,
  *                 cancel) and its notification fan-out
+ *   registrations.js — the team's registration decisions (retry, resend,
+ *                 refund, revoke access)
  */
 
 export * from "./learning";
 export * from "./checkout";
 export * from "./coaching";
+export * from "./registrations";
