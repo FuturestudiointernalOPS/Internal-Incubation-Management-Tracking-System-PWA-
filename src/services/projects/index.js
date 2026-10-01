@@ -7,9 +7,12 @@
  *
  *   workspace.js — the project list/create/update/delete use cases, the
  *                  portfolio access rule, lead resolution and meta merge
- *   collaboration.js — members, assignments dropdown, discussions, invitations
- *                  and the invitation response flow
+*   collaboration.js — members, assignments dropdown, discussions, invitations
+ *                      and the invitation response flow
+ *   access.js        — the role half of the object-level write rule (does this
+ *                      role need the per-project check at all?)
  */
 
 export * from "./workspace";
 export * from "./collaboration";
+export * from "./access";

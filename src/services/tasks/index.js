@@ -20,7 +20,12 @@
  *   query.js           — the GET read path (listing scope, id lookup, enrichment)
  *   remove.js          — the DELETE guards and order
  *   create.js          — the POST creation decisions and follow-on effects
- *   update.js          — the PUT update decisions (lock, cascade, assignment)
+ *   update.js          — the PUT update: the ORDER of the decisions
+ *   updateGuards.js    — the PUT entry guards (access, lock, blockers, carry-over)
+ *   updateFields.js    — the PUT field assembly (SET, project, assignment, dates)
+ *   updateEffects.js   — the PUT follow-on effects (cascade, carry-over, audits)
+ *   teamBoard.js       — the per-team board (/api/team-tasks): scope rule,
+ *                        writable columns and the list/create/update/delete cases
  *   dates.js           — the shared date helpers
  */
 
@@ -39,4 +44,8 @@ export * from "./query";
 export * from "./remove";
 export * from "./create";
 export * from "./update";
+export * from "./updateGuards";
+export * from "./updateFields";
+export * from "./updateEffects";
+export * from "./teamBoard";
 export * from "./dates";
