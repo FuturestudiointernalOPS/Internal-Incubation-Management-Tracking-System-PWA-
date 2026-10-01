@@ -1,6 +1,10 @@
 # Layer split — journal (branche `frontend_b`)
 
-> **Statut :** 1 tranche faite sur le couloir **L1 — platform**. Catalogue et
+> **Statut :** Fiche L1 — plateforme & formulaires publics — **terminée** :
+> 10 tranches (extraction de services 1-9, découpage de vue V2 en tranche 10).
+> Il manque uniquement la vérification en navigateur du découpage de vue
+> (aucune session authentifiée n'était disponible pendant la session — voir
+> la fin de la tranche 10). Catalogue et
 > méthode : [`GUIDE_DECOUPAGE_COUCHES.md`](GUIDE_DECOUPAGE_COUCHES.md),
 > [`PLAN_DE_TRAVAIL_STAGIAIRES.md`](PLAN_DE_TRAVAIL_STAGIAIRES.md),
 > [`REPARTITION_STAGIAIRES.md`](REPARTITION_STAGIAIRES.md).
@@ -435,9 +439,80 @@ contrôleur était déjà mince. Il ne reste que la tâche **V2** (découpage de
 | `platform/notifications` | ✅ audité, laissé tel quel — CRUD minimal (tranche 9) |
 | `api/responses`, `api/responses/review` | ✅ audités, laissés tels quels — RETIRED (403), code mort intentionnellement conservé (tranche 9) |
 | `services/platform/seed.js` — `platform/seed/founder-assessment` + `platform/seed/investor-application` | ✅ fait (tranche 9) |
-| **Couloir L1 — audit des contrôleurs** | ✅ **terminé** (tranches 1-9) — il ne reste que la tâche V2 (vue) |
-| **`src/app/platform/runs/page.js`** (5 353 lignes, tâche **V2** du catalogue) → `src/components/platform/runs/**` | **non commencé** — un chantier à part (découpage de vue React, pas extraction de service) |
+| **Couloir L1 — audit des contrôleurs** | ✅ **terminé** (tranches 1-9) |
+| **`src/app/platform/runs/page.js`** → `src/components/platform/runs/**` (tâche **V2**) | ✅ **fait** (tranche 10) — les 6 onglets + leurs sous-composants, voir ci-dessous |
 | `services/platform/report.js` (~426 lignes estimées, pas encore audité — pas de route identifiée dans le couloir L1 pour ce nom ; à vérifier contre `origin/interns` avant toute réconciliation) | non commencé / à clarifier |
+
+### Tranche 10 — Tâche V2 : découpage de `src/app/platform/runs/page.js`
+
+**Date :** 2026-10-02. **Qui :** même session.
+
+`src/app/platform/runs/page.js` (5 353 lignes) était un seul composant
+`FormRunsPage` avec ~100 `useState`/`useRef`, des dizaines de handlers, et un
+JSX unique de six onglets (`overview`, `emails`, `share`, `assignments`,
+`settings`, `templates`) + modales. Contrairement aux tranches 1-9 (extraction
+de **décision** vers une couche service), ce chantier est un découpage de
+**vue** React : aucune logique n'a été réécrite, seul l'endroit où le JSX et
+les composants deviennent plus légers.
+
+**Méthode.** Pour les blocs sans dépendance de fermeture (constantes,
+fonctions pures, composants déjà autonomes) : extraction directe. Pour les
+six onglets (fortement couplés à l'état du composant parent) : chaque onglet
+devient un composant **props-driven** — aucun état ne migre, tout reste dans
+`page.js`, l'onglet reçoit ce dont il a besoin en props. Pour le plus gros
+bloc (`overview`, ~900 lignes référençant ~80 valeurs du parent), la liste des
+variables libres a été dérivée **mécaniquement** (le fragment JSX copié tel
+quel dans un composant stub à props vides, passé à `eslint --rule no-undef`)
+plutôt qu'énumérée à la main — cette méthode transforme un prop oublié en
+erreur de lint immédiate (« X is not defined ») plutôt qu'en bug silencieux à
+l'exécution. Deux props manqués par la première passe de la sonde
+(`filterRowRef`, `setFieldFilters`) ont été rattrapés par le lint final sur
+le fichier assemblé.
+
+**Fichiers créés sous `src/components/platform/runs/`:**
+- `constants.js`, `helpers.js` — constantes et fonctions pures (aucune
+  dépendance de fermeture).
+- `RunsTable.js`, `MiniCalendar.js`, `SubmissionTimeline.js` — composants déjà
+  autonomes (props uniquement), déplacés tels quels.
+- `ShareTab.js`, `AssignmentsTab.js`, `SettingsTab.js` (+ `SettingRow.js`),
+  `EmailsTab.js`, `TemplatesTab.js`, `OverviewTab.js` — les six onglets,
+  chacun props-driven.
+
+**`page.js` : 5 353 → 2 886 lignes** (46 % de réduction). Ce qui reste dans
+`page.js` : les ~100 états, les handlers (fetch/mutations), et le JSX de
+scaffolding (liste des runs, bascule d'onglets, modales globales — création
+de run, review, composeur de message, ajout manuel, options d'export — qui
+ne sont pas imbriquées dans un onglet et n'ont pas été touchées).
+
+**Tests source-pin cassés et corrigés** (même mécanisme que les tranches
+précédentes — `read()` étendu pour concaténer le composant déplacé, aucune
+assertion modifiée) :
+- `run-report-file.test.js` : `RUNS_PAGE` concatène maintenant `page.js` +
+  `SettingsTab.js` + `OverviewTab.js` (le contrôle du fichier de rapport
+  vit dans `SettingsTab.js`, le bouton « Regenerate » de l'aperçu vit dans
+  `OverviewTab.js`).
+- `result-email-schedule.test.js` : `RUNS_PAGE` concatène `page.js` +
+  `TemplatesTab.js` (pin sur la déclaration module-scope de
+  `RunTemplateEditor`, qui doit rester une `function` nommée — jamais une
+  const locale — pour ne pas perdre le focus clavier à chaque frappe ; ce
+  contrat est préservé tel quel dans `TemplatesTab.js`).
+
+**Vérifié (tranche 10, à chaque étape).** `npm test` : 227/227, 2 940/2 940
+(inchangé). `npx eslint .` : 0 erreur. `npm run build` : vert.
+
+**Non vérifié : le rendu en navigateur.** Un serveur `npm run dev` a été
+lancé et la page `/platform/runs` se charge, mais aucune session n'a pu être
+authentifiée (aucun identifiant de test local n'était disponible, et
+`docs/INVESTOR_OS_TEST_GUIDE.md` ne documente qu'un email, pas de mot de
+passe) — donc **aucun onglet n'a été cliqué dans un navigateur réel** pour
+confirmer visuellement/fonctionnellement l'absence de régression. La suite
+de tests ne couvre pas le rendu de cette page (pas de tests de composants
+React ici), donc c'est la seule vérification qui manque à la demande
+explicite de l'utilisateur de « tester pour voir que rien n'est gâté ». À
+faire dès qu'une session authentifiée est disponible : ouvrir chaque onglet,
+chaque modale (review, bulk approve, envoi d'activation, envoi de résultat,
+aperçu de document, composeur de message, export, templates + personalize
+IA) et confirmer qu'ils se comportent comme avant.
 
 ## 4. Note — deux journaux, une divergence connue
 
