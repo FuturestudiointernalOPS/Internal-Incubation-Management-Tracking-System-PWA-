@@ -152,7 +152,7 @@ journey / milestone, reports, deliverables).
 | `ventures/[id]/lead/route.js` | 119 |
 | `ventures/[id]/lifecycle/route.js` | 98 |
 | `ventures/[id]/member-invitations/route.js` | 85 |
-| `ventures/[id]/members/route.js` | 383 |
+| `ventures/[id]/members/route.js` | 284 (was 383 — slice L2.3) |
 | `ventures/[id]/milestones/archive/route.js` | 68 |
 | `ventures/[id]/milestones/duplicate/route.js` | 62 |
 | `ventures/[id]/milestones/reorder/route.js` | 54 |
@@ -228,3 +228,20 @@ requires the controller to own who receives a usable evidence URL.
 
 Checks: `npm test` 3567/3567 (incl. `venture-journey-gating`,
 `deliverable-upload-access`), `npx eslint` 0 errors, `npm run build` OK.
+
+### Slice L2.3 — `ventures/[id]/members` (383 → 284 lines) — ✅ done
+
+| New file | What moved into it |
+|---|---|
+| `src/services/ventures/memberRoster.js` | `deliverVentureMemberInvitation` (in-app notice for account holders on a first send, the invitation email, the delivery outcome recorded → `{ emailSent, emailError }`), `afterVentureMemberRemoved` and `afterVentureMemberUpdated` (drop the remembered access answers, membership history row, context-grant reconcile), `applyContextGrants` |
+
+Stays in the route, on purpose: the session, `checkAccess` /
+`checkMutateAccess`, the archived-Venture gate, the request validation and the
+writes. Three source-reading tests pin parts of it to the controller:
+`venture-label-surfaces` (`getVentureDisplayNameByCode`),
+`security-lot4-forms-lms` (`MEMBER_ROLES`, "permissions must be an object"),
+`identity-gate-bridge` (bare `requireAuth` ×3). This is why the file stays a
+little above 250 lines.
+
+Checks: `npm test` 3569/3569 (incl. `ventures/member-invite-api`),
+`npx eslint` 0 errors.

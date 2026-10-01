@@ -1,14 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-import { invalidateVentureAccess } from "@/lib/ventureAccessFacts";
-import { sendVentureMemberInvitationEmail } from "@/lib/email";
-import { resolveAppUrl } from "@/lib/appUrl";
-import {
-  createVentureMemberInvitation,
-  recordVentureMemberInvitationDelivery,
-} from "@/models/ventureMemberInvitations";
-import { createLinkedNotification } from "@/models/workspace";
+import { createVentureMemberInvitation } from "@/models/ventureMemberInvitations";
 import {
   getVentureByCode,
   listVentureMembersWithContacts,
@@ -25,18 +18,12 @@ import {
   checkVentureMemberViewAccess as checkAccess,
   checkVentureMemberMutateAccess as checkMutateAccess,
 } from "@/models/ventureMemberAccess";
+import {
+  deliverVentureMemberInvitation,
+  afterVentureMemberRemoved,
+  afterVentureMemberUpdated,
+} from "@/services/ventures/memberRoster";
 
-/**
- * Phase 6: reconcile a person's context grants after a membership write.
- * Never throws, never blocks the response.
- */
-async function applyContextGrants(cid) {
-  if (!cid) return;
-  try {
-    const { syncContextGrantsForUser } = await import("@/models/authorization/contextGrants");
-    await syncContextGrantsForUser(cid);
-  } catch (_) {}
-}
 
 export async function GET(req, { params }) {
   try {
@@ -165,59 +152,10 @@ export async function POST(req, { params }) {
       ventureName = ventureResult.rows?.[0]?.venture_name || ventureName;
     } catch (_) {}
 
-    // Someone already on the platform is told IN THE APP too: they accept from
-    // their notifications, without waiting on (or hunting for) the email. Only
-    // on a first send — a re-send must not pile up duplicate notices.
-    if (invitation.contact_id && invitation.contact_has_account && !invitation.resent) {
-      try {
-        const seat = memberType === "founder" ? "a founder" : "a team member";
-        await createLinkedNotification(
-          invitation.contact_id,
-          `Invitation to join ${ventureName}`,
-          `${session?.name || "A founder of the Venture"} invited you to join ${ventureName} as ${seat}. Open this notification to accept.`,
-          "venture_invite",
-          `/venture-invite/${invitation.token}`,
-        );
-      } catch (error) {
-        console.warn("Venture invitation notification failed:", error.message);
-      }
-    }
-
-    // Never block the answer on the mailer: a failed send is logged and the
-    // invitation stays pending, so the founder can send it again. The delivery
-    // outcome IS reported back, so the founder is told when no email actually
-    // left the system instead of reading a success that never happened.
-    let emailSent = false;
-    let emailError = null;
-    try {
-      const link = `${resolveAppUrl()}/venture-invite/${invitation.token}`;
-      // Same transport as every other Venture email (Google Workspace first,
-      // Resend fallback) — not a separate weaker sender.
-      const mailResult = await sendVentureMemberInvitationEmail({
-        to: invitation.email,
-        ventureName,
-        inviterName: session?.name || null,
-        memberType,
-        inviteUrl: link,
-        expiresAt: invitation.expires_at,
-      });
-      if (mailResult?.success) {
-        emailSent = true;
-      } else {
-        emailError = mailResult?.error || mailResult?.note || "The email provider is not configured.";
-        console.warn("[Venture Invitations] invitation email not delivered:", emailError);
-      }
-    } catch (error) {
-      emailError = error.message;
-      console.error("Venture member invitation email failed:", error.message);
-    }
-
-    // Persist the delivery outcome on the invitation so the pending list can
-    // warn about it later, not only in the moment. Never blocks the answer.
-    await recordVentureMemberInvitationDelivery({
-      id: invitation.id,
-      sent: emailSent,
-      error: emailError,
+    // In-app notice (account holders, first send), email, delivery recorded:
+    // services/ventures/memberRoster.
+    const { emailSent, emailError } = await deliverVentureMemberInvitation({
+      invitation, ventureName, memberType, inviterName: session?.name || null,
     });
 
     return NextResponse.json({
@@ -299,29 +237,9 @@ export async function PATCH(req, { params }) {
 
       await archiveVentureMember(member_id, id);
 
-      // The access answers remembered for this Venture are dropped here: a
-      // removed member must lose access NOW, not when the window expires.
-      invalidateVentureAccess(id);
-
-      // Close the append-only membership history row (account/contact intact).
-      try {
-        const { syncVentureRoleHistory } = await import("@/lib/contactIdentity");
-        const removedRole = memberResult.rows[0].member_type === "founder" ? "founder" : memberResult.rows[0].role || "member";
-        if (memberResult.rows[0].contact_id) {
-          await syncVentureRoleHistory({
-            contactCid: memberResult.rows[0].contact_id,
-            ventureId: id,
-            role: removedRole,
-            active: false,
-            actorCid: userCid || null,
-            notes: "member removed — account and CRM contact remain intact",
-          });
-        }
-      } catch (_) {}
-
-      // Phase 6: reconcile grants — if this was the last founder relationship,
-      // the capability we applied is withdrawn (manual grants are untouched).
-      await applyContextGrants(memberResult.rows[0].contact_id);
+      // Access dropped now, history row closed, grants reconciled:
+      // services/ventures/memberRoster.
+      await afterVentureMemberRemoved({ ventureParam: id, member: memberResult.rows[0], actorCid: userCid });
     } else {
       let memberContactId = null;
       try {
@@ -353,26 +271,9 @@ export async function PATCH(req, { params }) {
       }
       updateArgs.push(member_id, id);
       await updateVentureMemberFields(updates, updateArgs);
-      // A changed role or permission set means the remembered answers for this
-      // Venture are no longer the whole truth.
-      invalidateVentureAccess(id);
-      try {
-        const { syncVentureRoleHistory } = await import("@/lib/contactIdentity");
-        if (memberContactId && role !== undefined) {
-          await syncVentureRoleHistory({
-            contactCid: memberContactId,
-            ventureId: id,
-            role: role || "member",
-            active: true,
-            actorCid: userCid || null,
-            notes: "member role updated",
-          });
-        }
-      } catch (_) {}
-
-      // Phase 6: a role change can turn a member into a founder (or back) —
-      // reconcile the applied grants for the affected person.
-      await applyContextGrants(memberContactId);
+      // Access dropped, history row (role change), grants reconciled:
+      // services/ventures/memberRoster.
+      await afterVentureMemberUpdated({ ventureParam: id, memberContactId, role, actorCid: userCid });
     }
 
     return NextResponse.json({ success: true });

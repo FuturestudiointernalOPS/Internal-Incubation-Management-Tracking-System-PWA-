@@ -11,6 +11,7 @@
  *   sessionNotices.js — who is told about a session change, and with which words
  *   journeyRead.js — the work a Journey read attaches (milestones, deliverables, task counts, template)
  *   journeyStageActions.js — Journey stage transitions and their change log
+ *   memberRoster.js — what follows a roster change (invitation delivery, access, history, grants)
  */
 
 export * from "./ventureDocumentTypes";
@@ -19,3 +20,4 @@ export * from "./sessionBooking";
 export * from "./sessionNotices";
 export * from "./journeyRead";
 export * from "./journeyStageActions";
+export * from "./memberRoster";
