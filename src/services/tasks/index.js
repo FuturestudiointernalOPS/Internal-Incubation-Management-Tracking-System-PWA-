@@ -20,6 +20,7 @@
  *   query.js           — the GET read path (listing scope, id lookup, enrichment)
  *   remove.js          — the DELETE guards and order
  *   create.js          — the POST creation decisions and follow-on effects
+ *   update.js          — the PUT update decisions (lock, cascade, assignment)
  *   dates.js           — the shared date helpers
  */
 
@@ -37,4 +38,5 @@ export * from "./deadlines";
 export * from "./query";
 export * from "./remove";
 export * from "./create";
+export * from "./update";
 export * from "./dates";

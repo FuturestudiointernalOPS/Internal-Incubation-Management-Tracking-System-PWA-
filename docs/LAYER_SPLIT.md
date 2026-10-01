@@ -988,6 +988,40 @@ on the route; it now reads the service, same intent (staff-side roles only). The
 
 ---
 
+### Domain 25 (final) — the controller frontier: `tasks/route.js`, update (slice 44)
+
+The monolith's last and largest path. **PUT** → `services/tasks/update.js`
+(`updateTaskRecord`): the access rule and the finer status rule, the lock guards,
+the completion guards (blockers need `force_complete`; a completed task cannot
+be flipped to carried-over), the field assembly (including dropping
+`completed_at` when a completed task reopens), project revalidation on change,
+the assignment branches (un-assign / self-assign / pending assignment with the
+contact-group gate), schedule drift detection, and the parent/subtask cascade,
+carry-over ancestor walk, reschedule increment and audits.
+
+With this, `src/app/api/tasks/route.js` is a 309-line HTTP shell (down from
+1698): it keeps only auth, field-presence checks, the call into the service and
+the response envelope. **Every `@/models/**` import left the route** — the model
+access now lives entirely in `services/tasks/*`.
+
+`tasks-api.test.js` (which covers PUT's dates, cascade, carry-over safety and
+project reset) is **unmodified** and green — the strongest evidence the move was
+faithful. New characterisation net `tasks-update-api.test.js` (13 tests) for the
+branches the existing suite did not reach (lock, strict-owner, blockers flag, the
+assignment branches). It caught a real defect the extraction introduced — a
+missing import in the pending-assignment branch — which `npm test` alone had not
+seen because that branch was untested; `npx eslint` flagged it and the new test
+now pins it.
+
+**Source-pin repointed:** `security-lot10`'s "supervisor is a management field"
+block now reads both services (the `const STAFF_SIDE_ROLES` left the route with
+PUT, which was its last user).
+
+`npm test` (235 suites, 3346 tests), `npx eslint` (0 errors) and
+`npm run build` are green. **The `tasks/route.js` monolith is done.**
+
+---
+
 ### Domain 25 — the `ventures.js` monolith: milestones & deliverables (slice 39)
 
 **Domain 5.** The milestone read, the deliverables of a milestone, and the
@@ -1424,7 +1458,7 @@ cleanup, not layering:
 | Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14) + the decision helpers (slice 22) |
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
-| Tasks / projects | `services/tasks/*`, `services/projects/*` | ⏳ **projects controller done** (slices 37–38); **tasks nearly done** (slices 39–40) — every task route except `tasks/route.js` is controller-clean; the error-prone monolith remains |
+| Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
 | LMS / platform / integrations | `services/<domain>/*` | ⏳ **LMS + platform started** — learner experience (slice 17), checkout (slice 18), Run report (slice 21); registrations/email-personalize checked (no split needed) |
 
 #### Remaining mixed model modules (the actual backlog)

@@ -107,7 +107,8 @@ or a membership check — and runs after an identity exists.
 | Task sub-resource use cases (comments, resources, duplicate, logs, deadline reminders) | `services/tasks/{comments,resources,duplicate,logs,deadlines}.js` | ✅ moved (slice 40 — only the `tasks/route.js` monolith remains) |
 | `tasks/route.js` GET (listing scope, id lookup access check, batch enrichment) | `services/tasks/query.js` | ✅ moved (slice 41 — the monolith's read path) |
 | `tasks/route.js` DELETE & PATCH (delete guards, pending-assignment response) | `services/tasks/remove.js` + `services/tasks/assignments.js` | ✅ moved (slice 42) |
-| `tasks/route.js` POST (creation scope, project/date/assignment guards, follow-on effects) + the date helpers | `services/tasks/create.js` + `services/tasks/dates.js` | ✅ moved (slice 43 — PUT remains) |
+| `tasks/route.js` POST (creation scope, project/date/assignment guards, follow-on effects) + the date helpers | `services/tasks/create.js` + `services/tasks/dates.js` | ✅ moved (slice 43) |
+| `tasks/route.js` PUT (lock, completion guards, field assembly, assignment branches, cascade) | `services/tasks/update.js` | ✅ moved (slice 44 — **`tasks/route.js` monolith done**) |
 | Effective access-profile resolution, responsibilities domain | still `src/lib/auth.js` (6 functions, 8 SQL statements) | ⏸ **blocked on a decision** — see below |
 
 Two overlaps are **known and deliberately left alone** until a decision is made,
