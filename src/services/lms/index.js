@@ -16,6 +16,9 @@
  *                 cancel) and its notification fan-out
  *   registrations.js — the team's registration decisions (retry, resend,
  *                 refund, revoke access)
+ *   checkoutWebhook.js — the payment notification state machine (the Kkiapay
+ *                 webhook): unknown reference, duplicate, explicit failure,
+ *                 verify-then-settle
  *   publicRegistration.js — the public registration surfaces: the group lookup
  *                 and fallback, the anonymous-submission rule, the
  *                 facilitator/participant conflict guard, and the public group
@@ -27,4 +30,5 @@ export * from "./checkout";
 export * from "./checkoutReconcile";
 export * from "./coaching";
 export * from "./registrations";
+export * from "./checkoutWebhook";
 export * from "./publicRegistration";

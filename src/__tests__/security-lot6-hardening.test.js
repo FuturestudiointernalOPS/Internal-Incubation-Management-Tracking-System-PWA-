@@ -160,7 +160,9 @@ describe("legacy dependency endpoints are typed and shape-checked", () => {
 });
 
 describe("the Resend webhook cannot be replayed", () => {
-  const src = read("src/app/api/webhooks/resend/route.js");
+  // The route stays a thin envelope; the signature and freshness rules moved to
+  // the email service.
+  const src = read("src/services/email/resendWebhook.js");
 
   test("signatures are compared in constant time", () => {
     expect(src).toMatch(/crypto\.timingSafeEqual/);
