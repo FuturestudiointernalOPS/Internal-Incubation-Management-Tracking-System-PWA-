@@ -5,7 +5,17 @@
  * `@/models/authorization/*` (the repository layer) and decides, but never runs
  * SQL itself and never renders anything.
  *
- *   context.js — resolve a person's effective access, and answer "may they?"
+ *   context.js — FACADE re-exporting the six modules below; import the one you
+ *                need directly, and this facade is the compatibility seam
+ *   capabilityMerge.js — the arithmetic: rows → max-merge → − restrictions.
+ *                         Imports nothing, so the rules are testable alone
+ *   contextBootstrap.js — the one-time per-process eligibility seed, and what
+ *                         happens when it fails
+ *   contextResolver.js  — resolve one person's context, in a fixed wave set
+ *   contextCache.js     — resolve once per `cid|role` per TTL, and invalidate
+ *   contextDecisions.js — the pure "may they?" surface. No DB, no session
+ *   contextAccess.js    — `can()` fails closed; `evaluateAuthorization()` fails
+ *                         open to a 500 decision rather than a silent 403
  *   contextGrantReadiness.js — the read-only readiness/impact report an
  *                              administrator consults before narrowing access
  *   resourceGuards.js — the decisions behind the project/program-guard helpers

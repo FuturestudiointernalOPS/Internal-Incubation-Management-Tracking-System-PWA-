@@ -147,7 +147,7 @@ Shim `PermissionCenter.js` + sous `permission-center/` :
 | Phase 0 : branche + baseline + ce doc | `docs/PERMISSION_CORRIDOR.md` | 3552 tests, eslint 0 err, build ✓ | ✅ |
 | P1 : barillet +4 modules | `services/authorization/index.js` (additif : accessProfiles, permissionMatrix, permissionWrites, listingScope) | services-boundaries, authz-boundaries, authorization-resolver, permissions-admin-api : 567 ✓ | ✅ eslint 0, build ✓ |
 | P1 : extractions a–i | routes + services + tests | | |
-| P2 : split context.js | services/authorization + facades | | |
+| ~~P2 : split context.js~~ | **fait** → `capabilityMerge.js`, `contextBootstrap.js`, `contextResolver.js`, `contextCache.js`, `contextDecisions.js`, `contextAccess.js` ; `context.js` devient façade (36 l.) ; filet `block-p2-context-module-decisions.test.js` (42 tests) | authorization-resolver + block-p2 : 154 ✓ | ✅ 255 suites / 3892, eslint 0, build ✓ |
 | P2 : split contextGrants.js | services/authorization + facade + readiness | | |
 | P3 : B10 PermissionCenter | shim + permission-center/ | | |
 | P4 : LAYER_SPLIT + rebase | docs/LAYER_SPLIT.md | | |
