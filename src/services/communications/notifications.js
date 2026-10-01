@@ -2,6 +2,9 @@ import {
   getOverdueTasks,
   findRecentOverdueNotification,
   createOverdueNotification,
+  getTasksDueInNext24Hours,
+  findRecentDueReminder,
+  createDueReminderNotification,
 } from "@/models/workspace";
 
 /**
@@ -44,4 +47,45 @@ export async function notifyOverdueTasks() {
   }
 
   return { overdueCount };
+}
+
+/**
+ * Create a "due reminder" notification for every task due within the next 24
+ * hours, skipping tasks that already got one within the last 6 hours.
+ * Returns { remindersCreated }. No HTTP, no SQL: the route owns transport.
+ */
+export async function notifyDueReminders() {
+  // 1. Find tasks due within the next 24 hours
+  const dueTasks = await getTasksDueInNext24Hours();
+
+  const tasks = dueTasks.rows || [];
+  let remindersCreated = 0;
+
+  for (const task of tasks) {
+    // 2. Deduplicate: skip if a due_reminder notification already exists
+    //    for this task within the last 6 hours
+    const existing = await findRecentDueReminder(
+      task.user_id,
+      `%${task.title}%`,
+    );
+
+    if (existing.rows && existing.rows.length > 0) {
+      continue; // Already notified recently
+    }
+
+    // 3. Create the notification
+    const endDateStr = task.end_date
+      ? new Date(task.end_date).toISOString().split("T")[0]
+      : "tomorrow";
+
+    await createDueReminderNotification(
+      task.user_id,
+      "Due Date Reminder",
+      `Task "${task.title}" is due tomorrow (${endDateStr}).`,
+    );
+
+    remindersCreated++;
+  }
+
+  return { remindersCreated };
 }
