@@ -428,6 +428,12 @@ Du plus rentable / débloquant au plus tard :
 > `api/public/course-match`, `api/webhooks/route.js`) a été **évalué** : aucune
 > décision métier à déplacer (aiguillage ou délégation).
 
+| CH-1 — **V15** (scores plateforme) | ✅ fait | `src/app/admin/platform/scores/page.js` (894 l.) découpée : composants présentationnels dans `src/components/admin/platform-scores/` (`ScoresHeader`, `ScoresControls`, `ScoresStats`, `ScoresFilters`, `BulkActionBar`, `RespondentsTable`, `BulkConfirmModal`, `statusConfig`). L'état, les chargements, les mémoïses, l'export CSV et les actions restent dans la page ; rendu inchangé. Tests 258 suites / 3803 ✅, lint 0 erreur, build ✅. |
+
+> **CH-1 / CH-2 (vues et composants réservés) : en cours.** Côté vues, **V15**
+> est faite ; côté composants, **B5, B8, B9** et **B13** sont faits. Restent les
+> vues V1, V3, V4, V5, V7, V9–V12, V14, V17 et les composants B3, B4, B11, B12.
+
 ---
 
 ## 5. Qui possède quel dossier de route (garantie anti-conflit)
