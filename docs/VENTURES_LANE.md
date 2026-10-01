@@ -116,7 +116,7 @@ journey / milestone, reports, deliverables).
 | `ventures/[id]/coaches/route.js` | 126 |
 | `ventures/[id]/coaching/route.js` | 87 |
 | `ventures/[id]/coach-invite/route.js` | 85 |
-| `ventures/[id]/dashboard/route.js` | 307 |
+| `ventures/[id]/dashboard/route.js` | 38 (was 307 — slice L2.6) |
 | `ventures/[id]/deliverables/route.js` | 243 (was 309 — slice L2.5) |
 | `ventures/[id]/deliverables/upload/route.js` | 45 |
 | `ventures/[id]/documents/[docId]/permissions/route.js` | 87 |
@@ -272,3 +272,15 @@ Stays in the route: `requireVentureAccess` / `requireVentureScopedAccess`
 all pinned to the controller by `deliverable-upload-access` and `venture-input`.
 
 Checks: `npm test` 3580/3580, `npx eslint` 0 errors.
+
+### Slice L2.6 — `ventures/[id]/dashboard` (307 → 38 lines) — ✅ done
+
+| New file | What moved into it |
+|---|---|
+| `src/services/ventures/dashboard.js` | `buildVentureDashboard({ ventureParam, isInternalViewer })`: every widget section (profile completion, Venture info, team, notifications, recent activity, verification, documents, meetings, KPIs, coaching, investment readiness), each failing independently, with the audience rules (internal audit stream and 'sa' feed for internal viewers only; the Venture-facing allowlist for everyone else) |
+
+Stays in the route: `requireVentureScopedAccess` (`module: "ventures"`, pinned by
+`phase5b-venture-pilot`), the `isInternalViewer` decision from the session, the
+timing (`meta.duration_ms`) and the response.
+
+Checks: `npm test` 3584/3584, `npx eslint` 0 errors.

@@ -14,6 +14,7 @@
  *   memberRoster.js — what follows a roster change (invitation delivery, access, history, grants)
  *   taskBoard.js — the task board, the status-change gates and what follows an update
  *   deliverableReview.js — reading a review decision and what follows a submission / review
+ *   dashboard.js — the Venture dashboard aggregate (widgets + audience rules)
  */
 
 export * from "./ventureDocumentTypes";
@@ -25,3 +26,4 @@ export * from "./journeyStageActions";
 export * from "./memberRoster";
 export * from "./taskBoard";
 export * from "./deliverableReview";
+export * from "./dashboard";
