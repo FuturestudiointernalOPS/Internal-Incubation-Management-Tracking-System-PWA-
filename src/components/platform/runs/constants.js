@@ -101,3 +101,14 @@ export const RUN_AUTOMATION_FLAGS = [
  * business in a browser bundle; `runReportFiles.js` enforces the same list.
  */
 export const REPORT_FILE_ACCEPT = ".pdf,.docx,.txt,.md,.markdown";
+
+// Tracking filters (Approval Email / Review / Status / Activation Email /
+// Account Status) — same pattern as field filters, but backed by fixed
+// option lists and the tracking filter state.
+export const TRACKING_FILTERS = [
+  { key: "approval_email", label: "Approval Email" },
+  { key: "review", label: "Review" },
+  { key: "status", label: "Status" },
+  { key: "activation_email", label: "Activation Email" },
+  { key: "account_status", label: "Account Status" },
+];
