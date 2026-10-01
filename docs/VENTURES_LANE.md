@@ -349,7 +349,7 @@ New services in `src/services/ventures/` (all listed in `index.js`):
 New tests in `src/__tests__/ventures/`: `session-booking-rules`, `task-board`,
 `deliverable-decision`, `plan-sheet-choice`.
 
-**Still open in L2:** splitting the big services (~~`planImport.js` 1 178~~ → L2.10,
+**Still open in L2 (as of L2.9):** splitting the big services (~~`planImport.js` 1 178~~ → L2.10,
 `milestoneEngine.js` 548, `submissions.js` 526, `journey.js` 520,
 `verification.js` 487, `profile.js` 441, `schema.js` 410) and the smaller
 routes that still import a model directly.
@@ -377,3 +377,32 @@ part for the sibling imports only; the barrel does not re-export them.
 Checks: `npm test` 3607/3607 (incl. `venture-plan-import`, `venture-plan-draft`,
 `venture-plan-apply`, `venture-decisions`, `venture-phase4`,
 `venture-external-assignments`), `npx eslint` 0 errors, `npm run build` OK.
+
+### Slice L2.11 — splitting the other big ventures services — ✅ done
+
+Same method as L2.10: each module becomes a folder of parts; the original file
+stays as a small barrel re-exporting **exactly** its former public surface, so
+every importer (`@/lib/*` facades, routes) and every test is unchanged. Code
+moved verbatim — checked token by token against the original for each file.
+
+| Service (barrel) | Before | Parts (lines) |
+|---|---|---|
+| `milestoneEngine.js` | 548 | `milestoneEngine/authority.js` (57) — who may manage / complete; `availability.js` (242) — initial status, date-driven activation, release, dependencies, bookability, automatic journey close; `status.js` (246) — status derived from deliverables and tasks, sync, completion |
+| `journey.js` | 520 | `journey/stages.js` (155) — table, id resolution, reads, moves, delete; `archive.js` (160) — archive, restore, permanent delete; `templates.js` (219) — template library |
+| `verification.js` | 487 | `verification/categories.js` (69) — categories, who may manage / submit; `workflow.js` (310) — read, submit, review status, resubmit, documents; `versions.js` (116) — Data bank versions and comments |
+| `profile.js` | 441 | `profile/wizard.js` (178) — step validators, constants, completion, step data; `records.js` (209) — read/create, step updates, validation, submit, documents; `access.js` (64) — who may read / edit |
+
+**Not split, on purpose:**
+- `submissions.js` (526): `src/__tests__/identity-gate-bridge.test.js` reads
+  this exact file and requires it to contain the `applyOwnSubmissionScope`
+  function source. Splitting it would need that test changed — it is outside
+  the lane (to raise with the lead).
+- `schema.js` (410): a single function (`ensureVentureSchema`, the schema
+  bootstrap, 391 lines of DDL). There is nothing to separate without
+  rewriting it.
+
+Note: an import line that names `@/models/ventureMilestoneEngineStore` is kept
+multi-line — `venture-engine-exports.test.js` scans single lines containing
+`ventureMilestoneEngine` and would read the store's names as engine imports.
+
+Checks: `npm test` 3631/3631, `npx eslint` 0 errors, `npm run build` OK.
