@@ -733,6 +733,33 @@ export async function deleteCampaignContacts(campaignId, contactCids) {
   });
 }
 
+/** Insert a campaign's step sequence, in order, in one wave (POST/PUT). */
+export async function insertCampaignSteps(campaignId, steps) {
+  const queries = steps.map((step, stepOrder) => ({
+    sql: "INSERT INTO campaign_steps (campaign_id, step_order, subject, body, delay_hours) VALUES (?, ?, ?, ?, ?)",
+    args: [campaignId, stepOrder, step.subject, step.body, step.delayHours],
+  }));
+  return db.batch(queries);
+}
+
+/** Insert campaigns contacts as 'pending', in one wave (POST/PUT). */
+export async function insertCampaignContacts(campaignId, contactCids) {
+  const queries = contactCids.map((contactCid) => ({
+    sql: "INSERT INTO campaign_contacts (campaign_id, contact_cid, status) VALUES (?, ?, 'pending')",
+    args: [campaignId, contactCid],
+  }));
+  return db.batch(queries);
+}
+
+/** Delete a campaign together with its steps and contacts, in one wave. */
+export async function deleteCampaignCascade(campaignId) {
+  return db.batch([
+    { sql: "DELETE FROM campaigns WHERE id = ?", args: [campaignId] },
+    { sql: "DELETE FROM campaign_steps WHERE campaign_id = ?", args: [campaignId] },
+    { sql: "DELETE FROM campaign_contacts WHERE campaign_id = ?", args: [campaignId] },
+  ]);
+}
+
 // ── /api/events ──────────────────────────────────────────────────────────────
 
 /** Event rows, optionally filtered by program_id. */

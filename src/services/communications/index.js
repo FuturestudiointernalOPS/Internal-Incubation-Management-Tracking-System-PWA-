@@ -7,6 +7,8 @@
  * `src/__tests__/server/services-boundaries.test.js`).
  *
  *   messageScope.js — who may see which message
+ *   campaigns.js — the campaign step/audience use-cases
  */
 
 export * from "./messageScope";
+export * from "./campaigns";
