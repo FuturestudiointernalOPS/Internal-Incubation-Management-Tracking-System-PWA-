@@ -40,6 +40,7 @@ const { insertErrorLog } = require("@/models/adminOps");
 const { provisionInvestorFromApproval } = require("@/models/investorRelations");
 
 const SEED_ROUTE = "src/app/api/platform/seed/investor-application/route.js";
+const SEED_SERVICE = "src/services/platform/seed.js";
 const RUN_ROUTE = "src/app/api/platform/investor-run/route.js";
 const FORMS_ROUTE = "src/app/api/platform/forms/route.js";
 const AUTOMATION = "src/models/platform/automation.js";
@@ -55,16 +56,18 @@ beforeEach(() => {
 
 describe("static contract — the investor intake wiring", () => {
   test("the seed is super-admin only and reuses form/run idempotently", () => {
+    // The gate stays in the route; the orchestration moved to the service.
     const src = read(SEED_ROUTE);
     expect(src).toMatch(/requireAuth\(\["super_admin"\]\)/);
-    expect(src).toMatch(/findInvestorApplicationFormByName/);
-    expect(src).toMatch(/assertSingleInvestorForm/);
-    expect(src).toMatch(/findActiveInvestorRun/);
-    expect(src).toMatch(/createInvestorApplicationRun/);
-    expect(src).toMatch(/investor_application: true/);
+    const service = read(SEED_SERVICE);
+    expect(service).toMatch(/findInvestorApplicationFormByName/);
+    expect(service).toMatch(/assertSingleInvestorForm/);
+    expect(service).toMatch(/findActiveInvestorRun/);
+    expect(service).toMatch(/createInvestorApplicationRun/);
+    expect(service).toMatch(/investor_application: true/);
     // The approval provisions the account and sends the activation email.
-    expect(src).toMatch(/create_platform_user: true/);
-    expect(src).toMatch(/send_activation_email: true/);
+    expect(service).toMatch(/create_platform_user: true/);
+    expect(service).toMatch(/send_activation_email: true/);
   });
 
   test("the run route resolves the flagged form's single active run, super-admin only", () => {

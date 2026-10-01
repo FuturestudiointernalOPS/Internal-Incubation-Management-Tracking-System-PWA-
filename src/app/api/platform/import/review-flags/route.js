@@ -1,10 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import {
-  listImportReviewFlags,
-  updateImportReviewFlagStatus,
-} from "@/models/platformImport";
+import { listReviewFlags, setReviewFlagStatus } from "@/services/platform/import";
 
 /**
  * IMPORT REVIEW FLAGS API
@@ -17,6 +14,9 @@ import {
  * PUT /api/platform/import/review-flags
  *     Body: { id, status: "resolved" | "pending" }
  *     — Resolve or reopen a flagged identity
+ *
+ * Thin controller: gates on `super_admin` and delegates to
+ * `@/services/platform/import` (see docs/LAYER_SPLIT.md).
  */
 
 export async function GET(req) {
@@ -26,12 +26,12 @@ export async function GET(req) {
     if (authError) return authError;
 
     const { searchParams } = new URL(req.url);
-    const status = searchParams.get("status") || "pending";
-    const runId = searchParams.get("run_id");
-    const formId = searchParams.get("form_id");
-
-    const result = await listImportReviewFlags(status, runId, formId);
-    return NextResponse.json({ success: true, flags: result.rows });
+    const { status, body } = await listReviewFlags({
+      status: searchParams.get("status") || "pending",
+      runId: searchParams.get("run_id"),
+      formId: searchParams.get("form_id"),
+    });
+    return NextResponse.json(body, { status });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -43,19 +43,9 @@ export async function PUT(req) {
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
-    const { id, status } = await req.json();
-    if (!id) {
-      return NextResponse.json({ success: false, error: "id is required" }, { status: 400 });
-    }
-
-    const valid = ["pending", "resolved"];
-    if (status && !valid.includes(status)) {
-      return NextResponse.json({ success: false, error: "Invalid status" }, { status: 400 });
-    }
-
-    const result = await updateImportReviewFlagStatus(status, id);
-
-    return NextResponse.json({ success: true, flag: result.rows[0] || null });
+    const payload = await req.json();
+    const { status, body } = await setReviewFlagStatus(payload);
+    return NextResponse.json(body, { status });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

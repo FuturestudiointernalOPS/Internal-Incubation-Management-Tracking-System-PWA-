@@ -5,10 +5,7 @@ import { requireAuthorization } from "@/lib/authorization";
 import { recordEmailStatus } from "@/lib/email";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded, sendAcknowledgementForSubmission } from "@/lib/platform/automation";
 import { maybeAutoApprove } from "@/models/platform/ai/autoApprove";
-import { syncApprovedSubmissionToProgramGroup } from "@/lib/contact-group-sync";
 import {
-  getRunScoringSettingsById,
-  getFormScoringSettingsById,
   getSubmissionById,
   getRunById,
   getSubmissionReviewsBySubmissionId,
@@ -33,16 +30,6 @@ import {
 
   getSubmissionsBySubmitterId,
   listFormRunsPage,
-  getLatestEvaluationBySubmissionId,
-  getSubmissionReviewStateById,
-  getReviewerNameByCid,
-  createSubmissionReview,
-  getLatestEvaluationForOverridesBySubmissionId,
-  updateEvaluationDimensionsById,
-  updateSubmissionStatusById,
-  getSubmissionRunIdById,
-  getRunDataForReviewAutomationById,
-  getFormById,
   updateRunStatusById,
   getRunSubmissionGateById,
   findExistingSubmissionIdForRunAndSubmitter,
@@ -111,9 +98,11 @@ import {
   dispatchScheduledResultEmails,
   enrichAssignments,
   logTimeline,
+  processReviewInternal,
   sendDecisionEmailForSubmission,
   sendResultEmailForSubmission,
 } from "@/services/platform/formRuns";
+import { calculateSubmissionScores } from "@/services/platform/scoring";
 
 /**
  * PLATFORM FORM RUNS API — Run creation, submissions, reviews, timeline, assignments
@@ -139,88 +128,7 @@ import {
  * DELETE /api/platform/form-runs?id=X                    — Archive
  */
 
-/**
- * Calculate assessment scores for a submission.
- * Expects submissionData to contain rating field values keyed by field label.
- * Returns { sections, overall, ranking } or null if scoring is not configured.
- */
-async function calculateSubmissionScores(runId, submissionData) {
-  try {
-    const run = await getRunScoringSettingsById(runId);
-    if (run.rows.length === 0) return null;
-
-    // Check run-level scoring config first, then fall back to form-level
-    const runSettings = run.rows[0].settings || {};
-    let scoring = runSettings.scoring;
-
-    if (!scoring || !scoring.enabled) {
-      const form = await getFormScoringSettingsById(run.rows[0].form_id);
-      if (form.rows.length === 0) return null;
-      const formSettings = form.rows[0].settings || {};
-      scoring = formSettings.scoring;
-    }
-
-    if (!scoring || !scoring.enabled || !scoring.sections) return null;
-
-    const { sections, rankings } = scoring;
-    const maxPerQuestion = scoring.max_per_question || 5; // configurable scale (default 5 for Likert)
-    const sectionResults = {};
-
-    for (const [sectionName, sectionConfig] of Object.entries(sections)) {
-      const { weight, field_labels, max_per_question: sectionMax } = sectionConfig;
-      const effectiveMax = sectionMax || maxPerQuestion;
-      let sectionTotal = 0;
-      let sectionCount = 0;
-
-      if (Array.isArray(field_labels)) {
-        for (const label of field_labels) {
-          const value = submissionData[label];
-          if (value !== undefined && value !== null && value !== "") {
-            const numVal = parseFloat(value);
-            if (!isNaN(numVal)) {
-              sectionTotal += numVal;
-              sectionCount++;
-            }
-          }
-        }
-      }
-
-      const maxPossible = sectionCount * effectiveMax;
-      const sectionScore = sectionCount > 0 ? Math.round((sectionTotal / maxPossible) * 1000) / 10 : 0;
-
-      sectionResults[sectionName] = {
-        score: sectionScore,
-        maxPossible,
-        total: sectionTotal,
-        count: sectionCount,
-        weight: weight || 0,
-      };
-    }
-
-    // Overall weighted score
-    let overallScore = 0;
-    for (const [, data] of Object.entries(sectionResults)) {
-      overallScore += data.score * (data.weight / 100);
-    }
-    overallScore = Math.round(overallScore * 10) / 10;
-
-    // Ranking
-    let ranking = null;
-    if (Array.isArray(rankings)) {
-      for (const rank of rankings) {
-        if (overallScore >= rank.min && overallScore <= rank.max) {
-          ranking = rank.label;
-          break;
-        }
-      }
-    }
-
-    return { sections: sectionResults, overall: overallScore, ranking };
-  } catch (error) {
-    console.error("[Scoring] Calculation failed:", error.message);
-    return null;
-  }
-}
+// Scoring lives in `@/services/platform/scoring` (see docs/LAYER_SPLIT.md).
 
 export async function GET(req) {
   try {
@@ -444,169 +352,6 @@ function scheduleResultSweep(runId = null) {
   if (now - (lastResultSweepAt.get(key) || 0) < RESULT_SWEEP_COOLDOWN_MS) return;
   lastResultSweepAt.set(key, now);
   after(() => dispatchScheduledResultEmails({ run_id: runId }).catch(() => {}));
-}
-
-/**
- * Shared approval/rejection workflow — used by BOTH the single review action
- * and the bulk review action so bulk approval is a controlled extension of
- * the individual flow, never a parallel implementation.
- *
- * Idempotency guard → review row (+ dimension overrides) → status update →
- * tracked decision email (Gmail, run→form→default template, resolved name) →
- * REVIEW_COMPLETED automation (activation/access emails, CRM identity) →
- * program auto-assignment.
- *
- * Returns { ok: true, submission, already_approved? } or
- *         { ok: false, statusCode, error }.
- */
-async function processReviewInternal({ submission_id, decision, comment, internal_note, dimension_overrides, force, session, includeResultPdf = false }) {
-  // ── IDEMPOTENCY GUARD: never re-approve an already-approved submission ──
-  // Manual override requires explicit force: true
-  const existingSub = await getSubmissionReviewStateById(submission_id);
-  if (existingSub.rows.length === 0) {
-    return { ok: false, statusCode: 404, error: "Submission not found" };
-  }
-  const prevStatus = existingSub.rows[0].status;
-  if (prevStatus === "approved" && decision === "approved" && !force) {
-    return { ok: true, already_approved: true, submission: existingSub.rows[0] };
-  }
-
-  // ── "Also send the AI result PDF" is a promise the submission has to be able
-  // to keep: that document IS the evaluation. Refuse the WHOLE action before any
-  // side effect — no review row, no status change, no email — and say why, so
-  // the reviewer evaluates the submission and approves again. An approval whose
-  // requested document cannot follow is never half-sent. ──
-  if (includeResultPdf && decision === "approved") {
-    const evalGate = await getLatestEvaluationBySubmissionId(submission_id);
-    const evalGateRow = evalGate.rows[0] || null;
-    let gateDims = evalGateRow?.dimensions;
-    if (typeof gateDims === "string") {
-      try { gateDims = JSON.parse(gateDims); } catch (_) { gateDims = []; }
-    }
-    const hasResult = !!evalGateRow && (evalGateRow.overall_score != null || (Array.isArray(gateDims) && gateDims.length > 0));
-    if (!hasResult) {
-      return {
-        ok: false,
-        statusCode: 409,
-        errorCode: "result_pdf_not_evaluated",
-        error: "No AI result yet — this submission has not been evaluated. Run the evaluation first, then approve with the PDF.",
-      };
-    }
-  }
-
-  let reviewerName = session.cid;
-  try {
-    const reviewerResult = await getReviewerNameByCid(session.cid);
-    if (reviewerResult.rows.length) reviewerName = reviewerResult.rows[0].name;
-  } catch (_) {}
-
-  // Save review with dimension overrides if provided
-  await createSubmissionReview({
-    submissionId: submission_id,
-    reviewerId: session.cid,
-    reviewerName,
-    decision,
-    comment,
-    internalNote: internal_note,
-  });
-
-  // Store dimension overrides in separate evaluation update
-  if (dimension_overrides && Array.isArray(dimension_overrides) && dimension_overrides.length > 0) {
-    try {
-      const evaluationResult = await getLatestEvaluationForOverridesBySubmissionId(submission_id);
-      if (evaluationResult.rows.length > 0) {
-        const existing = evaluationResult.rows[0];
-        const dims = existing.dimensions || [];
-        const updatedDims = dims.map(dimension => {
-          const override = dimension_overrides.find(overrideCandidate => overrideCandidate.name === dimension.name);
-          if (override) {
-            return { ...dimension, human_score: override.human_score, human_comment: override.human_comment || "", final_score: override.final_score };
-          }
-          return dimension;
-        });
-        await updateEvaluationDimensionsById(existing.id, updatedDims);
-      }
-    } catch (_) {}
-  }
-
-  // Update submission status — map workflow decision to core platform state
-  const CORE_STATES = ["approved", "rejected", "revision_requested", "submitted", "draft"];
-  const newStatus = CORE_STATES.includes(decision) ? decision : "approved";
-  const result = await updateSubmissionStatusById(submission_id, newStatus);
-
-  logTimeline(parseInt(submission_id), decision, session.cid, reviewerName, { comment, internal_note });
-
-  // Send decision email to applicant — TRACKED (never sent twice)
-  await sendDecisionEmailForSubmission({ submission_id, decision, comment: comment || "" });
-
-  // The reviewer also asked for the AI result document. It goes out as its OWN
-  // email — its own type, its own guard in the Emails tab — through the exact
-  // path behind "Send Response", so the document is identical whether it is
-  // sent from the approval checkbox or by hand. The gate above guarantees an
-  // evaluation exists, so this never sends an empty document.
-  let resultPdf = null;
-  if (includeResultPdf && decision === "approved") {
-    try {
-      resultPdf = await sendResultEmailForSubmission({ submission_id });
-    } catch (error) {
-      resultPdf = { status: "failed", error: error?.message || "Result PDF failed" };
-    }
-  }
-
-  // Fire automation — get run details + form config for context
-  const submissionRunResult = await getSubmissionRunIdById(submission_id);
-  if (submissionRunResult.rows.length > 0) {
-    const runData = await getRunDataForReviewAutomationById(submissionRunResult.rows[0].run_id);
-    let formData = null;
-    if (runData.rows[0]) {
-      const formResult = await getFormById(runData.rows[0].form_id);
-      formData = formResult.rows[0] || null;
-    }
-
-    // Record a PENDING activation email BEFORE firing the background task.
-    // If the serverless function is terminated before `after()` completes,
-    // this pending row remains visible in the Emails tab as retryable.
-    if (decision === "approved") {
-      try {
-        const { recordEmailStatus } = await import("@/lib/email");
-        await recordEmailStatus({
-          submission_id: parseInt(submission_id),
-          contact_cid: result.rows[0]?.submitter_id || null,
-          email_type: "activation",
-          status: "pending",
-          error: "Queued — waiting for background automation",
-          to: result.rows[0]?.submitter_id || null,
-        });
-      } catch (_) {}
-    }
-
-    after(() => {
-      onReview(
-        { id: null, submission_id: parseInt(submission_id), decision, comment, reviewer_name: reviewerName },
-        result.rows[0],
-        runData.rows[0] || null,
-        session,
-        formData
-      ).catch((err) => {
-        console.error("[form-runs] Background automation failed:", err.message);
-      });
-    });
-
-    // Synchronous program/group sync (does NOT rely on background automation).
-    if (decision === "approved" && runData.rows[0]) {
-      await syncApprovedSubmissionToProgramGroup(result.rows[0]);
-    }
-
-    // A result whose scheduled time has already passed goes out as soon as the
-    // reviewer decides — no need to reopen the run for it to be picked up.
-    // The sweep honours the run's delay and is idempotent, so it is safe to ask
-    // on every decision (a delay of 0 asks for nothing).
-    if (decision === "approved") {
-      scheduleResultSweep(submissionRunResult.rows[0].run_id);
-    }
-  }
-
-  return { ok: true, submission: result.rows[0], result_pdf: resultPdf };
 }
 
 export async function POST(req) {
@@ -913,6 +658,8 @@ export async function POST(req) {
         force,
         session,
         includeResultPdf: include_result_pdf === true,
+        after,
+        scheduleResultSweep,
       });
       if (!reviewResult.ok) {
         return NextResponse.json({ success: false, error: reviewResult.error, error_code: reviewResult.errorCode || null }, { status: reviewResult.statusCode || 500 });
@@ -978,6 +725,8 @@ export async function POST(req) {
             comment: comment || "Bulk approved",
             session,
             includeResultPdf: include_result_pdf === true,
+            after,
+            scheduleResultSweep,
           });
           results.push({
             submission_id: id,
