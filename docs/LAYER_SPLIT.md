@@ -18,7 +18,7 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–63 the next `ventures.js`
+> controller (workspace, then collaboration), 39–64 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
 > project timeline & dependencies, reports & project analytics, coach & mentor
 > management, mentoring sessions & scheduling, knowledge hub & learning,
@@ -27,8 +27,9 @@
 > system config, the notification centre, audit logs & security, then external
 > integrations & public APIs, system monitoring, health & reporting, then the core
 > schema bootstrap, intake, then the core record — **`ventures.js` is now a
-> barrel**), then the non-venture `src/lib` tail began (token hashing, task audit
-> log, access profiles + responsibilities, LMS coaching requests). The
+> barrel**), then the non-venture `src/lib` tail — which is now **completely clear
+> of SQL** (token hashing, task audit, access profiles + responsibilities, LMS
+> coaching, then the email delivery log). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1407,6 +1408,31 @@ duplicate-request behaviour and the never-throwing notifications.
 
 ---
 
+### Domain 50 — the non-venture `src/lib` tail: email delivery log (slice 64)
+
+**The last SQL in `src/lib`.** `src/lib/email.js` (2 011 lines) is mostly pure
+infrastructure — env/config, the Resend + Gmail transports, the template engine,
+the copy builders and the name/email resolvers — which the doc says belongs in
+`src/lib`. Its one SQL cluster (the `platform_email_log` and
+`password_setup_tokens` self-heals, the log reads, the recipient idempotency
+probe, the activation history, the status/bounce/Resend records, the tracked-send
+record and the per-form stats) moves to `services/email/log.js` over
+`models/emailLogStore.js` (which keeps the bare-string DDL form).
+
+`src/lib/email.js` imports the three functions its senders call
+(`recordStandaloneSend`, `getEmailLogRow`, `recordEmailResult`) as local
+bindings — an `export … from` introduces no binding — and re-exports the public
+surface. The senders and the transport stay in the lib, so there is no cycle
+(the email service never imports the lib).
+
+**Unchanged:** every SQL string (byte-identical), the once-per-process schema
+caches, the safe-status set, the dedupe rule and the stat shaping.
+
+**`src/lib` now holds no `db.execute` at all** (`request-context.js` only
+mentions it in a comment).
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1419,19 +1445,7 @@ duplicate-request behaviour and the never-throwing notifications.
    `requireAssignmentAccess`, …) still queries models and builds its own
    responses. It is the *other* authorization boundary; splitting it the same way
    is follow-up work, not a mixed module.
-4. **`src/lib/email.js` (2 011 lines) — the last module with SQL in `src/lib`.**
-   It is mostly PURE infrastructure (env/config, the two transports, the template
-   engine, the copy builders and the name/email resolvers) — which the doc says
-   belongs in `src/lib` — plus one SQL cluster: the `platform_email_log` and
-   `password_setup_tokens` self-heals, the log reads/writes, the tracking record
-   helpers and the form stats. The cluster is entangled with the senders (which
-   call the transport kept in `src/lib`), so a clean split needs its own pass:
-   move the transport-free log/schema/tracking functions to
-   `services/email/log.js` over a `models/emailLogStore.js`, leave the senders
-   and the transport in `src/lib/email.js`, and re-export — the senders then
-   import the log service (no cycle, since the log service never imports the
-   lib). Tracked here, not yet done.
-5. **No type layer** (see §4).
+4. **No type layer** (see §4).
 
 ---
 
@@ -1606,14 +1620,11 @@ Two source-pinning suites were repointed (same assertion, new home):
   23 domains (activity/history/notifications → system monitoring, slices 33–56)
   plus the core (schema, intake, record, slices 57–59) are out, re-exported
   through `src/lib/ventures.js` over `services/ventures/*` and
-  `models/venture*Store.js`. A long tail of
-  `src/lib` modules still
-  holds SQL (the
-  non-venture ones `email.js`, and now `lms/coaching.js` is done too;
-  `auth.js`, `audit.js` and `token-hashing.js` are done, and `request-context.js`
-  held only a comment) — the
-  next repository-extraction
-  targets, one module at a time, tracked in `MVC_REFACTOR.md`.
+  `models/venture*Store.js`. **The non-venture `src/lib` tail is done too** —
+  `auth.js`, `audit.js`, `token-hashing.js`, `lms/coaching.js` and `email.js` were
+  split, and `request-context.js` never held SQL (only a comment). **`src/lib`
+  now contains no `db.execute` outside `db.js` itself.** The next frontier is the
+  remaining controller-heavy routes and the giant page files below.
 - Giant page files (>600 LOC) still need splitting into feature components.
 
 ### Deferred decision: typing
