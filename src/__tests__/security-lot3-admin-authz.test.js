@@ -43,8 +43,12 @@ describe("role changes are not capability grants", () => {
   });
 
   test("contacts PUT gates `role` on the assign-roles capability", () => {
-    const src = read("src/app/api/contacts/route.js");
+    // The updatable-column list (with `role` gated on the capability) moved to
+    // the update service; the route still resolves `canAssignRole`.
+    const src = read("src/services/contacts/update.js");
     expect(src).toMatch(/\.\.\.\(canAssignRole \? \["role"\] : \[\]\)/);
+    const route = read("src/app/api/contacts/route.js");
+    expect(route).toMatch(/const canAssignRole = !assignRoleError/);
   });
 
   test("approve-user derives the role and the actor server-side, returns no token", () => {

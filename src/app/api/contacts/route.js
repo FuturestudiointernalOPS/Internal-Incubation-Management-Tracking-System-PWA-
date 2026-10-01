@@ -7,16 +7,16 @@ import { readRegistryContacts } from "@/services/contacts/registryRead";
 import { softDeleteRegistryContact } from "@/services/contacts/deletion";
 import { registerContacts } from "@/services/contacts/registration";
 import {
+  buildContactUpdate,
+  planContactProgramSync,
+  findMissingProgram,
+  applyContactProgramMembership,
+  completeContactUpdate,
+} from "@/services/contacts/update";
+import {
   updateContactFields,
   deleteContactPrograms,
-  getProgramById,
-  removeContactProgramsExcept,
-  clearContactPrograms,
-  addContactProgramMembership,
-  recordParticipantProgramAudit,
   ensureContactProgramMembership,
-  getContactIdentityByCid,
-  markAdminNotificationsRead,
 } from "@/models/contacts";
 export const dynamic = "force-dynamic";
 
@@ -112,104 +112,51 @@ export async function PUT(req) {
       if (protectError) return protectError;
     }
 
-    const fieldsToUpdate = [];
-    const args = [];
-
-    // `archived_at` and `archived_by` are deliberately NOT caller-settable: they
-    // record WHO archived a contact and WHEN. The caller sends the single intent
-    // `archived: true|false` (handled below) and the server writes both, so a
-    // caller holding `contacts.edit` cannot attribute an archive to somebody else
-    // or date it themselves.
-    // `role` is a server-controlled boundary: login derives the session role
-    // from contacts.role, so only a caller who may assign roles can change it.
     const assignRoleError = await requireAuthorization("permissions", "assign_capabilities");
     const canAssignRole = !assignRoleError;
 
-    const updatableColumns = [
-      "name",
-      "email",
-      "phone",
-      "address",
-      "dob",
-      "group_name",
-      ...(canAssignRole ? ["role"] : []),
-      "program_id",
-      "program_name",
-      "image",
-      "status",
-      "deleted",
-      "gender",
-      "mother_name",
-    ];
-
-    for (const column of updatableColumns) {
-      if (data[column] !== undefined) {
-        let value = data[column];
-        if (typeof value === "string") value = value.trim();
-
-        if (column === "email") {
-          fieldsToUpdate.push(`${column} = ?`);
-          args.push(value.toLowerCase());
-        } else if (column === "group_name") {
-          // Normalize group names to UPPERCASE at write time (matches the
-          // membership layer) so case variants can never be re-created.
-          fieldsToUpdate.push("group_name = ?");
-          args.push(String(value || "").trim().toUpperCase());
-        } else {
-          fieldsToUpdate.push(`${column} = ?`);
-          args.push(column === "deleted" ? (value ? 1 : 0) : value);
-        }
-      }
-    }
-
-    // Archive / restore: one intent, recorded by the server. The moment is the
-    // server's clock and the actor is the session, never the request body.
+    // `archived_at` / `archived_by` record WHO archived and WHEN — the caller
+    // sends only the `archived` intent; the server fills both from the session.
+    let actor;
     if (data.archived !== undefined) {
       const session = await getSession();
-      const actor = session?.name || session?.email || session?.cid || "unknown";
-      fieldsToUpdate.push("archived_at = ?", "archived_by = ?");
-      if (data.archived) args.push(new Date().toISOString(), actor);
-      else args.push(null, null);
+      actor = session?.name || session?.email || session?.cid || "unknown";
     }
 
-    if (fieldsToUpdate.length === 0) {
+    const built = buildContactUpdate({ data, canAssignRole, actor });
+    if (built.noFields) {
       return NextResponse.json({
         success: true,
         message: "No fields to update.",
       });
     }
 
-    args.push(data.cid);
-
-    const updateResult = await updateContactFields(fieldsToUpdate, args);
+    const updateResult = await updateContactFields(built.fieldsToUpdate, built.args);
 
     // Sync participant_programs if program_ids array is provided
-    const NON_PARTICIPANT_ROLES = ["facilitator", "staff", "super_admin", "investor", "founder", "program_manager"];
-    const isRolePromotion = data.role && NON_PARTICIPANT_ROLES.includes(data.role);
+    const plan = planContactProgramSync(data);
 
-    if (isRolePromotion) {
-      // Role is being changed to a non-participant role.
-      // Automatically remove from participant_programs — they are no longer a participant.
-      // Skip the conflict guard entirely since we're intentionally changing their role.
+    if (plan.rolePromotion) {
+      // Role is being changed to a non-participant role: they are no longer a
+      // participant, so drop the enrollment. The conflict guard is skipped — the
+      // role is changing on purpose.
       await deleteContactPrograms(data.cid);
-    } else if (Array.isArray(data.program_ids)) {
+    } else if (plan.programIds) {
       // Verify all programs exist before assigning
-      for (const programId of data.program_ids) {
-        const programResult = await getProgramById(programId);
-        if (programResult.rows.length === 0) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: `Program "${programId}" not found. Create it first before assigning.`,
-            },
-            { status: 404 },
-          );
-        }
+      const missing = await findMissingProgram(plan.programIds);
+      if (missing) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Program "${missing}" not found. Create it first before assigning.`,
+          },
+          { status: 404 },
+        );
       }
 
       // Same-program conflict guard (Phase 2A): reject the update before any
       // membership mutation if the person is a facilitator in a target program.
-      for (const programId of data.program_ids) {
+      for (const programId of plan.programIds) {
         const conflictError = await assertNoParticipantFacilitatorConflict(
           programId,
           data.cid,
@@ -218,30 +165,11 @@ export async function PUT(req) {
         if (conflictError) return conflictError;
       }
 
-      // Remove existing assignments not in the new list
-      if (data.program_ids.length > 0) {
-        await removeContactProgramsExcept(data.cid, data.program_ids);
-      } else {
-        await clearContactPrograms(data.cid);
-      }
-
-      // Add new assignments
-      for (const programId of data.program_ids) {
-        try {
-          await addContactProgramMembership(data.cid, programId);
-
-          await recordParticipantProgramAudit(
-            data.cid,
-            programId,
-            data.assigned_by || "system",
-          );
-        } catch (error) {
-          console.error(
-            `PUT program sync error for ${data.cid}, program ${programId}:`,
-            error.message,
-          );
-        }
-      }
+      await applyContactProgramMembership({
+        cid: data.cid,
+        programIds: plan.programIds,
+        assignedBy: data.assigned_by,
+      });
     } else if (data.program_id) {
       // Single program_id fallback — ensure at least this one exists
       try {
@@ -258,26 +186,8 @@ export async function PUT(req) {
       }
     }
 
-    // If status changed to active/approved, fire invite and clear notifications
-    if (data.status === "active" || data.status === "approved") {
-      try {
-        const identityResult = await getContactIdentityByCid(data.cid);
-        if (identityResult.rows.length > 0) {
-          const contactRow = identityResult.rows[0];
-
-          // Fire invite for approved staff (participants already invited on registration)
-          // Commented out — invite is now sent on registration, not on approval
-          // if (contactRow.role !== "participant") {
-          //   fireInvite(data.cid, contactRow.name, contactRow.email, contactRow.role, null).catch(() => {});
-          // }
-
-          // Clear notifications
-          await markAdminNotificationsRead(contactRow.name);
-        }
-      } catch (error) {
-        console.error("Auto-Purge Failure:", error);
-      }
-    }
+    // If status changed to active/approved, clear the admin notifications
+    await completeContactUpdate({ cid: data.cid, status: data.status });
 
     return NextResponse.json({
       success: true,
