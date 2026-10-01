@@ -20,3 +20,4 @@ export * from "./internalComms";
 export * from "./announcements";
 export * from "./followups";
 export * from "./events";
+export * from "./notifications";
