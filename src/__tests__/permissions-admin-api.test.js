@@ -62,6 +62,15 @@ jest.mock("@/lib/auth", () => ({
 }));
 
 let mockAuthzDecision = null; // null = granted (route proceeds)
+// The eligibility route's canConfigure decision moved into the service, which
+// imports `authorize` from the context MODULE. Both mocks share one fn so the
+// barrel mock and the module mock cannot disagree.
+const mockAuthorize = jest.fn().mockReturnValue(true);
+jest.mock("@/services/authorization/context", () => ({
+  ...jest.requireActual("@/services/authorization/context"),
+  authorize: mockAuthorize,
+}));
+
 const mockRealEligAdmin = jest.requireActual("@/lib/authorization/eligibility-admin");
 const mockRealEligibility = jest.requireActual("@/lib/authorization/eligibility");
 jest.mock("@/lib/authorization", () => ({
@@ -72,7 +81,7 @@ jest.mock("@/lib/authorization", () => ({
   buildPermissionExplanation: jest.fn().mockReturnValue(null),
   assertTemplateCapsEligible: jest.fn().mockResolvedValue({ valid: true, violations: [] }),
   getAuthorizationContext: jest.fn().mockResolvedValue({ isSuperAdmin: true, eligibility: {} }),
-  authorize: jest.fn().mockReturnValue(true), // used by the eligibility route for the canConfigure flag
+  authorize: mockAuthorize, // used by the eligibility route for the canConfigure flag
   FEATURE_KEYS: mockRealEligAdmin.FEATURE_KEYS,
   IDENTITY_TYPES: mockRealEligAdmin.IDENTITY_TYPES,
   ROLE_CATALOG: mockRealEligAdmin.ROLE_CATALOG,
