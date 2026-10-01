@@ -7,7 +7,11 @@
  *
  *   ventureDocumentTypes.js — a Venture's Data-bank document list
  *   planImport.js — interpreting a tracker into a proposed programme
+ *   sessionBooking.js — the rules a new Venture session must meet
+ *   sessionNotices.js — who is told about a session change, and with which words
  */
 
 export * from "./ventureDocumentTypes";
 export * from "./planImport";
+export * from "./sessionBooking";
+export * from "./sessionNotices";
