@@ -340,10 +340,10 @@ Du plus rentable / débloquant au plus tard :
 1. ✅ **Couloir « espace de travail & calendrier »** — **terminé** : calendrier
    et workspaces migrés (voir le journal ci-dessous).
 2. 🟰 **Portail participant** — domaine ouvert (`services/participant/**`).
-   Fait : les affectations **et** l'accueil (`home`, 505 lignes, le plus lourd
-   en décisions). Reste : `progress` (450), `full-state`, `submissions`,
-   `rituals/*`, `followups`, `timeline`, `certificates`, puis `api/me/**` et
-   `api/profile/**`. Le filet se pose route par route.
+   Fait : les affectations, l'accueil (`home`) **et** la progression
+   (`progress`). Reste : `full-state`, `submissions`, `rituals/*`, `followups`,
+   `timeline`, `certificates`, puis `api/me/**` et `api/profile/**`. Le filet se
+   pose route par route.
 3. **Investisseur** (domaine à ouvrir) — `api/investor/**` →
    `services/investor/**`.
 4. **LMS & paiement** et **e-mail / intégrations** — vérifier d'abord : routes
@@ -368,7 +368,8 @@ Du plus rentable / débloquant au plus tard :
 | Portail participant — **domaine ouvert** | ✅ fait | Créé `services/participant/**`. |
 | Portail participant — **assignations** | ✅ fait | Les décisions de `api/participant/assignments/route.js` (périmètre des livrables selon la portée tout/équipe/individu, rattachement de la soumission, tri « en retard d'abord », première version vs nouvelle version) déplacées dans `services/participant/assignments.js`. Route amaigrie. Test de comportement ajouté (`src/__tests__/participant-assignments.test.js`). Tests 398 ✅, lint 0 erreur, build ✅. |
 | Portail participant — **accueil (home)** | ✅ fait | Les décisions de `api/participant/home/route.js` (règles de déblocage et de semaine, taux d'achèvement / assiduité / affectations / indicateurs, classification retard / échéance proche / à venir, assemblage du calendrier et des annonces) déplacées dans `services/participant/home.js`. Fonctions pures testables + route amaigrie. Test de comportement ajouté (`src/__tests__/participant-home.test.js`). Tests 410 ✅, lint 0 erreur, build ✅. |
-| Portail participant — **le reste** | ⬜ à faire | `progress`, `full-state`, `submissions`, `rituals/*`, `followups`, `timeline`, `certificates`, `me`, `profile`. |
+| Portail participant — **progression** | ✅ fait | Les décisions de `api/participant/progress/route.js` (métriques par programme, jalons, historique par semaine, agrégation globale) déplacées dans `services/participant/progress.js`. Les règles de déblocage/semaine sont réutilisées depuis `home.js` pour que les deux vues ne divergent jamais. Test de comportement ajouté (`src/__tests__/participant-progress.test.js`). Tests 418 ✅, lint 0 erreur, build ✅. |
+| Portail participant — **le reste** | ⬜ à faire | `full-state`, `submissions`, `rituals/*`, `followups`, `timeline`, `certificates`, `me`, `profile`. |
 
 ---
 

@@ -8,7 +8,10 @@
  *   assignments.js — the submission assignments and their version history
  *   home.js        — the participant home dashboard (metrics, action centre,
  *                    calendar)
+ *   progress.js    — the participant progress report (per-program metrics,
+ *                    milestones, history, overall)
  */
 
 export * from "./assignments";
 export * from "./home";
+export * from "./progress";
