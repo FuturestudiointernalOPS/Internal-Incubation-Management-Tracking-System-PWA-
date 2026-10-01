@@ -18,9 +18,9 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–41 the next `ventures.js`
+> controller (workspace, then collaboration), 39–42 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
-> then project timeline & dependencies). The
+> project timeline & dependencies, then reports & project analytics). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -802,6 +802,59 @@ unchanged.
 
 ---
 
+### Domain 25 — the controller frontier: the task action routes (slice 39)
+
+Opens the tasks domain, which the earlier audit listed as not started. The
+domain has eleven routes; this slice takes the six that carry real decisions and
+leaves `tasks/route.js` (1698 lines) and the remaining small routes for the next
+steps.
+
+**A shared decision is promoted first.** The "who may see the whole portfolio"
+rule (the `super_admin` / `staff` / `program_manager` list, and the own-scope
+filter built on it) was copy-pasted across projects, tasks, contacts and
+invitations. It now lives once in `services/authorization/listingScope.js`
+(`PORTFOLIO_ROLES`, `seesWholePortfolio`, `resolveListingScope`); the projects
+services from slices 37–38 delegate to it and re-export their old names, so
+nothing else changed.
+
+Moved to `services/tasks/*`, one route at a time, each keeping its existing test
+or gaining a new characterisation net (`tasks-actions-api.test.js`, 31 tests):
+
+- **`carryover`** → `services/tasks/carryover.js` — the ownership rule, the chain
+  walk (clone the newest OPEN copy), the completed/archived guard (409) and the
+  idempotency guard, plus the migration order (clone → blockers → comments →
+  resources → subtasks → flip). `carryover-api.test.js` was the net and is
+  untouched.
+- **`approve`** → `services/tasks/approval.js` — approve links the task to its
+  project, reject demotes it to standalone, and the schema-drift branch (the
+  approval table missing) is preserved as a 200 "not available" answer.
+- **`reconcile`** → `services/tasks/reconcile.js` — the retro batch: the
+  own-scope check, the three allowed outcomes, and the per-row "Not your task"
+  that never fails the whole batch.
+- **`assignments`** → `services/tasks/assignments.js` — the list scope, and
+  accept/decline/reassign with the contact-group gate.
+- **`assignment-action`** → `services/tasks/assignmentAction.js` — the assigned
+  person's accept/decline/complete, including ancestor completion on finish.
+
+**On the audit trail.** `logAuditEvent` / `logTaskEvent` are part of the action
+— their ordering after the write is load-bearing — so they move with the use
+case into the service, not into the route. The service layer is allowed to
+import `lib/**` infrastructure (`SERVER_LAYERS.md`), and this keeps the
+controllers thin, which is the point of the phase. The only rule that would
+forbid it is the model-layer one ("models must not audit silently"); a service
+is not a model.
+
+**Source-pin repointed:** `security-lot3-admin-authz` pinned the carry-over
+ownership message inside the route; the same assertion now reads the service.
+
+`npm test` (230 suites, 3183 tests), `npx eslint` (0 errors) and
+`npm run build` are green.
+
+**Left for the next slices:** `tasks/route.js` (the 1698-line monolith),
+`tasks/{comments,duplicate,resources,logs,notify-deadlines}`.
+
+---
+
 ### Domain 25 — the `ventures.js` monolith: milestones & deliverables (slice 39)
 
 **Domain 5.** The milestone read, the deliverables of a milestone, and the
@@ -849,6 +902,20 @@ progress mapping, the overdue/delay rules and the transitive cycle refusal.
 
 ---
 
+### Domain 28 — the `ventures.js` monolith: reports & project analytics (slice 42)
+
+**Domain 8.** The analytics roll-up (summary, KPIs, chart data), the milestone
+and task report queries, the team-productivity report and the CSV-friendly
+export rows. Decisions move to `services/ventures/analytics.js`; every statement
+to `models/ventureAnalyticsStore.js` (which owns the dynamic task-report
+filters); `src/lib/ventures.js` re-exports the five functions so the reports
+route is untouched.
+
+**Unchanged:** the SQL (byte-identical), the 40/40/20 completion weighting, the
+health penalty, the productivity score and the trend aggregation.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -888,7 +955,7 @@ cleanup, not layering:
 | Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14) + the decision helpers (slice 22) |
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
-| Tasks / projects | `services/tasks/*`, `services/projects/*` | ⏳ **projects controller done** (slices 37–38) — all six `/api/projects/**` routes are controller-clean (`services/projects/{workspace,collaboration}.js`); `services/tasks/*` not started |
+| Tasks / projects | `services/tasks/*`, `services/projects/*` | ⏳ **projects controller done** (slices 37–38); **tasks started** (slice 39) — the six action routes are controller-clean (`services/tasks/{carryover,approval,reconcile,assignments,assignmentAction}.js`); `tasks/route.js` + `{comments,duplicate,resources,logs,notify-deadlines}` remain |
 | LMS / platform / integrations | `services/<domain>/*` | ⏳ **LMS + platform started** — learner experience (slice 17), checkout (slice 18), Run report (slice 21); registrations/email-personalize checked (no split needed) |
 
 #### Remaining mixed model modules (the actual backlog)
@@ -1037,8 +1104,9 @@ Two source-pinning suites were repointed (same assertion, new home):
   wizard is out (slice 34), its founders/co-founders domain is out (slice 35),
   its Data-bank verification domain is out (slice 36), its milestones &
   deliverables domain is out (slice 39), its tasks/dependencies/comments/
-  attachments domain is out (slice 40) and its project timeline & dependencies
-  domain is out (slice 41), all re-exported through the barrel. A
+  attachments domain is out (slice 40), its project timeline & dependencies
+  domain is out (slice 41) and its reports & project analytics domain is out
+  (slice 42), all re-exported through the barrel. A
   long tail of
   `src/lib` modules still
   holds SQL (the remaining domains of `ventures.js`, plus the
