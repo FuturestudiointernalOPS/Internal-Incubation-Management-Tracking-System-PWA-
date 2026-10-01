@@ -37,7 +37,8 @@
 > contact update — **the CRM controller frontier is complete**. The
 > Communications controller frontier has since begun (campaigns, internal
 > messages, announcements, follow-ups and events). The
-> submissions controller frontier has since begun (the submit path). The
+> submissions controller frontier has since begun (the submit path, the review).
+> The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1857,6 +1858,21 @@ now read them in the service (the route still pins the GET own-scope
 
 ---
 
+### Domain 71 — the submissions controller frontier: the review (slice 92)
+
+The **PATCH** turns a submission's review from a decision into a new state. The
+business rules (written feedback for a revision, a reason for a rejection), the
+**role lock** (once a final decision exists, only the role camp that made it may
+change it), the review write (score preserved when not resent), the follow-up
+scheduling (calendar event + follow-up record), the participant notification, the
+team propagation and the KPI recalculation all moved to
+`services/ventures/submissions.js` (`applySubmissionReview`), and the facilitator
+record-scope check to `isSubmissionWithinFacilitatorScope`. The route keeps
+`requireAuth`, the `assignments.grade` assignment guard (which answers HTTP), the
+role-lock column migration and the envelope.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1899,7 +1915,7 @@ cleanup, not layering:
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
 | LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85); `platform/form-runs` and the remaining platform AI/import/seed routes to do |
 | Communications | `services/communications/*` | ✅ **controller frontier complete** — message scope (earlier), campaigns (86), internal messages (87), announcements (88), follow-ups and events (89–90) |
-| Submissions | `services/ventures/submissions.js` | ⏳ **started** — the submit POST (91); the review PATCH, the list GET and the score PUT remain |
+| Submissions | `services/ventures/submissions.js` | ⏳ **started** — the submit POST (91) and the review PATCH (92); the list GET and the score PUT remain |
 
 #### Remaining mixed model modules (the actual backlog)
 
