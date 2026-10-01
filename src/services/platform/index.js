@@ -10,8 +10,11 @@
  *   formRunList.js — one page of runs and its matching total
  *   evaluation.js — the AI submission evaluation: the claim/release batch,
  *               the progress counts and the single evaluation
+ *   formRuns.js — the Run-detail read assembly (auto-close, the one-wave
+ *               bundle, the respondent enrichment, the anonymous rule)
  */
 
 export * from "./report";
 export * from "./formRunList";
 export * from "./evaluation";
+export * from "./formRuns";

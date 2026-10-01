@@ -24,6 +24,7 @@ const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
 const REPORT_FILE_ROUTE = "src/app/api/platform/form-runs/report-file/route.js";
 const FORM_RUNS = "src/app/api/platform/form-runs/route.js";
+const FORM_RUNS_DETAIL_SERVICE = "src/services/platform/formRuns.js";
 const RUNS_PAGE = "src/app/platform/runs/page.js";
 
 // ─── Fake database: the report store + the run-document table ────────────────
@@ -555,9 +556,12 @@ describe("the run screens and the builder are wired to the document", () => {
     expect(src).toMatch(/if \(outputInstruction \|\| referenceText\)/);
     // A document that yielded no text cannot block the report.
     expect(src).toMatch(/reportFile\?\.status === "ok"/);
-    // The Run screen learns about the document with the Run itself.
-    expect(src).toContain("report_file: reportFile");
-    expect(src).toContain("runReportFileDescriptor");
+    // The Run screen learns about the document with the Run itself. That
+    // wiring moved to the run-detail service (the platform controller
+    // frontier), so the assertion reads its new home.
+    const detailService = read(FORM_RUNS_DETAIL_SERVICE);
+    expect(detailService).toContain("report_file: reportFile");
+    expect(detailService).toContain("runReportFileDescriptor");
   });
 
   test("the configuration screen offers the document, and only where it may be changed", () => {
