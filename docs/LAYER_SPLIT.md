@@ -18,7 +18,7 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–57 the next `ventures.js`
+> controller (workspace, then collaboration), 39–58 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
 > project timeline & dependencies, reports & project analytics, coach & mentor
 > management, mentoring sessions & scheduling, knowledge hub & learning,
@@ -26,7 +26,7 @@
 > & data room, the fundraising pipeline, investment analytics, administration &
 > system config, the notification centre, audit logs & security, then external
 > integrations & public APIs, system monitoring, health & reporting, then the core
-> schema bootstrap). The
+> schema bootstrap and intake). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1185,6 +1185,21 @@ form, the two backfills and the seeding order.
 
 ---
 
+### Domain 44 — the `ventures.js` core: intake (slice 58)
+
+**Workflow B (Direct Startup Registration).** The Venture id scheme, the
+promotion-member resolution, the company-info validation, the duplicate check and
+the Venture / founder creation (with the `company_name` schema fallback).
+Decisions move to `services/ventures/intake.js`; every statement to
+`models/ventureIntakeStore.js` (the two create-Venture INSERT forms stay
+separate); `src/lib/ventures.js` re-exports the six functions. The `uuidv4`
+import and the `VENTURE_ID_PREFIX` left the monolith with the domain.
+
+**Unchanged:** the SQL (byte-identical), the id format, the validation rules, the
+duplicate conflicts and the company_name fallback.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1389,7 +1404,7 @@ Two source-pinning suites were repointed (same assertion, new home):
   is out (slice 54), and its external integrations & public APIs
   domain is out (slice 55), and its system monitoring, health & reporting domain
   is out (slice 56) — the ENHANCEMENT blocks are fully extracted — and the core
-  schema bootstrap is out (slice 57), all
+  schema bootstrap is out (slice 57) and its intake domain is out (slice 58), all
   re-exported through the barrel. A long tail of
   `src/lib` modules still
   holds SQL (the remaining domains of `ventures.js`, plus the

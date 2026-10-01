@@ -1,5 +1,4 @@
 import db from "@/lib/db";
-import { v4 as uuidv4 } from "uuid";
 import { listVentureMembers, summarizeVentureMembers } from "@/models/ventureMembers";
 
 /**
@@ -8,220 +7,22 @@ import { listVentureMembers, summarizeVentureMembers } from "@/models/ventureMem
  * Enhancement 1.1 — Workflow A: Program-to-Venture Promotion
  */
 
-const VENTURE_ID_PREFIX = "VNT";
-
 // ── Venture schema bootstrap ────────────────────────────────────────────────
 // Extracted to the service layer; re-exported for existing importers
 // (see docs/LAYER_SPLIT.md).
 export { ensureVentureSchema } from "@/services/ventures/schema";
 
-/**
- * Generate a unique Venture ID in format: VNT-XXXXXXXX
- */
-export function generateVentureId() {
-  const suffix = uuidv4().replace(/-/g, "").substring(0, 8).toUpperCase();
-  return `${VENTURE_ID_PREFIX}-${suffix}`;
-}
-
-/**
- * Resolve the members of a program team for Venture promotion.
- *
- * The canonical membership link is contacts.v2_team_id (written by /api/pm/teams);
- * v2_participants.v2_team_id holds the same link for UUID-keyed participants.
- * The old promote path queried v2_group_members (a v2_groups table — wrong) and
- * fell back to ALL program participants — this helper fixes that.
- */
-export async function resolveTeamMembersForPromotion(teamId) {
-  const res = await db.execute({
-    sql: `SELECT c.cid AS contact_id, c.name, c.email
-          FROM contacts c
-          WHERE c.v2_team_id = ? AND c.deleted = 0
-          UNION
-          SELECT p.user_id AS contact_id, c2.name, c2.email
-          FROM v2_participants p
-          JOIN contacts c2 ON c2.cid = p.user_id
-          WHERE p.v2_team_id = ? AND c2.deleted = 0`,
-    args: [teamId, teamId],
-  });
-  return (res.rows || []).filter((member) => member && member.contact_id);
-}
-
-/**
- * Validate company information for registration.
- * Returns { valid: boolean, errors: string[] }
- */
-export function validateCompanyInfo({
-  company_name,
-  industry,
-  business_stage,
-  founder_email,
-  founder_name,
-}) {
-  const errors = [];
-
-  if (!company_name || !company_name.trim()) {
-    errors.push("Company name is required");
-  }
-
-  if (!industry || !industry.trim()) {
-    errors.push("Industry is required");
-  }
-
-  if (!business_stage || !business_stage.trim()) {
-    errors.push("Business stage is required");
-  }
-
-  if (!founder_email || !founder_email.trim()) {
-    errors.push("Founder email is required");
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(founder_email)) {
-    errors.push("Invalid founder email format");
-  }
-
-  if (!founder_name || !founder_name.trim()) {
-    errors.push("Founder name is required");
-  }
-
-  return { valid: errors.length === 0, errors };
-}
-
-/**
- * Check for duplicate company, registration number, or founder email.
- * Returns { hasDuplicates: boolean, conflicts: string[] }
- */
-export async function checkDuplicates({ company_name, registration_number, founder_email }) {
-  const conflicts = [];
-
-  // Check duplicate company name
-  // Try company_name first, fall back to name for backward compat
-  try {
-    const nameCheck = await db.execute({
-      sql: "SELECT id FROM ventures WHERE LOWER(company_name) = LOWER(?)",
-      args: [company_name.trim()],
-    });
-    if (nameCheck.rows.length > 0) {
-      conflicts.push("A company with this name already exists");
-    }
-  } catch (_) {
-    // company_name column may not exist yet; try "name" as fallback
-    try {
-      const fallbackCheck = await db.execute({
-        sql: "SELECT id FROM ventures WHERE LOWER(name) = LOWER(?)",
-        args: [company_name.trim()],
-      });
-      if (fallbackCheck.rows.length > 0) {
-        conflicts.push("A company with this name already exists");
-      }
-    } catch (_) {}
-  }
-
-  // Check duplicate registration number
-  if (registration_number && registration_number.trim()) {
-    const regCheck = await db.execute({
-      sql: "SELECT id FROM ventures WHERE registration_number = ?",
-      args: [registration_number.trim()],
-    });
-    if (regCheck.rows.length > 0) {
-      conflicts.push("A company with this registration number already exists");
-    }
-  }
-
-  // Check duplicate founder email
-  const emailCheck = await db.execute({
-    sql: "SELECT id FROM venture_founders WHERE LOWER(email) = LOWER(?)",
-    args: [founder_email.trim()],
-  });
-  if (emailCheck.rows.length > 0) {
-    conflicts.push("A founder with this email already exists");
-  }
-
-  return { hasDuplicates: conflicts.length > 0, conflicts };
-}
-
-/**
- * Create a venture record.
- */
-export async function createVenture({
-  venture_id,
-  company_name,
-  registration_number,
-  industry,
-  business_stage,
-  description,
-  website,
-  logo_url,
-  created_by,
-}) {
-  // Always use "name" (legacy column exists in the table).
-  // Also try setting "company_name" for new schema compatibility.
-  const name = company_name.trim();
-
-  try {
-    // Try with both name and company_name
-    await db.execute({
-      sql: `INSERT INTO ventures (venture_id, name, company_name, registration_number, industry, business_stage, description, website, logo_url, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [
-        venture_id, name, name,
-        registration_number?.trim() || null,
-        industry.trim(),
-        business_stage.trim(),
-        description?.trim() || null,
-        website?.trim() || null,
-        logo_url?.trim() || null,
-        created_by,
-      ],
-    });
-  } catch (err) {
-    // company_name column may not exist yet — fall back to just "name"
-    if (err.message?.includes("company_name")) {
-      await db.execute({
-        sql: `INSERT INTO ventures (venture_id, name, registration_number, industry, business_stage, description, website, logo_url, created_by)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [
-          venture_id, name,
-          registration_number?.trim() || null,
-          industry.trim(),
-          business_stage.trim(),
-          description?.trim() || null,
-          website?.trim() || null,
-          logo_url?.trim() || null,
-          created_by,
-        ],
-      });
-    } else {
-      throw err;
-    }
-  }
-
-  return { venture_id };
-}
-
-/**
- * Create a founder record for a venture.
- */
-export async function createFounder({
-  venture_id,
-  email,
-  name,
-  phone,
-  title,
-  invitation_token,
-}) {
-  await db.execute({
-    sql: `INSERT INTO venture_founders (venture_id, email, name, phone, title, invitation_token, invitation_sent_at, status)
-          VALUES (?, ?, ?, ?, ?, ?, NOW(), 'pending')`,
-    args: [
-      venture_id,
-      email.trim().toLowerCase(),
-      name.trim(),
-      phone?.trim() || null,
-      title?.trim() || null,
-      invitation_token,
-    ],
-  });
-
-  return { email };
-}
+// ── Intake: ids, validation and creation ────────────────────────────────────
+// Extracted to the service layer; re-exported for existing importers
+// (see docs/LAYER_SPLIT.md).
+export {
+  generateVentureId,
+  resolveTeamMembersForPromotion,
+  validateCompanyInfo,
+  checkDuplicates,
+  createVenture,
+  createFounder,
+} from "@/services/ventures/intake";
 
 // ── Activity log, history and notifications ─────────────────────────────────
 // Extracted to the service layer; kept reachable through this module's public
