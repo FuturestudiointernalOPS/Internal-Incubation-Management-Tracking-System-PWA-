@@ -38,10 +38,13 @@
 > Communications controller frontier has since begun (campaigns, internal
 > messages, announcements, follow-ups and events). The
 > submissions controller frontier has since begun and is now complete (the submit
-> path, the review, the list read, the score write). The
-> remaining mixed model modules are itemised in §4. This document is the running
-> log. Update it
-> at the end of every slice.
+> path, the review, the list read, the score write). The platform frontier has
+> since begun — the `form-runs` email/report-document cluster (slice 95), then
+> the AI/import/seed wave (slices 96–102): the import preview/execute/review-flag
+> routes, the two seeds, the AI form generation, the template personalizer, the
+> advisory analysis, the evaluation scoreboard and the form-runs scoring engine.
+> The remaining mixed model modules are itemised in §4. This document is the
+> running log. Update it at the end of every slice.
 
 Related docs: [`MVC_REFACTOR.md`](MVC_REFACTOR.md) (the SQL-to-models wave plan),
 [`SERVER_LAYERS.md`](SERVER_LAYERS.md) (the request path as it stands),
@@ -1957,6 +1960,76 @@ vocabulary are the next platform slices.**
 
 ---
 
+### Domain 76 — the platform AI/import/seed controller frontier (slices 96–102)
+
+With the model layer clear (§4), the platform controllers carried the last
+domain logic. This wave thins them route by route; each keeps its `initDb`, its
+capability/role gate, its body parsing and its response envelope, and delegates
+the decision to `services/platform/*`.
+
+**Slice 96 — `/api/platform/import/{preview,execute,review-flags}`** →
+`services/platform/import.js`. The preview's file parse (RFC-4180 aware via
+`parseCSVRows`) and the column→question fuzzy match (`fuzzyMatchColumns`,
+word-overlap ≥ 0.4, a question claimed once) move, as does the execute's
+lookup-first contact resolution (`resolveContact`: crm-id → email → phone →
+name; a name-only match is `uncertain` and never silently merged), the
+label-aware applicant-email resolution and the whole row loop (dedupe by run +
+submitter, the batch/file-hash idempotency, the review-flag persistence). The
+review-flag read/write moves too. `import/preview` went from 227 to 34 lines,
+`import/execute` from 377 to 29.
+
+**Slice 97 — `/api/platform/seed/{founder-assessment,investor-application}`** →
+`services/platform/seed.js`. The Founder Fit Score seed (its 8 scored sections ×
+questions, the weight config, the profile fields, the conditional logic and the
+publish snapshot) and the Investor intake seed (form + run behind the
+single-active-investor guard) move. The CSRF `requireSameOrigin(req)` stays on
+the founder-assessment GET and the `super_admin` gate stays on both routes.
+**Source-pin repointed:** `investor-application-intake` now reads the seed
+strings in the service (same assertion, new home).
+
+**Slice 98 — `/api/platform/ai/generate-all`** →
+`services/platform/formGeneration.js` (`generateFormWithFramework`). The design
+prompt, the normalisation (field defaults, default rating options, sequential
+numbering, evaluation weights rebalanced to 100) and the three-step persist with
+the orphaned-form cleanup move. `generate-all` went from 166 to 37 lines.
+
+**Slice 99 — `/api/platform/ai/personalize-template`** →
+`services/platform/personalize.js` (`personalizeTemplate`). The two-tier
+personalizer — a full-body rewrite validated against the draft's tag skeleton,
+then a deterministic segment splice, with the allowed-variable set and the
+language lock — moves. The route keeps the `runs.edit` / `forms.edit`
+capability. **Source-pin repointed:** `ai-template-specs` now reads the prompt
+contract in the service.
+
+**Slice 100 — `/api/platform/ai/analyze`** → `services/platform/analysis.js`
+(`analyzeSubmissionForRun`). The advisory summary/analysis, its run+form context
+load and the usage journal move; the `runs.view` gate and the health probe stay
+in the route.
+
+**Slice 101 — `/api/platform/ai/evaluation-scores`** →
+`services/platform/evaluationScores.js` (`getEvaluationScoreboard`). The run →
+form resolution, the score-boundary filter, the dynamic filterable-field
+derivation and the respondent shaping (answers keyed by the form's own question
+labels, real name/email resolution) move; the `runs.view` gate stays.
+
+**Slice 102 — the `form-runs` scoring engine** → `services/platform/scoring.js`
+(`calculateSubmissionScores`). The self-contained scoring decision (the run's
+config first, then the form's; the per-section percentage; the weighted overall
+and the ranking label) moves out of the route, which now imports it. This is the
+first piece of the heavy `form-runs` write half; the POST action vocabulary
+remains.
+
+New characterisation nets `platform-import-api.test.js` (the fuzzy match, the
+run→form resolution, the row loop, the flag guards) and `platform-scoring.test.js`
+(config precedence, the weighted overall, the ranking, the unanswered-question
+rule). `npm test` (241 suites, 3483 tests), `npx eslint` (0 errors) and
+`npm run build` are green. **The rest of the write half of `platform/form-runs`
+(the POST action vocabulary: submit, manual-add, review, bulk-review, email
+retry/mark, slug, assign/unassign, result PDFs) is the remaining heavy
+controller.**
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1997,7 +2070,7 @@ cleanup, not layering:
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
-| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85), the `form-runs` Run-detail read (93) and its email/report-document cluster (95); the `form-runs` review + POST action vocabulary and the remaining platform AI/import/seed routes to do |
+| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85), the `form-runs` Run-detail read (93), the `form-runs` email/report-document cluster (95), the import routes (96), the seeds (97), the AI form generation (98), the template personalizer (99), the advisory analysis (100), the evaluation scoreboard (101) and the form-runs scoring engine (102); the rest of the `form-runs` write half remains |
 | Communications | `services/communications/*` | ✅ **controller frontier complete** — message scope (earlier), campaigns (86), internal messages (87), announcements (88), follow-ups and events (89–90) |
 | Submissions | `services/ventures/submissions.js` | ✅ **controller frontier complete** — the submit POST (91), the review PATCH (92), the list GET (93) and the score PUT (94) |
 
