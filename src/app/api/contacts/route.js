@@ -7,6 +7,7 @@ import { requireAuthorization } from "@/lib/authorization";
 import { normalizeGroupName, INTERNAL_GROUP } from "@/lib/authorization/membership";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { readRegistryContacts } from "@/services/contacts/registryRead";
+import { softDeleteRegistryContact } from "@/services/contacts/deletion";
 import {
   createPasswordSetupToken,
   markContactInvited,
@@ -26,7 +27,6 @@ import {
   ensureContactProgramMembership,
   getContactIdentityByCid,
   markAdminNotificationsRead,
-  softDeleteContact,
 } from "@/models/contacts";
 export const dynamic = "force-dynamic";
 
@@ -574,16 +574,15 @@ export async function DELETE(req) {
       );
     }
 
-    const { getSession } = await import("@/lib/auth");
     const session = await getSession();
     const deletedBy = session?.name || session?.email || session?.cid || "unknown";
 
     // '__deleted_' || cid || '__' || email is unique because cid is the
     // primary key, so it can never collide with another row (or with a real
     // address), and the original email stays visible inside the placeholder.
-    const result = await softDeleteContact(deletedBy, cid);
+    const deleted = await softDeleteRegistryContact(deletedBy, cid);
 
-    if (result.rowsAffected === 0) {
+    if (!deleted) {
       return NextResponse.json(
         { success: false, error: "Contact not found." },
         { status: 404 },
