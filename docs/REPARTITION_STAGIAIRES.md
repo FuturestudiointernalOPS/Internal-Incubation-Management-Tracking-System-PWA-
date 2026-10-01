@@ -54,13 +54,13 @@ veut donc dire : *tu prends le domaine plateforme **et** la page des exécutions
 
 | # | Stagiaire / pôle | Couloir (décision + données) | Grosse vue / composant | Feature |
 |---|---|---|---|---|
-| 1 | **Plateforme & formulaires** | `services/platform/**` | Page « runs » plateforme | Formulaires publics, évaluation, réponses |
-| 2 | **Ventures** | `services/ventures/**` | Panneau parcours (jalons) ventures | Parcours startup, jalons, modèles |
-| 3 | **Programmes** | `services/programs/**` | Pages admin « programmes » | Programmes, curriculum, équipe programme |
-| 4 | **Permissions & sécurité** | `services/authorization/**` | Centre de permissions | Droits, périmètres, accès |
-| 5 | **CRM & contacts** | `services/contacts/**` | Écran d'adhésion + page contacts | Contacts, groupes, familles, adhésions |
-| 6 | **Opérations internes** | `services/tasks/**` + `services/projects/**` | Gestionnaire de tâches + page tâches | Tâches, blocages, projets, standups |
-| 7 | **Tableau de bord & messagerie** | `services/communications/**` | Coquille de l'application + messagerie | Annonces, campagnes, messages |
+| chris mael | **Plateforme & formulaires** | `services/platform/**` | Page « runs » plateforme | Formulaires publics, évaluation, réponses |
+| scom M | **Ventures** | `services/ventures/**` | Panneau parcours (jalons) ventures | Parcours startup, jalons, modèles |
+| Aïchath | **Programmes** | `services/programs/**` | Pages admin « programmes » | Programmes, curriculum, équipe programme |
+| Harry | **Permissions & sécurité** | `services/authorization/**` | Centre de permissions | Droits, périmètres, accès |
+| Jas | **CRM & contacts** | `services/contacts/**` | Écran d'adhésion + page contacts | Contacts, groupes, familles, adhésions |
+| Alexis | **Opérations internes** | `services/tasks/**` + `services/projects/**` | Gestionnaire de tâches + page tâches | Tâches, blocages, projets, standups |
+| Christelle | **Tableau de bord & messagerie** | `services/communications/**` | Coquille de l'application + messagerie | Annonces, campagnes, messages |
 | — | **Lead (toi)** | Couloirs restants + audit | Vues/composants restants + façades | Coordination, nettoyage, domaines à ouvrir |
 
 Aucune ligne ne partage de fichier avec une autre. Détail et preuve par fiche.
@@ -332,6 +332,43 @@ SectionsManager).
 - **Audits** (`A1`–`A3`) : lecture seule.
 - **Arbitrage** des cas ambigus : une route qui importe deux domaines, un besoin
   hors périmètre, une fiche à ajuster.
+
+### 4.5 Ordre de travail du lead (ta feuille de route)
+
+Du plus rentable / débloquant au plus tard :
+
+1. ✅ **Couloir « espace de travail & calendrier »** — **terminé** : calendrier
+   et workspaces migrés (voir le journal ci-dessous).
+2. 🟰 **Portail participant** — domaine ouvert (`services/participant/**`).
+   Fait : les affectations **et** l'accueil (`home`, 505 lignes, le plus lourd
+   en décisions). Reste : `progress` (450), `full-state`, `submissions`,
+   `rituals/*`, `followups`, `timeline`, `certificates`, puis `api/me/**` et
+   `api/profile/**`. Le filet se pose route par route.
+3. **Investisseur** (domaine à ouvrir) — `api/investor/**` →
+   `services/investor/**`.
+4. **LMS & paiement** et **e-mail / intégrations** — vérifier d'abord : routes
+   probablement déjà minces ; ne traiter que ce qui contient une décision.
+5. **Vues et composants réservés** (V1, V3, V4, V5, V7, V9–V12, V14, V15, V17 et
+   B3, B4, B5, B8, B9, B11, B12, B13) — à intercaler avec les couloirs.
+6. **Tableau de bord & ops admin** (agrégateurs : `api/dashboard/**`,
+   `api/op-reports/**`, `api/activity/**`, `api/kpis/**`) — **en dernier**, une
+   fois les domaines qu'ils agrègent terminés.
+7. **Nettoyage des façades** (`CH-4`) — **très en dernier**, sérialisé.
+
+### 4.6 Journal du lead
+
+| Slice | État | Détail |
+|---|---|---|
+| Couloir espace de travail & calendrier — **calendrier** | ✅ fait | Les 3 décisions de `api/calendar/route.js` (périmètre programmes fail-closed, visibilité des suivis, périmètre ventures) déplacées dans `services/workspace/calendar.js`. Route amaigrie. SQL inchangé. Test de comportement ajouté (`src/__tests__/workspace-calendar.test.js`). Tests 394 ✅, lint 0 erreur, build ✅. |
+| Couloir espace de travail & calendrier — **workspaces** | ✅ fait | Les décisions de `api/workspaces/route.js` (assemblage de la liste de navigation, dérivation des inscriptions à partir des adhésions, constitution des contextes, étiquetage d'identité) déplacées dans `services/workspace/navigation.js`. Route amaigrie. Lecture lue via les services autorisation/LMS, pas via les façades `lib`. Test de comportement ajouté (`src/__tests__/workspace-navigation.test.js`). Tests 404 ✅, lint 0 erreur, build ✅. |
+
+> **Couloir « espace de travail & calendrier » : ✅ terminé.** Les deux routes de
+> l'API (calendrier, workspaces) ont été migrées vers `services/workspace/**`.
+
+| Portail participant — **domaine ouvert** | ✅ fait | Créé `services/participant/**`. |
+| Portail participant — **assignations** | ✅ fait | Les décisions de `api/participant/assignments/route.js` (périmètre des livrables selon la portée tout/équipe/individu, rattachement de la soumission, tri « en retard d'abord », première version vs nouvelle version) déplacées dans `services/participant/assignments.js`. Route amaigrie. Test de comportement ajouté (`src/__tests__/participant-assignments.test.js`). Tests 398 ✅, lint 0 erreur, build ✅. |
+| Portail participant — **accueil (home)** | ✅ fait | Les décisions de `api/participant/home/route.js` (règles de déblocage et de semaine, taux d'achèvement / assiduité / affectations / indicateurs, classification retard / échéance proche / à venir, assemblage du calendrier et des annonces) déplacées dans `services/participant/home.js`. Fonctions pures testables + route amaigrie. Test de comportement ajouté (`src/__tests__/participant-home.test.js`). Tests 410 ✅, lint 0 erreur, build ✅. |
+| Portail participant — **le reste** | ⬜ à faire | `progress`, `full-state`, `submissions`, `rituals/*`, `followups`, `timeline`, `certificates`, `me`, `profile`. |
 
 ---
 
