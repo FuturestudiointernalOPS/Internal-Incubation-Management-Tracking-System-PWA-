@@ -111,3 +111,15 @@ export function accountStatusOf(submission) {
         : "not_created")
   );
 }
+
+/** "48 h", "1 h 30 min", "30 min" — empty for no delay. */
+export function formatDelayLabel(t, minutes) {
+  const total = Math.max(0, Math.floor(Number(minutes) || 0));
+  if (total <= 0) return "";
+  const parts = [];
+  const hours = Math.floor(total / 60);
+  const remainder = total % 60;
+  if (hours > 0) parts.push(t("platformMisc.runs.resultDelayHoursShort", { count: hours }));
+  if (remainder > 0) parts.push(t("platformMisc.runs.resultDelayMinutesShort", { count: remainder }));
+  return parts.join(" ");
+}

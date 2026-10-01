@@ -30,6 +30,12 @@ const read = (rel) => {
     // service function that an order assertion is pinning.
     return fs.readFileSync(path.join(process.cwd(), "src/services/platform/formRuns.js"), "utf8") + "\n" + text;
   }
+  // V2: the settings tab's JSX (including the report-file control) moved from
+  // the page into components/platform/runs/SettingsTab.js — append it so
+  // assertions against either half still match.
+  if (rel === "src/app/platform/runs/page.js") {
+    return text + "\n" + fs.readFileSync(path.join(process.cwd(), "src/components/platform/runs/SettingsTab.js"), "utf8");
+  }
   return text;
 };
 
