@@ -129,7 +129,13 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     const lists = authBlocks(file);
     expect(lists).toHaveLength(0); // no contextual-role list remains
     expect(src).toMatch(/requireAuthorization\("contacts", "view"\)/);
-    expect(src).toMatch(/getContactByCid\(cidFilter \|\| session\.cid\)/);
+    // The self-lookup read moved to the service; the route still asserts the
+    // contacts.view gate.
+    const service = fs.readFileSync(
+      path.join(ROOT, "src/services/contacts/registryRead.js"),
+      "utf8",
+    );
+    expect(service).toMatch(/getContactByCid\(cidFilter \|\| session\.cid\)/);
   });
 
   test("phase 1.2: contacts/search GET — bare + membership-keyed branch + capability gate", () => {

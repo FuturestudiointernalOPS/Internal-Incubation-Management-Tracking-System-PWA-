@@ -5,8 +5,8 @@ import { hashPassword } from "@/server/auth/password";
 import { requireAuth, getSession, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import { normalizeGroupName, INTERNAL_GROUP } from "@/lib/authorization/membership";
-import { attachInvitationStatus } from "@/lib/invitations";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
+import { readRegistryContacts } from "@/services/contacts/registryRead";
 import {
   createPasswordSetupToken,
   markContactInvited,
@@ -26,12 +26,6 @@ import {
   ensureContactProgramMembership,
   getContactIdentityByCid,
   markAdminNotificationsRead,
-  getContactByCid,
-  getArchivedContacts,
-  getContactsForSuperAdmin,
-  getContactsForStaff,
-  getParticipantProgramCids,
-  getContactRoleAssignmentCids,
   softDeleteContact,
 } from "@/models/contacts";
 export const dynamic = "force-dynamic";
@@ -510,7 +504,6 @@ export async function PUT(req) {
 export async function GET(req) {
   try {
     await initDb();
-    const { getSession } = await import("@/lib/auth");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -535,61 +528,22 @@ export async function GET(req) {
     const capError = await requireAuthorization("contacts", "view");
     const canReadDirectory = !capError;
 
-    let result;
-    if (!canReadDirectory) {
-      // Own record only — a caller-chosen cid is ignored unless it is the
-      // session's own cid (self lookup).
-      if (cidFilter && String(cidFilter) !== String(session.cid)) {
-        return NextResponse.json(
-          { success: false, error: "errors.insufficientPermissions" },
-          { status: 403 },
-        );
-      }
-      result = await getContactByCid(cidFilter || session.cid);
-    } else if (statusFilter === "archived" && session.role === "super_admin") {
-      // Archived contacts (archived but not soft-deleted)
-      result = await getArchivedContacts();
-    } else if (cidFilter) {
-      result = await getContactByCid(cidFilter);
-    } else if (session.role === "super_admin") {
-      result = await getContactsForSuperAdmin(roleFilter, statusFilter, groupFilter);
-    } else {
-      // Staff/PM (with contacts.view): active contacts only, with the
-      // role-appropriate status window (PMs also see pending contacts so they
-      // can find unapproved people and assign them as facilitators).
-      result = await getContactsForStaff(session.role, groupFilter);
+    const outcome = await readRegistryContacts({
+      session,
+      canReadDirectory,
+      statusFilter,
+      roleFilter,
+      groupFilter,
+      cidFilter,
+    });
+    if (outcome.denied) {
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
     }
-    const rows = result.rows || [];
-    const contactCids = rows.map((row) => row.cid).filter(Boolean);
-    let participantCids = new Set();
-    let assignmentCids = new Set();
-    if (contactCids.length > 0) {
-      // Best-effort: these tables may not exist in older schemas.
-      try {
-        const participantProgramsResult = await getParticipantProgramCids(contactCids);
-        participantCids = new Set(
-          participantProgramsResult.rows.map((row) => row.participant_id),
-        );
-      } catch (_) {}
-      try {
-        const contactRoleAssignmentsResult =
-          await getContactRoleAssignmentCids(contactCids);
-        assignmentCids = new Set(
-          contactRoleAssignmentsResult.rows.map((row) => row.contact_cid),
-        );
-      } catch (_) {}
-    }
-    const contacts = (await attachInvitationStatus(rows)).map(
-      ({ password: _password, ...safeContact }) => ({
-        ...safeContact,
-        // Derived flags: a participant enrollment OR the legacy role value.
-        is_participant:
-          participantCids.has(safeContact.cid) ||
-          safeContact.role === "participant",
-        has_assignment: assignmentCids.has(safeContact.cid),
-      }),
-    );
-    return NextResponse.json({ success: true, contacts });
+
+    return NextResponse.json({ success: true, contacts: outcome.contacts });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },
