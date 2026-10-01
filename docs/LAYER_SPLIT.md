@@ -2197,6 +2197,23 @@ The controller is now thin over two services.
 `npm test` (244 suites, 3552 tests), `npx eslint` (0 errors) and `npm run build`
 are green.
 
+### View split — the Venture Journey panel (task B7)
+
+Not a layer move: the **view** side of the ventures lane (Fiche 2). The staff
+Journey manager `src/components/ventures/JourneyManagerPanel.js` (2 617 → 1 761
+lines) and the founder Journey tab
+`src/components/ventures/workspace/tabs/JourneyPlaybookTabs.js` (654 → 515) are
+split into 16 files under `src/components/ventures/journey/` (15
+components and one pure helper module). Code is
+moved verbatim; each block receives the parent's values as props of the same
+name, the parent keeps every state and every write. Public exports are
+unchanged (`JourneyManagerPanel`, `{ JourneyTab, BusinessModelTab }` — the
+latter re-exported). The `@/lib/ventureStatuses` usages stay in both parents
+(`journey-status-lexicon.test.js`). Commits `8a6d3559`, `58e9f5b8` on
+`ventures-b7`; the full inventory is in `docs/VENTURES_LANE.md`.
+
+`npm test` (3552 tests), `npx eslint` (0 errors) and `npm run build` are green.
+
 ---
 
 ## 3. Left aside on purpose (deferred, with reasons)
