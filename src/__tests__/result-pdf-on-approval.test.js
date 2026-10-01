@@ -17,7 +17,9 @@ const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const ROUTE = "src/app/api/platform/form-runs/route.js";
+const SERVICE = "src/services/platform/formRuns.js";
 const src = fs.readFileSync(path.join(ROOT, ROUTE), "utf8");
+const serviceSrc = fs.readFileSync(path.join(ROOT, SERVICE), "utf8");
 
 const indexOf = (needle) => src.indexOf(needle);
 
@@ -52,7 +54,7 @@ describe("AI result PDF on approval — server invariants", () => {
     // in the whole file is the invariant — a second one would drift.
     const callSites = (src.match(/await sendResultEmailForSubmission\(/g) || []).length;
     expect(callSites).toBeGreaterThanOrEqual(2); // result action + approval flow
-    expect((src.match(/buildSubmissionResultPdf\(\{/g) || []).length).toBe(1);
+    expect((serviceSrc.match(/buildSubmissionResultPdf\(\{/g) || []).length).toBe(1);
   });
 
   test("the PDF send is guarded by the same approval condition", () => {

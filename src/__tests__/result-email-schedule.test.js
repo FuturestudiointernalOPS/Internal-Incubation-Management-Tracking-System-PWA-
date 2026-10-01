@@ -26,6 +26,7 @@ const ROOT = path.resolve(__dirname, "..", "..");
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 const ROUTE_SRC = read("src/app/api/platform/form-runs/route.js");
+const SERVICE_SRC = read("src/services/platform/formRuns.js");
 const MODEL_SRC = read("src/models/formRuns.js");
 const RUNS_PAGE = read("src/app/platform/runs/page.js");
 const FORMS_PAGE = read("src/app/platform/forms/page.js");
@@ -92,22 +93,22 @@ describe("the dispatcher — one sender, time-based, idempotent by construction"
   });
 
   test("the clock starts at the submission, and 0 asks for nothing", () => {
-    expect(ROUTE_SRC).toMatch(/async function dispatchScheduledResultEmails\(\{ run_id = null \} = \{\}\)/);
-    expect(ROUTE_SRC).toMatch(/resolveResultDelayMinutes\(candidate\.form_settings \|\| \{\}, candidate\.run_settings \|\| \{\}\)/);
-    expect(ROUTE_SRC).toMatch(/if \(delayMinutes <= 0\) continue;/);
-    expect(ROUTE_SRC).toMatch(/submittedAt \+ delayMinutes \* 60 \* 1000 > now/);
+    expect(SERVICE_SRC).toMatch(/async function dispatchScheduledResultEmails\(\{ run_id = null \} = \{\}\)/);
+    expect(SERVICE_SRC).toMatch(/resolveResultDelayMinutes\(candidate\.form_settings \|\| \{\}, candidate\.run_settings \|\| \{\}\)/);
+    expect(SERVICE_SRC).toMatch(/if \(delayMinutes <= 0\) continue;/);
+    expect(SERVICE_SRC).toMatch(/submittedAt \+ delayMinutes \* 60 \* 1000 > now/);
   });
 
   test("it sends through the one result sender, never a second implementation", () => {
-    expect(ROUTE_SRC).toMatch(/await sendResultEmailForSubmission\(\{ submission_id: candidate\.id \}\)/);
-    // Still exactly one PDF build site in the whole route.
-    expect((ROUTE_SRC.match(/buildSubmissionResultPdf\(\{/g) || []).length).toBe(1);
+    expect(SERVICE_SRC).toMatch(/await sendResultEmailForSubmission\(\{ submission_id: candidate\.id \}\)/);
+    // Still exactly one PDF build site in the whole run-email service.
+    expect((SERVICE_SRC.match(/buildSubmissionResultPdf\(\{/g) || []).length).toBe(1);
   });
 
   test("the log table exists before the candidate query reads it", () => {
-    const dispatchStart = ROUTE_SRC.indexOf("async function dispatchScheduledResultEmails");
-    const ensure = ROUTE_SRC.indexOf("await ensureEmailLogTable();", dispatchStart);
-    const query = ROUTE_SRC.indexOf("await listApprovedSubmissionsAwaitingResultEmail();", dispatchStart);
+    const dispatchStart = SERVICE_SRC.indexOf("async function dispatchScheduledResultEmails");
+    const ensure = SERVICE_SRC.indexOf("await ensureEmailLogTable();", dispatchStart);
+    const query = SERVICE_SRC.indexOf("await listApprovedSubmissionsAwaitingResultEmail();", dispatchStart);
     expect(ensure).toBeGreaterThan(dispatchStart);
     expect(query).toBeGreaterThan(ensure);
   });
