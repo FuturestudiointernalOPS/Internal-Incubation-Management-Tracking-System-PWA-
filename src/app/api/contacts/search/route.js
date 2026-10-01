@@ -1,13 +1,12 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import {
-  isParticipantInProgram,
-  isVentureFounderInProgram,
-  searchContactsInProgram,
-  searchContactsByNameOrEmail,
-} from "@/models/contacts";
+  contactSearchPattern,
+  searchProgramPoolForMember,
+  searchGlobalDirectory,
+} from "@/services/contacts/directorySearch";
 
 /**
  * GET /api/contacts/search?q=...&program_id=X
@@ -28,7 +27,6 @@ export async function GET(req) {
     const authError = await requireAuth();
     if (authError) return authError;
 
-    const { getSession } = await import("@/lib/auth");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -45,20 +43,14 @@ export async function GET(req) {
       return NextResponse.json({ success: true, contacts: [] });
     }
 
-    const likePattern = `%${searchQuery}%`;
+    const likePattern = contactSearchPattern(searchQuery);
 
-    // Membership-keyed branch: the caller belongs to the requested program as
-    // a participant or as a venture founder whose venture belongs to it.
+    // Membership-keyed branch: the caller belongs to the requested program as a
+    // participant or as a venture founder whose venture belongs to it.
     if (programId) {
-      const [participantResult, founderResult] = await Promise.all([
-        isParticipantInProgram(session.cid, programId),
-        isVentureFounderInProgram(session.cid, programId),
-      ]);
-      if (participantResult.rows.length > 0 || founderResult.rows.length > 0) {
-        // Scoped pool: program participants, program staff, assigned program
-        // manager. Name/email only — minimal identity, no full contact record.
-        const result = await searchContactsInProgram(likePattern, programId);
-        return NextResponse.json({ success: true, contacts: result.rows || [] });
+      const scoped = await searchProgramPoolForMember({ session, programId, likePattern });
+      if (scoped.member) {
+        return NextResponse.json({ success: true, contacts: scoped.contacts });
       }
     }
 
@@ -68,9 +60,9 @@ export async function GET(req) {
     // Future Studio staff from founders/participants.
     const capError = await requireAuthorization("contacts", "view");
     if (capError) return capError;
-    const result = await searchContactsByNameOrEmail(likePattern);
+    const contacts = await searchGlobalDirectory(likePattern);
 
-    return NextResponse.json({ success: true, contacts: result.rows || [] });
+    return NextResponse.json({ success: true, contacts });
   } catch (error) {
     console.error("GET /api/contacts/search error:", error);
     return NextResponse.json(

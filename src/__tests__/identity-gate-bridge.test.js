@@ -138,8 +138,14 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(bareAuthCount(file)).toBe(1);
     const lists = authBlocks(file);
     expect(lists).toHaveLength(0);
-    expect(src).toMatch(/isParticipantInProgram/);
-    expect(src).toMatch(/isVentureFounderInProgram/);
+    // The membership-keyed decision moved to the service; the route keeps the
+    // capability gate.
+    const service = fs.readFileSync(
+      path.join(ROOT, "src/services/contacts/directorySearch.js"),
+      "utf8",
+    );
+    expect(service).toMatch(/isParticipantInProgram/);
+    expect(service).toMatch(/isVentureFounderInProgram/);
     expect(src).toMatch(/requireAuthorization\("contacts", "view"\)/);
   });
 
