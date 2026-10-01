@@ -99,6 +99,12 @@ or a membership check — and runs after an identity exists.
 | Program manager change (repair action) | `services/programs/programManager.js` | ✅ moved (slice 13 — controller orchestration) |
 | Contact ↔ program/group sync + reconciliation | `services/contacts/contactGroupSync.js` + `models/contactGroupSyncStore.js` | ✅ moved (slice 14 — first contacts module) |
 | Venture document types (decisions + 12 statements) | `services/ventures/ventureDocumentTypes.js` + `models/ventureDocumentTypesStore.js` | ✅ moved (slice 15 — first ventures module) |
+| Projects controller use cases (portfolio access, lead resolution, meta merge, write order) | `services/projects/workspace.js` + `models/projects.js` (`projectUpdateClause`) | ✅ moved (slice 37 — **first controller-layer slice**) |
+| Projects collaboration use cases (members, assignments, discussions, invitations, response rules) | `services/projects/collaboration.js` | ✅ moved (slice 38 — projects domain controller-clean) |
+| The portfolio listing rule (who sees others' rows), shared | `services/authorization/listingScope.js` | ✅ extracted (slice 39) — projects/services delegate to it |
+| Task action use cases (carry-over, approval, reconcile, assignment list/respond, assignment action) | `services/tasks/{carryover,approval,reconcile,assignments,assignmentAction}.js` | ✅ moved (slice 39 — tasks domain started) |
+| The shared task-access rule (portfolio / owner / assignee / supervisor) | `services/tasks/access.js` | ✅ extracted (slice 40) |
+| Task sub-resource use cases (comments, resources, duplicate, logs, deadline reminders) | `services/tasks/{comments,resources,duplicate,logs,deadlines}.js` | ✅ moved (slice 40 — only the `tasks/route.js` monolith remains) |
 | Effective access-profile resolution, responsibilities domain | still `src/lib/auth.js` (6 functions, 8 SQL statements) | ⏸ **blocked on a decision** — see below |
 
 Two overlaps are **known and deliberately left alone** until a decision is made,
