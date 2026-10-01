@@ -33,7 +33,8 @@
 > begun — contact groups, user groups, the registry feed, then the contact
 > alternative emails, then the group members, then the directory search, then the
 > duplicate flags, then the contact timeline, then the contact merge, then the
-> contacts list read, then the soft-delete, then the registration. The
+> contacts list read, then the soft-delete, then the registration, then the
+> contact update — **the CRM controller frontier is complete**. The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1708,6 +1709,29 @@ same assertion now reads it in the service.
 
 ---
 
+### Domain 64 — the CRM controller frontier: the contact update (slice 83)
+
+The `/api/contacts` **PUT** built the SET clause inline and ran the program sync
+in the route. The rules — the capability-gated `role` column, the archive intent
+(server clock + session actor), the field normalization, the branch between a
+role promotion, a `program_ids` replacement and a single `program_id` ensure, the
+membership application with its audit, and the approval-time notification purge —
+now live in `services/contacts/update.js` (`buildContactUpdate`,
+`planContactProgramSync`, `findMissingProgram`, `applyContactProgramMembership`,
+`completeContactUpdate`). The route keeps the `contacts.edit` capability, the
+`org_membership` gate, the facilitator-conflict guard (which answers HTTP), the
+program-not-found 404 and the envelope.
+
+**Source-pin repointed:** `security-lot3` pinned
+`...(canAssignRole ? ["role"] : [])` inside the route; the same assertion now
+reads it in the service (the route still resolves `canAssignRole`).
+
+**The `/api/contacts` controller is now four thin verbs** — GET / POST / PUT /
+DELETE delegating to `registryRead` / `registration` / `update` / `deletion`.
+That closes the CRM controller frontier: every CRM route is a thin controller.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1744,7 +1768,7 @@ cleanup, not layering:
 |---|---|---|
 | Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
 | Programs | `services/programs/*` | ✅ **controller frontier complete** (slices 13, 68–72, 76) — lifecycle, workspace bundle, exports, weekly reports, teams, curriculum |
-| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22), the groups controller (slice 65), user groups (slice 66), the registry feed (slice 67) + the contact alternative emails (slice 73), then group members (slice 74, retiring the last Supabase route), then the directory-search pool (slice 75), then the duplicate-flag queue (slice 77), then the contact timeline (slice 78), then the contact merge (slice 79), then the contacts list read (slice 80), then the soft-delete (slice 81), then the registration (slice 82); the `contacts/route.js` PUT remains |
+| Contacts / CRM | `services/contacts/*` | ✅ **controller frontier complete** — sync (slice 14), the decision helpers (slice 22), groups (65), user groups (66), the registry feed (67), alternative emails (73), group members (74, retiring the last Supabase route), directory search (75), duplicate flags (77), timeline (78), merge (79) and the `/api/contacts` registry controller — list read (80), soft-delete (81), registration (82), update (83). |
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
