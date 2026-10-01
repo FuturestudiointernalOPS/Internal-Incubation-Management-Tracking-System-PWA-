@@ -6,6 +6,8 @@
  * (enforced by `src/__tests__/server/services-boundaries.test.js`).
  *
  *   diligence.js — the due-diligence workspace and its action dispatch
+ *   campaigns.js — the fundraising campaigns (scope, matching, milestones)
  */
 
 export * from "./diligence";
+export * from "./campaigns";

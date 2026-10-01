@@ -2,18 +2,10 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import {
-  getCampaignFundingSnapshot,
-  getCampaignVentureProfile,
-  getVentureNameForMilestoneAlert,
-  insertFundraisingCampaign,
-  listApprovedInvestorsWithPreferences,
-  listFundraisingCampaigns,
-  listInvestorsWatchingVenture,
-  notifyInvestorOfFundingMilestone,
-  notifyInvestorOfNewCampaign,
-  updateFundraisingCampaign,
-} from "@/models/investorRelations";
-import { getInvestorProfileIdByUserIdForPipelineList } from "@/models/investor";
+  listCampaignsForViewer,
+  createCampaign,
+  updateCampaignAndNotify,
+} from "@/services/investor";
 
 /**
  * GET /api/investor/campaigns
@@ -22,7 +14,7 @@ import { getInvestorProfileIdByUserIdForPipelineList } from "@/models/investor";
 export async function GET(req) {
   try {
     await initDb();
-    // Phase 1.5: authentication only — scoping is derived below.
+    // Phase 1.5: authentication only — scoping is derived in the service.
     const authError = await requireAuth();
     if (authError) return authError;
 
@@ -30,24 +22,13 @@ export async function GET(req) {
     const ventureId = searchParams.get("venture_id");
     const status = searchParams.get("status");
 
-    const session = await getSession();
-    const user = session;
-    const management = ["super_admin", "staff", "program_manager"].includes(user?.role);
+    const result = await listCampaignsForViewer({
+      ventureId,
+      status,
+      session: await getSession(),
+    });
 
-    // Phase 1.5: management sees all campaigns (as before); every other
-    // session — legacy investor role or a member with an investor context —
-    // is scoped to campaigns for ventures it is engaged with in the pipeline.
-    let investorId = null;
-    if (!management) {
-      const profileResult = await getInvestorProfileIdByUserIdForPipelineList(user.cid || user.id);
-      if (profileResult.rows.length === 0) {
-        return NextResponse.json({ success: true, campaigns: [] });
-      }
-      investorId = profileResult.rows[0].id;
-    }
-
-    const result = await listFundraisingCampaigns({ ventureId, status, investorId });
-    return NextResponse.json({ success: true, campaigns: result.rows });
+    return NextResponse.json({ success: true, campaigns: result.campaigns });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -63,26 +44,12 @@ export async function POST(req) {
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
-    const body = await req.json();
-    const { venture_id, name, target_raise, min_investment, max_investment, currency, visibility, opening_date, closing_date } = body;
-
-    if (!venture_id || !name) {
-      return NextResponse.json({ success: false, error: "venture_id and name are required" }, { status: 400 });
+    const result = await createCampaign(await req.json());
+    if (!result.ok) {
+      return NextResponse.json({ success: false, error: result.error }, { status: result.status });
     }
 
-    const result = await insertFundraisingCampaign(
-      venture_id,
-      name,
-      target_raise ? parseFloat(target_raise) : null,
-      min_investment ? parseFloat(min_investment) : null,
-      max_investment ? parseFloat(max_investment) : null,
-      currency || "USD",
-      visibility || "public",
-      opening_date || null,
-      closing_date || null,
-    );
-
-    return NextResponse.json({ success: true, campaign: result.rows[0] });
+    return NextResponse.json({ success: true, campaign: result.campaign });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -98,122 +65,12 @@ export async function PUT(req) {
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
-    const body = await req.json();
-    const { id, status, current_raised, target_raise, min_investment, max_investment, name, visibility } = body;
-
-    if (!id) {
-      return NextResponse.json({ success: false, error: "campaign id required" }, { status: 400 });
+    const result = await updateCampaignAndNotify(await req.json());
+    if (!result.ok) {
+      return NextResponse.json({ success: false, error: result.error }, { status: result.status });
     }
 
-    let oldRaised = 0;
-    let oldTarget = 0;
-
-    // If updating current_raised, fetch old value first for milestone detection
-    if (current_raised !== undefined) {
-      try {
-        const fundingSnapshot = await getCampaignFundingSnapshot(id);
-        if (fundingSnapshot.rows.length > 0) {
-          oldRaised = parseFloat(fundingSnapshot.rows[0].current_raised || 0);
-          oldTarget = parseFloat(fundingSnapshot.rows[0].target_raise || 0);
-        }
-      } catch (_) {}
-    }
-
-    const result = await updateFundraisingCampaign(id, {
-      status,
-      current_raised,
-      target_raise,
-      min_investment,
-      max_investment,
-      name,
-      visibility,
-    });
-
-    if (result.updated === false) {
-      return NextResponse.json({ success: false, error: "Nothing to update" }, { status: 400 });
-    }
-
-    if (result.rows.length === 0) {
-      return NextResponse.json({ success: false, error: "Campaign not found" }, { status: 404 });
-    }
-
-    const campaign = result.rows[0];
-
-    // If campaign status changed to "active", notify matching investors
-    if (status === "active") {
-      try {
-        // Get venture info
-        const ventureInfo = await getCampaignVentureProfile(campaign.venture_id);
-        const venture = ventureInfo.rows[0];
-        if (!venture) throw new Error("Venture not found");
-
-        // Find investors whose preferences match this venture
-        const investors = await listApprovedInvestorsWithPreferences();
-
-        for (const investor of investors.rows) {
-          let matches = false;
-          const industries = investor.industries || [];
-          const countries = investor.countries || [];
-          const stages = investor.startup_stages || [];
-
-          if (industries.length > 0) {
-            matches = matches || industries.some(industry => (venture.industry || "").toLowerCase().includes(industry.toLowerCase()));
-          }
-          if (countries.length > 0) {
-            matches = matches || countries.some(country => (venture.country || "").toUpperCase() === country.toUpperCase());
-          }
-          if (stages.length > 0) {
-            matches = matches || stages.some(stage => (venture.business_stage || "").toLowerCase().includes(stage.toLowerCase()));
-          }
-
-          // Also notify all investors if preferences not set (fallback: notify all approved)
-          if (matches || (industries.length === 0 && countries.length === 0 && stages.length === 0)) {
-            await notifyInvestorOfNewCampaign(
-              investor.user_id,
-              `New Investment Opportunity: ${venture.name}`,
-              `${venture.name} (${venture.industry || "Unknown"}, ${venture.country || "N/A"}) has opened a fundraising campaign: ${campaign.name}. Target: $${Number(campaign.target_raise || 0).toLocaleString()}.`,
-            );
-          }
-        }
-      } catch (error) { console.error("Campaign publish notify error:", error.message); }
-    }
-
-    // Smart alerts: notify watching investors when funding milestones are crossed
-    if (current_raised !== undefined && oldTarget > 0) {
-      try {
-        const newRaised = parseFloat(campaign.current_raised || 0);
-        const newTarget = parseFloat(campaign.target_raise || oldTarget);
-        const milestones = [25, 50, 75, 100];
-        let milestoneHit = 0;
-
-        for (const milestone of milestones) {
-          const oldPct = (oldRaised / oldTarget) * 100;
-          const newPct = (newRaised / newTarget) * 100;
-          if (oldPct < milestone && newPct >= milestone) {
-            milestoneHit = milestone;
-            break;
-          }
-        }
-
-        if (milestoneHit > 0) {
-          const ventureInfo = await getVentureNameForMilestoneAlert(campaign.venture_id);
-          const ventureName = ventureInfo.rows[0]?.name || "Venture";
-
-          // Notify all investors watching this venture
-          const watchers = await listInvestorsWatchingVenture(campaign.venture_id);
-
-          for (const watcher of watchers.rows) {
-            await notifyInvestorOfFundingMilestone(
-              watcher.user_id,
-              `Funding Milestone: ${milestoneHit}% \u2014 ${ventureName}`,
-              `${ventureName}'s fundraising campaign has reached ${milestoneHit}% of its $${newTarget.toLocaleString()} target ($${newRaised.toLocaleString()} raised).`,
-            );
-          }
-        }
-      } catch (error) { console.error("Milestone notify error:", error.message); }
-    }
-
-    return NextResponse.json({ success: true, campaign });
+    return NextResponse.json({ success: true, campaign: result.campaign });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
