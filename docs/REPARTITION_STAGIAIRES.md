@@ -347,18 +347,20 @@ Du plus rentable / débloquant au plus tard :
    diligence, campagnes, pipeline, relations, évaluation, décisions,
    organisations, liste de suivi, préférences, réunions, tableau de bord,
    agrégateurs et mot de passe. `register` est un 410 sans décision.
-4. 🟰 **LMS & paiement** et **e-mail / intégrations** — routes à décision déjà
+4. 🟰 **LMS & paiement** et **e-mail / intégrations** — routes à décision
    migrées : le **règlement partagé** (`settleVerifiedPayment`), la
-   **réconciliation** (`checkoutReconcile`) et l'**inscription publique**
+   **réconciliation** (`checkoutReconcile`), l'**inscription publique**
    (`api/public/register`, `api/public/group-info`) →
-   `services/lms/publicRegistration.js`. Restent à vérifier (ne traiter que les
-   décisions) : `api/webhooks/kkiapay` (machine à états de la notification, déjà
-   adossée au socle de règlement), `api/webhooks/resend` (vérification de
-   signature Svix + fraîcheur + table événement → statut) et le dispatch d'action
-   de `api/lms/registrations` (`link-run` vs `reconcile`). `api/gmail-v1-test`
-   est un diagnostic temporaire marqué « à supprimer », sans décision ;
-   `api/integrations/**`, `api/public/course-match` et `api/webhooks/route.js`
-   délèguent déjà.
+   `services/lms/publicRegistration.js`, le **webhook Resend** (signature Svix +
+   fraîcheur + table événement → statut) → `services/email/resendWebhook.js`, et
+   la **machine à états de la notification Kkiapay** (référence inconnue,
+   doublon, échec explicite, vérification puis règlement) →
+   `services/lms/checkoutWebhook.js`. **Évalués et laissés au contrôleur** (aucune
+   décision métier) : le dispatch d'action de `api/lms/registrations`
+   (`link-run` vs `reconcile` : un simple aiguillage, le travail est déjà dans les
+   services), `api/gmail-v1-test` (diagnostic temporaire « à supprimer »), et
+   `api/integrations/**`, `api/public/course-match`, `api/webhooks/route.js`,
+   `api/webhooks/[id]` (délèguent déjà).
 5. **Vues et composants réservés** (V1, V3, V4, V5, V7, V9–V12, V14, V15, V17 et
    B3, B4, B5, B8, B9, B11, B12, B13) — à intercaler avec les couloirs.
 6. **Tableau de bord & ops admin** (agrégateurs : `api/dashboard/**`,
@@ -418,6 +420,13 @@ Du plus rentable / débloquant au plus tard :
 
 | LMS & paiement — **socle de règlement partagé** | ✅ fait | La règle de règlement d'un paiement vérifié (contrôle du montant, passage à « payé », octroi de l'accès, envoi du reçu, journalisation) était écrite **deux fois** — dans la vérification du payeur (`api/public/checkout`) et dans la notification Kkiapay (`api/webhooks/kkiapay`). Elle vit maintenant à un seul endroit : `services/lms/checkout.js` → `settleVerifiedPayment(...)`. Les deux contrôleurs n'ont plus que l'authentification et l'enveloppe ; les valeurs journalistées restent celles que le fournisseur a réellement rapportées, donc la piste d'audit est identique. Le filet de comportement est le test d'intégration existant `lms-checkout.test.js`, qui fait passer les deux chemins par le socle partagé (montant falsifié refusé et journalisé, reçu envoyé même quand l'accès échoue). |
 | LMS & paiement — **balayage de réconciliation** | ✅ fait | `lib/lms/checkoutReconcile.js` — le filet de sécurité qui rejoue une étape d'accès échouée et revérifie un succès non confirmé — est passé en `services/lms/checkoutReconcile.js`. La façade `lib/lms/checkoutReconcile` est conservée : ses deux importateurs (`api/lms/registrations`, `api/lms/checkout-reconcile`) et le test du cron résolvent inchangés. |
+| E-mail — **webhook Resend** | ✅ fait | Décisions de `api/webhooks/resend/route.js` (vérification de signature Svix à temps constant et multi-candidats pour la rotation, fenêtre de fraîcheur anti-rejeu, table événement → statut, append au journal) déplacées dans `services/email/resendWebhook.js` (`processResendWebhook`, `verifySvixSignature`). Route amaigrie. Test ajouté (`src/__tests__/email-resend-webhook.test.js`) ; le garde-fou `security-lot6-hardening.test.js` pointe désormais le service. Tests 258 suites / 3803 ✅, lint 0 erreur, build ✅. |
+| LMS & paiement — **notification Kkiapay** | ✅ fait | La machine à états de `api/webhooks/kkiapay/route.js` (référence inconnue journalisée mais jamais créée, doublon sur une inscription déjà payée, échec explicite, sinon vérification côté serveur puis règlement partagé) déplacée dans `services/lms/checkoutWebhook.js` (`processPaymentNotification`, qui renvoie une issue discriminée). Le contrôleur garde `initDb`, le fournisseur, la vérification de signature, le parsing et l'enveloppe. Test ajouté (`src/__tests__/lms-payment-notification.test.js`) ; le test end-to-end `lms-checkout.test.js` (34 cas) reste vert. |
+
+> **Point 4 : décisions migrées.** Ce qui reste (`api/lms/registrations`
+> dispatch, `api/gmail-v1-test`, `api/integrations/**`,
+> `api/public/course-match`, `api/webhooks/route.js`) a été **évalué** : aucune
+> décision métier à déplacer (aiguillage ou délégation).
 
 ---
 

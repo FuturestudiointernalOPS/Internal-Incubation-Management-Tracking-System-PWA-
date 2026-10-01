@@ -2360,6 +2360,42 @@ are green.
 
 ---
 
+### Domain 86 — the webhook decisions: Resend and Kkiapay (slice 122)
+
+Two webhook controllers still held a real decision:
+
+- **`api/webhooks/resend`** — the Svix signature check (constant-time, and any
+  of several candidates during secret rotation), the freshness window that stops
+  a captured delivery from being replayed, and the event → status map move to
+  `services/email/resendWebhook.js` (`processResendWebhook`, with a pure
+  `verifySvixSignature`). The controller keeps the secret, the header reads and
+  the envelope; the append to the log stays in `services/email/log`.
+- **`api/webhooks/kkiapay`** — the notification STATE MACHINE moves to
+  `services/lms/checkoutWebhook.js` (`processPaymentNotification`): an unknown
+  reference is journaled and never creates a registration, a duplicate on an
+  already-paid registration does nothing, an explicit failure is recorded, and
+  anything else is handed to the server-side verification and then the shared
+  `settleVerifiedPayment`. The controller keeps `initDb`, the provider, the
+  signature verification, the payload parsing and the response shape; the
+  outcome is a discriminated value.
+
+The two static guards that pinned the rules now point at the services
+(`security-lot6-hardening.test.js` for the Resend signature/freshness), and two
+focused suites pin the moved decisions (`email-resend-webhook.test.js`,
+`lms-payment-notification.test.js`). The end-to-end `lms-checkout.test.js`
+(34 cases) keeps driving the Kkiapay route unchanged.
+
+Assessed and deliberately left at the controller, because they hold no business
+decision: the `api/lms/registrations` action dispatch (`link-run` vs
+`reconcile` — the work already lives in the services), `api/gmail-v1-test` (a
+self-labelled temporary diagnostic), `api/integrations/**`,
+`api/public/course-match` and `api/webhooks/route.js` (already delegate).
+
+`npm test` (258 suites, 3803 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** — **deleted** (slice 117): `resolver`, `scope`,
