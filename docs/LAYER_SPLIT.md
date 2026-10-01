@@ -33,7 +33,7 @@
 > begun — contact groups, user groups, the registry feed, then the contact
 > alternative emails, then the group members, then the directory search, then the
 > duplicate flags, then the contact timeline, then the contact merge, then the
-> contacts list read, then the soft-delete. The
+> contacts list read, then the soft-delete, then the registration. The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1690,6 +1690,24 @@ envelope.
 
 ---
 
+### Domain 63 — the CRM controller frontier: the contact registration (slice 82)
+
+The `/api/contacts` **POST** (single or bulk registration) carried the whole
+create use-case inline — the role normalization (a privileged caller may choose;
+everyone else is capped at the self-service set), the status defaulting, the
+unusable-password rule, the invitation firing, the program enrollment with the
+facilitator-conflict guard, the access-request notification and the
+duplicate-phone detection. That now lives in `services/contacts/registration.js`
+(`registerContacts`). The route keeps the optional-auth `contacts.create`
+capability, the role-assign and org-membership gates, the all-failed → 400
+mapping and the envelope.
+
+**Source-pin repointed:** `security-lot10` pinned
+`program_id: session ? contact.program_id || null : null` inside the route; the
+same assertion now reads it in the service.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1726,7 +1744,7 @@ cleanup, not layering:
 |---|---|---|
 | Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
 | Programs | `services/programs/*` | ✅ **controller frontier complete** (slices 13, 68–72, 76) — lifecycle, workspace bundle, exports, weekly reports, teams, curriculum |
-| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22), the groups controller (slice 65), user groups (slice 66), the registry feed (slice 67) + the contact alternative emails (slice 73), then group members (slice 74, retiring the last Supabase route), then the directory-search pool (slice 75), then the duplicate-flag queue (slice 77), then the contact timeline (slice 78), then the contact merge (slice 79), then the contacts list read (slice 80), then the soft-delete (slice 81); the `contacts/route.js` POST/PUT remain |
+| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22), the groups controller (slice 65), user groups (slice 66), the registry feed (slice 67) + the contact alternative emails (slice 73), then group members (slice 74, retiring the last Supabase route), then the directory-search pool (slice 75), then the duplicate-flag queue (slice 77), then the contact timeline (slice 78), then the contact merge (slice 79), then the contacts list read (slice 80), then the soft-delete (slice 81), then the registration (slice 82); the `contacts/route.js` PUT remains |
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
