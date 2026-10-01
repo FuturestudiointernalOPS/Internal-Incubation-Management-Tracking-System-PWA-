@@ -11,6 +11,14 @@ import {
   markNotificationRead,
   markNotificationsSeen,
 } from "@/models/workspace";
+import {
+  resolveInboxRecipient,
+  canCreateNotificationFor,
+  canModifyInboxNotification,
+  selectUnreadRows,
+  collectNotificationIds,
+  parseUnreadCount,
+} from "@/services/communications/inboxNotifications";
 
 /**
  * NOTIFICATIONS API — SIGNAL AGGREGATION
@@ -33,11 +41,7 @@ export async function POST(req) {
     }
 
     const recipientId = recipient_id || session.cid;
-    if (
-      recipient_id &&
-      String(recipient_id) !== String(session.cid) &&
-      !["super_admin", "staff", "program_manager"].includes(session.role)
-    ) {
+    if (!canCreateNotificationFor(session, recipient_id)) {
       return NextResponse.json(
         { success: false, error: "You cannot create notifications for other users." },
         { status: 403 },
@@ -72,26 +76,19 @@ export async function GET(req) {
     }
 
     const session = await getSession();
-    let recipientId = searchParams.get("recipient_id") || session?.cid || "sa";
-    if (
-      session &&
-      searchParams.get("recipient_id") &&
-      String(searchParams.get("recipient_id")) !== String(session.cid) &&
-      !["super_admin", "staff", "program_manager"].includes(session.role)
-    ) {
-      recipientId = session.cid; // force own inbox, no info leak
-    }
+    // non-privileged callers are forced onto their own inbox, no info leak
+    const recipientId = resolveInboxRecipient(session, searchParams.get("recipient_id"));
 
     let rows = [];
     try {
       const result = await getRecentNotifications(recipientId);
       rows = result.rows || [];
-      rows = rows.filter((row) => row.is_read == 0 || row.is_read == null);
+      rows = selectUnreadRows(rows);
 
       // Opening the inbox marks fetched notifications as SEEN (not read).
       // Read = the user opened the item (PATCH read). Seen ≠ read is what
       // makes unread badges feel correct.
-      const ids = (rows || []).map((row) => row.id).filter((notificationId) => notificationId !== undefined && notificationId !== null);
+      const ids = collectNotificationIds(rows);
       if (ids.length > 0) {
         try {
           await markNotificationsSeen(ids);
@@ -107,7 +104,7 @@ export async function GET(req) {
     let unreadCount = 0;
     try {
       const counted = await countUnreadNotifications(recipientId);
-      unreadCount = parseInt(counted.rows?.[0]?.c || 0, 10);
+      unreadCount = parseUnreadCount(counted);
     } catch (_) {
       unreadCount = rows.length;
     }
@@ -142,10 +139,7 @@ export async function PATCH(req) {
           { status: 404 },
         );
       }
-      if (
-        String(recipientResult.rows[0].recipient_id) !== String(session.cid) &&
-        !["super_admin", "staff", "program_manager"].includes(session.role)
-      ) {
+      if (!canModifyInboxNotification(session, recipientResult.rows[0].recipient_id)) {
         return NextResponse.json(
           { success: false, error: "You cannot modify this notification." },
           { status: 403 },

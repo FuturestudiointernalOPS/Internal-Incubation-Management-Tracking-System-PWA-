@@ -22,3 +22,4 @@ export * from "./followups";
 export * from "./events";
 export * from "./notifications";
 export * from "./ventureNotifications";
+export * from "./inboxNotifications";
