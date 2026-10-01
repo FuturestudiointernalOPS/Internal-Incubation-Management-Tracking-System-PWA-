@@ -22,7 +22,6 @@ const path = require("path");
 
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
-const FORM_RUNS = "src/app/api/platform/form-runs/route.js";
 const FORM_RUNS_SERVICE = "src/services/platform/formRuns.js";
 const RESULT_PDF = "src/models/platform/resultPdf.js";
 
@@ -323,8 +322,8 @@ describe("the run's report builder selects the renderer by instruction", () => {
     expect((read(FORM_RUNS_SERVICE).match(/await sendResultEmailForSubmission\(/g) || []).length).toBeGreaterThanOrEqual(2);
   });
 
-  test("the instruction is bounded and trimmed at the API boundary", () => {
-    const src = read(FORM_RUNS);
+  test("the instruction is bounded and trimmed at the write boundary", () => {
+    const src = read(FORM_RUNS_SERVICE);
     expect(src).toContain("MAX_OUTPUT_INSTRUCTION");
     expect(src).toContain("outputInstructionTooLong");
     expect(MAX_OUTPUT_INSTRUCTION).toBeGreaterThan(0);

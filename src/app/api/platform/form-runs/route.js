@@ -27,17 +27,10 @@ import {
   getSubmissionsBySubmitterId,
   listFormRunsPage,
   getBulkReviewValidationsByIdsInRun,
-  updateFormRunMetadataById,
-  deleteEmailLogsByRunId,
-  deleteReviewsByRunId,
-  deleteEvaluationsByRunId,
-  deleteFormRunById,
 } from "@/models/formRuns";
 
-import { MAX_OUTPUT_INSTRUCTION } from "@/models/platform/ai/report";
-import { deleteRunReportFileByRunId } from "@/models/platform/reportFiles";
-import { removeRunReportFileObject } from "@/lib/platform/runReportFiles";
 import {
+  archiveRun,
   assignRunTargets,
   buildResultDocument,
   buildRunDetail,
@@ -58,6 +51,7 @@ import {
   sendResultEmails,
   submitResponse,
   unassignRun,
+  updateRunMetadata,
 } from "@/services/platform/formRuns";
 
 /**
@@ -771,28 +765,11 @@ export async function PUT(req) {
     const { id, name, description, status, opens_at, closes_at, settings } = await req.json();
     if (!id) return NextResponse.json({ success: false, error: "id is required" }, { status: 400 });
 
-    // The Output Instruction is a prompt an administrator writes, so it is
-    // validated here and not only in the form: bound its length, keep it a
-    // string, and store it trimmed (blank means "no instruction, default
-    // report" — never a whitespace prompt).
-    let safeSettings = settings;
-    if (settings && typeof settings === "object" && settings.output_instruction !== undefined) {
-      const raw = settings.output_instruction;
-      if (raw !== null && typeof raw !== "string") {
-        return NextResponse.json({ success: false, error: "platformMisc.runs.outputInstructionInvalid" }, { status: 400 });
-      }
-      const trimmed = typeof raw === "string" ? raw.trim() : "";
-      if (trimmed.length > MAX_OUTPUT_INSTRUCTION) {
-        return NextResponse.json(
-          { success: false, error: "platformMisc.runs.outputInstructionTooLong" },
-          { status: 400 },
-        );
-      }
-      safeSettings = { ...settings, output_instruction: trimmed };
-    }
-
-    const result = await updateFormRunMetadataById({ id, name, description, status, opens_at, closes_at, settings: safeSettings });
-    return NextResponse.json({ success: true, run: result.rows[0] });
+    // The Output Instruction validation (a string, bounded, stored trimmed —
+    // blank means "no instruction, default report") lives in the service.
+    const result = await updateRunMetadata({ id, name, description, status, opens_at, closes_at, settings });
+    if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: result.statusCode || 500 });
+    return NextResponse.json({ success: true, run: result.run });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -807,19 +784,9 @@ export async function DELETE(req) {
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ success: false, error: "id is required" }, { status: 400 });
 
-    const runId = parseInt(id);
-
-    // Permanently delete the run and everything attached to it. Assignments
-    // and submissions cascade via FK, but email/review/evaluation logs
-    // reference submission_id without a FK cascade, so clean those up first.
-    await deleteEmailLogsByRunId(runId);
-    await deleteReviewsByRunId(runId);
-    await deleteEvaluationsByRunId(runId);
-    // The report document's ROW cascades with the run; the stored object does
-    // not, so it has to be taken down here or it would outlive its run forever.
-    const reportFilePath = await deleteRunReportFileByRunId(runId);
-    if (reportFilePath) await removeRunReportFileObject(reportFilePath);
-    await deleteFormRunById(runId);
+    // The cascade order (logs first, then the report object, then the run)
+    // lives in the service.
+    await archiveRun({ id });
 
     return NextResponse.json({ success: true });
   } catch (error) {

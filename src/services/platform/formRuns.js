@@ -43,7 +43,11 @@ import {
   createRunAssignmentForRunCreation,
   createSubmissionReview,
   deleteAssignmentById,
+  deleteEmailLogsByRunId,
+  deleteEvaluationsByRunId,
   deleteEvaluationsBySubmissionId,
+  deleteFormRunById,
+  deleteReviewsByRunId,
   deleteReviewsBySubmissionId,
   deleteSubmissionById,
   deleteTimelineBySubmissionId,
@@ -120,17 +124,21 @@ import {
   updateEvaluationDimensionsById,
   updatePublicSlugForRegeneratedLinkById,
   updatePublicSlugRetryAfterAlterById,
+  updateFormRunMetadataById,
   updateRunPublicSlugById,
   updateRunStatusById,
   updateSubmissionContentAndStatusById,
   updateSubmissionStatusById,
 } from "@/models/formRuns";
 import { getPlatformFormFields, getPlatformFormSections } from "@/models/forms";
+import { MAX_OUTPUT_INSTRUCTION } from "@/models/platform/ai/report";
 import {
+  deleteRunReportFileByRunId,
   getRunReportFileByRunId,
   getRunReportFileTextByRunId,
   runReportFileDescriptor,
 } from "@/models/platform/reportFiles";
+import { removeRunReportFileObject } from "@/lib/platform/runReportFiles";
 
 /**
  * Resolve display names for run assignments server-side so the UI never has
@@ -2072,4 +2080,54 @@ export async function createRun({ form_id, name, description, opens_at, closes_a
   onRunCreated(result.rows[0], session);
 
   return { ok: true, run: result.rows[0] };
+}
+
+// ── Run metadata update and permanent archive (PUT / DELETE) ─────────────────
+
+/**
+ * Update a run's metadata.
+ *
+ * The Output Instruction is a prompt an administrator writes, so it is
+ * validated here and not only in the form: it must be a string, it is bounded
+ * and stored trimmed (blank means "no instruction, default report" — never a
+ * whitespace prompt). Returns { ok:true, run } or { ok:false, statusCode, error }
+ * where the error is the i18n key the caller shows.
+ */
+export async function updateRunMetadata({ id, name, description, status, opens_at, closes_at, settings }) {
+  let safeSettings = settings;
+  if (settings && typeof settings === "object" && settings.output_instruction !== undefined) {
+    const raw = settings.output_instruction;
+    if (raw !== null && typeof raw !== "string") {
+      return { ok: false, statusCode: 400, error: "platformMisc.runs.outputInstructionInvalid" };
+    }
+    const trimmed = typeof raw === "string" ? raw.trim() : "";
+    if (trimmed.length > MAX_OUTPUT_INSTRUCTION) {
+      return { ok: false, statusCode: 400, error: "platformMisc.runs.outputInstructionTooLong" };
+    }
+    safeSettings = { ...settings, output_instruction: trimmed };
+  }
+
+  const result = await updateFormRunMetadataById({ id, name, description, status, opens_at, closes_at, settings: safeSettings });
+  return { ok: true, run: result.rows[0] };
+}
+
+/**
+ * Permanently delete a run and everything attached to it.
+ *
+ * Assignments and submissions cascade via FK, but the email/review/evaluation
+ * logs reference submission_id without a FK cascade, so those are cleared first.
+ * The report document's ROW cascades with the run; the stored OBJECT does not,
+ * so it is taken down here or it would outlive its run forever.
+ */
+export async function archiveRun({ id }) {
+  const runId = parseInt(id);
+
+  await deleteEmailLogsByRunId(runId);
+  await deleteReviewsByRunId(runId);
+  await deleteEvaluationsByRunId(runId);
+  const reportFilePath = await deleteRunReportFileByRunId(runId);
+  if (reportFilePath) await removeRunReportFileObject(reportFilePath);
+  await deleteFormRunById(runId);
+
+  return { ok: true };
 }
