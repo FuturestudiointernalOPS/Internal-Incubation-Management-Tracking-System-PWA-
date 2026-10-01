@@ -2197,6 +2197,22 @@ The controller is now thin over two services.
 `npm test` (244 suites, 3552 tests), `npx eslint` (0 errors) and `npm run build`
 are green.
 
+### Domain 80 — the dashboard overview (slice 116)
+
+`GET /api/dashboard`, the largest controller after the permission matrix. Its
+aggregation moves to `services/dashboard/overview.js` (`buildDashboardOverview`,
+`getDashboardKpiSummary`): the IDOR-safe scope resolution, the parallel read
+bundle, the calendar assembly (tasks spanning their date range, programs,
+sessions, venture sessions, deliverables, events) and the summary / attention /
+quick-access shaping — each widget guarded by its `allSettled` status so one
+failure never takes the page down. The route keeps `initDb`, the `requireAuth`
+gate (and the `super_admin` KPI shortcut), the session and the envelope.
+`dashboard-api.test.js` still passes over the moved code — its assertions are on
+the SQL the models run.
+
+`npm test` (251 suites, 3660 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
 ---
 
 ## 3. Left aside on purpose (deferred, with reasons)
