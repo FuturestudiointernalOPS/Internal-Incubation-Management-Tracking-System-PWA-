@@ -9,6 +9,8 @@
  *   planImport.js — interpreting a tracker into a proposed programme
  *   sessionBooking.js — the rules a new Venture session must meet
  *   sessionNotices.js — who is told about a session change, and with which words
+ *   sessionBookingTargets.js — what a new session is booked against (milestone, deliverable, coach)
+ *   sessionAuthority.js — who may define a Venture's calendar (calendar.schedule)
  *   journeyRead.js — the work a Journey read attaches (milestones, deliverables, task counts, template)
  *   journeyStageActions.js — Journey stage transitions and their change log
  *   memberRoster.js — what follows a roster change (invitation delivery, access, history, grants)
@@ -31,3 +33,5 @@ export * from "./deliverableReview";
 export * from "./dashboard";
 export * from "./milestoneCompletion";
 export * from "./planImportFlow";
+export * from "./sessionBookingTargets";
+export * from "./sessionAuthority";

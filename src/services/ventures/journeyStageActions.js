@@ -12,14 +12,48 @@
  * No SQL, no HTTP.
  */
 import { releaseMilestonesForStage } from "@/lib/ventureMilestoneEngine";
-import { moveJourneyStage, deleteJourneyStage } from "@/lib/ventureJourneys";
+import { moveJourneyStage, deleteJourneyStage, nextJourneyStageOrder } from "@/lib/ventureJourneys";
 import { diffFields, recordVentureChange } from "@/models/ventureChangeLog";
 import {
+  countJourneyStagesByVenture,
+  insertJourneyStage,
   activateJourneyStage,
   lockJourneyStage,
   holdJourneyStageMilestones,
   resetJourneyStage,
 } from "@/models/ventureJourney";
+
+/**
+ * Adds a Journey (stage) to the Venture: the first one starts active, the
+ * others upcoming; it goes last in the order; dates are cut to YYYY-MM-DD.
+ * The history row is best-effort.
+ *
+ * @returns {Promise<{ error: string, status: number } | { insertResult: object }>}
+ */
+export async function addJourneyStage({ ventureParam, dbId, body }) {
+  const name = String(body.name || "").trim();
+  if (!name) return { error: "name is required.", status: 400 };
+
+  const existing = await countJourneyStagesByVenture(dbId);
+  const count = Number(existing.rows?.[0]?.n || 0);
+  const stageOrder = await nextJourneyStageOrder(dbId);
+  const status = count === 0 ? "active" : "upcoming";
+  const targetDate = body.target_date ? String(body.target_date).slice(0, 10) : null;
+  // Optional: when the Journey starts on its own (NULL = it starts only when
+  // a staff member activates it). No ordering is imposed on it.
+  const startDate = body.start_date ? String(body.start_date).slice(0, 10) : null;
+
+  const insertResult = await insertJourneyStage({
+    ventureId: dbId, name, description: body.description || null, objective: body.objective || null,
+    startDate, targetDate, stageOrder, status,
+  });
+
+  try {
+    const { addVentureHistory } = await import("@/lib/ventures");
+    await addVentureHistory({ venture_id: ventureParam, event_type: "JOURNEY_STAGE_ADDED", description: `Journey stage "${name}" added` });
+  } catch (_) {}
+  return { insertResult };
+}
 
 /**
  * Field-level history of a stage edit. Non-fatal by contract — the write

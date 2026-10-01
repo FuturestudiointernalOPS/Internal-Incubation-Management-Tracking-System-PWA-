@@ -11,15 +11,11 @@ import {
   resolveVentureInternalId,
   listJourneyStages,
   getJourneyStage,
-  nextJourneyStageOrder,
 } from "@/lib/ventureJourneys";
-import {
-  countJourneyStagesByVenture,
-  insertJourneyStage,
-  updateJourneyStageFields,
-} from "@/models/ventureJourney";
+import { updateJourneyStageFields } from "@/models/ventureJourney";
 import { attachJourneyWork } from "@/services/ventures/journeyRead";
 import {
+  addJourneyStage,
   recordJourneyStageEdit,
   runJourneyStageTransition,
   recordJourneyStageTransition,
@@ -163,27 +159,11 @@ export async function POST(req, { params }) {
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     const body = await req.json();
-    const name = String(body.name || "").trim();
-    if (!name) return NextResponse.json({ success: false, error: "name is required." }, { status: 400 });
-
-    const existing = await countJourneyStagesByVenture(dbId);
-    const count = Number(existing.rows?.[0]?.n || 0);
-    const stageOrder = await nextJourneyStageOrder(dbId);
-    const status = count === 0 ? "active" : "upcoming";
-    const targetDate = body.target_date ? String(body.target_date).slice(0, 10) : null;
-    // Optional: when the Journey starts on its own (NULL = it starts only when
-    // a staff member activates it). No ordering is imposed on it.
-    const startDate = body.start_date ? String(body.start_date).slice(0, 10) : null;
-
-    const insertResult = await insertJourneyStage({
-      ventureId: dbId, name, description: body.description || null, objective: body.objective || null,
-      startDate, targetDate, stageOrder, status,
-    });
-
-    try {
-      const { addVentureHistory } = await import("@/lib/ventures");
-      await addVentureHistory({ venture_id: id, event_type: "JOURNEY_STAGE_ADDED", description: `Journey stage "${name}" added` });
-    } catch (_) {}
+    // Name required, order, initial status, dates, insert and history:
+    // services/ventures/journeyStageActions.
+    const added = await addJourneyStage({ ventureParam: id, dbId, body });
+    if (added.error) return NextResponse.json({ success: false, error: added.error }, { status: added.status });
+    const insertResult = added.insertResult;
 
     // Managers keep their Archived view in sync: archived rows are returned
     // only to callers holding the manage capability (same rule as GET).

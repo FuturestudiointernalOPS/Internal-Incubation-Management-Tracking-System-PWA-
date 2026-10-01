@@ -145,7 +145,7 @@ journey / milestone, reports, deliverables).
 | `ventures/[id]/journey/delete/route.js` | 47 |
 | `ventures/[id]/journey/duplicate/route.js` | 67 |
 | `ventures/[id]/journey-report/route.js` | 197 |
-| `ventures/[id]/journey/route.js` | 267 (was 445 — slice L2.2) |
+| `ventures/[id]/journey/route.js` | 247 (was 445 — slices L2.2, L2.9) |
 | `ventures/[id]/journey/save-template/route.js` | 83 |
 | `ventures/[id]/knowledge/route.js` | 146 |
 | `ventures/[id]/kpis/route.js` | 131 |
@@ -170,7 +170,7 @@ journey / milestone, reports, deliverables).
 | `ventures/[id]/reports/route.js` | 76 |
 | `ventures/[id]/retros/route.js` | 51 |
 | `ventures/[id]/route.js` | 173 |
-| `ventures/[id]/sessions/route.js` | 298 (was 555 — slice L2.1) |
+| `ventures/[id]/sessions/route.js` | 234 (was 555 — slices L2.1, L2.9) |
 | `ventures/[id]/sessions/upload/route.js` | 49 |
 | `ventures/[id]/staff-assignments/route.js` | 98 |
 | `ventures/[id]/standups/route.js` | 65 |
@@ -313,15 +313,28 @@ multipart reading, the 5 MB limit, the file read, the correction flow
 
 Checks: `npm test` 3591/3591, `npx eslint` 0 errors, `npm run build` OK.
 
-### Lane status after L2.8
+### Slice L2.9 — finishing `sessions` and `journey` — ✅ done
+
+| New / changed file | What moved into it |
+|---|---|
+| `src/services/ventures/sessionBookingTargets.js` (new) | `resolveSessionBookingTargets`: the founder bookable-milestone check (date-driven activation first; 403 with the reason), the optional deliverable (must belong to the milestone; 400), the coach's platform identity |
+| `src/services/ventures/sessionAuthority.js` (new) | `checkSessionManagement`: who may define the calendar — delegated staff need `calendar.schedule`; the Venture's own members, global authority and participation (memo, attendance, action items) are untouched. Returns the 403 body; the route sends it |
+| `src/services/ventures/journeyStageActions.js` | + `addJourneyStage` (name required, first journey active / others upcoming, last in order, dates cut to YYYY-MM-DD, insert, history) |
+
+`sessions`: 298 → 234 lines. `journey`: 267 → 247 lines.
+
+Checks: `npm test` 3595/3595 (incl. `ventures/session-booking-authority`),
+`npx eslint` 0 errors, `npm run build` OK.
+
+### Lane status after L2.9
 Every lane route that was above 250 lines is now under it, except
 `ventures/[id]/members` (284): its remaining lines are the gates and the
 validation that three tests pin to the controller (see L2.3).
 
 | Route | Before | After |
 |---|---|---|
-| `ventures/[id]/sessions` | 555 | 298 → see note ¹ |
-| `ventures/[id]/journey` | 445 | 267 → see note ¹ |
+| `ventures/[id]/sessions` | 555 | 234 |
+| `ventures/[id]/journey` | 445 | 247 |
 | `ventures/[id]/members` | 383 | 284 |
 | `ventures/[id]/tasks` | 330 | 230 |
 | `ventures/[id]/deliverables` | 309 | 243 |
@@ -329,9 +342,12 @@ validation that three tests pin to the controller (see L2.3).
 | `ventures/[id]/milestones` | 306 | 221 |
 | `ventures/[id]/plan-import` | 284 | 217 |
 
-¹ What remains in `sessions` and `journey` is HTTP boundary: several action
-branches, each with its own gate, ownership check and response (sessions has
-11 actions). The decisions they held are in the services above.
+New services in `src/services/ventures/` (all listed in `index.js`):
+`sessionBooking`, `sessionBookingTargets`, `sessionAuthority`, `sessionNotices`,
+`journeyRead`, `journeyStageActions`, `memberRoster`, `taskBoard`,
+`deliverableReview`, `dashboard`, `milestoneCompletion`, `planImportFlow`.
+New tests in `src/__tests__/ventures/`: `session-booking-rules`, `task-board`,
+`deliverable-decision`, `plan-sheet-choice`.
 
 **Still open in L2:** splitting the big services (`planImport.js` 1 178,
 `milestoneEngine.js` 548, `submissions.js` 526, `journey.js` 520,
