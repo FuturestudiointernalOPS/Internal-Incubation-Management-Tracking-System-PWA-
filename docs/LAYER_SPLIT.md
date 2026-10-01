@@ -15,10 +15,12 @@
 > `syncMilestoneFromWork` is gone), 29 the assignment-scope layer and the
 > operating-plan access helpers, 30 the roadmap readiness engine and the Venture
 > notification helpers, 31 the venture progress reports, 32 the Venture coach
-> identity/invitation layer, 33–37 the first `ventures.js` domains out of the
+> identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
-> founders/co-founders, the Data-bank verification, then milestones &
-> deliverables). The
+> founders/co-founders, the Data-bank verification), 37–38 the projects
+> controller (workspace, then collaboration), 39–40 the next `ventures.js`
+> domains (milestones & deliverables, then tasks/dependencies/comments/
+> attachments). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -726,7 +728,81 @@ transitions and the version-numbering rule (first upload = version 1).
 
 ---
 
-### Domain 24 — the `ventures.js` monolith: milestones & deliverables (slice 37)
+### Domain 24 — the controller frontier: `api/projects` (slice 37)
+
+**The first slice on the controller layer itself.** The model modules are now
+split, so the remaining domain logic is the orchestration inside
+`src/app/api/**/route.js` (§4, "Controllers are the new frontier"). This slice
+takes the projects domain, `services/projects` did not exist.
+
+`src/app/api/projects/route.js` (389 lines, four verbs) drops to an HTTP shell:
+`initDb`, the capability / object-access guards, request validation, and the
+response envelope. The use cases move to `services/projects/workspace.js` —
+what a project action *does*:
+
+- **the portfolio access rule** — which roles see every project, and the 403 a
+  non-portfolio caller gets when they ask for somebody else's rows
+  (`seesWholeProjectPortfolio`, `resolveProjectListFilter`); the same rule was
+  inlined three times in the route (GET, PUT, DELETE);
+- **lead resolution** — `resolveCreateLeads` (single id folded into the list, the
+  first lead becomes the legacy `owner_id`) and `resolveUpdateLeads`
+  (`undefined` ≠ `[]`: not sent leaves the leads alone, sent-empty removes them);
+- **the meta merge** — `hasProjectMetaChanges` + `mergeProjectMeta` compose the
+  `meta` JSON over what is stored, so only the keys a request mentions change;
+- **the write order** — create → lead members → notifications; update → lead
+  re-sync; delete members → delete project.
+
+The one piece of SQL-shaped text the route used to hold — the dynamic `SET`
+fragment — moves to a pure repository builder, `projectUpdateClause` in
+`models/projects.js`, so **no SQL text crosses back into the service layer**.
+It keeps key order, so the built statement is byte-identical.
+
+`services/projects/index.js` is the new barrel. `npm test` (228 suites),
+`npx eslint` (0 errors) and `npm run build` are green; `projects-api.test.js`
+was the characterisation net and is unmodified — its SQL-substring mocks confirm
+the statements are byte-identical.
+
+**Deliberately left:** the `projects/*` siblings (`assignments`, `discuss`,
+`invitations`, `members`) still held their own orchestration at this point — done
+next, in slice 38.
+
+---
+
+### Domain 24 (cont.) — the controller frontier: the project collaboration routes (slice 38)
+
+The rest of the projects domain: `members` (list / invite / remove),
+`assignments` (the grouped dropdown), `discuss` (message + fan-out),
+`invitations` (list) and `invitations/respond` (accept / decline / cancel).
+These routes had no characterisation test, so the slice wrote one first
+(`src/__tests__/projects-collaboration-api.test.js`, 27 tests over the decision
+paths), then moved the use cases to `services/projects/collaboration.js`:
+
+- **the invite / re-invite sequence** — any pending invitation for the same
+  person is declined before the new one is written, so nobody sits on two live
+  invitations;
+- **the assignments grouping** — the own-scope rule, the three reads that fail
+  OPEN (a failing dropdown is empty, never a 500) and the deduplicated union;
+- **the discussion fan-out** — the owner, then every member (sender excepted,
+  each person once), then @mentions resolved by name, all deduplicated; the
+  fan-out fails SOFT so a notification problem cannot lose the message;
+- **the invitation response rules** — only the inviter cancels (resolved to a cid
+  first, so a namesake cannot), only the invitee accepts/declines, and the accept
+  flow joins the project then tells the inviter.
+
+The shared own-scope rule is extracted once (`resolveOwnScope`) and
+`resolveProjectListFilter` from slice 37 now delegates to it.
+
+**Source-pin repointed:** `security-lot6-hardening` pinned the cancel rule's
+source line (`String(session.cid) === String(inviterCid)`) inside the route; the
+same assertion now reads it in its new home, the service. The invariant is
+unchanged.
+
+`npm test` (229 suites, 3135 tests), `npx eslint` (0 errors) and
+`npm run build` are green. The projects domain is now controller-clean.
+
+---
+
+### Domain 25 — the `ventures.js` monolith: milestones & deliverables (slice 39)
 
 **Domain 5.** The milestone read, the deliverables of a milestone, and the
 deliverable create / update — including the evidence-submission and review
@@ -738,6 +814,23 @@ column, `status` once, canonical `progress` column) still passes byte-for-byte.
 
 **Unchanged:** the SQL (byte-identical), the allowed-column list, the Map-based
 approval workflow and the progress percentage.
+
+---
+
+### Domain 26 — the `ventures.js` monolith: tasks, dependencies, comments, attachments (slice 40)
+
+**Domain 6.** The Kanban task layer: the task list and row, create / update /
+delete, the task-to-task dependency graph (cycle guard + `db.transaction`
+replace + block-state sync + release), and the comments and attachments.
+Decisions move to `services/ventures/tasks.js`; every statement to
+`models/ventureTasksStore.js` (which owns `runInTransaction` and the two
+cursor-taking edge writes); `src/lib/ventures.js` re-exports the whole surface.
+The task-column normalizers (`dateOrNull` / `textOrNull` / `cidOrNull`) and the
+status vocabulary left the monolith with the domain.
+
+**Unchanged:** the SQL (byte-identical, including the `SELECT id, status`
+block-state read and the quoted completed-status list), the cycle refusal as a
+whole, and the manual-block-preserving rule.
 
 ---
 
@@ -780,7 +873,7 @@ cleanup, not layering:
 | Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14) + the decision helpers (slice 22) |
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
-| Tasks / projects | `services/tasks/*`, `services/projects/*` | ⬜ not started |
+| Tasks / projects | `services/tasks/*`, `services/projects/*` | ⏳ **projects controller done** (slices 37–38) — all six `/api/projects/**` routes are controller-clean (`services/projects/{workspace,collaboration}.js`); `services/tasks/*` not started |
 | LMS / platform / integrations | `services/<domain>/*` | ⏳ **LMS + platform started** — learner experience (slice 17), checkout (slice 18), Run report (slice 21); registrations/email-personalize checked (no split needed) |
 
 #### Remaining mixed model modules (the actual backlog)
@@ -927,8 +1020,9 @@ Two source-pinning suites were repointed (same assertion, new home):
   `ventures.js` (5.8k lines) is being emptied domain by domain: its
   activity/history/notification domain is out (slice 33), its startup-profile
   wizard is out (slice 34), its founders/co-founders domain is out (slice 35),
-  its Data-bank verification domain is out (slice 36) and its milestones &
-  deliverables domain is out (slice 37), all re-exported through the barrel. A
+  its Data-bank verification domain is out (slice 36), its milestones &
+  deliverables domain is out (slice 39) and its tasks/dependencies/comments/
+  attachments domain is out (slice 40), all re-exported through the barrel. A
   long tail of
   `src/lib` modules still
   holds SQL (the remaining domains of `ventures.js`, plus the
