@@ -18,7 +18,7 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–61 the next `ventures.js`
+> controller (workspace, then collaboration), 39–62 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
 > project timeline & dependencies, reports & project analytics, coach & mentor
 > management, mentoring sessions & scheduling, knowledge hub & learning,
@@ -28,7 +28,7 @@
 > integrations & public APIs, system monitoring, health & reporting, then the core
 > schema bootstrap, intake, then the core record — **`ventures.js` is now a
 > barrel**), then the non-venture `src/lib` tail began (token hashing, task audit
-> log). The
+> log, access profiles + responsibilities). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1308,6 +1308,23 @@ lock rule.
 
 ---
 
+### Domain 48 — the non-venture `src/lib` tail: access profiles + responsibilities (slice 62)
+
+`src/lib/auth.js` was already a facade except for its last six functions: the
+effective Access-Profile resolution and the responsibilities domain. They were
+held back only from *merging* with the parallel implementations in
+`models/authorization.js` / `models/responsibilities.js`; relocating them (with no
+merge) changes nothing. They move to
+`services/authorization/accessProfiles.js` over
+`models/accessProfilesStore.js`; `src/lib/auth.js` re-exports them, so the
+~250 importers are untouched.
+
+**Unchanged:** the SQL (byte-identical), the resolution order (explicit → role
+default → legacy), the capability-map shape and the seed-before-read. **Not
+merged** with the parallel implementations.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1498,7 +1515,7 @@ Two source-pinning suites were repointed (same assertion, new home):
   `models/venture*Store.js`. A long tail of
   `src/lib` modules still
   holds SQL (the
-  non-venture ones `auth.js`, `email.js`, `lms/coaching.js`; `audit.js` and
+  non-venture ones `email.js`, `lms/coaching.js`; `auth.js`, `audit.js` and
   `token-hashing.js` are done, and `request-context.js` held only a comment) — the
   next repository-extraction
   targets, one module at a time, tracked in `MVC_REFACTOR.md`.
