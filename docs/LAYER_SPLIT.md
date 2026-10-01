@@ -44,8 +44,8 @@
 > routes, the two seeds, the AI form generation, the template personalizer, the
 > advisory analysis, the evaluation scoreboard, the form-runs scoring engine, the
 > review workflow, the forms/collections controllers and the whole `form-runs`
-> POST action vocabulary (respondent write path, run lifecycle, email actions,
-> messaging actions, link/document/run actions).
+> action vocabulary (respondent write path, run lifecycle, email actions,
+> messaging actions, link/document/run actions, then the PUT/DELETE verbs).
 > The remaining mixed model modules are itemised in §4. This document is the
 > running log. Update it at the end of every slice.
 
@@ -2089,9 +2089,19 @@ route drops from 1621 to 828 lines.
 `platform-ai-evaluate-once` (the re-save evaluation guard), `run-output-instruction`
 (the one PDF sender reached from many actions) and `result-pdf-on-approval`
 (the sender call sites, after the bulk actions moved). `npm test` (242 suites,
-3499 tests), `npx eslint` (0 errors) and `npm run build` are green. **The
-`form-runs` POST vocabulary is now fully extracted; the `PUT` and `DELETE` verbs
-(run metadata + archive) remain.**
+3499 tests), `npx eslint` (0 errors) and `npm run build` are green.
+
+**Slice 110 — the `form-runs` `PUT` and `DELETE` verbs** →
+`services/platform/formRuns.js` (`updateRunMetadata`, `archiveRun`). The
+metadata write's Output-Instruction rule (a string, bounded by
+`MAX_OUTPUT_INSTRUCTION`, stored trimmed — blank means "no instruction, default
+report") and the archive cascade (email/review/evaluation logs cleared first,
+then the report document's stored OBJECT, then the run) leave the controller.
+`form-runs` is now a pure controller: every verb delegates to the service.
+**Source-pin repointed:** `run-output-instruction` now reads the bounded/trimmed
+instruction in the service (same assertion, new home). `npm test` (243 suites,
+3530 tests), `npx eslint` (0 errors) and `npm run build` are green. **The whole
+`form-runs` route is now a thin controller over `services/platform/formRuns.js`.**
 
 ---
 
@@ -2135,7 +2145,7 @@ cleanup, not layering:
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
-| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85), the `form-runs` Run-detail read (93), the `form-runs` email/report-document cluster (95), the import routes (96), the seeds (97), the AI form generation (98), the template personalizer (99), the advisory analysis (100), the evaluation scoreboard (101), the form-runs scoring engine (102), the review workflow (103), the forms/collections controllers (104) and the rest of the `form-runs` POST vocabulary — the respondent write path, the run lifecycle, the email actions, the messaging actions and the link/document/run actions (105–109); the `form-runs` `PUT`/`DELETE` verbs remain |
+| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85), the `form-runs` Run-detail read (93), the `form-runs` email/report-document cluster (95), the import routes (96), the seeds (97), the AI form generation (98), the template personalizer (99), the advisory analysis (100), the evaluation scoreboard (101), the form-runs scoring engine (102), the review workflow (103), the forms/collections controllers (104) and the rest of the `form-runs` POST vocabulary — the respondent write path, the run lifecycle, the email actions, the messaging actions, the link/document/run actions (105–109) and the PUT/DELETE verbs (110) — **`/api/platform/form-runs` is now a thin controller over `services/platform/formRuns.js`** |
 | Communications | `services/communications/*` | ✅ **controller frontier complete** — message scope (earlier), campaigns (86), internal messages (87), announcements (88), follow-ups and events (89–90) |
 | Submissions | `services/ventures/submissions.js` | ✅ **controller frontier complete** — the submit POST (91), the review PATCH (92), the list GET (93) and the score PUT (94) |
 
