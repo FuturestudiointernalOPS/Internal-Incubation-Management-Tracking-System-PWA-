@@ -1484,7 +1484,7 @@ precedence (`sent` wins for `lastSentAt`).
 
 ---
 
-### Domain 54 — the Programs controller frontier (slices 68–72)
+### Domain 54 — the Programs controller frontier (slices 68–72, 76)
 
 The programs domain's **route** layer, taken one route at a time. Slice 13 had
 only the manager-change repair; this wave takes the lifecycle, the workspace
@@ -1538,10 +1538,20 @@ in `services/programs/teams.js` (and still asserts the org-team route generates
 inline). `program-scope-coverage` and `identity-gate-bridge` are unchanged — the
 auth, capability and scope guards stayed on the routes.
 
-`npm test` (236 suites, 3380 tests), `npx eslint` (0 errors) and `npm run build`
-are green. **`pm/curriculum` (the session/requirement controller) is the one
-programs route left** — it is the largest and carries its own action vocabulary,
-so it is the next programs slice.
+**Slice 76 — `pm/curriculum`, the session/requirement controller** →
+`services/programs/curriculum.js` (`runCurriculumAction`, `updateCurriculum`,
+`deleteCurriculumItem`, plus the two scope resolvers). The whole action
+vocabulary (add_session with its conflict guard, add_requirement,
+send_reminder, toggle_status / toggle_deliverable, assign_team, anchor_material,
+the legacy weekly report), the field update with its schedule-conflict guard,
+the legacy full update and the per-type delete cascade move; the route keeps
+`programs.edit`, the `wave: "content"` scope and the response envelope, and asks
+the service which RECORD's program authorises the action (the record is resolved
+from the row, never the body). **No `@/models` import remains in the route.**
+New characterisation net `curriculum-api.test.js`.
+
+`npm test` (237 suites, 3399 tests), `npx eslint` (0 errors) and `npm run build`
+are green. **The Programs controller frontier is complete.**
 
 ---
 
@@ -1645,7 +1655,7 @@ cleanup, not layering:
 | Domain | Service to create | Notes |
 |---|---|---|
 | Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
-| Programs | `services/programs/*` | ✅ **controller frontier** (slices 13, 68–72) — lifecycle, workspace bundle, exports, weekly reports, teams; `pm/curriculum` remains |
+| Programs | `services/programs/*` | ✅ **controller frontier complete** (slices 13, 68–72, 76) — lifecycle, workspace bundle, exports, weekly reports, teams, curriculum |
 | Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22), the groups controller (slice 65), user groups (slice 66), the registry feed (slice 67) + the contact alternative emails (slice 73), then group members (slice 74, retiring the last Supabase route), then the directory-search pool (slice 75); `contacts/route.js` and the rest of the CRM routes remain |
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
