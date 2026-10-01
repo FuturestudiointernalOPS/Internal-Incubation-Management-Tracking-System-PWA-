@@ -2238,6 +2238,38 @@ are green.
 
 ---
 
+### Domain 82 — the LMS checkout settlement and reconciliation (slice 118)
+
+Two decisions the paid-course path still kept in its controllers:
+
+1. **The verified-payment rule was written twice.** The payer's own `verify`
+   (`api/public/checkout`) and the Kkiapay notification (`api/webhooks/kkiapay`)
+   each re-implemented "check the amount against the price we recorded, mark
+   paid, grant access, send the receipt, journal it" — with comments already
+   warning the two must never diverge. The rule now lives once in
+   `services/lms/checkout.js` as `settleVerifiedPayment(...)`, returning
+   `{ ok: true, fulfillment, delivery }` or
+   `{ ok: false, reason: "amount_mismatch" }`. Both controllers call it and keep
+   only their envelope; the journal field values are passed in so each path still
+   records the value the provider actually reported (the notification its own
+   `event`, the verify its `verified` answer), keeping the audit trail identical.
+
+2. **The reconciliation sweep was a lib module.** `lib/lms/checkoutReconcile.js`
+   — the safety net that replays a failed access step and re-verifies a success
+   we could not confirm — is now `services/lms/checkoutReconcile.js`; the lib
+   path is a facade. The two importers (`api/lms/registrations`,
+   `api/lms/checkout-reconcile`) and the cron test keep resolving unchanged.
+
+The behaviour net is the existing `lms-checkout.test.js`: it drives both the
+notification and the payer's own verify through the shared settlement — the
+falsified-amount refusal that journals and grants nothing, and the receipt that
+still goes out when the access step fails.
+
+`npm test` (253 suites, 3689 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** — **deleted** (slice 117): `resolver`, `scope`,
@@ -2280,7 +2312,7 @@ cleanup, not layering:
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
-| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85), the `form-runs` Run-detail read (93), the `form-runs` email/report-document cluster (95), the import routes (96), the seeds (97), the AI form generation (98), the template personalizer (99), the advisory analysis (100), the evaluation scoreboard (101), the form-runs scoring engine (102), the review workflow (103), the forms/collections controllers (104) and the rest of the `form-runs` POST vocabulary — the respondent write path, the run lifecycle, the email actions, the messaging actions, the link/document/run actions (105–109), the PUT/DELETE verbs (110) and the remaining platform controllers — notifications, integrations, investor-run, evaluation-config, report-file (111) — **`/api/platform/form-runs` is now a thin controller over `services/platform/formRuns.js`** |
+| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85), the `form-runs` Run-detail read (93), the `form-runs` email/report-document cluster (95), the import routes (96), the seeds (97), the AI form generation (98), the template personalizer (99), the advisory analysis (100), the evaluation scoreboard (101), the form-runs scoring engine (102), the review workflow (103), the forms/collections controllers (104) and the rest of the `form-runs` POST vocabulary — the respondent write path, the run lifecycle, the email actions, the messaging actions, the link/document/run actions (105–109), the PUT/DELETE verbs (110) and the remaining platform controllers — notifications, integrations, investor-run, evaluation-config, report-file (111) — **`/api/platform/form-runs` is now a thin controller over `services/platform/formRuns.js`**; the checkout settlement is now shared once (`settleVerifiedPayment`) and the reconciliation sweep moved from lib into the service (slice 118) |
 | Communications | `services/communications/*` | ✅ **controller frontier complete** — message scope (earlier), campaigns (86), internal messages (87), announcements (88), follow-ups and events (89–90) |
 | Submissions | `services/ventures/submissions.js` | ✅ **controller frontier complete** — the submit POST (91), the review PATCH (92), the list GET (93) and the score PUT (94) |
 

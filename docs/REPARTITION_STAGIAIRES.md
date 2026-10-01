@@ -348,8 +348,16 @@ Du plus rentable / débloquant au plus tard :
    `campaigns`, `pipeline`, `relationships`, `dashboard`, `organizations`,
    `evaluation`, `decisions`, `meetings`, `preferences`, `watchlist`,
    `executive-dashboard`, `admin-overview`, `register`, `setup-password`.
-4. **LMS & paiement** et **e-mail / intégrations** — vérifier d'abord : routes
-   probablement déjà minces ; ne traiter que ce qui contient une décision.
+4. 🟰 **LMS & paiement** et **e-mail / intégrations** — vérifier d'abord : routes
+   probablement déjà minces ; ne traiter que ce qui contient une décision. Fait :
+   le **règlement partagé** (`settleVerifiedPayment`) et la **réconciliation**
+   (`checkoutReconcile`). Reste à vérifier `api/public/**`, `api/webhooks/**`,
+   `api/gmail-v1-test/**`, le reste de `api/lms/**`, et `api/integrations/**`.
+   🟰 **en cours** — le socle de règlement (`settleVerifiedPayment`) est partagé
+   par la vérification du payeur et la notification Kkiapay, et le balayage de
+   réconciliation est passé en `services/lms/**` (voir le journal). Reste :
+   `api/public/**` (hors checkout) et `api/integrations/**`, `api/webhooks/**`,
+   `api/gmail-v1-test/**`.
 5. **Vues et composants réservés** (V1, V3, V4, V5, V7, V9–V12, V14, V15, V17 et
    B3, B4, B5, B8, B9, B11, B12, B13) — à intercaler avec les couloirs.
 6. **Tableau de bord & ops admin** (agrégateurs : `api/dashboard/**`,
@@ -385,6 +393,11 @@ Du plus rentable / débloquant au plus tard :
 | Investisseur — **campagnes** | ✅ fait | Décisions de `api/investor/campaigns/route.js` (portée de la liste, normalisation des entrées, appariement des préférences investisseur/venture, franchissement des paliers de financement 25/50/75/100, notifications de publication et de palier) déplacées dans `services/investor/campaigns.js`. Route amaigrie. Test ajouté (`src/__tests__/investor-campaigns.test.js`). |
 | Investisseur — **pipeline** | ✅ fait | Décisions de `api/investor/pipeline/route.js` (portée de la liste, stades valides, extraction du montant investi, cascades « demande de réunion » et « investi ») déplacées dans `services/investor/pipeline.js`. Route amaigrie. Test ajouté (`src/__tests__/investor-pipeline.test.js`). |
 | Investisseur — **le reste** | ⬜ à faire | `relationships`, `dashboard`, `organizations`, `evaluation`, `decisions`, `meetings`, `preferences`, `watchlist`, `executive-dashboard`, `admin-overview`, `register`, `setup-password`. |
+| LMS & paiement — **règlement partagé** | ✅ fait | La décision « régler un paiement VÉRIFIÉ » (contrôle du montant vs prix décidé côté serveur, passage en payé, octroi de l'accès, envoi du reçu, journalisation), dupliquée dans `api/webhooks/kkiapay/route.js` et `api/public/checkout/route.js` (action `verify`), est désormais dans `services/lms/checkout.js` (`settleVerifiedPayment`), appelée par les deux. Les journaux restent identiques : les valeurs `event` (webhook) vs `verified` (checkout) sont passées en paramètre, donc le SQL et les écritures sont inchangés. Le test end-to-end `src/__tests__/lms-checkout.test.js` reste vert. |
+| LMS & paiement — **réconciliation** | ✅ fait | `lib/lms/checkoutReconcile.js` (module de DÉCISION logé dans `lib/`) déplacé vers `services/lms/checkoutReconcile.js` ; `lib/lms/checkoutReconcile.js` devient une simple façade, donc aucun importateur ne change (dont `src/__tests__/lms-checkout-reconcile-cron.test.js`, qui mocke ce chemin lib). Tests 253 suites / 3689 ✅, lint 0 erreur, build ✅. |
+
+| LMS & paiement — **socle de règlement partagé** | ✅ fait | La règle de règlement d'un paiement vérifié (contrôle du montant, passage à « payé », octroi de l'accès, envoi du reçu, journalisation) était écrite **deux fois** — dans la vérification du payeur (`api/public/checkout`) et dans la notification Kkiapay (`api/webhooks/kkiapay`). Elle vit maintenant à un seul endroit : `services/lms/checkout.js` → `settleVerifiedPayment(...)`. Les deux contrôleurs n'ont plus que l'authentification et l'enveloppe ; les valeurs journalistées restent celles que le fournisseur a réellement rapportées, donc la piste d'audit est identique. Test de comportement ajouté (`src/__tests__/lms-checkout-settlement.test.js`). |
+| LMS & paiement — **balayage de réconciliation** | ✅ fait | `lib/lms/checkoutReconcile.js` — le filet de sécurité qui rejoue une étape d'accès échouée et revérifie un succès non confirmé — est passé en `services/lms/checkoutReconcile.js`. La façade `lib/lms/checkoutReconcile` est conservée : ses deux importateurs (`api/lms/registrations`, `api/lms/checkout-reconcile`) et le test du cron résolvent inchangés. |
 
 ---
 
