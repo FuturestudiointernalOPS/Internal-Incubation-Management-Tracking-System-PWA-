@@ -1433,6 +1433,21 @@ mentions it in a comment).
 
 ---
 
+### Domain 51 — the CRM controller frontier: contact groups (slice 65)
+
+First slice of the CRM controller layer. `src/app/api/groups/route.js` decided
+the group create/update use-cases inline: the `GRP-…` registration-id generation
+and the schema self-heal (on a "does not exist" error, add the missing `families`
+columns once, then retry once). Both move to `services/contacts/groups.js`
+(`createContactGroup` / `updateContactGroup`); the route keeps auth, the program
+scope guard and the response envelope, and reads `getGroups` / `deleteGroup` /
+`getFamilyProgramId` from the model directly (GET/DELETE carry no decision).
+
+**Unchanged:** the registration-id shape, the fast-path-then-self-heal-then-retry
+order, the "No fields to update" refusal and every statement (byte-identical).
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1469,7 +1484,7 @@ cleanup, not layering:
 |---|---|---|
 | Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
 | Programs | `services/programs/*` | ✅ **models done** (slice 12) · ⏳ controller orchestration started (slice 13) |
-| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14) + the decision helpers (slice 22) |
+| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22) + the groups controller (slice 65) |
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
