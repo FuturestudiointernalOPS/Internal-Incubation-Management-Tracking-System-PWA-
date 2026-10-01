@@ -191,6 +191,42 @@ comme dans l'original, plutôt que de changer ce que le test vérifie.
 source-pin) : 14/14. Suite complète : 227/227, 2 940/2 940. `npx eslint .` :
 0 erreur. `npm run build` : vert.
 
+### Tranche 5 — `src/services/platform/import.js` (`api/platform/import/execute`) — du SQL trouvé en direct dans un contrôleur
+
+**Date :** 2026-10-01. **Qui :** même session.
+
+**Avant.** 382 lignes, 31 `if`. **Celui-ci était différent des précédents :
+il contenait du vrai SQL en direct**, dans `resolveContact` — 4
+`dbClient.execute({ sql: "SELECT * FROM contacts WHERE ..." })` — la seule
+route de tout le périmètre audité jusqu'ici où la vague MVC n'était pas
+passée. Le reste du fichier mélangeait aussi une vraie décision : résolution
+du formulaire via le run, détection de fichier déjà importé, appariement de
+contact à 4 niveaux (identifiant CRM → e-mail → téléphone → nom, ce dernier
+**toujours marqué incertain**, jamais fusionné silencieusement), et la
+boucle d'import ligne par ligne.
+
+**Après.**
+- `src/models/platformImport.js` : +4 fonctions de dépôt — SQL copié à
+  l'identique, sans une virgule changée — `findContactByCidForImport`,
+  `findContactByLowerEmailForImport`, `findContactByPhoneForImport`,
+  `selectAllContactsForImport`. *(Noms choisis pour matcher ceux déjà
+  utilisés pour la même extraction sur `origin/interns`, slice 26 de son
+  journal — pas une coïncidence, un alignement délibéré.)*
+- `src/services/platform/import.js` (nouveau, 373 lignes) : `executeImport`
+  (toute la décision) + `resolveContact`/`resolveRowEmail` réécrits pour
+  appeler les 4 nouvelles fonctions du dépôt au lieu de `db.execute`
+  directement.
+- `route.js` : 382 → 36 lignes. Vérifié : **zéro** `db.`/`.execute(` restant
+  dans le contrôleur.
+
+**Vérifié.** `npm test` : 227/227, 2 940/2 940. `npx eslint .` : 0 erreur.
+`npm run build` : vert. Le garde-fou automatique `services-boundaries.test.js`
+(qui existe sur `origin/interns`) n'existe pas encore sur `frontend_b` — la
+vérification « aucun SQL dans le service » a donc été faite manuellement, par
+lecture complète du fichier et `grep`, pas par un test qui l'aurait signalé
+automatiquement. Ajouter ce garde-fou serait un bon candidat de tranche
+future (voir §4).
+
 ## 3. Backlog (L1 — platform, ce qu'il reste)
 
 | Élément | Statut |
@@ -202,7 +238,8 @@ source-pin) : 14/14. Suite complète : 227/227, 2 940/2 940. `npx eslint .` :
 | `services/platform/publicSubmit.js` — `api/s/public-submit` | ✅ fait (tranche 3) |
 | `services/platform/forms.js` — `api/platform/forms` | ✅ fait (tranche 4) |
 | `api/intents` (423 lignes) | ✅ audité, laissé tel quel — déjà un contrôleur mince (tranche 4) |
-| `api/platform/import/execute` (382 lignes, 31 `if`) | non commencé |
+| `services/platform/import.js` — `api/platform/import/execute` | ✅ fait (tranche 5) — contenait du SQL en direct |
+| Garde-fou automatique « aucun SQL / HTTP dans les services » (`services-boundaries.test.js`) | n'existe pas encore sur `frontend_b` — à porter depuis `origin/interns` |
 | `api/platform/ai/evaluate-submission` (299 lignes, 17 `if`) | non commencé |
 | `api/evaluation` (210 lignes, 14 `if`) | non commencé |
 | `api/run-export` (191 lignes, 13 `if`) | non commencé |

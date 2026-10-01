@@ -238,3 +238,26 @@ export async function updateImportReviewFlagStatus(status, id) {
     args: [status || "resolved", parseInt(id)],
   });
 }
+
+/**
+ * The four contact-matching reads used by POST /api/platform/import/execute's
+ * resolveContact: CRM id, exact lowercase email, normalized phone, and the
+ * full contact list for name matching (name matches are always "uncertain" —
+ * never silently merged). SQL byte-identical to the queries that used to be
+ * inline in that controller.
+ */
+export async function findContactByCidForImport(cid) {
+  return db.execute({ sql: "SELECT * FROM contacts WHERE cid = ? LIMIT 1", args: [String(cid)] });
+}
+
+export async function findContactByLowerEmailForImport(email) {
+  return db.execute({ sql: "SELECT * FROM contacts WHERE LOWER(email) = ? LIMIT 1", args: [String(email).toLowerCase().trim()] });
+}
+
+export async function findContactByPhoneForImport(phone) {
+  return db.execute({ sql: "SELECT * FROM contacts WHERE phone = ? LIMIT 1", args: [phone] });
+}
+
+export async function selectAllContactsForImport() {
+  return db.execute({ sql: "SELECT * FROM contacts", args: [] });
+}
