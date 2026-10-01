@@ -7,8 +7,8 @@ import {
   listProjects,
   updateProjectRecord,
   deleteProjectRecord,
-  seesWholeProjectPortfolio,
 } from "@/services/projects/workspace";
+import { needsProjectObjectCheck } from "@/services/projects/access";
 
 /**
  * PROJECTS API — controller layer.
@@ -20,8 +20,8 @@ import {
  *
  * This route only authenticates, validates the request shape and shapes the
  * HTTP answer. The use cases — who may see the portfolio, how leads resolve, how
- * `meta` merges, the order of the writes — live in
- * `@/services/projects/workspace` (see docs/LAYER_SPLIT.md).
+ * `meta` merges, the order of the writes, and who may change WHICH project —
+ * live in `@/services/projects` (see docs/LAYER_SPLIT.md).
  */
 
 export async function POST(req) {
@@ -126,7 +126,7 @@ export async function PUT(req) {
     // Object-level authorization: a caller outside the portfolio roles must own
     // or belong to the project before editing it.
     const session = await getSession();
-    if (!seesWholeProjectPortfolio(session.role)) {
+    if (needsProjectObjectCheck({ role: session?.role })) {
       const accessError = await requireProjectAccess(id);
       if (accessError) return accessError;
     }
@@ -167,7 +167,7 @@ export async function DELETE(req) {
     // Object-level authorization: `projects.delete` is a global capability, so a
     // non-staff holder must own or belong to the project before destroying it.
     const session = await getSession();
-    if (!seesWholeProjectPortfolio(session?.role)) {
+    if (needsProjectObjectCheck({ role: session?.role })) {
       const accessError = await requireProjectAccess(id);
       if (accessError) return accessError;
     }

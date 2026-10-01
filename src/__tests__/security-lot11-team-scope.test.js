@@ -124,6 +124,22 @@ describe("the team task board is team-scoped", () => {
     expect(workspaceModel.getTeamTaskTeamId).toHaveBeenCalledWith(5);
     expect(workspaceModel.updateTeamTaskFields).not.toHaveBeenCalled();
   });
+
+  test("creating hands the scoped team through under the body's own field name", async () => {
+    // The body says `team_id`; the service must not have to be handed a renamed
+    // `teamId`, or the insert lands on a null team.
+    const res = await teamTasks.POST(jsonReq("http://localhost/api/team-tasks", "POST", { team_id: "TEAM-1", title: "Do it" }));
+
+    expect(res.status).toBe(200);
+    expect(workspaceModel.createTeamTask).toHaveBeenCalledWith("TEAM-1", "Do it", null, "todo", "medium", null, null);
+  });
+
+  test("creating without a team is refused before any insert", async () => {
+    const res = await teamTasks.POST(jsonReq("http://localhost/api/team-tasks", "POST", { title: "Do it" }));
+
+    expect(res.status).toBe(400);
+    expect(workspaceModel.createTeamTask).not.toHaveBeenCalled();
+  });
 });
 
 describe("shared team credentials are management-only", () => {

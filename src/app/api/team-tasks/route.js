@@ -1,53 +1,46 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
-import { getSession, hasProgramManagementAccess } from "@/lib/auth";
 import { requireProgramScope } from "@/lib/programScopedAccess";
 import { serverError } from "@/lib/apiError";
-import { getTeamById } from "@/models/teams";
 import {
-  getTeamTasks,
-  getTeamTaskTeamId,
-  createTeamTask,
-  updateTeamTaskFields,
-  deleteTeamTask,
-} from "@/models/workspace";
+  createTeamBoardTask,
+  deleteTeamBoardTask,
+  listTeamBoardTasks,
+  resolveTeamBoardScope,
+  resolveTeamBoardTaskScope,
+  updateTeamBoardTask,
+} from "@/services/tasks/teamBoard";
 
 /**
- * Team task board — a team's board is team-scoped:
- *   - a team-entity session (role "team", cid = its own team id) may only ever
- *     touch ITS OWN team;
- *   - management (super_admin / program_manager) is unscoped;
- *   - everyone else must be staffed on the program that owns the team.
- * A team id that cannot be attributed to a program is refused, never allowed.
- */
-async function requireTeamTaskScope(teamId) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
-  }
-  if (session.role === "team") {
-    if (String(teamId) !== String(session.cid)) {
-      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    }
-    return null;
-  }
-  if (hasProgramManagementAccess(session.role)) return null;
-  const teamRow = (await getTeamById(teamId))?.rows?.[0];
-  if (!teamRow) {
-    return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-  }
-  return requireProgramScope({ programId: teamRow.program_id, wave: "groups" });
-}
-
-/**
- * Team Tasks API — lightweight task board for teams
+ * Team Tasks API — controller layer.
  *
  * GET  /api/team-tasks?team_id=X         — list tasks for a team
  * POST /api/team-tasks                   — create a task
  * PUT  /api/team-tasks                   — update a task
  * DELETE /api/team-tasks                 — delete a task
+ *
+ * Auth, the record-scope guard, validation and response shaping only. Which
+ * teams a session may reach, the writable columns and the four use cases live
+ * in `@/services/tasks/teamBoard`; `requireProgramScope` stays here because the
+ * "groups" coverage census holds this surface wired to it.
  */
+
+/**
+ * Run the record-scope guard the service asked for. A `program-scope` verdict
+ * means the caller must additionally be staffed on the owning program; the
+ * other two verdicts were already settled by the service.
+ */
+async function enforceTeamBoardScope(verdict) {
+  if (verdict.kind === "deny") {
+    return NextResponse.json(
+      { success: false, error: verdict.errorKey },
+      { status: verdict.status },
+    );
+  }
+  if (verdict.kind === "allow") return null;
+  return requireProgramScope({ programId: verdict.programId, wave: "groups" });
+}
 
 export async function GET(req) {
   try {
@@ -64,12 +57,11 @@ export async function GET(req) {
       );
     }
 
-    const scopeError = await requireTeamTaskScope(teamId);
+    const scopeError = await enforceTeamBoardScope(await resolveTeamBoardScope(teamId));
     if (scopeError) return scopeError;
 
-    const result = await getTeamTasks(teamId);
-
-    return NextResponse.json({ success: true, tasks: result.rows });
+    const result = await listTeamBoardTasks(teamId);
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     return serverError(error, { log: "team-tasks GET" });
   }
@@ -80,30 +72,20 @@ export async function POST(req) {
     await initDb();
     const capError = await requireAuthorization("tasks", "create");
     if (capError) return capError;
-    const { team_id, title, description, status, priority, assigned_to, created_by } =
-      await req.json();
+    const body = await req.json();
 
-    if (!team_id || !title) {
+    if (!body.team_id || !body.title) {
       return NextResponse.json(
         { success: false, error: "team_id and title are required" },
         { status: 400 },
       );
     }
 
-    const scopeError = await requireTeamTaskScope(team_id);
+    const scopeError = await enforceTeamBoardScope(await resolveTeamBoardScope(body.team_id));
     if (scopeError) return scopeError;
 
-    const result = await createTeamTask(
-      team_id,
-      title,
-      description || null,
-      status || "todo",
-      priority || "medium",
-      assigned_to || null,
-      created_by || null,
-    );
-
-    return NextResponse.json({ success: true, task: result.rows[0] });
+    const result = await createTeamBoardTask(body);
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     return serverError(error, { log: "team-tasks POST" });
   }
@@ -114,44 +96,28 @@ export async function PUT(req) {
     await initDb();
     const capError = await requireAuthorization("tasks", "edit");
     if (capError) return capError;
-    const { id, title, description, status, priority, assigned_to } =
-      await req.json();
+    const body = await req.json();
 
-    if (!id) {
+    if (!body.id) {
       return NextResponse.json(
         { success: false, error: "Task ID is required" },
         { status: 400 },
       );
     }
 
-    // A task id from the client: resolve its team (and the team's program)
-    // before mutating anything.
-    const taskTeamId = (await getTeamTaskTeamId(id))?.rows?.[0]?.team_id;
-    if (!taskTeamId) {
-      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    }
-    const scopeError = await requireTeamTaskScope(taskTeamId);
+    const scopeError = await enforceTeamBoardScope(
+      await resolveTeamBoardTaskScope(body.id),
+    );
     if (scopeError) return scopeError;
 
-    const sets = [];
-    const args = [];
-    if (title !== undefined) { sets.push("title = ?"); args.push(title); }
-    if (description !== undefined) { sets.push("description = ?"); args.push(description); }
-    if (status !== undefined) { sets.push("status = ?"); args.push(status); }
-    if (priority !== undefined) { sets.push("priority = ?"); args.push(priority); }
-    if (assigned_to !== undefined) { sets.push("assigned_to = ?"); args.push(assigned_to); }
-    sets.push("updated_at = NOW()");
-
-    if (sets.length === 1) {
+    const result = await updateTeamBoardTask({ id: body.id, patch: body });
+    if (result.error) {
       return NextResponse.json(
-        { success: false, error: "No fields to update" },
-        { status: 400 },
+        { success: false, error: result.error },
+        { status: result.status },
       );
     }
-
-    const result = await updateTeamTaskFields(id, sets, args);
-
-    return NextResponse.json({ success: true, task: result.rows[0] });
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     return serverError(error, { log: "team-tasks PUT" });
   }
@@ -171,18 +137,11 @@ export async function DELETE(req) {
       );
     }
 
-    // A task id from the client: resolve its team (and the team's program)
-    // before deleting anything.
-    const taskTeamId = (await getTeamTaskTeamId(id))?.rows?.[0]?.team_id;
-    if (!taskTeamId) {
-      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    }
-    const scopeError = await requireTeamTaskScope(taskTeamId);
+    const scopeError = await enforceTeamBoardScope(await resolveTeamBoardTaskScope(id));
     if (scopeError) return scopeError;
 
-    await deleteTeamTask(id);
-
-    return NextResponse.json({ success: true });
+    const result = await deleteTeamBoardTask(id);
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     return serverError(error, { log: "team-tasks DELETE" });
   }
