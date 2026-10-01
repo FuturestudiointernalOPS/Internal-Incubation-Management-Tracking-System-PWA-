@@ -18,12 +18,13 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–51 the next `ventures.js`
+> controller (workspace, then collaboration), 39–52 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
 > project timeline & dependencies, reports & project analytics, coach & mentor
 > management, mentoring sessions & scheduling, knowledge hub & learning,
 > mentor feedback & analytics, investment readiness, investor matching, pitch deck
-> & data room, the fundraising pipeline, then investment analytics). The
+> & data room, the fundraising pipeline, investment analytics, then administration
+> & system config). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -858,6 +859,37 @@ ownership message inside the route; the same assertion now reads the service.
 
 ---
 
+### Domain 25 (cont.) — the controller frontier: the task sub-resource routes (slice 40)
+
+Finishes every task route except the monolith. The five share one decision, so
+it is extracted first: **may this caller touch this task?** — a portfolio role,
+or the task's owner, assignee or supervisor. It becomes
+`services/tasks/access.js` (`ownsTask`, `canAccessTask`), used by comments,
+resources, logs and duplication; the carry-over service from slice 39 drops its
+private copy and imports it.
+
+Moved to `services/tasks/*`, each with a new characterisation net
+(`tasks-subresources-api.test.js`, 44 tests):
+
+- **`comments`** → `services/tasks/comments.js` — list/post with the
+  owner+assignee+@mention fan-out, and the author-only edit/delete. The sender
+  identity is resolved in the CONTROLLER (it is authentication data, and the
+  `security-lot3` pin reads it there), and passed in already resolved.
+- **`resources`** → `services/tasks/resources.js` — add/remove, gated through the
+  owning task's access rule.
+- **`duplicate`** → `services/tasks/duplicate.js` — the copy plus its subtasks,
+  stamped with the current week (the local week-number helper moves with it).
+- **`logs`** → `services/tasks/logs.js` — the assignment trail, task-access gated.
+- **`notify-deadlines`** → `services/tasks/deadlines.js` — the cron reminder; the
+  `CRON_SECRET` gate stays in the controller (authentication, not domain).
+
+`npm test` (231 suites, 3258 tests), `npx eslint` (0 errors) and
+`npm run build` are green.
+
+**Left:** `tasks/route.js` alone — the 1698-line monolith, the final tasks slice.
+
+---
+
 ### Domain 25 — the `ventures.js` monolith: milestones & deliverables (slice 39)
 
 **Domain 5.** The milestone read, the deliverables of a milestone, and the
@@ -1056,6 +1088,20 @@ engagement/win rates. **This closes the 4.x investment family.**
 
 ---
 
+### Domain 38 — the `ventures.js` monolith: administration & system config (slice 52)
+
+**Domain 19** (ENHANCEMENT 5.1). The system settings (grouped + typed), the
+feature flags, the roles, the platform info and the admin-activity log. Decisions
+move to `services/ventures/systemAdmin.js`; every statement to
+`models/ventureSystemAdminStore.js`; `src/lib/ventures.js` re-exports the nine
+functions so the admin Ventures route is untouched. (Distinct from
+`@/models/ventureAdmin`, which backs Super-Admin Venture creation.)
+
+**Unchanged:** the SQL (byte-identical), the typed setting values, the flag/role
+activity actions and the platform-version fallbacks.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1095,7 +1141,7 @@ cleanup, not layering:
 | Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14) + the decision helpers (slice 22) |
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
-| Tasks / projects | `services/tasks/*`, `services/projects/*` | ⏳ **projects controller done** (slices 37–38); **tasks started** (slice 39) — the six action routes are controller-clean (`services/tasks/{carryover,approval,reconcile,assignments,assignmentAction}.js`); `tasks/route.js` + `{comments,duplicate,resources,logs,notify-deadlines}` remain |
+| Tasks / projects | `services/tasks/*`, `services/projects/*` | ⏳ **projects controller done** (slices 37–38); **tasks nearly done** (slices 39–40) — every task route except `tasks/route.js` is controller-clean; the error-prone monolith remains |
 | LMS / platform / integrations | `services/<domain>/*` | ⏳ **LMS + platform started** — learner experience (slice 17), checkout (slice 18), Run report (slice 21); registrations/email-personalize checked (no split needed) |
 
 #### Remaining mixed model modules (the actual backlog)
@@ -1254,7 +1300,8 @@ Two source-pinning suites were repointed (same assertion, new home):
   is out (slice 48), and its pitch deck & data room domain
   is out (slice 49), and its fundraising pipeline domain
   is out (slice 50), and its investment analytics domain
-  is out (slice 51), all
+  is out (slice 51), and its administration & system config domain
+  is out (slice 52), all
   re-exported through the barrel. A
   long tail of
   `src/lib` modules still
