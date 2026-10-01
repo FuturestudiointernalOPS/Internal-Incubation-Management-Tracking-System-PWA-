@@ -31,7 +31,8 @@
 > of SQL** (token hashing, task audit, access profiles + responsibilities, LMS
 > coaching, then the email delivery log). Its CRM controller frontier has since
 > begun — contact groups, user groups, the registry feed, then the contact
-> alternative emails, then the group members, then the directory search. The
+> alternative emails, then the group members, then the directory search, then the
+> duplicate flags. The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1620,6 +1621,18 @@ predicates inside the route; the same assertion now reads them in the service
 
 ---
 
+### Domain 58 — the CRM controller frontier: the duplicate-flag queue (slice 77)
+
+`/api/contacts/duplicates` shaped the pending candidate-duplicate queue and clamped
+its page size inline. Those rules — the 200/500 page-size clamp, the
+`contact_a`/`contact_b` identity shaping and the "dismiss only a still-pending
+flag" outcome — now live in `services/contacts/duplicateFlags.js`
+(`resolveDuplicateFlagLimit`, `listPendingDuplicateFlags`,
+`dismissPendingDuplicateFlag`). The route keeps the `super_admin` auth, the
+`contacts.view` / `contacts.edit` gates and the envelope.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1656,7 +1669,7 @@ cleanup, not layering:
 |---|---|---|
 | Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
 | Programs | `services/programs/*` | ✅ **controller frontier complete** (slices 13, 68–72, 76) — lifecycle, workspace bundle, exports, weekly reports, teams, curriculum |
-| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22), the groups controller (slice 65), user groups (slice 66), the registry feed (slice 67) + the contact alternative emails (slice 73), then group members (slice 74, retiring the last Supabase route), then the directory-search pool (slice 75); `contacts/route.js` and the rest of the CRM routes remain |
+| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22), the groups controller (slice 65), user groups (slice 66), the registry feed (slice 67) + the contact alternative emails (slice 73), then group members (slice 74, retiring the last Supabase route), then the directory-search pool (slice 75), then the duplicate-flag queue (slice 77); `contacts/route.js` and the rest of the CRM routes remain |
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
