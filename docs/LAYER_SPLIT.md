@@ -954,6 +954,40 @@ and `security-lot10` are unchanged and green.
 
 ---
 
+### Domain 25 (cont.) — the controller frontier: `tasks/route.js`, creation (slice 43)
+
+The monolith's first large write path. **POST** → `services/tasks/create.js`
+(`createTaskRecord`): the create-scope rule (a non-privileged caller is pinned to
+themselves — note its role list is WIDER than the portfolio list, it includes
+`team`), the parent project/category inheritance with the "General" fallback, the
+closed-project guard, the date rules, the owner defaulting, the Super-Admin
+assignment block, the contact-group gate, the pending-assignment path, and the
+follow-on effects (parent cascade, audit trail, sub-task notification, standup
+upsert, parent deadline stretch).
+
+The four date helpers move to `services/tasks/dates.js` (`getWeekNumber`,
+`isValidDateStr`, `todayStr`, `isCurrentWeek`), shared by the create service and
+the update handler. `tasks-api.test.js` (POST/PUT) is **unmodified** and green —
+or the extraction was faithful; the two compatibility facades it mocks
+(`@/lib/standupUpsert`, `@/lib/db/queries/tasks`) are imported by the service so
+those mocks keep applying.
+
+New characterisation net `tasks-create-api.test.js` (9 tests). It earned its
+keep twice: the creation scope's role list genuinely differs from the portfolio
+one, and an unassigned project task defaults to the project owner **as a pending
+assignment** (not a direct assignee), which the first draft had wrong.
+
+**Source-pin repointed:** `security-lot10` pinned the create-side supervisor gate
+on the route; it now reads the service, same intent (staff-side roles only). The
+`const STAFF_SIDE_ROLES` assertion stays on the route (PUT still uses it).
+
+`npm test` (234 suites, 3331 tests), `npx eslint` (0 errors) and
+`npm run build` are green.
+
+**Left:** PUT — the last and largest path.
+
+---
+
 ### Domain 25 — the `ventures.js` monolith: milestones & deliverables (slice 39)
 
 **Domain 5.** The milestone read, the deliverables of a milestone, and the
@@ -1351,7 +1385,19 @@ duplicate-request behaviour and the never-throwing notifications.
    `requireAssignmentAccess`, …) still queries models and builds its own
    responses. It is the *other* authorization boundary; splitting it the same way
    is follow-up work, not a mixed module.
-4. **No type layer** (see §4).
+4. **`src/lib/email.js` (2 011 lines) — the last module with SQL in `src/lib`.**
+   It is mostly PURE infrastructure (env/config, the two transports, the template
+   engine, the copy builders and the name/email resolvers) — which the doc says
+   belongs in `src/lib` — plus one SQL cluster: the `platform_email_log` and
+   `password_setup_tokens` self-heals, the log reads/writes, the tracking record
+   helpers and the form stats. The cluster is entangled with the senders (which
+   call the transport kept in `src/lib`), so a clean split needs its own pass:
+   move the transport-free log/schema/tracking functions to
+   `services/email/log.js` over a `models/emailLogStore.js`, leave the senders
+   and the transport in `src/lib/email.js`, and re-export — the senders then
+   import the log service (no cycle, since the log service never imports the
+   lib). Tracked here, not yet done.
+5. **No type layer** (see §4).
 
 ---
 
