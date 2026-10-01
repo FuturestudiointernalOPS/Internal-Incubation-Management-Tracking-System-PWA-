@@ -1,26 +1,19 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-
-import {
-  getInvestorUserIdByProfileId,
-  getPipelineById,
-  getRelationshipWorkspaceDetail,
-  insertWorkspaceCreatedTimeline,
-  insertWorkspaceStatusChangedTimeline,
-  listRelationshipWorkspaces,
-  listWorkspaceMeetings,
-  listWorkspaceTimeline,
-  notifyIntroductionApproved,
-  updateRelationshipWorkspace,
-  upsertRelationshipWorkspace,
-} from "@/models/investorRelations";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
-import { resolveInvestorScope, isSameInvestor } from "@/models/authorization/investorScope";
+import {
+  listRelationshipsForViewer,
+  createRelationshipWorkspace,
+  updateRelationshipWorkspaceWithTimeline,
+} from "@/services/investor";
 
 /**
  * GET /api/investor/relationships
  * List relationship workspaces. Admin sees all; investor sees their own.
+ *
+ * The own-scope binding (the id comes from the request), the detail/list
+ * assembly and the refusal live in `@/services/investor`.
  */
 export async function GET(req) {
   try {
@@ -33,38 +26,12 @@ export async function GET(req) {
     const workspaceId = searchParams.get("id");
     const ventureId = searchParams.get("venture_id");
 
-    // Own-scope: a non-management caller may only touch their OWN investor data.
-    const scope = await resolveInvestorScope(session);
-
-    if (workspaceId) {
-      // Single workspace detail with meetings + timeline
-      const workspaceResult = await getRelationshipWorkspaceDetail(workspaceId);
-      const workspace = workspaceResult.rows[0] || null;
-      // Bind the workspace to the caller before returning it (or its meetings /
-      // timeline) — the id comes from the request.
-      if (!scope.management && !isSameInvestor(workspace?.investor_id, scope.profileId)) {
-        return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-      }
-      const [meetings, timeline] = await Promise.all([
-        listWorkspaceMeetings(workspaceId),
-        listWorkspaceTimeline(workspaceId),
-      ]);
-      return NextResponse.json({
-        success: true,
-        workspace,
-        meetings: meetings.rows,
-        timeline: timeline.rows,
-      });
+    const result = await listRelationshipsForViewer({ workspaceId, ventureId, session });
+    if (!result.ok) {
+      return NextResponse.json({ success: false, error: result.error }, { status: result.status });
     }
-
-    // List workspaces — scoped to the caller's profile unless they manage.
-    const investorId = scope.management ? null : scope.profileId;
-    if (!scope.management && !investorId) {
-      return NextResponse.json({ success: true, workspaces: [] });
-    }
-
-    const result = await listRelationshipWorkspaces({ investorId, ventureId });
-    return NextResponse.json({ success: true, workspaces: result.rows });
+    if (result.detail) return NextResponse.json({ success: true, ...result.detail });
+    return NextResponse.json({ success: true, workspaces: result.workspaces });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -81,44 +48,19 @@ export async function POST(req) {
     if (authError) return authError;
 
     const session = await getSession();
-    const body = await req.json();
-    const { pipeline_id, relationship_manager_id, investment_manager_id } = body;
+    const { pipeline_id, relationship_manager_id, investment_manager_id } = await req.json();
 
-    if (!pipeline_id) {
-      return NextResponse.json({ success: false, error: "pipeline_id required" }, { status: 400 });
+    const result = await createRelationshipWorkspace({
+      pipelineId: pipeline_id,
+      relationshipManagerId: relationship_manager_id,
+      investmentManagerId: investment_manager_id,
+      session,
+    });
+    if (!result.ok) {
+      return NextResponse.json({ success: false, error: result.error }, { status: result.status });
     }
 
-    // Get pipeline info
-    const pipelineResult = await getPipelineById(pipeline_id);
-    if (pipelineResult.rows.length === 0) {
-      return NextResponse.json({ success: false, error: "Pipeline not found" }, { status: 404 });
-    }
-
-    const pipeline = pipelineResult.rows[0];
-
-    // Upsert workspace
-    const result = await upsertRelationshipWorkspace(
-      pipeline_id,
-      pipeline.investor_id,
-      pipeline.venture_id,
-      relationship_manager_id || null,
-      investment_manager_id || null,
-    );
-
-    const workspace = result.rows[0];
-
-    // Add timeline entry
-    await insertWorkspaceCreatedTimeline(workspace.id, session.cid || session.id);
-
-    // Notify investor
-    try {
-      const investorInfo = await getInvestorUserIdByProfileId(workspace.investor_id);
-      if (investorInfo.rows.length > 0) {
-        await notifyIntroductionApproved(investorInfo.rows[0].user_id);
-      }
-    } catch (_) {}
-
-    return NextResponse.json({ success: true, workspace });
+    return NextResponse.json({ success: true, workspace: result.workspace });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -136,30 +78,19 @@ export async function PUT(req) {
 
     const session = await getSession();
     const body = await req.json();
-    const { id, relationship_manager_id, investment_manager_id, status, current_stage, next_action } = body;
+    const { id, relationship_manager_id, investment_manager_id, status, current_stage, next_action } =
+      body;
 
-    if (!id) return NextResponse.json({ success: false, error: "id required" }, { status: 400 });
-
-    const result = await updateRelationshipWorkspace(id, {
-      relationship_manager_id,
-      investment_manager_id,
-      status,
-      current_stage,
-      next_action,
+    const result = await updateRelationshipWorkspaceWithTimeline({
+      id,
+      fields: { relationship_manager_id, investment_manager_id, status, current_stage, next_action },
+      session,
     });
-
-    if (result.updated === false) return NextResponse.json({ success: false, error: "Nothing to update" }, { status: 400 });
-
-    if (result.rows.length === 0) {
-      return NextResponse.json({ success: false, error: "Workspace not found" }, { status: 404 });
+    if (!result.ok) {
+      return NextResponse.json({ success: false, error: result.error }, { status: result.status });
     }
 
-    // Timeline entry if status changed
-    if (status) {
-      await insertWorkspaceStatusChangedTimeline(id, `Workspace status changed to: ${status}`, session.cid || session.id);
-    }
-
-    return NextResponse.json({ success: true, workspace: result.rows[0] });
+    return NextResponse.json({ success: true, workspace: result.workspace });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
