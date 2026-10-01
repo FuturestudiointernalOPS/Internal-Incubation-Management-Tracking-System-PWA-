@@ -31,7 +31,7 @@
 > of SQL** (token hashing, task audit, access profiles + responsibilities, LMS
 > coaching, then the email delivery log). Its CRM controller frontier has since
 > begun — contact groups, user groups, the registry feed, then the contact
-> alternative emails, then the group members. The
+> alternative emails, then the group members, then the directory search. The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -1593,6 +1593,23 @@ routes are now Supabase-free.
 
 ---
 
+### Domain 57 — the CRM controller frontier: the directory-search pool (slice 75)
+
+`/api/contacts/search` chose its pool inline: for a requested program it checked
+whether the caller was a participant (`isParticipantInProgram`) or a
+venture-founder in that program (`isVentureFounderInProgram`) and, if so, ran the
+program-scoped query; otherwise it fell through to the capability-gated global
+directory. That decision now lives in `services/contacts/directorySearch.js`
+(`contactSearchPattern`, `searchProgramPoolForMember`, `searchGlobalDirectory`).
+The route keeps both capability gates (`contacts.view`), the `q` length guard and
+the envelope.
+
+**Source-pin repointed:** `identity-gate-bridge` pinned the two membership
+predicates inside the route; the same assertion now reads them in the service
+(the route still asserts the `contacts.view` gate).
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1629,7 +1646,7 @@ cleanup, not layering:
 |---|---|---|
 | Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
 | Programs | `services/programs/*` | ✅ **controller frontier** (slices 13, 68–72) — lifecycle, workspace bundle, exports, weekly reports, teams; `pm/curriculum` remains |
-| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22), the groups controller (slice 65), user groups (slice 66), the registry feed (slice 67) + the contact alternative emails (slice 73), then group members (slice 74, retiring the last Supabase route); `contacts/route.js` and the rest of the CRM routes remain |
+| Contacts / CRM | `services/contacts/*` | ⏳ **started** — sync (slice 14), the decision helpers (slice 22), the groups controller (slice 65), user groups (slice 66), the registry feed (slice 67) + the contact alternative emails (slice 73), then group members (slice 74, retiring the last Supabase route), then the directory-search pool (slice 75); `contacts/route.js` and the rest of the CRM routes remain |
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
