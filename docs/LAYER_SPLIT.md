@@ -153,6 +153,44 @@ sans aucune correction nécessaire (contrairement aux tranches 1 et 2, dont
 les tests lisaient `route.js` comme du texte). `npm test` : 227/227 suites,
 2 940/2 940 tests. `npx eslint .` : 0 erreur. `npm run build` : vert.
 
+### Tranche 4 — `src/services/platform/forms.js` (`api/platform/forms`)
+
+**Date :** 2026-10-01. **Qui :** même session.
+
+**Avant.** 350 lignes, 33 `if`. Vérifié d'abord : `api/intents/route.js`
+(423 lignes) a été **lu en entier et laissé tel quel** — ses « if » sont
+presque tous des tests de présence de champ (`!== undefined`) et deux
+contrôles de propriété d'une ligne ; rien à en extraire.
+
+`forms/route.js`, lui, avait de vraies décisions : le repli sur l'instantané
+publié (GET), l'algorithme de publication d'une version (POST), la garde
+« un seul formulaire investisseur actif » (POST et PUT), et surtout
+l'algorithme d'upsert champs/sections du constructeur (PUT) — un ordre en 4
+étapes pour éviter une violation de clé étrangère (sections mises à jour →
+champs mis à jour avec leur section_id neutralisé si nécessaire → sections
+supprimées seulement ensuite).
+
+**Après.**
+- `src/services/platform/forms.js` (nouveau, 276 lignes) : `getFormDetail`,
+  `publishFormVersion`, `createForm`, `updateFormFieldsAndSections`,
+  `updateFormMetadata`, `deleteOrArchiveForm`, `guardSingleInvestorFormOnUpdate`.
+- `route.js` : 350 → 169 lignes.
+
+**Piège évité.** La garde investisseur existe **deux fois** dans le code
+d'origine (une copie dans la création, une dans la mise à jour) — un test
+(`investor-application-intake.test.js`) compte précisément 2 occurrences du
+texte `assertSingleInvestorForm(` pour vérifier que les deux chemins sont
+gardés indépendamment. Un premier essai a fusionné les deux copies en une
+fonction partagée : le code était plus propre, mais ne comptait plus que 1
+occurrence — le test cassait pour une bonne raison (il protège contre
+l'idée qu'« un seul appel visible » suffise à prouver que les deux chemins
+sont gardés). **Les deux copies ont été gardées dupliquées**, exactement
+comme dans l'original, plutôt que de changer ce que le test vérifie.
+
+**Vérifié.** `investor-application-intake.test.js` (comportemental +
+source-pin) : 14/14. Suite complète : 227/227, 2 940/2 940. `npx eslint .` :
+0 erreur. `npm run build` : vert.
+
 ## 3. Backlog (L1 — platform, ce qu'il reste)
 
 | Élément | Statut |
@@ -162,9 +200,9 @@ les tests lisaient `route.js` comme du texte). `npm test` : 227/227 suites,
 | `form-runs/route.js` — `GET` (orchestration restante, auto-close inline, agrégation du tableau des réponses) | à auditer — probablement déjà acceptable (transport + mise en forme) |
 | `form-runs/route.js` — `status`, `launch`, `preview_result`, `regenerate_report`, `send_result_emails`, `dispatch_scheduled_result_emails`, `delete_submission`, `regenerate_link`, `create` | laissé tel quel (contrôleur déjà mince, voir tranche 2) |
 | `services/platform/publicSubmit.js` — `api/s/public-submit` | ✅ fait (tranche 3) |
-| `api/platform/forms` (350 lignes, 33 `if`) | non commencé |
+| `services/platform/forms.js` — `api/platform/forms` | ✅ fait (tranche 4) |
+| `api/intents` (423 lignes) | ✅ audité, laissé tel quel — déjà un contrôleur mince (tranche 4) |
 | `api/platform/import/execute` (382 lignes, 31 `if`) | non commencé |
-| `api/intents` (423 lignes, 30 `if`) | non commencé |
 | `api/platform/ai/evaluate-submission` (299 lignes, 17 `if`) | non commencé |
 | `api/evaluation` (210 lignes, 14 `if`) | non commencé |
 | `api/run-export` (191 lignes, 13 `if`) | non commencé |

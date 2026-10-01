@@ -33,7 +33,16 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const ROOT = process.cwd();
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
+const read = (rel) => {
+  const text = fs.readFileSync(path.join(ROOT, rel), "utf8");
+  // Slice 4: the create/update guards moved from the route into
+  // services/platform/forms.js — append it so the count assertion still
+  // finds both call sites.
+  if (rel === "src/app/api/platform/forms/route.js") {
+    return text + "\n" + fs.readFileSync(path.join(ROOT, "src/services/platform/forms.js"), "utf8");
+  }
+  return text;
+};
 
 const db = require("@/lib/db").default;
 const { insertErrorLog } = require("@/models/adminOps");
