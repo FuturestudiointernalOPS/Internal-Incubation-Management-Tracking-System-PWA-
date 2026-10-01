@@ -15,9 +15,9 @@
 > `syncMilestoneFromWork` is gone), 29 the assignment-scope layer and the
 > operating-plan access helpers, 30 the roadmap readiness engine and the Venture
 > notification helpers, 31 the venture progress reports, 32 the Venture coach
-> identity/invitation layer, 33–35 the first `ventures.js` domains out of the
-> monolith (activity/history/notifications, the startup-profile wizard, then
-> founders/co-founders). The
+> identity/invitation layer, 33–36 the first `ventures.js` domains out of the
+> monolith (activity/history/notifications, the startup-profile wizard,
+> founders/co-founders, then the Data-bank verification). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -707,6 +707,24 @@ write.
 
 ---
 
+### Domain 23 — the `ventures.js` monolith: verification (the Data bank) (slice 36)
+
+**Domain 4.** The whole compliance-file domain: the verification record and its
+items, the founder submission / reviewer sign-off (approve/reject/suspend, per
+item or whole) / resubmission flows, the document uploads, the document-version
+history and the comments. Decisions move to
+`services/ventures/verification.js`; every statement to
+`models/ventureVerificationStore.js`; `src/lib/ventures.js` re-exports the whole
+surface so the verification routes and the staff Venture page are untouched. The
+three activity log calls now import the sibling service, and the document-type
+model imports moved with the domain (they were used nowhere else).
+
+**Unchanged:** the SQL (byte-identical), the required/upload-backed
+missing-document gate, the `resolveVentureCode`-gated sign-off rule, the status
+transitions and the version-numbering rule (first upload = version 1).
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -892,8 +910,9 @@ Two source-pinning suites were repointed (same assertion, new home):
   `ventureCoach.js` (slice 32) are done — all facades over `services/ventures/*`.
   `ventures.js` (5.8k lines) is being emptied domain by domain: its
   activity/history/notification domain is out (slice 33), its startup-profile
-  wizard is out (slice 34) and its founders/co-founders domain is out (slice 35),
-  all re-exported through the barrel. A long tail of
+  wizard is out (slice 34), its founders/co-founders domain is out (slice 35) and
+  its Data-bank verification domain is out (slice 36), all re-exported through the
+  barrel. A long tail of
   `src/lib` modules still
   holds SQL (the remaining domains of `ventures.js`, plus the
   non-venture ones `auth.js`, `email.js`, `audit.js`, `token-hashing.js`,
