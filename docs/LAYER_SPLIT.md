@@ -227,6 +227,32 @@ lecture complète du fichier et `grep`, pas par un test qui l'aurait signalé
 automatiquement. Ajouter ce garde-fou serait un bon candidat de tranche
 future (voir §4).
 
+### Tranche 6 — `src/services/platform/evaluation.js` (`api/platform/ai/evaluate-submission`)
+
+**Date :** 2026-10-01. **Qui :** même session.
+
+**Avant.** 299 lignes, 17 `if`. Le modèle de lot (claim par expiration pour
+que deux process concurrents n'évaluent jamais deux fois, appel IA borné par
+un délai, comptage de progression, re-évaluation forcée) était déjà sans SQL
+direct (`src/models/platformAi.js` le portait déjà) mais vivait entièrement
+dans le contrôleur.
+
+**Après.**
+- `src/services/platform/evaluation.js` (nouveau, 237 lignes) :
+  `ensureTables`, `cleanupExpiredClaims`, `getProgress`, `runBatch`,
+  `getProgressReport`, `runEvaluationBatch`, `evaluateOneSubmission`,
+  `getSubmissionEvaluation`, `hasFormAiEvaluation` — déplacées à l'identique.
+- `route.js` : 299 → 108 lignes. La décision d'autorisation
+  (`body.action === "progress" ? "view" : "review"`) **reste dans le
+  contrôleur** : c'est la frontière HTTP elle-même (quelle capacité exiger),
+  pas une décision métier à extraire.
+
+**Vérifié.** Deux suites touchent ce fichier — `identity-gate-bridge.test.js`
+(épingle la ligne d'autorisation, restée en place, donc inchangée) et
+`platform-ai-evaluate-once.test.js` (lit une **vue**, pas cette route — sans
+rapport) : 40/40. Suite complète : 227/227, 2 940/2 940. `npx eslint .` :
+0 erreur. `npm run build` : vert.
+
 ## 3. Backlog (L1 — platform, ce qu'il reste)
 
 | Élément | Statut |
@@ -240,7 +266,7 @@ future (voir §4).
 | `api/intents` (423 lignes) | ✅ audité, laissé tel quel — déjà un contrôleur mince (tranche 4) |
 | `services/platform/import.js` — `api/platform/import/execute` | ✅ fait (tranche 5) — contenait du SQL en direct |
 | Garde-fou automatique « aucun SQL / HTTP dans les services » (`services-boundaries.test.js`) | n'existe pas encore sur `frontend_b` — à porter depuis `origin/interns` |
-| `api/platform/ai/evaluate-submission` (299 lignes, 17 `if`) | non commencé |
+| `services/platform/evaluation.js` — `api/platform/ai/evaluate-submission` | ✅ fait (tranche 6) |
 | `api/evaluation` (210 lignes, 14 `if`) | non commencé |
 | `api/run-export` (191 lignes, 13 `if`) | non commencé |
 | Petites routes `platform/ai/*`, `platform/seed/*`, `platform/integrations/*`, `platform/notifications` (déjà < 100-200 lignes) | à confirmer qu'elles sont déjà minces |
