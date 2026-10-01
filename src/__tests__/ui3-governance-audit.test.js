@@ -43,7 +43,10 @@ describe("UI-3a — audit reason parsing", () => {
 });
 
 describe("UI-3a — design-system fixes", () => {
-  const center = "src/components/permissions/PermissionCenter.js";
+  // This suite no longer reads the shim at all: the audit detail is pinned on
+  // AuditView.js and the governance stat cards on GovernanceView.js. The
+  // invariant that does span the screen — the hex ban — reads the whole surface.
+  const governance = "src/components/permissions/permission-center/GovernanceView.js";
 
   test("the governance stat cards no longer use hardcoded hex colors", () => {
     // Two halves on purpose. The hex ban is an invariant about EVERY surface in
@@ -54,7 +57,7 @@ describe("UI-3a — design-system fixes", () => {
     for (const hexColor of ["#10B981", "#F59E0B", "#EF4444", "#94A3B8"]) {
       expect(surface).not.toContain(hexColor);
     }
-    expect(read(center)).toContain("StatCard");
+    expect(read(governance)).toContain("StatCard");
   });
 
   test("the audit detail uses the shared drawer and highlights the reason", () => {

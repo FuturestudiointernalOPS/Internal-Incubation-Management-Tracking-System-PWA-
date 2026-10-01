@@ -85,10 +85,19 @@ describe("P3 — the split did not leave a guard guarding nothing", () => {
       // (e.g. read(`${PERMS}PermissionCenter.js`)), which binds no variable at
       // all. Missing the second shape is how this guard stayed silent on
       // ui3-followups while its pin was already broken.
-      const target = (line.match(/expect\(\s*(\w+)/) || [])[1];
+      // The argument of `expect` is not always a bare identifier: it is often a
+      // call — `expect(read(center))` — and taking the first word after the paren
+      // yields `read`, the name of the helper, which is not a shim-backed root.
+      // So the line was skipped entirely and `ui3-governance-audit`'s StatCard
+      // pin was invisible to this guard after GovernanceView moved. I had
+      // written in the previous commit that the guard "will catch it the moment
+      // it is" — that was wrong, and it was wrong because I checked the
+      // mechanism I had written rather than the shape the test file uses.
+      // Resolve against the whole argument instead: if it mentions ANY root.
+      const arg = (line.match(/expect\(\s*([^)]*)\)/) || [])[1];
       const pinnedAgainstShim =
         line.includes("PermissionCenter.js") ||
-        (roots.size > 0 && roots.has(target));
+        (roots.size > 0 && arg != null && [...roots].some((r) => arg.includes(r)));
       if (!pinnedAgainstShim) return;
 
       // Named groups, not positional ones: a group added here silently shifted
@@ -176,8 +185,15 @@ describe("P3 — the shim carries no orphaned comment", () => {
     expect(orphans.map((r) => `line ${r.from}: ${r.text.trim().slice(0, 70)}`)).toEqual([]);
   });
 
-  test("the shim ends on a component, not on a section marker", () => {
+  test("the shim ends on code, never on a section marker or prose", () => {
     const lastMeaningful = [...lines].reverse().find((l) => l.trim());
-    expect(lastMeaningful.trim()).toMatch(/^\}|^\);/);
+    // Since GovernanceView moved out, the tail may legitimately be the
+    // `export { default as GovernanceView }` re-export that keeps
+    // ContextScopeView.js working. What must never happen is the shim ending on
+    // a marker or on prose: that is exactly what an extraction leaves behind
+    // when it cuts at the wrong line, and it is how GovernanceView's own JSDoc
+    // could have ended up filed inside AuditView.js.
+    expect(isComment(lastMeaningful)).toBe(false);
+    expect(lastMeaningful.trim()).toMatch(/^\}|^\);|^export\b/);
   });
 });
