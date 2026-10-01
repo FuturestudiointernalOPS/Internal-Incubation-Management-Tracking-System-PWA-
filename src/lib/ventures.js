@@ -1020,200 +1020,29 @@ export {
   updateActionItem,
 } from "@/services/ventures/sessions";
 
-// =============================================================================
-// ENHANCEMENT 3.3: KNOWLEDGE HUB & LEARNING RESOURCES
-// =============================================================================
-
-export const RESOURCE_TYPES = ["article", "video", "pdf", "template", "checklist", "presentation", "external_link", "course", "case_study"];
-
-export async function listResources({ category, type, search, featured, limit = 50, offset = 0 }) {
-  let sql = `SELECT kr.*, kc.name as category_name FROM knowledge_resources kr LEFT JOIN knowledge_categories kc ON kr.category_id = kc.id WHERE kr.status = 'published'`;
-  const args = [];
-  if (category) { sql += " AND (kc.slug = ? OR kc.name = ?)"; args.push(category, category); }
-  if (type) { sql += " AND kr.resource_type = ?"; args.push(type); }
-  if (featured) { sql += " AND kr.is_featured = TRUE"; }
-  if (search) { sql += " AND (kr.title ILIKE ? OR kr.description ILIKE ?)"; args.push(`%${search}%`, `%${search}%`); }
-  sql += " ORDER BY kr.is_featured DESC, kr.created_at DESC LIMIT ? OFFSET ?"; args.push(limit, offset);
-  const res = await db.execute({ sql, args });
-  return (res.rows || []).map((row) => ({ ...row, tags: typeof row.tags === "string" ? JSON.parse(row.tags) : (row.tags || []) }));
-}
-
-export async function getResource(resourceId, userCid) {
-  const res = await db.execute({ sql: `SELECT kr.*, kc.name as category_name FROM knowledge_resources kr LEFT JOIN knowledge_categories kc ON kr.category_id = kc.id WHERE kr.id = ?`, args: [resourceId] });
-  if (res.rows.length === 0) return null;
-  const resource = res.rows[0]; resource.tags = typeof resource.tags === "string" ? JSON.parse(resource.tags) : (resource.tags || []);
-  await db.execute({ sql: "UPDATE knowledge_resources SET view_count = view_count + 1 WHERE id = ?", args: [resourceId] });
-  if (userCid) {
-    await db.execute({ sql: `INSERT INTO knowledge_progress (resource_id, user_cid, last_viewed_at) VALUES (?, ?, NOW()) ON CONFLICT (resource_id, user_cid) DO UPDATE SET last_viewed_at = NOW()`, args: [resourceId, userCid] });
-    await db.execute({ sql: `INSERT INTO knowledge_activity (resource_id, user_cid, action) VALUES (?, ?, 'RESOURCE_VIEWED')`, args: [resourceId, userCid] });
-    const bookmarkResult = await db.execute({ sql: "SELECT id FROM knowledge_bookmarks WHERE resource_id = ? AND user_cid = ?", args: [resourceId, userCid] });
-    resource.is_bookmarked = bookmarkResult.rows.length > 0;
-    const progressResult = await db.execute({ sql: "SELECT is_completed FROM knowledge_progress WHERE resource_id = ? AND user_cid = ?", args: [resourceId, userCid] });
-    resource.is_completed = progressResult.rows.length > 0 && progressResult.rows[0].is_completed;
-  }
-  return resource;
-}
-
-export async function createResource({ title, description, resourceType, categoryId, url, content, fileUrl, fileSize, fileType, estimatedMinutes, authorName, authorCid, tags, isFeatured }) {
-  if (!title?.trim()) throw new Error("Title is required.");
-  if (!RESOURCE_TYPES.includes(resourceType)) throw new Error(`Invalid resource type: "${resourceType}".`);
-  const catName = categoryId ? (await db.execute({ sql: "SELECT name FROM knowledge_categories WHERE id = ?", args: [categoryId] })).rows[0]?.name : null;
-  const id = (await db.execute({
-    sql: `INSERT INTO knowledge_resources (title, description, resource_type, category_id, category_name, url, content, file_url, file_size, file_type, estimated_minutes, author_name, author_cid, tags, is_featured) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?) RETURNING id`,
-    args: [title.trim(), description||null, resourceType, categoryId||null, catName, url||null, content||null, fileUrl||null, fileSize||null, fileType||null, estimatedMinutes||null, authorName||null, authorCid||null, JSON.stringify(tags||[]), isFeatured?1:0],
-  })).rows[0]?.id;
-  await db.execute({ sql: `INSERT INTO knowledge_activity (resource_id, user_cid, action) VALUES (?, ?, 'RESOURCE_CREATED')`, args: [id, authorCid||"system"] });
-  return { id };
-}
-
-export async function updateResource(resourceId, updates) {
-  const allowed = ["title", "description", "resource_type", "category_id", "url", "content", "file_url", "file_size", "file_type", "estimated_minutes", "tags", "status", "is_featured"];
-  const sets = []; const args = [];
-  for (const column of allowed) { if (updates[column] !== undefined) { sets.push(`${column} = ?`); args.push(updates[column]); } }
-  if (sets.length === 0) return { updated: false };
-  sets.push("updated_at = NOW()"); args.push(resourceId);
-  await db.execute({ sql: `UPDATE knowledge_resources SET ${sets.join(", ")} WHERE id = ?`, args });
-  return { updated: true };
-}
-
-export async function deleteResource(resourceId) {
-  await db.execute({ sql: "DELETE FROM knowledge_resources WHERE id = ?", args: [resourceId] });
-  return { success: true };
-}
-
-export async function listCategories() {
-  const res = await db.execute({ sql: "SELECT * FROM knowledge_categories ORDER BY display_order ASC" });
-  for (const cat of res.rows || []) {
-    const countResult = await db.execute({ sql: "SELECT COUNT(*) as cnt FROM knowledge_resources WHERE category_id = ? AND status = 'published'", args: [cat.id] });
-    cat.resource_count = parseInt(countResult.rows[0]?.cnt || 0);
-  }
-  return res.rows || [];
-}
-
-export async function toggleBookmark(resourceId, userCid) {
-  const existing = await db.execute({ sql: "SELECT id FROM knowledge_bookmarks WHERE resource_id = ? AND user_cid = ?", args: [resourceId, userCid] });
-  if (existing.rows.length > 0) { await db.execute({ sql: "DELETE FROM knowledge_bookmarks WHERE id = ?", args: [existing.rows[0].id] }); return { bookmarked: false }; }
-  await db.execute({ sql: "INSERT INTO knowledge_bookmarks (resource_id, user_cid) VALUES (?, ?)", args: [resourceId, userCid] });
-  return { bookmarked: true };
-}
-
-export async function getUserBookmarks(userCid) {
-  const res = await db.execute({ sql: `SELECT kr.*, kb.created_at as bookmarked_at FROM knowledge_bookmarks kb JOIN knowledge_resources kr ON kb.resource_id = kr.id WHERE kb.user_cid = ? ORDER BY kb.created_at DESC`, args: [userCid] });
-  return (res.rows || []).map((row) => ({ ...row, tags: typeof row.tags === "string" ? JSON.parse(row.tags) : (row.tags || []) }));
-}
-
-export async function markResourceComplete(resourceId, userCid) {
-  await db.execute({ sql: `INSERT INTO knowledge_progress (resource_id, user_cid, is_completed, completed_at, last_viewed_at) VALUES (?, ?, TRUE, NOW(), NOW()) ON CONFLICT (resource_id, user_cid) DO UPDATE SET is_completed = TRUE, completed_at = NOW(), last_viewed_at = NOW()`, args: [resourceId, userCid] });
-  return { success: true };
-}
-
-export async function getRecommendedResources(ventureId) {
-  const ventureResult = await db.execute({ sql: "SELECT industry FROM ventures WHERE venture_id = ?", args: [ventureId] });
-  const industry = ventureResult.rows[0]?.industry || "";
-  const res = await db.execute({
-    sql: `SELECT kr.*, kc.name as category_name FROM knowledge_resources kr LEFT JOIN knowledge_categories kc ON kr.category_id = kc.id WHERE kr.status = 'published' AND (kr.is_featured = TRUE OR kr.tags::text ILIKE ?) ORDER BY kr.view_count DESC, kr.created_at DESC LIMIT 10`,
-    args: [`%${industry}%`],
-  });
-  return (res.rows || []).map((row) => ({ ...row, tags: typeof row.tags === "string" ? JSON.parse(row.tags) : (row.tags || []) }));
-}
-
-// =============================================================================
-// ENHANCEMENT 3.4: LEARNING PROGRESS & RECOMMENDATIONS
-// =============================================================================
-
-export async function getLearningProgress(ventureId, userCid) {
-  const [totalRes, completedRes, hoursRes, streakRes, pendingRes] = await Promise.all([
-    db.execute({ sql: "SELECT COUNT(*) as cnt FROM knowledge_resources WHERE status = 'published'", args: [] }),
-    db.execute({ sql: "SELECT COUNT(*) as cnt FROM knowledge_progress WHERE user_cid = ? AND is_completed = TRUE", args: [userCid] }),
-    db.execute({ sql: "SELECT COALESCE(SUM(kr.estimated_minutes), 0) as total FROM knowledge_progress kp JOIN knowledge_resources kr ON kp.resource_id = kr.id WHERE kp.user_cid = ? AND kp.is_completed = TRUE", args: [userCid] }),
-    db.execute({ sql: `SELECT COUNT(*) as streak FROM knowledge_progress WHERE user_cid = ? AND is_completed = TRUE AND completed_at >= NOW() - INTERVAL '7 days'`, args: [userCid] }),
-    db.execute({ sql: `SELECT kr.id, kr.title, kr.resource_type, kc.name as category_name, kp.last_viewed_at FROM knowledge_progress kp JOIN knowledge_resources kr ON kp.resource_id = kr.id LEFT JOIN knowledge_categories kc ON kr.category_id = kc.id WHERE kp.user_cid = ? AND (kp.is_completed = FALSE OR kp.is_completed IS NULL) ORDER BY kp.last_viewed_at DESC LIMIT 10`, args: [userCid] }),
-  ]);
-  const total = parseInt(totalRes.rows[0]?.cnt || 1);
-  const completed = parseInt(completedRes.rows[0]?.cnt || 0);
-  const hoursLearned = Math.round(parseFloat(hoursRes.rows[0]?.total || 0) / 60 * 10) / 10;
-  return {
-    total_resources: total, completed_resources: completed,
-    completion_percentage: Math.round((completed / total) * 100),
-    hours_learned: hoursLearned,
-    learning_streak: parseInt(streakRes.rows[0]?.streak || 0),
-    pending_resources: pendingRes.rows || [],
-  };
-}
-
-export async function getPersonalizedRecommendations(ventureId, userCid, limit = 10) {
-  const ventureResult = await db.execute({ sql: "SELECT industry, business_stage FROM ventures WHERE venture_id = ?", args: [ventureId] });
-  const venture = ventureResult.rows[0] || {};
-  const industry = venture.industry || "";
-  const stage = venture.business_stage || "";
-  const completed = await db.execute({ sql: "SELECT resource_id FROM knowledge_progress WHERE user_cid = ? AND is_completed = TRUE", args: [userCid] });
-  const completedIds = new Set((completed.rows || []).map((row) => row.resource_id));
-  const bookmarked = await db.execute({ sql: "SELECT resource_id FROM knowledge_bookmarks WHERE user_cid = ?", args: [userCid] });
-  const bookmarkedIds = new Set((bookmarked.rows || []).map((row) => row.resource_id));
-
-  const res = await db.execute({
-    sql: `SELECT kr.*, kc.name as category_name FROM knowledge_resources kr LEFT JOIN knowledge_categories kc ON kr.category_id = kc.id WHERE kr.status = 'published' ORDER BY (CASE WHEN kr.tags::text ILIKE ? THEN 3 ELSE 0 END) + (CASE WHEN kr.tags::text ILIKE ? THEN 2 ELSE 0 END) + (kr.view_count * 0.01) + (CASE WHEN kr.is_featured THEN 2 ELSE 0 END) DESC LIMIT ?`,
-    args: [`%${industry}%`, `%${stage}%`, limit * 2],
-  });
-
-  const results = [];
-  for (const resource of res.rows || []) {
-    if (results.length >= limit) break;
-    if (completedIds.has(resource.id)) continue;
-    resource.is_bookmarked = bookmarkedIds.has(resource.id);
-    resource.tags = typeof resource.tags === "string" ? JSON.parse(resource.tags) : (resource.tags || []);
-    const tagsLower = (resource.tags || []).map((tag) => tag.toLowerCase());
-    resource.recommendation_reason = tagsLower.some((tag) => industry.toLowerCase().includes(tag))
-      ? "Based on your industry" : resource.is_featured ? "Featured resource" : "Popular resource";
-    results.push(resource);
-    await db.execute({ sql: `INSERT INTO learning_recommendation_log (venture_id, resource_id, reason, score) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING`, args: [ventureId, resource.id, resource.recommendation_reason, 0] }).catch(() => {});
-  }
-  return results;
-}
-
-export async function getLearningHistory(userCid, limit = 20) {
-  const res = await db.execute({
-    sql: `SELECT ka.*, kr.title as resource_title, kr.resource_type FROM knowledge_activity ka LEFT JOIN knowledge_resources kr ON ka.resource_id = kr.id WHERE ka.user_cid = ? ORDER BY ka.created_at DESC LIMIT ?`,
-    args: [userCid, limit],
-  });
-  return res.rows || [];
-}
-
-export async function listLearningPaths(level) {
-  let sql = "SELECT * FROM learning_paths WHERE is_active = TRUE";
-  const args = [];
-  if (level) { sql += " AND level = ?"; args.push(level); }
-  sql += " ORDER BY level ASC, name ASC";
-  const res = await db.execute({ sql, args });
-  return (res.rows || []).map((path) => ({ ...path, resource_ids: typeof path.resource_ids === "string" ? JSON.parse(path.resource_ids) : (path.resource_ids || []) }));
-}
-
-export async function createLearningPath({ name, description, level, categoryId, resourceIds, estimatedHours, createdBy }) {
-  const id = (await db.execute({
-    sql: `INSERT INTO learning_paths (name, description, level, category_id, resource_ids, estimated_hours, created_by) VALUES (?, ?, ?, ?, ?::jsonb, ?, ?) RETURNING id`,
-    args: [name.trim(), description||null, level||"beginner", categoryId||null, JSON.stringify(resourceIds||[]), estimatedHours||null, createdBy||"system"],
-  })).rows[0]?.id;
-  return { id };
-}
-
-export async function getVentureLearningPaths(ventureId) {
-  const res = await db.execute({
-    sql: `SELECT lpa.*, lp.name, lp.description, lp.level, lp.resource_ids, lp.estimated_hours FROM learning_path_assignments lpa JOIN learning_paths lp ON lpa.path_id = lp.id WHERE lpa.venture_id = ? ORDER BY lpa.assigned_at DESC`,
-    args: [ventureId],
-  });
-  const paths = [];
-  for (const row of res.rows || []) {
-    const resourceIds = typeof row.resource_ids === "string" ? JSON.parse(row.resource_ids) : (row.resource_ids || []);
-    const completedCount = resourceIds.length > 0 ? (await db.execute({ sql: `SELECT COUNT(*) as c FROM knowledge_progress WHERE resource_id = ANY($1) AND is_completed = TRUE`, args: [resourceIds] }).catch(() => ({ rows: [{ c: 0 }] }))).rows[0]?.c || 0 : 0;
-    paths.push({ ...row, resource_ids: resourceIds, completion: resourceIds.length > 0 ? Math.round((completedCount / resourceIds.length) * 100) : 0 });
-  }
-  return paths;
-}
-
-export async function assignLearningPath({ ventureId, pathId, assignedBy }) {
-  await db.execute({ sql: `INSERT INTO learning_path_assignments (venture_id, path_id, assigned_by) VALUES (?, ?, ?) ON CONFLICT (venture_id, path_id) DO UPDATE SET status = 'active'`, args: [ventureId, pathId, assignedBy||"system"] });
-  return { success: true };
-}
+// ── ENHANCEMENT 3.3–3.4: Knowledge hub & learning ──────────────────────────
+// Extracted to the service layer; re-exported for existing importers
+// (see docs/LAYER_SPLIT.md).
+export {
+  RESOURCE_TYPES,
+  listResources,
+  getResource,
+  createResource,
+  updateResource,
+  deleteResource,
+  listCategories,
+  toggleBookmark,
+  getUserBookmarks,
+  markResourceComplete,
+  getRecommendedResources,
+  getLearningProgress,
+  getPersonalizedRecommendations,
+  getLearningHistory,
+  listLearningPaths,
+  createLearningPath,
+  getVentureLearningPaths,
+  assignLearningPath,
+} from "@/services/ventures/knowledge";
 
 // =============================================================================
 // ENHANCEMENT 3.5: MENTOR FEEDBACK & ANALYTICS
