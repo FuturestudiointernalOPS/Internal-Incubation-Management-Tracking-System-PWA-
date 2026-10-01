@@ -137,24 +137,24 @@ beforeEach(() => {
 
 describe("resolveCoachContact — coach is a platform user (Future Studio staff or invited)", () => {
   test("explicit contact id wins", async () => {
-    const contact = await resolveCoachContact(mockDb, { coachContactId: "c-sarah" });
+    const contact = await resolveCoachContact({ coachContactId: "c-sarah" });
     expect(contact).toEqual({ cid: "c-sarah", name: "Sarah", email: "sarah@future.studio" });
   });
 
   test("legacy catalog coach resolves to a contact by email", async () => {
-    const contact = await resolveCoachContact(mockDb, { coachId: 12 });
+    const contact = await resolveCoachContact({ coachId: 12 });
     expect(contact.cid).toBe("c-sarah");
   });
 
   test("unmatched catalog coach degrades to null (catalog fallback preserved)", async () => {
     mockDb.flags.contactByEmail = false;
-    const contact = await resolveCoachContact(mockDb, { coachId: 12 });
+    const contact = await resolveCoachContact({ coachId: 12 });
     expect(contact).toBeNull();
   });
 
   test("unknown explicit contact degrades to null", async () => {
     mockDb.flags.contactByCid = false;
-    const contact = await resolveCoachContact(mockDb, { coachContactId: "ghost" });
+    const contact = await resolveCoachContact({ coachContactId: "ghost" });
     expect(contact).toBeNull();
   });
 });
@@ -278,7 +278,7 @@ describe("notifyVentureLeadManagers — Lead Manager delivery (in-app + email)",
 
 describe("inviteCoachByEmail — Venture coach invite (program blueprint)", () => {
   test("new external coach → contact created (narrow role) + assignment + activation email", async () => {
-    const out = await inviteCoachByEmail(mockDb, {
+    const out = await inviteCoachByEmail({
       code: "VNT-X", ventureName: "AgriNova", email: "new.coach@example.com", name: "New Coach", actorCid: "manager-1", preview: false,
     });
     expect(out.results[0].status).toBe("activation_sent");
@@ -299,7 +299,7 @@ describe("inviteCoachByEmail — Venture coach invite (program blueprint)", () =
   test("existing Future Studio staff contact → assigned as-is, login email, no contact insert", async () => {
     mockDb.flags.inviteContact = "c-staff";
     mockDb.flags.inviteActivated = true;
-    const out = await inviteCoachByEmail(mockDb, {
+    const out = await inviteCoachByEmail({
       code: "VNT-X", ventureName: "AgriNova", email: "david@future.studio", responsibilityCode: "lead_manager", actorCid: "sa-1",
     });
     expect(out.results[0].status).toBe("invited");
@@ -315,14 +315,14 @@ describe("inviteCoachByEmail — Venture coach invite (program blueprint)", () =
     mockDb.flags.inviteContact = "c-staff";
     mockDb.flags.inviteActivated = true;
     mockDb.flags.alreadyAssigned = true;
-    const out = await inviteCoachByEmail(mockDb, { code: "VNT-X", email: "david@future.studio" });
+    const out = await inviteCoachByEmail({ code: "VNT-X", email: "david@future.studio" });
     expect(out.results[0].status).toBe("already_assigned");
     expect(executed.some((query) => query.sql.includes("INSERT INTO venture_staff_assignments"))).toBe(false);
     expect(sendLoginEmail).not.toHaveBeenCalled();
   });
 
   test("preview reports without writing", async () => {
-    const out = await inviteCoachByEmail(mockDb, { code: "VNT-X", email: "fresh@example.com", preview: true });
+    const out = await inviteCoachByEmail({ code: "VNT-X", email: "fresh@example.com", preview: true });
     expect(out.results[0].status).toBe("new_contact");
     expect(executed.some((query) => query.sql.startsWith("INSERT INTO contacts"))).toBe(false);
     expect(executed.some((query) => query.sql.includes("INSERT INTO venture_staff_assignments"))).toBe(false);
@@ -330,7 +330,7 @@ describe("inviteCoachByEmail — Venture coach invite (program blueprint)", () =
   });
 
   test("invalid email rejected without side effects", async () => {
-    const out = await inviteCoachByEmail(mockDb, { code: "VNT-X", email: "not-an-email" });
+    const out = await inviteCoachByEmail({ code: "VNT-X", email: "not-an-email" });
     expect(out.results[0].status).toBe("invalid");
     expect(sendInviteEmail).not.toHaveBeenCalled();
   });

@@ -1,4 +1,3 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans";
@@ -58,7 +57,7 @@ export async function POST(req, { params }) {
       ? requestedScope
       : "venture_wide";
 
-    const result = await inviteCoachByEmail(db, {
+    const result = await inviteCoachByEmail({
       code,
       ventureName,
       email,

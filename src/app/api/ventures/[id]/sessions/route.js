@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import db from "@/lib/db";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { ventureOwned, ventureNotFound, resolveVentureDbId } from "@/lib/ventureOwnership";
 import { resolveCoachContact } from "@/lib/ventureCoach";
@@ -217,7 +216,7 @@ export const POST = createHandler(async (req, { params }) => {
       let coachContactId = body.coach_contact_id ? String(body.coach_contact_id) : null;
       let resolvedCoach = null;
       if (!coachContactId && body.coach_id) {
-        resolvedCoach = await resolveCoachContact(db, { coachId: parseInt(body.coach_id) });
+        resolvedCoach = await resolveCoachContact({ coachId: parseInt(body.coach_id) });
         if (resolvedCoach) coachContactId = resolvedCoach.cid;
       }
       const createdSession = await createSession({
