@@ -88,7 +88,7 @@ statique `createHandler({ roles })`, pas de bascule matrix)*
 | Bloc | Route(s) | Décision à exporter vers service |
 |---|---|---|
 | ~~a~~ | ~~`access-profiles/route.js`~~ | **fait** → `services/authorization/accessProfileWrites.js` (`normalizeCapabilities`, gate désactivation, `assertCapsEligibleForProfile`, `replaceProfileCapabilities`, `assertProfileDeletable`) ; filet `access-profile-decisions.test.js` |
-| b | `access-profiles/assign/route.js` | SoD self-assign (incl. Super Admin), diff perte/ajout de capacités (409 + `confirm:true`), retrait override + fallback role-default |
+| ~~b~~ | ~~`access-profiles/assign/route.js`~~ | **fait** → `services/authorization/profileAssignment.js` (`isSelfAssignment`, `assertAssignmentEligible`, `evaluateCapabilityLoss`, `resolveRemovalFallback`) ; filet `access-profile-assign-decisions.test.js` |
 | c | `responsibilities/assign/route.js` | SoD self-assign, branches assign/remove (garder le swallow loggé de base-access), fallthrough inconnu |
 | d | `responsibilities/route.js` + `access/route.js` | 5 écritures conditionnelles PUT, count-then-delete, distinction `null` vs `[]` + dédupe |
 | e | `org-membership/route.js` | 2 WHERE builders + args, N+1 groupes protégés → batch, chaîne de transition lifecycle |
