@@ -2105,6 +2105,13 @@ instruction in the service (same assertion, new home). `npm test` (243 suites,
 3530 tests), `npx eslint` (0 errors) and `npm run build` are green. **The whole
 `form-runs` route is now a thin controller over `services/platform/formRuns.js`.**
 
+New characterisation net `platform-form-runs-actions.test.js` exercises the
+extracted decisions with the repository mocked — the run-status vocabulary, the
+assignment audience allowlist, the Output-Instruction rules, the submit run gate
+and the pre-side-effect review guards (idempotency, the "PDF needs an
+evaluation" refusal) — so the workflow is covered behaviourally and not only by
+the source-pins (`npm test` 244 suites, 3548 tests).
+
 **Slice 111 — the remaining platform controllers** →
 `services/platform/{notifications,integrations,investorIntake,evaluationConfig,reportFiles}.js`.
 The last thin-but-deciding platform routes move: the notification list +
