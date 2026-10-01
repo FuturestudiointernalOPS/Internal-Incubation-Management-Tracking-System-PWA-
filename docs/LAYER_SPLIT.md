@@ -18,10 +18,10 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–43 the next `ventures.js`
+> controller (workspace, then collaboration), 39–44 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
-> project timeline & dependencies, reports & project analytics, then coach &
-> mentor management). The
+> project timeline & dependencies, reports & project analytics, coach & mentor
+> management, then mentoring sessions & scheduling). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -933,6 +933,23 @@ columns, the assignability rules and the removal scope.
 
 ---
 
+### Domain 30 — the `ventures.js` monolith: mentoring sessions & scheduling (slice 44)
+
+**Domain 10.** The session catalogue (list / read with notes, attendance and
+action items), the double-booking check, the create / update / cancel /
+reschedule / delete flow (with the legacy-column fallbacks and the scheduling
+floor), the notes, the attendance upsert and the action items. Decisions move to
+`services/ventures/sessions.js`; every statement to
+`models/ventureSessionsStore.js`; `src/lib/ventures.js` re-exports the twelve
+functions. The `isUnknownColumnError` / `SESSION_MIN_LEAD_MINUTES` imports left
+the monolith with the domain.
+
+**Unchanged:** the SQL (byte-identical, including the two fallback INSERTs and
+the three literal-action activity rows), the overlap rules, the scheduling floor
+and the action-item scope.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1123,7 +1140,8 @@ Two source-pinning suites were repointed (same assertion, new home):
   deliverables domain is out (slice 39), its tasks/dependencies/comments/
   attachments domain is out (slice 40), its project timeline & dependencies
   domain is out (slice 41) and its reports & project analytics domain is out
-  (slice 42) and its coach & mentor management domain is out (slice 43), all
+  (slice 42) and its coach & mentor management domain is out (slice 43), and its
+  mentoring sessions & scheduling domain is out (slice 44), all
   re-exported through the barrel. A
   long tail of
   `src/lib` modules still
