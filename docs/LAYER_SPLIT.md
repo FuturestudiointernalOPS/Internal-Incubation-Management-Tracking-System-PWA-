@@ -18,9 +18,10 @@
 > identity/invitation layer, 33–36 the first `ventures.js` domains out of the
 > monolith (activity/history/notifications, the startup-profile wizard,
 > founders/co-founders, the Data-bank verification), 37–38 the projects
-> controller (workspace, then collaboration), 39–42 the next `ventures.js`
+> controller (workspace, then collaboration), 39–43 the next `ventures.js`
 > domains (milestones & deliverables, tasks/dependencies/comments/attachments,
-> project timeline & dependencies, then reports & project analytics). The
+> project timeline & dependencies, reports & project analytics, then coach &
+> mentor management). The
 > remaining mixed model modules are itemised in §4. This document is the running
 > log. Update it
 > at the end of every slice.
@@ -916,6 +917,22 @@ health penalty, the productivity score and the trend aggregation.
 
 ---
 
+### Domain 29 — the `ventures.js` monolith: coach & mentor management (slice 43)
+
+**Domain 9.** The coach catalog (list / read / create / update / delete) and the
+per-Venture assignment layer (list, assign with the active/primary/duplicate
+rules, scoped removal with its activity log). Decisions move to
+`services/ventures/coaches.js`; every statement to
+`models/ventureCoachesStore.js`; `src/lib/ventures.js` re-exports the eight
+functions so the coaches/coaching routes are untouched. (Distinct from the
+`coach`/`ventureCoachStore` pair of slice 32, which backs the coach identity and
+invitation layer; the exports catalog `coaches` keeps the two apart.)
+
+**Unchanged:** the SQL (byte-identical), the JSON wrapping of the multi-value
+columns, the assignability rules and the removal scope.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
@@ -1106,7 +1123,8 @@ Two source-pinning suites were repointed (same assertion, new home):
   deliverables domain is out (slice 39), its tasks/dependencies/comments/
   attachments domain is out (slice 40), its project timeline & dependencies
   domain is out (slice 41) and its reports & project analytics domain is out
-  (slice 42), all re-exported through the barrel. A
+  (slice 42) and its coach & mentor management domain is out (slice 43), all
+  re-exported through the barrel. A
   long tail of
   `src/lib` modules still
   holds SQL (the remaining domains of `ventures.js`, plus the

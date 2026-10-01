@@ -990,154 +990,19 @@ export {
   getExportData,
 } from "@/services/ventures/analytics";
 
-// =============================================================================
-// ENHANCEMENT 3.1: COACH & MENTOR MANAGEMENT
-// =============================================================================
-
-/**
- * List all coaches (optionally filtered by type).
- */
-export async function listCoaches(coachType) {
-  let sql = "SELECT * FROM venture_coaches WHERE 1=1";
-  const args = [];
-  if (coachType) { sql += " AND coach_type = ?"; args.push(coachType); }
-  sql += " ORDER BY full_name ASC";
-  const res = await db.execute({ sql, args });
-  return (res.rows || []).map((coach) => ({
-    ...coach,
-    areas_of_expertise: typeof coach.areas_of_expertise === "string" ? JSON.parse(coach.areas_of_expertise) : (coach.areas_of_expertise || []),
-    industries: typeof coach.industries === "string" ? JSON.parse(coach.industries) : (coach.industries || []),
-    languages: typeof coach.languages === "string" ? JSON.parse(coach.languages) : (coach.languages || []),
-  }));
-}
-
-export async function getCoach(coachId) {
-  const res = await db.execute({ sql: "SELECT * FROM venture_coaches WHERE id = ?", args: [coachId] });
-  if (res.rows.length === 0) return null;
-  const coach = res.rows[0];
-  coach.areas_of_expertise = typeof coach.areas_of_expertise === "string" ? JSON.parse(coach.areas_of_expertise) : (coach.areas_of_expertise || []);
-  coach.industries = typeof coach.industries === "string" ? JSON.parse(coach.industries) : (coach.industries || []);
-  coach.languages = typeof coach.languages === "string" ? JSON.parse(coach.languages) : (coach.languages || []);
-  return coach;
-}
-
-export async function createCoach({ coachType, fullName, email, phone, organization, biography, yearsExperience, areasOfExpertise, industries, languages, timezone, linkedinUrl, websiteUrl, createdBy }) {
-  const res = await db.execute({
-    sql: `INSERT INTO venture_coaches (coach_type, full_name, email, phone, organization, biography, years_experience, areas_of_expertise, industries, languages, timezone, linkedin_url, website_url, created_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?, ?, ?, ?) RETURNING id`,
-    args: [coachType || "coach", fullName.trim(), email.trim().toLowerCase(), phone||null, organization||null, biography||null, yearsExperience||null, JSON.stringify(areasOfExpertise||[]), JSON.stringify(industries||[]), JSON.stringify(languages||[]), timezone||"UTC", linkedinUrl||null, websiteUrl||null, createdBy||"system"],
-  });
-  return { id: res.rows[0]?.id || res.lastInsertRowid };
-}
-
-export async function updateCoach(coachId, updates) {
-  const allowed = ["full_name", "photo_url", "email", "phone", "organization", "biography", "years_experience", "availability", "timezone", "linkedin_url", "website_url", "status", "coach_type"];
-  const sets = []; const args = [];
-  for (const column of allowed) {
-    if (updates[column] !== undefined) {
-      if (column === "areas_of_expertise" || column === "industries" || column === "languages") {
-        sets.push(`${column} = ?::jsonb`); args.push(JSON.stringify(updates[column]));
-      } else { sets.push(`${column} = ?`); args.push(updates[column]); }
-    }
-  }
-  if (sets.length === 0) return { updated: false };
-  sets.push("updated_at = NOW()");
-  args.push(coachId);
-  await db.execute({ sql: `UPDATE venture_coaches SET ${sets.join(", ")} WHERE id = ?`, args });
-  return { updated: true };
-}
-
-export async function deleteCoach(coachId) {
-  await db.execute({ sql: "DELETE FROM venture_coaches WHERE id = ?", args: [coachId] });
-  return { success: true };
-}
-
-// ─── Assignments ───────────────────────────────────────────────────────────
-
-export async function getVentureAssignments(ventureId) {
-  const res = await db.execute({
-    sql: `SELECT vca.*, vc.coach_type, vc.full_name, vc.email, vc.photo_url, vc.organization, vc.biography, vc.years_experience,
-       vc.areas_of_expertise, vc.industries, vc.availability, vc.timezone, vc.linkedin_url, vc.status as coach_status
-       FROM venture_coach_assignments vca
-       JOIN venture_coaches vc ON vca.coach_id = vc.id
-       WHERE vca.venture_id = ? AND vca.status = 'active'
-       ORDER BY vca.is_primary DESC, vca.assignment_date ASC`,
-    args: [ventureId],
-  });
-  return (res.rows || []).map((assignment) => ({
-    ...assignment,
-    areas_of_expertise: typeof assignment.areas_of_expertise === "string" ? JSON.parse(assignment.areas_of_expertise) : (assignment.areas_of_expertise || []),
-    industries: typeof assignment.industries === "string" ? JSON.parse(assignment.industries) : (assignment.industries || []),
-  }));
-}
-
-export async function assignCoachToVenture({ ventureId, coachId, coachType, isPrimary, assignedBy, notes }) {
-  const coach = await getCoach(coachId);
-  if (!coach) throw new Error("Coach not found.");
-  if (coach.status !== "active") throw new Error("Cannot assign an inactive coach.");
-  if (coach.availability === "inactive") throw new Error("Coach is marked as inactive.");
-
-  // Check for duplicate
-  const existing = await db.execute({
-    sql: "SELECT id FROM venture_coach_assignments WHERE venture_id = ? AND coach_id = ? AND status = 'active'",
-    args: [ventureId, coachId],
-  });
-  if (existing.rows.length > 0) throw new Error("Coach is already assigned to this venture.");
-
-  // If setting as primary, unset any existing primary
-  if (isPrimary) {
-    await db.execute({
-      sql: "UPDATE venture_coach_assignments SET is_primary = FALSE WHERE venture_id = ? AND coach_type = ?",
-      args: [ventureId, coachType],
-    });
-  }
-
-  const res = await db.execute({
-    sql: `INSERT INTO venture_coach_assignments (venture_id, coach_id, coach_type, is_primary, assigned_by, notes)
-          VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
-    args: [ventureId, coachId, coachType || coach.coach_type, isPrimary ? 1 : 0, assignedBy || "system", notes || null],
-  });
-
-  // Log activity
-  await db.execute({
-    sql: `INSERT INTO venture_coach_activity (coach_id, venture_id, action, actor_cid, details)
-          VALUES (?, ?, ?, ?, ?::jsonb)`,
-    args: [coachId, ventureId, coachType === "advisor" ? "ADVISOR_ASSIGNED" : "COACH_ASSIGNED", assignedBy || "system", JSON.stringify({ venture_id: ventureId, coach_name: coach.full_name })],
-  });
-
-  return { id: res.rows[0]?.id || res.lastInsertRowid };
-}
-
-export async function removeAssignment(assignmentId, removedBy, ventureIds = []) {
-  const ids = (Array.isArray(ventureIds) ? ventureIds : [ventureIds]).filter(
-    (ventureId) => ventureId !== null && ventureId !== undefined,
-  );
-  if (ids.length === 0) return { success: false };
-  const scope = ids.map(() => "venture_id = ?").join(" OR ");
-  // Only an assignment OF THIS VENTURE may be removed; the log row is written
-  // from the same scoped read so it can never describe another venture.
-  await db.execute({
-    sql: `UPDATE venture_coach_assignments SET status = 'removed' WHERE id = ? AND (${scope})`,
-    args: [assignmentId, ...ids],
-  });
-
-  // Log
-  try {
-    const aRes = await db.execute({
-      sql: `SELECT * FROM venture_coach_assignments WHERE id = ? AND (${scope})`,
-      args: [assignmentId, ...ids],
-    });
-    if (aRes.rows.length > 0) {
-      await db.execute({
-        sql: `INSERT INTO venture_coach_activity (coach_id, venture_id, action, actor_cid, details)
-              VALUES (?, ?, 'COACH_REMOVED', ?, ?::jsonb)`,
-        args: [aRes.rows[0].coach_id, aRes.rows[0].venture_id, removedBy || "system", JSON.stringify({ assignment_id: assignmentId })],
-      });
-    }
-  } catch (_) {}
-
-  return { success: true };
-}
+// ── ENHANCEMENT 3.1: Coach & mentor management ─────────────────────────────
+// Extracted to the service layer; re-exported for existing importers
+// (see docs/LAYER_SPLIT.md).
+export {
+  listCoaches,
+  getCoach,
+  createCoach,
+  updateCoach,
+  deleteCoach,
+  getVentureAssignments,
+  assignCoachToVenture,
+  removeAssignment,
+} from "@/services/ventures/coaches";
 
 // =============================================================================
 // ENHANCEMENT 3.2: MENTORING SESSIONS & SCHEDULING
