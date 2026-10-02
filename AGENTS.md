@@ -269,3 +269,55 @@ never selects a role.
 - [ ] If adding/editing data access or SQL: put the query in `src/models/<domain>.js` (models only; never in routes/pages)
 - [ ] Run `npm run lint` (0 errors) and `npm run build` to verify zero errors
 - [ ] Promoting to production (branch `G` → `main`): run the **production test** — `docs/PRODUCTION_TEST.md`
+
+---
+
+## 7. Local dev troubleshooting
+
+### A 404 on a route whose file exists
+
+Symptom: `GET`/`POST` on an API route answers `200` or `401`, while a *sibling*
+route answers `404` — even though its `route.js` is on disk and exports the
+method. The server log shows `404 in ~50ms` and nothing else. A page whose
+`fetch` expected JSON then shows a misleading "network" error, because the
+`response.json()` throws on the HTML error page.
+
+Cause: Turbopack's route manifest goes stale. On this workstation two things
+make that easy to hit — a `package-lock.json` in `/home/harry-hounsou` that is
+outside the Git repository, and a stray copy of the whole project sitting next to
+it as `Part_time_Future_Studio (Copy)/`. Next warns about the first at startup:
+
+```
+Warning: Next.js ignored package-lock.json in /home/harry-hounsou because it is
+outside the current Git repository
+```
+
+Fix — rebuild the manifest from scratch:
+
+```bash
+rm -rf .next && npm run dev
+```
+
+Do **not** paper over it with `turbopack.root` in `next.config.mjs`: it needs a
+machine-absolute path, which would be committed and break CI and every other
+workstation.
+
+### Confirming a route is actually registered
+
+An unauthenticated request is a free routing probe — the auth gate answers
+`401` for a route that exists, and `404` for one that does not:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/api/ventures/VNT-1/document-types/18
+```
+
+`405` instead of `401`/`404` means the path resolved but that HTTP method is not
+exported.
+
+### `.env.local` points at staging
+
+The local dev server reads `DATABASE_URL` from `.env.local`, which on this
+workstation is the **staging** Supabase project. Browsing admin screens writes to
+staging. Schema is *not* an exception — see the runtime migration note in
+`src/lib/db.js`: unless `SKIP_RUNTIME_SCHEMA_MAINTENANCE` is set, the app applies
+its own `CREATE TABLE IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` on first use.
