@@ -173,7 +173,7 @@ export default function ConversationThread({
                       <input
                         type="file"
                         onChange={handleReplyFile}
-                        className="flex-1 text-[10px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-tertiary file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
+                        className="flex-1 text-[10px] text-[var(--text-tertiary)] file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-tertiary file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
                       />
                       {replyUploading && (
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--brand-orange)] shrink-0" />

@@ -1051,12 +1051,12 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                   <Briefcase className="w-5 h-5 text-[var(--brand-orange)]" />
                   <div>
                     <p className="text-[11px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
-                      Project Invitation
+                      {t("common.projectInvitation")}
                     </p>
                     <p className="text-[10px] text-[var(--text-secondary)]">
-                      You&apos;ve been invited to join{" "}
+                      {t("common.invitedToJoin")}{" "}
                       <span className="font-bold text-[var(--text-primary)]">
-                        {pendingInvites[0].project_name || "a project"}
+                        {pendingInvites[0].project_name || t("common.aProject")}
                       </span>
                     </p>
                   </div>
@@ -1079,7 +1079,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                     }}
                     className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-600 transition-all"
                   >
-                    Accept
+                    {t("common.accept")}
                   </button>
                   <button
                     onClick={async () => {
@@ -1096,9 +1096,9 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                         fetchNotifications();
                       } catch (_) {}
                     }}
-                    className="px-4 py-2 bg-slate-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-slate-500 transition-all"
+                    className="px-4 py-2 bg-surface-3 text-[var(--text-primary)] rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-surface-2 transition-all"
                   >
-                    Decline
+                    {t("common.decline")}
                   </button>
                 </div>
               </div>
@@ -1110,12 +1110,12 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                   <ListTodo className="w-5 h-5 text-emerald-500" />
                   <div>
                     <p className="text-[11px] font-black text-emerald-500 uppercase tracking-wider">
-                      Task Assignment
+                      {t("common.taskAssignment")}
                     </p>
                     <p className="text-[10px] text-[var(--text-secondary)]">
-                      You&apos;ve been assigned:{" "}
+                      {t("common.assignedTask")}{" "}
                       <span className="font-bold text-[var(--text-primary)]">
-                        {pendingAssignments[0].task_title || "a task"}
+                        {pendingAssignments[0].task_title || t("common.aTask")}
                       </span>
                     </p>
                   </div>
@@ -1138,7 +1138,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                     }}
                     className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-600 transition-all"
                   >
-                    Accept
+                    {t("common.accept")}
                   </button>
                   <button
                     onClick={async () => {
@@ -1155,9 +1155,9 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
                         fetchNotifications();
                       } catch (_) {}
                     }}
-                    className="px-4 py-2 bg-slate-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-slate-500 transition-all"
+                    className="px-4 py-2 bg-surface-3 text-[var(--text-primary)] rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-surface-2 transition-all"
                   >
-                    Decline
+                    {t("common.decline")}
                   </button>
                 </div>
               </div>

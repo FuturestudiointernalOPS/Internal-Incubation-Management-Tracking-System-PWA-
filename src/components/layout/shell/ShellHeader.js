@@ -47,7 +47,13 @@ export default function ShellHeader({
                   onClick={() => setThemeMenuOpen(!themeMenuOpen)}
                   className="p-2 rounded-md flex items-center gap-1"
                   style={{ color: "var(--text-secondary)" }}
-                  title={theme === "system" ? "System" : theme === "dark" ? "Dark" : "Light"}
+                  title={
+                    theme === "system"
+                      ? t("common.theme.system")
+                      : theme === "dark"
+                        ? t("common.theme.dark")
+                        : t("common.theme.light")
+                  }
                 >
                   {theme === "system" ? (
                     <Monitor className="w-4 h-4" />
@@ -66,9 +72,9 @@ export default function ShellHeader({
                     />
                     <div className="absolute right-0 top-10 w-36 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg shadow-2xl z-[220] overflow-hidden">
                       {[
-                        { value: "dark", label: "Dark", icon: Moon },
-                        { value: "light", label: "Light", icon: Sun },
-                        { value: "system", label: "System", icon: Monitor },
+                        { value: "dark", label: t("common.theme.dark"), icon: Moon },
+                        { value: "light", label: t("common.theme.light"), icon: Sun },
+                        { value: "system", label: t("common.theme.system"), icon: Monitor },
                       ].map((option) => (
                         <button
                           key={option.value}
@@ -248,7 +254,8 @@ export default function ShellHeader({
                                       await fetch("/api/notifications", {
                                         method: "PATCH",
                                         headers: {
-                                          "Content-Type": "application/json",
+                                          "Content-Type":
+                                            "application/json",
                                         },
                                         body: JSON.stringify({
                                           id: notification.id,
@@ -260,7 +267,7 @@ export default function ShellHeader({
                                   }}
                                   className="flex-1 py-1 px-2 bg-emerald-500 text-white rounded text-[10px] font-bold uppercase"
                                 >
-                                  Accept
+                                  {t("common.accept")}
                                 </button>
                                 <button
                                   onClick={async () => {
@@ -295,7 +302,8 @@ export default function ShellHeader({
                                       await fetch("/api/notifications", {
                                         method: "PATCH",
                                         headers: {
-                                          "Content-Type": "application/json",
+                                          "Content-Type":
+                                            "application/json",
                                         },
                                         body: JSON.stringify({
                                           id: notification.id,
@@ -305,9 +313,9 @@ export default function ShellHeader({
                                       fetchNotifications({ force: true });
                                     } catch (_) {}
                                   }}
-                                  className="flex-1 py-1 px-2 bg-slate-600 text-white rounded text-[10px] font-bold uppercase"
+                                  className="flex-1 py-1 px-2 bg-surface-3 text-[var(--text-primary)] rounded text-[10px] font-bold uppercase"
                                 >
-                                  Decline
+                                  {t("common.decline")}
                                 </button>
                               </div>
                             )}
@@ -358,7 +366,7 @@ export default function ShellHeader({
                                   }}
                                   className="flex-1 py-1 px-2 bg-emerald-500 text-white rounded text-[10px] font-bold uppercase"
                                 >
-                                  Accept
+                                  {t("common.accept")}
                                 </button>
                                 <button
                                   onClick={async () => {
@@ -399,9 +407,9 @@ export default function ShellHeader({
                                       fetchNotifications({ force: true });
                                     } catch (_) {}
                                   }}
-                                  className="flex-1 py-1 px-2 bg-slate-600 text-white rounded text-[10px] font-bold uppercase"
+                                  className="flex-1 py-1 px-2 bg-surface-3 text-[var(--text-primary)] rounded text-[10px] font-bold uppercase"
                                 >
-                                  Decline
+                                  {t("common.decline")}
                                 </button>
                               </div>
                             )}
@@ -428,7 +436,7 @@ export default function ShellHeader({
               <div className="flex items-center gap-3 pl-4 border-l border-[var(--border-primary)]">
                 <div className="text-right hidden sm:block">
                   <p className="text-[11px] font-bold leading-none">
-                    {user?.name || "User"}
+                    {user?.name || t("common.user")}
                   </p>
                 </div>
                 <div className="w-8 h-8 rounded bg-primary border border-[var(--border-primary)] flex items-center justify-center font-bold text-xs">
@@ -438,7 +446,7 @@ export default function ShellHeader({
               <button
                 onClick={() => setMobileMenuOpen(true)}
                 className="md:hidden p-2 bg-[var(--brand-orange)] rounded-md"
-                aria-label="Menu"
+                aria-label={t("common.menu")}
               >
                 <Menu className="w-5 h-5 text-white" />
               </button>
