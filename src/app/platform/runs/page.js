@@ -2,33 +2,39 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
-  Play, Plus, Search, Loader2, X, Send, Users, CheckCircle2,
-  XCircle, FileText, RotateCcw, Eye,
-  ArrowLeft, Settings, Link2, Trash2, AlertTriangle, BarChart3,
-  Calendar, PauseCircle,
-  StopCircle, Archive, RefreshCw, Sparkles, Mail,
+  Loader2, Send, Users, FileText, Settings, Link2, BarChart3, Mail,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { usePermissions } from "@/lib/PermissionProvider";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import {
-  STATUS_CONFIG, SUB_STATUS, EMAIL_STATUS_CONFIG, EMAIL_PAGE_SIZE,
+  SUB_STATUS, EMAIL_STATUS_CONFIG, EMAIL_PAGE_SIZE,
   RETRYABLE_EMAIL_STATUSES, EMAIL_FILTER_OPTIONS, REVIEW_FILTER_OPTIONS, STATUS_FILTER_OPTIONS,
   ACCOUNT_STATUS_OPTIONS, ACCOUNT_STATUS_STYLES, TRACKING_FILTERS,
 } from "@/components/platform/runs/constants";
 import {
-  cn, EMPTY_RUN_LIST, EMPTY_SELECTION,
+  EMPTY_RUN_LIST, EMPTY_SELECTION,
   pickRunList, fmtAnswer, pickPaymentsBySubmission, accountStatusOf,
 } from "@/components/platform/runs/helpers";
 import RunsTable from "@/components/platform/runs/RunsTable";
-import MiniCalendar from "@/components/platform/runs/MiniCalendar";
 import ShareTab from "@/components/platform/runs/ShareTab";
 import AssignmentsTab from "@/components/platform/runs/AssignmentsTab";
 import SettingsTab from "@/components/platform/runs/SettingsTab";
 import EmailsTab from "@/components/platform/runs/EmailsTab";
 import TemplatesTab from "@/components/platform/runs/TemplatesTab";
 import OverviewTab from "@/components/platform/runs/OverviewTab";
+import ReviewModal from "@/components/platform/runs/ReviewModal";
+import ManualAddModal from "@/components/platform/runs/ManualAddModal";
+import MessageComposerModal from "@/components/platform/runs/MessageComposerModal";
+import ExportOptionsModal from "@/components/platform/runs/ExportOptionsModal";
+import RunDetailHeader from "@/components/platform/runs/RunDetailHeader";
+import EvalProgressPanel from "@/components/platform/runs/EvalProgressPanel";
+import RunTabs from "@/components/platform/runs/RunTabs";
+import CreateRunModal from "@/components/platform/runs/CreateRunModal";
+import DatePickerModal from "@/components/platform/runs/DatePickerModal";
+import DashboardStats from "@/components/platform/runs/DashboardStats";
+import RunsToolbar from "@/components/platform/runs/RunsToolbar";
 
 /**
  * PLATFORM FORM RUNS — Launch, assign, collect, review
@@ -2092,7 +2098,6 @@ export default function FormRunsPage() {
 
   // ─── RUN DETAIL VIEW ───
   if (selectedRun) {
-    const statusConfig = STATUS_CONFIG[selectedRun.status] || STATUS_CONFIG.draft;
     const subtotal = submissions.length;
     const submitted = submissions.filter((submission) => submission.status === "submitted").length;
     const approved = submissions.filter((submission) => submission.status === "approved").length;
@@ -2115,172 +2120,25 @@ export default function FormRunsPage() {
       <div className="flex flex-col h-screen overflow-hidden">
         {(notification || runListNotice) && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-[10px] font-bold uppercase animate-in">{notification || runListNotice}</div>}
         {/* Header */}
-        <div className="flex items-center gap-4 px-6 py-3 border-b border-[var(--border-primary)] bg-secondary shrink-0">
-          <button onClick={() => setSelectedRun(null)} className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><ArrowLeft className="w-3 h-3 inline mr-1" /> {t("platformMisc.runs.back")}</button>
-          <span className="text-[var(--text-secondary)] opacity-30">|</span>
-          <Play className="w-4 h-4 text-[var(--brand-orange)]" />
-          <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">{selectedRun.name}</h2>
-          <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", statusConfig.color, statusConfig.bg)}>{t(statusConfig.label)}</span>
-          {(() => {
-            const group = groups.find((candidate) => (candidate.registration_id || candidate.id) === selectedRun.group_target_id);
-            return group ? (
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap text-[var(--brand-orange)] bg-brand-orange/10 border border-brand-orange/30">{t("platformMisc.runs.assignedGroup", { name: group.name })}</span>
-            ) : null;
-          })()}
-          {/* Status action buttons */}
-          {selectedRun.status === "draft" && (
-            <button onClick={() => handleLaunch(selectedRun.id)} className="px-3 py-1.5 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide hover:brightness-110">{t("platformMisc.runs.launch")}</button>
-          )}
-          {selectedRun.status === "active" && (
-            <button onClick={() => handleStatusChange(selectedRun.id, "closed")} className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-amber-500/20 flex items-center gap-1"><StopCircle className="w-3 h-3" /> {t("platformMisc.runs.close")}</button>
-          )}
-          {(selectedRun.status === "active" || selectedRun.status === "closed") && (
-            <button onClick={() => handleStatusChange(selectedRun.id, "cancelled")} className="px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20 flex items-center gap-1"><XCircle className="w-3 h-3" /> {t("platformMisc.runs.cancel")}</button>
-          )}
-          {(selectedRun.status === "closed" || selectedRun.status === "cancelled") && (
-            <button onClick={() => handleStatusChange(selectedRun.id, "archived")} className="px-3 py-1.5 rounded-xl bg-slate-500/10 text-slate-500 border border-slate-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-slate-500/20 flex items-center gap-1"><Archive className="w-3 h-3" /> {t("platformMisc.runs.archive")}</button>
-          )}
-          {selectedRun.status === "archived" && (
-            <>
-              <button onClick={() => handleStatusChange(selectedRun.id, "draft")} className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-500/20 flex items-center gap-1"><RotateCcw className="w-3 h-3" /> {t("platformMisc.runs.restore")}</button>
-              <button onClick={() => handleDeleteRun(selectedRun.id)} className="px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20 flex items-center gap-1"><Trash2 className="w-3 h-3" /> {t("platformMisc.runs.delete")}</button>
-            </>
-          )}
-          {selectedRun.status !== "archived" && (
-            <button onClick={() => handleDeleteRun(selectedRun.id)} className="px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20 flex items-center gap-1"><Trash2 className="w-3 h-3" /> {t("platformMisc.runs.delete")}</button>
-          )}
-          {(selectedRun.status === "closed" || selectedRun.status === "cancelled") && (
-            <button onClick={() => handleStatusChange(selectedRun.id, "active")} className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-500/20 flex items-center gap-1"><RefreshCw className="w-3 h-3" /> {t("platformMisc.runs.reactivate")}</button>
-          )}
-          <button onClick={openManualAdd} className="px-3 py-1.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-blue-500/20 flex items-center gap-1"><Plus className="w-3 h-3" /> {t("platformMisc.runs.addRespondent")}</button>
-          {selectedRun.status === "active" && (
-            <div className="ml-auto flex items-center gap-2">
-              {evalProgress?.running ? (
-                <span className="px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[10px] font-bold uppercase flex items-center gap-2">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  {evalProgress.evaluated}/{evalProgress.total} — {evalProgress.percent}%
-                </span>
-              ) : (
-                <>
-                  {canReview && evalProgress && evalProgress.failed > 0 && (
-                    <button onClick={() => handleBatchEvaluate(true)} className="px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20 flex items-center gap-1">
-                      <RotateCcw className="w-3 h-3" /> {t("platformMisc.runs.retryFailed", { count: evalProgress.failed })}
-                    </button>
-                  )}
-                  {canReview && (
-                  <button
-                    onClick={() => handleBatchEvaluate(false)}
-                    className="px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 flex items-center gap-1"
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    {evalProgress && evalProgress.remaining > 0 && !evalProgress.stopped
-                      ? t("platformMisc.runs.continueEvaluation")
-                      : evalProgress && evalProgress.remaining > 0
-                      ? t("platformMisc.runs.continueEvaluation")
-                      : t("platformMisc.runs.evaluateAll")}
-                  </button>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-        </div>
+        <RunDetailHeader
+          selectedRun={selectedRun}
+          groups={groups}
+          onBack={() => setSelectedRun(null)}
+          handleLaunch={handleLaunch}
+          handleStatusChange={handleStatusChange}
+          handleDeleteRun={handleDeleteRun}
+          openManualAdd={openManualAdd}
+          evalProgress={evalProgress}
+          canReview={canReview}
+          handleBatchEvaluate={handleBatchEvaluate}
+          t={t}
+        />
 
         {/* ─── AI EVALUATION PROGRESS PANEL ─── */}
-        {evalProgress && (evalProgress.running || evalProgress.stopped) && (
-          <div className="px-6 py-3 border-b border-purple-500/20 bg-purple-500/5 shrink-0">
-            <div className="flex items-center gap-4 flex-wrap">
-              <div className="flex items-center gap-2">
-                {evalProgress.running ? (
-                  <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
-                ) : (
-                  <PauseCircle className="w-4 h-4 text-purple-400" />
-                )}
-                <span className="text-[10px] font-bold uppercase tracking-widest text-purple-300">
-                  {evalProgress.running ? t("platformMisc.runs.aiEvalInProgress") : t("platformMisc.runs.aiEvalPaused")}
-                </span>
-              </div>
-              <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                {t("platformMisc.runs.evalProgressCount", { evaluated: evalProgress.evaluated, total: evalProgress.total })}
-              </span>
-              <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                {t("platformMisc.runs.evalPercentComplete", { percent: evalProgress.percent })}
-              </span>
-              {evalProgress.batch > 0 && (
-                <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                  {t("platformMisc.runs.batchCount", { batch: evalProgress.batch })}
-                </span>
-              )}
-              {evalProgress.failed > 0 && (
-                <span className="text-[10px] font-bold text-rose-500">
-                  {t("platformMisc.runs.failedCount", { failed: evalProgress.failed })}
-                </span>
-              )}
-              {evalProgress.remaining > 0 && (
-                <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                  {t("platformMisc.runs.remainingCount", { remaining: evalProgress.remaining })}
-                </span>
-              )}
-            </div>
-            {/* Progress bar */}
-            <div className="mt-2 w-full bg-[var(--border-primary)] rounded-full h-1.5 overflow-hidden">
-              <div
-                className="h-full bg-purple-500 rounded-full transition-all duration-300"
-                style={{ width: `${evalProgress.percent}%` }}
-              />
-            </div>
-            <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-              {evalProgress.running
-                ? t("platformMisc.runs.evalKeepOpen")
-                : t("platformMisc.runs.evalPausedHint")}
-            </p>
-
-            {/* Approval + email dashboard */}
-            {evalStats && (
-              <div className="mt-3 pt-3 border-t border-purple-500/20 grid grid-cols-2 md:grid-cols-4 gap-2">
-                <div className="text-center">
-                  <p className="text-sm font-black text-emerald-500">{evalStats.approvals?.approved ?? 0}</p>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.statusApproved")}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-black text-rose-500">{evalStats.approvals?.rejected ?? 0}</p>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.statusRejected")}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-black text-blue-500">{evalStats.emails?.sent ?? 0}</p>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.emailsSent")}</p>
-                </div>
-                <div className="text-center">
-                  <p className={`text-sm font-black ${(evalStats.emails?.failed ?? 0) > 0 ? "text-rose-500" : "text-[var(--text-secondary)]"}`}>{evalStats.emails?.failed ?? 0}</p>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.emailsFailed")}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-black text-[var(--brand-orange)]">{evalStats.emails?.activation_sent ?? 0}</p>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.activationSent")}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-black text-emerald-500">{evalStats.emails?.approval_sent ?? 0}</p>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.approvalEmails")}</p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        <EvalProgressPanel evalProgress={evalProgress} evalStats={evalStats} t={t} />
 
         {/* Tabs */}
-        <div className="flex items-center gap-0 px-6 border-b border-[var(--border-primary)] shrink-0 bg-secondary">
-          {tabs.map((tab) => (
-            tab.href ? (
-              <a key={tab.id} href={tab.href} className="flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-bold uppercase tracking-wide border-b-2 transition-colors border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                <tab.icon className="w-3 h-3" /> {tab.label}
-              </a>
-            ) : (
-              <button key={tab.id} onClick={() => setDetailTab(tab.id)} className={cn("flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-bold uppercase tracking-wide border-b-2 transition-colors", detailTab === tab.id ? "border-[var(--brand-orange)] text-[var(--brand-orange)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}>
-                <tab.icon className="w-3 h-3" /> {tab.label}
-              </button>
-            )
-          ))}
-        </div>
+        <RunTabs tabs={tabs} detailTab={detailTab} onSelect={setDetailTab} />
 
         {/* Tab Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -2403,372 +2261,71 @@ export default function FormRunsPage() {
 
         {/* Review Modal */}
         {showReview && reviewing && (
-          <div className="fixed inset-0 z-[400] bg-black/60 flex items-center justify-center p-4" onClick={closeReview}>
-            <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl bg-secondary border border-[var(--border-primary)] shadow-2xl overflow-hidden" onClick={(event) => event.stopPropagation()}>
-
-              {/* Modal Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)] shrink-0">
-                <div>
-                  <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.reviewSubmission")}</h3>
-                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">{reviewing.submitter_name || t("platformMisc.runs.anonymous")}</p>
-                </div>
-                <button onClick={closeReview} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-tertiary transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Scrollable Body */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-5">
-
-                {/* Submitted Answers */}
-                {reviewing.data && Object.keys(reviewing.data).length > 0 && (() => {
-                  const submissionData = reviewing.data || {};
-                  const entries = runFormFields
-                    .filter(field => {
-                      const rawValue = submissionData[field.label] ?? submissionData[String(field.id)] ?? submissionData[field.id];
-                      return rawValue !== undefined && rawValue !== null && rawValue !== "";
-                    })
-                    .map(field => {
-                      const rawValue = submissionData[field.label] ?? submissionData[String(field.id)] ?? submissionData[field.id];
-                      let display = String(rawValue);
-                      if (typeof rawValue === "string" && rawValue.startsWith("{") && rawValue.includes('"code"')) {
-                        try {
-                          const parsedPhone = JSON.parse(rawValue);
-                          if (parsedPhone.code && parsedPhone.number) {
-                            const phoneCode = [{ code: "+234", flag: "🇳🇬" }, { code: "+229", flag: "🇧🇯" }, { code: "+233", flag: "🇬🇭" }, { code: "+254", flag: "🇰🇪" }, { code: "+27", flag: "🇿🇦" }, { code: "+20", flag: "🇪🇬" }, { code: "+33", flag: "🇫🇷" }, { code: "+44", flag: "🇬🇧" }, { code: "+1", flag: "🇺🇸" }, { code: "+49", flag: "🇩🇪" }, { code: "+91", flag: "🇮🇳" }, { code: "+971", flag: "🇦🇪" }].find((countryCode) => countryCode.code === parsedPhone.code);
-                            display = `${phoneCode?.flag || ""} ${parsedPhone.code} ${parsedPhone.number}`;
-                          }
-                        } catch (_) {}
-                      }
-                      return { label: field.label, value: display, type: field.field_type };
-                    });
-
-                  // Fallback unmatched keys
-                  const unmatched = Object.entries(submissionData)
-                    .filter(([key]) => key !== "_scores" && key !== "_evaluation")
-                    .filter(([key]) => !runFormFields.some(field => String(field.id) === key || field.label === key));
-
-                  const allEntries = [
-                    ...entries,
-                    ...unmatched.map(([key, value]) => ({ label: key, value: String(value), type: "text" })),
-                  ];
-
-                  if (allEntries.length === 0) return null;
-
-                  return (
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-3">{t("platformMisc.runs.submittedAnswers")}</p>
-                      <div className="space-y-3">
-                        {allEntries.map(({ label, value, type }) => (
-                          <div key={label} className="rounded-xl bg-tertiary border border-[var(--border-primary)] p-4">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1.5">{label}</p>
-                            <p className={cn(
-                              "text-[13px] font-semibold text-[var(--text-primary)] leading-relaxed",
-                              (type === "textarea" || type === "richtext") ? "whitespace-pre-wrap" : ""
-                            )}>{value}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* AI Evaluation */}
-                {evaluation?.dimensions && (
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-purple-400">{t("platformMisc.runs.aiEvaluation")}</p>
-                      <div className="flex items-center gap-3">
-                        {evaluation.confidence != null && (
-                          <span className="text-[10px] font-medium text-[var(--text-secondary)]">
-                            {t("platformMisc.runs.confidence", { percent: (evaluation.confidence * 100).toFixed(0) })}
-                          </span>
-                        )}
-                        <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                          {t("platformMisc.runs.overallLabel")} <span className="text-purple-400 font-black">{evaluation.overall_score}%</span>
-                          {evaluation.ranking && <> · {evaluation.ranking}</>}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-purple-500/20 overflow-hidden">
-                      <table className="w-full text-left">
-                        <thead className="bg-purple-500/5">
-                          <tr className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                            <th className="px-3 py-2">{t("platformMisc.runs.colDimension")}</th>
-                            <th className="px-3 py-2 text-center">{t("platformMisc.runs.colAi")}</th>
-                            <th className="px-3 py-2 text-center">{t("platformMisc.runs.colOverride")}</th>
-                            <th className="px-3 py-2 text-center">{t("platformMisc.runs.colFinal")}</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[var(--border-primary)]">
-                          {evaluation.dimensions.map((dimension, dimensionIndex) => (
-                            <tr key={dimensionIndex} className="text-[10px]">
-                              <td className="px-3 py-2">
-                                <span className="font-bold text-[var(--text-primary)]">{dimension.name}</span>
-                                {dimension.reasoning && (
-                                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5 leading-relaxed">{dimension.reasoning.substring(0, 120)}{dimension.reasoning.length > 120 ? "..." : ""}</p>
-                                )}
-                                {dimension.confidence != null && (
-                                  <span className="text-[10px] font-medium text-[var(--text-secondary)] opacity-50">{t("platformMisc.runs.confidence", { percent: (dimension.confidence * 100).toFixed(0) })}</span>
-                                )}
-                              </td>
-                              <td className="px-3 py-2 text-center">
-                                <span className="font-black text-purple-400">{dimension.score}</span>
-                              </td>
-                              <td className="px-3 py-2 text-center">
-                                <input
-                                  type="number" min={0} max={10} step={0.5}
-                                  value={dimension.human_score ?? ""}
-                                  placeholder={String(dimension.score)}
-                                  onChange={(event) => {
-                                    const humanScore = event.target.value === "" ? null : parseFloat(event.target.value);
-                                    const updated = { ...evaluation };
-                                    updated.dimensions[dimensionIndex].human_score = humanScore;
-                                    updated.dimensions[dimensionIndex].final_score = humanScore ?? dimension.score;
-                                    setEvaluation(updated);
-                                  }}
-                                  className="w-14 px-1 py-0.5 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none text-center"
-                                />
-                              </td>
-                              <td className="px-3 py-2 text-center">
-                                <span className={cn("font-black", (dimension.final_score ?? dimension.score) >= 7 ? "text-emerald-400" : (dimension.final_score ?? dimension.score) >= 5 ? "text-amber-400" : "text-rose-400")}>
-                                  {dimension.final_score ?? dimension.score}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    {evaluation.recommendation && (
-                      <div className="mt-3 p-3 rounded-xl bg-purple-500/5 border border-purple-500/10">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-purple-400 mb-1">{t("platformMisc.runs.recommendation")}</p>
-                        <p className="text-[10px] font-medium text-[var(--text-secondary)] leading-relaxed">{evaluation.recommendation}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Scoring Breakdown (separate from AI eval) */}
-                {reviewing.data?._scores && (
-                  <div className="rounded-xl bg-tertiary border border-[var(--border-primary)] p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.scoreBreakdown")}</p>
-                      <span className={cn("text-base font-black", reviewing.data._scores.overall >= 80 ? "text-emerald-500" : reviewing.data._scores.overall >= 60 ? "text-amber-500" : "text-rose-500")}>
-                        {reviewing.data._scores.overall}%
-                        {reviewing.data._scores.ranking && <span className="ml-2 text-[10px] font-bold text-[var(--text-secondary)]">({reviewing.data._scores.ranking})</span>}
-                      </span>
-                    </div>
-                    {reviewing.data._scores.sections && Object.entries(reviewing.data._scores.sections).map(([name, section]) => (
-                      <div key={name} className="flex items-center justify-between text-[10px] py-1 border-t border-[var(--border-primary)]">
-                        <span className="text-[var(--text-secondary)]">{name} <span className="text-[10px] opacity-60">{t("platformMisc.runs.weight", { weight: section.weight })}</span></span>
-                        <span className={cn("font-black", section.score >= 80 ? "text-emerald-500" : section.score >= 60 ? "text-amber-500" : "text-rose-500")}>{section.score}%</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Activity Timeline */}
-                {reviewTimeline.length > 0 && (
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-3">{t("platformMisc.runs.activityTimeline")}</p>
-                    <div className="space-y-2">
-                      {reviewTimeline.map((entry, index) => (
-                        <div key={index} className="flex items-start gap-3 text-[10px]">
-                          <div className={cn("w-2 h-2 mt-1 rounded-full shrink-0",
-                            entry.action === "submitted" ? "bg-blue-500" :
-                            entry.action === "approved" ? "bg-emerald-500" :
-                            entry.action === "rejected" ? "bg-rose-500" :
-                            entry.action === "revision_requested" ? "bg-amber-500" :
-                            "bg-slate-500"
-                          )} />
-                          <div>
-                            <span className="font-bold uppercase tracking-wide text-[var(--text-primary)]">{entry.action}</span>
-                            {entry.actor_name && <span className="text-[var(--text-secondary)]"> {t("platformMisc.runs.by")} {entry.actor_name}</span>}
-                            <span className="text-[var(--text-secondary)] ml-1">{new Date(entry.created_at).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Review Decision Form */}
-                <div className="space-y-3 pt-2 border-t border-[var(--border-primary)]">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.yourDecision")}</p>
-                  <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1.5 block">{t("platformMisc.runs.decision")}</label>
-                    <select value={reviewData.decision} onChange={(event) => setReviewData({ ...reviewData, decision: event.target.value })} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
-                      <option value="approved">{t("platformMisc.runs.decisionApprove")}</option>
-                      <option value="rejected">{t("platformMisc.runs.decisionReject")}</option>
-                      <option value="revision_requested">{t("platformMisc.runs.decisionRequestRevision")}</option>
-                      <option value="escalated">{t("platformMisc.runs.decisionEscalate")}</option>
-                      <option value="reassigned">{t("platformMisc.runs.decisionReassign")}</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1.5 block">{t("platformMisc.runs.publicComment")} <span className="normal-case font-bold opacity-60">{t("platformMisc.runs.visibleToSubmitter")}</span></label>
-                    <textarea value={reviewData.comment} onChange={(event) => setReviewData({ ...reviewData, comment: event.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.commentPlaceholder")} />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1.5 block">{t("platformMisc.runs.internalNote")} <span className="text-amber-500 font-bold">{t("platformMisc.runs.privateNote")}</span></label>
-                    <textarea value={reviewData.internal_note} onChange={(event) => setReviewData({ ...reviewData, internal_note: event.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-amber-500/5 border border-amber-500/20 text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.internalNotePlaceholder")} />
-                  </div>
-                  {/* The server only honours the PDF on an approval — a rejection
-                      ignores it, so the opt-in must not even appear there. */}
-                  {reviewData.decision === "approved" && (
-                    <div className="rounded-xl p-3 bg-primary border border-[var(--border-primary)]">
-                      <label className={cn("flex items-start gap-2", evaluation ? "cursor-pointer" : "cursor-not-allowed opacity-60")}>
-                        <input
-                          type="checkbox"
-                          checked={reviewIncludeResultPdf}
-                          disabled={!evaluation}
-                          onChange={(event) => setReviewIncludeResultPdf(event.target.checked)}
-                          className="mt-0.5 w-3.5 h-3.5 accent-[var(--brand-orange)]"
-                        />
-                        <span>
-                          <span className="block text-[11px] font-bold text-[var(--text-primary)]">{t("platformMisc.runs.includeResultPdf")}</span>
-                          <span className="block text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">{t("platformMisc.runs.includeResultPdfDesc")}</span>
-                          {!evaluation && (
-                            <span className="block text-[10px] font-bold text-amber-500 mt-0.5">{t("platformMisc.runs.includeResultPdfNotEvaluated")}</span>
-                          )}
-                        </span>
-                      </label>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Sticky Footer */}
-              <div className="flex gap-3 px-6 py-4 border-t border-[var(--border-primary)] bg-secondary shrink-0">
-                <button onClick={closeReview} className="flex-1 btn btn-secondary">{t("platformMisc.runs.cancel")}</button>
-                {canReview && (
-                <button
-                  onClick={handleReevaluate}
-                  disabled={saving}
-                  title={t("platformMisc.runs.reevaluateTitle")}
-                  className="flex-1 px-3 py-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 disabled:opacity-40 flex items-center justify-center gap-1"
-                >
-                  <Sparkles className="w-3 h-3" /> {t("platformMisc.runs.reevaluate")}
-                </button>
-                )}
-                <button onClick={handleReview} disabled={saving} className="flex-1 btn btn-primary">{saving ? t("platformMisc.runs.saving") : t("platformMisc.runs.submitReview")}</button>
-              </div>
-            </div>
-          </div>
+          <ReviewModal
+            reviewing={reviewing}
+            evaluation={evaluation}
+            setEvaluation={setEvaluation}
+            runFormFields={runFormFields}
+            reviewTimeline={reviewTimeline}
+            reviewData={reviewData}
+            setReviewData={setReviewData}
+            reviewIncludeResultPdf={reviewIncludeResultPdf}
+            setReviewIncludeResultPdf={setReviewIncludeResultPdf}
+            canReview={canReview}
+            saving={saving}
+            closeReview={closeReview}
+            handleReview={handleReview}
+            handleReevaluate={handleReevaluate}
+            t={t}
+          />
         )}
 
         {/* ─── MANUAL ADD RESPONDENT MODAL ─── */}
         {showManualAdd && (
-          <div className="fixed inset-0 z-[500] bg-black/60 flex items-center justify-center p-4" onClick={() => setShowManualAdd(false)}>
-            <div className="w-full max-w-sm rounded-2xl bg-secondary border border-[var(--border-primary)] p-6 space-y-4" onClick={(event) => event.stopPropagation()}>
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.addRespondent")}</h3>
-                <button onClick={() => setShowManualAdd(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-tertiary text-[var(--text-secondary)]"><X className="w-4 h-4" /></button>
-              </div>
-              <p className="text-[10px] font-medium text-[var(--text-secondary)] leading-relaxed">{t("platformMisc.runs.addRespondentDesc")}</p>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.manualAddName")}</label>
-                <input value={manualAddName} onChange={(event) => setManualAddName(event.target.value)} placeholder={t("platformMisc.runs.manualAddNamePlaceholder")} className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.manualAddEmail")}</label>
-                <input type="email" value={manualAddEmail} onChange={(event) => setManualAddEmail(event.target.value)} placeholder={t("platformMisc.runs.manualAddEmailPlaceholder")} className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
-              </div>
-              <div className="flex gap-3 pt-1">
-                <button onClick={() => setShowManualAdd(false)} disabled={manualAdding} className="flex-1 btn btn-secondary">{t("platformMisc.runs.cancel")}</button>
-                <button onClick={submitManualAdd} disabled={manualAdding} className="flex-1 btn btn-primary">{manualAdding ? t("platformMisc.runs.manualAdding") : t("platformMisc.runs.addRespondent")}</button>
-              </div>
-            </div>
-          </div>
+          <ManualAddModal
+            onClose={() => setShowManualAdd(false)}
+            name={manualAddName}
+            setName={setManualAddName}
+            email={manualAddEmail}
+            setEmail={setManualAddEmail}
+            adding={manualAdding}
+            onSubmit={submitManualAdd}
+            t={t}
+          />
         )}
 
         {/* ─── MESSAGE COMPOSER MODAL ─── */}
         {showMessageComposer && (
-          <div className="fixed inset-0 z-[500] bg-black/60 flex items-center justify-center p-4" onClick={() => setShowMessageComposer(false)}>
-            <div className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl bg-secondary border border-[var(--border-primary)] shadow-2xl overflow-hidden" onClick={(event) => event.stopPropagation()}>
-              <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)] shrink-0">
-                <div>
-                  <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.messageSend")}</h3>
-                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">{t("platformMisc.runs.messageRecipients", { count: selectedIds.length })}</p>
-                </div>
-                <button onClick={() => setShowMessageComposer(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-tertiary transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><X className="w-4 h-4" /></button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                {messageResult ? (
-                  renderMessageResult(messageResult)
-                ) : (
-                  <>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.messageSubject")}</label>
-                      <input value={messageSubject} onChange={(event) => setMessageSubject(event.target.value)} placeholder="Enter subject..." className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.messageBody")}</label>
-                      <textarea value={messageBody} onChange={(event) => setMessageBody(event.target.value)} rows={6} placeholder="Enter message..." className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-y" />
-                    </div>
-                    <button
-                      onClick={personalizeMessage}
-                      disabled={aiPersonalizing}
-                      className="px-3 py-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 disabled:opacity-40 flex items-center gap-1.5"
-                    >
-                      <Sparkles className="w-3 h-3" /> {aiPersonalizing ? t("platformMisc.runs.messagePersonalizing") : t("platformMisc.runs.messageAiPersonalize")}
-                    </button>
-                  </>
-                )}
-              </div>
-
-              {!messageResult && (
-                <div className="flex gap-3 px-6 py-4 border-t border-[var(--border-primary)] bg-secondary shrink-0">
-                  <button onClick={() => setShowMessageComposer(false)} className="flex-1 btn btn-secondary">{t("platformMisc.runs.cancel")}</button>
-                  <button onClick={sendManualMessages} disabled={messageSending || selectedIds.length === 0} className="flex-1 btn btn-primary">{messageSending ? t("platformMisc.runs.messageSending") : t("platformMisc.runs.messageSendTo", { count: selectedIds.length })}</button>
-                </div>
-              )}
-            </div>
-          </div>
+          <MessageComposerModal
+            messageResult={messageResult}
+            renderMessageResult={renderMessageResult}
+            messageSubject={messageSubject}
+            setMessageSubject={setMessageSubject}
+            messageBody={messageBody}
+            setMessageBody={setMessageBody}
+            aiPersonalizing={aiPersonalizing}
+            onPersonalize={personalizeMessage}
+            messageSending={messageSending}
+            onSend={sendManualMessages}
+            selectedCount={selectedIds.length}
+            onClose={() => setShowMessageComposer(false)}
+            t={t}
+          />
         )}
 
         {/* ─── EXPORT OPTIONS MODAL ─── */}
         {showExportOptions && (
-          <div className="fixed inset-0 z-[500] bg-black/60 flex items-center justify-center p-4" onClick={() => setShowExportOptions(false)}>
-            <div className="w-full max-w-sm rounded-2xl bg-secondary border border-[var(--border-primary)] p-6 space-y-4" onClick={(event) => event.stopPropagation()}>
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.exportTitle")}</h3>
-                <button onClick={() => setShowExportOptions(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-tertiary text-[var(--text-secondary)]"><X className="w-4 h-4" /></button>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.exportFormat")}</label>
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-primary)] cursor-pointer">
-                    <input type="radio" name="exportFormat" checked={exportFormat === "csv"} onChange={() => setExportFormat("csv")} className="accent-[var(--brand-orange)]" /> {t("platformMisc.runs.exportCsv")}
-                  </label>
-                  <label className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-primary)] cursor-pointer">
-                    <input type="radio" name="exportFormat" checked={exportFormat === "xlsx"} onChange={() => setExportFormat("xlsx")} className="accent-[var(--brand-orange)]" /> {t("platformMisc.runs.exportXlsx")}
-                  </label>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.exportScope")}</label>
-                <div className="space-y-1.5">
-                  {selectedIds.length > 0 && (
-                    <label className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-primary)] cursor-pointer">
-                      <input type="radio" name="exportScope" checked={exportScope === "selected"} onChange={() => setExportScope("selected")} className="accent-[var(--brand-orange)]" /> {t("platformMisc.runs.exportSelected", { count: selectedIds.length })}
-                    </label>
-                  )}
-                  <label className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-primary)] cursor-pointer">
-                    <input type="radio" name="exportScope" checked={exportScope === "filtered"} onChange={() => setExportScope("filtered")} className="accent-[var(--brand-orange)]" /> {t("platformMisc.runs.exportFiltered", { count: visibleSubmissions.length })}
-                  </label>
-                </div>
-              </div>
-              <button
-                onClick={() => exportParticipants(exportFormat, exportScope)}
-                className="w-full py-2.5 rounded-lg bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide"
-              >
-                {t("platformMisc.runs.exportAction")}
-              </button>
-            </div>
-          </div>
+          <ExportOptionsModal
+            exportFormat={exportFormat}
+            setExportFormat={setExportFormat}
+            exportScope={exportScope}
+            setExportScope={setExportScope}
+            selectedCount={selectedIds.length}
+            filteredCount={visibleSubmissions.length}
+            onExport={() => exportParticipants(exportFormat, exportScope)}
+            onClose={() => setShowExportOptions(false)}
+            t={t}
+          />
         )}
 
       </div>
@@ -2782,43 +2339,16 @@ export default function FormRunsPage() {
       {(notification || runListNotice) && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-[10px] font-bold uppercase">{notification || runListNotice}</div>}
 
       {/* Operational Dashboard */}
-      {dashboardStats && (
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-          {[
-            { label: t("platformMisc.runs.activeRuns"), value: dashboardStats.active_runs ?? 0, icon: Play, color: "text-emerald-500" },
-            { label: t("platformMisc.runs.totalAssigned"), value: dashboardStats.total_assignments ?? 0, icon: Users, color: "text-blue-500" },
-            { label: t("platformMisc.runs.submissions"), value: dashboardStats.total_submissions ?? 0, icon: Send, color: "text-indigo-500" },
-            { label: t("platformMisc.runs.pendingReview"), value: dashboardStats.pending_reviews ?? 0, icon: Eye, color: "text-amber-500" },
-            { label: t("platformMisc.runs.approvalRate"), value: (dashboardStats.approval_rate != null ? Math.round(dashboardStats.approval_rate) + "%" : "—"), icon: CheckCircle2, color: dashboardStats.approval_rate > 50 ? "text-emerald-500" : "text-rose-500" },
-            { label: t("platformMisc.runs.overdue"), value: dashboardStats.overdue ?? 0, icon: AlertTriangle, color: (dashboardStats.overdue ?? 0) > 0 ? "text-rose-500" : "text-slate-500" },
-          ].map((statCard) => (
-            <div key={statCard.label} className="p-3.5 rounded-2xl bg-secondary border border-[var(--border-primary)] text-center">
-              <p className={cn("text-xl font-black", statCard.color)}>{statCard.value}</p>
-              <div className="flex items-center justify-center gap-1 mt-0.5">
-                <statCard.icon className={cn("w-2.5 h-2.5", statCard.color)} />
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{statCard.label}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <DashboardStats dashboardStats={dashboardStats} t={t} />
 
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-lg font-black uppercase tracking-tight text-[var(--text-primary)]">{t("platformMisc.runs.formRuns")}</h1>
-          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.formRunsSubtitle")}</p>
-        </div>
-        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110"><Plus className="w-3.5 h-3.5" /> {t("platformMisc.runs.newRun")}</button>
-      </div>
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 max-w-sm"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)]" /><input type="text" placeholder={t("platformMisc.runs.searchPlaceholder")} value={search} onChange={(event) => setSearch(event.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" /></div>
-        {/* Changing the filter resets the page here, in the event that causes it:
-            an effect would first fire the fetch with the new filter and the old
-            page, then fire it again after the reset. */}
-        <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }} className="px-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]">
-          <option value="all">{t("platformMisc.runs.allStatus")}</option><option value="draft">{t("platformMisc.runs.statusDraft")}</option><option value="scheduled">{t("platformMisc.runs.statusScheduled")}</option><option value="active">{t("platformMisc.runs.statusActive")}</option><option value="closed">{t("platformMisc.runs.statusClosed")}</option><option value="cancelled">{t("platformMisc.runs.statusCancelled")}</option><option value="archived">{t("platformMisc.runs.statusArchived")}</option>
-        </select>
-      </div>
+      <RunsToolbar
+        search={search}
+        setSearch={setSearch}
+        statusFilter={statusFilter}
+        onStatusFilterChange={(value) => { setStatusFilter(value); setPage(1); }}
+        onNewRun={() => setShowCreate(true)}
+        t={t}
+      />
       {loading ? <div className="flex justify-center py-20"><Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" /></div> : (
         <RunsTable runs={runs} search={search} statusFilter={statusFilter} sortField={sortField} sortDir={sortDir} page={page} perPage={perPage} total={totalRuns} onSort={(field, direction) => { setSortField(field); setSortDir(direction); setPage(1); }} onPage={setPage} openRun={openRun} groups={groups} onArchive={handleArchiveRun} onRestore={handleRestoreRun} onDelete={handleDeleteRun} />
       )}
@@ -2826,98 +2356,34 @@ export default function FormRunsPage() {
       {/* Create modal */}
       {/* ─── Date Picker Modal (completely outside create modal, no clipping) ─── */}
       {showDatePicker && (
-        <div className="fixed inset-0 z-[600] bg-black/70 flex items-center justify-center p-6" onClick={() => setShowDatePicker(null)}>
-          <div onClick={(event) => event.stopPropagation()}>
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">{t("platformMisc.runs.selecting")} {showDatePicker === 'opens' ? t("platformMisc.runs.opensDate") : t("platformMisc.runs.closesDate")}</span>
-              <button onClick={() => setShowDatePicker(null)} className="text-white/60 hover:text-white"><X className="w-4 h-4" /></button>
-            </div>
-            <MiniCalendar
-              value={showDatePicker === 'opens' ? createData.opens_at : createData.closes_at}
-              onChange={(date) => setCreateData({ ...createData, [showDatePicker === 'opens' ? 'opens_at' : 'closes_at']: date })}
-              onClose={() => setShowDatePicker(null)}
-            />
-          </div>
-        </div>
+        <DatePickerModal
+          datePicker={showDatePicker}
+          createData={createData}
+          setCreateData={setCreateData}
+          onClose={() => setShowDatePicker(null)}
+          t={t}
+        />
       )}
 
       {showCreate && (
-        <div className="fixed inset-0 z-[400] bg-black/60 flex items-center justify-center p-6" onClick={() => { setShowCreate(false); setShowDatePicker(null); }}>
-          <div className="card w-full max-w-md space-y-5" onClick={(event) => event.stopPropagation()}>
-            <div className="flex justify-between items-center"><h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.newFormRun")}</h3><button onClick={() => setShowCreate(false)}><X className="w-5 h-5" /></button></div>
-            <div className="space-y-4">
-              <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.form")}</label>
-                <select value={createData.form_id} onChange={(event) => setCreateData({ ...createData, form_id: event.target.value })} className="w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
-                  <option value="">{t("platformMisc.runs.selectPublishedForm")}</option>
-                  {forms.map((form) => <option key={form.id} value={form.id}>{form.name} (v{form.version})</option>)}
-                </select>
-              </div>
-              <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.runName")}</label><input value={createData.name} onChange={(event) => setCreateData({ ...createData, name: event.target.value })} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" placeholder={t("platformMisc.runs.runNamePlaceholder")} /></div>
-              <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.description")}</label><textarea value={createData.description} onChange={(event) => setCreateData({ ...createData, description: event.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.opens")}</label>
-                  <button onClick={() => setShowDatePicker('opens')} className={`w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border text-left flex items-center gap-2 transition-all ${createData.opens_at ? 'border-[var(--brand-orange)] text-[var(--text-primary)]' : 'border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]'}`}>
-                    <Calendar className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">{createData.opens_at ? new Date(createData.opens_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : t("platformMisc.runs.setOpenDate")}</span>
-                  </button>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.closes")}</label>
-                  <button onClick={() => setShowDatePicker('closes')} className={`w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border text-left flex items-center gap-2 transition-all ${createData.closes_at ? 'border-[var(--brand-orange)] text-[var(--text-primary)]' : 'border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]'}`}>
-                    <Calendar className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">{createData.closes_at ? new Date(createData.closes_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : t("platformMisc.runs.setCloseDate")}</span>
-                  </button>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.assignToGroupOptional")}</label>
-                <select
-                  value={createData.group_id}
-                  onChange={(event) => setCreateData({ ...createData, group_id: event.target.value })}
-                  className="w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]"
-                >
-                  <option value="">{t("platformMisc.runs.noGroupAssignLater")}</option>
-                  {groups.map((group) => (
-                    <option key={group.registration_id || group.id} value={group.registration_id || group.id}>
-                      {group.name} {group.program_id ? t("platformMisc.runs.programLabel", { id: group.program_id }) : ""}
-                    </option>
-                  ))}
-                </select>
-                {!showInlineGroup ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowInlineGroup(true)}
-                    className="text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] hover:opacity-80 flex items-center gap-1"
-                  >
-                    <Plus className="w-3 h-3" /> {t("platformMisc.runs.newGroup")}
-                  </button>
-                ) : (
-                  <div className="flex gap-2 items-center">
-                    <input
-                      autoFocus
-                      value={inlineGroupName}
-                      onChange={(event) => setInlineGroupName(event.target.value)}
-                      onKeyDown={(event) => { if (event.key === "Enter") handleCreateGroupInline((group) => setCreateData({ ...createData, group_id: group.registration_id || group.id })); }}
-                      placeholder={t("platformMisc.runs.groupNamePlaceholder")}
-                      className="flex-1 rounded-xl px-3 py-2 text-sm font-bold outline-none bg-primary border border-[var(--brand-orange)] text-[var(--text-primary)]"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleCreateGroupInline((group) => setCreateData({ ...createData, group_id: group.registration_id || group.id }))}
-                      disabled={creatingGroup || !inlineGroupName.trim()}
-                      className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide disabled:opacity-40"
-                    >
-                      {creatingGroup ? "..." : t("platformMisc.runs.create")}
-                    </button>
-                    <button type="button" onClick={() => { setShowInlineGroup(false); setInlineGroupName(""); }} className="p-2 text-[var(--text-secondary)] hover:text-rose-500"><X className="w-3 h-3" /></button>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="flex gap-3"><button onClick={() => setShowCreate(false)} className="flex-1 btn btn-secondary">{t("platformMisc.runs.cancel")}</button><button onClick={handleCreate} disabled={saving || !createData.form_id || !createData.name.trim()} className="flex-1 btn btn-primary">{saving ? t("platformMisc.runs.creating") : t("platformMisc.runs.createRun")}</button></div>
-          </div>
-        </div>
+        <CreateRunModal
+          createData={createData}
+          setCreateData={setCreateData}
+          forms={forms}
+          groups={groups}
+          saving={saving}
+          handleCreate={handleCreate}
+          showInlineGroup={showInlineGroup}
+          setShowInlineGroup={setShowInlineGroup}
+          inlineGroupName={inlineGroupName}
+          setInlineGroupName={setInlineGroupName}
+          creatingGroup={creatingGroup}
+          handleCreateGroupInline={handleCreateGroupInline}
+          setShowDatePicker={setShowDatePicker}
+          onClose={() => setShowCreate(false)}
+          onDismiss={() => { setShowCreate(false); setShowDatePicker(null); }}
+          t={t}
+        />
       )}
 
     </div>
