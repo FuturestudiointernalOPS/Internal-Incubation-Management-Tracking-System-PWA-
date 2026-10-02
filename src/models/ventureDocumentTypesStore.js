@@ -37,11 +37,21 @@ export async function ensureVentureDocumentTypesTable(database = db) {
       verification_method TEXT NOT NULL DEFAULT 'upload',
       sort_order INTEGER NOT NULL DEFAULT 0,
       is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      is_readiness BOOLEAN NOT NULL DEFAULT TRUE,
       created_by TEXT,
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW(),
       UNIQUE(venture_id, code)
     )`,
+    args: [],
+  });
+
+  // The CREATE above is a no-op on a database that already has the table, so the
+  // column has to be added separately or it would only ever exist on fresh
+  // installs. Idempotent, and run before the database is marked as prepared.
+  await database.execute({
+    sql: `ALTER TABLE venture_document_types
+            ADD COLUMN IF NOT EXISTS is_readiness BOOLEAN NOT NULL DEFAULT TRUE`,
     args: [],
   });
 
@@ -64,7 +74,10 @@ export function countVentureDocumentTypes(ventureId, database = db) {
 
 /** Seed a Venture's list with the built-in set, in one statement. */
 export function insertVentureDocumentTypeSeeds(ventureId, seeds, database = db) {
-  const values = seeds.map(() => "(?, ?, ?, ?, ?, ?, ?, TRUE)").join(", ");
+  // The built-in types are the ones the readiness engine was written against, so
+  // they all count for readiness. A type an admin creates later does not (see
+  // `insertVentureDocumentTypeRow`).
+  const values = seeds.map(() => "(?, ?, ?, ?, ?, ?, ?, TRUE, TRUE)").join(", ");
   const args = seeds.flatMap((seed) => [
     ventureId,
     seed.code,
@@ -77,7 +90,7 @@ export function insertVentureDocumentTypeSeeds(ventureId, seeds, database = db) 
 
   return database.execute({
     sql: `INSERT INTO venture_document_types
-            (venture_id, code, label_en, label_fr, required, verification_method, sort_order, is_active)
+            (venture_id, code, label_en, label_fr, required, verification_method, sort_order, is_active, is_readiness)
           VALUES ${values}`,
     args,
   });
@@ -88,7 +101,7 @@ export async function listVentureDocumentTypes({ ventureId, includeInactive = fa
   if (!ventureId) return [];
   const result = await database.execute({
     sql: `SELECT id, venture_id, code, label_en, label_fr, description, required,
-                 verification_method, sort_order, is_active, created_at, updated_at
+                 verification_method, sort_order, is_active, is_readiness, created_at, updated_at
           FROM venture_document_types
           WHERE venture_id = ? AND (? = 1 OR is_active = TRUE)
           ORDER BY sort_order ASC, id ASC`,
@@ -124,12 +137,13 @@ export async function insertVentureDocumentTypeRow({
   required,
   verification_method,
   sort_order,
+  is_readiness = false,
   created_by,
 }, database = db) {
   const result = await database.execute({
     sql: `INSERT INTO venture_document_types
-            (venture_id, code, label_en, label_fr, description, required, verification_method, sort_order, is_active, created_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?)
+            (venture_id, code, label_en, label_fr, description, required, verification_method, sort_order, is_active, is_readiness, created_by)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?)
           RETURNING id`,
     args: [
       ventureId,
@@ -140,6 +154,7 @@ export async function insertVentureDocumentTypeRow({
       required ? 1 : 0,
       verification_method,
       sort_order,
+      is_readiness ? 1 : 0,
       created_by,
     ],
   });
@@ -182,6 +197,10 @@ export function updateVentureDocumentTypeRow({ ventureId, id, changes }, databas
   if (changes.is_active !== undefined) {
     sets.push("is_active = ?");
     args.push(changes.is_active ? 1 : 0);
+  }
+  if (changes.is_readiness !== undefined) {
+    sets.push("is_readiness = ?");
+    args.push(changes.is_readiness ? 1 : 0);
   }
 
   sets.push("updated_at = NOW()");
