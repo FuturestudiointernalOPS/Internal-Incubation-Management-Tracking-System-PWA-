@@ -1,6 +1,11 @@
 /**
- * Facade — kept during the MVC migration so existing importers of
- * "@/lib/contact-group-sync" keep resolving unchanged.
- * New code should import from "@/models/contact-group-sync".
+ * Facade — kept so existing importers of "@/lib/contact-group-sync"
+ * (e.g. form-runs approval) keep resolving unchanged.
+ * Decisions: `@/services/contacts/contactGroupSync`
+ * SQL store: `@/models/contactGroupSyncStore`
  */
-export * from "@/models/contact-group-sync";
+export {
+  syncApprovedSubmissionToProgramGroup,
+  reconcileProgramGroups,
+  reconcileParticipantPrograms,
+} from "@/services/contacts/contactGroupSync";
