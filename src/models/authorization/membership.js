@@ -136,6 +136,37 @@ export async function isGroupProtected(groupName) {
 }
 
 /**
+ * The SAME answer as isGroupProtected for a LIST of groups, in ONE statement.
+ *
+ * A membership listing holds N rows spread over G groups; asking per group sent
+ * G statements on the widest screen of the org-membership tab. This read takes
+ * the whole set at once and returns a map, so the caller does not keep a cache
+ * on top of a loop.
+ *
+ * A group with no row is absent from the map — not protected, which is exactly
+ * what isGroupProtected returned for it.
+ *
+ * @param {string[]} groupNames
+ * @returns {Promise<Object<string, boolean>>} normalized name → is_protected
+ */
+export async function getProtectedGroupFlags(groupNames) {
+  const names = [...new Set((groupNames || []).map((name) => normalizeGroupName(name)))];
+  if (names.length === 0) return {};
+
+  const placeholders = names.map(() => "?").join(",");
+  const result = await db.execute({
+    sql: `SELECT name, is_protected FROM groups WHERE name IN (${placeholders})`,
+    args: names,
+  });
+
+  const flags = {};
+  for (const row of result.rows) {
+    flags[row.name] = Number(row.is_protected) === 1;
+  }
+  return flags;
+}
+
+/**
  * The person's raw membership rows, membership-sourced and legacy-sourced, from
  * ONE query.
  *

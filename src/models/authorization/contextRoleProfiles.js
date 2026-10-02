@@ -266,29 +266,82 @@ export async function upsertContextRoleProfile({
  * role — READ-ONLY governance context for the registry UI ("how many people
  * hold this today?"). Unknown pairs return null (the UI shows "—"); the
  * lookup is fail-soft so a missing legacy table never breaks the registry.
+ *
+ * The pair → statement map is hoisted to a module constant: it was rebuilt on
+ * every call, and the batch read below needs it as data rather than as a local.
  */
-export async function countContextRoleHolders(context, roleKey) {
-  const queries = {
-    "program:participant": `SELECT COUNT(DISTINCT participant_id)::int AS c
-        FROM participant_programs`,
-    "program:program_manager": `SELECT COUNT(DISTINCT assigned_pm_id)::int AS c
-        FROM v2_programs WHERE assigned_pm_id IS NOT NULL`,
-    "program:facilitator": `SELECT COUNT(DISTINCT staff_id)::int AS c
-        FROM v2_program_staff WHERE role = 'facilitator'`,
-    "venture:founder": `SELECT COUNT(DISTINCT contact_id)::int AS c
-        FROM venture_members
+const CONTEXT_ROLE_HOLDER_QUERIES = {
+  "program:participant": `COUNT(DISTINCT participant_id)::int FROM participant_programs`,
+  "program:program_manager": `COUNT(DISTINCT assigned_pm_id)::int FROM v2_programs WHERE assigned_pm_id IS NOT NULL`,
+  "program:facilitator": `COUNT(DISTINCT staff_id)::int FROM v2_program_staff WHERE role = 'facilitator'`,
+  "venture:founder": `COUNT(DISTINCT contact_id)::int FROM venture_members
         WHERE member_type = 'founder' AND removed_at IS NULL`,
-    "venture:team_member": `SELECT COUNT(DISTINCT contact_id)::int AS c
-        FROM venture_members
+  "venture:team_member": `COUNT(DISTINCT contact_id)::int FROM venture_members
         WHERE member_type = 'team_member' AND removed_at IS NULL`,
-    "lms:learner": `SELECT COUNT(DISTINCT user_cid)::int AS c
-        FROM lms_enrollments WHERE status <> 'suspended'`,
-    "investor:investor": `SELECT COUNT(*)::int AS c FROM investor_profiles`,
-  };
-  const sql = queries[`${context}:${roleKey}`];
+  "lms:learner": `COUNT(DISTINCT user_cid)::int FROM lms_enrollments WHERE status <> 'suspended'`,
+  "investor:investor": `COUNT(*)::int FROM investor_profiles`,
+};
+
+/**
+ * The holder counts for SEVERAL context roles in ONE statement.
+ *
+ * The registry lists every context role on screen, so counting one at a time
+ * sent one statement per row — seven for the seeded catalogue. The counts are
+ * independent subselects, so a single UNION ALL answers them all at once.
+ *
+ * Fail-soft semantics are preserved exactly: if the union fails (a missing
+ * LEGACY table takes the whole statement down, whereas one row's table would
+ * only have nulled that row), it falls back to counting pair by pair, so one
+ * absent table still only costs its own row.
+ *
+ * A pair the map does not know is ABSENT from the result, which the caller
+ * reads as null ("—" in the UI) — same as countContextRoleHolders.
+ *
+ * @param {Array<{context: string, roleKey: string}>} pairs
+ * @returns {Promise<Object<string, number>>} "context:role_key" → count
+ */
+export async function countContextRoleHoldersBatch(pairs) {
+  const wanted = [];
+  for (const pair of pairs || []) {
+    const key = `${pair.context}:${pair.roleKey}`;
+    if (CONTEXT_ROLE_HOLDER_QUERIES[key] && !wanted.includes(key)) wanted.push(key);
+  }
+  if (wanted.length === 0) return {};
+
+  // The labels come from the map's own keys, never from caller input.
+  const sql = wanted
+    .map(
+      (key) =>
+        `SELECT '${key}' AS pair, ${CONTEXT_ROLE_HOLDER_QUERIES[key]} AS c`,
+    )
+    .join("\nUNION ALL\n");
+
+  try {
+    const res = await db.execute({ sql, args: [] });
+    const counts = {};
+    for (const row of res.rows || []) {
+      counts[row.pair] = Number(row.c ?? 0);
+    }
+    return counts;
+  } catch (error) {
+    console.warn(
+      `[Authz] countContextRoleHoldersBatch(${wanted.length} pairs) failed, falling back:`,
+      error.message,
+    );
+    const counts = {};
+    for (const key of wanted) {
+      const [context, roleKey] = key.split(":");
+      counts[key] = await countContextRoleHolders(context, roleKey);
+    }
+    return counts;
+  }
+}
+
+export async function countContextRoleHolders(context, roleKey) {
+  const sql = CONTEXT_ROLE_HOLDER_QUERIES[`${context}:${roleKey}`];
   if (!sql) return null;
   try {
-    const res = await db.execute(sql);
+    const res = await db.execute(`SELECT ${sql} AS c`);
     return Number(res.rows[0]?.c ?? 0);
   } catch (error) {
     console.warn(

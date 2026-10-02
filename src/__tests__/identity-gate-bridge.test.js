@@ -183,10 +183,17 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
   });
 
   test("phase 1.3: participant-programs GET — bare + management/capability/assignment gate", () => {
+    // The handler now delegates to the service; the gate moved with the decision.
+    // The route is asserted to delegate, the gate to run where it now lives.
     const file = "src/app/api/participant-programs/route.js";
-    const src = fs.readFileSync(path.join(ROOT, file), "utf8");
-    expect(bareAuthCount(file)).toBe(1);
-    for (const list of authBlocks(file)) expect(containsContextual(list)).toBe(false);
+    const route = fs.readFileSync(path.join(ROOT, file), "utf8");
+    expect(route).toMatch(/@\/services\/programs\/participantPrograms/);
+
+    const guarded = "src/services/programs/participantPrograms.js";
+    const src = fs.readFileSync(path.join(ROOT, guarded), "utf8");
+    expect(bareAuthCount(guarded)).toBe(1);
+    for (const list of authBlocks(guarded)) expect(containsContextual(list)).toBe(false);
+    expect(src).toMatch(/requireAuthorization\("programs", "view"\)/);
     expect(src).toMatch(/requireAssignmentAccess/);
   });
 

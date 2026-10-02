@@ -8,6 +8,11 @@
  * changing anything.
  *
  * Used by GET /api/engineering/permissions/venture-strict-audit.
+ *
+ * This model holds the two SQL reads only. The pure aggregation it used to
+ * carry (`summarizeVentureStrictAudit`) is a decision and now lives in
+ * `src/services/authorization/ventureStrictAudit.js` — models hold data access,
+ * not decisions (see docs/LAYER_SPLIT.md).
  */
 
 import db from "@/lib/db";
@@ -40,39 +45,4 @@ export async function listAuditContacts(cids) {
     args: ids,
   });
   return result.rows;
-}
-
-/**
- * Pure aggregation of the audit rows (unit-tested).
- *
- * @param {Array<{cid, name?, role?, ventures: Array<string>,
- *                viewAllowed: boolean, editAllowed: boolean,
- *                scopeCount: number}>} people
- */
-export function summarizeVentureStrictAudit(people = []) {
-  const rows = (people || []).map((person) => ({
-    cid: person.cid,
-    name: person.name || null,
-    role: person.role || null,
-    ventures: (person.ventures || []).length,
-    scopeCount: Number(person.scopeCount || 0),
-    viewAllowed: Boolean(person.viewAllowed),
-    editAllowed: Boolean(person.editAllowed),
-    // A person attached to ventures who cannot read them is the signal that a
-    // grant (or an assignment) is missing.
-    missing: !person.viewAllowed
-      ? ["ventures.view"]
-      : !person.editAllowed
-        ? ["ventures.edit"]
-        : [],
-  }));
-  const viewMissing = rows.filter((row) => !row.viewAllowed);
-  const editMissing = rows.filter((row) => row.viewAllowed && !row.editAllowed);
-  return {
-    total: rows.length,
-    viewAllowed: rows.length - viewMissing.length,
-    viewMissing,
-    editMissing,
-    rows,
-  };
 }

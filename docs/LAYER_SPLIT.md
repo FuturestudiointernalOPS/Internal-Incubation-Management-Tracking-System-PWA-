@@ -2197,6 +2197,66 @@ The controller is now thin over two services.
 `npm test` (244 suites, 3552 tests), `npx eslint` (0 errors) and `npm run build`
 are green.
 
+### Domain 79 (cont.) — the permission center view (slice 116)
+
+The last controller of the domain is thin over two services, but the screen it
+renders was a single 4 884-line `"use client"` file holding eight unrelated
+views. It is now a 1 159-line shell over eight modules under
+`src/components/permissions/permission-center/`.
+
+**Read this one differently from the slices above: no code crossed a layer
+boundary.** Nothing moved out of the View layer, no service gained a caller, no
+route changed. This is a same-layer decomposition, so the usual "the controller
+is now thin" measure does not apply — what changed is that eight views can now
+be read, changed and tested without reading the other seven.
+
+| Module | Holds |
+|---|---|
+| `AccessProfilesView.js` | the profile editor (largest single view) |
+| `EligibilityView.js` | the eligibility decisions screen |
+| `AuditView.js` | the audit history, its filters, its detail drawer |
+| `GovernanceView.js` | the membership overview |
+| `ResponsibilitiesView.js` / `ResponsibilityAccessView.js` | the responsibility registry and its access screen |
+| `AccessExplanationPanel.js` / `CapabilityWhyModal.js` | the "who has access and why" surfaces |
+| `shared/buildEditableModules.js` | the module/capability builder, used by the shell *and* the editor |
+
+**The public surface is unchanged, deliberately.** `PermissionCenter.js` still
+exports `PermissionManager` as its default and `GovernanceView` by name, because
+`ContextScopeView.js` imports the latter from `./PermissionCenter` and sits
+outside this phase's corridor. The shim keeps re-exporting the name; it stopped
+owning the code, not the contract.
+
+**The part worth keeping for the next slice.** Splitting a component silently
+disarms every test that pinned a string against the file it used to live in. The
+guards here are source-text guards, so that failure mode is invisible by
+construction: a suite asserting `toContain("WhyDrawer")` against the shim keeps
+passing when `WhyDrawer` has moved three files away. A guard was added for it
+(`permission-center-extraction-integrity.test.js`) and it found **22 such pins**
+across the two extractions — all still green at the time.
+
+Two lessons from that guard are recorded here because they are not specific to
+this slice:
+
+- **A guard must inspect the same region the behavioural guards inspect.** Its
+  first version walked `permission-center/` with a flat `readdirSync` and silently
+  excluded `shared/` once the first shared module landed — a second, private
+  definition of "the surface" that disagreed with the one the tests use. There is
+  now one definition (`readPermissionCenterSurface`), and a test pins that the
+  surface still contains what the guard assumes.
+- **A guard that fails open is worse than no guard.** Its pin resolver silently
+  skipped any assertion written as `expect(read(center))` — a call, not an
+  identifier — so the alias indirection hid a pin it was supposed to catch. I had
+  written in a commit message that the guard would catch it; it would not have.
+  It is now checked by canary, and the canary is the part to keep.
+
+**Unchanged throughout:** the rendered markup, the HTTP calls, the SQL, every
+`t()` key, the tab routing, and both export names. Each extraction was verified as
+a multiset over the shim plus its new file — identical line count, one line lost
+to the `export` keyword and one gained.
+
+`npm test` (257 suites, 3932 tests), `npx eslint .` (0 errors, 5 pre-existing
+warnings elsewhere) and `npm run build` are green.
+
 ### Domain 80 — the dashboard overview (slice 116)
 
 `GET /api/dashboard`, the largest controller after the permission matrix. Its
@@ -2641,6 +2701,7 @@ the original file kept as a same-surface barrel: `planImport` (1 178),
 `docs/VENTURES_LANE.md`.
 
 `npm test` (3631 tests), `npx eslint` (0 errors) and `npm run build` are green.
+
 
 ---
 

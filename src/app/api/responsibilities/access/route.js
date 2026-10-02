@@ -7,6 +7,7 @@ import {
   getResponsibilityAccess,
   setResponsibilityAllowedRoles,
 } from "@/models/responsibilities";
+import { resolveAllowedRolesValue } from "@/services/authorization/responsibilityCatalog";
 
 export const dynamic = "force-dynamic";
 
@@ -51,21 +52,17 @@ export async function PUT(req) {
     }
     const resp = existing.rows[0];
 
-    let nextValue;
-    if (rawRoles === null || rawRoles === undefined) {
-      // Explicit reset → back to NULL so the seed defaults apply.
-      nextValue = null;
-    } else {
-      if (!Array.isArray(rawRoles)) {
-        return NextResponse.json(
-          { success: false, error: "allowed_roles must be an array of roles" },
-          { status: 400 },
-        );
-      }
-      // Deduplicate, keep non-empty strings only.
-      const cleaned = [...new Set(rawRoles.filter((role) => typeof role === "string" && role.trim()))];
-      nextValue = JSON.stringify(cleaned);
+    // `null`/missing → reset to NULL (seed defaults apply). An array → stored as a
+    // deduplicated JSON list. `[]` is a real state ("explicitly nobody"), never
+    // collapsed into NULL.
+    const resolved = resolveAllowedRolesValue(rawRoles);
+    if (!resolved.ok) {
+      return NextResponse.json(
+        { success: false, error: resolved.error },
+        { status: 400 },
+      );
     }
+    const nextValue = resolved.value;
 
     await setResponsibilityAllowedRoles(id, nextValue);
 

@@ -4,7 +4,6 @@ import { getSession, logPermissionAudit } from "@/lib/auth";
 import {
   requireAuthorization,
   getAuthorizationContext,
-  authorize,
   invalidateAllAuthorizationContexts,
   FEATURE_KEYS,
   IDENTITY_TYPES,
@@ -14,6 +13,15 @@ import {
   validateEligibilityChanges,
   findTemplatesGrantingFeature,
 } from "@/models/authorization/index";
+import {
+  resolveCanConfigure,
+  deriveEligibleGroupNames,
+  deriveExtraRoles,
+  selectTemplateImpactCandidates,
+  collectTemplateImpacts,
+  resolveEligibilityWrite,
+  formatEligibilityAuditDetails,
+} from "@/services/authorization/eligibilityConfiguration";
 import {
   listFeatureEligibilityRows,
   listDistinctUserGroupNames,
@@ -60,11 +68,7 @@ export async function GET() {
 
     const session = await getSession();
     const authorizationContext = await getAuthorizationContext(session);
-    const canConfigure = authorize(
-      authorizationContext,
-      "permissions",
-      "configure_eligibility",
-    );
+    const canConfigure = resolveCanConfigure(authorizationContext);
 
     const rows = await fetchAllRows();
 
@@ -73,13 +77,7 @@ export async function GET() {
       listDistinctUserGroupNames(),
       listDistinctContactGroupNames(),
     ]);
-    const groups = [
-      ...new Set(
-        [...groupResults[0].rows, ...groupResults[1].rows].map(
-          (row) => row.group_name,
-        ),
-      ),
-    ].sort();
+    const groups = deriveEligibleGroupNames(groupResults[0].rows, groupResults[1].rows);
 
     // Roles the resolver actually consults that are NOT in the curated identity
     // list (mentor, teacher, program_manager…). The administrator
@@ -92,15 +90,10 @@ export async function GET() {
       listEligibilityRoleIdentities(),
       listRoleAccessProfileDefaults(),
     ]);
-    const agreedIdentities = new Set(ELIGIBILITY_IDENTITIES);
-    const extraRoles = [
-      ...new Set([
-        ...eligibilityRolesResult.rows.map((row) => row.identity_value),
-        ...roleDefaultsResult.rows.map((row) => row.role_name),
-      ]),
-    ]
-      .filter((identity) => identity && !agreedIdentities.has(identity))
-      .sort();
+    const extraRoles = deriveExtraRoles(
+      eligibilityRolesResult.rows,
+      roleDefaultsResult.rows,
+    );
 
     return NextResponse.json({
       success: true,
@@ -161,35 +154,12 @@ export async function PUT(req) {
     // role-default TEMPLATES still grant. Nothing is deleted automatically: the
     // first attempt reports the impacted templates and asks for an explicit
     // confirmation (`confirm: true`), so the admin decides knowingly.
-    const downgrades = normalized.filter(
-      (change) => change.identity_type === "role" && change.eligible !== 1,
-    );
+    const downgrades = selectTemplateImpactCandidates(normalized);
     if (downgrades.length > 0 && body?.confirm !== true) {
-      const impacts = [];
-      for (const change of downgrades) {
-        const impactResult = await findTemplatesGrantingFeature(
-          change.identity_value,
-          change.feature_key,
-        );
-        const byTemplate = new Map();
-        for (const row of impactResult.rows || []) {
-          if (!byTemplate.has(row.id)) {
-            byTemplate.set(row.id, {
-              id: row.id,
-              name: row.name,
-              capabilities: [],
-            });
-          }
-          byTemplate.get(row.id).capabilities.push(`${row.module}.${row.capability}`);
-        }
-        if (byTemplate.size > 0) {
-          impacts.push({
-            role: change.identity_value,
-            feature: change.feature_key,
-            templates: [...byTemplate.values()],
-          });
-        }
-      }
+      const impacts = await collectTemplateImpacts(
+        downgrades,
+        findTemplatesGrantingFeature,
+      );
       if (impacts.length > 0) {
         return NextResponse.json(
           {
@@ -203,6 +173,11 @@ export async function PUT(req) {
       }
     }
 
+    // One session read for the whole batch: getSession() hits the DB to resolve
+    // the token, so reading it per change made a bulk save cost one session
+    // query per row. The actor is the same for every entry in one request.
+    const session = await getSession();
+
     for (const change of normalized) {
       // Read the previous value for the audit trail.
       const previousRow = (
@@ -212,9 +187,8 @@ export async function PUT(req) {
           change.identity_value,
         )
       ).rows[0];
-      const prevValue = previousRow ? Number(previousRow.eligible) : null;
-
-      if (change.eligible === null) {
+      const write = resolveEligibilityWrite(change);
+      if (write.operation === "delete") {
         await deleteEligibilityRow(
           change.feature_key,
           change.identity_type,
@@ -229,16 +203,13 @@ export async function PUT(req) {
         );
       }
 
-      const session = await getSession();
       await logPermissionAudit({
         actorCid: session?.cid,
         actorName: session?.name,
         targetCid: "system",
         targetName: `${change.identity_type}:${change.identity_value}`,
         action: "eligibility_changed",
-        details:
-          `${change.feature_key} ${change.identity_type}:${change.identity_value} ` +
-          `${prevValue === null ? "unset" : prevValue} → ${change.eligible === null ? "unset" : change.eligible}`,
+        details: formatEligibilityAuditDetails(change, previousRow),
       });
     }
 

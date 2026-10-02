@@ -100,11 +100,24 @@ jest.mock("@/lib/auth", () => ({
   PERMISSION_MODULES: {},
 }));
 
-jest.mock("@/models/authorization/index", () => ({
+jest.mock("@/server/authz/responses", () => ({
   requireAuthorization: jest.fn().mockResolvedValue(null),
-  assertTemplateCapsEligible: jest.fn().mockResolvedValue({ valid: true, violations: [] }),
+  requireScopedAccess: jest.fn().mockResolvedValue(null),
+}));
+
+jest.mock("@/services/authorization/context", () => ({
+  ...jest.requireActual("@/services/authorization/context"),
   invalidateAllAuthorizationContexts: jest.fn(),
   invalidateAuthorizationContext: jest.fn(),
+}));
+
+// The assign route's eligibility decision lives in the profileAssignment
+// service, which reads assertTemplateCapsEligible from the eligibilityAdmin
+// service — not from the model barrel. Stub that real source so the
+// capability-loss guard below is what the request actually exercises.
+jest.mock("@/services/authorization/eligibilityAdmin", () => ({
+  ...jest.requireActual("@/services/authorization/eligibilityAdmin"),
+  assertTemplateCapsEligible: jest.fn().mockResolvedValue({ valid: true, violations: [] }),
 }));
 
 const profilesRoute = require("@/app/api/access-profiles/route");

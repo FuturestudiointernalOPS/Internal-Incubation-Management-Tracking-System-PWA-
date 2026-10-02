@@ -37,7 +37,8 @@ jest.mock("@/services/authorization/scope", () => ({
 const { requireVentureScopedAccess } = require("@/lib/ventureScopedAccess");
 const { requireAuthorization } = require("@/models/authorization/index");
 const { isWithinScope } = require("@/services/authorization/scope");
-const { summarizeVentureStrictAudit } = require("@/models/authorization/ventureScopeAudit");
+// The pure aggregation moved out of the model: models hold data access only.
+const { summarizeVentureStrictAudit } = require("@/services/authorization/ventureStrictAudit");
 
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
