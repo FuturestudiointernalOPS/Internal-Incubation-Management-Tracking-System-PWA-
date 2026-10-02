@@ -2,15 +2,12 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import {
-  createBlockerDiscussion,
-  getBlockerDiscussions,
-  getBlockerForDiscussion,
-  notifyBlockerCreatorOfDiscussion,
-  notifySuperAdminOfDiscussion,
-} from "@/models/blockers";
+  listBlockerDiscussions,
+  postBlockerDiscussion,
+} from "@/services/tasks/blockers";
 
 /**
- * BLOCKER DISCUSSIONS API (Ticket 1.9)
+ * BLOCKER DISCUSSIONS API (Ticket 1.9) — controller layer.
  *
  * GET  /api/blockers/discuss?blocker_id=X
  *   - Returns all messages linked to a blocker, oldest first
@@ -19,6 +16,9 @@ import {
  *   - Creates a new discussion message on a blocker
  *   - Body: { blocker_id, sender_id, sender_name, body }
  *   - Notifies the blocker creator if someone else comments
+ *
+ * Auth and response shaping only; the decisions live in
+ * `@/services/tasks/blockers` (see docs/LAYER_SPLIT.md).
  */
 
 export async function GET(req) {
@@ -29,16 +29,14 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const blocker_id = searchParams.get("blocker_id");
 
-    if (!blocker_id) {
+    const result = await listBlockerDiscussions({ blocker_id });
+    if (result.error) {
       return NextResponse.json(
-        { success: false, error: "blocker_id is required" },
-        { status: 400 },
+        { success: false, error: result.error },
+        { status: result.status },
       );
     }
-
-    const result = await getBlockerDiscussions(blocker_id);
-
-    return NextResponse.json({ success: true, messages: result.rows });
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error("GET blockers/discuss error:", error);
     return NextResponse.json(
@@ -54,58 +52,15 @@ export async function POST(req) {
     const authError = await requireAuth();
     if (authError) return authError;
     const body = await req.json();
-    const { blocker_id, sender_id, sender_name, body: messageBody } = body;
 
-    if (!blocker_id || !sender_id || !messageBody || !messageBody.trim()) {
+    const result = await postBlockerDiscussion({ input: body });
+    if (result.error) {
       return NextResponse.json(
-        { success: false, error: "blocker_id, sender_id, and body are required" },
-        { status: 400 },
+        { success: false, error: result.error },
+        { status: result.status },
       );
     }
-
-    // Verify the blocker exists
-    const blockerCheck = await getBlockerForDiscussion(blocker_id);
-    if (blockerCheck.rows.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "Blocker not found" },
-        { status: 404 },
-      );
-    }
-    const blocker = blockerCheck.rows[0];
-
-    const result = await createBlockerDiscussion({
-      blocker_id,
-      sender_id,
-      body: messageBody,
-    });
-
-    // Notify the blocker creator (unless they're the one commenting)
-    if (blocker.user_id && blocker.user_id !== sender_id) {
-      try {
-        await notifyBlockerCreatorOfDiscussion({
-          user_id: blocker.user_id,
-          sender_name,
-          blocker_title: blocker.title,
-        });
-      } catch (_) {}
-    }
-
-    // Also notify super admin if they're not the sender
-    if (sender_id !== "sa") {
-      try {
-        await notifySuperAdminOfDiscussion({
-          sender_name,
-          blocker_title: blocker.title,
-        });
-      } catch (_) {}
-    }
-
-    const row = result.rows[0] || {};
-    return NextResponse.json({
-      success: true,
-      id: Number(row.id),
-      created_at: row.created_at,
-    });
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error("POST blockers/discuss error:", error);
     return NextResponse.json(

@@ -2735,6 +2735,50 @@ before and after, and the build is green.
 change of the ventures lane (a concurrent writer), unrelated to this task.
 `npx eslint` 0 errors on the touched scope; `npm run build` green.
 
+### Operations lane — the field assembly, blockers, attendance and reviews (task F)
+
+The internal-operations lane (Fiche 6). The tasks/projects controllers were
+already decision-clean (slices 37–44); this lane finishes the half that was
+left: the PUT field assembly is split, and the blockers / attendance / review
+controllers are lightened.
+
+**The field assembly.** `services/tasks/updateFields.js` (426) becomes a
+same-surface barrel over `services/tasks/updateFields/` — `patch` (the SET
+accumulator), `descriptive` (link/priority, title/description, status, project
+and context), `intent`, `assignment` (the three branches) and `schedule` (the
+drift detection and the date rules). `update.js` and its suites are unchanged.
+
+**Blockers** → `services/tasks/blockers.js` (`listBlockers`,
+`createBlockerForTask`, `updateBlockerRecord`, `deleteBlockerRecord`,
+`listBlockerDiscussions`, `postBlockerDiscussion`): the read scope (own /
+supervised / Super Admin), the create permission and the closed-status guard,
+the resolve ownership with the task revert, the delete ownership and the
+discussion fan-out. `blockers/route.js` 373 → 166; `blockers/discuss/route.js`
+116 → 71.
+
+**Attendance** → the new `services/operations/attendance.js`: the idempotent
+schema steps, the write plan (facilitator team scope, foreign-program batch
+guard, the ±1 day window), the idempotent mark upsert and the read scope
+(facilitator team filter, summary/list). The route keeps `requireAuth`, the
+assignment guard (which answers HTTP), the own-scope binding and the envelope.
+`attendance/route.js` 258 → 213.
+
+**Facilitator reviews** → the new
+`services/operations/facilitatorReviews.js`: the read scope, the submit assembly
+(the 16 values and the respond-to-changes branch) and the PM-decision ownership
+rule. The route keeps the role list, the assignment guard and the envelope.
+`facilitator-reviews/route.js` 256 → 144.
+
+New service domain `services/operations/` (barrel `index.js`), and `blockers`
+is added to the `services/tasks` barrel. The route-level contracts the source-pin
+suites hold (`facilitator-capability-coverage`, `identity-gate-bridge`,
+`authz-scope-enforcement`) are untouched: the guards, their capability keys and
+the own-scope literal stay in the routes. New behaviour nets:
+`blockers-api.test.js` (13), `attendance-api.test.js` (7) and
+`facilitator-reviews-api.test.js` (9).
+
+`npm test`, `npx eslint` (0 errors) and `npm run build` are green.
+
 ---
 
 ## 3. Left aside on purpose (deferred, with reasons)

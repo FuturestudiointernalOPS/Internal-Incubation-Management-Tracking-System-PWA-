@@ -1,20 +1,33 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
-import { getLocalToday } from "@/lib/constants";
 import {
-  addAttendanceDateColumn,
-  addAttendanceProgramIdColumn,
-  addAttendanceUpdatedAtColumn,
-  createAttendanceTable,
-  createAttendanceUniqueIndex,
-  dedupeLegacyAttendanceRows,
-  deleteAttendanceMark,
-  getAttendanceSummary,
-  getContactsInTeams,
-  insertAttendanceMark,
-  listAttendance,
-} from "@/models/facilitation";
+  requireAuth,
+  getSession,
+  requireAssignmentAccess,
+  hasProgramManagementAccess,
+} from "@/lib/auth";
+import {
+  defaultAttendanceDate,
+  ensureAttendanceSchema,
+  filterAllowedAttendanceRecords,
+  findForeignAttendanceRecord,
+  isAttendanceWithinTodayWindow,
+  readAttendance,
+  readAttendanceSummary,
+  resolveAttendanceParticipantScope,
+  resolveFacilitatorAttendanceFilter,
+  writeAttendanceRecords,
+} from "@/services/operations/attendance";
+
+/**
+ * ATTENDANCE API — controller layer.
+ *
+ * POST /api/attendance — record marks (facilitator program/team scope)
+ * GET  /api/attendance — list or summarise marks (own-scope / facilitator scope)
+ *
+ * Auth, the assignment guard (which answers HTTP) and the envelope only; every
+ * decision lives in `@/services/operations/attendance` (see docs/LAYER_SPLIT.md).
+ */
 
 export async function POST(req) {
   try {
@@ -26,21 +39,7 @@ export async function POST(req) {
     const authError = await requireAuth();
     if (authError) return authError;
 
-    // Ensure table and columns exist (idempotent). The production table uses
-    // an INTEGER SERIAL primary key (see scripts/migrations/migrate_attendance.mjs).
-    // The INSERT below omits id so the database auto-generates it.
-    try {
-      await createAttendanceTable();
-      // Add columns that may not exist on older versions of the table
-      await addAttendanceProgramIdColumn();
-      await addAttendanceDateColumn();
-      await addAttendanceUpdatedAtColumn();
-      // Dedupe legacy duplicate rows (same session+date+participant), keeping
-      // the most recently updated one, then enforce uniqueness so attendance
-      // saves stay idempotent: one mark per participant per session per day.
-      await dedupeLegacyAttendanceRows();
-      await createAttendanceUniqueIndex();
-    } catch (_) {}
+    await ensureAttendanceSchema();
 
     const body = await req.json();
     const records = Array.isArray(body) ? body : [body];
@@ -71,62 +70,37 @@ export async function POST(req) {
       // assigned program could therefore carry later rows for a different
       // program, writing attendance outside the scope that was just checked.
       // Every row must belong to the program that was authorized.
-      const foreignRecord = records.find(
-        (record) =>
-          record?.program_id && String(record.program_id) !== String(programId),
-      );
-      if (foreignRecord) {
+      if (findForeignAttendanceRecord(records, programId)) {
         return NextResponse.json(
           { success: false, error: "errors.insufficientPermissions" },
           { status: 403 },
         );
       }
 
-      const scope = await getFacilitatorTeamScope(programId, session.cid);
-      if (scope.scope === "none") {
-        allowedParticipantIds = new Set();
-      } else if (scope.scope === "teams" && scope.teamIds.length > 0) {
-        const inScopeResult = await getContactsInTeams(scope.teamIds);
-        allowedParticipantIds = new Set(inScopeResult.rows.map((row) => row.cid));
-      }
+      const scope = await resolveAttendanceParticipantScope({
+        programId,
+        sessionCid: session.cid,
+      });
+      allowedParticipantIds = scope.allowedParticipantIds;
     }
 
     // Keep only records the caller is allowed to write. For facilitators this
     // silently drops any participant outside their assigned teams.
-    const scoped = allowedParticipantIds
-      ? records.filter(
-          (record) =>
-            record.participant_id &&
-            allowedParticipantIds.has(String(record.participant_id)),
-        )
-      : records;
+    const scoped = filterAllowedAttendanceRecords(records, allowedParticipantIds);
 
     if (scoped.length === 0) {
       return NextResponse.json({ success: true, upserted: 0 });
     }
 
     // ─── Attendance integrity: attendance can only be recorded for today ───
-    // Super admins keep full control (corrections / backfill); all other
-    // roles are locked to today. A ±1 day window tolerates client/server
-    // timezone differences while still blocking far-past/future dates.
-    const todayStr = getLocalToday();
+    // Super admins keep full control (corrections / backfill); all other roles
+    // are locked to a ±1 day window that tolerates timezone differences.
+    const todayStr = defaultAttendanceDate();
     const requestedDate = scoped[0].date || todayStr;
-    const withinTodayWindow = (() => {
-      const now = new Date();
-      const allowedDates = new Set();
-      for (let i = -1; i <= 1; i++) {
-        const candidateDate = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate() + i,
-        );
-        allowedDates.add(
-          `${candidateDate.getFullYear()}-${String(candidateDate.getMonth() + 1).padStart(2, "0")}-${String(candidateDate.getDate()).padStart(2, "0")}`,
-        );
-      }
-      return allowedDates.has(requestedDate);
-    })();
-    if (session?.role !== "super_admin" && !withinTodayWindow) {
+    if (
+      session?.role !== "super_admin" &&
+      !isAttendanceWithinTodayWindow(requestedDate)
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -136,29 +110,10 @@ export async function POST(req) {
       );
     }
 
-    // Apply each record individually: a save only ever touches the
-    // participants it explicitly lists (facilitators are additionally
-    // restricted to their team by the scope filter above), so marks recorded
-    // for other participants — e.g. by the PM for another team — are never
-    // deleted or rewritten.
-    //   - empty status   → delete that participant's mark (explicit clear)
-    //   - present/absent → delete then re-insert (idempotent upsert)
-    let upserted = 0;
-    for (const record of scoped) {
-      if (!record.session_id || !record.participant_id) continue;
-      const recordDate = record.date || requestedDate;
-      await deleteAttendanceMark(record.session_id, recordDate, record.participant_id);
-      if (record.status) {
-        await insertAttendanceMark({
-          session_id: record.session_id,
-          program_id: record.program_id,
-          participant_id: record.participant_id,
-          status: record.status,
-          date: recordDate,
-        });
-        upserted++;
-      }
-    }
+    const upserted = await writeAttendanceRecords({
+      records: scoped,
+      requestedDate,
+    });
 
     return NextResponse.json({ success: true, upserted });
   } catch (error) {
@@ -213,22 +168,22 @@ export async function GET(req) {
         minLevel: 1,
       });
       if (facError) return facError;
-      const scope = await getFacilitatorTeamScope(programId, session.cid);
-      if (scope.scope !== "all") {
-        if (scope.teamIds.length === 0) {
-          return NextResponse.json({ success: true, attendance: [] });
-        }
-        facilitatorGroupFilter =
-          "participant_id IN (SELECT c.cid FROM contacts c WHERE c.v2_team_id IN (" +
-          scope.teamIds.map(() => "?").join(",") +
-          "))";
-        facilitatorGroupArgs = scope.teamIds;
+      const resolved = await resolveFacilitatorAttendanceFilter({
+        programId,
+        sessionCid: session.cid,
+      });
+      if (resolved?.empty) {
+        return NextResponse.json({ success: true, attendance: [] });
+      }
+      if (resolved) {
+        facilitatorGroupFilter = resolved.filter;
+        facilitatorGroupArgs = resolved.args;
       }
     }
 
     // ── Summary mode: return attendance rates per participant ──
     if (summary && programId) {
-      const summaryResult = await getAttendanceSummary(
+      const summaryResult = await readAttendanceSummary(
         programId,
         facilitatorGroupFilter,
         facilitatorGroupArgs,
@@ -240,7 +195,7 @@ export async function GET(req) {
       });
     }
 
-    const result = await listAttendance({
+    const result = await readAttendance({
       sessionId,
       dateStr,
       programId,
