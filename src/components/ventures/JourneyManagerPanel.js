@@ -11,35 +11,22 @@ import {
   statusDotClass,
 } from "@/lib/ventureStatuses";
 import {
-  Route,
-  Plus,
-  X,
   Loader2,
   ChevronUp,
   ChevronDown,
-  ChevronRight,
   Trash2,
-  Save,
-  Copy,
   CopyPlus,
   CheckCircle2,
-  AlertTriangle,
-  Square,
-  CheckSquare,
   Archive,
   RotateCcw,
   Pencil,
   Lock,
   Play,
   StickyNote,
-  Flag,
   Upload,
 } from "lucide-react";
-import ScopedNotes from "@/components/ventures/ScopedNotes";
 import PlanImportPanel from "@/components/ventures/PlanImportPanel";
 import VentureChangeLogPanel from "@/components/ventures/VentureChangeLogPanel";
-import VenturePersonField from "@/components/ventures/VenturePersonField";
-import AppMenu from "@/components/ui/AppMenu";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { minSessionStartInput, isValidSessionStart, toDateInput, toTimeInput } from "@/lib/ventureSessionRules";
 import {
@@ -57,21 +44,18 @@ import {
   pickSessions,
   DATE_ISSUE_KEYS,
   findStageMilestone,
-  datePickerFloor,
-  datePickerCeiling,
   pickReportsByStage,
 } from "@/components/ventures/journey/journeyShapers";
 import JourneyConfirmModal from "@/components/ventures/journey/JourneyConfirmModal";
-import MilestoneSessionsList from "@/components/ventures/journey/MilestoneSessionsList";
-import AddMilestoneForm from "@/components/ventures/journey/AddMilestoneForm";
+import JourneyNotices from "@/components/ventures/journey/JourneyNotices";
+import JourneyPanelHeader from "@/components/ventures/journey/JourneyPanelHeader";
+import JourneyTemplateSource from "@/components/ventures/journey/JourneyTemplateSource";
+import JourneyEmptyState from "@/components/ventures/journey/JourneyEmptyState";
+import JourneyStageCard from "@/components/ventures/journey/JourneyStageCard";
 import JourneyAddStageForm from "@/components/ventures/journey/JourneyAddStageForm";
 import JourneyApplyTemplateBar from "@/components/ventures/journey/JourneyApplyTemplateBar";
 import JourneyArchiveToolbar from "@/components/ventures/journey/JourneyArchiveToolbar";
-import JourneyReportSection from "@/components/ventures/journey/JourneyReportSection";
 import JourneySaveTemplateForm from "@/components/ventures/journey/JourneySaveTemplateForm";
-import MilestoneDeliverables from "@/components/ventures/journey/MilestoneDeliverables";
-import MilestoneReviewInbox from "@/components/ventures/journey/MilestoneReviewInbox";
-import MilestoneSessionBooking from "@/components/ventures/journey/MilestoneSessionBooking";
 
 /**
  * JourneyManagerPanel — staff instrument for a Venture's Journey.
@@ -1212,58 +1196,19 @@ export default function JourneyManagerPanel({ ventureId }) {
 
   return (
     <div className="card">
-      {/* Inline status message — never a floating top-right toast */}
-      {toast && (
-        <div className={`mb-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-bold ${toast.type === "error" ? "bg-rose-500/10 text-rose-400 border-rose-500/30" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"}`}>
-          {toast.type === "error" ? <AlertTriangle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
-          <span>{toast.msg}</span>
-        </div>
-      )}
+      <JourneyNotices toast={toast} deliverablesUnavailable={deliverablesUnavailable} />
 
-      {/* The deliverables could not be read — say so, rather than showing an
-          empty list that reads as "this Venture has no evidence". */}
-      {deliverablesUnavailable && (
-        <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs font-bold text-amber-400">
-          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>{t("venture.manager.deliverablesUnavailable")}</span>
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-          <Route className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-          {t("venture.manager.title")}
-          <span className="px-1.5 py-0.5 rounded bg-brand-orange/10 text-[var(--brand-orange)]">{t("venture.manager.stagesCount", { count: activeStages.length })}</span>
-        </h3>
-        {access.create && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={toggleApply}
-              className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)] flex items-center gap-1.5"
-            >
-              <Copy className="w-3 h-3" />
-              {applyOpen ? t("common.cancel") : t("venture.manager.fromTemplate")}
-            </button>
-            {access.manage && stages.length > 0 && (
-              <button
-                onClick={() => setSaveOpen(!saveOpen)}
-                className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-brand-orange/40 text-[var(--brand-orange)] hover:bg-brand-orange/10 flex items-center gap-1.5"
-              >
-                <Save className="w-3 h-3" />
-                {t("venture.manager.saveTemplate")}
-              </button>
-            )}
-            <button
-              onClick={() => setAddOpen(!addOpen)}
-              className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5"
-            >
-              {addOpen ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
-              {addOpen ? t("common.cancel") : t("venture.manager.addStage")}
-            </button>
-          </div>
-        )}
-      </div>
-      <p className="text-[10px] text-slate-400 mb-3 -mt-1">{t("venture.manager.intro")}</p>
+      <JourneyPanelHeader
+        access={access}
+        activeStages={activeStages}
+        addOpen={addOpen}
+        applyOpen={applyOpen}
+        saveOpen={saveOpen}
+        stages={stages}
+        setAddOpen={setAddOpen}
+        setSaveOpen={setSaveOpen}
+        toggleApply={toggleApply}
+      />
 
       {/* Phase 1 of the programme import: read a tracker, show what the analysts
           proposes. Guarded by the same authority that may define the journey —
@@ -1273,17 +1218,7 @@ export default function JourneyManagerPanel({ ventureId }) {
       {/* History answers a question, so it sits with the thing it describes. */}
       <VentureChangeLogPanel ventureId={ventureId} />
 
-      {templateSource && (
-        <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-brand-orange/25 bg-brand-orange/[0.04] px-4 py-2.5">
-          <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
-            <Copy className="w-3.5 h-3.5" /> {t("venture.manager.sourceFrom")}
-          </span>
-          <span className="text-xs font-bold text-[var(--text-primary)]">{templateSource.name || templateSource.id}</span>
-          <span className="px-1.5 py-0.5 rounded bg-brand-orange/10 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
-            {t(templateSource.type === "journey" ? "venture.manager.sourceTypeJourney" : "venture.manager.sourceTypePlan")}
-          </span>
-        </div>
-      )}
+      <JourneyTemplateSource templateSource={templateSource} />
 
       {/* Journey archive toolbar: Active/Archived views, select all, bulk
           archive/delete (each with a double confirmation). */}
@@ -1336,415 +1271,118 @@ export default function JourneyManagerPanel({ ventureId }) {
       {loading ? (
         <div className="text-center py-6"><Loader2 className="w-5 h-5 animate-spin mx-auto text-slate-400" /></div>
       ) : visibleStages.length === 0 ? (
-        viewArchived ? (
-          <div className="rounded-xl border border-dashed border-[var(--border-primary)] p-6 text-center">
-            <Archive className="w-6 h-6 mx-auto text-slate-500 mb-2" />
-            <p className="text-xs font-bold text-[var(--text-primary)]">{t("venture.manager.emptyArchivedJourneys")}</p>
-          </div>
-        ) : (
-          <div className="rounded-xl border border-dashed border-[var(--border-primary)] p-8 text-center">
-            <Route className="w-6 h-6 mx-auto text-slate-500 mb-2" />
-            <p className="text-xs font-bold text-[var(--text-primary)]">{t("venture.manager.noStages")}</p>
-            <p className="text-[10px] text-slate-500 mt-1 max-w-md mx-auto">{t("venture.manager.noStagesDesc")}</p>
-          </div>
-        )
+        <JourneyEmptyState viewArchived={viewArchived} />
       ) : (
         <div className="space-y-5">
-          {visibleStages.map((stage, index) => {
-            const isEditing = editId === stage.id;
-            const milestones = stage.milestones || [];
-            const done = stage.milestone_counts?.completed || 0;
-            const total = stage.milestone_counts?.total || 0;
-            const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-            const isDone = stage.status === "completed";
-            const isActive = stage.status === "active";
-            const isLocked = stage.status === "upcoming";
-            // A journey that has CLOSED without its closing report: the gap is
-            // shown in place and the button above writes exactly that report.
-            const closingMissing =
-              isDone && !(reportsByStage[String(stage.id)] || []).some((report) => report.report_kind === "closing");
-            return (
-              <div key={stage.id} className="relative pl-10">
-                {/* Timeline connector between stage nodes */}
-                {index < visibleStages.length - 1 && (
-                  <span aria-hidden className={`absolute left-[15px] top-9 -bottom-5 w-px ${isDone ? "bg-emerald-500/40" : "bg-[var(--border-primary)]"}`} />
-                )}
-                {/* Stage node */}
-                <span
-                  className={`absolute left-0 top-0 w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-black ${stageNodeClass(stage.status)} ${isActive ? "ring-4 ring-blue-500/10" : ""}`}
-                >
-                  {isDone ? <CheckCircle2 className="w-4 h-4" /> : (stage.stage_order || index + 1)}
-                </span>
+          {visibleStages.map((stage, index) => (
+            <JourneyStageCard
+              key={stage.id}
+              stage={stage}
+              index={index}
+              visibleStagesCount={visibleStages.length}
+              access={access}
+              editId={editId}
+              setEditId={setEditId}
+              editForm={editForm}
+              setEditForm={setEditForm}
+              saveEdit={saveEdit}
+              stageNodeClass={stageNodeClass}
+              statusPill={statusPill}
+              toggleSelectStage={toggleSelectStage}
+              selectedStageIds={selectedStageIds}
+              journeyMenuItems={journeyMenuItems}
+              restoreOneJourney={restoreOneJourney}
+              bulkBusy={bulkBusy}
+              reportsByStage={reportsByStage}
+              reportFor={reportFor}
+              reportForm={reportForm}
+              reportOpenId={reportOpenId}
+              reportSaving={reportSaving}
+              reportStatusLabel={reportStatusLabel}
+              saveReport={saveReport}
+              setReportFor={setReportFor}
+              setReportForm={setReportForm}
+              setReportOpenId={setReportOpenId}
+              openReportComposer={openReportComposer}
+              autoGrow={autoGrow}
+              stages={stages}
+              milestoneAuthority={milestoneAuthority}
+              milestoneEditId={milestoneEditId}
+              setMilestoneEditId={setMilestoneEditId}
+              milestoneEditForm={milestoneEditForm}
+              setMilestoneEditForm={setMilestoneEditForm}
+              saveMilestoneEdit={saveMilestoneEdit}
+              milestoneOpenId={milestoneOpenId}
+              toggleMilestoneOpen={toggleMilestoneOpen}
+              milestoneBusy={milestoneBusy}
+              milestoneMenuItems={milestoneMenuItems}
+              milestoneDotClass={milestoneDotClass}
+              milestoneStatusClass={milestoneStatusClass}
+              milestoneStatusKey={milestoneStatusKey}
+              fmtDate={fmtDate}
+              milestoneSubmissions={milestoneSubmissions}
+              submissionReview={submissionReview}
+              submissionComment={submissionComment}
+              submissionsBusy={submissionsBusy}
+              decideSubmission={decideSubmission}
+              setSubmissionReview={setSubmissionReview}
+              setSubmissionComment={setSubmissionComment}
+              DELIVERABLE_TYPES={DELIVERABLE_TYPES}
+              addDeliverable={addDeliverable}
+              deliverableAction={deliverableAction}
+              deliverableAddFor={deliverableAddFor}
+              deliverableBusy={deliverableBusy}
+              deliverableFile={deliverableFile}
+              deliverableForm={deliverableForm}
+              deliverableMenuItems={deliverableMenuItems}
+              deliverableNewUrl={deliverableNewUrl}
+              deliverableSaving={deliverableSaving}
+              deliverableStatus={deliverableStatus}
+              deliverableText={deliverableText}
+              emptyDeliverableForm={emptyDeliverableForm}
+              reviewDeliverable={reviewDeliverable}
+              saveDeliverableEdit={saveDeliverableEdit}
+              setDeliverableAction={setDeliverableAction}
+              setDeliverableAddFor={setDeliverableAddFor}
+              setDeliverableFile={setDeliverableFile}
+              setDeliverableForm={setDeliverableForm}
+              setDeliverableNewFile={setDeliverableNewFile}
+              setDeliverableNewUrl={setDeliverableNewUrl}
+              setDeliverableText={setDeliverableText}
+              submitDeliverableEvidence={submitDeliverableEvidence}
+              bookFor={bookFor}
+              bookForm={bookForm}
+              bookSaving={bookSaving}
+              bookSession={bookSession}
+              coachOptions={coachOptions}
+              openBooking={openBooking}
+              setBookFor={setBookFor}
+              setBookForm={setBookForm}
+              ventureId={ventureId}
+              ventureSessions={ventureSessions}
+              sessionStatusKey={sessionStatusKey}
+              noteEditFor={noteEditFor}
+              noteDraft={noteDraft}
+              setNoteDraft={setNoteDraft}
+              noteSaving={noteSaving}
+              saveSessionNote={saveSessionNote}
+              setNoteEditFor={setNoteEditFor}
+              notesMilestoneId={notesMilestoneId}
+              addMilestone={addMilestone}
+              addMilestoneDeliverable={addMilestoneDeliverable}
+              emptyMilestoneForm={emptyMilestoneForm}
+              milestoneAddFor={milestoneAddFor}
+              milestoneDeliverables={milestoneDeliverables}
+              milestoneForm={milestoneForm}
+              milestoneSaving={milestoneSaving}
+              removeMilestoneDeliverable={removeMilestoneDeliverable}
+              setMilestoneAddFor={setMilestoneAddFor}
+              setMilestoneDeliverables={setMilestoneDeliverables}
+              setMilestoneForm={setMilestoneForm}
+              updateMilestoneDeliverable={updateMilestoneDeliverable}
 
-                <div className={`card overflow-hidden ${isLocked ? "opacity-80" : ""}`}>
-                  {isEditing ? (
-                    <form onSubmit={saveEdit} className="p-4 space-y-3">
-                      <input
-                        value={editForm.name || ""}
-                        onChange={(event) => setEditForm({ ...editForm, name: event.target.value })}
-                        placeholder={t("venture.manager.stageNamePlaceholder")}
-                        className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
-                        required
-                      />
-                      <textarea
-                        value={editForm.description || ""}
-                        onChange={(event) => setEditForm({ ...editForm, description: event.target.value })}
-                        rows={2}
-                        placeholder={t("venture.manager.stageDescPlaceholder")}
-                        className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                      />
-                      <input
-                        value={editForm.objective || ""}
-                        onChange={(event) => setEditForm({ ...editForm, objective: event.target.value })}
-                        placeholder={t("venture.manager.stageObjectivePlaceholder")}
-                        className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                      />
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-[var(--text-secondary)]">{t("venture.manager.stageStartDate")}</label>
-                        <input
-                          type="date"
-                          value={editForm.start_date || ""}
-                          onChange={(event) => setEditForm({ ...editForm, start_date: event.target.value })}
-                          className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                        />
-                        <p className="text-[10px] text-[var(--text-secondary)]">{t("venture.manager.stageStartDateHint")}</p>
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <button type="button" onClick={() => { setEditId(null); setEditForm({}); }} className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:bg-tertiary">
-                          {t("common.cancel")}
-                        </button>
-                        <button type="submit" className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1">
-                          <Save className="w-3 h-3" /> {t("common.save")}
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <>
-                      <div className="p-4 pb-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-2 min-w-0">
-                            {access.manage && !stage.is_archived && (
-                              <button
-                                onClick={() => toggleSelectStage(stage.id)}
-                                className={`mt-0.5 shrink-0 transition-colors ${selectedStageIds.has(String(stage.id)) ? "text-[var(--brand-orange)]" : "text-slate-500 hover:text-[var(--text-primary)]"}`}
-                                title={t("venture.manager.selectJourney")}
-                              >
-                                {selectedStageIds.has(String(stage.id)) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
-                              </button>
-                            )}
-                            <h4 className={`text-sm font-black text-[var(--text-primary)] ${isDone ? "line-through text-slate-400" : ""}`}>{stage.name}</h4>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            {statusPill(stage)}
-                            {!isEditing && !stage.is_archived && (access.edit || access.manage) && (
-                              <AppMenu
-                                label={t("venture.manager.journeyActions")}
-                                align="right"
-                                buttonClassName="!p-1"
-                                items={journeyMenuItems(stage, index)}
-                              />
-                            )}
-                            {!isEditing && stage.is_archived && access.manage && (
-                              <button onClick={() => restoreOneJourney(stage)} disabled={bulkBusy} className="p-1 text-slate-400 hover:text-emerald-400 disabled:opacity-40" title={t("venture.manager.restoreJourney")}>
-                                <RotateCcw className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                        {stage.description && <p className="text-xs text-[var(--text-secondary)] mt-1.5">{stage.description}</p>}
-                        {stage.objective && (
-                          <p className="text-[10px] text-[var(--text-secondary)] italic mt-1">
-                            <span className="font-bold not-italic uppercase tracking-widest text-slate-500">{t("venture.manager.objective")}: </span>{stage.objective}
-                          </p>
-                        )}
-                        {(stage.completed_at || !isDone) && (
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-400">
-                            {stage.completed_at && <span>{t("venture.manager.completedOn", { date: new Date(stage.completed_at).toLocaleDateString(lang) })}</span>}
-                            {!isDone && (
-                              <span className={isActive ? "text-sky-300/90" : "text-slate-500"}>
-                                {t(isLocked ? "venture.manager.memberVisibilityLocked" : "venture.manager.memberVisibilityActive")}
-                              </span>
-                            )}
-                            {isActive && (
-                              <span className="text-[10px] text-slate-500 italic">{t("venture.manager.journeyAutoCompletes")}</span>
-                            )}
-                          </div>
-                        )}
-                        {total > 0 && (
-                          <div className="mt-3">
-                            <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">
-                              <span>{t("venture.manager.milestoneProgress", { done, total })}</span>
-                              <span className={isDone ? "text-emerald-400" : "text-[var(--brand-orange)]"}>{pct}%</span>
-                            </div>
-                            <div className="h-1.5 rounded-full bg-tertiary overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all ${isDone ? "bg-emerald-400" : "bg-gradient-to-r from-[var(--brand-orange)] to-orange-400"}`}
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* The report this journey is owed. A report BELONGS to a
-                          journey, so it is written here — where the journey lives —
-                          and never in a separate module. */}
-                      {!stage.is_archived && (
-                        <JourneyReportSection
-                          autoGrow={autoGrow}
-                          closingMissing={closingMissing}
-                          openReportComposer={openReportComposer}
-                          reportFor={reportFor}
-                          reportForm={reportForm}
-                          reportOpenId={reportOpenId}
-                          reportSaving={reportSaving}
-                          reportStatusLabel={reportStatusLabel}
-                          reportsByStage={reportsByStage}
-                          saveReport={saveReport}
-                          setReportFor={setReportFor}
-                          setReportForm={setReportForm}
-                          setReportOpenId={setReportOpenId}
-                          stage={stage}
-                        />
-                      )}
-
-                      {(milestones.length > 0 || (milestoneAuthority && !stage.is_archived)) && (
-                        <div className="px-4 pb-4 space-y-2">
-                          {milestones.length > 0 && (
-                            <div className="rounded-xl border border-[var(--border-primary)] divide-y divide-divider/60 overflow-hidden">
-                              {milestones.map((milestone, milestoneIndex) => {
-                                const milestoneProgress = Math.min(100, Math.max(0, Number(milestone.progress) || 0));
-                                const deliverableList = milestone.deliverables || [];
-                                // A milestone may not be dated after what it owes, nor
-                                // after a milestone that follows it: the picker stops at
-                                // whichever of the two comes first.
-                                const milestoneDateCeiling = earliestStoredDate([
-                                  nextMilestoneDate(stages, { milestoneId: milestone.id }),
-                                  earliestStoredDate(deliverableList.map((deliverable) => deliverable.due_date)),
-                                ]);
-                                const isOpen = milestoneOpenId !== null && String(milestoneOpenId) === String(milestone.id);
-                                return (
-                                  <div key={milestone.id} className="px-3 py-2">
-                                    {milestoneEditId === milestone.id ? (
-                                      <form onSubmit={saveMilestoneEdit} className="space-y-2 py-1">
-                                        <input
-                                          value={milestoneEditForm.title || ""}
-                                          onChange={(event) => setMilestoneEditForm({ ...milestoneEditForm, title: event.target.value })}
-                                          placeholder={t("venture.manager.milestoneTitlePlaceholder")}
-                                          className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
-                                          required
-                                        />
-                                        <textarea
-                                          value={milestoneEditForm.description || ""}
-                                          onChange={(event) => setMilestoneEditForm({ ...milestoneEditForm, description: event.target.value })}
-                                          rows={2}
-                                          placeholder={t("venture.manager.milestoneDescPlaceholder")}
-                                          className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                        />
-                                        <input
-                                          value={milestoneEditForm.objective || ""}
-                                          onChange={(event) => setMilestoneEditForm({ ...milestoneEditForm, objective: event.target.value })}
-                                          placeholder={t("venture.manager.stageObjectivePlaceholder")}
-                                          className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                        />
-                                        <div className="space-y-1">
-                                          <label className="text-[10px] font-bold text-[var(--text-secondary)]">{t("venture.manager.milestoneOwner")}</label>
-                                          <VenturePersonField
-                                            value={{ cid: milestoneEditForm.owner_cid, name: milestoneEditForm.owner_name }}
-                                            onChange={({ cid, name }) =>
-                                              setMilestoneEditForm({ ...milestoneEditForm, owner_cid: cid || "", owner_name: name || "" })
-                                            }
-                                            listId="milestone-owner-options"
-                                          />
-                                        </div>
-                                        <input
-                                          type="date"
-                                          value={milestoneEditForm.target_date || ""}
-                                          min={datePickerFloor(todayDateInput(), milestone.target_date)}
-                                          max={datePickerCeiling(milestoneDateCeiling, milestone.target_date) || undefined}
-                                          onChange={(event) => setMilestoneEditForm({ ...milestoneEditForm, target_date: event.target.value })}
-                                          className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                        />
-                                        <div className="flex justify-end gap-2">
-                                          <button type="button" onClick={() => { setMilestoneEditId(null); setMilestoneEditForm({}); }} className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
-                                            {t("common.cancel")}
-                                          </button>
-                                          <button type="submit" className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1">
-                                            <Save className="w-3 h-3" /> {t("common.save")}
-                                          </button>
-                                        </div>
-                                      </form>
-                                    ) : (
-                                      <>
-                                      <div className="flex items-center gap-3">
-                                        <button
-                                          type="button"
-                                          onClick={() => toggleMilestoneOpen(milestone.id)}
-                                          aria-expanded={isOpen}
-                                          className="flex items-center gap-3 flex-1 min-w-0 text-left"
-                                        >
-                                          <span className={`w-2 h-2 rounded-full shrink-0 ${milestoneDotClass(milestone.status)}`} />
-                                          <span className={`flex-1 min-w-0 text-[11px] font-bold text-[var(--text-primary)] truncate ${milestone.status === "completed" ? "line-through text-slate-400" : ""}`}>
-                                            {milestone.title}
-                                          </span>
-                                          {deliverableList.length > 0 && (
-                                            <span className="shrink-0 flex items-center gap-1 text-[9px] font-bold text-slate-500" title={t("venture.manager.deliverables")}>
-                                              <Flag className="w-3 h-3" /> {deliverableList.length}
-                                            </span>
-                                          )}
-                                          {milestoneProgress > 0 && <span className="shrink-0 text-[10px] font-bold text-[var(--text-secondary)]">{milestoneProgress}%</span>}
-                                          {isOpen ? <ChevronDown className="w-3.5 h-3.5 shrink-0 text-slate-500" /> : <ChevronRight className="w-3.5 h-3.5 shrink-0 text-slate-500" />}
-                                        </button>
-                                        <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0 ${milestoneStatusClass(milestone.status)}`}>
-                                          {milestoneStatusKey(milestone.status)}
-                                        </span>
-                                        {milestoneAuthority && !stage.is_archived && (
-                                          <AppMenu
-                                            label={t("venture.manager.milestoneActions")}
-                                            align="right"
-                                            buttonClassName="!p-1"
-                                            items={milestoneMenuItems(stage, milestone, milestoneIndex, milestones)}
-                                          />
-                                        )}
-                                        {milestoneBusy === milestone.id && <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400 shrink-0" />}
-                                      </div>
-
-                                      {isOpen && milestoneProgress > 0 && milestone.status !== "completed" && (
-                                        <div className="mt-2 ml-5 w-full max-w-xs h-1 rounded-full bg-tertiary overflow-hidden">
-                                          <div className="h-full bg-sky-400/70 rounded-full" style={{ width: `${milestoneProgress}%` }} />
-                                        </div>
-                                      )}
-                                      {isOpen && milestone.target_date && (
-                                        <p className="mt-1 ml-5 text-[10px] text-slate-500">{fmtDate(milestone.target_date)}</p>
-                                      )}
-
-                                      {/* Review inbox: what the Venture submitted for the tasks in this milestone */}
-                                      {isOpen && (milestoneSubmissions[milestone.id] || []).length > 0 && (
-                                        <MilestoneReviewInbox
-                                          decideSubmission={decideSubmission}
-                                          milestone={milestone}
-                                          milestoneSubmissions={milestoneSubmissions}
-                                          setSubmissionComment={setSubmissionComment}
-                                          setSubmissionReview={setSubmissionReview}
-                                          submissionComment={submissionComment}
-                                          submissionReview={submissionReview}
-                                          submissionsBusy={submissionsBusy}
-                                        />
-                                      )}
-
-                                      {isOpen && (deliverableList.length > 0 || milestoneAuthority) && (
-                                        <MilestoneDeliverables
-                                          DELIVERABLE_TYPES={DELIVERABLE_TYPES}
-                                          addDeliverable={addDeliverable}
-                                          deliverableAction={deliverableAction}
-                                          deliverableAddFor={deliverableAddFor}
-                                          deliverableBusy={deliverableBusy}
-                                          deliverableFile={deliverableFile}
-                                          deliverableForm={deliverableForm}
-                                          deliverableList={deliverableList}
-                                          deliverableMenuItems={deliverableMenuItems}
-                                          deliverableNewUrl={deliverableNewUrl}
-                                          deliverableSaving={deliverableSaving}
-                                          deliverableStatus={deliverableStatus}
-                                          deliverableText={deliverableText}
-                                          emptyDeliverableForm={emptyDeliverableForm}
-                                          fmtDate={fmtDate}
-                                          milestone={milestone}
-                                          milestoneAuthority={milestoneAuthority}
-                                          reviewDeliverable={reviewDeliverable}
-                                          saveDeliverableEdit={saveDeliverableEdit}
-                                          setDeliverableAction={setDeliverableAction}
-                                          setDeliverableAddFor={setDeliverableAddFor}
-                                          setDeliverableFile={setDeliverableFile}
-                                          setDeliverableForm={setDeliverableForm}
-                                          setDeliverableNewFile={setDeliverableNewFile}
-                                          setDeliverableNewUrl={setDeliverableNewUrl}
-                                          setDeliverableText={setDeliverableText}
-                                          submitDeliverableEvidence={submitDeliverableEvidence}
-                                        />
-                                      )}
-
-                                      {/* Book a session on this milestone (date + exact time) */}
-                                      {isOpen && (milestoneAuthority || access.manage) && !stage.is_archived && (
-                                        <MilestoneSessionBooking
-                                          autoGrow={autoGrow}
-                                          bookFor={bookFor}
-                                          bookForm={bookForm}
-                                          bookSaving={bookSaving}
-                                          bookSession={bookSession}
-                                          coachOptions={coachOptions}
-                                          deliverableList={deliverableList}
-                                          milestone={milestone}
-                                          openBooking={openBooking}
-                                          setBookFor={setBookFor}
-                                          setBookForm={setBookForm}
-                                          stage={stage}
-                                        />
-                                      )}
-
-                                      {/* Sessions already booked on this milestone — the milestone stays the home of its sessions. */}
-                                      {isOpen && (() => {
-                                        const mine = ventureSessions.filter((session) => String(session.milestone_ref) === String(milestone.id) && session.status !== "cancelled");
-                                        if (mine.length === 0) return null;
-                                        return (
-                                          <MilestoneSessionsList
-                                            sessions={mine}
-                                            deliverables={deliverableList}
-                                            statusKey={sessionStatusKey}
-                                            noteEditFor={noteEditFor}
-                                            noteDraft={noteDraft}
-                                            onNoteDraftChange={setNoteDraft}
-                                            noteSaving={noteSaving}
-                                            onEditNote={(session) => { setNoteEditFor(session.id); setNoteDraft(session.description || ""); }}
-                                            onCancelNote={() => { setNoteEditFor(null); setNoteDraft(""); }}
-                                            onSaveNote={saveSessionNote}
-                                            autoGrow={autoGrow}
-                                          />
-                                        );
-                                      })()}
-
-                                      {/* Internal notes are milestone-scoped — they never exist outside a milestone. */}
-                                      {isOpen && notesMilestoneId !== null && String(notesMilestoneId) === String(milestone.id) && (
-                                        <div className="mt-2 ml-5">
-                                          <ScopedNotes ventureId={ventureId} scopeType="milestone" scopeId={milestone.id} />
-                                        </div>
-                                      )}
-                                      </>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-
-                          {milestoneAuthority && !stage.is_archived && (
-                            <AddMilestoneForm
-                              DELIVERABLE_TYPES={DELIVERABLE_TYPES}
-                              addMilestone={addMilestone}
-                              addMilestoneDeliverable={addMilestoneDeliverable}
-                              emptyMilestoneForm={emptyMilestoneForm}
-                              milestoneAddFor={milestoneAddFor}
-                              milestoneDeliverables={milestoneDeliverables}
-                              milestoneForm={milestoneForm}
-                              milestoneSaving={milestoneSaving}
-                              removeMilestoneDeliverable={removeMilestoneDeliverable}
-                              setMilestoneAddFor={setMilestoneAddFor}
-                              setMilestoneDeliverables={setMilestoneDeliverables}
-                              setMilestoneForm={setMilestoneForm}
-                              stage={stage}
-                              stages={stages}
-                              updateMilestoneDeliverable={updateMilestoneDeliverable}
-                            />
-                          )}
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                </div>
-              </div>
-            );
-          })}
+            />
+          ))}
         </div>
       )}
 
