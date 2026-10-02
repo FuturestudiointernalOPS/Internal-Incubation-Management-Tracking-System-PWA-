@@ -2,12 +2,16 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
-import Image from "next/image";
-import { Loader2, Send, CheckCircle2, AlertTriangle, Clock, Globe, Mail, CreditCard, Lock } from "lucide-react";
+import { Loader2, Send, AlertTriangle, Clock } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { sanitizeRichText } from "@/lib/lms/richText";
-import AppPhoneInput from "@/components/ui/AppPhoneInput";
 import { useApi } from "@/lib/hooks/useApi";
+import BrandingLogo from "@/components/public/run-submit/BrandingLogo";
+import ContactFooter from "@/components/public/run-submit/ContactFooter";
+import LanguageSelector from "@/components/public/run-submit/LanguageSelector";
+import SectionsStepper from "@/components/public/run-submit/SectionsStepper";
+import ConsentCard from "@/components/public/run-submit/ConsentCard";
+import PaymentStep from "@/components/public/run-submit/PaymentStep";
+import SubmissionSuccess from "@/components/public/run-submit/SubmissionSuccess";
 
 // ─── Translation helper via MyMemory (free, no API key needed) ───
 async function translateText(text, sourceLang, targetLang) {
@@ -483,94 +487,13 @@ export default function PublicSubmitPage() {
     setSaving(false);
   };
 
-  const renderField = (field) => {
-    const value = formData[field.id] || "";
-    const hasError = errors[field.id];
-    const isDisabled = success;
-    const baseClass = "w-full rounded-xl px-4 py-3 text-sm font-medium outline-none bg-slate-800 border text-slate-100 placeholder:text-slate-400";
-    const errClass = hasError ? "border-red-500" : "border-slate-600 focus:border-orange-500";
-    const inputClass = `${baseClass} ${errClass}`;
-
-    switch (field.field_type) {
-      case "textarea":
-        return <textarea value={value} onChange={(event) => updateField(field.id, event.target.value)} placeholder={field.placeholder || ""} disabled={isDisabled} rows={3} className={`${inputClass} resize-none`} />;
-      case "email":
-        return <input type="email" value={value} onChange={(event) => updateField(field.id, event.target.value)} placeholder={field.placeholder || "email@example.com"} disabled={isDisabled} className={inputClass} />;
-      case "phone":
-        return (
-          <AppPhoneInput
-            value={value}
-            onChange={(next) => updateField(field.id, next)}
-            placeholder={field.placeholder || "90 84 78 20"}
-            disabled={isDisabled}
-            inputClassName="flex-1 rounded-xl px-4 py-3 text-sm font-medium outline-none border bg-slate-800 text-slate-100 placeholder:text-slate-400 border-slate-600 focus:border-orange-500"
-          />
-        );
-      case "select": case "radio":
-        return (
-          <select value={value} onChange={(event) => updateField(field.id, event.target.value)} disabled={isDisabled} className={`${inputClass} [&>option]:bg-slate-800 [&>option]:text-slate-100 appearance-none`}>
-            <option value="">{t("forms.selectOption")}</option>
-            {(field.options || []).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-          </select>
-        );
-      case "multiselect": {
-        const selected = Array.isArray(value) ? value : [];
-        return (
-          <div className="space-y-2">
-            {(field.options || []).map((option, index) => {
-              const optionValue = option.value || option;
-              const isChecked = selected.includes(optionValue);
-              return (
-                <label key={index} className={`flex items-center gap-2 text-sm text-slate-100 ${isDisabled ? "opacity-60" : ""}`}>
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={(event) => {
-                      const nextValue = event.target.checked
-                        ? [...selected, optionValue]
-                        : selected.filter((selectedValue) => selectedValue !== optionValue);
-                      updateField(field.id, nextValue);
-                    }}
-                    disabled={isDisabled}
-                    className="w-4 h-4 accent-orange-500"
-                  />
-                  {option.label || option}
-                </label>
-              );
-            })}
-          </div>
-        );
-      }
-      case "rating": {
-        const opts = (Array.isArray(field.options) && field.options.length > 0) ? field.options : [{ label: "1", value: "1" }, { label: "2", value: "2" }, { label: "3", value: "3" }, { label: "4", value: "4" }, { label: "5", value: "5" }];
-        return (
-          <div className="space-y-2">
-            <p className="text-xs text-slate-500">{t("forms.selectRating")}</p>
-            <div className="flex gap-3 flex-wrap">
-              {opts.map(option => (
-                <button key={option.value} type="button" onClick={() => updateField(field.id, option.value)} disabled={isDisabled}
-                  className={`min-w-[56px] px-4 py-3 rounded-xl text-base font-bold border-2 transition-all ${
-                    value === option.value
-                      ? "bg-orange-500 text-white border-orange-500 scale-110 shadow-lg shadow-orange-500/30"
-                      : "bg-slate-700 text-slate-200 border-slate-500 hover:border-orange-400 hover:text-orange-400 hover:bg-slate-600"
-                  }`}
-                >{option.label}</button>
-              ))}
-            </div>
-          </div>
-        );
-      }
-      case "number": case "currency":
-        return <input type="number" value={value} onChange={(event) => updateField(field.id, event.target.value)} placeholder={field.placeholder || "0"} disabled={isDisabled} className={inputClass} />;
-      case "date": return <input type="date" value={value} onChange={(event) => updateField(field.id, event.target.value)} disabled={isDisabled} className={inputClass} />;
-      case "url": return <input type="url" value={value} onChange={(event) => updateField(field.id, event.target.value)} placeholder={field.placeholder || "https://"} disabled={isDisabled} className={inputClass} />;
-      default:
-        return <input type="text" value={value} onChange={(event) => updateField(field.id, event.target.value)} placeholder={field.placeholder || ""} disabled={isDisabled} className={inputClass} />;
-    }
-  };
-
   if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>;
   if (error) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><div className="text-center"><AlertTriangle className="w-10 h-10 mx-auto text-red-500 mb-3" /><p className="text-slate-100 font-bold">{error}</p></div></div>;
+
+  // The sections that actually carry fields: an empty section is never a step.
+  const validSections = sections.filter((sec) =>
+    fields.some((field) => String(field.section_id) === String(sec.id)),
+  );
 
   const escapeHtml = (value) => {
     return String(value ?? "")
@@ -616,149 +539,22 @@ export default function PublicSubmitPage() {
       payment.currency || checkout?.course?.currency || ""
     }`.trim();
 
-    const panel = (icon, title, body, extra = null) => (
-      <div className="p-8 rounded-3xl bg-slate-900 border border-slate-800 text-center space-y-5">
-        <div className="flex justify-center">{icon}</div>
-        <h1 className="text-xl font-black text-white uppercase tracking-tight">{title}</h1>
-        {body ? <p className="text-sm text-slate-400 leading-relaxed">{body}</p> : null}
-        {extra}
-      </div>
-    );
-
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-        <div className="max-w-md w-full space-y-6">
-          <div className="flex flex-col items-center">
-            <Image
-              src="/brand/logo_full.png"
-              alt="Future Studio"
-              width={1018}
-              height={1024}
-              className="h-12 w-auto object-contain"
-            />
-          </div>
-
-          {payment.reference ? (
-            <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-4">
-              <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400">
-                <CreditCard className="w-4 h-4" /> {t("forms.paymentAmount")}
-              </span>
-              <span className="text-lg font-black text-orange-400">{amountLabel}</span>
-            </div>
-          ) : null}
-
-          {payStage === "opening" &&
-            panel(
-              <Loader2 className="w-9 h-9 animate-spin text-orange-500" />,
-              t("forms.paymentOpening"),
-            )}
-
-          {payStage === "confirming" &&
-            panel(
-              <Loader2 className="w-9 h-9 animate-spin text-orange-500" />,
-              t("forms.paymentConfirming"),
-              t("forms.paymentVerifyingHint"),
-            )}
-
-          {payStage === "verifying" &&
-            panel(
-              <Loader2 className="w-9 h-9 animate-spin text-orange-500" />,
-              t("forms.paymentVerifying"),
-              t("forms.paymentVerifyingHint"),
-            )}
-
-          {payStage === "success" &&
-            panel(
-              <CheckCircle2 className="w-10 h-10 text-emerald-500" />,
-              t("forms.paymentSuccess"),
-              // With a link in hand, access is genuinely ready. Without one (the
-              // short window has closed), the link travels by email — saying
-              // "your access is ready" with no button would be a dead end.
-              t(payAccessUrl ? "forms.paymentSuccessBody" : "forms.paymentSuccessByEmail"),
-              <div className="space-y-3">
-                {payAccessUrl ? (
-                  <a
-                    href={payAccessUrl}
-                    className="inline-block w-full px-8 py-3.5 rounded-xl bg-orange-500 text-black text-sm font-black uppercase tracking-wider hover:bg-orange-400 transition-colors"
-                  >
-                    {payAccessUrl.startsWith("/setup-password")
-                      ? t("forms.paymentChoosePassword")
-                      : t("forms.paymentGoToCourse")}
-                  </a>
-                ) : null}
-                <p className="text-[11px] text-slate-500 leading-relaxed">{t("forms.paymentEmailNote")}</p>
-              </div>,
-            )}
-
-          {payStage === "failed" &&
-            panel(
-              <AlertTriangle className="w-9 h-9 text-rose-500" />,
-              t("forms.paymentFailed"),
-              t("forms.paymentFailedBody"),
-              <button
-                onClick={retryPayment}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-800 text-slate-100 text-xs font-black uppercase tracking-wider hover:bg-slate-700 transition-colors"
-              >
-                <Lock className="w-4 h-4" /> {t("forms.paymentRetry")}
-              </button>,
-            )}
-
-          {payStage === "pending" &&
-            panel(
-              <Clock className="w-9 h-9 text-slate-500" />,
-              t("forms.paymentPending"),
-              t("forms.paymentPendingBody"),
-              <div className="space-y-3">
-                <button
-                  onClick={() => payment.reference && payEmail && pollPayment(payment.reference, payEmail)}
-                  className="px-6 py-3 rounded-xl bg-slate-800 text-slate-100 text-xs font-black uppercase tracking-wider hover:bg-slate-700 transition-colors"
-                >
-                  {t("forms.paymentCheckAgain")}
-                </button>
-                {/* NEVER a payment button once the money may have settled. */}
-                <p className="text-[11px] text-slate-500 leading-relaxed">{t("forms.paymentEmailNote")}</p>
-              </div>,
-            )}
-
-          {(payStage === "unavailable" || payment.failed) &&
-            panel(
-              <AlertTriangle className="w-9 h-9 text-slate-500" />,
-              t("forms.paymentUnavailable"),
-              t("forms.paymentUnavailableBody"),
-            )}
-
-          {payStage === "existing" &&
-            panel(
-              <Lock className="w-9 h-9 text-slate-500" />,
-              t("forms.existingTitle"),
-              t("forms.existingBody"),
-              <div className="space-y-3">
-                <a
-                  href="/login"
-                  className="inline-block w-full px-6 py-3 rounded-xl bg-slate-800 text-slate-100 text-xs font-black uppercase tracking-wider hover:bg-slate-700 transition-colors"
-                >
-                  {t("forms.existingSignIn")}
-                </a>
-                <input
-                  type="email"
-                  value={resendEmail}
-                  onChange={(event) => setResendEmail(event.target.value)}
-                  placeholder={t("forms.existingEmailPlaceholder")}
-                  className="w-full rounded-xl px-4 py-3 text-sm outline-none bg-slate-800 border border-slate-600 text-slate-100"
-                />
-                <button
-                  onClick={handleResend}
-                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-orange-500 text-black text-xs font-black uppercase tracking-wider hover:bg-orange-400 transition-colors"
-                >
-                  <Mail className="w-4 h-4" /> {t("forms.existingResend")}
-                </button>
-                {resendNotice ? (
-                  <p className="text-[11px] text-slate-400 leading-relaxed">{resendNotice}</p>
-                ) : null}
-              </div>,
-            )}
-        </div>
-      </div>
+      <PaymentStep
+        t={t}
+        payStage={payStage}
+        amountLabel={amountLabel}
+        payAccessUrl={payAccessUrl}
+        payment={payment}
+        resendEmail={resendEmail}
+        resendNotice={resendNotice}
+        onRetryPayment={retryPayment}
+        onCheckAgain={() =>
+          payment.reference && payEmail && pollPayment(payment.reference, payEmail)
+        }
+        onResendEmailChange={setResendEmail}
+        onResend={handleResend}
+      />
     );
   }
 
@@ -768,48 +564,11 @@ export default function PublicSubmitPage() {
       : null;
     
     return (
-      <div className="min-h-screen bg-slate-950">
-        <div className="max-w-2xl mx-auto p-6 space-y-8">
-          {/* Branding */}
-          <div className="flex flex-col items-center">
-            <Image src="/brand/logo_full.png" alt="Future Studio" width={1018} height={1024} className="h-12 w-auto object-contain mb-0" />
-          </div>
-
-          <div className="text-center max-w-md mx-auto space-y-6">
-            <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-10 h-10 text-emerald-500" />
-            </div>
-            
-            <div className="space-y-3">
-              <h1 className="text-2xl font-black text-white uppercase tracking-tight">{t("forms.submissionReceivedTitle")}</h1>
-              <p className="text-slate-400 text-sm leading-relaxed max-w-sm mx-auto">
-                {t("forms.thankYouDetail")}
-              </p>
-            </div>
-
-            {successMessage ? (
-              <div className="p-6 rounded-2xl bg-slate-800 border border-slate-700">
-                <div className="text-slate-300 text-sm space-y-3 leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeRichText(successMessage.replace(/\n/g, "<br/>")) }} />
-              </div>
-            ) : null}
-
-            {successConfig?.redirect_url && /^https?:\/\//i.test(successConfig.redirect_url) && (
-              <a href={successConfig.redirect_url} className="inline-block px-8 py-3.5 bg-orange-500 text-black rounded-xl text-sm font-black uppercase tracking-wider hover:bg-orange-400 transition-colors">
-                {t("common.continue")}
-              </a>
-            )}
-
-            <p className="text-[10px] text-slate-500 pt-4">{t("forms.checkEmail")}</p>
-          </div>
-
-          {/* Footer */}
-          <div className="text-center pt-8 border-t border-slate-800">
-            <a href="mailto:info@futurestudio.bj" className="inline-flex items-center gap-1.5 text-[10px] font-medium text-slate-500 hover:text-orange-400 transition-colors">
-              <Mail className="w-3 h-3" /> info@futurestudio.bj
-            </a>
-          </div>
-        </div>
-      </div>
+      <SubmissionSuccess
+        t={t}
+        successMessage={successMessage}
+        redirectUrl={successConfig?.redirect_url}
+      />
     );
   }
 
@@ -818,28 +577,15 @@ export default function PublicSubmitPage() {
       {notification && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-orange-500 text-white text-xs font-black uppercase">{notification}</div>}
       <div className="max-w-2xl mx-auto p-6 space-y-8">
         {/* Branding */}
-        <div className="flex flex-col items-center">
-          <Image src="/brand/logo_full.png" alt="Future Studio" width={1018} height={1024} className="h-12 w-auto object-contain mb-0" />
-        </div>
+        <BrandingLogo className="h-12 w-auto object-contain mb-0" />
 
         {/* Language Selector */}
-        <div className="flex justify-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 border border-slate-600">
-            {translating ? <Loader2 className="w-3.5 h-3.5 text-orange-400 animate-spin" /> : <Globe className="w-3.5 h-3.5 text-orange-400" />}
-            <span className="text-[10px] font-black text-slate-300 uppercase tracking-wider">
-              {translating ? "Translating..." : t("common.language")}
-            </span>
-            <select
-              value={lang}
-              onChange={(event) => switchLang(event.target.value)}
-              disabled={translating}
-              className="bg-slate-700 text-[10px] font-black text-white uppercase outline-none cursor-pointer px-2 py-1 rounded border border-slate-500 disabled:opacity-50"
-            >
-              <option value="en">{t("common.english")}</option>
-              <option value="fr">{t("common.french")}</option>
-            </select>
-          </div>
-        </div>
+        <LanguageSelector
+          t={t}
+          lang={lang}
+          translating={translating}
+          onLangChange={switchLang}
+        />
 
         {/* Header */}
         <div>
@@ -856,129 +602,39 @@ export default function PublicSubmitPage() {
         )}
 
         {/* Sections — step-by-step navigation */}
-        {(() => {
-          const validSections = sections.filter(sec => fields.some(field => String(field.section_id) === String(sec.id)));
-          if (validSections.length <= 1) {
-            // Single section — render all fields directly
-            return (
-              <div className="space-y-4">
-                {fields.filter(field => !field.section_id || sections.some(section => String(section.id) === String(field.section_id))).map(field => (
-                  <div key={field.id} className="space-y-1.5">
-                    <label className="text-sm font-bold text-slate-200 flex items-center gap-1">
-                      {field.label} {field.required && <span className="text-red-400">*</span>}
-                    </label>
-                    {field.help_text && <p className="text-xs text-slate-500">{field.help_text}</p>}
-                    {renderField(field)}
-                    {errors[field.id] && <p className="text-xs text-red-400 font-bold">{errors[field.id]}</p>}
-                  </div>
-                ))}
-              </div>
-            );
+        <SectionsStepper
+          validSections={validSections}
+          fields={fields}
+          currentSection={currentSection}
+          formData={formData}
+          errors={errors}
+          disabled={success}
+          saving={saving}
+          onFieldChange={updateField}
+          onStep={(direction) =>
+            setSectionChoice((prev) => {
+              const from = prev ?? raw.draftSection;
+              return direction < 0
+                ? Math.max(0, from - 1)
+                : Math.min(validSections.length - 1, from + 1);
+            })
           }
-
-          // Multi-section — stepper
-          const sec = validSections[currentSection];
-          if (!sec) return null;
-          // Include fields with no section in the FIRST step so they are never
-          // dropped or rendered twice (single-section path already covers them).
-          const secFields = fields.filter(field => {
-            if (currentSection === 0 && !field.section_id) return true;
-            return String(field.section_id) === String(sec.id);
-          });
-          const isLast = currentSection >= validSections.length - 1;
-          const isFirst = currentSection === 0;
-
-          return (
-            <div className="space-y-6">
-              {/* Progress indicator */}
-              <div className="flex items-center gap-1">
-                {validSections.map((_, i) => (
-                  <div key={i} className={`h-1 flex-1 rounded-full ${i <= currentSection ? "bg-orange-500" : "bg-slate-700"}`} />
-                ))}
-                <span className="text-[10px] font-bold text-slate-500 ml-2">{currentSection + 1}/{validSections.length}</span>
-              </div>
-
-              {/* Section title */}
-              <div>
-                <h2 className="text-lg font-black uppercase text-slate-100">{sec.title}</h2>
-                {sec.description && <p className="text-xs text-slate-400 mt-1">{sec.description}</p>}
-              </div>
-
-              {/* Fields */}
-              <div className="space-y-4">
-                {secFields.map(field => (
-                  <div key={field.id} className="space-y-1.5">
-                    <label className="text-sm font-bold text-slate-200 flex items-center gap-1">
-                      {field.label} {field.required && <span className="text-red-400">*</span>}
-                    </label>
-                    {field.help_text && <p className="text-xs text-slate-500">{field.help_text}</p>}
-                    {renderField(field)}
-                    {errors[field.id] && <p className="text-xs text-red-400 font-bold">{errors[field.id]}</p>}
-                  </div>
-                ))}
-              </div>
-
-              {/* Navigation buttons */}
-              <div className="flex gap-3 pt-2">
-                {!isFirst && (
-                  <button
-                    onClick={() => setSectionChoice(prev => Math.max(0, (prev ?? raw.draftSection) - 1))}
-                    className="px-5 py-2.5 rounded-xl bg-slate-800 border border-slate-600 text-slate-300 text-xs font-black uppercase hover:bg-slate-700 transition-colors"
-                  >
-                    ← {t("common.previous") || "Previous"}
-                  </button>
-                )}
-                {!isLast ? (
-                  <button
-                    onClick={() => setSectionChoice(prev => Math.min(validSections.length - 1, (prev ?? raw.draftSection) + 1))}
-                    className="ml-auto px-6 py-2.5 rounded-xl bg-orange-500 text-white text-xs font-black uppercase hover:bg-orange-600 transition-colors"
-                  >
-                    {t("common.next") || "Next"} →
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleSubmit}
-                    disabled={saving}
-                    className="ml-auto px-8 py-3 rounded-xl bg-orange-500 text-white text-sm font-black uppercase hover:bg-orange-600 disabled:opacity-50 transition-all flex items-center gap-2"
-                  >
-                    <Send className="w-4 h-4" /> {saving ? t("forms.submitting") : t("forms.submit")}
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })()}
+          onSubmit={handleSubmit}
+          t={t}
+        />
 
         {/* A PAID Execution: the price, and the consent the capture requires */}
         {paidRun && run?.status === "active" && !success && (
-          <div className="p-6 rounded-2xl bg-slate-900 border border-orange-500/30 space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400">
-                <CreditCard className="w-4 h-4" /> {t("forms.paymentAmount")}
-              </span>
-              <span className="text-lg font-black text-orange-400">
-                {Number(checkout?.course?.amount || 0).toLocaleString()} {checkout?.course?.currency || ""}
-              </span>
-            </div>
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={consent}
-                onChange={(event) => setConsent(event.target.checked)}
-                className="mt-0.5 w-4 h-4 shrink-0 accent-orange-500"
-              />
-              <span className="text-[11px] leading-relaxed text-slate-400">
-                {checkout?.consent_text || t("forms.consentLabel")}
-              </span>
-            </label>
-            {checkout?.misconfigured && (
-              <p className="text-[11px] font-bold text-rose-400">{t("forms.paymentMisconfigured")}</p>
-            )}
-          </div>
+          <ConsentCard
+            t={t}
+            checkout={checkout}
+            consent={consent}
+            onConsentChange={setConsent}
+          />
         )}
 
         {/* Submit — only for forms with no sections (single-page layout) */}
-        {!success && run?.status === "active" && sections.filter(sec => fields.some(field => String(field.section_id) === String(sec.id))).length <= 1 && (
+        {!success && run?.status === "active" && validSections.length <= 1 && (
           <div className="pt-4">
             <button onClick={handleSubmit} disabled={saving} className="w-full px-6 py-4 rounded-xl bg-orange-500 text-white text-sm font-black uppercase hover:bg-orange-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
               <Send className="w-4 h-4" /> {saving ? t("forms.submitting") : t("forms.submit")}
@@ -987,11 +643,7 @@ export default function PublicSubmitPage() {
         )}
 
         {/* Footer */}
-        <div className="text-center pt-4 border-t border-slate-800">
-          <a href="mailto:info@futurestudio.bj" className="inline-flex items-center gap-1.5 text-[10px] font-medium text-slate-500 hover:text-orange-400 transition-colors">
-            <Mail className="w-3 h-3" /> info@futurestudio.bj
-          </a>
-        </div>
+        <ContactFooter className="text-center pt-4 border-t border-slate-800" />
       </div>
     </div>
   );

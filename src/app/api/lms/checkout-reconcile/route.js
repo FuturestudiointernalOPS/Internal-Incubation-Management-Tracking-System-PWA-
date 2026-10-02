@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { reconcileRegistrations } from "@/lib/lms/checkoutReconcile";
+import { reconcileRegistrations } from "@/services/lms/checkoutReconcile";
 
 export const dynamic = "force-dynamic";
 

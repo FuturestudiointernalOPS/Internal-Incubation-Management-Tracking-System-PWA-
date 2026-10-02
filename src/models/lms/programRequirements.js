@@ -9,7 +9,7 @@ import {
   loadAssessmentStates,
   computeCourseProgress,
   findContinueLesson,
-} from "./learning";
+} from "@/services/lms/learning";
 
 /**
  * PROGRAM → LMS LEARNING REQUIREMENTS (Phase 6)

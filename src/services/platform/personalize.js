@@ -40,7 +40,7 @@ import {
   stripUnknownPlaceholders,
   validateStructure,
   validateSubject,
-} from "@/lib/platform/ai/email-personalize";
+} from "@/models/platform/ai/email-personalize";
 import { TEMPLATE_SPECS, specVariableNames, variableGuide } from "@/models/platform/ai/templateSpecs";
 
 function parseJsonObject(raw) {

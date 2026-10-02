@@ -21,7 +21,7 @@ jest.mock("@/lib/auth", () => ({
   getSession: jest.fn(async () => ({ cid: "U-ADMIN", name: "Admin", role: "super_admin" })),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
@@ -36,7 +36,7 @@ const {
   detachCourseFromProgram,
   ensureProgramEnrollments,
   getProgramLearningForParticipant,
-} = require("@/lib/lms/programRequirements");
+} = require("@/models/lms/programRequirements");
 
 const { GET, POST } = require("@/app/api/lms/program-requirements/route");
 const {
@@ -267,7 +267,7 @@ describe("lms program requirements — participant learning view", () => {
 
     // Mark the lesson complete through the REAL completion path — the Program
     // view must reflect the LMS state.
-    const { completeLesson } = require("@/lib/lms/learning");
+    const { completeLesson } = require("@/services/lms/learning");
     await completeLesson("les-1", "U-P1");
 
     const afterCompletion = await getProgramLearningForParticipant("P-2026-001", "U-P1");
@@ -293,7 +293,7 @@ describe("lms program requirements — participant learning view", () => {
     await attachCourseToProgram({ programId: "P-2026-001", courseId: "crs-1" });
     await ensureProgramEnrollments("P-2026-001", ["U-P1", "U-P2"]);
 
-    const { completeLesson } = require("@/lib/lms/learning");
+    const { completeLesson } = require("@/services/lms/learning");
     await completeLesson("les-1", "U-P1");
 
     const firstLearner = await getProgramLearningForParticipant("P-2026-001", "U-P1");
@@ -314,10 +314,10 @@ describe("lms program requirements — participant learning view", () => {
     await attachCourseToProgram({ programId: "P-2026-001", courseId: "crs-1" });
     await ensureProgramEnrollments("P-2026-001", ["U-P1", "U-P2"]);
 
-    const { completeLesson } = require("@/lib/lms/learning");
+    const { completeLesson } = require("@/services/lms/learning");
     await completeLesson("les-1", "U-P1");
 
-    const { getProgramLearningSummary } = require("@/lib/lms/programRequirements");
+    const { getProgramLearningSummary } = require("@/models/lms/programRequirements");
     const summary = await getProgramLearningSummary("P-2026-001");
     expect(summary).toHaveLength(1);
     expect(summary[0].enrolled).toBe(2);

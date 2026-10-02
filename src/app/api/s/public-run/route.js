@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { defaultPaymentProvider } from "@/lib/integrations/payments";
-import { getPaidRunContext } from "@/lib/lms/checkout";
+import { getPaidRunContext } from "@/services/lms/checkout";
 import {
   getPublicRunBySlug,
   getSectionsByFormId,

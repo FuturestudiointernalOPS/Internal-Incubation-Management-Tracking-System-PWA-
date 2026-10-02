@@ -12,8 +12,8 @@
 import {
   audit,
   notifyUser,
-} from "@/lib/platform/integrations";
-import { resolveDefaultRole } from "@/lib/platform/roles";
+} from "@/models/platform/integrations";
+import { resolveDefaultRole } from "@/models/platform/roles";
 import { resolveAutomationFlag } from "@/lib/platform/automationSettings";
 import { stopRoleMutationEnabled } from "@/lib/identity";
 import {
@@ -856,7 +856,7 @@ const RULES = [
     action: async (ctx) => {
       const { run } = ctx;
       try {
-        const { syncRunDeadlines } = await import("@/lib/integrations/calendar/sync");
+        const { syncRunDeadlines } = await import("@/models/integrations/calendar/sync");
         await syncRunDeadlines(run.id);
       } catch (error) {
         console.error("[Automation] Calendar sync failed:", error.message);
@@ -872,7 +872,7 @@ const RULES = [
     action: async (ctx) => {
       const { submission } = ctx;
       try {
-        const { syncSubmission } = await import("@/lib/integrations/notion/sync");
+        const { syncSubmission } = await import("@/models/integrations/notion/sync");
         await syncSubmission(submission.id);
       } catch (error) {
         console.error("[Automation] Notion sync failed:", error.message);

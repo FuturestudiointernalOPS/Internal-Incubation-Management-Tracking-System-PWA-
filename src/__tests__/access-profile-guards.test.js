@@ -100,7 +100,7 @@ jest.mock("@/lib/auth", () => ({
   PERMISSION_MODULES: {},
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn().mockResolvedValue(null),
   assertTemplateCapsEligible: jest.fn().mockResolvedValue({ valid: true, violations: [] }),
   invalidateAllAuthorizationContexts: jest.fn(),

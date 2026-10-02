@@ -162,7 +162,7 @@ jest.mock("@/lib/ventureScopedAccess", () => ({
   requireVentureScopedAccess: jest.fn().mockResolvedValue({ session: SESSION, path: "super-admin" }),
 }));
 
-jest.mock("@/lib/ventureOperatingPlans", () => ({
+jest.mock("@/services/ventures/operatingPlans", () => ({
   resolvePlanAccess: jest.fn().mockResolvedValue({ ok: true, global: true, code: "VNT-TEST" }),
   allowsPlanAction: jest.fn().mockResolvedValue(true),
 }));
@@ -267,7 +267,7 @@ describe("POST /journey/duplicate", () => {
   });
 
   test("returns 403 without the manage capability", async () => {
-    require("@/lib/ventureOperatingPlans").allowsPlanAction.mockResolvedValueOnce(false);
+    require("@/services/ventures/operatingPlans").allowsPlanAction.mockResolvedValueOnce(false);
     const res = await journeyDuplicatePOST(
       new Request("http://localhost/x", { method: "POST", body: JSON.stringify({ stage_id: STAGE_ID }) }),
       journeyCtx,

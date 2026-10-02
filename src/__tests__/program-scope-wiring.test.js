@@ -26,16 +26,16 @@ jest.mock("@/lib/auth", () => ({
   getSession: jest.fn(async () => ({ cid: "USR_STAFF", role: "staff", email: "s@x.test" })),
 }));
 
-jest.mock("@/lib/audit", () => ({
+jest.mock("@/services/tasks/auditLog", () => ({
   logAuditEvent: jest.fn(async () => true),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   getAuthorizationContext: jest.fn(async () => ({ isSuperAdmin: false })),
   requireAuthorization: jest.fn(async () => null),
 }));
 
-jest.mock("@/lib/authorization/scope", () => ({
+jest.mock("@/services/authorization/scope", () => ({
   isWithinScope: jest.fn(async () => true),
 }));
 
@@ -46,7 +46,7 @@ jest.mock("@/models/platformConfig", () => ({
   getV2KpiProgramId: jest.fn(async () => ({ rows: [{ program_id: "P1" }] })),
 }));
 
-const { isWithinScope } = require("@/lib/authorization/scope");
+const { isWithinScope } = require("@/services/authorization/scope");
 const { insertKpi, deleteKpi, getV2KpiProgramId } = require("@/models/platformConfig");
 const kpis = require("@/app/api/kpis/route");
 
@@ -151,7 +151,7 @@ describe("a write outside your programs is refused", () => {
   });
 
   test("Super Admin is never scoped", async () => {
-    const { getAuthorizationContext } = require("@/lib/authorization");
+    const { getAuthorizationContext } = require("@/models/authorization/index");
     getAuthorizationContext.mockResolvedValueOnce({ isSuperAdmin: true });
     isWithinScope.mockResolvedValueOnce(false);
 

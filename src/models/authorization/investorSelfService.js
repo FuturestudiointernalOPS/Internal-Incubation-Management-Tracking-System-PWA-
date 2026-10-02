@@ -12,7 +12,7 @@
  * session's own investor profile) — never cross-user operations.
  */
 export async function requireInvestorSelfServiceAuthorization(capability) {
-  const { requireAuthorization } = await import("@/lib/authorization");
+  const { requireAuthorization } = await import("@/models/authorization/index");
   const capError = await requireAuthorization("investor", capability);
   if (!capError) return null; // capability path unchanged (eligible roles)
 

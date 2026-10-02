@@ -33,14 +33,14 @@ const mockCalendar = {
   unsyncRunDeadlines: jest.fn(async () => ({ removed: 1 })),
   syncAllRunDeadlines: jest.fn(async () => ({ runs: 3 })),
 };
-jest.mock("@/lib/integrations/calendar/sync", () => mockCalendar);
+jest.mock("@/models/integrations/calendar/sync", () => mockCalendar);
 
 const mockNotion = {
   checkNotionHealth: jest.fn(() => ({ configured: false })),
   syncSubmission: jest.fn(async () => ({ synced: 1 })),
   syncAllSubmissions: jest.fn(async () => ({ submitted: 5 })),
 };
-jest.mock("@/lib/integrations/notion/sync", () => mockNotion);
+jest.mock("@/models/integrations/notion/sync", () => mockNotion);
 
 const mockAi = {
   getEvaluationFrameworkByFormId: jest.fn(async () => ({ rows: [] })),

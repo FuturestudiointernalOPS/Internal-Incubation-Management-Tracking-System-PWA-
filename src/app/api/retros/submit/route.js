@@ -1,9 +1,9 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { logAuditEvent } from "@/lib/audit";
-import { requireAuthorization } from "@/lib/authorization";
-import { getTaskTitleById } from "@/lib/db/queries/tasks";
-import { completeCarryoverAncestors } from "@/lib/taskCarryover";
+import { logAuditEvent } from "@/services/tasks/auditLog";
+import { requireAuthorization } from "@/models/authorization/index";
+import { getTaskTitleById } from "@/models/tasks";
+import { completeCarryoverAncestors } from "@/models/taskCarryover";
 import {
   findRetroReportId,
   updateRetroReport,

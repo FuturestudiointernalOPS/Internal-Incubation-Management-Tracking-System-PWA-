@@ -61,7 +61,7 @@ const {
   parseReportDocument,
   buildReportPrompt,
   getOrCreateSubmissionReport,
-} = require("@/models/platform/ai/report");
+} = require("@/services/platform/report");
 
 beforeEach(() => {
   mockStoredRows = [];
@@ -121,7 +121,7 @@ describe("the report store is created on demand", () => {
     jest.resetModules();
     mockQueries.length = 0;
     mockChat.mockResolvedValue(GOOD_ANSWER);
-    const fresh = require("@/models/platform/ai/report");
+    const fresh = require("@/services/platform/report");
 
     await fresh.getOrCreateSubmissionReport({
       submissionId: 42,

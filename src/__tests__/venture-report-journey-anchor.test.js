@@ -48,7 +48,7 @@ jest.mock("@/lib/auth", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
 }));
 
-jest.mock("@/lib/ventureOperatingPlans", () => ({
+jest.mock("@/services/ventures/operatingPlans", () => ({
   resolvePlanAccess: jest.fn().mockResolvedValue({
     ok: true,
     global: false,

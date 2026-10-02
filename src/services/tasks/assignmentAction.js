@@ -19,7 +19,7 @@
  */
 
 import { getTaskById } from "@/models/tasks";
-import { logAuditEvent } from "@/lib/audit";
+import { logAuditEvent } from "@/services/tasks/auditLog";
 import { logTaskEvent, ACTION_TYPES } from "@/models/taskAudit";
 import { completeCarryoverAncestors } from "@/models/taskCarryover";
 import {

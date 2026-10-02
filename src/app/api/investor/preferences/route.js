@@ -2,42 +2,26 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 
-import {
-  getInvestorProfileIdForPreferences,
-  upsertInvestorPreferencesWithPhilosophy,
-} from "@/models/investorRelations";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
+import { saveInvestorPreferences } from "@/services/investor";
 
-/** POST /api/investor/preferences — save/update preferences */
+/**
+ * POST /api/investor/preferences — save/update preferences
+ *
+ * The profile guard and the upsert defaults live in `@/services/investor`.
+ */
 export async function POST(req) {
   try {
     await initDb();
     const capError = await requireInvestorSelfServiceAuthorization("create");
     if (capError) return capError;
 
-    const session = await getSession();
-    const user = session;
     const body = await req.json();
-    const { industries, countries, startup_stages, ticket_size_min, ticket_size_max, investment_philosophy } = body;
 
-    // Find investor profile
-    const profileResult = await getInvestorProfileIdForPreferences(user.cid || user.id);
-    if (profileResult.rows.length === 0) {
-      return NextResponse.json({ success: false, error: "Investor profile not found. Create profile first." }, { status: 404 });
+    const result = await saveInvestorPreferences({ body, session: await getSession() });
+    if (!result.ok) {
+      return NextResponse.json({ success: false, error: result.error }, { status: result.status });
     }
-
-    const investorId = profileResult.rows[0].id;
-
-    // Upsert preferences
-    await upsertInvestorPreferencesWithPhilosophy(
-      investorId,
-      industries || [],
-      countries || [],
-      startup_stages || [],
-      ticket_size_min || null,
-      ticket_size_max || null,
-      investment_philosophy || null,
-    );
 
     return NextResponse.json({ success: true });
   } catch (error) {

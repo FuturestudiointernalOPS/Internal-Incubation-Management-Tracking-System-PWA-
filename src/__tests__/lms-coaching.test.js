@@ -21,7 +21,7 @@ jest.mock("@/lib/auth", () => ({
   getSession: jest.fn(async () => ({ cid: "U-LEARNER", name: "Learner", role: "participant" })),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
@@ -29,7 +29,7 @@ jest.mock("@/lib/programScopedAccess", () => ({
   requireProgramScope: jest.fn(async () => null),
 }));
 
-const { requireAuthorization } = require("@/lib/authorization");
+const { requireAuthorization } = require("@/models/authorization/index");
 const { requireProgramScope } = require("@/lib/programScopedAccess");
 const { getSession } = require("@/lib/auth");
 
@@ -39,7 +39,7 @@ const {
   listCoachingRequests,
   updateCoachingRequest,
   cancelCoachingRequest,
-} = require("@/lib/lms/coaching");
+} = require("@/services/lms/coaching");
 
 const { GET: coachingGET, POST: coachingPOST } = require("@/app/api/lms/coaching-requests/route");
 const { DELETE: coachingDELETE } = require("@/app/api/lms/coaching-requests/[id]/route");

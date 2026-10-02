@@ -36,7 +36,7 @@ jest.mock("@/lib/db", () => {
 });
 
 const { __state: state } = require("@/lib/db");
-const { deriveProposalDates, interpretPlanSheet, applyPlanImport } = require("@/models/venturePlanImport");
+const { deriveProposalDates, interpretPlanSheet, applyPlanImport } = require("@/services/ventures/planImport");
 
 const journeyWith = (milestone) => [{ name: "Growth engine", objective: null, milestones: [milestone] }];
 

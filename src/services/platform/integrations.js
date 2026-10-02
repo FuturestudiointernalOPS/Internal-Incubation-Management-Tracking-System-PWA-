@@ -15,12 +15,12 @@ import {
   syncAllRunDeadlines,
   syncRunDeadlines,
   unsyncRunDeadlines,
-} from "@/lib/integrations/calendar/sync";
+} from "@/models/integrations/calendar/sync";
 import {
   checkNotionHealth,
   syncAllSubmissions,
   syncSubmission,
-} from "@/lib/integrations/notion/sync";
+} from "@/models/integrations/notion/sync";
 
 // ── Calendar ────────────────────────────────────────────────────────────────
 

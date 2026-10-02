@@ -415,7 +415,7 @@ export async function ensureVentureSchema() {
 
   // Seed the configurable Venture permission catalog (idempotent — only when empty)
   try {
-    const { seedVenturePermissions } = await import("@/lib/venturePermissions");
+    const { seedVenturePermissions } = await import("@/services/ventures/permissions");
     await seedVenturePermissions();
   } catch (_) {}
 }

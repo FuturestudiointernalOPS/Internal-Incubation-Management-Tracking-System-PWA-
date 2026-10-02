@@ -2,17 +2,12 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import {
-  selectCalendarVentureScope,
-  selectCoachedVentureIds,
-  selectVentureIdsByCodes,
   selectCalendarVentureSessions,
   selectCalendarVentureTasks,
   selectCalendarVentureMilestones,
   selectCalendarJourneyStages,
 } from "@/models/workspaceCalendarStore";
 import {
-  getFacilitatorProgramScopePids,
-  getParticipantProgramScopePids,
   getCalendarTasksWithDates,
   getCalendarPrograms,
   getCalendarSessions,
@@ -20,6 +15,11 @@ import {
   ensureFollowupsCreatedByColumn,
   getCalendarFollowups,
 } from "@/models/workspace";
+import {
+  resolveCalendarProgramScope,
+  resolveCalendarFollowupVisibility,
+  resolveCalendarVentureScope,
+} from "@/services/workspace";
 
 /**
  * UNIFIED CALENDAR API
@@ -45,50 +45,10 @@ export async function GET(req) {
     const session = await getSession();
     const sessionCid = session?.cid || null;
 
-    // Program scope is derived from RELATIONSHIPS, not from the platform role
-    // label. The identity correction stopped mutating `contacts.role` when
-    // someone takes a facilitator assignment, so keying this on
-    // `role === 'facilitator'` left every other contextual identity (a
-    // `member` acting as a facilitator, for instance) falling through to
-    // `null` — which means NO restriction and every program's sessions,
-    // deliverables and follow-ups. That was a fail-open read.
-    //
-    // Internal / privileged identities keep their existing unscoped view;
-    // everyone else is restricted to the programs they are actually assigned
-    // to (facilitator) or enrolled in (participant), and an empty scope stays
-    // empty rather than silently meaning "all".
-    const PROGRAM_UNSCOPED_ROLES = [
-      "super_admin",
-      "staff",
-      "program_manager",
-      "team",
-    ];
-    let scopedProgramIds = null; // null = no restriction
-    if (sessionCid && !PROGRAM_UNSCOPED_ROLES.includes(session?.role)) {
-      const [facilitatorPids, participantPids] = await Promise.all([
-        getFacilitatorProgramScopePids(sessionCid),
-        getParticipantProgramScopePids(sessionCid),
-      ]);
-      const programIdSet = new Set([
-        ...facilitatorPids.rows.map((row) => String(row.pid)),
-        ...participantPids.rows.map((row) => String(row.pid)),
-      ]);
-      // Fail closed: no relationship at all means NO program-scoped events.
-      scopedProgramIds = programIdSet.size
-        ? [...programIdSet]
-        : ["__no_program_scope__"];
-    }
-
-    const scopePlaceholders = scopedProgramIds && scopedProgramIds.length
-      ? scopedProgramIds.map(() => "?").join(",")
-      : "";
-    const programScopeSql = scopePlaceholders
-      ? ` AND CAST(program_id AS TEXT) IN (${scopePlaceholders})`
-      : "";
-    const programTableScopeSql = scopePlaceholders
-      ? ` AND CAST(id AS TEXT) IN (${scopePlaceholders})`
-      : "";
-    const programScopeArgs = scopedProgramIds || [];
+    // The program-scope decision (relationship-derived, fail-closed) lives in
+    // the workspace service — see src/services/workspace/calendar.js.
+    const { programScopeSql, programTableScopeSql, programScopeArgs } =
+      await resolveCalendarProgramScope(sessionCid, session?.role);
     const { searchParams } = new URL(req.url);
     const user_id = searchParams.get("user_id");
     const year = parseInt(searchParams.get("year")) || new Date().getFullYear();
@@ -228,17 +188,9 @@ export async function GET(req) {
     // 5. Follow-ups (v2_followups with scheduled_at)
     try {
       await ensureFollowupsCreatedByColumn();
-      // Follow-up visibility: super_admin sees all; participants see their own;
-      // everyone else sees follow-ups they assigned (legacy NULL rows remain visible).
-      let followupVisibilitySql = "";
-      const followupVisibilityArgs = [];
-      if (session?.role === "participant" && sessionCid) {
-        followupVisibilitySql = " AND f.participant_id = ?";
-        followupVisibilityArgs.push(sessionCid);
-      } else if (session?.role !== "super_admin" && sessionCid) {
-        followupVisibilitySql = " AND (f.created_by IS NULL OR f.created_by = ?)";
-        followupVisibilityArgs.push(sessionCid);
-      }
+      // The follow-up visibility decision lives in the workspace service.
+      const { followupVisibilitySql, followupVisibilityArgs } =
+        resolveCalendarFollowupVisibility(sessionCid, session?.role);
 
       const followups = await getCalendarFollowups(
         programScopeSql,
@@ -276,50 +228,12 @@ export async function GET(req) {
     //    delegated staff see their active assignments.
     try {
       const personalMode = searchParams.get("personal") === "1";
-      const privilegedVentureRoles = ["staff", "super_admin", "program_manager"];
-      // Personal mode (Vinance 3 Phase 1): even privileged roles see only the
-      // Ventures they are assigned to / coach sessions they are attached to.
-      const seesAllVentures = privilegedVentureRoles.includes(session?.role) && !personalMode;
-      let ventureScope = null; // null = no restriction
-      if ((!seesAllVentures || personalMode) && sessionCid) {
-        const ventureScopeResult = await selectCalendarVentureScope(sessionCid).catch(() => ({ rows: [] }));
-        let scopeList = (ventureScopeResult.rows || [])
-          .map((row) => row.venture_id)
-          .filter(Boolean);
-        // A coach's own sessions count even when stored under a UUID key or
-        // when the coach holds no assignment row yet.
-        if (personalMode) {
-          const coachSessionsResult = await selectCoachedVentureIds(sessionCid).catch(() => ({ rows: [] }));
-          scopeList = [
-            ...scopeList,
-            ...(coachSessionsResult.rows || [])
-              .map((row) => row.venture_id)
-              .filter(Boolean),
-          ];
-        }
-        ventureScope = [...new Set(scopeList)];
-      }
+      // The Venture-scope decision (privileged vs personal vs member/assignment,
+      // including code → internal-id expansion) lives in the workspace service.
+      const { seesAllVentures, ventureScope, scopeIds } =
+        await resolveCalendarVentureScope(sessionCid, session?.role, personalMode);
 
       if (seesAllVentures || (ventureScope && ventureScope.length > 0)) {
-        // Membership/assignment codes are TEXT; canonical venture rows are
-        // UUID-keyed — resolve codes → internal ids and scope on BOTH key
-        // styles. Entries that resolve to neither are kept as ids (stale
-        // codes simply match nothing).
-        let scopeIds = null;
-        if (!seesAllVentures) {
-          const ventureIdResult = await selectVentureIdsByCodes(ventureScope).catch(() => ({ rows: [] }));
-          const resolvedCodes = new Set(
-            (ventureIdResult.rows || []).map((row) => row.venture_id),
-          );
-          const mappedIds = (ventureIdResult.rows || [])
-            .map((row) => row.id)
-            .filter(Boolean);
-          const leftoverIds = ventureScope.filter(
-            (scopeKey) => !resolvedCodes.has(scopeKey),
-          );
-          scopeIds = [...new Set([...mappedIds, ...leftoverIds])];
-        }
-
         // 6a. Venture sessions (founder-facing, plus the coach's own)
         const ventureSessionsResult = await selectCalendarVentureSessions({
           personalMode,

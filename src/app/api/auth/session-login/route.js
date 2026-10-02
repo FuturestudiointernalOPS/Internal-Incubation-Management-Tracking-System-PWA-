@@ -2,7 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { verifyPassword } from "@/server/auth/password";
 import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
-import { resolveLanding, landingNeedsRelationships } from "@/lib/platform/roles";
+import { resolveLanding, landingNeedsRelationships } from "@/models/platform/roles";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getVentureMembershipsForContact } from "@/models/contacts";
 import { getApprovedInvestorProfileIdByUserId } from "@/models/investor";

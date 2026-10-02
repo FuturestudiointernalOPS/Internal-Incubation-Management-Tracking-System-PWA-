@@ -6,7 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { settled } from "./effectUtils";
 import Badge from "./ui/Badge";
-import { SCOPE_POLICIES, SCOPE_POLICY_KEYS } from "@/lib/authorization/scope-catalog";
+import { SCOPE_POLICIES, SCOPE_POLICY_KEYS } from "@/models/authorization/scope-catalog";
 import { describeScopeCheck } from "./scopeCheckHelpers";
 
 /**

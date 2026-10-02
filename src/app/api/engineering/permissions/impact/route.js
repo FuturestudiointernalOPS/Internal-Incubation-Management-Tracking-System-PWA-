@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { getProfileImpactCounts } from "@/models/authorization";
 
 export const dynamic = "force-dynamic";

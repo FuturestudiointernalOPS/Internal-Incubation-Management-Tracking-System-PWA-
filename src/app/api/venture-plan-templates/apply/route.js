@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { resolvePlanAccess, allowsPlanAction, applyTemplateToVenture } from "@/lib/ventureOperatingPlans";
+import { resolvePlanAccess, allowsPlanAction, applyTemplateToVenture } from "@/services/ventures/operatingPlans";
 
 /**
  * POST /api/venture-plan-templates/apply

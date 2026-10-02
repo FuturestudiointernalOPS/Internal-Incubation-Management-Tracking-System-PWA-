@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { previewContactMerge } from "@/services/contacts/merge";
 
 export const dynamic = "force-dynamic";

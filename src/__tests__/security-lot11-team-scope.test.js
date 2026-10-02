@@ -21,13 +21,13 @@ jest.mock("@/lib/auth", () => ({
   requireAssignmentAccess: jest.fn(async () => null),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   getAuthorizationContext: jest.fn(async () => ({ isSuperAdmin: false })),
   requireAuthorization: jest.fn(async () => null),
   authorize: jest.fn(() => false),
 }));
 
-jest.mock("@/lib/authorization/scope", () => ({
+jest.mock("@/services/authorization/scope", () => ({
   isWithinScope: jest.fn(async () => true),
 }));
 
@@ -55,7 +55,7 @@ jest.mock("@/models/workspace", () => ({
   deleteTeamTask: jest.fn(async () => ({})),
 }));
 
-const { isWithinScope } = require("@/lib/authorization/scope");
+const { isWithinScope } = require("@/services/authorization/scope");
 const { getSession, hasProgramManagementAccess } = require("@/lib/auth");
 const teamsModel = require("@/models/teams");
 const workspaceModel = require("@/models/workspace");

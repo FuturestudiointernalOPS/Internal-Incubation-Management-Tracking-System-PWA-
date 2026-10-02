@@ -109,7 +109,7 @@ export async function POST(req, { params }) {
 
     // Contact Group enforcement for assignment under intent
     if (finalAssignedTo && session.role !== "super_admin") {
-      const { validateTaskAssignment } = await import("@/lib/contactGroups");
+      const { validateTaskAssignment } = await import("@/models/contactGroups");
       const groupCheck = await validateTaskAssignment(
         finalUserId,
         finalAssignedTo,

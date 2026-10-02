@@ -11,7 +11,7 @@ import {
   MODULE_TO_FEATURE,
   evaluateEligibility,
   validateCapabilitiesWithinEligibility,
-} from "@/lib/authorization";
+} from "@/models/authorization/index";
 import {
   getRoleDefaultRoles,
   getRoleEligibilityRows,

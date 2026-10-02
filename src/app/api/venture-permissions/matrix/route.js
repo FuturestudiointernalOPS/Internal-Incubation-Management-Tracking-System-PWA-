@@ -6,7 +6,7 @@ import {
   setMatrixCell,
   VENTURE_PERMISSION_AREAS,
   VENTURE_PERMISSION_ACTIONS,
-} from "@/lib/venturePermissions";
+} from "@/services/ventures/permissions";
 
 const READ_ROLES = ["super_admin"];
 const WRITE_ROLES = ["super_admin"];

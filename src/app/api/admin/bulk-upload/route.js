@@ -1,20 +1,11 @@
 import { initDb } from "@/lib/db";
-import { requireAuthorization } from "@/lib/authorization";
-import { normalizeGroupName, INTERNAL_GROUP } from "@/lib/authorization/membership";
+import { requireAuthorization } from "@/models/authorization/index";
 import { NextResponse } from "next/server";
-import { hashPassword } from "@/server/auth/password";
-import Papa from "papaparse";
 import {
-  deleteContactByCid,
-  findActiveContactByEmail,
-  getAllActiveContactPhones,
-  insertBulkImportNotification,
-  insertContact,
-  updateContactByEmail,
-} from "@/models/adminOps";
-
-/** Roles a CSV import may assign without the role-assignment capability. */
-const IMPORTABLE_ROLES = new Set(["participant", "member", "applicant", "unassigned"]);
+  csvWantsInternalGroup,
+  importContacts,
+  parseContactCsv,
+} from "@/services/dashboard/bulkImport";
 
 /**
  * BULK USER UPLOAD — with rollback + phone support
@@ -32,6 +23,10 @@ const IMPORTABLE_ROLES = new Set(["participant", "member", "applicant", "unassig
  * in a way that would corrupt data (DB-level errors), the entire import is
  * rolled back. Rows that fail validation (missing fields, bad format) are
  * skipped and reported as errors — the valid rows still succeed.
+ *
+ * The parse, the validation, the role boundary and the processing live in
+ * `services/dashboard/bulkImport`; this controller keeps the capability gates,
+ * the protected-group boundary and the envelope.
  */
 export async function POST(req) {
   try {
@@ -63,12 +58,7 @@ export async function POST(req) {
     }
 
     const text = await file.text();
-
-    const { data, errors: parseErrors } = Papa.parse(text, {
-      header: true,
-      skipEmptyLines: true,
-      trimHeaders: true,
-    });
+    const { rows, parseErrors, empty } = parseContactCsv(text);
 
     if (parseErrors.length > 0) {
       return NextResponse.json(
@@ -81,7 +71,7 @@ export async function POST(req) {
       );
     }
 
-    if (data.length === 0) {
+    if (empty) {
       return NextResponse.json(
         { success: false, error: "CSV file is empty." },
         { status: 400 },
@@ -91,182 +81,13 @@ export async function POST(req) {
     // Protected group boundary: bulk-importing people INTO FUTURE STUDIO is
     // an organizational-membership action — assign_capabilities alone must
     // not grant it (only org_membership.manage).
-    const wantsInternal = data.some(
-      (row) =>
-        normalizeGroupName(row?.group_name || row?.group) === INTERNAL_GROUP,
-    );
-    if (wantsInternal) {
+    if (csvWantsInternalGroup(rows)) {
       const protectError = await requireAuthorization("org_membership", "manage");
       if (protectError) return protectError;
     }
 
-    // ── PHASE 1: Validate all rows ──
-    const validated = [];
-    const results = {
-      created: 0,
-      updated: 0,
-      errors: [],
-      skipped: 0,
-    };
-
-    // Pre-fetch all existing phones for duplicate check
-    const phoneSet = new Set();
-    try {
-      const phoneResult = await getAllActiveContactPhones();
-      for (const row of phoneResult.rows) {
-        if (row.phone) phoneSet.add(row.phone.trim());
-      }
-    } catch (_) {}
-
-    // Track phones seen in this batch for intra-batch duplicate detection
-    const batchPhones = new Set();
-
-    for (const [index, row] of data.entries()) {
-      const rowNum = index + 1;
-      const name = (row.name || "").trim();
-      const email = (row.email || "").trim().toLowerCase();
-      const phone = (row.phone || "").trim();
-      const groupName =
-        (row.group_name || row.group || "").trim().toUpperCase() ||
-        "UNASSIGNED";
-      const requestedRole = (row.role || "participant").trim().toLowerCase();
-      // Role is a server-controlled boundary: an importer who cannot assign
-      // roles may only import self-service ones, never staff/super_admin.
-      const role = canAssignRole || IMPORTABLE_ROLES.has(requestedRole)
-        ? requestedRole
-        : "participant";
-
-      // 7.5: Missing mandatory fields
-      if (!name || !email) {
-        results.skipped++;
-        results.errors.push({
-          row: rowNum,
-          error: "Name and email are required.",
-        });
-        continue;
-      }
-
-      // 7.2: Invalid email format
-      if (!email.includes("@")) {
-        results.skipped++;
-        results.errors.push({
-          row: rowNum,
-          email,
-          error: "Invalid email format.",
-        });
-        continue;
-      }
-
-      // 7.4: Duplicate phone check
-      if (phone) {
-        if (phoneSet.has(phone) || batchPhones.has(phone)) {
-          results.skipped++;
-          results.errors.push({
-            row: rowNum,
-            email,
-            phone,
-            error: "Duplicate phone number — already exists.",
-          });
-          continue;
-        }
-        batchPhones.add(phone);
-      }
-
-      validated.push({ rowNum, name, email, phone, groupName, role });
-    }
-
-    // If EVERYTHING failed → return early with errors
-    if (validated.length === 0) {
-      return NextResponse.json({
-        success: true,
-        message: `Import complete: 0 created, 0 updated, ${results.errors.length} errors.`,
-        results,
-      });
-    }
-
-    // ── PHASE 2: Process valid rows ──
-    // Use a transaction-like approach: try each row, but if a DB error occurs
-    // on any row, rollback all previous inserts/updates for this batch.
-    // Since we can't do true SQL transactions easily, we collect inserted CIDs
-    // and delete them on failure.
-
-    const processedCids = [];
-    const dbErrors = [];
-
-    for (const row of validated) {
-      try {
-        const randomPass = Math.random().toString(36).substring(2, 10) + "A1!";
-        const hashedPassword = await hashPassword(randomPass);
-        const cid =
-          "USR-" + Math.random().toString(36).substring(2, 10).toUpperCase();
-
-        // Upsert: check existing by email (7.3: duplicate emails → update)
-        const existing = await findActiveContactByEmail(row.email);
-
-        if (existing.rows.length > 0) {
-          await updateContactByEmail({
-            name: row.name,
-            phone: row.phone,
-            groupName: row.groupName,
-            role: row.role,
-            password: hashedPassword,
-            email: row.email,
-          });
-          results.updated++;
-          processedCids.push(existing.rows[0].cid);
-        } else {
-          await insertContact({
-            cid,
-            name: row.name,
-            email: row.email,
-            phone: row.phone,
-            password: hashedPassword,
-            role: row.role,
-            groupName: row.groupName,
-          });
-          results.created++;
-          processedCids.push(cid);
-        }
-      } catch (rowError) {
-        // 7.7: Rollback on DB failure
-        dbErrors.push({
-          row: row.rowNum,
-          email: row.email,
-          error: rowError.message,
-        });
-
-        // Rollback: delete all records we just created in this batch
-        for (const cid of processedCids) {
-          try {
-            await deleteContactByCid(cid);
-          } catch (_) {}
-        }
-
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Database error at row ${row.rowNum}: ${rowError.message}. All changes rolled back.`,
-            dbErrors,
-          },
-          { status: 500 },
-        );
-      }
-    }
-
-    // Create notification
-    if (results.created > 0 || results.updated > 0) {
-      try {
-        await insertBulkImportNotification(results.created, results.updated, results.errors.length);
-      } catch (error) {
-        console.error("Notification error:", error.message);
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: `Import complete: ${results.created} created, ${results.updated} updated, ${results.errors.length} errors.`,
-      results,
-    });
+    const { status, body } = await importContacts({ rows, canAssignRole });
+    return NextResponse.json(body, { status });
   } catch (error) {
     console.error("Bulk upload error:", error);
     return NextResponse.json(

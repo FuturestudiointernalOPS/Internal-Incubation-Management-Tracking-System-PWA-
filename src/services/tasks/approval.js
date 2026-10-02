@@ -22,7 +22,7 @@ import {
   rejectTaskAsStandalone,
   markApprovalRequestRejected,
 } from "@/models/taskLifecycle";
-import { logAuditEvent } from "@/lib/audit";
+import { logAuditEvent } from "@/services/tasks/auditLog";
 
 /**
  * Approve or reject a task that is pending project approval.

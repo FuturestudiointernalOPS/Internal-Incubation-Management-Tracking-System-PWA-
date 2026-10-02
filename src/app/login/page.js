@@ -5,7 +5,7 @@ import { Eye, EyeOff, AlertCircle, Globe } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useI18n, SUPPORTED_LANGUAGES } from "@/lib/i18n";
-import { roleHomeHref } from "@/lib/platform/roles";
+import { roleHomeHref } from "@/models/platform/roles";
 import { safeNextPath } from "@/lib/safeNextPath";
 import { clearResponseCache } from "@/lib/hooks/useApi";
 

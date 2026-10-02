@@ -33,7 +33,7 @@ jest.mock("@/lib/auth", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
 }));
 
-jest.mock("@/lib/ventureOperatingPlans", () => ({
+jest.mock("@/services/ventures/operatingPlans", () => ({
   resolvePlanAccess: jest.fn().mockResolvedValue({ ok: true, global: false, code: "VNT-TEST", assignments: [{ responsibility_code: "lead_manager", scope_type: "venture_wide" }] }),
   allowsPlanAction: jest.fn().mockResolvedValue(true),
   resolveVentureCode: jest.fn(async () => "VNT-TEST"),

@@ -78,9 +78,9 @@ jest.mock("next/server", () => ({
 const {
   mergeEffectiveCapabilities,
   authorize,
-} = require("@/lib/authorization/resolver");
+} = require("@/services/authorization/context");
 const { evaluateEligibility } = require("@/lib/authorization/eligibility");
-const { requireAuthorization } = require("@/lib/authorization");
+const { requireAuthorization } = require("@/models/authorization/index");
 
 // ─── mergeEffectiveCapabilities: V2 semantics ───────────────────────────────
 
@@ -514,7 +514,7 @@ describe("engineering module (Phase 8)", () => {
   });
 
   test("manage_developers is gone from the engineering catalog (developer role retired)", () => {
-    const { CAPABILITY_CATALOG } = require("@/lib/authorization/capability-catalog");
+    const { CAPABILITY_CATALOG } = require("@/models/authorization/capability-catalog");
     expect(CAPABILITY_CATALOG.engineering.capabilities.manage_developers).toBeUndefined();
   });
 
@@ -742,7 +742,7 @@ describe("messaging module (communication feature)", () => {
 
 describe("buildPermissionExplanation (who has access + why)", () => {
   test("non-SA: eligibility verdict with identity sources + capability inputs", () => {
-    const { buildPermissionExplanation } = require("@/lib/authorization");
+    const { buildPermissionExplanation } = require("@/models/authorization/index");
     const ctx = {
       isSuperAdmin: false,
       eligibilityRows: [
@@ -769,7 +769,7 @@ describe("buildPermissionExplanation (who has access + why)", () => {
   });
 
   test("SA: eligible everywhere by super_admin bypass", () => {
-    const { buildPermissionExplanation } = require("@/lib/authorization");
+    const { buildPermissionExplanation } = require("@/models/authorization/index");
     const explanation = buildPermissionExplanation({
       isSuperAdmin: true,
       baseCaps: {},
@@ -787,7 +787,7 @@ describe("buildPermissionExplanation (who has access + why)", () => {
   });
 
   test("null context → null", () => {
-    const { buildPermissionExplanation } = require("@/lib/authorization");
+    const { buildPermissionExplanation } = require("@/models/authorization/index");
     expect(buildPermissionExplanation(null)).toBeNull();
   });
 });
@@ -848,7 +848,7 @@ describe("lms module", () => {
   // all miss and would each run the same resolution queries in parallel.
   test("concurrent readers of one user share ONE resolution", async () => {
     const dbMock = require("@/lib/db").default;
-    const { getAuthorizationContext } = require("@/lib/authorization");
+    const { getAuthorizationContext } = require("@/models/authorization/index");
     dbMock.execute.mockClear();
 
     const user = { cid: "USER_SHARED_CONTEXT", role: "staff" };
@@ -870,7 +870,7 @@ describe("lms module", () => {
 
   test("a context is reused from the cache, and invalidated on demand", async () => {
     const dbMock = require("@/lib/db").default;
-    const { getAuthorizationContext, invalidateAuthorizationContext } = require("@/lib/authorization");
+    const { getAuthorizationContext, invalidateAuthorizationContext } = require("@/models/authorization/index");
 
     const user = { cid: "USER_CACHED_CONTEXT", role: "staff" };
     const cachedContext = await getAuthorizationContext(user);
@@ -897,7 +897,7 @@ describe("lms module", () => {
   // closes that gap for existing databases (missing rows only).
   test("ensureLmsViewBackfill grants lms.view to the Program Manager profile + role fallback", async () => {
     const dbMock = require("@/lib/db").default;
-    const { ensureLmsViewBackfill } = require("@/lib/authorization/backfill");
+    const { ensureLmsViewBackfill } = require("@/models/authorization/backfill");
     dbMock.execute.mockClear();
     dbMock.execute.mockImplementation(async (query = {}) => {
       const sql = typeof query === "string" ? query : query.sql || "";
@@ -928,7 +928,7 @@ describe("lms module", () => {
 
   test("ensureLmsViewBackfill never grants a write capability", async () => {
     const dbMock = require("@/lib/db").default;
-    const { ensureLmsViewBackfill } = require("@/lib/authorization/backfill");
+    const { ensureLmsViewBackfill } = require("@/models/authorization/backfill");
     dbMock.execute.mockClear();
     dbMock.execute.mockImplementation(async (query = {}) => {
       const sql = typeof query === "string" ? query : query.sql || "";
@@ -1015,7 +1015,7 @@ describe("final eligibility policy (#3)", () => {
 
   test("ensureFinalPolicyBackfill deletes ONLY the retired role rows (group rows sacred)", async () => {
     const dbMock = require("@/lib/db").default;
-    const { ensureFinalPolicyBackfill } = require("@/lib/authorization/backfill");
+    const { ensureFinalPolicyBackfill } = require("@/models/authorization/backfill");
     dbMock.execute.mockClear();
     await ensureFinalPolicyBackfill();
     const deletes = dbMock.execute.mock.calls
@@ -1039,7 +1039,7 @@ describe("final eligibility policy (#3)", () => {
 describe("retired roles cleanup (developer / admin)", () => {
   test("removes the retired templates, roles and manage_developers grants", async () => {
     const dbMock = require("@/lib/db").default;
-    const { ensureRetiredRoleCleanup } = require("@/lib/authorization/backfill");
+    const { ensureRetiredRoleCleanup } = require("@/models/authorization/backfill");
     dbMock.execute.mockClear();
     dbMock.execute.mockImplementation(async () => ({ rows: [] }));
 
@@ -1148,7 +1148,7 @@ describe("permissions.configure_eligibility (Phase A)", () => {
 describe("runAuthzMigration (one-time policy migrations)", () => {
   test("runs once per database, then never again", async () => {
     const dbMock = require("@/lib/db").default;
-    const { runAuthzMigration } = require("@/lib/authorization");
+    const { runAuthzMigration } = require("@/models/authorization/index");
     let markerPresent = false;
     dbMock.execute.mockImplementation(async ({ sql } = {}) => {
       const statement = typeof sql === "string" ? sql : sql || "";
@@ -1177,7 +1177,7 @@ describe("runAuthzMigration (one-time policy migrations)", () => {
 
   test("does not record the migration when the work throws (retries next boot)", async () => {
     const dbMock = require("@/lib/db").default;
-    const { runAuthzMigration } = require("@/lib/authorization");
+    const { runAuthzMigration } = require("@/models/authorization/index");
     let markerPresent = false;
     dbMock.execute.mockImplementation(async ({ sql } = {}) => {
       const statement = typeof sql === "string" ? sql : sql || "";
@@ -1205,7 +1205,7 @@ describe("runAuthzMigration (one-time policy migrations)", () => {
 
 describe("validateEligibilityChanges (eligibility API)", () => {
   test("normalizes a valid batch (1, 0 and null → delete)", () => {
-    const { validateEligibilityChanges } = require("@/lib/authorization");
+    const { validateEligibilityChanges } = require("@/models/authorization/index");
     const result = validateEligibilityChanges([
       { feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 1 },
       { feature_key: "crm", identity_type: "group", identity_value: "Future Studio", eligible: 0 },
@@ -1221,7 +1221,7 @@ describe("validateEligibilityChanges (eligibility API)", () => {
   });
 
   test("rejects unknown features, identity types, empty values and bad eligible values", () => {
-    const { validateEligibilityChanges } = require("@/lib/authorization");
+    const { validateEligibilityChanges } = require("@/models/authorization/index");
     const result = validateEligibilityChanges([
       { feature_key: "not_a_feature", identity_type: "role", identity_value: "staff", eligible: 1 },
       { feature_key: "finance", identity_type: "planet", identity_value: "staff", eligible: 1 },
@@ -1235,14 +1235,14 @@ describe("validateEligibilityChanges (eligibility API)", () => {
   });
 
   test("rejects an empty batch", () => {
-    const { validateEligibilityChanges } = require("@/lib/authorization");
+    const { validateEligibilityChanges } = require("@/models/authorization/index");
     expect(validateEligibilityChanges([]).valid).toBe(false);
     expect(validateEligibilityChanges(null).valid).toBe(false);
     expect(validateEligibilityChanges(undefined).valid).toBe(false);
   });
 
   test("feature catalog covers every module-mapped and seeded feature", () => {
-    const { FEATURE_KEYS } = require("@/lib/authorization");
+    const { FEATURE_KEYS } = require("@/models/authorization/index");
     expect(FEATURE_KEYS).toEqual(
       expect.arrayContaining([
         "crm",
@@ -1257,7 +1257,7 @@ describe("validateEligibilityChanges (eligibility API)", () => {
   });
 
   test("capabilities within eligibility are valid (Phase 2)", () => {
-    const { validateCapabilitiesWithinEligibility } = require("@/lib/authorization");
+    const { validateCapabilitiesWithinEligibility } = require("@/models/authorization/index");
     const result = validateCapabilitiesWithinEligibility(
       { programs: { view: 1 }, contacts: { view: 1 } },
       { programs: true, crm: true },
@@ -1267,7 +1267,7 @@ describe("validateEligibilityChanges (eligibility API)", () => {
   });
 
   test("ineligible feature capabilities are rejected (template boundary)", () => {
-    const { validateCapabilitiesWithinEligibility } = require("@/lib/authorization");
+    const { validateCapabilitiesWithinEligibility } = require("@/models/authorization/index");
     const result = validateCapabilitiesWithinEligibility(
       { programs: { view: 1 }, finance: { view: 1 } },
       { programs: true, finance: false },
@@ -1279,7 +1279,7 @@ describe("validateEligibilityChanges (eligibility API)", () => {
   });
 
   test("unset eligibility (missing = fail closed) rejects template caps", () => {
-    const { validateCapabilitiesWithinEligibility } = require("@/lib/authorization");
+    const { validateCapabilitiesWithinEligibility } = require("@/models/authorization/index");
     const result = validateCapabilitiesWithinEligibility(
       { finance: { view: 1 } },
       { programs: true }, // finance row missing entirely
@@ -1293,7 +1293,7 @@ describe("validateEligibilityChanges (eligibility API)", () => {
   });
 
   test("infra modules without a feature mapping are not eligibility-bound", () => {
-    const { validateCapabilitiesWithinEligibility } = require("@/lib/authorization");
+    const { validateCapabilitiesWithinEligibility } = require("@/models/authorization/index");
     const result = validateCapabilitiesWithinEligibility(
       { org_membership: { manage: 2 } },
       {},
@@ -1318,7 +1318,7 @@ describe("validateEligibilityChanges (eligibility API)", () => {
   });
 
   test("capability catalog exposes labels and risk for every module", () => {
-    const { CAPABILITY_CATALOG } = require("@/lib/authorization/capability-catalog");
+    const { CAPABILITY_CATALOG } = require("@/models/authorization/capability-catalog");
     const { PERMISSION_MODULES } = require("@/lib/auth");
     for (const [mod, def] of Object.entries(PERMISSION_MODULES)) {
       expect(CAPABILITY_CATALOG[mod]).toBeDefined();
@@ -1364,7 +1364,7 @@ describe("org_membership capability (Phase 1 — protected groups)", () => {
  * to `{}` (which silently turned every restriction into "allowed").
  */
 describe("restrictionsToJson (server → client wire format)", () => {
-  const { restrictionsToJson } = require("@/lib/authorization/resolver");
+  const { restrictionsToJson } = require("@/services/authorization/context");
   const { deriveUserCapState } = require("@/components/permissions/matrixHelpers");
 
   test("projects Set-based restrictions into the JSON object shape", () => {

@@ -67,8 +67,8 @@ jest.mock("@/lib/db", () => ({
   getDbMetrics: jest.fn(() => ({})),
 }));
 
-jest.mock("@/lib/authorization", () => {
-  const actual = jest.requireActual("@/lib/authorization");
+jest.mock("@/models/authorization/index", () => {
+  const actual = jest.requireActual("@/models/authorization/index");
   return {
     ...actual,
     requireAuthorization: jest.fn(async () => null),

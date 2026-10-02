@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { hashPassword } from "@/server/auth/password";
 import { requireAuth, getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
-import { getAuthorizationContext, authorize } from "@/lib/authorization";
+import { getAuthorizationContext, authorize } from "@/models/authorization/index";
 import {
   upsertParticipantContact,
   getContactCidByEmail,

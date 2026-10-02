@@ -9,10 +9,10 @@ import {
   createActionItem, updateActionItem, getDeliverable,
 } from "@/lib/ventures";
 import { SESSION_MIN_LEAD_MINUTES, normalizeSessionMaterials } from "@/lib/ventureSessionRules";
-import { notifyVentureCoach, notifyVentureLeadManagers } from "@/lib/ventureNotify";
+import { notifyVentureCoach, notifyVentureLeadManagers } from "@/services/ventures/notify";
 import { isStaffActorForVenture } from "@/lib/ventureAuth";
-import { hasVentureCapability } from "@/lib/venturePermissions";
-import { resolveVentureCode } from "@/lib/ventureOperatingPlans";
+import { hasVentureCapability } from "@/services/ventures/permissions";
+import { resolveVentureCode } from "@/services/ventures/operatingPlans";
 import { assertBookableMilestone, activateDueStages } from "@/lib/ventureMilestoneEngine";
 import { signSessionMaterials } from "@/lib/ventureEvidence";
 import { getVentureByCode, getVentureDbIdByCodeOrId, getVentureIdAndCode } from "@/models/ventureWorkspace";
@@ -23,7 +23,7 @@ import { getVentureByCode, getVentureDbIdByCodeOrId, getVentureIdAndCode } from 
 async function emailVentureAboutSession(ventureParam, sessionRecord, { inAppTitle, inAppMsg, subject, lines, templateKey = null, params = null, dedupeKey = null }) {
   try {
     if (!sessionRecord || sessionRecord.venture_facing !== true) return;
-    const { notifyAndEmailVentureFounders } = await import("@/lib/ventureNotify");
+    const { notifyAndEmailVentureFounders } = await import("@/services/ventures/notify");
     const ventureDbIdResult = await getVentureByCode(ventureParam);
     const dbId = ventureDbIdResult.rows?.[0]?.id;
     if (!dbId) return;
@@ -279,7 +279,7 @@ export const POST = createHandler(async (req, { params }) => {
       // Venture-facing sessions notify founders (in-app + email).
       if (body.venture_facing === true) {
         try {
-          const { notifyAndEmailVentureFounders } = await import("@/lib/ventureNotify");
+          const { notifyAndEmailVentureFounders } = await import("@/services/ventures/notify");
           const ventureDbIdResult = await getVentureByCode(id);
           const dbId = ventureDbIdResult.rows?.[0]?.id;
           if (dbId) {

@@ -26,11 +26,11 @@ jest.mock("@/lib/auth", () => ({
 }));
 
 let mockAuthzDecision = null;
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn().mockImplementation(async () => mockAuthzDecision),
 }));
 
-const { requireAuthorization } = require("@/lib/authorization");
+const { requireAuthorization } = require("@/models/authorization/index");
 const auditRoute = require("@/app/api/engineering/permissions/audit/route");
 const profilesRoute = require("@/app/api/access-profiles/route");
 

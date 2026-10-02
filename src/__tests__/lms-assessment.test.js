@@ -29,18 +29,18 @@ jest.mock("@/lib/auth", () => ({
   requireAuth: jest.fn(async () => null),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
 const { requireAuth } = require("@/lib/auth");
 
-const { scoreAssessment, analyzePassMark, DEFAULT_PASS_MARK } = require("@/lib/lms/scoring");
+const { scoreAssessment, analyzePassMark, DEFAULT_PASS_MARK } = require("@/models/lms/scoring");
 const {
   getAssessmentForTake,
   submitAssessment,
   computeCourseProgress,
-} = require("@/lib/lms/learning");
+} = require("@/services/lms/learning");
 
 const { GET: takeGET } = require("@/app/api/lms/assessments/[id]/take/route");
 const { POST: submitPOST } = require("@/app/api/lms/assessments/[id]/submit/route");

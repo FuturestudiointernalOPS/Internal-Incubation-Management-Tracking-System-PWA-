@@ -23,8 +23,8 @@ jest.mock("@/lib/db", () => {
 });
 
 const { __state: mockState } = require("@/lib/db");
-const { hasVentureCapability } = require("@/lib/venturePermissions");
-const { allowsPlanAction } = require("@/lib/ventureOperatingPlans");
+const { hasVentureCapability } = require("@/services/ventures/permissions");
+const { allowsPlanAction } = require("@/services/ventures/operatingPlans");
 
 // ── Fake db: matrix allows every queried cell unless overridden ────────────
 function installMatrix({ allowAllActions = true, allowOnlyAction = null } = {}) {

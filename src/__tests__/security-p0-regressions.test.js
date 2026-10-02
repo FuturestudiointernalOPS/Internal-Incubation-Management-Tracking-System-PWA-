@@ -28,7 +28,7 @@ jest.mock("@/lib/auth", () => ({
   assertNoParticipantFacilitatorConflict: jest.fn().mockResolvedValue(null),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn().mockResolvedValue(null),
 }));
 
@@ -37,7 +37,7 @@ jest.mock("@/lib/authorization/membership", () => ({
   INTERNAL_GROUP: "FUTURE STUDIO",
 }));
 
-jest.mock("@/lib/invitations", () => ({
+jest.mock("@/models/invitations", () => ({
   attachInvitationStatus: jest.fn().mockResolvedValue([]),
 }));
 
@@ -78,7 +78,7 @@ jest.mock("@/models/contacts", () => ({
 }));
 
 const { getSession, requireAuth } = require("@/lib/auth");
-const { requireAuthorization } = require("@/lib/authorization");
+const { requireAuthorization } = require("@/models/authorization/index");
 const { upsertContact, getFamilyByRegistrationId } = require("@/models/contacts");
 
 const { POST: postContact } = require("@/app/api/contacts/route");
@@ -200,8 +200,9 @@ describe("static guarantees for the remaining P0 fixes", () => {
   });
 
   test("public registration never rewrites an existing account's credentials", () => {
-    const src = read("src/app/api/public/register/route.js");
-    expect(src).not.toMatch(/updateContactForRegistration/);
-    expect(src).toMatch(/existingContact.rows.length === 0/);
+    // The route stays a thin envelope; the ownership rule moved to the service.
+    const service = read("src/services/lms/publicRegistration.js");
+    expect(service).not.toMatch(/updateContactForRegistration/);
+    expect(service).toMatch(/existingContact.rows.length === 0/);
   });
 });

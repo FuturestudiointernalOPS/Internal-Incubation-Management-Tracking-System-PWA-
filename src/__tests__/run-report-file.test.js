@@ -124,7 +124,7 @@ const {
   hashInstruction,
   buildReportPrompt,
   getOrCreateSubmissionReport,
-} = require("@/models/platform/ai/report");
+} = require("@/services/platform/report");
 
 beforeEach(() => {
   storedReports = [];

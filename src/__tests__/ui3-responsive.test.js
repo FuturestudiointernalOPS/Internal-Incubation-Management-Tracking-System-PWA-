@@ -42,7 +42,7 @@ describe("UI-3d — small-screen parity", () => {
     for (const [file, expected] of [
       ["PermissionCenter.js", 2],
       ["FeatureMatrixSection.js", 1],
-      ["PeopleView.js", 1],
+      ["people-view/PeopleMatrix.js", 1],
       ["ContextRolesView.js", 1],
     ]) {
       expect(count(read(file), "md:hidden")).toBe(expected);

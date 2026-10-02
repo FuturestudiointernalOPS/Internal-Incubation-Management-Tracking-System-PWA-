@@ -31,13 +31,13 @@ jest.mock("@/lib/email", () => ({
   recordResendEvent: jest.fn(async () => true),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   getAuthorizationContext: jest.fn(async () => ({ isSuperAdmin: false })),
   requireAuthorization: jest.fn(async () => null),
   authorize: jest.fn(() => false),
 }));
 
-jest.mock("@/lib/authorization/scope", () => ({
+jest.mock("@/services/authorization/scope", () => ({
   isWithinScope: jest.fn(async () => true),
 }));
 
@@ -79,8 +79,8 @@ jest.mock("@/models/groups", () => ({
   getGroupMemberParticipants: jest.fn(async () => ({ rows: [] })),
 }));
 
-const { isWithinScope } = require("@/lib/authorization/scope");
-const { getAuthorizationContext } = require("@/lib/authorization");
+const { isWithinScope } = require("@/services/authorization/scope");
+const { getAuthorizationContext } = require("@/models/authorization/index");
 const teamsModel = require("@/models/teams");
 const groupsModel = require("@/models/groups");
 

@@ -198,16 +198,18 @@ const {
   isMissingColumnError,
   listActiveProgramAssignments,
   resetAssignmentProfileColumnCache,
+} = require("@/models/authorization/programAssignmentReads");
+const {
   deriveAssignmentsExpiry,
   deriveFacilitatorDesiredCaps,
   resolveAssignmentCapabilityLevel,
   UNCONFIGURED_LEVEL,
-} = require("@/models/authorization/programAssignments");
+} = require("@/services/authorization/programAssignments");
 const {
   planContextGrantChanges,
   syncContextGrantsForUser,
   contextGrantSentinel,
-} = require("@/models/authorization/contextGrants");
+} = require("@/services/authorization/contextGrants");
 const { mergeEffectiveCapabilities } = jest.requireActual(
   "@/services/authorization/context",
 );

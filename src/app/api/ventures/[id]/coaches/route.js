@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { resolveVentureDbId } from "@/lib/ventureOwnership";
 import {
   listCoaches, getCoach, createCoach, updateCoach, deleteCoach,

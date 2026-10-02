@@ -3,7 +3,7 @@
 import React from "react";
 import { AlertTriangle } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { capabilityLabel } from "@/lib/authorization/capability-catalog";
+import { capabilityLabel } from "@/models/authorization/capability-catalog";
 import AppModal from "@/components/ui/AppModal";
 import AppButton from "@/components/ui/AppButton";
 import RiskBadge from "./RiskBadge";

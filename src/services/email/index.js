@@ -7,9 +7,13 @@
  *
  *   log.js — the delivery log: schema self-heals, history reads, the
  *            idempotency probe, the status/bounce/Resend records and the stats
+ *   resendWebhook.js — the Resend (Svix) lifecycle webhook: the constant-time
+ *            signature check, the freshness window, the event → status map and
+ *            the append to the log
  *
  * The transports, the template engine and the copy/resolvers stay in
  * `src/lib/email.js` (pure infrastructure) and re-export this service.
  */
 
 export * from "./log";
+export * from "./resendWebhook";

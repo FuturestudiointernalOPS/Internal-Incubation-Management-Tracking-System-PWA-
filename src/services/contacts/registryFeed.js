@@ -14,8 +14,8 @@
  * See docs/LAYER_SPLIT.md.
  */
 
-import { reconcileProgramGroups } from "@/lib/contact-group-sync";
-import { attachInvitationStatus } from "@/lib/invitations";
+import { reconcileProgramGroups } from "@/services/contacts/contactGroupSync";
+import { attachInvitationStatus } from "@/models/invitations";
 import {
   getPmAssignedPrograms,
   getContactsScopedByProgramsAndGroups,

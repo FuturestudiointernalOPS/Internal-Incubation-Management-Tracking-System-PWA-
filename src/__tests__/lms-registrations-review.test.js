@@ -15,7 +15,7 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => true),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
@@ -23,7 +23,7 @@ jest.mock("@/lib/integrations/payments", () => ({
   getPaymentProvider: jest.fn(),
 }));
 
-jest.mock("@/lib/lms/registrations", () => ({
+jest.mock("@/models/lms/registrations", () => ({
   getRegistrationById: jest.fn(),
   markRegistrationAccessRevoked: jest.fn(async () => ({})),
   markRegistrationRefunded: jest.fn(async () => ({})),
@@ -31,7 +31,7 @@ jest.mock("@/lib/lms/registrations", () => ({
   setEmailState: jest.fn(async () => ({})),
 }));
 
-jest.mock("@/lib/lms/checkout", () => ({
+jest.mock("@/services/lms/checkout", () => ({
   fulfillRegistration: jest.fn(),
   prepareAccessDelivery: jest.fn(),
   revokePurchaseAccess: jest.fn(),
@@ -41,12 +41,12 @@ jest.mock("@/lib/lms/checkoutMail", () => ({
   deliverCheckoutEmail: jest.fn(),
 }));
 
-const { getRegistrationById, setEmailState } = require("@/lib/lms/registrations");
+const { getRegistrationById, setEmailState } = require("@/models/lms/registrations");
 const {
   fulfillRegistration,
   prepareAccessDelivery,
   revokePurchaseAccess,
-} = require("@/lib/lms/checkout");
+} = require("@/services/lms/checkout");
 const { deliverCheckoutEmail } = require("@/lib/lms/checkoutMail");
 const { getPaymentProvider } = require("@/lib/integrations/payments");
 

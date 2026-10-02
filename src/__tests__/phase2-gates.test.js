@@ -6,7 +6,7 @@
  * resolver (eligibility boundary included). Plain staff without the capability
  * are denied; PMs (staff + Program Manager profile) are allowed.
  */
-const { authorize, mergeEffectiveCapabilities } = require("@/lib/authorization/resolver");
+const { authorize, mergeEffectiveCapabilities } = require("@/services/authorization/context");
 const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
 
 function ctx({ role = "staff", eligibility = {}, profileCaps = {}, grants = {}, restrictions = {} }) {

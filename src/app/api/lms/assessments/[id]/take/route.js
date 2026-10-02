@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireAuth, getSession } from "@/lib/auth";
-import { getAssessmentForTake } from "@/lib/lms/learning";
-import { lmsErrorResponse } from "@/lib/lms/errors";
+import { getAssessmentForTake } from "@/services/lms/learning";
+import { lmsErrorResponse } from "@/models/lms/errors";
 
 export const dynamic = "force-dynamic";
 

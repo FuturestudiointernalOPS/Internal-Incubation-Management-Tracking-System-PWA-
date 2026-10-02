@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { resolveVentureCode } from "@/lib/ventureOperatingPlans";
+import { resolveVentureCode } from "@/services/ventures/operatingPlans";
 import {
   canManageVentureDocumentTypes,
   deleteVentureDocumentType,

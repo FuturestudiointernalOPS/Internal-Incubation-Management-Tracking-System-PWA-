@@ -24,13 +24,13 @@ jest.mock("@/models/contactIdentity", () => ({
   syncVentureRoleHistory: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock("@/models/authorization/contextGrants", () => ({
+jest.mock("@/services/authorization/contextGrants", () => ({
   syncContextGrantsForUser: jest.fn().mockResolvedValue(undefined),
 }));
 
 const db = require("@/lib/db").default;
 const identity = require("@/models/contactIdentity");
-const { syncContextGrantsForUser } = require("@/models/authorization/contextGrants");
+const { syncContextGrantsForUser } = require("@/services/authorization/contextGrants");
 const { hashToken } = require("@/lib/token-hashing");
 const {
   createVentureMemberInvitation,

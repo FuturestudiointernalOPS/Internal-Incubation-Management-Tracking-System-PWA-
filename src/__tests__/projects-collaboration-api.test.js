@@ -118,12 +118,12 @@ jest.mock("@/lib/auth", () => ({
   requireProjectAccess: jest.fn(async () => null),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
 const { requireProjectAccess } = require("@/lib/auth");
-const { requireAuthorization } = require("@/lib/authorization");
+const { requireAuthorization } = require("@/models/authorization/index");
 
 const members = require("@/app/api/projects/members/route");
 const assignments = require("@/app/api/projects/assignments/route");

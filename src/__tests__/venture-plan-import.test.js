@@ -44,7 +44,7 @@ const {
   PLAN_CHUNK_ROWS,
   chunkPlanRows,
   mergePlanParts,
-} = require("@/models/venturePlanImport");
+} = require("@/services/ventures/planImport");
 
 const MODEL_REPLY = {
   journeys: [

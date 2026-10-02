@@ -24,7 +24,7 @@ import {
   deleteTaskById,
 } from "@/models/tasks";
 import { rebuildStandupTasks } from "@/models/standupUpsert";
-import { logAuditEvent, isTaskLocked } from "@/lib/audit";
+import { logAuditEvent, isTaskLocked } from "@/services/tasks/auditLog";
 
 /**
  * Delete a task and its dependants.

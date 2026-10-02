@@ -116,7 +116,7 @@ jest.mock("@/lib/ventureAuth", () => ({
   isStaffActorForVenture: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/ventureNotify", () => ({
+jest.mock("@/services/ventures/notify", () => ({
   notifyAndEmailVentureFounders: jest.fn().mockResolvedValue({ success: true }),
 }));
 

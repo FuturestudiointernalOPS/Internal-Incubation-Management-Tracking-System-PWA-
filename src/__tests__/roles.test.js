@@ -3,7 +3,7 @@
  * internal staff membership (see src/lib/platform/roles.js).
  */
 
-const { resolveEffectiveRole, INTERNAL_GROUP } = require("@/lib/platform/roles");
+const { resolveEffectiveRole, INTERNAL_GROUP } = require("@/models/platform/roles");
 
 describe("resolveEffectiveRole — FUTURE STUDIO group = internal staff", () => {
   test("privileged identities always win, even inside the group", () => {

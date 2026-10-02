@@ -38,7 +38,7 @@ import {
   sendDecisionEmail,
   sendTrackedEmail,
 } from "@/lib/email";
-import { onReview } from "@/lib/platform/automation";
+import { onReview } from "@/models/platform/automation";
 import { resolveAutomationFlag } from "@/lib/platform/automationSettings";
 
 /** The group linked to a run (used for the approval email's organisational context). */

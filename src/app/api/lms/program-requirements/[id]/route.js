@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import {
   updateProgramRequirement,
   detachCourseFromProgram,
   getRequirementProgramId,
-} from "@/lib/lms/programRequirements";
+} from "@/models/lms/programRequirements";
 import { requireProgramScope } from "@/lib/programScopedAccess";
-import { lmsErrorResponse } from "@/lib/lms/errors";
+import { lmsErrorResponse } from "@/models/lms/errors";
 
 export const dynamic = "force-dynamic";
 

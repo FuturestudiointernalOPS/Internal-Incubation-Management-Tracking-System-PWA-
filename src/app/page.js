@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Shield } from 'lucide-react';
 import { useI18n } from "@/lib/i18n";
-import { roleHomeHref } from "@/lib/platform/roles";
+import { roleHomeHref } from "@/models/platform/roles";
 
 export default function LandingPage() {
   const router = useRouter();

@@ -45,7 +45,7 @@ import {
   getTaskTitleRowById,
   insertNotification,
 } from "@/models/tasks";
-import { logAuditEvent } from "@/lib/audit";
+import { logAuditEvent } from "@/services/tasks/auditLog";
 import { resolveListingScope } from "@/services/authorization/listingScope";
 
 /** The assignments a caller may see (their own unless they hold a portfolio role). */

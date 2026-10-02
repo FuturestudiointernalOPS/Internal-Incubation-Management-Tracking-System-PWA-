@@ -1,6 +1,7 @@
-import { getReflectionsByUserAndWeek, createReflection } from "@/models/participantPortal";
+import { getReflectionsByUserAndWeek } from "@/models/participantPortal";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { recordReflection } from "@/services/participant";
 
 export const dynamic = "force-dynamic";
 
@@ -13,12 +14,12 @@ export const GET = createHandler(async (req) => {
       { status: 401 },
     );
 
-  	const cid = session.cid;
-  	const { searchParams } = new URL(req.url);
-  	const weekNum = searchParams.get("week_number");
+  const cid = session.cid;
+  const { searchParams } = new URL(req.url);
+  const weekNum = searchParams.get("week_number");
 
-  	const result = await getReflectionsByUserAndWeek(cid, weekNum);
-  	return NextResponse.json({ success: true, reflections: result.rows });
+  const result = await getReflectionsByUserAndWeek(cid, weekNum);
+  return NextResponse.json({ success: true, reflections: result.rows });
 });
 
 export const POST = createHandler(async (req) => {
@@ -30,19 +31,16 @@ export const POST = createHandler(async (req) => {
       { status: 401 },
     );
 
-  	const cid = session.cid;
-  	const userName = session.name || "";
-  	const currentYear = new Date().getFullYear();
-  	const { week_number, learnings, challenges, suggestions } = await req.json();
+  const { week_number, learnings, challenges, suggestions } = await req.json();
 
-  	const content = [
-  		learnings ? `Learnings: ${learnings}` : null,
-  		challenges ? `Challenges: ${challenges}` : null,
-  		suggestions ? `Suggestions: ${suggestions}` : null,
-  	]
-  		.filter(Boolean)
-  		.join("\n");
-
-  	await createReflection(cid, userName, content || "", week_number || 1, currentYear);
-  	return NextResponse.json({ success: true });
+  // The content assembly, the default week and the year live in the service.
+  await recordReflection({
+    cid: session.cid,
+    userName: session.name || "",
+    weekNumber: week_number,
+    learnings,
+    challenges,
+    suggestions,
+  });
+  return NextResponse.json({ success: true });
 });

@@ -110,7 +110,7 @@ jest.mock("@/lib/ventureAuth", () => ({
 // Phase 5c: this route now goes through requireVentureScopedAccess. The mock
 // resolves as Super Admin (the scenario under test), which is the gate's
 // bypass path — capability + scope are then not consulted.
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   getAuthorizationContext: jest.fn().mockResolvedValue({ isSuperAdmin: true }),
   requireAuthorization: jest.fn().mockResolvedValue(null),
 }));

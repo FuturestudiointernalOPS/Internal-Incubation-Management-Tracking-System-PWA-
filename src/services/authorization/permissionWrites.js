@@ -21,7 +21,7 @@ import {
   getAuthorizationContext,
   invalidateAuthorizationContext,
   MODULE_TO_FEATURE,
-} from "@/lib/authorization";
+} from "@/models/authorization/index";
 import {
   contactExistsById,
   demoteContactFromSuperAdmin,

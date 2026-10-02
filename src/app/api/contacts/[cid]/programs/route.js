@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuthorization } from "@/lib/authorization";
-import { getProgramHistory } from "@/lib/program-history";
+import { requireAuthorization } from "@/models/authorization/index";
+import { getProgramHistory } from "@/models/program-history";
 import { getContactEmailForProgramHistory } from "@/models/programMembership";
 
 export const dynamic = "force-dynamic";

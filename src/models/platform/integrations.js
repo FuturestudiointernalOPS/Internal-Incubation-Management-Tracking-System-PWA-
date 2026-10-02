@@ -8,7 +8,7 @@
  * this manager rather than directly importing from scattered lib files.
  */
 
-import { logAuditEvent } from "@/lib/audit";
+import { logAuditEvent } from "@/services/tasks/auditLog";
 import { sendEmail } from "@/lib/mailer";
 import { deepseekIntelligence } from "@/lib/deepseek";
 

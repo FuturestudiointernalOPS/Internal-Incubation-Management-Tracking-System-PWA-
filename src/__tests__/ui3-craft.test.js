@@ -17,6 +17,7 @@ const resolveKey = (bundle, dotted) =>
 
 const SHELL = "src/components/permissions/PermissionShell.js";
 const PEOPLE = "src/components/permissions/PeopleView.js";
+const PEOPLE_MATRIX = "src/components/permissions/people-view/PeopleMatrix.js";
 const DRAWER = "src/components/permissions/ui/WhyDrawer.js";
 const LIVE = "src/components/permissions/LiveCheckPanel.js";
 const CONTEXT = "src/components/permissions/ContextRolesView.js";
@@ -46,7 +47,7 @@ describe("UI-3b — shell accessibility", () => {
 
 describe("UI-3b — keyboard and screen-reader support", () => {
   test("matrix rows are keyboard-operable and labelled", () => {
-    const src = read(PEOPLE);
+    const src = read(PEOPLE_MATRIX);
     expect(src).toContain("tabIndex={0}");
     expect(src).toContain('event.key === "Enter"');
     expect(src).toContain('role="region"');
