@@ -28,7 +28,13 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 const ROUTE_SRC = read("src/app/api/platform/form-runs/route.js");
 const SERVICE_SRC = read("src/services/platform/formRuns.js");
 const MODEL_SRC = read("src/models/formRuns.js");
-const RUNS_PAGE = read("src/app/platform/runs/page.js");
+// V2: the run-level template editors (RunTemplateEditor + the templates tab)
+// moved from the page into components/platform/runs/TemplatesTab.js — append
+// it so assertions against either half still match.
+const RUNS_PAGE =
+  read("src/app/platform/runs/page.js") +
+  "\n" +
+  read("src/components/platform/runs/TemplatesTab.js");
 const FORMS_PAGE = read("src/app/platform/forms/page.js");
 const DELAY_EDITOR = read("src/components/ui/ResultDelayEditor.js");
 

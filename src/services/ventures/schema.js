@@ -254,6 +254,16 @@ export async function ensureVentureSchema() {
     "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS display_order INTEGER",
     "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS priority TEXT",
     "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS owner_cid TEXT",
+    // An assignment has TWO halves: the identity (`*_cid`, nullable — a person
+    // on a plan need not have an account) and the name the tracker wrote
+    // (`*_name`). Both must be self-healed here, or applying an imported plan
+    // dies on `column "..._name" ... does not exist` in any environment that
+    // never received the name column by hand.
+    "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS owner_name TEXT",
+    "ALTER TABLE venture_deliverables ADD COLUMN IF NOT EXISTS assigned_cid TEXT",
+    "ALTER TABLE venture_deliverables ADD COLUMN IF NOT EXISTS assigned_name TEXT",
+    "ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS assigned_cid TEXT",
+    "ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS assigned_name TEXT",
     "CREATE INDEX IF NOT EXISTS idx_vm_journey_stage ON venture_milestones(journey_stage_id) WHERE journey_stage_id IS NOT NULL",
     // Task review-required flag + optional required deliverable type (D5).
     "ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS review_required BOOLEAN DEFAULT FALSE",

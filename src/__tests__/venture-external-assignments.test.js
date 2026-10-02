@@ -9,10 +9,18 @@
  * The other half is that the plan must still WORK — RULE 1, 2, 6 and 10 — with
  * every assignee completely off-platform.
  */
-jest.mock("@/lib/deepseek", () => ({
-  deepseekIntelligence: { chat: jest.fn() },
-  default: { chat: jest.fn() },
-}));
+jest.mock("@/lib/deepseek", () => {
+  // ONE chat double, shared by both entry points, so `mockResolvedValue` on
+  // `.chat` drives `chatDetailed` too — which is what the plan importer calls.
+  const chat = jest.fn();
+  return {
+    deepseekIntelligence: {
+      chat,
+      chatDetailed: async (...args) => ({ content: await chat(...args), finishReason: "stop", truncated: false }),
+    },
+    default: { chat },
+  };
+});
 jest.mock("@/lib/ventures", () => ({ addDependency: jest.fn(async () => ({ success: true })) }));
 
 jest.mock("@/lib/db", () => {

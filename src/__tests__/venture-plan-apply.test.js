@@ -8,7 +8,10 @@
  */
 const mockChat = jest.fn();
 jest.mock("@/lib/deepseek", () => ({
-  deepseekIntelligence: { chat: (...args) => mockChat(...args) },
+  deepseekIntelligence: {
+    chat: (...args) => mockChat(...args),
+    chatDetailed: async (...args) => ({ content: await mockChat(...args), finishReason: "stop", truncated: false }),
+  },
   default: { chat: (...args) => mockChat(...args) },
 }));
 

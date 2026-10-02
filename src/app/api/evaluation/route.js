@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import {
-  getProgramEvaluationConfig,
-  getProgramEvaluationConfigForValidation,
-  getSubmissionEvaluation,
-  updateProgramEvaluationConfig,
-  updateProgramGradingMode,
-  updateSubmissionEvaluation,
-} from "@/models/facilitation";
+  getProgramConfig,
+  getSubmissionEvaluationDetail,
+  saveSubmissionEvaluation,
+  configureProgramEvaluation,
+} from "@/services/platform/programEvaluation";
 
 /**
  * EVALUATION API — TRACK 3 CONFIGURABLE EVALUATION
@@ -18,6 +16,9 @@ import {
  *
  * Evaluation configuration is stored at the Program level
  * in v2_programs.evaluation_config as JSON.
+ *
+ * See services/platform/programEvaluation.js for the grading-mode-aware
+ * validation.
  */
 
 export const GET = createHandler(
@@ -27,65 +28,16 @@ export const GET = createHandler(
     const programId = searchParams.get("program_id");
     const submissionId = searchParams.get("submission_id");
 
-    // Return program evaluation config
     if (programId) {
-      const programResult = await getProgramEvaluationConfig(programId);
-
-      if (programResult.rows.length === 0) {
-        return NextResponse.json(
-          { success: false, error: "Program not found" },
-          { status: 404 },
-        );
-      }
-
-      const program = programResult.rows[0];
-      let evaluationConfig = {};
-      try {
-        evaluationConfig =
-          typeof program.evaluation_config === "string"
-            ? JSON.parse(program.evaluation_config)
-            : program.evaluation_config || {};
-      } catch (_) {
-        evaluationConfig = {};
-      }
-
-      return NextResponse.json({
-        success: true,
-        grading_mode: program.grading_mode,
-        evaluation_config: evaluationConfig,
-      });
+      const result = await getProgramConfig(programId);
+      if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: result.statusCode });
+      return NextResponse.json({ success: true, grading_mode: result.grading_mode, evaluation_config: result.evaluation_config });
     }
 
-    // Return evaluation for a specific submission
     if (submissionId) {
-      const submissionResult = await getSubmissionEvaluation(submissionId);
-
-      if (submissionResult.rows.length === 0) {
-        return NextResponse.json(
-          { success: false, error: "Submission not found" },
-          { status: 404 },
-        );
-      }
-
-      const submission = submissionResult.rows[0];
-      let evaluationData = {};
-      try {
-        evaluationData =
-          typeof submission.evaluation_data === "string"
-            ? JSON.parse(submission.evaluation_data)
-            : submission.evaluation_data || {};
-      } catch (_) {
-        evaluationData = {};
-      }
-
-      return NextResponse.json({
-        success: true,
-        evaluation: {
-          score: submission.evaluation_score,
-          data: evaluationData,
-          deliverable_title: submission.deliverable_title,
-        },
-      });
+      const result = await getSubmissionEvaluationDetail(submissionId);
+      if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: result.statusCode });
+      return NextResponse.json({ success: true, evaluation: result.evaluation });
     }
 
     return NextResponse.json(
@@ -98,75 +50,9 @@ export const GET = createHandler(
 export const PUT = createHandler(
   { roles: ["staff", "super_admin", "program_manager"] },
   async (req) => {
-    const { program_id, submission_id, score, evaluation_data } =
-      await req.json();
-
-    if (!program_id || !submission_id) {
-      return NextResponse.json(
-        { success: false, error: "program_id and submission_id required" },
-        { status: 400 },
-      );
-    }
-
-    // Fetch program's grading mode for validation
-    const programResult = await getProgramEvaluationConfigForValidation(program_id);
-
-    if (programResult.rows.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "Program not found" },
-        { status: 404 },
-      );
-    }
-
-    const program = programResult.rows[0];
-    const gradingMode = program.grading_mode;
-
-    // Validate based on grading mode
-    if (gradingMode === "academic" && score !== undefined) {
-      if (score < 0 || score > 100) {
-        return NextResponse.json(
-          { success: false, error: "Academic score must be between 0 and 100" },
-          { status: 400 },
-        );
-      }
-    }
-
-    if (gradingMode === "incubation" && evaluation_data) {
-      // Validate incubation dimensions
-      let config = {};
-      try {
-        config =
-          typeof program.evaluation_config === "string"
-            ? JSON.parse(program.evaluation_config)
-            : program.evaluation_config || {};
-      } catch (_) {}
-
-      const dimensions = config.dimensions || [
-        "idea",
-        "execution",
-        "market",
-        "team",
-        "traction",
-      ];
-      for (const dimension of dimensions) {
-        if (
-          evaluation_data[dimension] !== undefined &&
-          (evaluation_data[dimension] < 1 || evaluation_data[dimension] > 5)
-        ) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: `${dimension} score must be between 1 and 5`,
-            },
-            { status: 400 },
-          );
-        }
-      }
-    }
-
-    // Update submission with evaluation
-    await updateSubmissionEvaluation({ score, evaluation_data, submission_id });
-
+    const { program_id, submission_id, score, evaluation_data } = await req.json();
+    const result = await saveSubmissionEvaluation({ program_id, submission_id, score, evaluation_data });
+    if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: result.statusCode });
     return NextResponse.json({ success: true });
   },
 );
@@ -178,33 +64,8 @@ export const POST = createHandler(
   { roles: ["staff", "super_admin"] },
   async (req) => {
     const { program_id, grading_mode, evaluation_config } = await req.json();
-
-    if (!program_id) {
-      return NextResponse.json(
-        { success: false, error: "Program ID required" },
-        { status: 400 },
-      );
-    }
-
-    const validModes = ["graded", "review", "followup", "academic", "incubation"];
-    if (grading_mode && !validModes.includes(grading_mode)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Invalid grading mode. Must be one of: ${validModes.join(", ")}`,
-        },
-        { status: 400 },
-      );
-    }
-
-    if (grading_mode) {
-      await updateProgramGradingMode(program_id, grading_mode);
-    }
-
-    if (evaluation_config) {
-      await updateProgramEvaluationConfig(program_id, evaluation_config);
-    }
-
+    const result = await configureProgramEvaluation({ program_id, grading_mode, evaluation_config });
+    if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: result.statusCode });
     return NextResponse.json({ success: true });
   },
 );
