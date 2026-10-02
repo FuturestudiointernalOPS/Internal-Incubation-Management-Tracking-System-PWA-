@@ -19,28 +19,24 @@
 const fs = require("fs");
 const path = require("path");
 const { zipSync, strToU8 } = require("fflate");
+const { readSurface } = require("./helpers/sourceSurface");
 
 const read = (rel) => {
   const text = fs.readFileSync(path.join(process.cwd(), rel), "utf8");
   // Slice 1: the review/email/result-document cluster moved from the route to
-  // the service — append it so assertions against either half still match.
+  // the service — append it so assertions against either half still match. The
+  // service is itself split across `formRuns/`, so read its whole surface.
   if (rel === "src/app/api/platform/form-runs/route.js") {
     // Searched first: a same-named call left in the route (e.g. a standalone
     // resend action) must never be found before the one inside the moved
     // service function that an order assertion is pinning.
-    return fs.readFileSync(path.join(process.cwd(), "src/services/platform/formRuns.js"), "utf8") + "\n" + text;
+    return readSurface("src/services/platform/formRuns.js") + "\n" + text;
   }
-  // V2: the settings tab's JSX (including the report-file control) and the
-  // overview tab's JSX (including the single-response preview's "Regenerate"
-  // button) moved from the page into components/platform/runs/SettingsTab.js
-  // and OverviewTab.js — append both so assertions against any of the three
-  // still match.
+  if (rel === "src/services/platform/formRuns.js") return readSurface(rel);
+  // V2: the run screen is split across components/platform/runs/ — read the
+  // whole surface so a pin cannot go vacuously green when the JSX moves out.
   if (rel === "src/app/platform/runs/page.js") {
-    return (
-      text +
-      "\n" + fs.readFileSync(path.join(process.cwd(), "src/components/platform/runs/SettingsTab.js"), "utf8") +
-      "\n" + fs.readFileSync(path.join(process.cwd(), "src/components/platform/runs/OverviewTab.js"), "utf8")
-    );
+    return text + "\n" + readSurface("src/components/platform/runs");
   }
   return text;
 };

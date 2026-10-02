@@ -31,6 +31,7 @@ jest.mock("@/models/adminOps", () => ({
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { readSurface } = require("./helpers/sourceSurface");
 
 const ROOT = process.cwd();
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
@@ -60,7 +61,8 @@ describe("static contract — the investor intake wiring", () => {
     // The gate stays in the route; the orchestration moved to the service.
     const src = read(SEED_ROUTE);
     expect(src).toMatch(/requireAuth\(\["super_admin"\]\)/);
-    const service = read(SEED_SERVICE);
+    // The seed service is split across `seed/`; read the whole surface.
+    const service = readSurface(SEED_SERVICE);
     expect(service).toMatch(/findInvestorApplicationFormByName/);
     expect(service).toMatch(/assertSingleInvestorForm/);
     expect(service).toMatch(/findActiveInvestorRun/);

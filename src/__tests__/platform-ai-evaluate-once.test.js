@@ -21,15 +21,18 @@
  */
 const fs = require("fs");
 const path = require("path");
+const { readSurface } = require("./helpers/sourceSurface");
 
 const read = (rel) => {
   const text = fs.readFileSync(path.join(process.cwd(), rel), "utf8");
   // Slice 1/2: the review/decision cluster (incl. the AI-evaluate-once logic
   // in submit/manual_add) moved from the route to the service — append it so
-  // assertions against either half still match.
+  // assertions against either half still match. The service is itself split
+  // across `formRuns/`, so read its whole surface.
   if (rel === "src/app/api/platform/form-runs/route.js") {
-    return fs.readFileSync(path.join(process.cwd(), "src/services/platform/formRuns.js"), "utf8") + "\n" + text;
+    return readSurface("src/services/platform/formRuns.js") + "\n" + text;
   }
+  if (rel === "src/services/platform/formRuns.js") return readSurface(rel);
   return text;
 };
 

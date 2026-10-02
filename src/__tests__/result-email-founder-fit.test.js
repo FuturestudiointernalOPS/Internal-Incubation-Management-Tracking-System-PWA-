@@ -9,10 +9,13 @@
  */
 const fs = require("fs");
 const path = require("path");
+const { readSurface } = require("./helpers/sourceSurface");
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const EMAIL = fs.readFileSync(path.join(ROOT, "src/lib/email.js"), "utf8");
-const SERVICE = fs.readFileSync(path.join(ROOT, "src/services/platform/formRuns.js"), "utf8");
+// The service is split across `formRuns/`; read the whole surface so a pin
+// cannot go vacuously green when the code moves into a sibling file.
+const SERVICE = readSurface("src/services/platform/formRuns.js");
 
 describe("result email copy — Founder Fit Score scope", () => {
   test("exactly two copies exist", () => {
