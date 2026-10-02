@@ -1,44 +1,24 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { useI18n } from "@/lib/i18n";
-import {
-  Search,
-  Filter,
-  Users,
-  Clock,
-  CheckCircle2,
-  AlertTriangle,
-  ArrowLeft,
-  X,
-  ListTodo,
-  Eye,
-  Shield,
-  RefreshCw,
-  Send,
-  Loader2,
-} from "lucide-react";
+import React, { useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { TableSkeleton } from "@/components/ui/Skeleton";
-import { useApi } from "@/lib/hooks/useApi";
-import { useSessionUser } from "@/lib/hooks/useSessionUser";
 
-// ─── Module-scope readers ────────────────────────────────────────────────────
-// The reading hook keys its internal work on these, so they are made once here
-// rather than rebuilt on every render.
-
-const EMPTY_LIST = [];
-
-const pickList = (field) => (payload) => (payload?.success ? payload[field] || [] : []);
-
-// `pickList(...)` has to be CALLED here, once, rather than at the call site: it is
-// a factory, so `pickList("tasks")` written inline is a new function on every
-// render, and that new identity re-keyed the read and put its request back on the
-// wire every render.
-const pickTasks = pickList("tasks");
-const pickProjects = pickList("projects");
-const pickContacts = pickList("contacts");
-const pickComments = pickList("comments");
+import AdminTasksHeader from "@/components/tasks/admin-tasks/AdminTasksHeader";
+import TaskStatsRow from "@/components/tasks/admin-tasks/TaskStatsRow";
+import TaskFilters from "@/components/tasks/admin-tasks/TaskFilters";
+import TasksTable from "@/components/tasks/admin-tasks/TasksTable";
+import TaskDetailModal from "@/components/tasks/admin-tasks/TaskDetailModal";
+import useAdminTaskFilters from "@/components/tasks/admin-tasks/hooks/useAdminTaskFilters";
+import useAdminTasksData from "@/components/tasks/admin-tasks/hooks/useAdminTasksData";
+import useAdminTaskDetail from "@/components/tasks/admin-tasks/hooks/useAdminTaskDetail";
+import useAdminTaskWrites from "@/components/tasks/admin-tasks/hooks/useAdminTaskWrites";
+import {
+  taskOwners,
+  projectNameMap,
+  filterTasks,
+  taskStats,
+} from "@/components/tasks/admin-tasks/derive";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * SUPER ADMIN TASKS DASHBOARD
@@ -51,887 +31,121 @@ const pickComments = pickList("comments");
  * Sorting: Newest, Oldest, Most Carried Over, Most Recently Updated
  *
  * Statuses: pending, in_progress, blocked, completed, carried_over
+ *
+ * The page is the wiring only: what is narrowed by, what is read, what is open,
+ * and which part each of those renders. The parts are in
+ * `src/components/tasks/admin-tasks/`.
  */
-
-const STATUS_CONFIG = {
-  pending: {
-    label: "Pending",
-    color: "text-slate-400",
-    bg: "bg-slate-500/10",
-    border: "border-slate-500/20",
-  },
-  in_progress: {
-    label: "In Progress",
-    color: "text-blue-500",
-    bg: "bg-blue-500/10",
-    border: "border-blue-500/20",
-  },
-  blocked: {
-    label: "Blocked",
-    color: "text-rose-500",
-    bg: "bg-rose-500/10",
-    border: "border-rose-500/20",
-  },
-  completed: {
-    label: "Completed",
-    color: "text-emerald-500",
-    bg: "bg-emerald-500/10",
-    border: "border-emerald-500/20",
-  },
-  carried_over: {
-    label: "Carried Over",
-    color: "text-amber-500",
-    bg: "bg-amber-500/10",
-    border: "border-amber-500/20",
-  },
-};
-
-function formatStatusLabel(status, t) {
-  const config = STATUS_CONFIG[status];
-  if (config) {
-    const statusKey =
-      "status." + status.replace(/_([a-z])/g, (_, character) => character.toUpperCase());
-    return t ? t(statusKey) : config.label;
-  }
-  return status.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function getStatusColor(status) {
-  const config = STATUS_CONFIG[status];
-  return config ? config.color : "text-slate-400";
-}
-
-function getStatusBg(status) {
-  const config = STATUS_CONFIG[status];
-  return config ? config.bg : "bg-slate-500/10";
-}
-
 export default function AdminTasks() {
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [filterUser, setFilterUser] = useState("All Users");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [filterProject, setFilterProject] = useState("All Projects");
-  const [sortBy, setSortBy] = useState("newest");
-  const [viewingTask, setViewingTask] = useState(null);
-  const [commentInput, setCommentInput] = useState("");
-  const [statusUpdating, setStatusUpdating] = useState(null);
-  const [assigningUser, setAssigningUser] = useState(false);
   const { t } = useI18n();
 
-  // The tasks, the projects they belong to, the people they can be assigned to and
-  // the open task's comments, all through the shared hook: it owns the cache, the
-  // cache-first paint and the discarding of a stale answer, so the page keeps no
-  // copy of its own and reads its data during render.
+  const filters = useAdminTaskFilters(t);
+  const detail = useAdminTaskDetail();
   const {
-    data: tasks,
-    loading: tasksLoading,
-    refresh: refreshTasks,
-  } = useApi(`/api/tasks?sort=${sortBy}`, {
-    defaultValue: EMPTY_LIST,
-    transform: pickTasks,
-    deps: [sortBy],
-  });
-  const {
-    data: projects,
-    loading: projectsLoading,
-    refresh: refreshProjects,
-  } = useApi("/api/projects", {
-    defaultValue: EMPTY_LIST,
-    transform: pickProjects,
-  });
-  const { data: allUsers } = useApi("/api/contacts", {
-    defaultValue: EMPTY_LIST,
-    transform: pickContacts,
+    tasks,
+    projects,
+    allUsers,
+    comments,
+    loading,
+    refreshTasks,
+    refreshProjects,
+    refreshComments,
+  } = useAdminTasksData(filters.sortBy, detail.viewingTaskId);
+  const writes = useAdminTaskWrites({
+    t,
+    refreshTasks,
+    refreshProjects,
+    refreshComments,
   });
 
-  // The comments are read for the task that is open, and not addressed at all when
-  // none is.
-  const {
-    data: comments,
-    refresh: refreshComments,
-  } = useApi(
-    viewingTask?.id ? `/api/tasks/comments?task_id=${viewingTask.id}` : null,
-    {
-      defaultValue: EMPTY_LIST,
-      transform: pickComments,
-      deps: [viewingTask?.id],
-    },
+  const users = useMemo(() => taskOwners(tasks), [tasks]);
+  const projectMap = useMemo(() => projectNameMap(projects), [projects]);
+  const filteredTasks = useMemo(
+    () =>
+      filterTasks({
+        tasks,
+        search: filters.search,
+        filterUser: filters.filterUser,
+        filterStatus: filters.filterStatus,
+        filterProject: filters.filterProject,
+      }),
+    [
+      tasks,
+      filters.search,
+      filters.filterUser,
+      filters.filterStatus,
+      filters.filterProject,
+    ],
   );
-
-  // Who is signed in, from the shell's session cache: no request of its own, and
-  // no dependence on the browser's stored copy.
-  const { cid: currentUserCid, user: currentUser } = useSessionUser();
-
-  const loading = tasksLoading || projectsLoading;
-
-  // The assignment control shows who holds the open task, and choosing someone
-  // else writes to the server and updates the task - it never writes this value.
-  // So it is a plain consequence of the open task, not state of its own.
-  const assignValue = viewingTask?.assigned_to || "";
-
-
-  const handleAddComment = async () => {
-    if (!commentInput.trim() || !currentUserCid || !viewingTask) return;
-    try {
-      const response = await fetch("/api/tasks/comments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task_id: viewingTask.id,
-          sender_id: currentUserCid,
-          sender_name: currentUser.name,
-          body: commentInput.trim(),
-        }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        setCommentInput("");
-        refreshComments();
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  // Build user list from tasks
-  const users = useMemo(() => {
-    const userMap = {};
-    tasks.forEach((task) => {
-      if (task.user_id && !userMap[task.user_id]) {
-        userMap[task.user_id] = { id: task.user_id, name: task.user_name };
-      }
-    });
-    return Object.values(userMap);
-  }, [tasks]);
-
-  // Build project map
-  const projectMap = useMemo(() => {
-    const map = { "": null };
-    projects.forEach((project) => {
-      map[project.id] = project.name || project.title;
-    });
-    return map;
-  }, [projects]);
-
-  const filteredTasks = useMemo(() => {
-    return tasks.filter((task) => {
-      const matchesSearch =
-        task.title?.toLowerCase().includes(search.toLowerCase()) ||
-        task.user_name?.toLowerCase().includes(search.toLowerCase()) ||
-        String(task.created_week).includes(search) ||
-        String(task.created_year).includes(search);
-      const matchesUser =
-        filterUser === "All Users" || task.user_id === filterUser;
-      const matchesStatus = filterStatus === "all" || task.status === filterStatus;
-      const matchesProject =
-        filterProject === "All Projects" ||
-        (filterProject === "Independent" && !task.project_id) ||
-        task.project_id === filterProject;
-      return matchesSearch && matchesUser && matchesStatus && matchesProject;
-    });
-  }, [tasks, search, filterUser, filterStatus, filterProject]);
-
-  const stats = useMemo(() => {
-    return {
-      total: tasks.length,
-      pending: tasks.filter((task) => task.status === "pending").length,
-      inProgress: tasks.filter((task) => task.status === "in_progress").length,
-      blocked: tasks.filter((task) => task.status === "blocked").length,
-      completed: tasks.filter((task) => task.status === "completed").length,
-      carriedOver: tasks.filter((task) => task.status === "carried_over").length,
-    };
-  }, [tasks]);
-
-  const handleStatusUpdate = async (taskId, newStatus) => {
-    setStatusUpdating(taskId);
-    try {
-      const response = await fetch("/api/tasks", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: taskId, status: newStatus }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        refreshTasks();
-        refreshProjects();
-      } else if (data.hasActiveBlockers) {
-        // Attempt with force_complete
-        const retryRes = await fetch("/api/tasks", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: taskId,
-            status: newStatus,
-            force_complete: true,
-          }),
-        });
-        const retryData = await retryRes.json();
-        if (retryData.success) { refreshTasks(); refreshProjects(); }
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setStatusUpdating(null);
-    }
-  };
-
-  const getCarryOverCount = (task) => {
-    if (!task.carried_over_from_task_id) return 0;
-    return 1; // Simple: linked to a prior task
-  };
-
-  const sortOptions = [
-    { id: "newest", label: t("adminMisc.tasks.sortNewest") },
-    { id: "oldest", label: t("adminMisc.tasks.sortOldest") },
-    { id: "most_carried", label: t("adminMisc.tasks.sortMostCarried") },
-    { id: "updated", label: t("adminMisc.tasks.sortRecentlyUpdated") },
-  ];
+  const stats = useMemo(() => taskStats(tasks), [tasks]);
 
   return (
     <>
       <div className="space-y-8 pb-20 text-left">
-        {/* HEADER */}
-        <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
-          <div className="space-y-2">
-            <button
-              onClick={() => router.push("/admin")}
-              className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[10px] uppercase tracking-wide"
-            >
-              <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
-              {t("adminMisc.tasks.dashboard")}
-            </button>
-            <div className="flex items-center gap-2 mt-2">
-              <ListTodo className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                {t("navigation.internalReports")}
-              </span>
-            </div>
-            <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              {t("reports.taskManagement")}
-            </h1>
-          </div>
+        <AdminTasksHeader
+          taskCount={tasks.length}
+          onBack={() => router.push("/admin")}
+          onRefresh={() => {
+            refreshTasks();
+            refreshProjects();
+          }}
+          t={t}
+        />
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-              <ListTodo className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-xs font-black">
-                {tasks.length} {t("reports.tasks")}
-              </span>
-            </div>
-            <button
-              onClick={() => { refreshTasks(); refreshProjects(); }}
-              className="p-2 rounded-xl hover:bg-white/5 transition-all"
-              title={t("common.refresh")}
-            >
-              <RefreshCw className="w-4 h-4 text-slate-500" />
-            </button>
-          </div>
-        </header>
+        <TaskStatsRow stats={stats} t={t} />
 
-        {/* STATS ROW */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {[
-            {
-              label: t("reports.totalReports"),
-              value: stats.total,
-              color: "text-[var(--text-primary)]",
-              bg: "bg-white/5",
-            },
-            {
-              label: t("reports.pending"),
-              value: stats.pending,
-              color: "text-slate-400",
-              bg: "bg-slate-500/10",
-            },
-            {
-              label: t("reports.inProgress"),
-              value: stats.inProgress,
-              color: "text-blue-500",
-              bg: "bg-blue-500/10",
-            },
-            {
-              label: t("reports.blocked"),
-              value: stats.blocked,
-              color: "text-rose-500",
-              bg: "bg-rose-500/10",
-            },
-            {
-              label: t("reports.completed"),
-              value: stats.completed,
-              color: "text-emerald-500",
-              bg: "bg-emerald-500/10",
-            },
-            {
-              label: t("reports.carriedOver"),
-              value: stats.carriedOver,
-              color: "text-amber-500",
-              bg: "bg-amber-500/10",
-            },
-          ].map((stat) => (
-            <div key={stat.label} className="card flex items-center gap-3 p-3">
-              <div className={`p-2 rounded-xl ${stat.bg} ${stat.color}`}>
-                <CheckCircle2 className="w-3.5 h-3.5" />
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                  {stat.label}
-                </p>
-                <p className={`text-base font-black ${stat.color}`}>
-                  {stat.value}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <TaskFilters
+          search={filters.search}
+          setSearch={filters.setSearch}
+          users={users}
+          filterUser={filters.filterUser}
+          setFilterUser={filters.setFilterUser}
+          filterStatus={filters.filterStatus}
+          setFilterStatus={filters.setFilterStatus}
+          filterProject={filters.filterProject}
+          setFilterProject={filters.setFilterProject}
+          projects={projects}
+          sortBy={filters.sortBy}
+          setSortBy={filters.setSortBy}
+          sortOptions={filters.sortOptions}
+          t={t}
+        />
 
-        {/* FILTERS + SORTING */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder={t("common.search")}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-sm font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
-            />
-          </div>
+        <TasksTable
+          loading={loading}
+          tasks={filteredTasks}
+          projectMap={projectMap}
+          statusUpdating={writes.statusUpdating}
+          onStatusUpdate={writes.updateStatus}
+          onOpenTask={detail.openTask}
+          t={t}
+        />
 
-          <div className="relative">
-            <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <select
-              value={filterUser}
-              onChange={(event) => setFilterUser(event.target.value)}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
-            >
-              <option value="All Users">{t("adminMisc.tasks.allUsers")}</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="relative">
-            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <select
-              value={filterStatus}
-              onChange={(event) => setFilterStatus(event.target.value)}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
-            >
-              <option value="all">{t("adminMisc.tasks.allStatuses")}</option>
-              <option value="pending">{t("status.pending")}</option>
-              <option value="in_progress">{t("status.inProgress")}</option>
-              <option value="blocked">{t("status.blocked")}</option>
-              <option value="completed">{t("status.completed")}</option>
-              <option value="carried_over">{t("status.carriedOver")}</option>
-            </select>
-          </div>
-
-          <div className="relative">
-            <ListTodo className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <select
-              value={filterProject}
-              onChange={(event) => setFilterProject(event.target.value)}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
-            >
-              <option value="All Projects">{t("adminMisc.tasks.allProjects")}</option>
-              <option value="Independent">{t("adminMisc.tasks.independentTasks")}</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name || project.title}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="relative">
-            <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <select
-              value={sortBy}
-              onChange={(event) => setSortBy(event.target.value)}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
-            >
-              {sortOptions.map((sortOption) => (
-                <option key={sortOption.id} value={sortOption.id}>
-                  {sortOption.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* TASKS TABLE */}
-        {loading ? (
-          <TableSkeleton rows={8} />
-        ) : filteredTasks.length === 0 ? (
-          <div className="card py-32 flex flex-col items-center justify-center text-center opacity-40 border-dashed">
-            <ListTodo className="w-16 h-16 mb-4" />
-            <p className="text-sm text-[var(--text-secondary)]">
-              {t("reports.noTasksFound")}
-            </p>
-            <p className="text-sm text-[var(--text-secondary)] mt-2">
-              {t("adminMisc.tasks.emptyStateDesc")}
-            </p>
-          </div>
-        ) : (
-          <div className="card !p-0 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[var(--border-primary)]">
-                    <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("adminMisc.tasks.task")}
-                    </th>
-                    <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("adminMisc.tasks.owner")}
-                    </th>
-                    <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("adminMisc.tasks.project")}
-                    </th>
-                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("adminMisc.tasks.status")}
-                    </th>
-                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("time.created")}
-                    </th>
-                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("time.updated")}
-                    </th>
-                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("reports.carryOver")}
-                    </th>
-                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("adminMisc.tasks.blockers")}
-                    </th>
-                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("adminMisc.tasks.actions")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredTasks.map((task) => (
-                    <tr
-                      key={task.id}
-                      className="border-b border-divider/50 hover:bg-white/5 transition-colors"
-                    >
-                      <td className="p-4">
-                        <button
-                          onClick={() => setViewingTask(task)}
-                          className="text-left group"
-                        >
-                          <p className="text-xs font-bold uppercase tracking-tight text-[var(--text-primary)] group-hover:text-[var(--brand-orange)] transition-colors">
-                            {task.title}
-                          </p>
-                          {task.description && (
-                            <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5 line-clamp-1">
-                              {task.description}
-                            </p>
-                          )}
-                        </button>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold uppercase">
-                            {task.user_name?.charAt(0) || "?"}
-                          </div>
-                          <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
-                            {task.user_name || t("adminMisc.tasks.unknown")}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <span className="text-sm font-bold text-indigo-500">
-                          {task.project_id
-                            ? projectMap[task.project_id] ||
-                              t("adminMisc.tasks.projectNumber", {
-                                id: task.project_id,
-                              })
-                            : t("adminMisc.tasks.independent")}
-                        </span>
-                      </td>
-                      <td className="text-center p-4">
-                        <span
-                          className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${getStatusBg(task.status)} ${getStatusColor(task.status)}`}
-                        >
-                          {formatStatusLabel(task.status, t)}
-                        </span>
-                      </td>
-                      <td className="text-center p-4">
-                        <span className="text-[10px] font-medium text-[var(--text-secondary)]">
-                          W{task.created_week}·{task.created_year}
-                        </span>
-                      </td>
-                      <td className="text-center p-4">
-                        <span className="text-[10px] font-medium text-[var(--text-secondary)]">
-                          {new Date(
-                            task.updated_at || task.created_at,
-                          ).toLocaleDateString()}
-                        </span>
-                      </td>
-                      <td className="text-center p-4">
-                        <span
-                          className={`text-sm font-bold ${task.carried_over_from_task_id ? "text-amber-500" : "text-[var(--text-secondary)]"}`}
-                        >
-                          {getCarryOverCount(task)}
-                        </span>
-                      </td>
-                      <td className="text-center p-4">
-                        {task.blockers && task.blockers.length > 0 ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <Shield className="w-3 h-3 text-rose-500" />
-                            <span className="text-[10px] font-bold text-rose-500">
-                              {task.blockers.length}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-sm font-bold text-[var(--text-secondary)]">—</span>
-                        )}
-                      </td>
-                      <td className="text-center p-4">
-                        <div className="flex items-center justify-center gap-1">
-                          {task.status !== "completed" &&
-                            task.status !== "carried_over" && (
-                              <>
-                                {task.status !== "in_progress" && (
-                                  <button
-                                    onClick={() =>
-                                      handleStatusUpdate(task.id, "in_progress")
-                                    }
-                                    disabled={statusUpdating !== null}
-                                    className="p-1.5 rounded-lg hover:bg-blue-500/10 text-blue-500 transition-all disabled:opacity-40 disabled:cursor-wait"
-                                    title={t("adminMisc.tasks.markInProgress")}
-                                  >
-                                    {statusUpdating === task.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Clock className="w-3.5 h-3.5" />}
-                                  </button>
-                                )}
-                                {task.status !== "blocked" && (
-                                  <button
-                                    onClick={() =>
-                                      handleStatusUpdate(task.id, "blocked")
-                                    }
-                                    disabled={statusUpdating !== null}
-                                    className="p-1.5 rounded-lg hover:bg-rose-500/10 text-rose-500 transition-all disabled:opacity-40 disabled:cursor-wait"
-                                    title={t("adminMisc.tasks.markBlocked")}
-                                  >
-                                    {statusUpdating === task.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <AlertTriangle className="w-3.5 h-3.5" />}
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() =>
-                                    handleStatusUpdate(task.id, "completed")
-                                  }
-                                  disabled={statusUpdating !== null}
-                                  className="p-1.5 rounded-lg hover:bg-emerald-500/10 text-emerald-500 transition-all disabled:opacity-40 disabled:cursor-wait"
-                                  title={t("adminMisc.tasks.markCompleted")}
-                                >
-                                  {statusUpdating === task.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                                </button>
-                              </>
-                            )}
-                          <button
-                            onClick={() => setViewingTask(task)}
-                            className="p-1.5 rounded-lg hover:bg-slate-500/10 text-slate-500 transition-all"
-                            title={t("adminMisc.tasks.viewDetails")}
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* TASK DETAIL MODAL */}
-        {viewingTask && (
-          <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
-            <div
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => setViewingTask(null)}
-            />
-            <div className="relative bg-secondary border border-[var(--border-primary)] rounded-2xl w-full max-w-lg p-8 shadow-2xl max-h-[85vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-                  {t("adminMisc.tasks.taskDetails")}
-                </h3>
-                <button
-                  onClick={() => setViewingTask(null)}
-                  className="p-2 rounded-lg hover:bg-white/5 transition-all"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
-                    {t("adminMisc.tasks.title")}
-                  </p>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">
-                    {viewingTask.title}
-                  </p>
-                </div>
-
-                {viewingTask.description && (
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
-                      {t("adminMisc.tasks.description")}
-                    </p>
-                    <p className="text-sm text-[var(--text-secondary)]">
-                      {viewingTask.description}
-                    </p>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
-                      {t("adminMisc.tasks.owner")}
-                    </p>
-                    <p className="text-sm font-bold text-[var(--text-primary)]">
-                      {viewingTask.user_name || t("adminMisc.tasks.unknown")}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
-                      {t("adminMisc.tasks.project")}
-                    </p>
-                    <p className="text-xs font-bold text-indigo-500">
-                      {viewingTask.project_id
-                        ? projectMap[viewingTask.project_id] ||
-                          t("adminMisc.tasks.projectNumber", {
-                            id: viewingTask.project_id,
-                          })
-                        : t("adminMisc.tasks.independentTask")}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
-                      {t("adminMisc.tasks.status")}
-                    </p>
-                      <span
-                        className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${getStatusBg(viewingTask.status)} ${getStatusColor(viewingTask.status)}`}
-                      >
-                      {formatStatusLabel(viewingTask.status, t)}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
-                      {t("reports.carryOver")}
-                    </p>
-                    <p className="text-xs font-bold text-amber-500">
-                      {getCarryOverCount(viewingTask)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
-                      {t("time.created")}
-                    </p>
-                    <p className="text-sm font-bold text-[var(--text-primary)]">
-                      {t("adminMisc.tasks.week")} {viewingTask.created_week} ·{" "}
-                      {viewingTask.created_year}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                      {t("time.updated")}
-                    </p>
-                    <p className="text-[10px] font-bold text-[var(--text-primary)]">
-                      {new Date(
-                        viewingTask.updated_at || viewingTask.created_at,
-                      ).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-
-                {viewingTask.completed_at && (
-                  <div>
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                      {t("adminMisc.tasks.completedAt")}
-                    </p>
-                    <p className="text-[10px] font-bold text-emerald-500">
-                      {new Date(viewingTask.completed_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                )}
-
-                {viewingTask.carried_over_from_task_id && (
-                  <div className="bg-amber-500/5 p-3 rounded-xl">
-                    <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest mb-1">
-                      {t("reports.carryOver")}
-                    </p>
-                    <p className="text-[10px] text-slate-500">
-                      {t("adminMisc.tasks.originallyCreatedAs", {
-                        id: viewingTask.carried_over_from_task_id,
-                      })}
-                    </p>
-                  </div>
-                )}
-
-                {/* Linked Blockers */}
-                {viewingTask.blockers && viewingTask.blockers.length > 0 && (
-                  <div>
-                    <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest mb-2">
-                      {t("adminMisc.tasks.linkedBlockers", {
-                        count: viewingTask.blockers.length,
-                      })}
-                    </p>
-                    <div className="space-y-1.5">
-                      {viewingTask.blockers.map((blocker) => (
-                        <div
-                          key={blocker.id}
-                          className="flex items-center justify-between p-2 rounded-lg bg-primary border border-[var(--border-primary)]"
-                        >
-                          <span className="text-[10px] font-bold">
-                            {blocker.title}
-                          </span>
-                          <span
-                            className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${blocker.status === "active" ? "bg-rose-500/10 text-rose-500" : "bg-emerald-500/10 text-emerald-500"}`}
-                          >
-                            {blocker.status === "active"
-                              ? t("status.active")
-                              : t("status.resolved")}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Assignment */}
-                <div className="border-t border-[var(--border-primary)] pt-4">
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                    {t("adminMisc.tasks.assignment")}
-                  </p>
-                  <div className="flex gap-2">
-                    <select
-                      value={assignValue}
-                      disabled={assigningUser}
-                      onChange={async (event) => {
-                        const selectedUserId = event.target.value;
-                        if (!selectedUserId) return;
-                        setAssigningUser(true);
-                        try {
-                          const response = await fetch(`/api/tasks`, {
-                            method: "PUT",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              id: viewingTask.id,
-                              assigned_to: selectedUserId,
-                            }),
-                          });
-                          const data = await response.json();
-                          if (data.success) {
-                            setViewingTask((prev) => ({
-                              ...prev,
-                              assigned_to: selectedUserId,
-                            }));
-                          } else {
-                            window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || t("adminMisc.tasks.assignFailed")) || "") || (data.error || t("adminMisc.tasks.assignFailed")) } }));
-                          }
-                        } catch (_) {} finally {
-                          setAssigningUser(false);
-                        }
-                      }}
-                      className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all appearance-none cursor-pointer disabled:opacity-40 disabled:cursor-wait"
-                    >
-                      <option value="">{t("adminMisc.tasks.unassigned")}</option>
-                      {allUsers.map((user) => (
-                        <option key={user.cid} value={user.cid}>
-                          {user.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-[var(--border-primary)]">
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                    {t("admin.quickActions")}
-                  </p>
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    {["pending", "in_progress", "blocked", "completed"].map(
-                      (statusOption) => {
-                        if (viewingTask.status === statusOption) return null;
-                        return (
-                          <button
-                            key={statusOption}
-                            onClick={() => {
-                              handleStatusUpdate(viewingTask.id, statusOption);
-                              setViewingTask(null);
-                            }}
-                            disabled={statusUpdating !== null}
-                            className={`text-[8px] font-black uppercase tracking-widest px-3 py-2 rounded-lg border transition-all ${STATUS_CONFIG[statusOption]?.bg} ${STATUS_CONFIG[statusOption]?.color} ${STATUS_CONFIG[statusOption]?.border} hover:brightness-110 disabled:opacity-40 disabled:cursor-wait`}
-                          >
-                            {t(
-                              "status." +
-                                (statusOption === "in_progress" ? "inProgress" : statusOption),
-                            )}
-                          </button>
-                        );
-                      },
-                    )}
-                  </div>
-                </div>
-
-                {/* Comments */}
-                <div className="border-t border-[var(--border-primary)] pt-4">
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                    {t("adminMisc.tasks.comments")}
-                  </p>
-                  <div className="space-y-2 mb-3 max-h-32 overflow-y-auto">
-                    {comments.map((comment) => (
-                      <div
-                        key={comment.id}
-                        className="text-[10px] p-2 rounded-lg bg-primary border border-[var(--border-primary)]"
-                      >
-                        <span className="font-bold text-[var(--text-primary)]">
-                          {comment.sender_name}:
-                        </span>{" "}
-                        <span className="text-[var(--text-secondary)]">
-                          {comment.body}
-                        </span>
-                      </div>
-                    ))}
-                    {comments.length === 0 && (
-                      <p className="text-[10px] text-slate-500 italic">
-                        {t("adminMisc.tasks.noCommentsYet")}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={commentInput}
-                      onChange={(event) => setCommentInput(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") handleAddComment();
-                      }}
-                      placeholder={t("adminMisc.tasks.addCommentPlaceholder")}
-                      className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-                    />
-                    <button
-                      onClick={handleAddComment}
-                      className="p-2 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)] hover:bg-brand-orange/20 transition-all"
-                    >
-                      <Send className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        {detail.viewingTask && (
+          <TaskDetailModal
+            task={detail.viewingTask}
+            projectMap={projectMap}
+            allUsers={allUsers}
+            comments={comments}
+            assignValue={detail.viewingTask?.assigned_to || ""}
+            assigningUser={writes.assigningUser}
+            statusUpdating={writes.statusUpdating}
+            commentInput={writes.commentInput}
+            setCommentInput={writes.setCommentInput}
+            onAssign={(taskId, assignedTo) =>
+              writes.assignTask(taskId, assignedTo, (assignedToValue) =>
+                detail.setViewingTask((previousTask) => ({
+                  ...previousTask,
+                  assigned_to: assignedToValue,
+                })),
+              )
+            }
+            onStatusUpdate={writes.updateStatus}
+            onAddComment={writes.addComment}
+            onClose={detail.closeTask}
+            t={t}
+          />
         )}
       </div>
     </>

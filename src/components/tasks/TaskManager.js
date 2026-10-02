@@ -1,85 +1,35 @@
 "use client";
 
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-  useRef,
-} from "react";
-import {
-  Send,
-  MessageSquare,
-  User,
-  X,
-  ListTodo,
-  Shield,
-  ChevronUp,
-  ChevronDown,
-  Plus,
-  CheckCircle2,
-  Edit3,
-  Trash2,
-  Archive,
-  Link as LinkIcon,
-  Copy,
-  Paperclip,
-  AlertTriangle,
-} from "lucide-react";
+import React, { useState } from "react";
+import { ListTodo, Shield } from "lucide-react";
 
-import { uploadTaskAttachment } from "@/lib/storage";
+import ConfirmDialog from "@/components/tasks/manager/ConfirmDialog";
+import NewTaskForm from "@/components/tasks/manager/NewTaskForm";
+import SubTaskModal from "@/components/tasks/manager/SubTaskModal";
+import EditTaskModal from "@/components/tasks/manager/EditTaskModal";
+import BlockerModal from "@/components/tasks/manager/BlockerModal";
+import TaskRow from "@/components/tasks/manager/TaskRow";
+import useBoard from "@/components/tasks/manager/hooks/useBoard";
+import useTaskForm from "@/components/tasks/manager/hooks/useTaskForm";
+import useSubTasks from "@/components/tasks/manager/hooks/useSubTasks";
+import useEditTask from "@/components/tasks/manager/hooks/useEditTask";
+import useComments from "@/components/tasks/manager/hooks/useComments";
+import useResources from "@/components/tasks/manager/hooks/useResources";
+import useBlockers from "@/components/tasks/manager/hooks/useBlockers";
+import { cn } from "@/components/tasks/manager/constants";
 import { useI18n } from "@/lib/i18n";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { notify } from "@/lib/notify";
 
-function cn(...classes) {
-  return classes.filter(Boolean).join(" ");
-}
-
-const STATUS_CONFIG = {
-  pending: { color: "text-slate-400", bg: "bg-slate-500/10" },
-  in_progress: { color: "text-blue-400", bg: "bg-blue-500/10" },
-  blocked: { color: "text-rose-400", bg: "bg-rose-500/10" },
-  completed: { color: "text-emerald-400", bg: "bg-emerald-500/10" },
-  carried_over: { color: "text-amber-400", bg: "bg-amber-500/10" },
-};
-
-const STATUS_OPTIONS = [
-  { value: "pending", label: "Not Started" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "blocked", label: "Blocked" },
-  { value: "carried_over", label: "Carried Over" },
-  { value: "completed", label: "Completed" },
-];
-
-const PRIORITY_CONFIG = {
-  critical: { label: "Critical", color: "text-red-400", bg: "bg-red-500/10" },
-  high: { label: "High", color: "text-amber-400", bg: "bg-amber-500/10" },
-  medium: { label: "Medium", color: "text-blue-400", bg: "bg-blue-500/10" },
-  low: { label: "Low", color: "text-slate-400", bg: "bg-slate-500/10" },
-};
-
-const PRIORITY_OPTIONS = [
-  { value: "critical", label: "Critical" },
-  { value: "high", label: "High" },
-  { value: "medium", label: "Medium" },
-  { value: "low", label: "Low" },
-];
-
-const CATEGORIES = [
-  "Operations",
-  "Administration",
-  "Marketing",
-  "Finance",
-  "Logistics",
-  "HR",
-  "Technology",
-  "Research",
-  "Other",
-];
-
-// ─── Main Component ──────────────────────────────────────────────────────
-
+/**
+ * The board of tasks, and nothing else.
+ *
+ * Every piece of state the board owns lives in one of the hooks under
+ * `manager/hooks` — the week and the rows, the new-task form, sub-tasks, the edit
+ * modal, comments, resources and blockers. What is left here is the wiring
+ * between them and the markup: which row is rendered where, and which handler a
+ * row is handed.
+ */
 export default function TaskManager({
   mode = "standup", // "standup" | "project" | "my-tasks"
   projectId = null, // scoped to a project
@@ -100,1328 +50,181 @@ export default function TaskManager({
 
   // ── Confirmation dialog state ──
   const [confirmAction, setConfirmAction] = useState(null); // { message, onConfirm } or null
+
   // Get current logged-in user for permission checks. The shell has already
   // fetched and published the session, so this observes it instead of keeping a
   // second copy of the identity read out of the browser's stored user.
   const { cid, user } = useSessionUser();
   const currentUserId = cid ?? user?.id ?? null;
 
-  // Compute effective week info — fallback to current ISO week if not provided
-  const effectiveWeekInfo = useMemo(() => {
-    if (weekInfo?.week && weekInfo?.year) return weekInfo;
-    const now = new Date();
-    const date = new Date(now);
-    date.setHours(0, 0, 0, 0);
-    date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
-    const week1 = new Date(date.getFullYear(), 0, 4);
-    const week =
-      1 +
-      Math.round(
-        ((date.getTime() - week1.getTime()) / 86400000 -
-          3 +
-          ((week1.getDay() + 6) % 7)) /
-          7,
-      );
-    return { week, year: now.getFullYear() };
-  }, [weekInfo]);
+  const {
+    effectiveWeekInfo,
+    tasks,
+    carryOverTasks,
+    activeTasks,
+    moveTask,
+    updateStatus,
+    updatingTasks,
+  } = useBoard({ mode, taskList, weekInfo, onTasksChange });
 
-  // The list shown is the one the parent handed down, plus the reordering a
-  // person made on it. The reordering is recorded AGAINST the exact prop value
-  // it was made on, so a parent re-read hands down a new list and shows it.
-  const [localOrder, setLocalOrder] = useState(null);
-  const tasks = useMemo(
-    () =>
-      localOrder && localOrder.base === taskList
-        ? localOrder.list
-        : taskList || [],
-    [localOrder, taskList],
-  );
-  const [updatingTasks, setUpdatingTasks] = useState({});
-  const [pendingParentTaskId, setPendingParentTaskId] = useState(null);
-  const [subTaskModal, setSubTaskModal] = useState(null); // { id, project_id, category, title } or null
-  const [subTaskInput, setSubTaskInput] = useState("");
-  const [subTaskDescription, setSubTaskDescription] = useState("");
-  const [subTaskPriority, setSubTaskPriority] = useState("medium");
-  const [subTaskAssignedTo, setSubTaskAssignedTo] = useState("");
-  const [subTaskStartDate, setSubTaskStartDate] = useState("");
-  const [subTaskEndDate, setSubTaskEndDate] = useState("");
-  const [subTaskLink, setSubTaskLink] = useState("");
-  const [subTaskSuccess, setSubTaskSuccess] = useState("");
-  const [availableCategories, setAvailableCategories] = useState([]);
-  const [editTaskModal, setEditTaskModal] = useState(null); // task object or null
-  const [editForm, setEditForm] = useState({
-    name: "",
-    description: "",
-    project_id: "",
-    category: "",
-    start_date: "",
-    due_date: "",
-    status: "",
-    assigned_to: "",
-    priority: "medium",
-    link: "",
-  });
-
-  // ── Comments (Ticket 1.3 / 1.9) ──
-  const [openComments, setOpenComments] = useState(null); // task id or null
-  const [commentsByTask, setCommentsByTask] = useState({});
-  const [loadingComments, setLoadingComments] = useState(false);
-  const [newComment, setNewComment] = useState("");
-  const [postingComment, setPostingComment] = useState(false);
-
-  const [addResourceTaskId, setAddResourceTaskId] = useState(null);
-  const [resourceForm, setResourceForm] = useState({ name: "", url: "" });
-  const [resourceAdding, setResourceAdding] = useState(false);
-  const [resourceFile, setResourceFile] = useState(null);
-  const [blockerModal, setBlockerModal] = useState(null); // { taskId, taskTitle } or null
-  const [blockerTitle, setBlockerTitle] = useState("");
-  const [blockerDescription, setBlockerDescription] = useState("");
-  const [blockerPriority, setBlockerPriority] = useState("medium");
-  const [blockerRefUrl, setBlockerRefUrl] = useState("");
-  const [blockerNotes, setBlockerNotes] = useState("");
-  const [blockerAdding, setBlockerAdding] = useState(false);
-  // ── Blocker Discussions (Ticket 1.9) ──
-  const [openBlockerDiscuss, setOpenBlockerDiscuss] = useState(null); // blocker id or null
-  const [blockerMessages, setBlockerMessages] = useState({});
-  const [newBlockerMsg, setNewBlockerMsg] = useState("");
-  const [postingBlockerMsg, setPostingBlockerMsg] = useState(false);
-  const [projectSearch, setProjectSearch] = useState("");
-  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
-  const projectDropdownRef = useRef(null);
-
-  // Close project dropdown on outside click
-  useEffect(() => {
-    if (!showProjectDropdown) return;
-    const handler = (event) => {
-      if (
-        projectDropdownRef.current &&
-        !projectDropdownRef.current.contains(event.target)
-      ) {
-        setShowProjectDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showProjectDropdown]);
-
-  // Form state
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-    project_id: "",
-    category: "",
-    assigned_to: "",
-    priority: "medium",
-    start_date: "",
-    due_date: "",
-    start_time: "",
-    due_time: "",
-    link: "",
-  });
-
-  // New-task file attachment + date validation
-  const [taskFile, setTaskFile] = useState(null);
-  const [subTaskFile, setSubTaskFile] = useState(null);
-
-  const validateTaskDates = (start, due) => {
-    const today = new Date().toISOString().split("T")[0];
-    if (start && start < today)
-      return "Start date cannot be in the past.";
-    if (start && due && due < start)
-      return "Due date cannot be earlier than the start date.";
-    return null;
-  };
-
-  const attachFileToTask = async (taskId, file) => {
-    const upload = await uploadTaskAttachment(file, taskId);
-    if (!upload.success)
-      return { success: false, error: upload.error || "Upload failed" };
-    try {
-      const res = await fetch("/api/tasks/resources", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task_id: taskId,
-          name: file.name,
-          url: upload.url,
-          type: "file",
-          file_name: file.name,
-          file_size: file.size,
-        }),
-      });
-      const data = await res.json();
-      return { success: !!data?.success, error: data?.error };
-    } catch (error) {
-      console.error("Attach file to task error:", error);
-      return { success: false, error: "Upload failed" };
-    }
-  };
-
-  // The creation form is open when either the person opened it, or the parent
-  // asked for it by bumping the counter (the standup "Add Task" shortcut).
-  // Closing clears the local half and records the exact counter value it
-  // dismissed, so a signal that is still up does not reopen the form, while a
-  // later bump (a larger value) does.
-  const [formOpen, setFormOpen] = useState(false);
-  const [dismissedRequest, setDismissedRequest] = useState(0);
-  const showTaskForm = formOpen || requestNewTask > dismissedRequest;
-
-  // Opening the form is also where its project is seeded in project mode: that
-  // reset belongs to the action that opens the control, not to an effect
-  // watching the flag.
-  const openTaskForm = useCallback(() => {
-    if (mode === "project" && projectId) {
-      setForm((previousForm) => ({ ...previousForm, project_id: String(projectId) }));
-    }
-    setFormOpen(true);
-  }, [mode, projectId]);
-
-  // Fetch available categories from API
-  useEffect(() => {
-    fetch("/api/categories")
-      .then((response) => response.json())
-      .then((payload) => {
-        if (payload.success) setAvailableCategories(payload.categories.map((category) => category.name));
-      })
-      .catch(() => {});
-  }, []);
-
-  const handleSaveResource = async (taskId) => {
-    if (!resourceFile && !resourceForm.url.trim()) return;
-    setResourceAdding(true);
-    try {
-      let finalUrl = resourceForm.url.trim();
-      let finalName = resourceForm.name.trim();
-      let filePayload = {};
-
-      // If a file is selected, upload it first
-      if (resourceFile) {
-        const upload = await uploadTaskAttachment(resourceFile, taskId);
-        if (!upload.success) {
-          notify('error', t(upload.error || "Upload failed") || upload.error || "Upload failed");
-          setResourceAdding(false);
-          return;
-        }
-        finalUrl = upload.url;
-        finalName = finalName || resourceFile.name;
-        filePayload = {
-          type: "file",
-          file_name: resourceFile.name,
-          file_size: resourceFile.size,
-        };
-      }
-
-      const res = await fetch("/api/tasks/resources", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task_id: taskId,
-          name: finalName,
-          url: finalUrl,
-          ...filePayload,
-        }),
-      });
-      if (res.ok) {
-        notify('success', 'Resource saved');
-        if (onTasksChange) onTasksChange();
-        setAddResourceTaskId(null);
-        setResourceForm({ name: "", url: "" });
-        setResourceFile(null);
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setResourceAdding(false);
-    }
-  };
-
-  const handleDeleteResource = async (resourceId) => {
-    setConfirmAction({
-      message: "Delete this resource link?",
-      onConfirm: () => performDeleteResource(resourceId),
-    });
-  };
-  const performDeleteResource = async (resourceId) => {
-    try {
-      const res = await fetch(`/api/tasks/resources?id=${resourceId}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        notify('success', 'Resource removed');
-        if (onTasksChange) onTasksChange();
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  // ── Comments (Ticket 1.3 / 1.9) ──
-  const toggleComments = useCallback(
-    async (taskId) => {
-      if (openComments === taskId) {
-        setOpenComments(null);
-        return;
-      }
-      setOpenComments(taskId);
-      if (!commentsByTask[taskId]) {
-        setLoadingComments(true);
-        try {
-          const res = await fetch(`/api/tasks/comments?task_id=${taskId}`);
-          const data = await res.json();
-          if (data.success) {
-            setCommentsByTask((prev) => ({
-              ...prev,
-              [taskId]: data.comments || [],
-            }));
-          }
-        } catch (error) {
-          console.error(error);
-        } finally {
-          setLoadingComments(false);
-        }
-      }
-    },
-    [openComments, commentsByTask],
-  );
-
-  const postComment = useCallback(
-    async (taskId) => {
-      const text = newComment.trim();
-      if (!text) return;
-      setPostingComment(true);
-      try {
-        const res = await fetch("/api/tasks/comments", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            task_id: taskId,
-            sender_id: uid,
-            sender_name: userName || "User",
-            body: text,
-          }),
-        });
-        const data = await res.json();
-        if (data.success) {
-          setCommentsByTask((prev) => ({
-            ...prev,
-            [taskId]: [
-              ...(prev[taskId] || []),
-              {
-                id: data.id,
-                task_id: taskId,
-                sender_id: uid,
-                sender_name: userName || "User",
-                body: text,
-                created_at: data.created_at || new Date().toISOString(),
-              },
-            ],
-          }));
-          setNewComment("");
-          if (onTasksChange) onTasksChange();
-        }
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setPostingComment(false);
-      }
-    },
-    [newComment, uid, userName, onTasksChange],
-  );
-
-  // ── API: Add blocker to task ──
-  const handleAddBlocker = async () => {
-    if (!blockerModal || !blockerTitle.trim()) return;
-    setBlockerAdding(true);
-    try {
-      const res = await fetch("/api/blockers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task_id: blockerModal.taskId,
-          user_id: uid,
-          user_name: userName || "User",
-          title: blockerTitle.trim(),
-          description: blockerDescription.trim() || null,
-          severity: blockerPriority,
-          reference_url: blockerRefUrl.trim() || null,
-          notes: blockerNotes.trim() || null,
-        }),
-      });
-      if (res.ok) {
-        setBlockerModal(null);
-        setBlockerTitle("");
-        setBlockerDescription("");
-        setBlockerPriority("medium");
-        setBlockerRefUrl("");
-        setBlockerNotes("");
-        if (onTasksChange) onTasksChange();
-      }
-    } catch (error) {
-      console.error(error);
-    }
-    setBlockerAdding(false);
-  };
-
-  // ── API: Resolve blocker ──
-  const handleResolveBlocker = async (blockerId) => {
-    try {
-      await fetch("/api/blockers", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: blockerId,
-          user_id: uid,
-          status: "resolved",
-          resolved_by: uid,
-        }),
-      });
-      if (onTasksChange) onTasksChange();
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  // ── Blocker Discussions (Ticket 1.9) ──
-  const toggleBlockerDiscuss = useCallback(
-    async (blockerId) => {
-      if (openBlockerDiscuss === blockerId) {
-        setOpenBlockerDiscuss(null);
-        return;
-      }
-      setOpenBlockerDiscuss(blockerId);
-      setNewBlockerMsg("");
-      if (!blockerMessages[blockerId]) {
-        try {
-          const res = await fetch(
-            `/api/blockers/discuss?blocker_id=${blockerId}`,
-          );
-          const data = await res.json();
-          if (data.success) {
-            setBlockerMessages((prev) => ({
-              ...prev,
-              [blockerId]: data.messages || [],
-            }));
-          }
-        } catch (_) {}
-      }
-    },
-    [openBlockerDiscuss, blockerMessages],
-  );
-
-  const postBlockerMessage = useCallback(
-    async (blockerId) => {
-      const text = newBlockerMsg.trim();
-      if (!text) return;
-      setPostingBlockerMsg(true);
-      try {
-        const res = await fetch("/api/blockers/discuss", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            blocker_id: blockerId,
-            sender_id: uid,
-            sender_name: userName || "User",
-            body: text,
-          }),
-        });
-        const data = await res.json();
-        if (data.success) {
-          setBlockerMessages((prev) => ({
-            ...prev,
-            [blockerId]: [
-              ...(prev[blockerId] || []),
-              {
-                id: data.id,
-                sender_id: uid,
-                sender_name: userName || "User",
-                body: text,
-                blocker_id: blockerId,
-                created_at: new Date().toISOString(),
-              },
-            ],
-          }));
-          setNewBlockerMsg("");
-        }
-      } catch (_) {}
-      setPostingBlockerMsg(false);
-    },
-    [newBlockerMsg, uid, userName],
-  );
-
-  // ── API: Update task status ──
-  const updateStatus = useCallback(
-    async (taskId, newStatus) => {
-      if (updatingTasks[taskId]) return;
-      setUpdatingTasks((previousUpdating) => ({ ...previousUpdating, [taskId]: true }));
-      try {
-        // If completing parent, cascade to sub-tasks
-        if (newStatus === "completed") {
-          const task = tasks.find((candidate) => candidate.id === taskId);
-          if (task?.subtasks?.length > 0) {
-            await Promise.all(
-              task.subtasks.map((subtask) =>
-                fetch("/api/tasks", {
-                  method: "PUT",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ id: subtask.id, status: "completed" }),
-                }),
-              ),
-            );
-          }
-        }
-        await fetch("/api/tasks", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: taskId, status: newStatus }),
-        });
-        // Re-fetch via callback
-        if (onTasksChange) onTasksChange();
-        if (typeof window !== "undefined") {
-          window.__refreshDashboard?.();
-          window.__refreshAdminDashboard?.();
-        }
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setUpdatingTasks((previousUpdating) => ({ ...previousUpdating, [taskId]: false }));
-      }
-    },
-    [tasks, updatingTasks, onTasksChange],
-  );
-
-  // ── API: Create task ──
-  const createTask = useCallback(
-    async (taskData) => {
-      const week = effectiveWeekInfo || { week: 0, year: 0 };
-      const res = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: taskData.title,
-          description: taskData.description || null,
-          project_id: taskData.project_id || null,
-          category: taskData.category || null,
-          user_id: uid,
-          user_name: userName || "User",
-          status: "in_progress",
-          parent_task_id: taskData.parent_task_id || null,
-          created_week: week.week || 0,
-          created_year: week.year || 0,
-          start_date: taskData.start_date || null,
-          end_date: taskData.due_date || null,
-          assigned_to: taskData.assigned_to || null,
-          link: taskData.link || null,
-          priority: taskData.priority || "medium",
-        }),
-      });
-      return await res.json();
-    },
-    [uid, userName, effectiveWeekInfo],
-  );
-
-  // ── Submit new task from form ──
-  const [creating, setCreating] = useState(false);
-  const [addedCount, setAddedCount] = useState(0);
-
-  const handleAddTask = useCallback(async () => {
-    if (creating) return;
-    if (!form.name.trim()) return;
-    if (!form.project_id && !form.category) return;
-    const dateError = validateTaskDates(form.start_date, form.due_date);
-    if (dateError) {
-      notify("error", dateError);
-      return;
-    }
-
-    setCreating(true);
-    try {
-      const data = await createTask({
-        title: form.name.trim(),
-        description: form.description || null,
-        project_id: form.project_id || null,
-        category: form.category || null,
-        parent_task_id: pendingParentTaskId || null,
-        assigned_to: form.assigned_to || null,
-        start_date: form.start_date || null,
-        due_date: form.due_date || null,
-        link: form.link || null,
-        priority: form.priority || "medium",
-      });
-
-      if (data.success) {
-        if (taskFile && data.id) {
-          const attach = await attachFileToTask(data.id, taskFile);
-          if (!attach.success) {
-            notify(
-              "error",
-              t(attach.error || "Upload failed") ||
-                attach.error || "Upload failed",
-            );
-          }
-        }
-        setTaskFile(null);
-        setForm((previousForm) => ({
-          ...previousForm,
-          name: "",
-          start_date: "",
-          due_date: "",
-          start_time: "",
-          due_time: "",
-        }));
-        setPendingParentTaskId(null);
-        setAddedCount((previousCount) => previousCount + 1);
-        if (onTasksChange) onTasksChange();
-        if (typeof window !== "undefined") {
-          window.__refreshDashboard?.();
-          window.__refreshAdminDashboard?.();
-        }
-      } else {
-        notify("error", data.error || t("errors.taskCreateFailed"));
-      }
-    } catch (error) {
-      console.error("Create task error:", error);
-      notify(
-        "error",
-        t("errors.somethingWrong") || "Something went wrong. Please try again.",
-      );
-    } finally {
-      setCreating(false);
-    }
-  }, [form, pendingParentTaskId, createTask, onTasksChange, creating, taskFile, t]);
-
-  const handleCloseForm = useCallback(() => {
-    setFormOpen(false);
-    // Dismiss the parent's request at the value it was made with, so a signal
-    // still up cannot immediately reopen the form.
-    setDismissedRequest(requestNewTask);
-    setPendingParentTaskId(null);
-    setAddedCount(0);
-    setForm({
-      name: "",
-      description: "",
-      project_id: "",
-      category: "",
-      assigned_to: "",
-      priority: "medium",
-      start_date: "",
-      due_date: "",
-      start_time: "",
-      due_time: "",
-      link: "",
-    });
-  }, [requestNewTask]);
-
-  // ── Open sub-task popup modal ──
-  const openSubTask = useCallback(
-    (parentId, parentProjectId, parentCategory, parentTitle) => {
-      setSubTaskModal({
-        id: parentId,
-        project_id: parentProjectId,
-        category: parentCategory,
-        title: parentTitle,
-      });
-      setSubTaskInput("");
-    },
-    [],
-  );
-
-  const addSubTaskFromModal = useCallback(async () => {
-    const name = subTaskInput.trim();
-    if (!name || !subTaskModal) return;
-    const dateError = validateTaskDates(subTaskStartDate, subTaskEndDate);
-    if (dateError) {
-      notify("error", dateError);
-      return;
-    }
-    try {
-      const data = await createTask({
-        title: name,
-        description: subTaskDescription || null,
-        project_id: subTaskModal.project_id || null,
-        category: subTaskModal.category || null,
-        parent_task_id: subTaskModal.id,
-        assigned_to: subTaskAssignedTo || null,
-        priority: subTaskPriority || "medium",
-        start_date: subTaskStartDate || null,
-        due_date: subTaskEndDate || null,
-        link: subTaskLink || null,
-      });
-
-      if (data.success) {
-        if (subTaskFile && data.id) {
-          const attach = await attachFileToTask(data.id, subTaskFile);
-          if (!attach.success) {
-            notify(
-              "error",
-              t(attach.error || "Upload failed") ||
-                attach.error || "Upload failed",
-            );
-          }
-        }
-        setSubTaskFile(null);
-        setSubTaskInput("");
-        setSubTaskDescription("");
-        setSubTaskAssignedTo("");
-        setSubTaskPriority("medium");
-        setSubTaskStartDate("");
-        setSubTaskEndDate("");
-        setSubTaskLink("");
-        setSubTaskSuccess("Sub-task added!");
-        setTimeout(() => setSubTaskSuccess(""), 2000);
-        if (onTasksChange) onTasksChange();
-        if (typeof window !== "undefined") {
-          window.__refreshDashboard?.();
-          window.__refreshAdminDashboard?.();
-        }
-      }
-    } catch (error) {
-      console.error("Add sub-task error:", error);
-      notify(
-        "error",
-        t("errors.somethingWrong") || "Something went wrong. Please try again.",
-      );
-    }
-  }, [
-    subTaskInput,
-    subTaskDescription,
-    subTaskAssignedTo,
-    subTaskPriority,
-    subTaskModal,
-    subTaskStartDate,
-    subTaskEndDate,
-    subTaskLink,
-    subTaskFile,
+  const {
+    form,
+    setForm,
+    showTaskForm,
+    openTaskForm,
+    handleCloseForm,
+    handleAddTask,
+    creating,
+    addedCount,
+    pendingParentTaskId,
+    taskFile,
+    setTaskFile,
+    availableCategories,
+    validateTaskDates,
     createTask,
+    attachFileToTask,
+    projectPicker,
+  } = useTaskForm({
+    mode,
+    projectId,
+    projects,
+    userId,
+    userName,
+    effectiveWeekInfo,
+    requestNewTask,
     onTasksChange,
     t,
-  ]);
-
-  // ── Available projects / categories ──
-  const selectedProject = projects.find(
-    (project) => String(project.id) === String(form.project_id),
-  );
-  const filteredProjects = projects.filter((project) => {
-    if (!projectSearch) return true;
-    return project.name?.toLowerCase().includes(projectSearch.toLowerCase());
   });
 
-  // ── Tasks grouped by relevance ──
-  const filteredTasks = useMemo(() => {
-    if (mode === "standup" && effectiveWeekInfo) {
-      return tasks.filter(
-        (task) =>
-          task.created_week === effectiveWeekInfo.week &&
-          task.created_year === effectiveWeekInfo.year,
-      );
-    }
-    return tasks;
-  }, [tasks, mode, effectiveWeekInfo]);
+  // A sub-task is created through the form's own create call, so it lands with
+  // the same fields and the same week as a task.
+  const {
+    subTaskModal,
+    setSubTaskModal,
+    subTaskInput,
+    setSubTaskInput,
+    subTaskDescription,
+    setSubTaskDescription,
+    subTaskPriority,
+    setSubTaskPriority,
+    subTaskAssignedTo,
+    setSubTaskAssignedTo,
+    subTaskStartDate,
+    setSubTaskStartDate,
+    subTaskEndDate,
+    setSubTaskEndDate,
+    subTaskLink,
+    setSubTaskLink,
+    subTaskSuccess,
+    subTaskFile,
+    setSubTaskFile,
+    openSubTask,
+    addSubTaskFromModal,
+  } = useSubTasks({
+    onTasksChange,
+    t,
+    createTask,
+    attachFileToTask,
+    validateTaskDates,
+  });
 
-  const carryOverTasks = useMemo(
-    () =>
-      tasks.filter(
-        (task) =>
-          !["completed", "archived"].includes(task.status) &&
-          task.created_week !== effectiveWeekInfo?.week &&
-          !task.parent_task_id,
-      ),
-    [tasks, effectiveWeekInfo],
-  );
+  const { editTaskModal, setEditTaskModal, editForm, setEditForm } = useEditTask();
 
-  const activeTasks = useMemo(
-    () =>
-      filteredTasks
-        .filter(
-          (task) =>
-            task.carried_over_from_task_id === null &&
-            task.status !== "carried_over" &&
-            task.status !== "archived" &&
-            !task.parent_task_id,
-        )
-        .sort(
-          (leftTask, rightTask) =>
-            new Date(leftTask.created_at).getTime() - new Date(rightTask.created_at).getTime(),
-        ),
-    [filteredTasks],
-  );
+  const {
+    openComments,
+    commentsByTask,
+    loadingComments,
+    newComment,
+    setNewComment,
+    postingComment,
+    toggleComments,
+    postComment,
+  } = useComments({ userId, userName, onTasksChange });
 
-  // Move task up or down in the active list
-  const moveTask = useCallback(
-    (taskId, direction) => {
-      const orderedTasks = tasks;
-      const index = orderedTasks.findIndex((task) => task.id === taskId);
-      if (index === -1) return;
-      const targetIdx = direction === "up" ? index - 1 : index + 1;
-      if (targetIdx < 0 || targetIdx >= orderedTasks.length) return;
-      const updated = [...orderedTasks];
-      [updated[index], updated[targetIdx]] = [updated[targetIdx], updated[index]];
-      setLocalOrder({ base: taskList, list: updated });
-    },
-    [tasks, taskList],
-  );
+  const {
+    addResourceTaskId,
+    setAddResourceTaskId,
+    resourceForm,
+    setResourceForm,
+    resourceAdding,
+    resourceFile,
+    setResourceFile,
+    handleSaveResource,
+    handleDeleteResource,
+  } = useResources({ onTasksChange, setConfirmAction, t });
+
+  const {
+    blockerModal,
+    setBlockerModal,
+    blockerTitle,
+    setBlockerTitle,
+    blockerDescription,
+    setBlockerDescription,
+    blockerPriority,
+    setBlockerPriority,
+    blockerRefUrl,
+    setBlockerRefUrl,
+    blockerNotes,
+    setBlockerNotes,
+    blockerAdding,
+    handleAddBlocker,
+    handleResolveBlocker,
+    openBlockerDiscuss,
+    blockerMessages,
+    newBlockerMsg,
+    setNewBlockerMsg,
+    postingBlockerMsg,
+    toggleBlockerDiscuss,
+    postBlockerMessage,
+  } = useBlockers({ userId, userName, onTasksChange });
 
   // ── Render task row (with optional sub-tasks) ──
-  // Track task index for numbering in standup mode
+  // The board number counts every TOP-LEVEL row in the order it is rendered —
+  // carry-over first, then active — and only in standup mode. The count lives
+  // here rather than inside the row so the two lists share one sequence.
   let taskIndex = 0;
-  const renderTaskRow = (task, isSub = false) => {
-    const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.pending;
-    const isUpdating = updatingTasks[task.id];
-
-    return (
-      <div key={task.id}>
-        <div
-          className={`flex items-center gap-2 py-1.5 ${
-            !isSub && task.subtasks?.length > 0
-              ? "pl-3 border-l-[3px] border-indigo-400 rounded-sm"
-              : isSub
-                ? "ml-6 pl-3 border-l-2 border-indigo-500/30"
-                : ""
-          } ${!isSub && task.subtasks?.length > 0 ? "bg-indigo-500/[0.04]" : ""}`}
-        >
-          {/* Checkbox — available for both parent and sub-tasks (independent completion, Ticket 1.3). */}
-          {(() => {
-              const canCheck =
-                mode === "project"
-                  ? String(task.user_id) === String(currentUserId) ||
-                    String(task.assigned_to) === String(currentUserId) ||
-                    String(userId) === String(currentUserId)
-                  : true;
-              if (mode === "project" && !canCheck) {
-                // Show static completed indicator only
-                if (task.status === "completed") {
-                  return (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                  );
-                }
-                return <div className="w-4 h-4 shrink-0" />;
-              }
-              return (
-                <button
-                  onClick={() =>
-                    updateStatus(
-                      task.id,
-                      task.status === "completed" ? "in_progress" : "completed",
-                    )
-                  }
-                  disabled={isUpdating || readOnly}
-                  className={`w-4 h-4 rounded-full border-2 shrink-0 transition-all hover:scale-110 ${task.status === "completed" ? "bg-emerald-500 border-emerald-500" : "border-slate-600 hover:border-emerald-400"} ${isUpdating ? "opacity-50 animate-pulse" : ""} ${readOnly ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  {task.status === "completed" && (
-                    <CheckCircle2 className="w-3 h-3 text-white" />
-                  )}
-                </button>
-              );
-            })()}
-
-          {/* Task number in standup mode */}
-          {mode === "standup" && !isSub && (
-            <span className="w-5 h-5 flex items-center justify-center rounded-md bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold text-slate-500 shrink-0">
-              {++taskIndex}
-            </span>
-          )}
-
-          {/* Parent indicator icon — always visible when task has sub-tasks */}
-          {!isSub && task.subtasks?.length > 0 && (
-            <div className="w-5 h-5 flex items-center justify-center rounded-md bg-indigo-500/15 shrink-0">
-              <ChevronDown className="w-3.5 h-3.5 text-indigo-400" />
-            </div>
-          )}
-
-          {/* Task name */}
-          {!isSub && task.subtasks?.length > 0 ? (
-            <div className="flex items-center gap-1.5 text-left flex-1 min-w-0">
-              <span
-                className={`text-[11px] font-bold ${task.status === "completed" ? "line-through text-slate-500" : "text-[var(--text-primary)]"}`}
-              >
-                {task.title}
-              </span>
-              {(() => {
-                const total = task.subtasks.length;
-                const done = task.subtasks.filter(
-                  (subtask) => subtask.status === "completed",
-                ).length;
-                const allDone = done === total;
-                return (
-                  <span
-                    className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${allDone ? "text-emerald-400 bg-emerald-500/10" : "text-indigo-400 bg-indigo-500/10"}`}
-                    title={`${done} of ${total} sub-tasks completed`}
-                  >
-                    {done}/{total} done
-                  </span>
-                );
-              })()}
-            </div>
-          ) : (
-            <span
-              className={`flex-1 text-[11px] font-medium min-w-0 truncate ${task.status === "completed" ? "line-through text-slate-500" : "text-[var(--text-primary)]"} ${isSub ? "text-[10px]" : ""}`}
-            >
-              {isSub && (
-                <span className="text-[10px] text-indigo-400 mr-1 uppercase tracking-wider font-bold">
-                  Sub:
-                </span>
-              )}
-              {task.title}
-            </span>
-          )}
-
-          {/* Priority badge */}
-          {task.priority && task.priority !== "medium" && (
-            <span
-              className={cn(
-                "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0",
-                PRIORITY_CONFIG[task.priority]?.bg,
-                PRIORITY_CONFIG[task.priority]?.color,
-              )}
-            >
-              {PRIORITY_CONFIG[task.priority]?.label || task.priority}
-            </span>
-          )}
-
-          {/* Creator + Assignee + Project / Category tag */}
-          {!isSub && (
-            <div className="hidden sm:flex items-center gap-2 shrink-0 text-[10px] font-medium">
-              {task.user_name && (
-                <span
-                  className="text-slate-500 flex items-center gap-1"
-                  title="Created by"
-                >
-                  <User className="w-2.5 h-2.5" />
-                  {task.user_name}
-                </span>
-              )}
-              {task.assignee_name && (
-                <span
-                  className="text-emerald-500 flex items-center gap-1"
-                  title="Assigned to"
-                >
-                  <Send className="w-2.5 h-2.5" />
-                  {task.assignee_name}
-                </span>
-              )}
-              <span className="text-slate-500">
-                {task.project_id
-                  ? projects.find(
-                      (project) => String(project.id) === String(task.project_id),
-                    )?.name
-                  : task.category || ""}
-              </span>
-              {task.end_date && (
-                <span
-                  className="text-slate-500 flex items-center gap-1"
-                  title="Due date"
-                >
-                  <span className="text-[10px]">
-                    {new Date(task.end_date).toLocaleDateString("en-GB", {
-                      day: "2-digit",
-                      month: "2-digit",
-                    })}
-                  </span>
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Status dropdown */}
-          {!isSub && (
-            <select
-              value={task.status || "pending"}
-              onChange={(event) => updateStatus(task.id, event.target.value)}
-              disabled={readOnly}
-              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border-0 outline-none appearance-none shrink-0 ${readOnly ? "opacity-60 cursor-not-allowed" : "cursor-pointer"} ${statusConfig.bg} ${statusConfig.color}`}
-            >
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value} className="bg-primary">
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          )}
-
-          {/* Blockers button */}
-          <button
-            onClick={() =>
-              setBlockerModal({ taskId: task.id, taskTitle: task.title })
-            }
-            className={`shrink-0 transition-all ${(task.blockers || []).filter((blocker) => blocker.status === "active").length > 0 ? "text-rose-400" : "text-slate-500 hover:text-rose-400"}`}
-            title={
-              (task.blockers || []).filter((blocker) => blocker.status === "active")
-                .length > 0
-                ? `${(task.blockers || []).filter((blocker) => blocker.status === "active").length} active blocker(s)`
-                : "Add blocker"
-            }
-          >
-            <Shield className="w-3 h-3" />
-            {(task.blockers || []).filter((blocker) => blocker.status === "active").length >
-              0 && (
-              <span className="text-[10px] font-bold ml-0.5">
-                {
-                  (task.blockers || []).filter((blocker) => blocker.status === "active")
-                    .length
-                }
-              </span>
-            )}
-          </button>
-
-          {/* Edit button — parent AND sub tasks */}
-          {!readOnly && (
-            <button
-              onClick={() => {
-                setEditForm({
-                  name: task.title,
-                  description: task.description || "",
-                  project_id: task.project_id || "",
-                  category: task.category || "",
-                  start_date: task.start_date || "",
-                  due_date: task.end_date || "",
-                  status: task.status || "in_progress",
-                  assigned_to: task.assigned_to || "",
-                  priority: task.priority || "medium",
-                  link: task.link || "",
-                });
-                setEditTaskModal(task);
-              }}
-              className="text-slate-500 hover:text-[var(--brand-orange)] transition-all shrink-0"
-              title="Edit task"
-            >
-              <Edit3 className="w-3 h-3" />
-            </button>
-          )}
-
-          {/* Archive button — always visible */}
-          {!readOnly && (
-            <button
-              onClick={() => {
-                setConfirmAction({
-                  message: `Archive task "${task.title}"? Archived tasks will not carry over to future weeks.`,
-                  onConfirm: async () => {
-                    try {
-                      const res = await fetch("/api/tasks", {
-                        method: "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ id: task.id, status: "archived" }),
-                      });
-                      const data = await res.json();
-                      if (data.success) {
-                        if (onTasksChange) onTasksChange();
-                      } else {
-                        notify('error', t(data.error || "Failed to archive task.") || data.error || "Failed to archive task.");
-                      }
-                    } catch {
-                      notify('error', "Network error while archiving task.");
-                    }
-                  },
-                });
-              }}
-              className="text-slate-500 hover:text-amber-500 transition-all shrink-0"
-              title="Archive task"
-            >
-              <Archive className="w-3 h-3" />
-            </button>
-          )}
-
-          {/* Duplicate button — always visible */}
-          {!readOnly && (
-            <button
-              onClick={async () => {
-                try {
-                  const res = await fetch("/api/tasks/duplicate", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ task_id: task.id }),
-                  });
-                  const data = await res.json();
-                  if (data.success) {
-                    if (onTasksChange) onTasksChange();
-                  } else {
-                    notify('error', t(data.error || "Failed to duplicate task.") || data.error || "Failed to duplicate task.");
-                  }
-                } catch {
-                  notify('error', "Network error while duplicating task.");
-                }
-              }}
-              className="text-slate-500 hover:text-[var(--brand-orange)] transition-all shrink-0"
-              title="Duplicate task"
-            >
-              <Copy className="w-3 h-3" />
-            </button>
-          )}
-
-          {/* Delete / Archive based on week — parent AND sub tasks */}
-          {!readOnly &&
-            (() => {
-              const isPastWeek =
-                effectiveWeekInfo &&
-                (task.created_week !== effectiveWeekInfo.week ||
-                  task.created_year !== effectiveWeekInfo.year);
-              if (isPastWeek) {
-                // Past-week tasks can only be archived, not deleted
-                return (
-                  <button
-                    onClick={() => {
-                      setConfirmAction({
-                        message: `Archive task "${task.title}"? Archived tasks will not carry over to future weeks.`,
-                        onConfirm: async () => {
-                          try {
-                            const res = await fetch("/api/tasks", {
-                              method: "PUT",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ id: task.id, status: "archived" }),
-                            });
-                            const data = await res.json();
-                            if (data.success) {
-                              if (onTasksChange) onTasksChange();
-                            } else {
-                              notify('error', t(data.error || "Failed to archive task.") || data.error || "Failed to archive task.");
-                            }
-                          } catch {
-                            notify('error', "Network error while archiving task.");
-                          }
-                        },
-                      });
-                    }}
-                    className="text-slate-500 hover:text-amber-500 transition-all shrink-0"
-                    title="Archive task (past week — cannot delete)"
-                  >
-                    <Archive className="w-3 h-3" />
-                  </button>
-                );
-              }
-              return (
-                <button
-                  onClick={() => {
-                    setConfirmAction({
-                      message: `Delete task "${task.title}"?`,
-                      onConfirm: async () => {
-                        try {
-                          const res = await fetch(`/api/tasks?id=${task.id}`, {
-                            method: "DELETE",
-                          });
-                          const data = await res.json();
-                          if (data.success) {
-                            if (onTasksChange) onTasksChange();
-                          } else {
-                            notify('error',
-                              t(data.error ||
-                                "Cannot delete this task. It may be locked (older than 12 hours).") ||
-                                data.error ||
-                                "Cannot delete this task. It may be locked (older than 12 hours).",
-                            );
-                          }
-                        } catch {
-                          notify('error', "Network error while deleting task.");
-                        }
-                      },
-                    });
-                  }}
-                  className="text-slate-500 hover:text-rose-500 transition-all shrink-0"
-                  title="Delete task"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              );
-            })()}
-
-          {/* Move up/down buttons */}
-          {!readOnly && !isSub && (
-            <div className="flex flex-col gap-0.5 shrink-0">
-              <button
-                onClick={() => moveTask(task.id, "up")}
-                className="text-slate-500 hover:text-[var(--text-primary)] transition-all"
-                title="Move up"
-              >
-                <ChevronUp className="w-3 h-3" />
-              </button>
-              <button
-                onClick={() => moveTask(task.id, "down")}
-                className="text-slate-500 hover:text-[var(--text-primary)] transition-all"
-                title="Move down"
-              >
-                <ChevronDown className="w-3 h-3" />
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Resources Section */}
-        {task.resources && task.resources.length > 0 && (
-          <div
-            className={`mt-1 flex flex-col gap-1 ${isSub ? "ml-10" : "ml-8"}`}
-          >
-            {task.resources.map((resource) => (
-              <div key={resource.id} className="flex items-center gap-2 group">
-                <a
-                  href={resource.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[10px] text-[var(--brand-orange)] hover:underline flex items-center gap-1 max-w-[200px] truncate"
-                >
-                  {resource.type === "file" ? (
-                    <Paperclip className="w-2.5 h-2.5 shrink-0" />
-                  ) : (
-                    <LinkIcon className="w-2.5 h-2.5 shrink-0" />
-                  )}
-                  {resource.name || resource.url}
-                </a>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(resource.url);
-                    notify('info', "URL copied!");
-                  }}
-                  className="text-slate-500 opacity-0 group-hover:opacity-100 hover:text-emerald-400 transition-opacity"
-                  title="Copy URL"
-                >
-                  <Copy className="w-2.5 h-2.5" />
-                </button>
-                {!readOnly && (
-                  <button
-                    onClick={() => handleDeleteResource(resource.id)}
-                    className="text-slate-400 hover:text-rose-400 transition-colors"
-                    title="Remove resource"
-                  >
-                    <Trash2 className="w-2.5 h-2.5" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {addResourceTaskId === task.id && (
-          <div
-            className={`mt-1 p-2 rounded-lg bg-tertiary border border-[var(--border-primary)] flex flex-col gap-2 ${isSub ? "ml-10" : "ml-8"} w-fit min-w-[250px]`}
-          >
-            <input
-              type="text"
-              placeholder="Resource Name (optional)"
-              value={resourceForm.name}
-              onChange={(event) =>
-                setResourceForm((previousForm) => ({ ...previousForm, name: event.target.value }))
-              }
-              className="w-full bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[10px] outline-none"
-            />
-            <input
-              type="url"
-              placeholder="https://..."
-              value={resourceForm.url}
-              onChange={(event) =>
-                setResourceForm((previousForm) => ({ ...previousForm, url: event.target.value }))
-              }
-              className="w-full bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[10px] outline-none"
-              autoFocus
-            />
-            <input
-              type="file"
-              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-              onChange={(event) => setResourceFile(event.target.files?.[0] || null)}
-              className="w-full text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-bold file:bg-[var(--brand-orange)] file:text-black"
-            />
-            <div className="flex gap-1 justify-end">
-              <button
-                onClick={() => setAddResourceTaskId(null)}
-                className="px-2 py-1 text-[10px] font-bold text-slate-500 uppercase"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleSaveResource(task.id)}
-                disabled={(!resourceFile && !resourceForm.url) || resourceAdding}
-                className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[10px] font-bold uppercase"
-              >
-                {resourceAdding ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Action Buttons Row */}
-        <div
-          className={`mt-1 flex items-center gap-3 ${isSub ? "ml-10" : "ml-8"}`}
-        >
-          {!readOnly && (
-            <button
-              onClick={() => setAddResourceTaskId(task.id)}
-              className="flex items-center gap-1 text-[10px] font-bold uppercase text-slate-400 hover:text-emerald-400 transition-colors"
-            >
-              <Plus className="w-2.5 h-2.5" /> Resource
-            </button>
-          )}
-          <button
-            onClick={() => toggleComments(task.id)}
-            className="flex items-center gap-1 text-[10px] font-bold uppercase text-slate-400 hover:text-blue-400 transition-colors"
-          >
-            <MessageSquare className="w-2.5 h-2.5" />
-            Comments{task.commentCount > 0 ? ` (${task.commentCount})` : ""}
-          </button>
-          {!readOnly && !isSub && (
-            <button
-              onClick={() =>
-                openSubTask(task.id, task.project_id, task.category, task.title)
-              }
-              className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-indigo-400 hover:text-indigo-300 transition-all"
-            >
-              <Plus className="w-2.5 h-2.5" /> Sub-task
-            </button>
-          )}
-        </div>
-
-        {/* Comments thread */}
-        {openComments === task.id && (
-          <div
-            className={`mt-1 p-2 rounded-lg bg-tertiary border border-[var(--border-primary)] flex flex-col gap-2 ${isSub ? "ml-10" : "ml-8"} max-w-md`}
-          >
-            {loadingComments ? (
-              <p className="text-[10px] font-medium text-slate-500">Loading...</p>
-            ) : (commentsByTask[task.id] || []).length === 0 ? (
-              <p className="text-[10px] font-medium text-slate-500">
-                No comments yet.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
-                {(commentsByTask[task.id] || []).map((comment) => (
-                  <div key={comment.id} className="text-[10px]">
-                    <span className="font-black text-[var(--text-primary)]">
-                      {comment.sender_name || comment.sender_id}:{" "}
-                    </span>
-                    <span className="text-[var(--text-secondary)]">
-                      {comment.body}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {!readOnly && (
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newComment}
-                  onChange={(event) => setNewComment(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") postComment(task.id);
-                  }}
-                  placeholder="Write a comment..."
-                  className="flex-1 bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[10px] outline-none"
-                />
-                <button
-                  onClick={() => postComment(task.id)}
-                  disabled={!newComment.trim() || postingComment}
-                  className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[10px] font-bold uppercase disabled:opacity-40"
-                >
-                  Send
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Sub-tasks — always visible under parent */}
-        {!isSub && task.subtasks?.length > 0 && (
-          <div className="mt-1 ml-4 pl-3 border-l-2 border-indigo-500/20 space-y-0.5">
-            {task.subtasks.map((subtask) => renderTaskRow(subtask, true))}
-          </div>
-        )}
-      </div>
-    );
-  };
+  const renderTaskRow = (task, isSub = false) => (
+    <TaskRow
+      key={task.id}
+      task={task}
+      isSub={isSub}
+      number={mode === "standup" && !isSub ? ++taskIndex : null}
+      mode={mode}
+      userId={userId}
+      readOnly={readOnly}
+      effectiveWeekInfo={effectiveWeekInfo}
+      projects={projects}
+      updatingTasks={updatingTasks}
+      moveTask={moveTask}
+      updateStatus={updateStatus}
+      openSubTask={openSubTask}
+      openComments={openComments}
+      commentsByTask={commentsByTask}
+      loadingComments={loadingComments}
+      newComment={newComment}
+      setNewComment={setNewComment}
+      postComment={postComment}
+      postingComment={postingComment}
+      toggleComments={toggleComments}
+      addResourceTaskId={addResourceTaskId}
+      setAddResourceTaskId={setAddResourceTaskId}
+      resourceForm={resourceForm}
+      setResourceForm={setResourceForm}
+      resourceFile={resourceFile}
+      setResourceFile={setResourceFile}
+      resourceAdding={resourceAdding}
+      handleSaveResource={handleSaveResource}
+      handleDeleteResource={handleDeleteResource}
+      setBlockerModal={setBlockerModal}
+      setEditTaskModal={setEditTaskModal}
+      setEditForm={setEditForm}
+      setConfirmAction={setConfirmAction}
+      currentUserId={currentUserId}
+      onTasksChange={onTasksChange}
+      notify={notify}
+      t={t}
+    />
+  );
 
   // ── Render ──
   return (
@@ -1462,1049 +265,105 @@ export default function TaskManager({
         )}
 
       {/* ─── Task Form ─── */}
-      {showTaskForm ? (
-        <div className="p-3 rounded-xl border border-brand-orange/30 bg-brand-orange/[0.02] space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)]">
-              {pendingParentTaskId ? "Add Sub-task" : "New Task"}
-            </h4>
-            {pendingParentTaskId && (
-              <span className="text-[10px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded uppercase font-bold">
-                Sub-task
-              </span>
-            )}
-          </div>
-
-          {/* Task name */}
-          <input
-            value={form.name}
-            onChange={(event) => setForm((previousForm) => ({ ...previousForm, name: event.target.value }))}
-            placeholder="What are you working on?"
-            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
-          />
-
-          {/* Description */}
-          <textarea
-            value={form.description || ""}
-            onChange={(event) =>
-              setForm((previousForm) => ({ ...previousForm, description: event.target.value }))
-            }
-            placeholder="Description (optional)"
-            rows={2}
-            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
-          />
-
-          {/* Project / Category (hidden for sub-tasks — inherited) */}
-          {!pendingParentTaskId && (
-            <div className="grid grid-cols-2 gap-2">
-              {/* Project picker */}
-              <div className="relative" ref={projectDropdownRef}>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                  Project
-                </label>
-                {form.project_id ? (
-                  <div className="flex items-center gap-1 w-full bg-primary border border-emerald-500/30 rounded-lg px-2 py-1.5">
-                    <span className="text-[10px] font-bold text-emerald-500 flex-1 truncate">
-                      {selectedProject?.name || form.project_id}
-                    </span>
-                    <button
-                      onClick={() => setForm((previousForm) => ({ ...previousForm, project_id: "" }))}
-                    >
-                      <X className="w-3 h-3 text-slate-500" />
-                    </button>
-                  </div>
-                ) : (
-                  <div>
-                    <input
-                      value={projectSearch}
-                      onChange={(event) => {
-                        setProjectSearch(event.target.value);
-                        setShowProjectDropdown(true);
-                      }}
-                      onFocus={() => setShowProjectDropdown(true)}
-                      placeholder="Search..."
-                      className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none"
-                    />
-                    {showProjectDropdown && (
-                      <div className="absolute z-10 mt-1 w-full max-h-32 overflow-y-auto rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] shadow-xl">
-                        {filteredProjects.length === 0 ? (
-                          <p className="px-3 py-2 text-[10px] font-medium text-slate-500">
-                            No projects
-                          </p>
-                        ) : (
-                          filteredProjects.map((project) => (
-                            <button
-                              key={project.id}
-                              onClick={() => {
-                                setForm((previousForm) => ({
-                                  ...previousForm,
-                                  project_id: project.id,
-                                  category: "",
-                                }));
-                                setProjectSearch("");
-                                setShowProjectDropdown(false);
-                              }}
-                              className="w-full text-left px-3 py-1.5 hover:bg-tertiary text-[10px] font-bold"
-                            >
-                              {project.name}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Category (only when no project) */}
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                  Category
-                </label>
-                <select
-                  value={form.category}
-                  onChange={(event) =>
-                    setForm((previousForm) => ({
-                      ...previousForm,
-                      category: event.target.value,
-                      // Only clear project_id when no project is already assigned
-                      project_id: (!previousForm.project_id && event.target.value) ? "" : previousForm.project_id,
-                    }))
-                  }
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold text-purple-400 outline-none appearance-none cursor-pointer"
-                >
-                  <option value="">—</option>
-                  {availableCategories.length > 0
-                    ? availableCategories.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))
-                    : CATEGORIES.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                </select>
-              </div>
-            </div>
-          )}
-
-          {/* Inherited badge for sub-tasks */}
-          {pendingParentTaskId && form.project_id && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
-              <span className="text-[10px] font-bold text-indigo-400">
-                Inherited from parent
-              </span>
-              <span className="text-[10px] text-slate-500">
-                {selectedProject?.name || form.category || ""}
-              </span>
-            </div>
-          )}
-
-          {/* Assignee + Priority row */}
-          <div className="grid grid-cols-2 gap-2">
-            {mode === "project" && projectMembers.length > 0 && (
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                  Assign to
-                </label>
-                <select
-                  value={form.assigned_to || ""}
-                  onChange={(event) =>
-                    setForm((previousForm) => ({ ...previousForm, assigned_to: event.target.value }))
-                  }
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold text-emerald-400 outline-none appearance-none cursor-pointer"
-                >
-                  <option value="">Self</option>
-                  {projectMembers.map((member) => (
-                    <option
-                      key={member.member_id || member.user_cid}
-                      value={member.member_id || member.user_cid}
-                    >
-                      {member.name || member.member_id}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                Priority
-              </label>
-              <select
-                value={form.priority || "medium"}
-                onChange={(event) =>
-                  setForm((previousForm) => ({ ...previousForm, priority: event.target.value }))
-                }
-                className={cn(
-                  "w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none appearance-none cursor-pointer",
-                  PRIORITY_CONFIG[form.priority || "medium"]?.color,
-                )}
-              >
-                {PRIORITY_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Dates */}
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              type="date"
-              value={form.start_date}
-              onChange={(event) =>
-                setForm((previousForm) => ({ ...previousForm, start_date: event.target.value }))
-              }
-              min={(() => {
-                const today = new Date().toISOString().split("T")[0];
-                return today;
-              })()}
-              className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none"
-            />
-            <input
-              type="date"
-              value={form.due_date}
-              onChange={(event) =>
-                setForm((previousForm) => ({ ...previousForm, due_date: event.target.value }))
-              }
-              min={form.start_date || (() => { const today = new Date().toISOString().split("T")[0]; return today; })()}
-              className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none"
-            />
-          </div>
-
-          {/* Resource Link */}
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-              Resource Link (optional)
-            </label>
-            <input
-              type="url"
-              value={form.link}
-              onChange={(event) => setForm((previousForm) => ({ ...previousForm, link: event.target.value }))}
-              placeholder="https://..."
-              className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
-            />
-          </div>
-
-          {/* Attachment (file upload) */}
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-              Attachment (optional)
-            </label>
-            <input
-              type="file"
-              onChange={(event) => {
-                setTaskFile(event.target.files?.[0] || null);
-                event.target.value = "";
-              }}
-              className="w-full text-[10px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-tertiary file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
-            />
-            {taskFile && (
-              <div className="mt-1 flex items-center gap-2">
-                <p className="text-[10px] font-medium text-slate-500 truncate">
-                  {taskFile.name} ({(taskFile.size / 1024).toFixed(0)} KB)
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setTaskFile(null)}
-                  className="text-[10px] font-bold uppercase text-rose-400 hover:text-rose-300 shrink-0"
-                >
-                  {t("common.remove")}
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-2">
-            <button
-              onClick={handleAddTask}
-              disabled={
-                creating ||
-                !form.name.trim() ||
-                (!form.project_id && !form.category)
-              }
-              className="flex-1 px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-wider disabled:opacity-40 hover:brightness-110 transition-all"
-            >
-              {creating
-                ? "Saving..."
-                : pendingParentTaskId
-                  ? "Add Sub-task"
-                  : addedCount > 0
-                    ? "Add Another Task"
-                    : "Add Task"}
-            </button>
-            <button
-              onClick={handleCloseForm}
-              className="px-3 py-2 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-[var(--text-primary)] transition-all"
-            >
-              {addedCount > 0 ? "Done" : "Cancel"}
-            </button>
-          </div>
-        </div>
-      ) : (
-        !readOnly && (
-          <button
-            onClick={openTaskForm}
-            className="flex items-center gap-2 px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all w-fit"
-          >
-            <Plus className="w-3 h-3" /> New Task
-          </button>
-        )
-      )}
+      <NewTaskForm
+        form={form}
+        setForm={setForm}
+        showTaskForm={showTaskForm}
+        openTaskForm={openTaskForm}
+        handleCloseForm={handleCloseForm}
+        handleAddTask={handleAddTask}
+        creating={creating}
+        addedCount={addedCount}
+        pendingParentTaskId={pendingParentTaskId}
+        taskFile={taskFile}
+        setTaskFile={setTaskFile}
+        availableCategories={availableCategories}
+        projectMembers={projectMembers}
+        mode={mode}
+        readOnly={readOnly}
+        t={t}
+        projectPicker={projectPicker}
+      />
 
       {/* ─── SUB-TASK POPUP MODAL ─── */}
-      {subTaskModal && (
-        <div
-          className="fixed inset-0 z-[600] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
-          onClick={() => setSubTaskModal(null)}
-        >
-          <div
-            className="card w-full max-w-md space-y-4 max-h-[85vh] overflow-y-auto"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ListTodo className="w-5 h-5 text-indigo-400" />
-                <h3 className="text-sm font-black uppercase tracking-tight">
-                  Add Sub-task
-                </h3>
-              </div>
-              <button onClick={() => setSubTaskModal(null)}>
-                <X className="w-5 h-5 text-slate-400" />
-              </button>
-            </div>
-
-            <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
-              <p className="text-[10px] font-bold text-indigo-400">
-                Parent task:{" "}
-                <span className="text-white">{subTaskModal.title}</span>
-              </p>
-            </div>
-
-            {/* Existing sub-tasks */}
-            {(() => {
-              const parentTask = tasks.find(
-                (candidate) => String(candidate.id) === String(subTaskModal.id),
-              );
-              const subtasks = parentTask?.subtasks || [];
-              if (subtasks.length === 0) return null;
-              return (
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">
-                    Existing sub-tasks ({subtasks.length})
-                  </p>
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
-                    {subtasks.map((subtask) => (
-                      <div
-                        key={subtask.id}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-tertiary border border-[var(--border-primary)]"
-                      >
-                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
-                        <span className="text-[10px] font-bold text-[var(--text-primary)] truncate">
-                          {subtask.title}
-                        </span>
-                        <span
-                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                            subtask.status === "completed"
-                              ? "bg-emerald-500/10 text-emerald-400"
-                              : "bg-slate-500/10 text-slate-400"
-                          }`}
-                        >
-                          {subtask.status === "completed"
-                            ? "Done"
-                            : subtask.status?.replace(/_/g, " ") || "Pending"}
-                        </span>
-                        <button
-                          onClick={() => {
-                            setConfirmAction({
-                              message: `Delete subtask "${subtask.title}"?`,
-                              onConfirm: async () => {
-                                try {
-                                  const res = await fetch(
-                                    `/api/tasks?id=${subtask.id}`,
-                                    {
-                                      method: "DELETE",
-                                    },
-                                  );
-                                  const data = await res.json();
-                                  if (data.success) {
-                                    if (onTasksChange) onTasksChange();
-                                  } else {
-                                    notify('error',
-                                      t(data.error ||
-                                        "Cannot delete this subtask. It may be older than 12 hours.") ||
-                                        data.error ||
-                                        "Cannot delete this subtask. It may be older than 12 hours.",
-                                    );
-                                  }
-                                } catch {
-                                  notify('error', "Network error while deleting subtask.");
-                                }
-                              },
-                            });
-                          }}
-                          className="text-slate-500 hover:text-rose-500 transition-all shrink-0"
-                          title="Delete subtask"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
-
-            <div className="space-y-3 pt-2">
-              {/* Success indicator */}
-              {subTaskSuccess && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span className="text-[10px] font-bold text-emerald-400">
-                    {subTaskSuccess}
-                  </span>
-                </div>
-              )}
-
-              <input
-                type="text"
-                value={subTaskInput}
-                onChange={(event) => setSubTaskInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) addSubTaskFromModal();
-                }}
-                placeholder="Enter sub-task name..."
-                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all"
-                autoFocus
-              />
-              <textarea
-                value={subTaskDescription}
-                onChange={(event) => setSubTaskDescription(event.target.value)}
-                placeholder="Description (optional)..."
-                rows={2}
-                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                {projectMembers.length > 0 && (
-                  <select
-                    value={subTaskAssignedTo}
-                    onChange={(event) => setSubTaskAssignedTo(event.target.value)}
-                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-emerald-400 outline-none appearance-none cursor-pointer"
-                  >
-                    <option value="">Assign: Self</option>
-                    {projectMembers.map((member) => (
-                      <option
-                        key={member.member_id || member.user_cid}
-                        value={member.member_id || member.user_cid}
-                      >
-                        {member.name || member.member_id}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                <select
-                  value={subTaskPriority}
-                  onChange={(event) => setSubTaskPriority(event.target.value)}
-                  className={cn(
-                    "w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none appearance-none cursor-pointer",
-                    PRIORITY_CONFIG[subTaskPriority]?.color,
-                  )}
-                >
-                  {PRIORITY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label} Priority
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="date"
-                  value={subTaskStartDate}
-                  onChange={(event) => setSubTaskStartDate(event.target.value)}
-                  min={new Date().toISOString().split("T")[0]}
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
-                />
-                <input
-                  type="date"
-                  value={subTaskEndDate}
-                  onChange={(event) => setSubTaskEndDate(event.target.value)}
-                  min={subTaskStartDate || new Date().toISOString().split("T")[0]}
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
-                />
-              </div>
-              <input
-                type="url"
-                value={subTaskLink}
-                onChange={(event) => setSubTaskLink(event.target.value)}
-                placeholder="Link (optional)..."
-                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
-              />
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                  Attachment (optional)
-                </label>
-                <input
-                  type="file"
-                  onChange={(event) => {
-                    setSubTaskFile(event.target.files?.[0] || null);
-                    event.target.value = "";
-                  }}
-                  className="w-full text-[10px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-tertiary file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
-                />
-                {subTaskFile && (
-                  <div className="mt-1 flex items-center gap-2">
-                    <p className="text-[10px] font-medium text-slate-500 truncate">
-                      {subTaskFile.name} ({(subTaskFile.size / 1024).toFixed(0)} KB)
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setSubTaskFile(null)}
-                      className="text-[10px] font-bold uppercase text-rose-400 hover:text-rose-300 shrink-0"
-                    >
-                      {t("common.remove")}
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={addSubTaskFromModal}
-                  disabled={!subTaskInput.trim()}
-                  className="flex-1 py-3 bg-indigo-500 text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110 disabled:opacity-40 flex items-center justify-center gap-2"
-                >
-                  <Plus className="w-4 h-4" /> Add
-                </button>
-                <button
-                  onClick={() => setSubTaskModal(null)}
-                  className="flex-1 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm font-bold uppercase tracking-wide text-slate-500 hover:text-[var(--text-primary)] transition-all"
-                >
-                  Done
-                </button>
-              </div>
-              <p className="text-[10px] font-medium text-slate-500 text-center">
-                Press Enter to add another, or click Done when finished.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      <SubTaskModal
+        subTaskModal={subTaskModal}
+        onClose={() => setSubTaskModal(null)}
+        tasks={tasks}
+        subTaskInput={subTaskInput}
+        setSubTaskInput={setSubTaskInput}
+        subTaskDescription={subTaskDescription}
+        setSubTaskDescription={setSubTaskDescription}
+        subTaskAssignedTo={subTaskAssignedTo}
+        setSubTaskAssignedTo={setSubTaskAssignedTo}
+        subTaskPriority={subTaskPriority}
+        setSubTaskPriority={setSubTaskPriority}
+        subTaskStartDate={subTaskStartDate}
+        setSubTaskStartDate={setSubTaskStartDate}
+        subTaskEndDate={subTaskEndDate}
+        setSubTaskEndDate={setSubTaskEndDate}
+        subTaskLink={subTaskLink}
+        setSubTaskLink={setSubTaskLink}
+        subTaskFile={subTaskFile}
+        setSubTaskFile={setSubTaskFile}
+        subTaskSuccess={subTaskSuccess}
+        addSubTaskFromModal={addSubTaskFromModal}
+        projectMembers={projectMembers}
+        onTasksChange={onTasksChange}
+        setConfirmAction={setConfirmAction}
+        notify={notify}
+        t={t}
+      />
 
       {/* ─── EDIT TASK MODAL ─── */}
-      {editTaskModal && (
-        <div
-          className="fixed inset-0 z-[600] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
-          onClick={() => setEditTaskModal(null)}
-        >
-          <div
-            className="card w-full max-w-lg space-y-4 max-h-[85vh] overflow-y-auto"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Edit3 className="w-5 h-5 text-[var(--brand-orange)]" />
-                <h3 className="text-sm font-black uppercase tracking-tight">
-                  Edit Task
-                </h3>
-              </div>
-              <button onClick={() => setEditTaskModal(null)}>
-                <X className="w-5 h-5 text-slate-400" />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <input
-                type="text"
-                value={editForm.name}
-                onChange={(event) =>
-                  setEditForm((previousForm) => ({ ...previousForm, name: event.target.value }))
-                }
-                placeholder="Task name"
-                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all font-bold"
-              />
-              <textarea
-                value={editForm.description}
-                onChange={(event) =>
-                  setEditForm((previousForm) => ({ ...previousForm, description: event.target.value }))
-                }
-                placeholder="Description (optional)"
-                rows={2}
-                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
-              />
-
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                  Resource Link (optional)
-                </label>
-                <input
-                  type="url"
-                  value={editForm.link || ""}
-                  onChange={(event) =>
-                    setEditForm((previousForm) => ({ ...previousForm, link: event.target.value }))
-                  }
-                  placeholder="https://..."
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                  Priority
-                </label>
-                <select
-                  value={editForm.priority || "medium"}
-                  onChange={(event) =>
-                    setEditForm((previousForm) => ({ ...previousForm, priority: event.target.value }))
-                  }
-                  className={cn(
-                    "w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all font-bold appearance-none cursor-pointer",
-                    PRIORITY_CONFIG[editForm.priority || "medium"]?.color,
-                  )}
-                >
-                  {PRIORITY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Assignee dropdown (project mode only) */}
-              {mode === "project" && projectMembers.length > 0 && (
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                    Assign to
-                  </label>
-                  <select
-                    value={editForm.assigned_to || ""}
-                    onChange={(event) =>
-                      setEditForm((previousForm) => ({
-                        ...previousForm,
-                        assigned_to: event.target.value,
-                      }))
-                    }
-                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all font-bold text-emerald-400"
-                  >
-                    <option value="">Self</option>
-                    {projectMembers.map((member) => (
-                      <option
-                        key={member.member_id || member.user_cid}
-                        value={member.member_id || member.user_cid}
-                      >
-                        {member.name || member.member_id}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                    Start Date
-                  </label>
-                  <input
-                    type="date"
-                    value={editForm.start_date}
-                    onChange={(event) =>
-                      setEditForm((previousForm) => ({ ...previousForm, start_date: event.target.value }))
-                    }
-                    min={(() => {
-                      if (
-                        !editTaskModal.created_week ||
-                        !editTaskModal.created_year
-                      )
-                        return "";
-                      const jan1 = new Date(editTaskModal.created_year, 0, 1);
-                      const days = (editTaskModal.created_week - 1) * 7;
-                      const monday = new Date(jan1);
-                      monday.setDate(
-                        jan1.getDate() + days + (1 - jan1.getDay()),
-                      );
-                      return monday.toISOString().split("T")[0];
-                    })()}
-                    max={(() => {
-                      if (
-                        !editTaskModal.created_week ||
-                        !editTaskModal.created_year
-                      )
-                        return "";
-                      const jan1 = new Date(editTaskModal.created_year, 0, 1);
-                      const days = (editTaskModal.created_week - 1) * 7;
-                      const monday = new Date(jan1);
-                      monday.setDate(
-                        jan1.getDate() + days + (1 - jan1.getDay()),
-                      );
-                      const sunday = new Date(monday);
-                      sunday.setDate(monday.getDate() + 6);
-                      return sunday.toISOString().split("T")[0];
-                    })()}
-                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                    End Date
-                  </label>
-                  <input
-                    type="date"
-                    value={editForm.due_date}
-                    onChange={(event) =>
-                      setEditForm((previousForm) => ({ ...previousForm, due_date: event.target.value }))
-                    }
-                    min={editForm.start_date || ""}
-                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold outline-none"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={async () => {
-                  if (!editForm.name.trim()) return;
-                  const dateError = validateTaskDates(
-                    editForm.start_date,
-                    editForm.due_date,
-                  );
-                  if (dateError) {
-                    notify("error", dateError);
-                    return;
-                  }
-                  try {
-                    const res = await fetch("/api/tasks", {
-                      method: "PUT",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        id: editTaskModal.id,
-                        title: editForm.name.trim(),
-                        description: editForm.description || null,
-                        start_date: editForm.start_date || null,
-                        end_date: editForm.due_date || null,
-                        assigned_to: editForm.assigned_to || null,
-                        priority: editForm.priority || "medium",
-                        link: editForm.link || null,
-                        user_id: uid,
-                      }),
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                      setEditTaskModal(null);
-                      if (onTasksChange) onTasksChange();
-                    } else {
-                      notify('error', t(data.error || "Failed to save task.") || data.error || "Failed to save task.");
-                    }
-                  } catch (error) {
-                    notify('error', "Network error saving task.");
-                    console.error(error);
-                  }
-                }}
-                disabled={!editForm.name.trim()}
-                className="flex-1 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110 disabled:opacity-40"
-              >
-                Save
-              </button>
-              <button
-                onClick={() => setEditTaskModal(null)}
-                className="flex-1 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm font-bold uppercase tracking-wide text-slate-500 hover:text-[var(--text-primary)] transition-all"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <EditTaskModal
+        editTaskModal={editTaskModal}
+        editForm={editForm}
+        setEditForm={setEditForm}
+        onClose={() => setEditTaskModal(null)}
+        projectMembers={projectMembers}
+        mode={mode}
+        uid={uid}
+        validateTaskDates={validateTaskDates}
+        onTasksChange={onTasksChange}
+        notify={notify}
+        t={t}
+      />
 
       {/* ─── Blocker Modal ─── */}
-      {blockerModal && (
-        <div
-          className="fixed inset-0 z-[600] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
-          onClick={() => {
-            setBlockerModal(null);
-            setBlockerTitle("");
-          }}
-        >
-          <div
-            className="w-full max-w-sm bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 max-h-[85vh] overflow-y-auto"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Shield className="w-4 h-4 text-rose-400" />
-                <span className="text-xs font-black uppercase tracking-wider text-rose-400">
-                  Blockers
-                </span>
-              </div>
-              <button
-                onClick={() => {
-                  setBlockerModal(null);
-                  setBlockerTitle("");
-                }}
-              >
-                <X className="w-5 h-5 text-[var(--text-secondary)]" />
-              </button>
-            </div>
-
-            <p className="text-[10px] font-bold text-[var(--text-primary)]">
-              {blockerModal.taskTitle}
-            </p>
-
-            {/* Existing blockers */}
-            {(() => {
-              const taskBlockers =
-                tasks.find((candidate) => candidate.id === blockerModal.taskId)?.blockers || [];
-              const activeBlockers = taskBlockers.filter(
-                (blocker) => blocker.status === "active",
-              );
-              const resolvedBlockers = taskBlockers.filter(
-                (blocker) => blocker.status !== "active",
-              );
-              return (
-                <>
-                  {activeBlockers.length > 0 && (
-                    <div className="space-y-1.5">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-rose-400">
-                        Active ({activeBlockers.length})
-                      </p>
-                      {activeBlockers.map((blocker) => (
-                        <div
-                          key={blocker.id}
-                          className="flex flex-col p-2 rounded-lg bg-rose-500/10 border border-rose-500/20"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-rose-400 font-bold">
-                                {blocker.title}
-                              </span>
-                              <span className="text-[10px] font-bold uppercase text-rose-500/60">
-                                {blocker.severity || "medium"}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => toggleBlockerDiscuss(blocker.id)}
-                                className="px-2 py-0.5 text-[10px] font-bold uppercase bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500 hover:text-white transition-all"
-                              >
-                                Discuss
-                              </button>
-                              {!readOnly && (
-                                <button
-                                  onClick={() => handleResolveBlocker(blocker.id)}
-                                  className="px-2 py-0.5 text-[10px] font-bold uppercase bg-rose-500/20 text-rose-400 rounded hover:bg-rose-500 hover:text-white transition-all"
-                                >
-                                  Resolve
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          {(blocker.description || blocker.reference_url || blocker.notes) && (
-                            <div className="mt-1.5 pt-1.5 border-t border-rose-500/10 space-y-1">
-                              {blocker.description && (
-                                <p className="text-[10px] font-medium text-slate-400">
-                                  {blocker.description}
-                                </p>
-                              )}
-                              {blocker.reference_url && (
-                                <a
-                                  href={blocker.reference_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[10px] text-blue-400 underline break-all"
-                                >
-                                  {blocker.reference_url}
-                                </a>
-                              )}
-                              {blocker.notes && (
-                                <p className="text-[10px] font-medium text-slate-500">
-                                  {blocker.notes}
-                                </p>
-                              )}
-                            </div>
-                          )}
-                          {/* Discussion thread */}
-                          {openBlockerDiscuss === blocker.id && (
-                            <div className="mt-2 pt-2 border-t border-rose-500/10 space-y-1.5">
-                              {(blockerMessages[blocker.id] || []).map((message) => (
-                                <div key={message.id} className="text-[10px]">
-                                  <span className="font-black text-[var(--text-primary)]">
-                                    {message.sender_name || message.sender_id}:{" "}
-                                  </span>
-                                  <span className="text-[var(--text-secondary)]">
-                                    {message.body}
-                                  </span>
-                                </div>
-                              ))}
-                              {!readOnly && (
-                                <div className="flex items-center gap-1 pt-1">
-                                  <input
-                                    type="text"
-                                    value={newBlockerMsg}
-                                    onChange={(event) =>
-                                      setNewBlockerMsg(event.target.value)
-                                    }
-                                    onKeyDown={(event) => {
-                                      if (event.key === "Enter")
-                                        postBlockerMessage(blocker.id);
-                                    }}
-                                    placeholder="Reply..."
-                                    className="flex-1 bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[10px] outline-none"
-                                  />
-                                  <button
-                                    onClick={() => postBlockerMessage(blocker.id)}
-                                    disabled={
-                                      !newBlockerMsg.trim() || postingBlockerMsg
-                                    }
-                                    className="px-2 py-1 bg-blue-500 text-white rounded text-[10px] font-bold uppercase disabled:opacity-40"
-                                  >
-                                    Send
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {resolvedBlockers.length > 0 && (
-                    <div className="space-y-1.5">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                        Resolved ({resolvedBlockers.length})
-                      </p>
-                      {resolvedBlockers.map((blocker) => (
-                        <div
-                          key={blocker.id}
-                          className="flex items-center p-2 rounded-lg bg-slate-500/10"
-                        >
-                          <span className="text-[10px] text-slate-400 font-bold line-through">
-                            {blocker.title}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-
-            {/* New blocker input */}
-            {!readOnly && (
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  value={blockerTitle}
-                  onChange={(event) => setBlockerTitle(event.target.value)}
-                  placeholder={t("staff.opReport.blockerTitlePlaceholder")}
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold outline-none focus:border-rose-500/50"
-                  autoFocus
-                />
-                <textarea
-                  value={blockerDescription}
-                  onChange={(event) => setBlockerDescription(event.target.value)}
-                  placeholder={t(
-                    "staff.opReport.blockerDescriptionPlaceholder",
-                  )}
-                  rows={2}
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] outline-none focus:border-rose-500/50 resize-none"
-                />
-                <div className="flex gap-2">
-                  <select
-                    value={blockerPriority}
-                    onChange={(event) => setBlockerPriority(event.target.value)}
-                    className="flex-1 px-2 py-1.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold outline-none"
-                  >
-                    <option value="low">
-                      {t("staff.opReport.priorityLow")}
-                    </option>
-                    <option value="medium">
-                      {t("staff.opReport.priorityMedium")}
-                    </option>
-                    <option value="high">
-                      {t("staff.opReport.priorityHigh")}
-                    </option>
-                    <option value="critical">
-                      {t("staff.opReport.priorityCritical")}
-                    </option>
-                  </select>
-                  <input
-                    type="url"
-                    value={blockerRefUrl}
-                    onChange={(event) => setBlockerRefUrl(event.target.value)}
-                    placeholder={t(
-                      "staff.opReport.blockerReferenceUrlPlaceholder",
-                    )}
-                    className="flex-[2] px-2 py-1.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] outline-none focus:border-rose-500/50"
-                  />
-                </div>
-                <textarea
-                  value={blockerNotes}
-                  onChange={(event) => setBlockerNotes(event.target.value)}
-                  placeholder={t("staff.opReport.blockerNotesPlaceholder")}
-                  rows={2}
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] outline-none focus:border-rose-500/50 resize-none"
-                />
-                <button
-                  onClick={handleAddBlocker}
-                  disabled={!blockerTitle.trim() || blockerAdding}
-                  className="w-full px-4 py-2 bg-rose-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider disabled:opacity-30 hover:bg-rose-600 transition-all"
-                >
-                  {blockerAdding
-                    ? t("staff.opReport.addingBlocker")
-                    : t("staff.opReport.addBlockerButton")}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <BlockerModal
+        blockerModal={blockerModal}
+        onClose={() => setBlockerModal(null)}
+        tasks={tasks}
+        blockerTitle={blockerTitle}
+        setBlockerTitle={setBlockerTitle}
+        blockerDescription={blockerDescription}
+        setBlockerDescription={setBlockerDescription}
+        blockerPriority={blockerPriority}
+        setBlockerPriority={setBlockerPriority}
+        blockerRefUrl={blockerRefUrl}
+        setBlockerRefUrl={setBlockerRefUrl}
+        blockerNotes={blockerNotes}
+        setBlockerNotes={setBlockerNotes}
+        blockerAdding={blockerAdding}
+        handleAddBlocker={handleAddBlocker}
+        handleResolveBlocker={handleResolveBlocker}
+        readOnly={readOnly}
+        toggleBlockerDiscuss={toggleBlockerDiscuss}
+        openBlockerDiscuss={openBlockerDiscuss}
+        blockerMessages={blockerMessages}
+        newBlockerMsg={newBlockerMsg}
+        setNewBlockerMsg={setNewBlockerMsg}
+        postBlockerMessage={postBlockerMessage}
+        postingBlockerMsg={postingBlockerMsg}
+        t={t}
+      />
 
       {/* ─── CONFIRM DIALOG MODAL ─── */}
-      {confirmAction && (
-        <div
-          className="fixed inset-0 z-[700] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
-          onClick={() => setConfirmAction(null)}
-        >
-          <div
-            className="card w-full max-w-sm space-y-4 max-h-[85vh] overflow-y-auto"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-6 h-6 text-amber-400 shrink-0" />
-              <div>
-                <h3 className="text-sm font-black uppercase tracking-tight">
-                  Confirm Action
-                </h3>
-                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
-                  {confirmAction.message}
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => {
-                  const onConfirm = confirmAction.onConfirm;
-                  setConfirmAction(null);
-                  onConfirm();
-                }}
-                className="flex-1 px-4 py-2.5 bg-rose-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-rose-600 transition-all"
-              >
-                Confirm
-              </button>
-              <button
-                onClick={() => setConfirmAction(null)}
-                className="flex-1 px-4 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-[var(--text-primary)] transition-all"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        confirmAction={confirmAction}
+        onDismiss={() => setConfirmAction(null)}
+      />
     </div>
   );
 }
