@@ -53,8 +53,12 @@ describe("UI-4b — the editor reads the server catalog", () => {
   test("the 'Default for' control replaces the retired Role → Profile grid", () => {
     // The same guarantee the grid carried: every stored role default is visible
     // on the template that receives it, including names outside the identity
-    // list (selectedIsDefaultFor is read from the unfiltered map).
-    expect(src).toContain("defaultForTitle");
+    // list (selectedIsDefaultFor is read from the unfiltered map). The control's
+    // markup now lives in its own modal, so its label is pinned there.
+    const modal = read(
+      "src/components/permissions/permission-center/ProfileRoleDefaultsModal.js",
+    );
+    expect(modal).toContain("defaultForTitle");
     expect(src).toContain("assignRoleDefault");
     expect(src).toContain("/api/access-profiles/role-defaults");
     expect(src).toContain("selectedIsDefaultFor");

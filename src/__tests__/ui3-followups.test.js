@@ -93,7 +93,7 @@ describe("UI-3 — deferred effect writes", () => {
       `${PERMS}ContextRolesView.js`,
       `${PERMS}PeopleView.js`,
       `${PERMS}CatalogView.js`,
-      `${PERMS}PermissionCenter.js`,
+      `${PERMS}permission-center/PersonAccessScreen.js`,
     ]) {
       expect(read(file)).toContain("effectUtils");
     }

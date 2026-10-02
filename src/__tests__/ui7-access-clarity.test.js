@@ -51,7 +51,9 @@ const sources = (over = {}) => ({
 });
 
 const PERMS = "src/components/permissions/";
-const EDITOR = `${PERMS}PermissionCenter.js`;
+// The individual-access editor was extracted out of the shim; its behaviour
+// pins read the file that now owns it (PersonAccessScreen.js).
+const EDITOR = `${PERMS}permission-center/PersonAccessScreen.js`;
 const REPORT = `${PERMS}PeopleView.js`;
 const REPORT_MATRIX = `${PERMS}people-view/PeopleMatrix.js`;
 const SPECIAL = `${PERMS}AdvancedCapabilities.js`;

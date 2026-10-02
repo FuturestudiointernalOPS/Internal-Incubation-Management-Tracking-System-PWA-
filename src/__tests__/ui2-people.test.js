@@ -113,7 +113,7 @@ describe("UI-2b — screen wiring", () => {
   });
 
   test("the individual editor only offers what the person can be granted", () => {
-    const editor = read("src/components/permissions/PermissionCenter.js");
+    const editor = read("src/components/permissions/permission-center/PersonAccessScreen.js");
     // The individual Advanced block is ceiling-limited like the template's, so
     // it never offers a right the person cannot receive, nor the bucket of
     // parts that have no dashboard section.
@@ -127,7 +127,7 @@ describe("UI-2b — screen wiring", () => {
   });
 
   test("a person's rights are level chips with explicit controls, not a level spreadsheet", () => {
-    const editor = read("src/components/permissions/PermissionCenter.js");
+    const editor = read("src/components/permissions/permission-center/PersonAccessScreen.js");
     expect(editor).toContain("LEVEL_CHIP_ACTIVE");
     expect(editor).toContain('t("engineering.permissions.block")');
     expect(editor).toContain('t("engineering.permissions.restore")');
