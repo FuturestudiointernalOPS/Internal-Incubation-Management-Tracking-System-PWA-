@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useDialogs } from "@/components/ui/DialogProvider";
-import { formatFileSize } from "@/lib/lms/constants";
+import { formatFileSize } from "@/models/lms/constants";
 
 /**
  * One resource row: link, optional recommendation, optional pending marker.

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans";
-import { resolveVentureCode } from "@/lib/ventureOperatingPlans";
-import { VENTURE_SCOPE_TYPES } from "@/lib/venturePermissions";
+import { resolvePlanAccess, allowsPlanAction } from "@/services/ventures/operatingPlans";
+import { resolveVentureCode } from "@/services/ventures/operatingPlans";
+import { VENTURE_SCOPE_TYPES } from "@/services/ventures/permissions";
 import { inviteCoachByEmail } from "@/lib/ventureCoach";
 import { getVentureNameByIdOrCode } from "@/models/ventureWorkspace";
 

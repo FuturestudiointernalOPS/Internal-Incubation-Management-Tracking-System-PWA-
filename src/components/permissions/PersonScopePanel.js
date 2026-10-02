@@ -9,7 +9,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { SCOPE_POLICIES } from "@/lib/authorization/scope-catalog";
+import { SCOPE_POLICIES } from "@/models/authorization/scope-catalog";
 import { describeScopeCheck } from "./scopeCheckHelpers";
 import Badge from "./ui/Badge";
 

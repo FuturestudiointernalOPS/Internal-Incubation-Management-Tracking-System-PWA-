@@ -16,7 +16,7 @@ import { collectContextModules } from "./matrixHelpers";
 import PeopleContextsCard from "./people-view/PeopleContextsCard";
 import PeopleMatrix from "./people-view/PeopleMatrix";
 import WhyDrawerBody from "./people-view/WhyDrawerBody";
-import { SCOPE_POLICIES, SCOPE_POLICY_KEYS } from "@/lib/authorization/scope-catalog";
+import { SCOPE_POLICIES, SCOPE_POLICY_KEYS } from "@/models/authorization/scope-catalog";
 
 /**
  * PHASE UI-2b — People (access matrix).

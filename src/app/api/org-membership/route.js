@@ -4,7 +4,7 @@ import { getSession, logPermissionAudit } from "@/lib/auth";
 import {
   requireAuthorization,
   invalidateAllAuthorizationContexts,
-} from "@/lib/authorization";
+} from "@/models/authorization/index";
 import {
   ensureMembershipSchema,
   normalizeGroupName,

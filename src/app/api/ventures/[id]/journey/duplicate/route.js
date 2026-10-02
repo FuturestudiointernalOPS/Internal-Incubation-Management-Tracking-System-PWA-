@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans";
+import { resolvePlanAccess, allowsPlanAction } from "@/services/ventures/operatingPlans";
 import {
   ensureJourneyTable,
   resolveVentureInternalId,
   listJourneyStages,
-} from "@/lib/ventureJourneys";
+} from "@/services/ventures/journey";
 import { duplicateJourneyStage } from "@/lib/ventureDuplication";
 
 export const dynamic = "force-dynamic";

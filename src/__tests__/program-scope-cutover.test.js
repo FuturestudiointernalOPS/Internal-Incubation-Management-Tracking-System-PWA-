@@ -22,7 +22,7 @@
  * program-scoped-access.test.js.)
  */
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
@@ -55,7 +55,7 @@ jest.mock("@/models/authorization/programAssignmentBackfill", () => ({
   })),
 }));
 
-const { requireAuthorization } = require("@/lib/authorization");
+const { requireAuthorization } = require("@/models/authorization/index");
 const { logPermissionAudit } = require("@/lib/auth");
 const {
   buildProgramScopeReadiness,

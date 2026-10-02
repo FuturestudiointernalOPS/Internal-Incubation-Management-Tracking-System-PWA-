@@ -11,7 +11,7 @@ jest.mock("@/lib/auth", () => ({
   getSession: jest.fn(async () => ({ id: 1, role: "super_admin" })),
 }));
 
-jest.mock("@/lib/platform/integrations", () => ({
+jest.mock("@/models/platform/integrations", () => ({
   summarizeSubmission: jest.fn(),
   analyzeSubmission: jest.fn(),
 }));

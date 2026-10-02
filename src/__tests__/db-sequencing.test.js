@@ -40,8 +40,8 @@ jest.mock("@/lib/db", () => ({
   getDbMetrics: jest.fn(() => ({})),
 }));
 
-jest.mock("@/lib/authorization", () => {
-  const actual = jest.requireActual("@/lib/authorization");
+jest.mock("@/models/authorization/index", () => {
+  const actual = jest.requireActual("@/models/authorization/index");
   return {
     ...actual,
     requireAuthorization: jest.fn(async () => null),
@@ -224,7 +224,7 @@ describe("GET /api/workspaces", () => {
     );
     const {
       invalidateAuthorizationContext,
-    } = require("@/lib/authorization");
+    } = require("@/models/authorization/index");
 
     await GET(new Request("http://localhost/api/workspaces"));
     mockSequencer.reset();
@@ -280,7 +280,7 @@ describe("the authorization migration ledger", () => {
   test("the batch reads it once, and an applied migration costs nothing to ask about", async () => {
     jest.resetModules();
     mockSequencer.reset();
-    const { runAuthzMigration } = require("@/lib/authorization");
+    const { runAuthzMigration } = require("@/models/authorization/index");
     const { resolveAuthorizationContext } = require(
       "@/services/authorization/context",
     );

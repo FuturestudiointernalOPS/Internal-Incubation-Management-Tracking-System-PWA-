@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { getSession, logPermissionAudit } from "@/lib/auth";
 import { repointProgramManagerDefaultToPortfolio } from "@/models/authorization/programAssignmentBackfill";
 import { buildProgramScopeReadiness } from "@/services/authorization/programScopeReadiness";

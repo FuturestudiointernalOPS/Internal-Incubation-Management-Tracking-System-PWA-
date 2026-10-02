@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { getDataSources } from "@/lib/finance/queries";
+import { getDataSources } from "@/services/finance/queries";
 
 export const GET = createHandler({ roles: ["super_admin"] }, async () => {
   const rows = await getDataSources();

@@ -20,7 +20,7 @@
  */
 
 import { v4 as uuidv4 } from "uuid";
-import { logAuditEvent } from "@/lib/audit";
+import { logAuditEvent } from "@/services/tasks/auditLog";
 import { assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 import {
   addParticipantToProgram,

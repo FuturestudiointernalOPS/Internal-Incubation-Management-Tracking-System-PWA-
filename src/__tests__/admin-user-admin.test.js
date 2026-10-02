@@ -14,7 +14,7 @@ jest.mock("@/lib/db", () => ({
   default: { execute: jest.fn(async () => ({ rows: [] })) },
   initDb: jest.fn(async () => true),
 }));
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 jest.mock("@/lib/auth", () => ({

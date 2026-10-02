@@ -1,6 +1,6 @@
 "use client";
 
-import { isValidYouTubeVideoId } from "@/lib/lms/youtube";
+import { isValidYouTubeVideoId } from "@/models/lms/youtube";
 import YouTubePlayer from "./YouTubePlayer";
 
 /**

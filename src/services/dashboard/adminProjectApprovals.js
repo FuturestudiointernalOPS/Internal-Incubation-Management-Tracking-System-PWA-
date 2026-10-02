@@ -11,7 +11,7 @@
  * controller keeps `initDb`, the project-scope guard and the envelope.
  */
 
-import { getTaskTitleById } from "@/lib/db/queries/tasks";
+import { getTaskTitleById } from "@/models/tasks";
 import {
   createApprovalApprovedNotification,
   createApprovalRejectedNotification,

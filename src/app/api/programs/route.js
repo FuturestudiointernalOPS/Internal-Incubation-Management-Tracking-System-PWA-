@@ -8,7 +8,7 @@ import {
   requireAssignmentAccess,
   assertNoParticipantFacilitatorConflict,
 } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { requireProgramScope } from "@/lib/programScopedAccess";
 import {
   addParticipantProgramMembership,

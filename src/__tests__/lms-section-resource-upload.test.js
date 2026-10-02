@@ -35,16 +35,16 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => {}),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
-const { requireAuthorization } = require("@/lib/authorization");
+const { requireAuthorization } = require("@/models/authorization/index");
 const { POST, DELETE } = require("@/app/api/lms/section-resources/upload/route");
 const {
   createSectionResource,
   deleteSectionResource,
-} = require("@/lib/lms/sectionResources");
+} = require("@/models/lms/sectionResources");
 
 const PUBLIC_URL = "https://cdn.impactos.test/lms-session-resources/sections/C-1/S-1/123-handout.pdf";
 const readJson = async (res) => res.json();
@@ -349,7 +349,7 @@ describe("resource preview + accepted-type helpers (learner/library rules)", () 
     formatFileSize,
     isAcceptedResourceFile,
     resourcePreviewKind,
-  } = require("@/lib/lms/constants");
+  } = require("@/models/lms/constants");
 
   const uploaded = (overrides = {}) => ({
     source: "upload",
@@ -421,7 +421,7 @@ describe("Section resources migration vs domain constants (drift guard)", () => 
   const {
     LMS_RESOURCE_KINDS,
     LMS_RESOURCE_SOURCES,
-  } = require("@/lib/lms/constants");
+  } = require("@/models/lms/constants");
 
   test("kinds and sources match the CHECK values in lms_section_resources", () => {
     const block = sectionMigration.match(

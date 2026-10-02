@@ -2,8 +2,8 @@
 
 import { Video, FileText, Star, ExternalLink, Sparkles, Paperclip } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { extractYouTubeVideoId } from "@/lib/lms/youtube";
-import { formatFileSize } from "@/lib/lms/constants";
+import { extractYouTubeVideoId } from "@/models/lms/youtube";
+import { formatFileSize } from "@/models/lms/constants";
 import EmbeddedVideo from "./EmbeddedVideo";
 import ResourcePreview from "./ResourcePreview";
 

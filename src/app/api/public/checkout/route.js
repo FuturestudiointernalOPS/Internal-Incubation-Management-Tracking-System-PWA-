@@ -9,7 +9,7 @@ import {
   providerAmountOf,
   setEmailState,
   setPaymentHint,
-} from "@/lib/lms/registrations";
+} from "@/models/lms/registrations";
 import {
   findResumableRegistration,
   getCheckoutStateForPayer,
@@ -18,7 +18,7 @@ import {
   prepareAccessDelivery,
   resolveCheckoutCourse,
   resolveResumeToken,
-} from "@/lib/lms/checkout";
+} from "@/services/lms/checkout";
 import { deliverCheckoutEmail } from "@/lib/lms/checkoutMail";
 import { settleVerifiedPayment } from "@/services/lms/checkout";
 

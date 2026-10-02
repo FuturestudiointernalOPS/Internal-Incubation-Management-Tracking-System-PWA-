@@ -153,7 +153,7 @@ describe("the decision surface survives the move", () => {
     // The model facade (`@/models/authorization/resolver`) was deleted once
     // nothing imported it (docs/LAYER_SPLIT.md §3); the lib facade now points
     // straight at the service.
-    const facade = require("@/lib/authorization/resolver");
+    const facade = require("@/services/authorization/context");
     expect(facade[name]).toBeDefined();
   });
 });

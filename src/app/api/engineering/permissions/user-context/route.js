@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { resolveAuthorizationContext, restrictionsToJson } from "@/services/authorization/context";
 import { getContactContexts } from "@/models/authorization/contactContexts";
 import { getContactByCid } from "@/models/responsibilities";

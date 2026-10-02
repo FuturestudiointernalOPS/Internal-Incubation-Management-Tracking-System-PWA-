@@ -20,7 +20,7 @@
  */
 
 import { LmsError } from "@/models/lms/errors";
-import { getEnrollment } from "@/models/lms/learning";
+import { getEnrollment } from "@/services/lms/learning";
 import {
   selectLesson,
   selectCourseSection,

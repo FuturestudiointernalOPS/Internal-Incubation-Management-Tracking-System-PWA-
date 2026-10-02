@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { after } from "next/server";
-import { onSubmission } from "@/lib/platform/automation";
+import { onSubmission } from "@/models/platform/automation";
 import { getClientIp } from "@/lib/rate-limit";
 import { defaultPaymentProvider } from "@/lib/integrations/payments";
-import { findRegistrationByCourseAndEmail, providerAmountOf } from "@/lib/lms/registrations";
-import { getPaidRunContext, startCheckoutForSubmission } from "@/lib/lms/checkout";
-import { formHasAiEvaluation, evaluateSubmission, submissionHasEvaluation } from "@/lib/platform/ai/evaluate";
+import { findRegistrationByCourseAndEmail, providerAmountOf } from "@/models/lms/registrations";
+import { getPaidRunContext, startCheckoutForSubmission } from "@/services/lms/checkout";
+import { formHasAiEvaluation, evaluateSubmission, submissionHasEvaluation } from "@/models/platform/ai/evaluate";
 import { maybeAutoApprove } from "@/models/platform/ai/autoApprove";
 import { countNonDraftSubmissionsByRunId, updateRunStatusById } from "@/models/formRuns";
 import {

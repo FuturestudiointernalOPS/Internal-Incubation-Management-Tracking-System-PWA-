@@ -2,7 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { requireProgramScope } from "@/lib/programScopedAccess";
-import { logAuditEvent } from "@/lib/audit";
+import { logAuditEvent } from "@/services/tasks/auditLog";
 import {
   createKpiDefinition,
   deleteKpiDefinition,

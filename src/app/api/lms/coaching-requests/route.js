@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireAuth, getSession } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { requireProgramScope } from "@/lib/programScopedAccess";
-import { lmsErrorResponse } from "@/lib/lms/errors";
+import { lmsErrorResponse } from "@/models/lms/errors";
 import {
   createCoachingRequest,
   listMyCoachingRequests,
   listCoachingRequests,
-} from "@/lib/lms/coaching";
+} from "@/services/lms/coaching";
 
 export const dynamic = "force-dynamic";
 

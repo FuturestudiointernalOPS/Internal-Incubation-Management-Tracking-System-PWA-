@@ -9,7 +9,7 @@ import Badge from "./ui/Badge";
 import StatCard from "./ui/StatCard";
 import SectionCard from "./ui/SectionCard";
 import { PERMISSION_NAV, PERMISSION_BASE } from "./permissionNav";
-import { SCOPE_POLICIES, SCOPE_POLICY_KEYS } from "@/lib/authorization/scope-catalog";
+import { SCOPE_POLICIES, SCOPE_POLICY_KEYS } from "@/models/authorization/scope-catalog";
 import { summarizeContextRoles } from "./overviewHelpers";
 
 /**

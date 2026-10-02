@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { requireSameOrigin } from "@/lib/requestOrigin";
 import { syncAllContextGrantsEverywhere } from "@/services/authorization/contextGrants";
 

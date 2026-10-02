@@ -1,8 +1,8 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { logAuditEvent } from "@/lib/audit";
+import { logAuditEvent } from "@/services/tasks/auditLog";
 import { requireAuth, isSupervisorOf } from "@/lib/auth";
-import { getTaskTitleById } from "@/lib/db/queries/tasks";
+import { getTaskTitleById } from "@/models/tasks";
 import {
   createBlocker,
   deleteBlocker,

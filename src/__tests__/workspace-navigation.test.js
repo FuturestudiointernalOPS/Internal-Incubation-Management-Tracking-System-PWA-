@@ -24,7 +24,7 @@ jest.mock("@/services/lms/learning", () => ({
   learnerHasEnrollments: jest.fn(),
 }));
 
-jest.mock("@/lib/platform/roles", () => ({
+jest.mock("@/models/platform/roles", () => ({
   roleHomeHref: (role) => `/home/${role}`,
 }));
 

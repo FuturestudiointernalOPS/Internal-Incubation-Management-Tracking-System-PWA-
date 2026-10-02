@@ -305,7 +305,7 @@ export async function PATCH(req, { params }) {
 
       // Close the append-only membership history row (account/contact intact).
       try {
-        const { syncVentureRoleHistory } = await import("@/lib/contactIdentity");
+        const { syncVentureRoleHistory } = await import("@/models/contactIdentity");
         const removedRole = memberResult.rows[0].member_type === "founder" ? "founder" : memberResult.rows[0].role || "member";
         if (memberResult.rows[0].contact_id) {
           await syncVentureRoleHistory({
@@ -357,7 +357,7 @@ export async function PATCH(req, { params }) {
       // Venture are no longer the whole truth.
       invalidateVentureAccess(id);
       try {
-        const { syncVentureRoleHistory } = await import("@/lib/contactIdentity");
+        const { syncVentureRoleHistory } = await import("@/models/contactIdentity");
         if (memberContactId && role !== undefined) {
           await syncVentureRoleHistory({
             contactCid: memberContactId,

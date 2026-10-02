@@ -1,6 +1,6 @@
 import db from "@/lib/db";
 import { getActiveCheckoutRunSlugForCourse } from "./public";
-import { resolveCheckoutCourse } from "./checkout";
+import { resolveCheckoutCourse } from "@/services/lms/checkout";
 
 /**
  * FIND A COURSE BY NAME

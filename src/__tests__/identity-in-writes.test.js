@@ -24,7 +24,7 @@ jest.mock("@/lib/auth", () => ({
   assertNoParticipantFacilitatorConflict: jest.fn().mockResolvedValue(null),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn().mockResolvedValue(null),
 }));
 

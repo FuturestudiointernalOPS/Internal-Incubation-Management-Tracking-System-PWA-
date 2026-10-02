@@ -8,7 +8,7 @@ import {
   getAllResponsibilities,
   seedDefaultResponsibilities,
 } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { normalizeAllowedRoles } from "@/lib/featureAccess";
 import {
   getAssignedResponsibilitiesForUser,

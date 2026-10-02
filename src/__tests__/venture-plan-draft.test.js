@@ -37,7 +37,7 @@ const {
   updatePlanImportProposal,
   discardPlanImport,
   getOpenPlanImport,
-} = require("@/models/venturePlanImport");
+} = require("@/services/ventures/planImport");
 
 /** One journey, one milestone, two tasks; one owner known, one not. */
 const PROPOSAL = {

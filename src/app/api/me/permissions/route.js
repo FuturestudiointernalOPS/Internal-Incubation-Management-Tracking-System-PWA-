@@ -3,7 +3,7 @@ import { getSession } from "@/lib/auth";
 import {
   getAuthorizationContext,
   effectivePermissionsFromContext,
-} from "@/lib/authorization";
+} from "@/models/authorization/index";
 import { syncContextGrantsOnConnect } from "@/services/authorization/contextGrants";
 
 export const dynamic = "force-dynamic";

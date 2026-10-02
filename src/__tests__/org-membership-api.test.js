@@ -27,7 +27,7 @@ jest.mock("@/lib/auth", () => ({
 }));
 
 let mockAuthzDecision = null; // null = granted (route proceeds)
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn().mockImplementation(async () => mockAuthzDecision),
   invalidateAllAuthorizationContexts: jest.fn(),
 }));
@@ -40,7 +40,7 @@ jest.mock("@/lib/authorization/membership", () => ({
   isGroupProtected: jest.fn().mockResolvedValue(true),
 }));
 
-const { requireAuthorization, invalidateAllAuthorizationContexts } = require("@/lib/authorization");
+const { requireAuthorization, invalidateAllAuthorizationContexts } = require("@/models/authorization/index");
 const membershipLib = require("@/lib/authorization/membership");
 const { GET, PUT } = require("@/app/api/org-membership/route");
 

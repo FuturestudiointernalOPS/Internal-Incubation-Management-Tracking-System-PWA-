@@ -4,7 +4,7 @@ import React, { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Users } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi, useApiMulti } from "@/lib/hooks/useApi";
-import { capabilityRisk } from "@/lib/authorization/capability-catalog";
+import { capabilityRisk } from "@/models/authorization/capability-catalog";
 import { Skeleton } from "@/components/ui/Skeleton";
 import RiskBadge from "./RiskBadge";
 import { ACCESS_LEVEL_KEYS } from "./levelChips";

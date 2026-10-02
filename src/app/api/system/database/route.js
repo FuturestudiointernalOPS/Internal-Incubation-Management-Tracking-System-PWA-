@@ -3,7 +3,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import { getDatabaseInfo } from "@/lib/ventures";
 import { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { serverError } from "@/lib/apiError";
 import {
   platformMigrationSteps,

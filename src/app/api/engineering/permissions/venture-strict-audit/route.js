@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { requireAuthorization } from "@/lib/authorization";
-import { authorize, getAuthorizationContext } from "@/lib/authorization";
-import { resolveScopeIds } from "@/lib/authorization/scope";
+import { requireAuthorization } from "@/models/authorization/index";
+import { authorize, getAuthorizationContext } from "@/models/authorization/index";
+import { resolveScopeIds } from "@/services/authorization/scope";
 import {
   listVentureRelationships,
   listAuditContacts,

@@ -18,18 +18,18 @@ jest.mock("@/lib/auth", () => ({
   getSession: jest.fn(async () => ({ cid: "USR_PM", role: "staff", email: "pm@x.test" })),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   getAuthorizationContext: jest.fn(async () => ({ isSuperAdmin: false })),
   requireAuthorization: jest.fn(async () => null),
 }));
 
-jest.mock("@/lib/authorization/scope", () => ({
+jest.mock("@/services/authorization/scope", () => ({
   isWithinScope: jest.fn(async () => true),
 }));
 
 const { getSession } = require("@/lib/auth");
-const { getAuthorizationContext, requireAuthorization } = require("@/lib/authorization");
-const { isWithinScope } = require("@/lib/authorization/scope");
+const { getAuthorizationContext, requireAuthorization } = require("@/models/authorization/index");
+const { isWithinScope } = require("@/services/authorization/scope");
 const {
   requireProgramScope,
   requireProgramScopeForAll,

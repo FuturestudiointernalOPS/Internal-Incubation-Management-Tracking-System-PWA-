@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession, logPermissionAudit } from "@/lib/auth";
-import { requireAuthorization, assertTemplateCapsEligible, invalidateAllAuthorizationContexts } from "@/lib/authorization";
+import { requireAuthorization, assertTemplateCapsEligible, invalidateAllAuthorizationContexts } from "@/models/authorization/index";
 import {
   getActiveProfileForRoleDefault,
   setRoleDefaultProfile,

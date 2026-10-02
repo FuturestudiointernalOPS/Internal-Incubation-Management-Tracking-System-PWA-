@@ -20,11 +20,11 @@ jest.mock("@/lib/auth", () => ({
   getSession: jest.fn(async () => ({ cid: "USR_ACTOR", role: "staff" })),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
-jest.mock("@/lib/authorization/scope", () => ({
+jest.mock("@/services/authorization/scope", () => ({
   isWithinScope: jest.fn(async () => true),
 }));
 
@@ -41,8 +41,8 @@ jest.mock("@/services/authorization/contextGrants", () => ({
   syncContextGrantsForUser: jest.fn(async () => ({ applied: [], revoked: [] })),
 }));
 
-const { requireAuthorization } = require("@/lib/authorization");
-const { isWithinScope } = require("@/lib/authorization/scope");
+const { requireAuthorization } = require("@/models/authorization/index");
+const { isWithinScope } = require("@/services/authorization/scope");
 const { getProgramManager, setProgramManager } = require("@/models/programs");
 const { getContactNameAndRole } = require("@/models/authorization");
 const { syncContextGrantsForUser } = require("@/services/authorization/contextGrants");

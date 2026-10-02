@@ -17,12 +17,12 @@ import {
   markRegistrationRefunded,
   recordPaymentEvent,
   setEmailState,
-} from "@/lib/lms/registrations";
+} from "@/models/lms/registrations";
 import {
   fulfillRegistration,
   prepareAccessDelivery,
   revokePurchaseAccess,
-} from "@/lib/lms/checkout";
+} from "@/services/lms/checkout";
 import { deliverCheckoutEmail } from "@/lib/lms/checkoutMail";
 
 /**

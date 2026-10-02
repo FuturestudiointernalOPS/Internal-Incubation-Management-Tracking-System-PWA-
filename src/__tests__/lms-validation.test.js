@@ -4,7 +4,7 @@
  * references, and well-formed assessments when they exist (never required).
  */
 
-const { validateCourseForPublish } = require("@/lib/lms/validation");
+const { validateCourseForPublish } = require("@/models/lms/validation");
 
 const validCourse = {
   id: "C-1",

@@ -22,7 +22,7 @@ const {
   resolveOrCreateContactIdentity,
   normalizeEmail,
   normalizePhone,
-} = require("@/lib/contactIdentity");
+} = require("@/models/contactIdentity");
 
 // Simulated rows per query family (reset per test)
 const DB = {

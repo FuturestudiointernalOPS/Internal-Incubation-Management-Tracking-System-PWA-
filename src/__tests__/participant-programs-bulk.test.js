@@ -28,11 +28,11 @@ jest.mock("@/lib/programScopedAccess", () => ({
   requireProgramScope: jest.fn(async () => null),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
-const { attachCourseToProgram } = require("@/lib/lms/programRequirements");
+const { attachCourseToProgram } = require("@/models/lms/programRequirements");
 const { POST } = require("@/app/api/participant-programs/bulk/route");
 
 const PROGRAM = "P-2026-001";

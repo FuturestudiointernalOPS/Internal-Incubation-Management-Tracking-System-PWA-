@@ -51,7 +51,7 @@ export async function GET(req) {
     const denied = await denyIfNotAllowed(session, targetCid);
     if (denied) return denied;
 
-    const { listContactEmails } = await import("@/lib/contactIdentity");
+    const { listContactEmails } = await import("@/models/contactIdentity");
     const emails = await listContactEmails(targetCid);
     return NextResponse.json({ success: true, contact_cid: targetCid, emails });
   } catch (error) {
@@ -80,7 +80,7 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Contact not found." }, { status: 404 });
     }
 
-    const { addContactEmail } = await import("@/lib/contactIdentity");
+    const { addContactEmail } = await import("@/models/contactIdentity");
     const result = await addContactEmail({ contactCid: targetCid, email, actorCid: session?.cid || null });
     if (!result.ok) {
       return NextResponse.json({ success: false, error: result.error }, { status: 409 });
@@ -107,7 +107,7 @@ export async function DELETE(req) {
     const denied = await denyIfNotAllowed(session, targetCid);
     if (denied) return denied;
 
-    const { removeContactEmail } = await import("@/lib/contactIdentity");
+    const { removeContactEmail } = await import("@/models/contactIdentity");
     const result = await removeContactEmail({ id: parseInt(id), contactCid: targetCid });
     if (!result.ok) {
       return NextResponse.json({ success: false, error: result.error }, { status: 400 });

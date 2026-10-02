@@ -27,7 +27,7 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-const { interpretPlanSheet, buildPlanPrompt, renderPlanSheets } = require("@/models/venturePlanImport");
+const { interpretPlanSheet, buildPlanPrompt, renderPlanSheets } = require("@/services/ventures/planImport");
 
 const MODEL_REPLY = {
   journeys: [

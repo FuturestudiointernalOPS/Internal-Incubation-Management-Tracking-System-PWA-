@@ -16,7 +16,7 @@
  *   5. `processReviewInternal` — idempotency and the "PDF needs an evaluation"
  *      refusal, both of which must happen before any side effect.
  */
-jest.mock("@/lib/platform/automation", () => ({
+jest.mock("@/models/platform/automation", () => ({
   onAssignmentAdded: jest.fn(),
   onReview: jest.fn(),
   onRunCreated: jest.fn(),
@@ -43,9 +43,9 @@ jest.mock("@/models/formRuns", () => ({
   updateContactEmailById: jest.fn(),
 }));
 
-const { onAssignmentAdded } = require("@/lib/platform/automation");
+const { onAssignmentAdded } = require("@/models/platform/automation");
 const models = require("@/models/formRuns");
-const { MAX_OUTPUT_INSTRUCTION } = require("@/models/platform/ai/report");
+const { MAX_OUTPUT_INSTRUCTION } = require("@/services/platform/report");
 const {
   RUN_STATUSES,
   isValidRunStatus,

@@ -21,7 +21,7 @@ import SectionResourcesList from "./SectionResourcesList";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
 import RichTextContent from "@/components/ui/RichTextContent";
-import { isValidYouTubeVideoId } from "@/lib/lms/youtube";
+import { isValidYouTubeVideoId } from "@/models/lms/youtube";
 import { useApi } from "@/lib/hooks/useApi";
 
 /**

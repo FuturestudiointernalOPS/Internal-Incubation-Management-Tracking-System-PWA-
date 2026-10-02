@@ -1,5 +1,5 @@
 import { initDb } from "@/lib/db";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { NextResponse } from "next/server";
 import {
   csvWantsInternalGroup,

@@ -25,11 +25,11 @@ jest.mock("@/lib/auth", () => ({
   getSession: jest.fn(async () => ({ cid: "U-LEARNER", name: "Learner", role: "participant" })),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
-const { requireAuthorization } = require("@/lib/authorization");
+const { requireAuthorization } = require("@/models/authorization/index");
 const { getSession } = require("@/lib/auth");
 
 const {
@@ -37,7 +37,7 @@ const {
   listSectionResources,
   updateSectionResource,
   deleteSectionResource,
-} = require("@/lib/lms/sectionResources");
+} = require("@/models/lms/sectionResources");
 
 const { GET: resourcesGET, POST: resourcesPOST } = require("@/app/api/lms/section-resources/route");
 const {

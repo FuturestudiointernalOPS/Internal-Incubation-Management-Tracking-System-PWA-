@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth";
-import { can } from "@/lib/authorization";
+import { can } from "@/models/authorization/index";
 import MessagingAccessDenied from "@/components/messaging/MessagingAccessDenied";
 
 export const dynamic = "force-dynamic";

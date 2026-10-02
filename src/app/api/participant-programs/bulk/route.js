@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireProgramScope } from "@/lib/programScopedAccess";
 import { participantBatches } from "@/lib/participantBatches";
-import { ensureProgramEnrollments } from "@/lib/lms/programRequirements";
+import { ensureProgramEnrollments } from "@/models/lms/programRequirements";
 import {
   getBulkProgramById,
   checkBulkFacilitatorConflicts,

@@ -8,7 +8,7 @@
  * their own services. No SQL, no HTTP.
  */
 
-import { roleHomeHref } from "@/lib/platform/roles";
+import { roleHomeHref } from "@/models/platform/roles";
 import { isBaselineIdentity } from "@/lib/identity";
 import { getEffectiveGroupsAndHistory } from "@/services/authorization/membership";
 import { learnerHasEnrollments } from "@/services/lms/learning";

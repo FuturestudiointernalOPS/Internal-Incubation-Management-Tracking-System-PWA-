@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans";
-import { ensureJourneyTable, resolveVentureInternalId } from "@/lib/ventureJourneys";
+import { resolvePlanAccess, allowsPlanAction } from "@/services/ventures/operatingPlans";
+import { ensureJourneyTable, resolveVentureInternalId } from "@/services/ventures/journey";
 import { saveJourneyAsTemplate } from "@/lib/ventureJourneyTemplates";
 import { ensureVentureSchema } from "@/lib/ventures";
 

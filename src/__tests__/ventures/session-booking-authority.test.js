@@ -70,11 +70,11 @@ jest.mock("@/lib/ventureAuth", () => ({
   isStaffActorForVenture: jest.fn(async () => mockIsStaffActor),
 }));
 
-jest.mock("@/lib/venturePermissions", () => ({
+jest.mock("@/services/ventures/permissions", () => ({
   hasVentureCapability: jest.fn(async () => mockCanSchedule),
 }));
 
-jest.mock("@/lib/ventureOperatingPlans", () => ({
+jest.mock("@/services/ventures/operatingPlans", () => ({
   resolveVentureCode: jest.fn(async () => mockVentureCode),
 }));
 
@@ -107,15 +107,15 @@ jest.mock("@/lib/ventures", () => ({
   updateActionItem: jest.fn(),
 }));
 
-jest.mock("@/lib/ventureNotify", () => ({
+jest.mock("@/services/ventures/notify", () => ({
   notifyVentureCoach: jest.fn().mockResolvedValue(true),
   notifyAndEmailVentureFounders: jest.fn().mockResolvedValue(true),
   notifyVentureLeadManagers: jest.fn().mockResolvedValue(true),
 }));
 
 const { POST } = require("@/app/api/ventures/[id]/sessions/route");
-const { hasVentureCapability } = require("@/lib/venturePermissions");
-const { resolveVentureCode } = require("@/lib/ventureOperatingPlans");
+const { hasVentureCapability } = require("@/services/ventures/permissions");
+const { resolveVentureCode } = require("@/services/ventures/operatingPlans");
 
 const VENTURE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const ctx = { params: Promise.resolve({ id: VENTURE_ID }) };

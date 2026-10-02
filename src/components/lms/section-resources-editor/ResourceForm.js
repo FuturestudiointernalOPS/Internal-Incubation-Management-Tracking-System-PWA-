@@ -7,7 +7,7 @@ import {
   LMS_RESOURCE_ACCEPT,
   formatFileSize,
   lmsMaxBytesForKind,
-} from "@/lib/lms/constants";
+} from "@/models/lms/constants";
 import Field from "./Field";
 
 const inputClassName = "w-full px-3 py-2 rounded-lg outline-none border text-xs";

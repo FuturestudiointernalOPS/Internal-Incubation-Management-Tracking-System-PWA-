@@ -204,7 +204,7 @@ export async function changeVentureLead({ ventureId, memberId, actorCid }) {
 
   // Append-only contact_roles mirror (context_type='venture')
   try {
-    const { syncVentureRoleHistory } = await import("@/lib/contactIdentity");
+    const { syncVentureRoleHistory } = await import("@/models/contactIdentity");
     const newLeadCid = member.contact_id || member.user_cid || memberId;
     if (previousLeadCid && previousLeadCid !== newLeadCid) {
       await syncVentureRoleHistory({

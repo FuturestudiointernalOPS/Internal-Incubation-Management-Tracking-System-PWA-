@@ -6,7 +6,7 @@ import {
   hasV2ParticipantRecord,
   getVentureMembershipsForContact,
 } from "@/models/contacts";
-import { isFounderMembership } from "@/lib/platform/roles";
+import { isFounderMembership } from "@/models/platform/roles";
 import { getApprovedInvestorProfileIdByUserId } from "@/models/investor";
 
 /**
@@ -40,7 +40,7 @@ export async function GET() {
     // backfill (contacts with 'participant' role but no program/venture/group
     // relationship become the neutral 'member' role). Idempotent.
     try {
-      const { backfillNeutralParticipantRoles } = await import("@/lib/contactIdentity");
+      const { backfillNeutralParticipantRoles } = await import("@/models/contactIdentity");
       await backfillNeutralParticipantRoles();
     } catch (_) {}
 

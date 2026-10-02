@@ -14,7 +14,7 @@ import {
   createPlanImport,
   updatePlanImportProposal,
   discardPlanImport,
-} from "@/models/venturePlanImport";
+} from "@/services/ventures/planImport";
 
 export const dynamic = "force-dynamic";
 

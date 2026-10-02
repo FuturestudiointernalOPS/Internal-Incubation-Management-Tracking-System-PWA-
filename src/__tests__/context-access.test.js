@@ -93,7 +93,7 @@ jest.mock("@/services/authorization/context", () => ({
 // requireScopedAccess is the HTTP boundary (decision -> response);
 // resolveContextAssignment is the service's assignment resolver.
 const { requireScopedAccess } = require("@/server/authz/responses");
-const { resolveContextAssignment } = require("@/lib/authorization/context");
+const { resolveContextAssignment } = require("@/services/authorization/scopedAccess");
 const { evaluateAuthorization } = require("@/services/authorization/context");
 
 const allow = { resource: "program", contextId: "P1", module: "programs", capability: "view" };

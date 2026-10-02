@@ -39,7 +39,7 @@ jest.mock("@/lib/db", () => {
 
 const { __state: state } = require("@/lib/db");
 const { addDependency } = require("@/lib/ventures");
-const { diffProposals, revisePlanProposal, applyPlanImport } = require("@/models/venturePlanImport");
+const { diffProposals, revisePlanProposal, applyPlanImport } = require("@/services/ventures/planImport");
 
 const PROPOSAL = {
   journeys: [

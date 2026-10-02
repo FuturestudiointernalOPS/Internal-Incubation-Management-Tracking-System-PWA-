@@ -32,7 +32,7 @@ jest.mock("@/lib/db", () => {
 
 const { __state: state } = require("@/lib/db");
 const { normaliseChangeValue, diffFields, recordVentureChange, listVentureChanges } = require("@/models/ventureChangeLog");
-const { buildExistingProgramme, interpretPlanSheet, buildPlanPrompt } = require("@/models/venturePlanImport");
+const { buildExistingProgramme, interpretPlanSheet, buildPlanPrompt } = require("@/services/ventures/planImport");
 
 beforeEach(() => {
   jest.clearAllMocks();

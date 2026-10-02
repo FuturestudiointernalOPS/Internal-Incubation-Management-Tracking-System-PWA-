@@ -126,12 +126,12 @@ jest.mock("@/lib/auth", () => ({
   }),
 }));
 
-jest.mock("@/lib/audit", () => ({
+jest.mock("@/services/tasks/auditLog", () => ({
   logAuditEvent: jest.fn().mockResolvedValue(true),
   isTaskLocked: jest.fn().mockResolvedValue(false),
 }));
 
-jest.mock("@/lib/taskAudit", () => ({
+jest.mock("@/models/taskAudit", () => ({
   logTaskEvent: jest.fn().mockResolvedValue(true),
   ACTION_TYPES: {
     TASK_CREATED: "task_created",
@@ -143,12 +143,13 @@ jest.mock("@/lib/taskAudit", () => ({
   },
 }));
 
-jest.mock("@/lib/standupUpsert", () => ({
+jest.mock("@/models/standupUpsert", () => ({
   standupUpsert: jest.fn().mockResolvedValue({ standupId: 1, action: "created" }),
   rebuildStandupTasks: jest.fn().mockResolvedValue({ action: "skipped" }),
 }));
 
-jest.mock("@/lib/db/queries/tasks", () => ({
+jest.mock("@/models/tasks", () => ({
+  ...jest.requireActual("@/models/tasks"),
   getTaskById: jest.fn(async (id) => {
     const task = global.__dbState.tasks.find((candidate) => candidate.id === Number(id));
     return task || null;

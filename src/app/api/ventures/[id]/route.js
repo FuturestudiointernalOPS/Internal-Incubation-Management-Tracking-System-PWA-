@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/lib/auth";
-import { getAuthorizationContext, requireAuthorization } from "@/lib/authorization";
-import { isWithinScope, resolveVentureScopeId } from "@/lib/authorization/scope";
+import { getAuthorizationContext, requireAuthorization } from "@/models/authorization/index";
+import { isWithinScope, resolveVentureScopeId } from "@/services/authorization/scope";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
   getVentureById,

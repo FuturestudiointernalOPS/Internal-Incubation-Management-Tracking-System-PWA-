@@ -10,12 +10,12 @@
  * linked to a course, and behave exactly as before for a free run.
  */
 
-jest.mock("@/lib/platform/integrations", () => ({
+jest.mock("@/models/platform/integrations", () => ({
   audit: jest.fn(async () => {}),
   notifyUser: jest.fn(async () => {}),
 }));
 
-jest.mock("@/lib/platform/roles", () => ({ resolveDefaultRole: jest.fn(() => "participant") }));
+jest.mock("@/models/platform/roles", () => ({ resolveDefaultRole: jest.fn(() => "participant") }));
 jest.mock("@/lib/identity", () => ({ stopRoleMutationEnabled: jest.fn(() => false) }));
 jest.mock("@/lib/token-hashing", () => ({ hashToken: (token) => `hash:${token}` }));
 

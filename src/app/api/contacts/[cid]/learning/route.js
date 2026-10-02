@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { requireAuthorization } from "@/lib/authorization";
-import { getLearnerJourney } from "@/lib/lms/journey";
+import { requireAuthorization } from "@/models/authorization/index";
+import { getLearnerJourney } from "@/models/lms/journey";
 
 export const dynamic = "force-dynamic";
 

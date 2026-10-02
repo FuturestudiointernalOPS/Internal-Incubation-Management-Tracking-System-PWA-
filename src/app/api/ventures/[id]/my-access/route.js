@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { resolveVentureScopedDecision } from "@/lib/ventureScopedAccess";
-import { hasVentureCapability } from "@/lib/venturePermissions";
+import { hasVentureCapability } from "@/services/ventures/permissions";
 import {
   getVentureCodeByIdOrCode,
   listActiveVentureAssignmentsForAccess,

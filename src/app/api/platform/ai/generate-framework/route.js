@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAuthorization } from "@/lib/authorization";
-import { generateFramework } from "@/lib/platform/ai/framework";
+import { requireAuthorization } from "@/models/authorization/index";
+import { generateFramework } from "@/models/platform/ai/framework";
 
 /**
  * POST /api/platform/ai/generate-framework

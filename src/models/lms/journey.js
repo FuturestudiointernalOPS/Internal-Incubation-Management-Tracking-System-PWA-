@@ -1,4 +1,4 @@
-import { getLearnerCourses } from "./learning";
+import { getLearnerCourses } from "@/services/lms/learning";
 import { getCertificatesForLearner } from "./certificates";
 
 /**

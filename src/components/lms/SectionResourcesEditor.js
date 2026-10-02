@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { Plus, FileText } from "lucide-react";
 import AppModal from "@/components/ui/AppModal";
 import { useI18n } from "@/lib/i18n";
-import { isAcceptedResourceFile, lmsMaxBytesForKind } from "@/lib/lms/constants";
+import { isAcceptedResourceFile, lmsMaxBytesForKind } from "@/models/lms/constants";
 import ResourceForm from "./section-resources-editor/ResourceForm";
 import ResourceRow from "./section-resources-editor/ResourceRow";
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { getCertificatePublic } from "@/lib/lms/certificates";
-import { lmsErrorResponse } from "@/lib/lms/errors";
+import { getCertificatePublic } from "@/models/lms/certificates";
+import { lmsErrorResponse } from "@/models/lms/errors";
 
 export const dynamic = "force-dynamic";
 

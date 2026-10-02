@@ -21,11 +21,11 @@ jest.mock("@supabase/supabase-js", () => ({
   createClient: jest.fn(() => ({ storage: mockSupabaseStorage })),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
-const { requireAuthorization } = require("@/lib/authorization");
+const { requireAuthorization } = require("@/models/authorization/index");
 const { POST } = require("@/app/api/lms/courses/thumbnail/route");
 
 const PUBLIC_URL = "https://cdn.impactos.test/course-thumbnails/123-thumb.png";

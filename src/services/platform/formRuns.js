@@ -32,7 +32,7 @@ import {
   sendManualMessage,
 } from "@/lib/email";
 import { resolveAutomationFlag } from "@/lib/platform/automationSettings";
-import { onAssignmentAdded, onReview, onRunCreated, onRunLaunched, onSubmission, sendAcknowledgementForSubmission } from "@/lib/platform/automation";
+import { onAssignmentAdded, onReview, onRunCreated, onRunLaunched, onSubmission, sendAcknowledgementForSubmission } from "@/models/platform/automation";
 import { syncApprovedSubmissionToProgramGroup } from "@/services/contacts/contactGroupSync";
 import { maybeAutoApprove } from "@/models/platform/ai/autoApprove";
 import { calculateSubmissionScores } from "@/services/platform/scoring";
@@ -134,7 +134,7 @@ import {
   updateSubmissionStatusById,
 } from "@/models/formRuns";
 import { getPlatformFormFields, getPlatformFormSections } from "@/models/forms";
-import { MAX_OUTPUT_INSTRUCTION } from "@/models/platform/ai/report";
+import { MAX_OUTPUT_INSTRUCTION } from "@/services/platform/report";
 import {
   deleteRunReportFileByRunId,
   getRunReportFileByRunId,
@@ -926,7 +926,7 @@ export async function buildResultDocument({ submission_id, forceReport = false }
 
     let composedReport = null;
     if (outputInstruction || referenceText) {
-      const { getOrCreateSubmissionReport } = await import("@/models/platform/ai/report");
+      const { getOrCreateSubmissionReport } = await import("@/services/platform/report");
       const composed = await getOrCreateSubmissionReport({
         submissionId: parseInt(submission_id),
         evaluationId: evalRow.id ?? null,
@@ -1482,7 +1482,7 @@ export async function submitResponse({ run_id, data, status: subStatus, session 
     const scores = await calculateSubmissionScores(run_id, finalData);
     if (scores) finalData._scores = scores;
     try {
-      const { formHasAiEvaluation } = await import("@/lib/platform/ai/evaluate");
+      const { formHasAiEvaluation } = await import("@/models/platform/ai/evaluate");
       const runInfo = await getRunFormIdForEvaluationById(run_id);
       if (runInfo.rows.length > 0) formAiEnabled = await formHasAiEvaluation(runInfo.rows[0].form_id);
     } catch (_) {}
@@ -1518,7 +1518,7 @@ export async function submitResponse({ run_id, data, status: subStatus, session 
       if (formAiEnabled && !sellsCourse) {
         const newSubmissionId = result.rows[0].id;
         try {
-          const { submissionHasEvaluation, evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
+          const { submissionHasEvaluation, evaluateSubmission } = await import("@/models/platform/ai/evaluate");
           const alreadyEvaluated = await submissionHasEvaluation(newSubmissionId).catch(() => true);
           if (!alreadyEvaluated) {
             const evaluation = await evaluateSubmission(newSubmissionId);
@@ -1560,7 +1560,7 @@ export async function submitResponse({ run_id, data, status: subStatus, session 
     if (formAiEnabled && !sellsCourse) {
       const newSubmissionId = result.rows[0].id;
       try {
-        const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
+        const { evaluateSubmission } = await import("@/models/platform/ai/evaluate");
         const evaluation = await evaluateSubmission(newSubmissionId);
         logTimeline(newSubmissionId, "ai_evaluated", "system", "System", {});
         // Same automatic approval step as every other evaluation path.
@@ -1638,7 +1638,7 @@ export async function manualAddRespondent({ run_id, name, email, data, status: s
     const scores = await calculateSubmissionScores(run_id, finalData);
     if (scores) finalData._scores = scores;
     try {
-      const { formHasAiEvaluation } = await import("@/lib/platform/ai/evaluate");
+      const { formHasAiEvaluation } = await import("@/models/platform/ai/evaluate");
       const runInfo = await getRunFormIdForManualEvaluationById(run_id);
       if (runInfo.rows.length > 0) formAiEnabled = await formHasAiEvaluation(runInfo.rows[0].form_id);
     } catch (_) {}
@@ -1664,7 +1664,7 @@ export async function manualAddRespondent({ run_id, name, email, data, status: s
     if (formAiEnabled && !runRow?.lms_course_id) {
       const newSubmissionId = result.rows[0].id;
       try {
-        const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
+        const { evaluateSubmission } = await import("@/models/platform/ai/evaluate");
         const evaluation = await evaluateSubmission(newSubmissionId);
         logTimeline(newSubmissionId, "ai_evaluated", "system", "System", {});
         // Same automatic approval step as every other evaluation path.

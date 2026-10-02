@@ -17,7 +17,7 @@ jest.mock("@/lib/auth", () => ({
   requireAuth: jest.fn(async () => null),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
@@ -30,7 +30,7 @@ const mockEval = {
   formHasAiEvaluation: jest.fn(),
   getEvaluation: jest.fn(),
 };
-jest.mock("@/lib/platform/ai/evaluate", () => mockEval);
+jest.mock("@/models/platform/ai/evaluate", () => mockEval);
 
 jest.mock("@/models/platform/ai/autoApprove", () => ({
   maybeAutoApprove: jest.fn(async () => ({})),
