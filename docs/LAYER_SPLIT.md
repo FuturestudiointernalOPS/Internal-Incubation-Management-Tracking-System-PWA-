@@ -2551,6 +2551,31 @@ is red only on the unrelated in-progress `src/app/pm/programs/[id]/page.js`
 
 ---
 
+### Domain 92 — the admin venture-create controller frontier (slice 128)
+
+`POST /api/admin/ventures/create` decided the input validation, the duplicate
+handling, the founder INVITATION (never a fabricated account or a written
+membership), the recorded delivery outcome and the activity entry. Those move to
+`services/dashboard/adminVentures.js` (`createVentureWithFounderInvite`), which
+writes through `@/models/ventureAdmin` and `@/models/ventureMemberInvitations`,
+mails through `@/lib/email` and reads the app URL through `@/lib/appUrl`. The
+controller keeps the super-admin `createHandler` gate and the envelope.
+
+Assessed and deliberately left at the controller (no business decision):
+`api/admin/ventures` (a type/action dispatch over `@/lib/ventures`),
+`api/admin/run-migration` (a sanctioned, super-admin-only migration runner whose
+statements are data) and `api/admin/fix-participant` (a self-labelled temporary
+diagnostic).
+
+The existing `ventures/admin-venture-create.test.js` (7 cases) drives the route
+unchanged.
+
+`npm test` (265 suites, 3907 tests) is green. The full `npx eslint` / `npm run
+build` were momentarily red on the unrelated in-progress
+`src/app/pm/programs/[id]/page.js` (V1); this slice's files lint clean.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** — **deleted** (slice 117): `resolver`, `scope`,
