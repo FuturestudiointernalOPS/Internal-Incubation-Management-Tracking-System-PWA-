@@ -1,10 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import {
-  getOverdueTasks,
-  findRecentOverdueNotification,
-  createOverdueNotification,
-} from "@/models/workspace";
+import { notifyOverdueTasks } from "@/services/communications/notifications";
 
 /**
  * POST /api/notifications/overdue?key=SECRET_KEY
@@ -45,38 +41,7 @@ export async function POST(req) {
 
     await initDb();
 
-    // 1. Find tasks that are past their due date
-    const overdueTasks = await getOverdueTasks();
-
-    const tasks = overdueTasks.rows || [];
-    let overdueCount = 0;
-
-    for (const task of tasks) {
-      // 2. Deduplicate — skip if an "overdue" notification already exists
-      //    for this task within the last 24 hours
-      const existing = await findRecentOverdueNotification(
-        task.user_id,
-        `%${task.title}%`,
-      );
-
-      if (existing.rows && existing.rows.length > 0) {
-        continue; // Already notified recently
-      }
-
-      // 3. Format the end_date for display
-      const endDateStr = task.end_date
-        ? new Date(task.end_date).toISOString().split("T")[0]
-        : "unknown";
-
-      // 4. Create the overdue notification
-      await createOverdueNotification(
-        task.user_id,
-        "Overdue Task",
-        `Task "${task.title}" was due ${endDateStr} and is now overdue!`,
-      );
-
-      overdueCount++;
-    }
+    const { overdueCount } = await notifyOverdueTasks();
 
     return NextResponse.json({
       success: true,

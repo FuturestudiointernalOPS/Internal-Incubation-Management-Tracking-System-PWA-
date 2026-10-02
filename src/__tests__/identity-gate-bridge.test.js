@@ -359,7 +359,14 @@ describe("I5 completed pattern (sessions + followups) stays clean", () => {
     (file) => {
       const src = fs.readFileSync(path.join(ROOT, file), "utf8");
       expect(src).not.toMatch(/requireAuth\(\s*\[/);
-      expect(src).toMatch(/requireAssignmentAccess/);
+      if (file === "src/app/api/followups/route.js") {
+        expect(src).toMatch(/evaluateFollowupParticipantAccess/);
+        expect(src).toMatch(/updateScopedFollowup/);
+        const service = fs.readFileSync(path.join(ROOT, "src/services/communications/followups.js"), "utf8");
+        expect(service).toMatch(/evaluateAssignmentAccess\(\{ resource: "program", contextId: programId \}\)/);
+      } else {
+        expect(src).toMatch(/requireAssignmentAccess/);
+      }
     },
   );
 });

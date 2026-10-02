@@ -414,3 +414,16 @@ src/
 - [ ] Theme toggle uses `useTheme()` hook
 - [ ] Status colors (emerald/rose/amber/indigo) used only for semantic meaning
 - [ ] Chart colors use `var(--chart-*)` tokens
+
+### Blocs internes de la coquille et de la messagerie
+
+`DashboardLayout.js` reste le point d'entrée public de la coquille. Ses blocs
+`SidebarContent` et `ShellHeader`, ainsi que les helpers de navigation, sont dans
+`src/components/layout/shell/`. Les layouts de section continuent d'importer
+`DashboardLayout.js`.
+
+`MessagingChat.js` conserve l'orchestration et les états. Ses blocs internes
+`ConversationList`, `ConversationThread`, `ComposeMessageModal` et
+`NewMessageButton` sont dans `src/components/messaging/chat/` ; ils reçoivent les
+valeurs et actions du parent et n'ajoutent aucun conteneur DOM. Ces blocs restent
+propres à leur surface, tandis que les composants UI génériques restent dans `ui/`.
