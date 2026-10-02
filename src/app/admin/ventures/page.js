@@ -221,7 +221,7 @@ export default function VenturesPage() {
                     return (
                       <tr
                         key={venture.id}
-                        onClick={() => router.push(`/admin/ventures/${venture.venture_id}/verification`)}
+                        onClick={() => router.push(`/admin/ventures/${venture.venture_id}`)}
                         className="border-b border-divider/50 cursor-pointer hover:bg-tertiary/50 transition-all group"
                       >
                         <td className="px-5 py-3">
