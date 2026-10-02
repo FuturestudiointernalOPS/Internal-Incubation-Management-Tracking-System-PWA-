@@ -3132,3 +3132,32 @@ sont extraits vers `src/components/layout/shell/` et
 `src/components/messaging/chat/`. Aucun layout de section n'est modifié.
 Le périmètre exact et les responsabilités sont documentés dans
 `src/services/communications/README.md`.
+
+### Communications — le découpage du modèle et le marquage lu (tâche G, 2026-10-02)
+
+`models/communications.js` (812) devient un barillet de même surface au même
+chemin, au-dessus de modules cohésifs dans `models/communications/` : `scope`
+(résolution des destinataires et du périmètre), `messages` (lectures/écritures
+des messages et le marquage lu), `announcements`, `followups`, `campaigns` et
+`events`. Le SQL est déplacé **à l'identique** ; importateurs et tests gardent le
+même chemin `@/models/communications`.
+
+Le marquage lu est corrigé : `updateMessagesReadByIds(messageIds, plan)` remplace
+l'ancienne mise à jour filtrée par les seuls identifiants. Le service résout le
+plan de visibilité de l'appelant (`resolveMessageVisibilityPlan`, le même plan que
+la boîte de réception) et le dépôt ré-applique le prédicat de visibilité, de sorte
+qu'un identifiant que l'appelant ne peut pas lister met à jour zéro ligne. La
+branche « conversation » reste limitée au couple expéditeur/destinataire et le
+refus de participation est inchangé. Épinglé par
+`communications-read-scope.test.js` (3) et `internal-comms-read.test.js` (2).
+
+Conformité coquille/chat : les libellés d'invitation, d'affectation et de thème
+passent par `t()` (`common.projectInvitation`, `common.taskAssignment`,
+`common.invitedToJoin`, `common.assignedTask`, `common.aProject`, `common.aTask`,
+`common.theme.*`, `common.accept`, `common.decline`, `common.user`, `common.menu`)
+dans les deux locales ; les boutons de refus perdent `bg-slate-600`/`text-white`
+au profit de `bg-surface-3`/`--text-primary` ; les deux champs de fichier du chat
+passent de `text-slate-400` à `--text-tertiary`. Le rendu des blocs reste identique.
+
+`npm test` (298 suites, 4 695 tests), `npm run lint` (0 erreur) et
+`npm run build` sont verts.

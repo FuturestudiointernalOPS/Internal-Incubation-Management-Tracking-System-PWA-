@@ -34,7 +34,16 @@ Les contrôles de secret des routes cron restent à la frontière HTTP.
   `SidebarContent`, `ShellHeader` et les helpers de navigation sont dans `layout/shell/`.
 - `MessagingChat.js` conserve son export public, les états, les effets et les actions ;
   la liste, le fil et la composition sont dans `messaging/chat/`.
+- `models/communications.js` est un barillet de même surface au-dessus de
+  `models/communications/` (`scope`, `messages`, `announcements`, `followups`,
+  `campaigns`, `events`) ; le SQL est déplacé à l'identique.
+- Le marquage lu est restreint au périmètre de visibilité de l'appelant :
+  `updateMessagesReadByIds(messageIds, plan)` ré-applique le prédicat de la boîte
+  de réception, donc un identifiant invisible met à jour zéro ligne.
 
 Les fichiers `src/app/**/layout.js` et `src/components/dashboard/**` ne font pas
-partie du changement. Le JSX, les textes et les classes existants sont conservés :
-ce chantier n'introduit aucune modification fonctionnelle ou visuelle.
+partie du changement. Les libellés de la coquille (invitation, affectation, thème)
+sont passés par `t()` et les couleurs historiques `bg-slate-600`/`text-white` et
+`text-slate-400` remplacées par les jetons du design system, sans changer la
+structure des blocs. Le correctif de marquage lu est un changement de comportement
+(la restriction de visibilité) ; le reste est sans régression d'affichage.
