@@ -14,11 +14,9 @@ import {
  * MVP boundary: the general Future Studio CRM directory is NOT available to
  * external users.
  *
- * - Membership-keyed (Phase 1.2): anyone who holds an active participant or
- *   venture-founder relationship IN the requested program gets the
- *   program-scoped search — works for member-baseline users too.
- * - Global directory search requires the contacts.view capability (internal
- *   CRM roles hold it via their profile).
+ * - Membership-keyed: anyone who holds an active participant or venture-founder
+ *   relationship IN the requested program gets the program-scoped search.
+ * - Global directory search requires the contacts.view capability.
  * - Names/emails only — never full records.
  */
 export async function GET(req) {
@@ -54,10 +52,6 @@ export async function GET(req) {
       }
     }
 
-    // Global directory search: capability-gated (contacts.view). Internal CRM
-    // roles hold it; everyone else is denied here. The model query includes
-    // `role` so callers (e.g. the Venture Staff picker) can distinguish
-    // Future Studio staff from founders/participants.
     const capError = await requireAuthorization("contacts", "view");
     if (capError) return capError;
     const contacts = await searchGlobalDirectory(likePattern);

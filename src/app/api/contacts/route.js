@@ -23,25 +23,19 @@ export const dynamic = "force-dynamic";
 /**
  * CONTACTS API — PERSONNEL REGISTRY
  * Hardened for Gated Onboarding and Real-time Alerts.
+ * Decisions live in `@/services/contacts`; this file is auth + response shape.
  */
 
 export async function POST(req) {
   try {
     await initDb();
     // Auth is optional — public forms create contacts without login.
-    // If authenticated, the resolver enforces the capability (eligibility
-    // boundary included); unauthenticated submissions keep working.
     const session = await getSession();
     if (session) {
       const capError = await requireAuthorization("contacts", "create");
       if (capError) return capError;
     }
 
-    // Role and status are server-controlled boundaries: login derives the
-    // session's role from contacts.role, so a caller who can set it can mint an
-    // elevated identity. Only a caller holding the role-assignment capability
-    // (typically super_admin) may choose them; an unauthenticated self-service
-    // submission (public application / group link) never can.
     const assignRoleError = await requireAuthorization(
       "permissions",
       "assign_capabilities",
@@ -51,9 +45,6 @@ export async function POST(req) {
     const body = await req.json();
     const contacts = Array.isArray(body) ? body : [body];
 
-    // Protected group boundary: creating a FUTURE STUDIO contact creates an
-    // internal member (auto-role staff). Only org_membership.manage holders
-    // may do that — generic contacts.create must never grant it.
     const wantsInternal = contacts.some(
       (contact) => normalizeGroupName(contact?.group_name) === INTERNAL_GROUP,
     );
@@ -98,15 +89,6 @@ export async function PUT(req) {
 
     const data = await req.json();
 
-    if (!data.cid) {
-      return NextResponse.json(
-        { success: false, error: "Contact ID (cid) is required for update." },
-        { status: 400 },
-      );
-    }
-
-    // Protected group boundary: moving a contact into FUTURE STUDIO via a
-    // generic contact edit is an organizational-membership action.
     if (normalizeGroupName(data?.group_name) === INTERNAL_GROUP) {
       const protectError = await requireAuthorization("org_membership", "manage");
       if (protectError) return protectError;
@@ -114,6 +96,7 @@ export async function PUT(req) {
 
     const assignRoleError = await requireAuthorization("permissions", "assign_capabilities");
     const canAssignRole = !assignRoleError;
+    const session = await getSession();
 
     // `archived_at` / `archived_by` record WHO archived and WHEN — the caller
     // sends only the `archived` intent; the server fills both from the session.
@@ -214,10 +197,6 @@ export async function GET(req) {
 
     const authError = await requireAuth();
     if (authError) return authError;
-    // Phase 1.2: directory and cross-user reads require the contacts.view
-    // capability (resolver + CRM eligibility). Every session keeps the right
-    // to read its OWN contact record, so participants/founders/members can
-    // always self-serve their profile without a profile seed.
 
     const { searchParams } = new URL(req.url);
     const statusFilter = searchParams.get("status");
@@ -254,10 +233,6 @@ export async function GET(req) {
 
 /**
  * DELETE — Soft-delete a contact (never physically deletes).
- * Sets deleted_at/deleted_by/deleted and frees the email by replacing it with
- * a unique placeholder that keeps the original address for audit, so a new
- * contact can be created later with the same email without tripping the
- * contacts_email_key unique constraint. The contact disappears from all views.
  */
 export async function DELETE(req) {
   try {
@@ -275,7 +250,8 @@ export async function DELETE(req) {
     }
 
     const session = await getSession();
-    const deletedBy = session?.name || session?.email || session?.cid || "unknown";
+    const deletedBy =
+      session?.name || session?.email || session?.cid || "unknown";
 
     // '__deleted_' || cid || '__' || email is unique because cid is the
     // primary key, so it can never collide with another row (or with a real
