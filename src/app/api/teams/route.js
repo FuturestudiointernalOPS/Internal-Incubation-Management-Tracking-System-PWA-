@@ -6,7 +6,7 @@ import {
   hasProgramManagementAccess,
   requireAssignmentAccess,
 } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { requireProgramScope } from "@/lib/programScopedAccess";
 import { stripTeamCredentials, generateTeamUsername, generateTeamPassword } from "@/lib/teamCredentials";
 import { sendStandaloneEmail } from "@/lib/email";

@@ -37,9 +37,13 @@ describe("role changes are not capability grants", () => {
   });
 
   test("the CSV import cannot assign privileged roles without the capability", () => {
-    const src = read("src/app/api/admin/bulk-upload/route.js");
+    // The importable-role boundary moved to the bulk-import service with the
+    // layer split; the controller still resolves `canAssignRole` from the
+    // capability gate.
+    const src = read("src/services/dashboard/bulkImport.js");
     expect(src).toMatch(/IMPORTABLE_ROLES/);
-    expect(src).toMatch(/const canAssignRole = !assignRoleError/);
+    const route = read("src/app/api/admin/bulk-upload/route.js");
+    expect(route).toMatch(/const canAssignRole = !assignRoleError/);
   });
 
   test("contacts PUT gates `role` on the assign-roles capability", () => {
@@ -52,11 +56,15 @@ describe("role changes are not capability grants", () => {
   });
 
   test("approve-user derives the role and the actor server-side, returns no token", () => {
-    const src = read("src/app/api/admin/approve-user/route.js");
+    // The role rule and the audit actor moved to the approval service with the
+    // layer split; the invariant is unchanged — the approver's role comes from
+    // the session, and the actor is never a name carried in the body.
+    const src = read("src/services/dashboard/userAdmin.js");
     expect(src).toMatch(/APPROVABLE_ROLES/);
-    expect(src).toMatch(/session\?\.name \|\| session\?\.cid \|\| "system"/);
+    expect(src).toMatch(/actor\?\.name \|\| actor\?\.cid \|\| "system"/);
     // The live setup token must never be echoed back to the caller.
-    expect(src).not.toMatch(/\n\s+setupUrl,\n/);
+    const route = read("src/app/api/admin/approve-user/route.js");
+    expect(route).not.toMatch(/\n\s+setupUrl,\n/);
   });
 });
 
@@ -73,8 +81,11 @@ describe("object-level authorization added in this lot", () => {
   });
 
   test("approvals verify the request belongs to the project in the URL", () => {
-    const src = read("src/app/api/admin/projects/[id]/approvals/route.js");
-    expect(src).toMatch(/approvalRequest\.project_id\) !== String\(id\)/);
+    // The object-level check moved to the approvals service with the layer
+    // split; the invariant is unchanged — the bodied request must match the
+    // project in the URL.
+    const src = read("src/services/dashboard/adminProjectApprovals.js");
+    expect(src).toMatch(/approvalRequest\.project_id\) !== String\(projectId\)/);
   });
 
   test("tasks/carryover checks ownership and takes attribution from the session", () => {

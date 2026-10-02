@@ -40,8 +40,8 @@ jest.mock("@/lib/db", () => ({
   getDbMetrics: jest.fn(() => ({})),
 }));
 
-jest.mock("@/lib/authorization", () => {
-  const actual = jest.requireActual("@/lib/authorization");
+jest.mock("@/models/authorization/index", () => {
+  const actual = jest.requireActual("@/models/authorization/index");
   return {
     ...actual,
     requireAuthorization: jest.fn(async () => null),
@@ -224,7 +224,7 @@ describe("GET /api/workspaces", () => {
     );
     const {
       invalidateAuthorizationContext,
-    } = require("@/lib/authorization");
+    } = require("@/models/authorization/index");
 
     await GET(new Request("http://localhost/api/workspaces"));
     mockSequencer.reset();
@@ -245,7 +245,7 @@ describe("GET /api/workspaces", () => {
 
 describe("authorization resolution", () => {
   test("a cold resolution costs three waves and never more", async () => {
-    const { resolveAuthorizationContext } = require("@/models/authorization/resolver");
+    const { resolveAuthorizationContext } = require("@/services/authorization/context");
 
     // First call pays the once-per-process boot (schema, eligibility seed,
     // capability backfills). Measuring after it isolates the resolution itself.
@@ -280,9 +280,9 @@ describe("the authorization migration ledger", () => {
   test("the batch reads it once, and an applied migration costs nothing to ask about", async () => {
     jest.resetModules();
     mockSequencer.reset();
-    const { runAuthzMigration } = require("@/lib/authorization");
+    const { runAuthzMigration } = require("@/models/authorization/index");
     const { resolveAuthorizationContext } = require(
-      "@/models/authorization/resolver",
+      "@/services/authorization/context",
     );
 
     // A FRESH database: the capability backfills and the eligibility seed both
@@ -335,7 +335,7 @@ describe("the authorization migration ledger", () => {
     jest.resetModules();
     mockSequencer.reset();
     const { resolveAuthorizationContext: coldGate } = require(
-      "@/models/authorization/resolver",
+      "@/services/authorization/context",
     );
     await coldGate({ cid: "USER_SEQ_MIGRATED", role: "staff" });
 

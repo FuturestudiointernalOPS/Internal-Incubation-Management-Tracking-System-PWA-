@@ -38,12 +38,12 @@ jest.mock("@/lib/auth", () => ({
   requireAuth: jest.fn(),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   getAuthorizationContext: jest.fn(async () => mockCtx),
   requireAuthorization: jest.fn(async () => mockCapError),
 }));
 
-jest.mock("@/lib/authorization/scope", () => ({
+jest.mock("@/services/authorization/scope", () => ({
   resolveVentureScopeId: jest.fn(async () => "VNT-1"),
   isWithinScope: jest.fn(async () => mockWithin),
 }));
@@ -69,8 +69,8 @@ jest.mock("@/lib/db", () => ({
 
 const { GET } = require("@/app/api/ventures/[id]/my-access/route");
 const { requireVentureScopedAccess } = require("@/lib/ventureScopedAccess");
-const authz = require("@/lib/authorization");
-const scope = require("@/lib/authorization/scope");
+const authz = require("@/models/authorization/index");
+const scope = require("@/services/authorization/scope");
 
 const CAPABILITIES = ["view", "edit"];
 const ctx = { params: Promise.resolve({ id: "VNT-1" }) };

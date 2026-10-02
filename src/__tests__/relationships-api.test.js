@@ -54,7 +54,7 @@ jest.mock("@/lib/auth", () => ({
 }));
 
 const mockBackfill = jest.fn().mockResolvedValue(undefined);
-jest.mock("@/lib/contactIdentity", () => ({
+jest.mock("@/models/contactIdentity", () => ({
   backfillNeutralParticipantRoles: (...args) => mockBackfill(...args),
 }));
 

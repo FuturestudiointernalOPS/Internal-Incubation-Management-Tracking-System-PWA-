@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { syncAllContextGrantsEverywhere } from "@/models/authorization/contextGrants";
+import { syncAllContextGrantsEverywhere } from "@/services/authorization/contextGrants";
 
 export const dynamic = "force-dynamic";
 

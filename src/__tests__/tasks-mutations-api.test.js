@@ -32,7 +32,7 @@ const mockStandup = {
 };
 
 jest.mock("@/models/tasks", () => mockModels);
-jest.mock("@/lib/audit", () => mockAudit);
+jest.mock("@/services/tasks/auditLog", () => mockAudit);
 jest.mock("@/models/standupUpsert", () => mockStandup);
 jest.mock("@/models/contactGroups", () => ({
   validateTaskAssignment: jest.fn(async () => ({ allowed: true })),

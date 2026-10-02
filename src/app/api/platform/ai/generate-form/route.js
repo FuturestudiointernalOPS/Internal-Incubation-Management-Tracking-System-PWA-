@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAuthorization } from "@/lib/authorization";
-import { generateForm } from "@/lib/platform/ai/generate";
+import { requireAuthorization } from "@/models/authorization/index";
+import { generateForm } from "@/models/platform/ai/generate";
 
 /**
  * POST /api/platform/ai/generate-form

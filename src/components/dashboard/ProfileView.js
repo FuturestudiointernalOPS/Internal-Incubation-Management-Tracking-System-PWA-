@@ -30,6 +30,9 @@ import AppImage from "@/components/ui/AppImage";
 import { getCountries, getLanguages, resolveCountryCode } from "@/lib/profile-options";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import InfoRow from "./profile-view/InfoRow";
+import SectionCard from "./profile-view/SectionCard";
+import HistoryGroup from "./profile-view/HistoryGroup";
 
 // ─── Read shapers (module scope: built once, never per render) ──────
 const pickAltEmails = (payload) =>
@@ -42,82 +45,7 @@ const pickTimeline = (payload) => (payload?.success ? payload.events || [] : [])
 const pickGroup = (payload) =>
   payload?.success && payload.groups?.length > 0 ? payload.groups[0] : null;
 
-// ─── Info Row ───────────────────────────────────────────────────────
-function InfoRow({ icon: Icon, label, value, editable, onChange }) {
-  return (
-    <div className="space-y-1">
-      <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
-        <Icon className="w-3 h-3" /> {label}
-      </p>
-      {editable ? (
-        <input
-          defaultValue={value}
-          onChange={(event) => onChange?.(event.target.value)}
-          className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg p-3 text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-        />
-      ) : (
-        <p className="text-[11px] font-bold text-[var(--text-primary)] bg-[var(--surface-2)] rounded-lg p-3 border border-[var(--border-primary)]">
-          {value || "—"}
-        </p>
-      )}
-    </div>
-  );
-}
-
-// ─── Section Card ───────────────────────────────────────────────────
-function SectionCard({ title, icon: Icon, children, className = "" }) {
-  return (
-    <div
-      className={`bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl p-5 ${className}`}
-    >
-      <div className="flex items-center gap-2 mb-4">
-        <Icon className="w-4 h-4 text-[var(--brand-orange)]" />
-        <h3 className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
-          {title}
-        </h3>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-// ─── History Group ──────────────────────────────────────────────────
-function HistoryGroup({ title, rows, roleLabel, activeLabel, completedLabel }) {
-  if (!rows || rows.length === 0) return null;
-  return (
-    <div>
-      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">
-        {title}
-      </p>
-      <div className="space-y-2">
-        {rows.map((row) => (
-          <div
-            key={`${row.program_id}-${row.role}`}
-            className="flex items-center justify-between p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)]"
-          >
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                {row.program_name}
-              </p>
-              <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                {roleLabel(row.role)}
-              </p>
-            </div>
-            <span
-              className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
-                row.status === "active"
-                  ? "bg-emerald-500/10 text-emerald-400"
-                  : "bg-white/5 text-[var(--text-tertiary)]"
-              }`}
-            >
-              {row.status === "active" ? activeLabel : completedLabel}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+// ─── Main Profile View ─────────────────────────────────
 
 // ─── Main Component ─────────────────────────────────────────────────
 export default function ProfileView() {

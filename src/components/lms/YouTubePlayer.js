@@ -12,7 +12,7 @@ import {
   Film,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { buildYouTubeEmbedUrl } from "@/lib/lms/youtube";
+import { buildYouTubeEmbedUrl } from "@/models/lms/youtube";
 
 // Origin of the embed, used as the postMessage target for player commands.
 const YT_ORIGIN = "https://www.youtube-nocookie.com";

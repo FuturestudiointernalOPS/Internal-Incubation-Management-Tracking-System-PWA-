@@ -26,20 +26,20 @@ const mockModels = {
   updateTaskEndDate: jest.fn(),
 };
 
-jest.mock("@/models/tasks", () => mockModels);
 jest.mock("@/models/contactGroups", () => ({
   validateTaskAssignment: jest.fn(async () => ({ allowed: true })),
 }));
-jest.mock("@/lib/db/queries/tasks", () => ({
+jest.mock("@/models/tasks", () => ({
+  ...mockModels,
   getTaskTitleById: jest.fn(async () => "Parent"),
   getTaskEndDateById: jest.fn(async () => null),
 }));
-jest.mock("@/lib/standupUpsert", () => ({ standupUpsert: jest.fn(async () => ({})) }));
-jest.mock("@/lib/taskAudit", () => ({
+jest.mock("@/models/standupUpsert", () => ({ standupUpsert: jest.fn(async () => ({})) }));
+jest.mock("@/models/taskAudit", () => ({
   logTaskEvent: jest.fn(async () => {}),
   ACTION_TYPES: { TASK_CREATED: "created", TASK_UPDATED: "updated" },
 }));
-jest.mock("@/lib/audit", () => ({
+jest.mock("@/services/tasks/auditLog", () => ({
   logAuditEvent: jest.fn(async () => {}),
   isTaskLocked: jest.fn(async () => false),
 }));

@@ -17,7 +17,7 @@ jest.mock("@/lib/db", () => ({
   default: { execute: jest.fn(async () => ({ rows: [] })) },
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
@@ -38,7 +38,7 @@ jest.mock("@/models/adminOps", () => ({
 }));
 
 const { POST, GET, PATCH } = require("@/app/api/errors/route");
-const { requireAuthorization } = require("@/lib/authorization");
+const { requireAuthorization } = require("@/models/authorization/index");
 const { enforceRateLimit } = require("@/lib/rate-limit");
 const { NextResponse } = require("next/server");
 const adminOps = require("@/models/adminOps");

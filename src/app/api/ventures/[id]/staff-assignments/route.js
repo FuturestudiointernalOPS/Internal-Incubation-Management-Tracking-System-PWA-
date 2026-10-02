@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-import { listAssignments, createAssignment, removeAssignment } from "@/lib/venturePermissions";
+import { listAssignments, createAssignment, removeAssignment } from "@/services/ventures/permissions";
 import {
   getVentureCodeForAssignment,
   getLiveContactByCid,

@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { getSession, hasProgramManagementAccess } from "@/lib/auth";
 import { requireProgramScope } from "@/lib/programScopedAccess";
 import { serverError } from "@/lib/apiError";

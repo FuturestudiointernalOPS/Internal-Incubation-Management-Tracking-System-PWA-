@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { hasVentureCapability } from "@/lib/venturePermissions";
+import { hasVentureCapability } from "@/services/ventures/permissions";
 import {
   getVentureCodeByDbId,
   getInternalNotesViewPermission,

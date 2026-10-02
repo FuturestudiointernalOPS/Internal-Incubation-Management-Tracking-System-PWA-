@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { getRegisteredModules } from "@/lib/platform/registry";
+import { getRegisteredModules } from "@/models/platform/registry";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useI18n } from "@/lib/i18n";
 import {

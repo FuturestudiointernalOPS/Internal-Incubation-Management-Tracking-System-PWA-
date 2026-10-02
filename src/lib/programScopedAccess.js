@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getAuthorizationContext, requireAuthorization } from "@/lib/authorization";
-import { isWithinScope } from "@/lib/authorization/scope";
+import { getAuthorizationContext, requireAuthorization } from "@/models/authorization/index";
+import { isWithinScope } from "@/services/authorization/scope";
 
 /**
  * PROGRAM SCOPED ACCESS — the record-scope layer for program WRITES.

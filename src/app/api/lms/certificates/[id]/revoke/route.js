@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { requireAuthorization } from "@/lib/authorization";
-import { revokeCertificate } from "@/lib/lms/certificates";
-import { lmsErrorResponse } from "@/lib/lms/errors";
+import { requireAuthorization } from "@/models/authorization/index";
+import { revokeCertificate } from "@/models/lms/certificates";
+import { lmsErrorResponse } from "@/models/lms/errors";
 
 export const dynamic = "force-dynamic";
 

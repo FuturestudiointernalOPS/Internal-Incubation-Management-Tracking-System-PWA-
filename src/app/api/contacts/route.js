@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { normalizeGroupName, INTERNAL_GROUP } from "@/lib/authorization/membership";
 import { readRegistryContacts } from "@/services/contacts/registryRead";
 import { softDeleteRegistryContact } from "@/services/contacts/deletion";

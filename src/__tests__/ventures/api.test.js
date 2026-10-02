@@ -36,7 +36,7 @@ jest.mock("uuid", () => ({
 // Phase 10: migrated venture routes gate through the canonical authorization
 // resolver. Authorization is out of scope for these business-logic tests,
 // so the gate is mocked as granted.
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn().mockResolvedValue(null),
   // Phase 5c: the venture gate asks the resolver for the context (Super Admin
   // bypass) and checks record scope on the converted routes.
@@ -44,7 +44,7 @@ jest.mock("@/lib/authorization", () => ({
   authorize: jest.fn().mockReturnValue(true),
 }));
 
-jest.mock("@/lib/authorization/scope", () => ({
+jest.mock("@/services/authorization/scope", () => ({
   resolveVentureScopeId: jest.fn(async (id) => id),
   isWithinScope: jest.fn().mockResolvedValue(true),
 }));

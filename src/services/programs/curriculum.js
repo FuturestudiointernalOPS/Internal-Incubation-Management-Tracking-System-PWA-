@@ -13,7 +13,7 @@
  * It reads and writes through `@/models/**`.
  */
 
-import { recalculateKpiProgress } from "@/lib/kpi-progress";
+import { recalculateKpiProgress } from "@/models/kpi-progress";
 import {
   addRequirementAssigneeIdColumn,
   addRequirementAssigneeTypeColumn,

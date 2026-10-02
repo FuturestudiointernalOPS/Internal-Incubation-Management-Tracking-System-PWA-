@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { seedDefaultAccessProfiles } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { requireSameOrigin } from "@/lib/requestOrigin";
 
 /**

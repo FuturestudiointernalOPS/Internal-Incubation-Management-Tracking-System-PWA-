@@ -42,7 +42,7 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => true),
 }));
 
-const { buildProgramScopeReadiness } = require("@/models/authorization/programScopeReadiness");
+const { buildProgramScopeReadiness } = require("@/services/authorization/programScopeReadiness");
 
 const OPEN_END = "2099-06-30";
 

@@ -42,10 +42,10 @@ import {
   updateTaskEndDate,
 } from "@/models/tasks";
 // Kept on the compatibility facades the existing task suite mocks.
-import { getTaskTitleById, getTaskEndDateById } from "@/lib/db/queries/tasks";
-import { standupUpsert } from "@/lib/standupUpsert";
-import { logTaskEvent, ACTION_TYPES } from "@/lib/taskAudit";
-import { logAuditEvent } from "@/lib/audit";
+import { getTaskTitleById, getTaskEndDateById } from "@/models/tasks";
+import { standupUpsert } from "@/models/standupUpsert";
+import { logTaskEvent, ACTION_TYPES } from "@/models/taskAudit";
+import { logAuditEvent } from "@/services/tasks/auditLog";
 import { validateTaskAssignment } from "@/models/contactGroups";
 import { seesWholePortfolio } from "@/services/authorization/listingScope";
 import { isValidDateStr, todayStr, isCurrentWeek } from "./dates";

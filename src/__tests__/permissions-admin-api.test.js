@@ -62,9 +62,9 @@ jest.mock("@/lib/auth", () => ({
 }));
 
 let mockAuthzDecision = null; // null = granted (route proceeds)
-const mockRealEligAdmin = jest.requireActual("@/lib/authorization/eligibility-admin");
+const mockRealEligAdmin = jest.requireActual("@/services/authorization/eligibilityAdmin");
 const mockRealEligibility = jest.requireActual("@/lib/authorization/eligibility");
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn().mockImplementation(async () => mockAuthzDecision),
   invalidateAllAuthorizationContexts: jest.fn(),
   invalidateAuthorizationContext: jest.fn(),
@@ -82,7 +82,7 @@ jest.mock("@/lib/authorization", () => ({
 }));
 
 const { requireAuthorization, invalidateAllAuthorizationContexts, assertTemplateCapsEligible, getAuthorizationContext } =
-  require("@/lib/authorization");
+  require("@/models/authorization/index");
 const { logPermissionAudit } = require("@/lib/auth");
 const eligibilityRoute = require("@/app/api/engineering/permissions/eligibility/route");
 const roleDefaultsRoute = require("@/app/api/access-profiles/role-defaults/route");

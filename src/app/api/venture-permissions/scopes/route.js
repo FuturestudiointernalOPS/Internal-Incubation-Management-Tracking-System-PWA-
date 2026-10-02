@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { listScopeTypes } from "@/lib/venturePermissions";
+import { listScopeTypes } from "@/services/ventures/permissions";
 
 const READ_ROLES = ["super_admin", "staff"];
 

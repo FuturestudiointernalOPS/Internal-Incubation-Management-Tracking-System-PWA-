@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { listPlanTemplates, createTemplateFromPlan } from "@/lib/ventureOperatingPlans";
+import { listPlanTemplates, createTemplateFromPlan } from "@/services/ventures/operatingPlans";
 import {
   getPlanVentureIdAndName,
   setVenturePlanTemplateActive,
@@ -40,7 +40,7 @@ export const POST = createHandler(
     const plan = planResult.rows?.[0];
     if (!plan) return NextResponse.json({ success: false, error: "Plan not found." }, { status: 404 });
 
-    const { resolvePlanAccess, allowsPlanAction } = await import("@/lib/ventureOperatingPlans");
+    const { resolvePlanAccess, allowsPlanAction } = await import("@/services/ventures/operatingPlans");
     const access = await resolvePlanAccess(plan.venture_id, session);
     if (!access.ok || !(await allowsPlanAction(access, "manage"))) {
       return NextResponse.json({ success: false, error: "Only staff managing this Venture can save it as a template." }, { status: 403 });

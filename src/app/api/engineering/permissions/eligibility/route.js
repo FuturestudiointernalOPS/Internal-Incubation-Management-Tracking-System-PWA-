@@ -13,7 +13,7 @@ import {
   MODULE_TO_FEATURE,
   validateEligibilityChanges,
   findTemplatesGrantingFeature,
-} from "@/lib/authorization";
+} from "@/models/authorization/index";
 import {
   listFeatureEligibilityRows,
   listDistinctUserGroupNames,

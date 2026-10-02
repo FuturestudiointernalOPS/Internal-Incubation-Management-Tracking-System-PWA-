@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { requireAuthorization } from "@/lib/authorization";
-import { lmsErrorResponse } from "@/lib/lms/errors";
+import { requireAuthorization } from "@/models/authorization/index";
+import { lmsErrorResponse } from "@/models/lms/errors";
 import {
   getRegistrationStats,
   listPaymentEvents,
@@ -9,9 +9,9 @@ import {
   listRegistrations,
   listRegistrationsRunOptions,
   listRegistrationsToReview,
-} from "@/lib/lms/registrations";
-import { reconcileRegistrations } from "@/lib/lms/checkoutReconcile";
-import { linkRunToCourse } from "@/lib/lms/checkout";
+} from "@/models/lms/registrations";
+import { reconcileRegistrations } from "@/services/lms/checkoutReconcile";
+import { linkRunToCourse } from "@/services/lms/checkout";
 
 export const dynamic = "force-dynamic";
 

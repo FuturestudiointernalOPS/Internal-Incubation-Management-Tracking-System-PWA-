@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { requireAuthorization } from "@/lib/authorization";
-import { LmsError, lmsErrorResponse } from "@/lib/lms/errors";
-import { extractYouTubeVideoId } from "@/lib/lms/youtube";
+import { requireAuthorization } from "@/models/authorization/index";
+import { LmsError, lmsErrorResponse } from "@/models/lms/errors";
+import { extractYouTubeVideoId } from "@/models/lms/youtube";
 
 export const dynamic = "force-dynamic";
 

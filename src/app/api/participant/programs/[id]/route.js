@@ -16,8 +16,8 @@ import {
 } from "@/models/programMembership";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-import { isParticipantInProgram } from "@/lib/participant-membership";
-import { getProgramLearningForParticipant } from "@/lib/lms/programRequirements";
+import { isParticipantInProgram } from "@/models/participant-membership";
+import { getProgramLearningForParticipant } from "@/models/lms/programRequirements";
 
 export const dynamic = "force-dynamic";
 

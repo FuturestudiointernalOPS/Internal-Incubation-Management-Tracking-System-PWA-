@@ -66,7 +66,7 @@ jest.mock("@/lib/ventures", () => ({
   updateActionItem: jest.fn(),
 }));
 
-jest.mock("@/lib/ventureNotify", () => ({
+jest.mock("@/services/ventures/notify", () => ({
   notifyVentureCoach: (...args) => mockNotifyCoach(...args),
   notifyAndEmailVentureFounders: (...args) => mockNotifyFounders(...args),
   notifyVentureLeadManagers: (...args) => mockNotifyLeadManagers(...args),

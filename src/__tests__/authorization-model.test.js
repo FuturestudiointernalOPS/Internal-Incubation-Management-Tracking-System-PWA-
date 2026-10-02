@@ -13,9 +13,9 @@
 
 const { readFileSync, readdirSync, statSync } = require("fs");
 const { join } = require("path");
-const { ROLE_CATALOG } = require("@/lib/authorization/eligibility-admin");
+const { ROLE_CATALOG } = require("@/services/authorization/eligibilityAdmin");
 const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
-const { resolveEffectiveRole, INTERNAL_GROUP } = require("@/lib/platform/roles");
+const { resolveEffectiveRole, INTERNAL_GROUP } = require("@/models/platform/roles");
 
 const API_ROOT = join(__dirname, "..", "app", "api");
 const walk = (dir) => {
@@ -104,7 +104,7 @@ describe("Phase 9 — model consistency", () => {
   });
 
   test("eligibility UI identities are the agreed matrix columns and stay within ROLE_CATALOG", () => {
-    const { ELIGIBILITY_IDENTITIES } = require("@/lib/authorization/eligibility-admin");
+    const { ELIGIBILITY_IDENTITIES } = require("@/services/authorization/eligibilityAdmin");
     expect(ELIGIBILITY_IDENTITIES).toEqual([
       "super_admin",
       "staff",

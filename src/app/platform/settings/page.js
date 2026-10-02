@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { getRegisteredModules } from "@/lib/platform/registry";
-import { listServices } from "@/lib/platform/services";
+import { getRegisteredModules } from "@/models/platform/registry";
+import { listServices } from "@/models/platform/services";
 import { useI18n } from "@/lib/i18n";
 import { Eye, EyeOff, ToggleLeft, ToggleRight } from "lucide-react";
 

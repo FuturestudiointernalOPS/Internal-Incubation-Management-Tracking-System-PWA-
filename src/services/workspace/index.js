@@ -5,7 +5,10 @@
  * and writes through `@/models/**` (the repository layer) and never runs SQL
  * itself (enforced by `src/__tests__/server/services-boundaries.test.js`).
  *
- *   calendar.js — the personal-calendar Venture session source
+ *   calendar.js   — the personal-calendar Venture session source + the
+ *                   unified-calendar scope decisions
+ *   navigation.js — the post-login navigation list, contexts and identity labels
  */
 
 export * from "./calendar";
+export * from "./navigation";

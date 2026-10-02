@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-import { getProgramHistory } from "@/lib/program-history";
+import { getProgramHistory } from "@/models/program-history";
 
 export const dynamic = "force-dynamic";
 

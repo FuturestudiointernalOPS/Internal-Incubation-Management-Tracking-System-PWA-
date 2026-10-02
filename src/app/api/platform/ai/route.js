@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAuthorization } from "@/lib/authorization";
-import { summarizeSubmission, analyzeSubmission } from "@/lib/platform/integrations";
+import { requireAuthorization } from "@/models/authorization/index";
+import { summarizeSubmission, analyzeSubmission } from "@/models/platform/integrations";
 import { DEFAULT_MODEL as DEEPSEEK_MODEL } from "@/lib/deepseek";
 
 /**

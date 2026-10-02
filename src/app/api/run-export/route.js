@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { serverError } from "@/lib/apiError";
 import writeXlsxFile from "write-excel-file/node";
 import { jsPDF } from "jspdf";

@@ -55,7 +55,7 @@ jest.mock("@/models/kpi-progress", () => ({
   listKpiNamesForPrograms: jest.fn(async () => ({ rows: [] })),
 }));
 
-jest.mock("@/lib/kpi-progress", () => ({
+jest.mock("@/models/kpi-progress", () => ({
   recalculateKpiProgress: jest.fn(async () => ({})),
 }));
 
@@ -69,7 +69,7 @@ jest.mock("@/lib/auth", () => ({
   getSession: jest.fn(async () => ({ cid: "USR_1", name: "PM One" })),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 

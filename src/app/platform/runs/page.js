@@ -43,7 +43,7 @@ export default function FormRunsPage() {
   // an applicant. Watching batch PROGRESS only needs runs.view, so the progress
   // panel stays visible to everyone who can open the run.
   const { can } = usePermissions();
-  const { confirm } = useDialogs();
+  const { confirm, prompt } = useDialogs();
   const canReview = can("runs", "review");
   const [forms, setForms] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -1681,6 +1681,44 @@ export default function FormRunsPage() {
     setManualAdding(false);
   };
 
+  // ─── Correct a respondent's email (a wrong address typed on the form / manual add) ───
+  const editRespondentEmail = async (submission) => {
+    const current = String(submission.email || "").trim();
+    const next = await prompt({
+      message: t("platformMisc.runs.editEmailPrompt"),
+      inputLabel: t("platformMisc.runs.editEmailLabel"),
+      defaultValue: current,
+      inputType: "email",
+      placeholder: t("platformMisc.runs.editEmailPlaceholder"),
+      confirmLabel: t("platformMisc.runs.editEmailSave"),
+      validate: (value) =>
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value).trim()) ? null : t("errors.invalidEmail"),
+    });
+    if (next == null) return;
+    const cleanEmail = String(next).trim();
+    if (!cleanEmail || cleanEmail.toLowerCase() === current.toLowerCase()) return;
+    try {
+      const response = await fetch("/api/platform/form-runs?action=update_respondent_email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ run_id: selectedRun?.id, submission_id: submission.id, email: cleanEmail }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        notify(
+          data.contact_conflict
+            ? t("platformMisc.runs.editEmailConflict")
+            : t("platformMisc.runs.editEmailSuccess"),
+        );
+        if (selectedRun) await openRun(selectedRun, { keepTab: true });
+      } else {
+        notify(data.error || t("platformMisc.runs.editEmailFailed"));
+      }
+    } catch (_) {
+      notify(t("platformMisc.runs.editEmailFailed"));
+    }
+  };
+
   const personalizeMessage = async () => {
     setAiPersonalizing(true);
     try {
@@ -2295,6 +2333,7 @@ export default function FormRunsPage() {
               bulkSummary={bulkSummary} setBulkSummary={setBulkSummary}
               messageSummary={messageSummary} setMessageSummary={setMessageSummary}
               subFilter={subFilter} setSubFilter={setSubFilter}
+              onEditRespondentEmail={editRespondentEmail}
             />
           )}
 

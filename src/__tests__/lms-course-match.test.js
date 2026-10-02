@@ -18,7 +18,7 @@ jest.mock("@/lib/db", () => ({
 }));
 
 const { GET: matchGET } = require("@/app/api/public/course-match/route");
-const { nameKey, nameScore } = require("@/lib/lms/courseMatch");
+const { nameKey, nameScore } = require("@/models/lms/courseMatch");
 
 const readJson = async (res) => res.json();
 

@@ -1,232 +1,36 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Calendar,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  ListTodo,
-  Shield,
-  Target,
-  Trophy,
-  Rocket,
-  Briefcase,
-  Users,
-  Activity,
-  TrendingUp,
-  X,
-  AlertTriangle,
-  CheckCircle2,
-  BarChart3,
-  Sparkles,
-  Zap,
-  Plus,
-} from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { formatLocaleDate, averageKpiProgress } from "@/lib/constants";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
 import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
-
-// ─── CONSTANTS ─────────────────────────────────────────────────────────────
-
-const STATUS_CONFIG = {
-  pending: {
-    label: "Pending",
-    color: "text-[var(--text-secondary)]",
-    bg: "bg-secondary",
-    dot: "bg-slate-400",
-  },
-  in_progress: {
-    label: "Active",
-    color: "text-blue-400",
-    bg: "bg-blue-500/10",
-    dot: "bg-blue-400",
-  },
-  blocked: {
-    label: "Blocked",
-    color: "text-rose-400",
-    bg: "bg-rose-500/10",
-    dot: "bg-rose-400",
-  },
-  completed: {
-    label: "Done",
-    color: "text-emerald-400",
-    bg: "bg-emerald-500/10",
-    dot: "bg-emerald-400",
-  },
-  carried_over: {
-    label: "Carryover",
-    color: "text-indigo-400",
-    bg: "bg-indigo-500/10",
-    dot: "bg-indigo-400",
-  },
-};
-
-const EVENT_BASE = {
-  task: "bg-blue-500/10 text-blue-400",
-  program: "bg-emerald-500/10 text-emerald-400",
-  session: "bg-amber-500/10 text-amber-400",
-  deliverable: "bg-purple-500/10 text-purple-400",
-  event: "bg-sky-500/10 text-sky-400",
-};
-
-const PRIORITY_COLORS = {
-  critical: "bg-red-500/20 text-red-400 border-red-500/30",
-  high: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-  medium: "bg-blue-500/10 text-blue-400",
-  low: "bg-secondary text-[var(--text-secondary)]",
-};
-
-const getEventStyle = (event) => {
-  // Completed: muted and struck through, so open work stands out
-  if (event.status === "completed")
-    return "bg-[var(--surface-2)] text-[var(--text-tertiary)] line-through";
-  if (event.status === "blocked") return "bg-rose-500/15 text-rose-400";
-  // Tasks: color by priority
-  if (event.source === "task" && event.priority && event.priority !== "medium") {
-    return PRIORITY_COLORS[event.priority] || EVENT_BASE.task;
-  }
-  return EVENT_BASE[event.source] || "bg-secondary text-[var(--text-secondary)]";
-};
-
-// Display rules for one calendar day:
-//  1. Order = creation order. Task ids are serial, so a lower id was created
-//     first; tasks come first, then the other entries in the order received.
-//  2. The same task is shown ONCE. Two tasks with the same title on the same
-//     day (a carried-over copy next to the original…) are the same work, shown
-//     with the look of the most pressing copy (open work before finished).
-//     Only a different time of day keeps them apart; tasks have no time today
-//     (DATE columns), so the time only matters if one is ever provided.
-//     Sessions, deliverables and events are never merged.
-const STATUS_RANK = {
-  blocked: 0,
-  in_progress: 1,
-  pending: 2,
-  carried_over: 3,
-  completed: 4,
-};
-
-function creationOrder(first, second) {
-  const firstIsTask = first.source === "task";
-  const secondIsTask = second.source === "task";
-  if (firstIsTask !== secondIsTask) return firstIsTask ? -1 : 1;
-  if (!firstIsTask) return 0;
-  return (Number(first.related_id) || 0) - (Number(second.related_id) || 0);
-}
-
-function groupSameTitle(items) {
-  const groups = new Map();
-  for (const item of [...items].sort(creationOrder)) {
-    const key =
-      item.source === "task"
-        ? `task:${String(item.title || "").trim().toLowerCase()}:${item.time || ""}`
-        : `id:${item.id}`;
-    const group = groups.get(key);
-    if (!group) {
-      groups.set(key, { primary: item, items: [item] });
-      continue;
-    }
-    group.items.push(item);
-    const rank = STATUS_RANK[item.status] ?? 2;
-    if (rank < (STATUS_RANK[group.primary.status] ?? 2)) group.primary = item;
-  }
-  return [...groups.values()];
-}
-
-// Bar colour for the in-between days of a multi-day task (see the month grid).
-const getEventBar = (event) => {
-  if (event.status === "completed") return "bg-emerald-400 opacity-30";
-  if (event.status === "blocked") return "bg-rose-400 opacity-60";
-  if (event.priority === "critical") return "bg-red-400 opacity-60";
-  if (event.priority === "high") return "bg-amber-400 opacity-60";
-  return "bg-blue-400 opacity-60";
-};
-
-const EVENT_DOTS = {
-  task: "bg-blue-400",
-  program: "bg-emerald-400",
-  session: "bg-amber-400",
-  deliverable: "bg-purple-400",
-  event: "bg-sky-400",
-};
-
-const MONTH_KEYS = [
-  "january",
-  "february",
-  "march",
-  "april",
-  "may",
-  "june",
-  "july",
-  "august",
-  "september",
-  "october",
-  "november",
-  "december",
-];
-const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-
-// Recent-activity feed: audit_log actions are open-ended, so map the known
-// actions to keys and fall back to the raw (humanized) action for anything else.
-const ACTIVITY_LABELS = {
-  task_created: "activity.task created",
-  task_completed: "activity.task completed",
-  blocker_resolved: "activity.blocker resolved",
-  task_assigned: "activity.task assigned",
-  assigned: "activity.assigned",
-};
-
-// ─── HELPERS ───────────────────────────────────────────────────────────────
-
-function formatDate(year, month, day) {
-  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-function getCalendarDays(year, month) {
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
-  const days = [];
-  for (let index = 0; index < firstDay.getDay(); index++) days.push(null);
-  for (let day = 1; day <= lastDay.getDate(); day++) days.push(day);
-  return days;
-}
-
-function isToday(date) {
-  const today = new Date();
-  return (
-    date.getDate() === today.getDate() &&
-    date.getMonth() === today.getMonth() &&
-    date.getFullYear() === today.getFullYear()
-  );
-}
-
-function cn(...classes) {
-  return classes.filter(Boolean).join(" ");
-}
-
-// ─── ROLE HIERARCHY HELPERS ────────────────────────────────────────────────
-
-const ROLE_HIERARCHY = {
-  super_admin: 5,
-  program_manager: 3,
-  team_lead: 2,
-  staff: 1,
-};
-
-function hasMinRole(userRole, minRole) {
-  return (ROLE_HIERARCHY[userRole] || 0) >= (ROLE_HIERARCHY[minRole] || 0);
-}
-
-// ─── MODULE-SCOPE READER ───────────────────────────────────────────────────
-// The reading hook keys its internal work on this, so it is built once here
-// rather than on every render.
-
-/** The dashboard payload, or nothing when the server refused the read. */
-const pickDashboard = (payload) => (payload?.success ? payload : null);
+import {
+  getCalendarDays,
+  hasMinRole,
+  pickDashboard,
+} from "./unified-dashboard/constants";
+import DashboardHeader from "./unified-dashboard/DashboardHeader";
+import CalendarPanel from "./unified-dashboard/CalendarPanel";
+import AssignmentsSection from "./unified-dashboard/AssignmentsSection";
+import AttentionSection from "./unified-dashboard/AttentionSection";
+import OperationsSection from "./unified-dashboard/OperationsSection";
+import StrategicKpisCard from "./unified-dashboard/StrategicKpisCard";
+import MyProgramsCard from "./unified-dashboard/MyProgramsCard";
+import FacilitatorProgramsCard from "./unified-dashboard/FacilitatorProgramsCard";
+import MyTasksCard from "./unified-dashboard/MyTasksCard";
+import RecentActivityCard from "./unified-dashboard/RecentActivityCard";
+import QuickStatsCard from "./unified-dashboard/QuickStatsCard";
+import MyProjectsCard from "./unified-dashboard/MyProjectsCard";
+import ActiveBlockersCard from "./unified-dashboard/ActiveBlockersCard";
+import UpcomingEventsCard from "./unified-dashboard/UpcomingEventsCard";
+import EmptyState from "./unified-dashboard/EmptyState";
+import EventDetailDrawer from "./unified-dashboard/EventDetailDrawer";
 
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────
+// The screen owns the session, the dashboard read, the calendar navigation and
+// the writes; every block it renders lives in ./unified-dashboard/.
 
 export default function UnifiedDashboard({ role: propRole }) {
   const router = useRouter();
@@ -491,6 +295,47 @@ export default function UnifiedDashboard({ role: propRole }) {
     [calYear, calMonth],
   );
 
+  // ── The routes the extracted cards ask for ──
+  const isSuperAdmin = user?.role === "super_admin";
+  const openRoleAwareReport = () =>
+    router.push(isSuperAdmin ? "/admin/op-report" : "/staff/op-report");
+  const openStaffReport = () => router.push("/staff/op-report");
+  const openTasksOrReport = () =>
+    router.push(
+      effectiveRole === "super_admin" ? "/admin/tasks" : "/staff/op-report",
+    );
+  const openProjectsOrListing = () =>
+    router.push(
+      effectiveRole === "super_admin" ? "/admin/projects" : "/staff/projects",
+    );
+  const openProgram = (program) => router.push(`/pm/programs/${program.id}`);
+  const openFacilitatorProgram = (program) =>
+    router.push(`/facilitator/program/${program.id}`);
+  const openProject = (project) =>
+    router.push(`/admin/projects/${project.id}`);
+  const openProjectFromEvent = (projectId) => {
+    setSelectedEvent(null);
+    router.push(`/admin/projects/${projectId}`);
+  };
+
+  // A task on the month grid is read first, so the drawer shows the whole task;
+  // anything else opens the event drawer.
+  const handleMonthEventClick = (event) => {
+    if (event.source === "task" && event.id) {
+      const taskId = String(event.id).startsWith("task-")
+        ? String(event.id).split("-")[1]
+        : event.id;
+      fetch(`/api/tasks?id=${taskId}`)
+        .then((response) => response.json())
+        .then((payload) => {
+          if (payload.success && payload.tasks?.[0])
+            setSelectedTask(payload.tasks[0]);
+        });
+    } else {
+      setSelectedEvent(event);
+    }
+  };
+
   // ── Loading state ──
   if (loading) {
     return (
@@ -548,553 +393,53 @@ export default function UnifiedDashboard({ role: propRole }) {
     <>
       <div className="space-y-8 pb-20 text-left">
         {/* ═══════ HEADER ═══════ */}
-        <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4 border-b border-[var(--border-primary)] pb-6">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                {t("navigation.dashboard")}
-              </span>
-            </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)] tracking-tight">
-              {user?.name || t("common.loading")}
-              <span className="text-[var(--text-secondary)] opacity-30 text-2xl ml-2">
-                · {effectiveRole?.replace(/_/g, " ") || ""}
-              </span>
-            </h1>
-          </div>
-        </header>
+        <DashboardHeader t={t} userName={user?.name} role={effectiveRole} />
 
         {/* ═══════ SECTION 1: UNIFIED CALENDAR ═══════ */}
-        <div className="card !p-3">
-          {/* Calendar header */}
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-              <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
-                {t("time.months." + MONTH_KEYS[calMonth])} {calYear}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              {/* View toggles */}
-              <div className="flex gap-0.5 mr-2 border-r border-[var(--border-primary)] pr-2">
-                {["month", "week", "day"].map((viewOption) => (
-                  <button
-                    key={viewOption}
-                    onClick={() => setCalView(viewOption)}
-                    className={cn(
-                      "text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded transition-all",
-                      calView === viewOption
-                        ? "bg-[var(--brand-orange)] text-black"
-                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
-                    )}
-                  >
-                    {t("time.calendar." + viewOption)}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={handlePrevMonth}
-                className="p-1 rounded hover:bg-tertiary transition-all"
-              >
-                <ChevronLeft className="w-3 h-3" />
-              </button>
-              <button
-                onClick={handleToday}
-                className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary transition-all"
-              >
-                {t("time.today")}
-              </button>
-              <button
-                onClick={handleNextMonth}
-                className="p-1 rounded hover:bg-tertiary transition-all"
-              >
-                <ChevronRight className="w-3 h-3" />
-              </button>
-            </div>
-          </div>
-
-          {/* Month View */}
-          {calView === "month" && (
-            <div className="grid grid-cols-7 gap-px bg-[var(--border-primary)] rounded-lg overflow-hidden">
-              {DAY_KEYS.map((dayKey) => (
-                <div key={dayKey} className="bg-primary p-1 text-center">
-                  <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                    {t("time.days." + dayKey)}
-                  </span>
-                </div>
-              ))}
-              {calendarDays.map((day, index) => {
-                if (day === null)
-                  return (
-                    <div
-                      key={`empty-${index}`}
-                      className="bg-primary p-1 min-h-[55px]"
-                    />
-                  );
-                const dateStr = formatDate(calYear, calMonth, day);
-                const dayEvents = events.filter((event) => event.date === dateStr);
-                const dayGroups = groupSameTitle(dayEvents);
-                const current = isToday(new Date(calYear, calMonth, day));
-                const past =
-                  new Date(calYear, calMonth, day) <
-                  new Date(new Date().toDateString());
-                const isWeekStart =
-                  day === 1 || new Date(calYear, calMonth, day).getDay() === 0;
-                const previousDay = new Date(calYear, calMonth, day - 1);
-                const previousDateStr = formatDate(
-                  previousDay.getFullYear(),
-                  previousDay.getMonth(),
-                  previousDay.getDate(),
-                );
-                return (
-                  <div
-                    key={dateStr}
-                    className={cn(
-                      "p-1 min-h-[55px] transition-all",
-                      current
-                        ? "bg-[var(--surface-1)] ring-2 ring-inset ring-brand-orange/60"
-                        : "bg-primary",
-                      past && "opacity-50",
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span
-                        className={cn(
-                          "text-[10px] font-bold",
-                          current
-                            ? "min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--brand-orange)] text-white flex items-center justify-center"
-                            : "text-[var(--text-secondary)]",
-                        )}
-                      >
-                        {day}
-                      </span>
-                      {dayGroups.length > 0 && (
-                        <span className="text-[10px] font-bold text-[var(--text-tertiary)]">
-                          {dayGroups.length}
-                        </span>
-                      )}
-                    </div>
-                    <div className="space-y-0.5 mt-0.5 max-h-[90px] overflow-y-auto custom-scrollbar">
-                      {dayGroups.map(({ primary: event }) => {
-                        // In-between day of a multi-day task: a thin bar, the
-                        // title only repeated at the start of each week row.
-                        const isMiddle =
-                          event.source === "task" &&
-                          event.type === "task_active" &&
-                          taskDays.has(`${event.related_id}:${previousDateStr}`);
-                        return (
-                        <button
-                          key={event.id}
-                          title={event.title}
-                          aria-label={isMiddle && !isWeekStart ? event.title : undefined}
-                          onClick={() => {
-                            if (event.source === "task" && event.id) {
-                              const taskId = String(event.id).startsWith("task-")
-                                ? String(event.id).split("-")[1]
-                                : event.id;
-                              fetch(`/api/tasks?id=${taskId}`)
-                                .then((response) => response.json())
-                                .then((payload) => {
-                                  if (payload.success && payload.tasks?.[0])
-                                    setSelectedTask(payload.tasks[0]);
-                                });
-                            } else {
-                              setSelectedEvent(event);
-                            }
-                          }}
-                          className={
-                            isMiddle && !isWeekStart
-                              ? cn(
-                                  "block w-full h-1.5 my-1 rounded-full hover:opacity-100 transition-all",
-                                  getEventBar(event),
-                                )
-                              : cn(
-                                  "w-full text-left px-1 py-0.5 rounded text-[10px] font-semibold truncate leading-tight hover:brightness-110 transition-all",
-                                  getEventStyle(event),
-                                )
-                          }
-                        >
-                          {isMiddle && !isWeekStart ? null : event.title}
-                        </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Week View */}
-          {calView === "week" && (
-            <div className="space-y-1.5">
-              {(() => {
-                const startOfWeek = new Date(calYear, calMonth, 1);
-                startOfWeek.setDate(
-                  startOfWeek.getDate() - startOfWeek.getDay(),
-                );
-                return Array.from({ length: 7 }, (_, index) => {
-                  const date = new Date(startOfWeek);
-                  date.setDate(date.getDate() + index);
-                  const dateStr = formatDate(
-                    date.getFullYear(),
-                    date.getMonth(),
-                    date.getDate(),
-                  );
-                  const dayEvents = events.filter((event) => event.date === dateStr);
-                  const current = isToday(date);
-                  return (
-                    <div
-                      key={dateStr}
-                      className={cn(
-                        "flex items-start gap-3 p-2 rounded-lg",
-                        current
-                          ? "bg-brand-orange/5 border border-brand-orange/20"
-                          : "hover:bg-tertiary",
-                      )}
-                    >
-                      <div className="w-8 text-center shrink-0">
-                        <p
-                          className={cn(
-                            "text-[10px] font-bold",
-                            current
-                              ? "text-[var(--brand-orange)]"
-                              : "text-[var(--text-secondary)]",
-                          )}
-                        >
-                          {date.getDate()}
-                        </p>
-                        <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">
-                          {t("time.days." + DAY_KEYS[date.getDay()])}
-                        </p>
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        {dayEvents.length === 0 && (
-                          <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                            {t("common.noEvents")}
-                          </p>
-                        )}
-                        {dayEvents.map((event) => (
-                          <button
-                            key={event.id}
-                            onClick={() => setSelectedEvent(event)}
-                            className="block w-full text-left text-[11px] font-bold text-[var(--text-primary)] hover:text-[var(--brand-orange)] truncate"
-                          >
-                            • {event.title}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
-          )}
-
-          {/* Day View */}
-          {calView === "day" && (
-            <div className="space-y-1.5">
-              {(() => {
-                const today = new Date(calYear, calMonth, now.getDate());
-                const dateStr = formatDate(
-                  today.getFullYear(),
-                  today.getMonth(),
-                  today.getDate(),
-                );
-                const dayEvents = events.filter((event) => event.date === dateStr);
-                return (
-                  <>
-                    <p className="text-[11px] font-bold text-[var(--text-primary)] mb-2">
-                      {today.toLocaleDateString(lang, {
-                        weekday: "long",
-                        month: "long",
-                        day: "numeric",
-                      })}
-                    </p>
-                    {dayEvents.length === 0 && (
-                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                        {t("common.noEvents")}
-                      </p>
-                    )}
-                    {dayEvents.map((event) => (
-                      <div
-                        key={event.id}
-                        onClick={() => setSelectedEvent(event)}
-                        className="flex items-center gap-2 p-2 rounded-lg hover:bg-tertiary transition-all cursor-pointer border border-[var(--border-primary)]"
-                      >
-                        <div
-                          className={cn(
-                            "w-1.5 h-1.5 rounded-full shrink-0",
-                            EVENT_DOTS[event.source] || "bg-slate-400",
-                          )}
-                        />
-                        <span className="text-[11px] font-bold text-[var(--text-primary)] flex-1 truncate">
-                          {event.title}
-                        </span>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                          {event.source}
-                        </span>
-                      </div>
-                    ))}
-                  </>
-                );
-              })()}
-            </div>
-          )}
-
-          {/* Legend */}
-          <div className="flex flex-wrap gap-3 mt-3 pt-2 border-t border-[var(--border-primary)]">
-            {Object.entries(EVENT_DOTS).map(([key, dotClass]) => (
-              <div key={key} className="flex items-center gap-1.5">
-                <div className={cn("w-2 h-2 rounded-full", dotClass)} />
-                <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                  {key}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <CalendarPanel
+          t={t}
+          lang={lang}
+          now={now}
+          calMonth={calMonth}
+          calYear={calYear}
+          calView={calView}
+          onViewChange={setCalView}
+          onPrev={handlePrevMonth}
+          onNext={handleNextMonth}
+          onToday={handleToday}
+          calendarDays={calendarDays}
+          events={events}
+          taskDays={taskDays}
+          onSelectEvent={setSelectedEvent}
+          onMonthEventClick={handleMonthEventClick}
+        />
 
         {/* ═══════ ASSIGNED TO ME (always shown above sections if has assignments) ═══════ */}
         {visibility.showAssignments && (
-          <div className="card border-l-4 border-l-amber-500">
-            <div className="flex items-center gap-2 mb-3">
-              <Target className="w-4 h-4 text-amber-400" />
-              <span className="text-[11px] font-bold uppercase tracking-wide text-amber-400">
-                {t("dashboard.assignedToMe", "ASSIGNÉES À MOI")}
-              </span>
-              <span className="text-[10px] font-bold text-[var(--text-secondary)] ml-auto">
-                {assignments.filter((assignment) => assignment.status === "pending").length}{" "}
-                {t("dashboard.awaitingAction", "en attente d'action")}
-              </span>
-            </div>
-            <div className="space-y-1.5">
-              {assignments.slice(0, 5).map((task) => {
-                const isPending = task.status === "pending";
-                return (
-                  <div
-                    key={task.id}
-                    className={cn(
-                      "flex items-center gap-3 p-3 rounded-xl border",
-                      isPending
-                        ? "border-amber-500/20 bg-amber-500/[0.03]"
-                        : "border-[var(--border-primary)] bg-secondary",
-                    )}
-                  >
-                    <div className="w-7 h-7 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold uppercase">
-                      {(task.user_name || "?").charAt(0)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                          {task.title}
-                        </span>
-                        {task.priority && task.priority !== "medium" && (
-                          <span
-                            className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0 ${task.priority === "critical"
-                                ? "bg-red-500/10 text-red-400"
-                                : task.priority === "high"
-                                  ? "bg-amber-500/10 text-amber-400"
-                                  : "bg-secondary text-[var(--text-secondary)]"
-                              }`}
-                          >
-                            {task.priority}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
-                        {t("dashboard.assignedBy", "Assigné par:")} {task.user_name || "System"}
-                        {task.end_date
-                          ? ` \u00B7 ${t("common.due", "Échéance:")} ${new Date(task.end_date).toLocaleDateString(lang)}`
-                          : ""}
-                      </p>
-                    </div>
-                    {isPending ? (
-                      <div className="flex gap-1.5 shrink-0">
-                        <button
-                          onClick={() =>
-                            handleAssignmentAction(task.id, "accepted")
-                          }
-                          disabled={actionLoading === task.id}
-                          className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[10px] font-bold uppercase tracking-widest hover:brightness-110 disabled:opacity-50"
-                        >
-                          {actionLoading === task.id ? "..." : t("common.accept", "Accepter")}
-                        </button>
-                        <button
-                          onClick={() =>
-                            handleAssignmentAction(task.id, "declined")
-                          }
-                          disabled={actionLoading === task.id}
-                          className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:brightness-110 disabled:opacity-50"
-                        >
-                          {actionLoading === task.id ? "..." : t("common.decline", "Refuser")}
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() =>
-                          handleAssignmentAction(
-                            task.id,
-                            "completed_assignment",
-                          )
-                        }
-                        disabled={actionLoading === task.id}
-                        className="px-3 py-1.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-lg text-[10px] font-bold uppercase tracking-widest hover:text-emerald-400 hover:border-emerald-500/30 transition-all shrink-0 disabled:opacity-50"
-                      >
-                        {actionLoading === task.id ? "..." : t("common.complete", "Terminé")}
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-              {assignments.length > 5 && (
-                <button
-                  onClick={() =>
-                    router.push(
-                      effectiveRole === "super_admin"
-                        ? "/admin/tasks"
-                        : "/staff/op-report",
-                    )
-                  }
-                  className="w-full text-center py-1.5 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--text-primary)] transition-all"
-                >
-                  {t("common.viewAll", "Voir Tout")} ({assignments.length})
-                </button>
-              )}
-            </div>
-          </div>
+          <AssignmentsSection
+            t={t}
+            lang={lang}
+            assignments={assignments}
+            actionLoading={actionLoading}
+            onAction={handleAssignmentAction}
+            onViewAll={openTasksOrReport}
+          />
         )}
 
-        {/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550 ATTENTION REQUIRED \u2550\u2550\u2550\u2550\u2550\u2550\u2550 */}
+        {/* ═══════ ATTENTION REQUIRED ═══════ */}
         {visibility.showAttention && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-rose-400" />
-              <span className="text-sm font-black uppercase tracking-tight text-rose-400">
-                {t("dashboard.attentionRequired", "Attention Requise")}
-              </span>
-            </div>
-
-            {attention.overdueTasks?.length > 0 && (
-              <div className="card border-l-4 border-l-rose-500">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-3.5 h-3.5 text-rose-500" />
-                  <span className="text-[11px] font-bold uppercase tracking-wide text-rose-500">
-                    {t("dashboard.overdueTasks", "Tâches en retard")} ({attention.overdueTasks.length})
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  {attention.overdueTasks.slice(0, 5).map((task) => (
-                    <div
-                      key={task.id}
-                      onClick={() => {
-                        const roleSegment =
-                          user?.role === "super_admin" ? "admin" : "staff";
-                        router.push("/" + roleSegment + "/op-report");
-                      }}
-                      className="flex items-center gap-2 p-2 rounded-lg bg-rose-500/5 border border-rose-500/10 cursor-pointer hover:brightness-110 transition-all"
-                    >
-                      <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate">
-                        {task.title}
-                      </span>
-                      {task.priority && (
-                        <span
-                          className={cn(
-                            "text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded",
-                            task.priority === "high" || task.priority === "critical"
-                              ? "bg-rose-500/10 text-rose-500"
-                              : "bg-secondary text-[var(--text-secondary)]",
-                          )}
-                        >
-                          {task.priority}
-                        </span>
-                      )}
-                      <span className="text-[10px] font-medium text-[var(--text-secondary)] shrink-0">
-                        {task.due_date
-                          ? new Date(task.due_date).toLocaleDateString(lang)
-                          : ""}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {attention.criticalBlockers?.length > 0 && (
-              <div className="card border-l-4 border-l-rose-500">
-                <div className="flex items-center gap-2 mb-2">
-                  <Shield className="w-3.5 h-3.5 text-rose-500" />
-                  <span className="text-[11px] font-bold uppercase tracking-wide text-rose-500">
-                    {t("dashboard.criticalBlockers", "Bloqueurs critiques")} ({attention.criticalBlockers.length})
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  {attention.criticalBlockers.slice(0, 5).map((blocker) => (
-                    <div
-                      key={blocker.id}
-                      className="flex items-center gap-3 p-2 rounded-xl bg-rose-500/[0.03] border border-rose-500/10"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                            {blocker.title}
-                          </span>
-                          <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-500">
-                            {blocker.severity}
-                          </span>
-                        </div>
-                        {blocker.project_id && (
-                          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
-                            {t("common.project", "Projet:")} #{blocker.project_id}
-                          </p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleResolveBlocker(blocker.id)}
-                        disabled={resolvingBlocker === blocker.id}
-                        className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
-                      >
-                        {resolvingBlocker === blocker.id ? "..." : t("common.resolve", "Résoudre")}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {attention.dueToday?.length > 0 && (
-              <div className="card border-l-4 border-l-amber-500">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="text-[11px] font-bold uppercase tracking-wide text-amber-400">
-                    {t("dashboard.dueToday", "À rendre aujourd'hui")} ({attention.dueToday.length})
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  {attention.dueToday.map((task) => (
-                    <div
-                      key={task.id}
-                      onClick={() => {
-                        router.push("/staff/op-report");
-                      }}
-                      className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/5 border border-amber-500/10 cursor-pointer hover:brightness-110 transition-all"
-                    >
-                      <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate">
-                        {task.title}
-                      </span>
-                      <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">
-                        {task.type}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <AttentionSection
+            t={t}
+            lang={lang}
+            attention={attention}
+            resolvingBlocker={resolvingBlocker}
+            onOpenRoleAwareReport={openRoleAwareReport}
+            onOpenStaffReport={openStaffReport}
+            onResolveBlocker={handleResolveBlocker}
+          />
         )}
 
-        {/* \u2550\u2550\u2550\u2550\u2550\u2550\u2550 CONSOLIDATED WORKSPACE \u2550\u2550\u2550\u2550\u2550\u2550\u2550 */}
+        {/* ═══════ CONSOLIDATED WORKSPACE ═══════ */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* ===== LEFT COLUMN (2/3) ===== */}
           <div className="lg:col-span-2 space-y-6">
@@ -1103,531 +448,98 @@ export default function UnifiedDashboard({ role: propRole }) {
               effectiveRole === "super_admin") && (
               <OperationsSection
                 userId={user?.cid || user?.id}
-                userName={user?.name}
                 summary={summary}
               />
             )}
 
             {/* STRATEGIC KPIs */}
-            {visibility.showQuickPrograms && (data?.kpis || []).length > 0 && (() => {
-              const grouped = {};
-              (data.kpis || []).forEach(kpi => {
-                if (!grouped[kpi.program_id]) grouped[kpi.program_id] = [];
-                grouped[kpi.program_id].push(kpi);
-              });
-              return (
-              <div className="card">
-                <div className="flex items-center gap-2 mb-4">
-                  <TrendingUp className="w-4 h-4 text-[var(--brand-orange)]" />
-                  <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
-                    Strategic KPIs
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  {Object.entries(grouped).slice(0, 3).map(([programId, kpis]) => {
-                    const program = (data?.quickAccess?.programs || []).find(candidate => String(candidate.id) === String(programId));
-                    return (
-                      <div key={programId} className="space-y-2">
-                        {program && (
-                          <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                            {program.name}
-                          </span>
-                        )}
-                        <div className="grid grid-cols-2 gap-1.5">
-                          {kpis.slice(0, 6).map((kpi) => {
-                            const percent = Math.round(parseFloat(kpi.completion_rate) || 0);
-                            return (
-                              <div key={kpi.kpi_id} className="p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase truncate max-w-[80px]">
-                                    {kpi.title || kpi.name}
-                                  </span>
-                                  <span className="text-[10px] font-bold text-[var(--brand-orange)]">{Math.round(percent)}%</span>
-                                </div>
-                                <div className="h-1 w-full bg-[var(--bg-primary)] rounded-full overflow-hidden">
-                                  <div className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-amber-400 rounded-full transition-all" style={{width: `${percent}%`}} />
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              );
-            })()}
+            {visibility.showQuickPrograms &&
+              (data?.kpis || []).length > 0 && (
+                <StrategicKpisCard
+                  kpis={data.kpis}
+                  programs={quickAccess.programs}
+                />
+              )}
 
             {/* My Programs — Rich Cards */}
             {visibility.showQuickPrograms && (
-              <div className="card">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Briefcase className="w-4 h-4 text-emerald-400" />
-                    <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
-                      {t("dashboard.myPrograms", "Mes Programmes")}
-                    </span>
-                    <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                      ({quickAccess.programs?.length || 0})
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => router.push("/pm/programs")}
-                    className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline"
-                  >
-                    {t("common.viewAll", "Voir Tout")}
-                  </button>
-                </div>
-                {fetching ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div
-                      className="w-5 h-5 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
-                      style={{
-                        borderColor: "rgba(255,102,0,0.1)",
-                        borderTopColor: "var(--brand-orange)",
-                      }}
-                    />
-                  </div>
-                ) : quickAccess.programs?.length === 0 ? (
-                  <p className="text-sm text-[var(--text-secondary)] py-6 text-center">
-                    {t("dashboard.noPrograms", "Aucun programme")}
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {quickAccess.programs?.slice(0, 4).map((program) => {
-                      const fallbackProgress =
-                        Number(program.completion_index) ||
-                        completionIndexById.get(String(program.id)) ||
-                        0;
-                      // Get this program's KPIs from dashboard data.
-                      const programKpis = (data?.kpis || []).filter(kpi => String(kpi.program_id) === String(program.id));
-                      // Each objective's rate is stored ready-made; every objective
-                      // weighs the same, so the programme figure is their plain
-                      // average. Objectives with no linked deliverable have no
-                      // cached row and are left out.
-                      const kpiProgress = programKpis.length > 0
-                        ? averageKpiProgress(programKpis.map((kpi) => ({
-                            progress: parseFloat(kpi.completion_rate) || 0,
-                          })))
-                        : fallbackProgress;
-                      return (
-                        <div
-                          key={program.id}
-                          onClick={() => router.push(`/pm/programs/${program.id}`)}
-                          className="p-4 rounded-xl bg-primary border border-[var(--border-primary)] hover:border-emerald-500/30 transition-all cursor-pointer group"
-                        >
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                              <Briefcase className="w-3.5 h-3.5 text-emerald-400" />
-                            </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-500">
-                              {program.status || "Active"}
-                            </span>
-                          </div>
-                          <p className="text-[11px] font-bold text-[var(--text-primary)] truncate group-hover:text-emerald-400 transition-colors">
-                            {program.name}
-                          </p>
-                          {program.description && (
-                            <p className="text-sm text-[var(--text-secondary)] mt-1 line-clamp-2">
-                              {program.description}
-                            </p>
-                          )}
-                          <div className="mt-3 space-y-1">
-                            <div className="flex justify-between items-end">
-                              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                                {t("dashboard.kpiProgress", "KPI Progress")}
-                              </span>
-                              <span className="text-[10px] font-bold text-emerald-400">
-                                {Number(kpiProgress).toFixed(0)}%
-                              </span>
-                            </div>
-                            <div className="h-1.5 w-full bg-[var(--bg-tertiary)] rounded-full overflow-hidden border border-[var(--border-primary)]">
-                              <div
-                                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500"
-                                style={{ width: `${kpiProgress}%` }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <MyProgramsCard
+                t={t}
+                programs={quickAccess.programs}
+                kpis={data?.kpis}
+                completionIndexById={completionIndexById}
+                fetching={fetching}
+                onViewAll={() => router.push("/pm/programs")}
+                onOpenProgram={openProgram}
+              />
             )}
 
             {/* My Facilitator Programs — program-scoped assignments for any role */}
             {facilitatorPrograms.length > 0 && (
-              <div className="card">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-[var(--brand-orange)]" />
-                    <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
-                      {t("dashboard.facilitatorPrograms", "My Facilitator Programs")}
-                    </span>
-                    <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                      ({facilitatorPrograms.length})
-                    </span>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {facilitatorPrograms.map((program) => (
-                    <div
-                      key={program.id}
-                      onClick={() => router.push(`/facilitator/program/${program.id}`)}
-                      className="p-4 rounded-xl bg-primary border border-[var(--border-primary)] hover:border-brand-orange/40 transition-all cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-7 h-7 rounded-lg bg-brand-orange/10 flex items-center justify-center">
-                          <Users className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-                        </div>
-                        <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)]">
-                          {program.status || "Active"}
-                        </span>
-                      </div>
-                      <p className="text-[11px] font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--brand-orange)] transition-colors">
-                        {program.name}
-                      </p>
-                      {program.description && (
-                        <p className="text-sm text-[var(--text-secondary)] mt-1 line-clamp-2">
-                          {program.description}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <FacilitatorProgramsCard
+                t={t}
+                programs={facilitatorPrograms}
+                onOpenProgram={openFacilitatorProgram}
+              />
             )}
 
             {/* My Tasks — Compact List */}
             {visibility.showQuickTasks && (
-              <div className="card">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <ListTodo className="w-4 h-4 text-blue-400" />
-                    <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
-                      {t("dashboard.myTasks", "Mes Tâches")}
-                    </span>
-                    <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                      ({quickAccess.tasks?.length || 0})
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => router.push("/staff/op-report")}
-                    className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline"
-                  >
-                    {t("dashboard.openReport", "Ouvrir le rapport")}
-                  </button>
-                </div>
-                {fetching ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div
-                      className="w-5 h-5 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
-                      style={{
-                        borderColor: "rgba(255,102,0,0.1)",
-                        borderTopColor: "var(--brand-orange)",
-                      }}
-                    />
-                  </div>
-                ) : quickAccess.tasks?.length === 0 ? (
-                  <p className="text-sm text-[var(--text-secondary)] py-6 text-center">
-                    {t("dashboard.noActiveTasks", "Aucune tâche active")}
-                  </p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {quickAccess.tasks?.slice(0, 6).map((task) => (
-                      <div
-                        key={task.id}
-                        onClick={() => {
-                          const roleSegment =
-                            user?.role === "super_admin" ? "admin" : "staff";
-                          router.push("/" + roleSegment + "/op-report");
-                        }}
-                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
-                      >
-                        <div
-                          className={cn(
-                            "w-2 h-2 rounded-full shrink-0",
-                            STATUS_CONFIG[task.status]?.dot || "bg-slate-400",
-                          )}
-                        />
-                        <span className="text-[11px] font-bold text-[var(--text-primary)] flex-1 truncate">
-                          {task.title}
-                        </span>
-                        {task.end_date && (
-                          <span
-                            className={cn(
-                              "text-[10px] font-bold shrink-0",
-                              new Date(task.end_date) < new Date() &&
-                                task.status !== "completed"
-                                ? "text-rose-500"
-                                : "text-[var(--text-secondary)]",
-                            )}
-                          >
-                            {formatLocaleDate(task.end_date, { month: "short", day: "numeric" }, lang)}
-                          </span>
-                        )}
-                        <span
-                          className={cn(
-                            "text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0",
-                            STATUS_CONFIG[task.status]?.bg || "bg-secondary",
-                            STATUS_CONFIG[task.status]?.color || "text-[var(--text-secondary)]",
-                          )}
-                        >
-                          {STATUS_CONFIG[task.status]?.label || task.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <MyTasksCard
+                t={t}
+                lang={lang}
+                tasks={quickAccess.tasks}
+                fetching={fetching}
+                onOpenReport={openRoleAwareReport}
+                onViewAll={openStaffReport}
+              />
             )}
 
             {/* Recent Activity */}
             {visibility.showActivity && (
-              <div className="card">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-[var(--brand-orange)]" />
-                    <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
-                      {t("dashboard.recentActivity", "Activité Récente")}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => router.push("/admin/op-reports")}
-                    className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline"
-                  >
-                    {t("common.viewAll", "Voir Tout")}
-                  </button>
-                </div>
-                <div className="space-y-1.5">
-                  {activity.slice(0, 5).map((activityEntry, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-tertiary transition-all border border-transparent hover:border-[var(--border-primary)]"
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
-                        {activityEntry.action?.includes("completed") ||
-                          activityEntry.action?.includes("resolved") ? (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                        ) : activityEntry.action?.includes("blocker") ? (
-                          <Shield className="w-3.5 h-3.5 text-rose-400" />
-                        ) : (
-                          <Zap className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-bold text-[var(--text-primary)] capitalize truncate">
-                          {t(ACTIVITY_LABELS[activityEntry.action] || "") || activityEntry.action?.replace(/_/g, " ")}
-                        </p>
-                        <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">
-                          {activityEntry.description}
-                        </p>
-                      </div>
-                      <span className="text-[10px] font-medium text-[var(--text-secondary)] shrink-0">
-                        {activityEntry.timestamp
-                          ? new Date(activityEntry.timestamp).toLocaleDateString(lang)
-                          : ""}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <RecentActivityCard
+                t={t}
+                lang={lang}
+                activity={activity}
+                onViewAll={() => router.push("/admin/op-reports")}
+              />
             )}
           </div>
 
           {/* ===== RIGHT COLUMN (1/3) — SIDEBAR ===== */}
           <div className="space-y-6">
             {/* Quick Stats — Compact Inline Badges */}
-            <div className="card">
-              <div className="flex items-center gap-2 mb-4">
-                <BarChart3 className="w-4 h-4 text-[var(--brand-orange)]" />
-                <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
-                  {t("dashboard.quickStats", "Statistiques Rapides")}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
-                  <p className="text-2xl font-black tracking-tight text-emerald-400">
-                    {summary.programs || 0}
-                  </p>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-0.5">
-                    {t("dashboard.programs", "Programmes")}
-                  </p>
-                </div>
-                <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/10">
-                  <p className="text-2xl font-black tracking-tight text-blue-400">
-                    {summary.tasks?.open || 0}
-                  </p>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-0.5">
-                    {t("dashboard.openTasks", "Tâches ouvertes")}
-                  </p>
-                </div>
-                <div className="p-3 rounded-xl bg-rose-500/5 border border-rose-500/10">
-                  <p className="text-2xl font-black tracking-tight text-rose-400">
-                    {summary.blockers?.active || 0}
-                  </p>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-0.5">
-                    {t("dashboard.activeBlockers", "Bloqueurs Actifs")}
-                  </p>
-                </div>
-                <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
-                  <p className="text-2xl font-black tracking-tight text-amber-400">
-                    {summary.overdueTasks || 0}
-                  </p>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-0.5">
-                    {t("dashboard.overdue", "En retard")}
-                  </p>
-                </div>
-              </div>
-            </div>
+            <QuickStatsCard t={t} summary={summary} />
 
             {/* My Projects — With Role Status */}
             {visibility.showQuickProjects && (
-              <div className="card">
-                <div className="flex items-center gap-2 mb-3">
-                  <Rocket className="w-4 h-4 text-[var(--brand-orange)]" />
-                  <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
-                    {t("dashboard.myProjects", "Mes Projets")}
-                  </span>
-                  <span className="text-[10px] font-bold text-[var(--text-secondary)] ml-auto">
-                    {quickAccess.projects?.length || 0}
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  {quickAccess.projects?.slice(0, 5).map((project) => (
-                    <div
-                      key={project.id}
-                      onClick={() => router.push(`/admin/projects/${project.id}`)}
-                      className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-tertiary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)]"
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-primary border border-[var(--border-primary)] flex items-center justify-center shrink-0">
-                        <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                          {project.name}
-                        </p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500">
-                            {project.status || "Active"}
-                          </span>
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)]">
-                            {project.role === "owner" ? t("roles.owner", "Propriétaire") : t("roles.collaborator", "Collaborateur")}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {(!quickAccess.projects ||
-                    quickAccess.projects.length === 0) && (
-                      <p className="text-sm text-[var(--text-secondary)] py-4 text-center">
-                        {t("dashboard.noProjects", "Aucun projet assigné")}
-                      </p>
-                    )}
-                </div>
-              </div>
+              <MyProjectsCard
+                t={t}
+                projects={quickAccess.projects}
+                onOpenProject={openProject}
+              />
             )}
 
             {/* Active Blockers — With Inline Resolve */}
             {visibility.showQuickBlockers && (
-              <div className="card">
-                <div className="flex items-center gap-2 mb-3">
-                  <Shield className="w-4 h-4 text-rose-400" />
-                  <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
-                    {t("dashboard.activeBlockers", "Bloqueurs Actifs")}
-                  </span>
-                  <span className="text-[10px] font-bold text-[var(--text-secondary)] ml-auto">
-                    {quickAccess.blockers?.length || 0}
-                  </span>
-                </div>
-                {fetching ? (
-                  <div className="flex justify-center py-6">
-                    <div
-                      className="w-4 h-4 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
-                      style={{
-                        borderColor: "rgba(255,102,0,0.1)",
-                        borderTopColor: "var(--brand-orange)",
-                      }}
-                    />
-                  </div>
-                ) : quickAccess.blockers?.length === 0 ? (
-                  <p className="text-sm text-[var(--text-secondary)] py-4 text-center">
-                    {t("dashboard.noActiveBlockers", "Aucun bloqueur actif")}
-                  </p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {quickAccess.blockers?.slice(0, 5).map((blocker) => (
-                      <div
-                        key={blocker.id}
-                        className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-500/[0.02] border border-rose-500/5"
-                      >
-                        <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
-                            {blocker.title}
-                          </p>
-                          {blocker.severity && (
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-rose-500">
-                              {blocker.severity}
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => handleResolveBlocker(blocker.id)}
-                          disabled={resolvingBlocker === blocker.id}
-                          className="px-2 py-1 bg-emerald-500 text-black rounded-lg text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
-                        >
-                          {resolvingBlocker === blocker.id ? "..." : t("common.resolve", "Résoudre")}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <ActiveBlockersCard
+                t={t}
+                blockers={quickAccess.blockers}
+                fetching={fetching}
+                resolvingBlocker={resolvingBlocker}
+                onResolveBlocker={handleResolveBlocker}
+              />
             )}
 
             {/* Upcoming Events — From Calendar */}
             {events.length > 0 && (
-              <div className="card">
-                <div className="flex items-center gap-2 mb-3">
-                  <Calendar className="w-4 h-4 text-blue-400" />
-                  <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
-                    {t("dashboard.thisWeek", "Cette Semaine")}
-                  </span>
-                </div>
-                <div className="space-y-1.5">
-                  {events
-                    .filter((event) => {
-                      const date = new Date(event.date);
-                      return date >= weekDateRange.start && date <= weekDateRange.end;
-                    })
-                    .slice(0, 5)
-                    .map((event) => (
-                      <button
-                        key={event.id}
-                        onClick={() => setSelectedEvent(event)}
-                        className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-tertiary transition-all border border-transparent hover:border-[var(--border-primary)] text-left"
-                      >
-                        <div
-                          className={cn(
-                            "w-1.5 h-1.5 rounded-full shrink-0",
-                            EVENT_DOTS[event.source] || "bg-slate-400",
-                          )}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
-                            {event.title}
-                          </p>
-                          <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                            {formatLocaleDate(event.date, { weekday: "short", month: "short", day: "numeric" }, lang)}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
-                </div>
-              </div>
+              <UpcomingEventsCard
+                t={t}
+                lang={lang}
+                events={events}
+                weekDateRange={weekDateRange}
+                onSelectEvent={setSelectedEvent}
+              />
             )}
           </div>
         </div>
@@ -1639,110 +551,20 @@ export default function UnifiedDashboard({ role: propRole }) {
           !visibility.showQuickTasks &&
           !visibility.showQuickBlockers &&
           !fetching && (
-            <div className="flex flex-col items-center justify-center py-20 space-y-4">
-              <Activity className="w-16 h-16 text-[var(--text-secondary)]" />
-              <p className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-                Welcome to your dashboard
-              </p>
-              <p className="text-sm text-[var(--text-secondary)]">
-                Start by creating tasks or joining projects.
-              </p>
-              <div className="flex gap-3 mt-4">
-                <button
-                  onClick={() =>
-                    router.push(
-                      effectiveRole === "super_admin"
-                        ? "/admin/tasks"
-                        : "/staff/op-report",
-                    )
-                  }
-                  className="px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110 transition-all"
-                >
-                  <Plus className="w-4 h-4 inline mr-1" /> Create Task
-                </button>
-                <button
-                  onClick={() =>
-                    router.push(
-                      effectiveRole === "super_admin"
-                        ? "/admin/projects"
-                        : "/staff/projects",
-                    )
-                  }
-                >
-                  View Projects
-                </button>
-              </div>
-            </div>
+            <EmptyState
+              onCreateTask={openTasksOrReport}
+              onViewProjects={openProjectsOrListing}
+            />
           )}
       </div>
 
       {/* ═══════ EVENT DETAIL DRAWER ═══════ */}
       {selectedEvent && (
-        <div
-          className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
-          onClick={() => setSelectedEvent(null)}
-        >
-          <div
-            className="card w-full max-w-sm space-y-4 max-h-[85vh] overflow-y-auto"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
-                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                  Event
-                </h3>
-              </div>
-              <button onClick={() => setSelectedEvent(null)}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <p className="text-sm font-bold text-[var(--text-primary)]">
-              {selectedEvent.title}
-            </p>
-            <div className="grid grid-cols-2 gap-2 text-[10px]">
-              <div className="p-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]">
-                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-0.5">
-                  Date
-                </p>
-                <p className="text-sm font-bold text-[var(--text-primary)]">{selectedEvent.date}</p>
-              </div>
-              <div className="p-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]">
-                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-0.5">
-                  Source
-                </p>
-                <p className="text-sm font-bold text-[var(--text-primary)] capitalize">{selectedEvent.source}</p>
-              </div>
-              <div className="p-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]">
-                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-0.5">
-                  Type
-                </p>
-                <p className="text-sm font-bold text-[var(--text-primary)] capitalize">
-                  {selectedEvent.type?.replace(/_/g, " ")}
-                </p>
-              </div>
-              {selectedEvent.status && (
-                <div className="p-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]">
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-0.5">
-                    Status
-                  </p>
-                  <p className="text-sm font-bold text-[var(--text-primary)] capitalize">{selectedEvent.status}</p>
-                </div>
-              )}
-            </div>
-            {selectedEvent.project_id && (
-              <button
-                onClick={() => {
-                  setSelectedEvent(null);
-                  router.push(`/admin/projects/${selectedEvent.project_id}`);
-                }}
-                className="w-full py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all"
-              >
-                View Related Project
-              </button>
-            )}
-          </div>
-        </div>
+        <EventDetailDrawer
+          event={selectedEvent}
+          onClose={() => setSelectedEvent(null)}
+          onOpenProject={openProjectFromEvent}
+        />
       )}
 
       {selectedTask && (
@@ -1752,168 +574,5 @@ export default function UnifiedDashboard({ role: propRole }) {
         />
       )}
     </>
-  );
-}
-
-// ─── OPERATIONS SECTION ────────────────────────────────────────────────────
-// Restored weekly operations panel for staff/super_admin dashboards.
-// All values are fetched live from the API — no hard-coded numbers.
-
-function getWeekNumber(sourceDate) {
-  const date = new Date(Date.UTC(sourceDate.getFullYear(), sourceDate.getMonth(), sourceDate.getDate()));
-  const dayNum = date.getUTCDay() || 7;
-  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-  return Math.ceil(((date - yearStart) / 86400000 + 1) / 7);
-}
-
-function OperationsSection({ userId, summary }) {
-  const { t } = useI18n();
-  const router = useRouter();
-  const [ops, setOps] = useState(null); // { week, year, standup, retro }
-
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    const now = new Date();
-    const week = getWeekNumber(now);
-    const year = now.getFullYear();
-    Promise.all([
-      fetch(
-        `/api/op-reports?user_id=${encodeURIComponent(userId)}&type=standup&week=${week}&year=${year}`,
-      )
-        .then((response) => response.json())
-        .catch(() => ({ success: false })),
-      fetch(
-        `/api/op-reports?user_id=${encodeURIComponent(userId)}&type=retro&week=${week}&year=${year}`,
-      )
-        .then((response) => response.json())
-        .catch(() => ({ success: false })),
-    ]).then(([standupData, retroData]) => {
-      if (cancelled) return;
-      setOps({
-        week,
-        year,
-        standup: standupData.success ? standupData.reports?.[0] || null : null,
-        retro: retroData.success ? retroData.reports?.[0] || null : null,
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
-
-  const openTasks = summary?.tasks?.open || 0;
-  const overdue = summary?.overdueTasks || 0;
-  const activeBlockers = summary?.blockers?.active || 0;
-
-  return (
-    <div className="card !p-4 border-l-4 border-l-[var(--brand-orange)] space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-brand-orange/10 flex items-center justify-center">
-            <Activity className="w-5 h-5 text-[var(--brand-orange)]" />
-          </div>
-          <div>
-            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-              {t("dashboard.weeklyOps")}
-            </h3>
-            <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
-              {t("dashboard.weeklyOpsStatus", "Weekly stand-up & retro status")}
-              {ops
-                ? ` — ${t("time.week")} ${ops.week}, ${ops.year}`
-                : ""}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={() => router.push("/staff/op-report")}
-          className="text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] hover:underline flex items-center gap-1"
-        >
-          {t("dashboard.openReport", "Open Report")}{" "}
-          <ChevronRight className="w-3 h-3" />
-        </button>
-      </div>
-
-      <div className="rounded-xl border border-[var(--border-primary)] bg-secondary overflow-hidden">
-        {/* Standup status */}
-        <button
-          onClick={() => router.push("/staff/op-report?tab=standup")}
-          className="w-full flex items-center justify-between gap-2 p-3 cursor-pointer hover:bg-tertiary transition-all text-left"
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <Calendar className="w-4 h-4 text-[var(--brand-orange)] shrink-0" />
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
-                {t("reports.mondayStandup")}
-              </p>
-              <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5 truncate">
-                {ops === null
-                  ? t("common.loading")
-                  : ops.standup?.status === "submitted"
-                    ? t("status.submitted")
-                    : t("status.pending", "Pending")}
-              </p>
-            </div>
-          </div>
-          {ops?.standup?.status === "submitted" ? (
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          ) : (
-            <Clock className="w-4 h-4 text-amber-400 shrink-0" />
-          )}
-        </button>
-
-        <div className="h-px bg-[var(--border-primary)]" />
-
-        {/* Retro status */}
-        <button
-          onClick={() => router.push("/staff/op-report?tab=retro")}
-          className="w-full flex items-center justify-between gap-2 p-3 cursor-pointer hover:bg-tertiary transition-all text-left"
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <Trophy className="w-4 h-4 text-purple-400 shrink-0" />
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
-                {t("reports.fridayRetro")}
-              </p>
-              <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5 truncate">
-                {ops === null
-                  ? t("common.loading")
-                  : ops.retro?.status === "submitted"
-                    ? t("status.submitted")
-                    : t("status.pending", "Pending")}
-              </p>
-            </div>
-          </div>
-          {ops?.retro?.status === "submitted" ? (
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          ) : (
-            <Clock className="w-4 h-4 text-amber-400 shrink-0" />
-          )}
-        </button>
-      </div>
-
-      {/* Mini stats — derived from the dashboard API */}
-      <div className="grid grid-cols-3 gap-2 pt-1 border-t border-[var(--border-primary)]">
-        <div className="text-center pt-2">
-          <p className="text-2xl font-black tracking-tight text-blue-400">{openTasks}</p>
-          <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-            {t("dashboard.openTasks", "Open Tasks")}
-          </p>
-        </div>
-        <div className="text-center pt-2">
-          <p className="text-2xl font-black tracking-tight text-amber-400">{overdue}</p>
-          <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-            {t("dashboard.overdue", "Overdue")}
-          </p>
-        </div>
-        <div className="text-center pt-2">
-          <p className="text-2xl font-black tracking-tight text-rose-400">{activeBlockers}</p>
-          <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-            {t("dashboard.activeBlockers", "Blockers")}
-          </p>
-        </div>
-      </div>
-    </div>
   );
 }

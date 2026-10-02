@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { requireAuthorization } from "@/lib/authorization";
-import { syncDataSource } from "@/lib/finance/ingest";
+import { requireAuthorization } from "@/models/authorization/index";
+import { syncDataSource } from "@/services/finance/ingest";
 import { getDataSourceLastSyncAt } from "@/models/finance";
 
 export const POST = createHandler(async (req) => {

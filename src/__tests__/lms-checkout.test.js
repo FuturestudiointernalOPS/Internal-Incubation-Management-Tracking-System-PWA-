@@ -37,7 +37,7 @@ jest.mock("@/lib/auth", () => ({
   requireAuth: jest.fn(async () => null),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
@@ -51,7 +51,7 @@ jest.mock("@/lib/email", () => ({
   sendEmail: jest.fn(async () => ({ success: true, provider: "gmail" })),
 }));
 
-jest.mock("@/lib/platform/automation", () => ({ onSubmission: jest.fn() }));
+jest.mock("@/models/platform/automation", () => ({ onSubmission: jest.fn() }));
 
 const { sendStandaloneEmail } = require("@/lib/email");
 const { GET: runGET } = require("@/app/api/s/public-run/route");
@@ -629,8 +629,8 @@ describe("the payer's own tab", () => {
     seedRun({ courseId });
     const created = await readJson(await submitRequest({ slug: "run-slug", data: FORM_DATA, consent: true }));
 
-    const { issueResumeLink } = require("@/lib/lms/checkout");
-    const { getRegistrationByReference } = require("@/lib/lms/registrations");
+    const { issueResumeLink } = require("@/services/lms/checkout");
+    const { getRegistrationByReference } = require("@/models/lms/registrations");
     const registration = await getRegistrationByReference(created.checkout.reference);
     const token = await issueResumeLink(registration);
 
@@ -853,7 +853,7 @@ describe("per-course payment settings", () => {
     const created = await readJson(await submitRequest({ slug: "run-slug", data: FORM_DATA, consent: true }));
 
     const submissionId = mockFake.state.platform_form_submissions[0].id;
-    const { listRegistrations } = require("@/lib/lms/registrations");
+    const { listRegistrations } = require("@/models/lms/registrations");
     const rows = await listRegistrations({ runId: 7 });
 
     expect(rows.length).toBe(1);

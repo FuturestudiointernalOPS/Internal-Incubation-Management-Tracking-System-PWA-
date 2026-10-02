@@ -29,7 +29,7 @@ jest.mock("@/lib/db", () => ({
 }));
 
 const db = require("@/lib/db").default;
-const { getLearnerCourses } = require("@/models/lms/learning");
+const { getLearnerCourses } = require("@/services/lms/learning");
 
 beforeEach(() => {
   enrolled.length = 0;

@@ -8,7 +8,7 @@ import AppButton from "@/components/ui/AppButton";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import EmbeddedVideo from "./EmbeddedVideo";
 import { useI18n } from "@/lib/i18n";
-import { extractYouTubeVideoId } from "@/lib/lms/youtube";
+import { extractYouTubeVideoId } from "@/models/lms/youtube";
 import { useApi } from "@/lib/hooks/useApi";
 import { notify } from "./notify";
 

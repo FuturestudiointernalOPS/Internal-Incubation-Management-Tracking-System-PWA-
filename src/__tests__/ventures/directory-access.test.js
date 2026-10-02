@@ -33,13 +33,13 @@ jest.mock("@/lib/auth", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn().mockResolvedValue(null),
   getAuthorizationContext: jest.fn().mockResolvedValue({ isSuperAdmin: true }),
   authorize: jest.fn().mockReturnValue(true),
 }));
 
-jest.mock("@/lib/authorization/scope", () => ({
+jest.mock("@/services/authorization/scope", () => ({
   resolveVentureScopeId: jest.fn(async (id) => id),
   isWithinScope: jest.fn().mockResolvedValue(true),
 }));

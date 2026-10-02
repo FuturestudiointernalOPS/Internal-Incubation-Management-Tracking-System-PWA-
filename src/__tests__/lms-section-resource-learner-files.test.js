@@ -35,7 +35,7 @@ jest.mock("@/lib/db", () => ({
 const {
   listSectionResourcesByCourse,
   learnerSectionResourcesByCourse,
-} = require("@/lib/lms/sectionResources");
+} = require("@/models/lms/sectionResources");
 const {
   SECTION_RESOURCE_URL_TTL_SECONDS,
 } = require("@/lib/lms/sectionResourceFiles");

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { updateIntegration, deleteIntegration } from "@/lib/ventures";
 
 export const PATCH = createHandler(async (req, { params }) => {

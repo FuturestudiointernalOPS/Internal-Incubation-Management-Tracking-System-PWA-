@@ -19,7 +19,7 @@ import {
   getPlaybookTemplateStages,
   listActivePlaybookTemplates,
 } from "@/models/platformConfig";
-import { createPlaybookTemplate, assignPlaybookToVenture } from "@/lib/ventureTemplates";
+import { createPlaybookTemplate, assignPlaybookToVenture } from "@/models/ventureTemplates";
 
 const SETUP_ROLES = ["super_admin", "staff"];
 

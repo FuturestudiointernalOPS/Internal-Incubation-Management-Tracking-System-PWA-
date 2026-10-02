@@ -1,29 +1,8 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-
-import {
-  addInvestmentToActiveCampaign,
-  createInvestmentDecision,
-  getInvestmentNotificationInfo,
-  getInvestorProfileIdByUserId,
-  getInvestorProfileIdByUserIdForPipelineList,
-  getMeetingRequestInfo,
-  getRelationshipWorkspaceAssigneesForInvestment,
-  getRelationshipWorkspaceIdForInvestment,
-  insertInvestmentCommittedTimeline,
-  insertInvestmentConfirmedAdminNotification,
-  insertInvestmentConfirmedInvestorNotification,
-  insertInvestmentConfirmedStaffNotification,
-  insertInvestorMeetingPlaceholderEvent,
-  insertInvestorMeetingRequestNotification,
-  listAdminAndStaffCids,
-  listInvestmentPipeline,
-  listSuperAdminCids,
-  markRelationshipWorkspaceActiveInvestment,
-  upsertInvestmentPipeline,
-} from "@/models/investor";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
+import { listPipelineForViewer, addOrUpdatePipeline } from "@/services/investor";
 
 /** POST /api/investor/pipeline — add venture to pipeline or update stage */
 export async function POST(req) {
@@ -32,138 +11,24 @@ export async function POST(req) {
     const capError = await requireInvestorSelfServiceAuthorization("create");
     if (capError) return capError;
 
-    const session = await getSession();
-    const user = session;
     const { venture_id, stage, notes, amount } = await req.json();
-
     if (!venture_id) {
       return NextResponse.json({ success: false, error: "venture_id required" }, { status: 400 });
     }
 
-    // Get investor profile
-    const profileResult = await getInvestorProfileIdByUserId(user.cid || user.id);
-    if (profileResult.rows.length === 0) {
-      return NextResponse.json({ success: false, error: "Investor profile not found" }, { status: 404 });
+    // The stage rules and the meeting / invested cascades live in the service.
+    const result = await addOrUpdatePipeline({
+      ventureId: venture_id,
+      stage,
+      notes,
+      amount,
+      session: await getSession(),
+    });
+    if (!result.ok) {
+      return NextResponse.json({ success: false, error: result.error }, { status: result.status });
     }
 
-    const investorId = profileResult.rows[0].id;
-    const validStages = ["interested", "watching", "meeting_requested", "due_diligence", "negotiation", "invested", "declined"];
-    const newStage = stage || "interested";
-
-    if (!validStages.includes(newStage)) {
-      return NextResponse.json({ success: false, error: "Invalid stage" }, { status: 400 });
-    }
-
-    // Upsert pipeline entry
-    const result = await upsertInvestmentPipeline({ investor_id: investorId, venture_id, stage: newStage, notes });
-
-    // If stage is "meeting_requested", notify admin + create calendar placeholder
-    if (newStage === "meeting_requested") {
-      try {
-        // Get investor and venture names
-        const meetingRequestInfo = await getMeetingRequestInfo({ venture_id, investor_id: investorId });
-        const investorInfo = meetingRequestInfo.rows[0] || {};
-
-        // Notify super admins
-        const admins = await listSuperAdminCids();
-        for (const admin of admins.rows) {
-          await insertInvestorMeetingRequestNotification({
-            recipient_id: admin.cid,
-            investor_name: investorInfo.investor_name,
-            organization_name: investorInfo.organization_name,
-            venture_name: investorInfo.venture_name,
-            notes,
-            link: "/admin/investors/overview",
-          });
-        }
-
-        // Create calendar placeholder event
-        const nextWeek = new Date();
-        nextWeek.setDate(nextWeek.getDate() + 7);
-        await insertInvestorMeetingPlaceholderEvent({
-          program_id: venture_id,
-          venture_name: investorInfo.venture_name,
-          investor_name: investorInfo.investor_name,
-          organization_name: investorInfo.organization_name,
-          start_time: nextWeek.toISOString(),
-          end_time: nextWeek.toISOString(),
-          created_by: user.cid || user.id,
-        });
-      } catch (_) {}
-    }
-
-    // If stage is "invested", auto-create decision, update campaign, portfolio
-    if (newStage === "invested") {
-      const pipelineId = result.rows[0].id;
-      const investedAmount = parseFloat(amount || notes) || 0;
-
-      await createInvestmentDecision({ pipeline_id: pipelineId, investment_amount: investedAmount, notes });
-
-      // Update fundraising campaign current_raised
-      if (investedAmount > 0) {
-        try {
-          await addInvestmentToActiveCampaign({ amount: investedAmount, venture_id });
-        } catch (_) {}
-      }
-
-      // Timeline entry in relationship workspace
-      try {
-        const relationshipWorkspaceResult = await getRelationshipWorkspaceIdForInvestment(pipelineId);
-        if (relationshipWorkspaceResult.rows.length > 0) {
-          await insertInvestmentCommittedTimeline({ workspace_id: relationshipWorkspaceResult.rows[0].id, investment_amount: investedAmount });
-          // Update workspace stage
-          await markRelationshipWorkspaceActiveInvestment(relationshipWorkspaceResult.rows[0].id);
-        }
-      } catch (_) {}
-
-      // Notify everyone
-      try {
-        const investmentNotificationInfo = await getInvestmentNotificationInfo({ venture_id, investor_id: investorId });
-        const investorInfo = investmentNotificationInfo.rows[0] || {};
-
-        // Notify admins
-        const admins = await listAdminAndStaffCids();
-        for (const admin of admins.rows) {
-          await insertInvestmentConfirmedAdminNotification({
-            recipient_id: admin.cid,
-            investor_name: investorInfo.investor_name,
-            organization_name: investorInfo.organization_name,
-            venture_name: investorInfo.venture_name,
-            investment_amount: investedAmount,
-            link: "/admin/investors/overview",
-          });
-        }
-
-        // Notify investor
-        if (investorInfo.user_id) {
-          await insertInvestmentConfirmedInvestorNotification({
-            recipient_id: investorInfo.user_id,
-            venture_name: investorInfo.venture_name,
-            investment_amount: investedAmount,
-            link: "/investor/portfolio",
-          });
-        }
-
-        // Notify RM and IM
-        const relationshipWorkspaceResult = await getRelationshipWorkspaceAssigneesForInvestment(pipelineId);
-        if (relationshipWorkspaceResult.rows.length > 0) {
-          const relationshipWorkspace = relationshipWorkspaceResult.rows[0];
-          for (const cid of [relationshipWorkspace.relationship_manager_id, relationshipWorkspace.investment_manager_id]) {
-            if (cid) {
-              await insertInvestmentConfirmedStaffNotification({
-                recipient_id: cid,
-                investor_name: investorInfo.investor_name,
-                venture_name: investorInfo.venture_name,
-                investment_amount: investedAmount,
-                link: "/admin/investors/relationships",
-              });
-            }
-          }
-        }
-      } catch (_) {}
-    }
-
-    return NextResponse.json({ success: true, pipeline: result.rows[0] });
+    return NextResponse.json({ success: true, pipeline: result.pipeline });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -173,7 +38,7 @@ export async function POST(req) {
 export async function GET(req) {
   try {
     await initDb();
-    // Phase 1.5: authentication only — scoping is derived below.
+    // Phase 1.5: authentication only — scoping is derived in the service.
     const authError = await requireAuth();
     if (authError) return authError;
 
@@ -181,31 +46,13 @@ export async function GET(req) {
     const ventureId = searchParams.get("venture_id");
     const stage = searchParams.get("stage");
 
-    const session = await getSession();
-    const user = session;
-    const management = ["super_admin", "staff", "program_manager"].includes(user?.role);
+    const result = await listPipelineForViewer({
+      ventureId,
+      stage,
+      session: await getSession(),
+    });
 
-    // Phase 1.5: every non-management session is OWN-SCOPED — the investor
-    // profile is resolved and bound regardless of filters, so a venture_id can
-    // no longer expose other investors' rows and the admin stage filter stays
-    // management-only. Management keeps its historical branches.
-    let investorId = null;
-    if (!management) {
-      const profileResult = await getInvestorProfileIdByUserIdForPipelineList(user.cid || user.id);
-      if (profileResult.rows.length === 0) {
-        return NextResponse.json({ success: true, pipeline: [] });
-      }
-      investorId = profileResult.rows[0].id;
-    } else if (!ventureId && !(stage && (user.role === "super_admin" || user.role === "staff"))) {
-      const profileResult = await getInvestorProfileIdByUserIdForPipelineList(user.cid || user.id);
-      if (profileResult.rows.length === 0) {
-        return NextResponse.json({ success: true, pipeline: [] });
-      }
-      investorId = profileResult.rows[0].id;
-    }
-
-    const result = await listInvestmentPipeline({ ventureId, stage, role: user.role, investorId });
-    return NextResponse.json({ success: true, pipeline: result.rows });
+    return NextResponse.json({ success: true, pipeline: result.pipeline });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

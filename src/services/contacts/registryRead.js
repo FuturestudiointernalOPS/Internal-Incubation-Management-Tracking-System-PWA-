@@ -12,7 +12,7 @@
  * See docs/LAYER_SPLIT.md.
  */
 
-import { attachInvitationStatus } from "@/lib/invitations";
+import { attachInvitationStatus } from "@/models/invitations";
 import {
   getContactByCid,
   getArchivedContacts,

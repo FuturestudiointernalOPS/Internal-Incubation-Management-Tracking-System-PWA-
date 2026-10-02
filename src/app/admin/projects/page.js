@@ -1,48 +1,22 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import {
-  Search,
-  Filter,
-  Briefcase,
-  CheckCircle2,
-  AlertTriangle,
-  Clock,
-  ArrowLeft,
-  ListTodo,
-  Shield,
-  RefreshCw,
-  TrendingUp,
-  Users,
-  Plus,
-  X,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
-import { TableSkeleton } from "@/components/ui/Skeleton";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
-import { useSearchParams } from "next/navigation";
-
-// ─── Module-scope readers ────────────────────────────────────────────────────
-// The reading hook keys its internal work on these, so they are made once here
-// rather than rebuilt on every render.
-
-const EMPTY_LIST = [];
-
-const pickProjects = (payload) => (payload?.success ? payload.projects || [] : []);
-
-/** The analytics summary is optional: a refusal is an absent summary. */
-const pickAnalytics = (payload) => (payload?.success ? payload.analytics || null : null);
-
-/** The people a project lead can be chosen from. */
-const pickActiveStaff = (payload) =>
-  payload?.success
-    ? (payload.contacts || []).filter(
-        (contact) => contact.status === "active" && contact.role !== "participant",
-      )
-    : [];
-
+import {
+  EMPTY_LIST,
+  pickActiveStaff,
+  pickAnalytics,
+  pickProjects,
+} from "@/components/admin/projects/list/constants";
+import ProjectsHeader from "@/components/admin/projects/list/ProjectsHeader";
+import AnalyticsRow from "@/components/admin/projects/list/AnalyticsRow";
+import ProjectsFilters from "@/components/admin/projects/list/ProjectsFilters";
+import ProjectsTable from "@/components/admin/projects/list/ProjectsTable";
+import ProjectEditorModal from "@/components/admin/projects/list/ProjectEditorModal";
+import CreateProjectModal from "@/components/admin/projects/list/CreateProjectModal";
 
 /**
  * SUPER ADMIN PROJECTS DASHBOARD
@@ -50,18 +24,6 @@ const pickActiveStaff = (payload) =>
  * Full visibility into all projects with task/blocker aggregation.
  * Shows: project progress, task completion rate, blocker count, timeline health.
  */
-
-const STATUS_COLORS = {
-  Active: "text-emerald-500",
-  Completed: "text-purple-500",
-  Paused: "text-amber-500",
-};
-
-const STATUS_BG = {
-  Active: "bg-emerald-500/10",
-  Completed: "bg-purple-500/10",
-  Paused: "bg-amber-500/10",
-};
 
 export default function AdminProjects() {
   const router = useRouter();
@@ -130,7 +92,6 @@ export default function AdminProjects() {
     transform: pickActiveStaff,
     deps: [showCreateModal],
   });
-
 
   const [editProject, setEditProject] = useState({
     id: null,
@@ -350,6 +311,129 @@ export default function AdminProjects() {
     });
   }, [projects, search, filterStatus]);
 
+  // The header's back button leaves for the dashboard of the role that is
+  // stored on this device; the reading and the role map are the page's, not the
+  // button's.
+  const goToDashboard = () => {
+    const saved = localStorage.getItem("user");
+    let role = "super_admin";
+    if (saved) {
+      try {
+        role = JSON.parse(saved).role || "super_admin";
+      } catch {}
+    }
+    const destMap = {
+      super_admin: "/admin",
+      staff: "/staff",
+      program_manager: "/pm",
+      participant: "/participant",
+    };
+    router.push(destMap[role] || "/admin");
+  };
+
+  const openEditor = (project) => {
+    setShowMemberModal(project.id);
+    setEditProject({
+      id: project.id,
+      name: project.name || "",
+      description: project.meta?.description || "",
+      status: project.status || "Active",
+      priority: project.priority || "medium",
+      start_date: project.start_date || "",
+      end_date: project.end_date || "",
+      leads:
+        project.meta?.assigned_pm_ids ||
+        (project.assigned_pm_id ? [project.assigned_pm_id] : []),
+      conceptNoteUrl: project.meta?.concept_note_url || "",
+    });
+    fetchMembers(project.id);
+  };
+
+  const handleArchiveToggle = (project) => {
+    if (project.status === "Archived") {
+      handleUnarchiveProject(project);
+    } else {
+      handleArchiveProject(project);
+    }
+  };
+
+  const updateEditField = (patch) =>
+    setEditProject((previous) => ({ ...previous, ...patch }));
+
+  const toggleEditLead = (staffId, checked) =>
+    setEditProject((previous) => ({
+      ...previous,
+      leads: checked
+        ? [...previous.leads, staffId]
+        : previous.leads.filter((id) => id !== staffId),
+    }));
+
+  const handleUploadEditConcept = async () => {
+    setUploadingEditConcept(true);
+    try {
+      const { uploadFile } = await import("@/lib/storage");
+      const uploadResult = await uploadFile(
+        "project-files",
+        `concepts/${Date.now()}-${editConceptFile.name}`,
+        editConceptFile,
+      );
+      if (uploadResult.success)
+        updateEditField({ conceptNoteUrl: uploadResult.url });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setUploadingEditConcept(false);
+      setEditConceptFile(null);
+    }
+  };
+
+  const handleAddCollaboratorFromSelect = () => {
+    const selectElement = document.getElementById("add-collab-select");
+    if (selectElement?.value) {
+      handleAddMember(showMemberModal, selectElement.value);
+      selectElement.value = "";
+    }
+  };
+
+  const updateNewField = (patch) =>
+    setNewProject((previous) => ({ ...previous, ...patch }));
+
+  const toggleNewLead = (staffId, checked) =>
+    setNewProject((previous) => ({
+      ...previous,
+      leads: checked
+        ? [...previous.leads, staffId]
+        : previous.leads.filter((id) => id !== staffId),
+    }));
+
+  const toggleSelectedMember = (staffId, isSelected) =>
+    setSelectedMembers((prev) =>
+      isSelected
+        ? prev.filter((id) => id !== staffId)
+        : [...prev, staffId],
+    );
+
+  const handleUploadConcept = async () => {
+    if (!conceptNoteFile) return;
+    setUploadingConcept(true);
+    try {
+      const { uploadFile } = await import("@/lib/storage");
+      const uploadResult = await uploadFile(
+        "project-files",
+        `concepts/${Date.now()}-${conceptNoteFile.name}`,
+        conceptNoteFile,
+      );
+      if (uploadResult.success) {
+        updateNewField({ conceptNoteUrl: uploadResult.url });
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setUploadingConcept(false);
+      setConceptNoteFile(null);
+    }
+  };
+
   return (
     <>
       <div className="space-y-8 pb-20 text-left">
@@ -363,1163 +447,77 @@ export default function AdminProjects() {
           </div>
         )}
 
-        <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
-          <div className="space-y-2">
-            <button
-              onClick={() => {
-                const saved = localStorage.getItem("user");
-                let role = "super_admin";
-                if (saved) {
-                  try {
-                    role = JSON.parse(saved).role || "super_admin";
-                  } catch {}
-                }
-                const destMap = {
-                  super_admin: "/admin",
-                  staff: "/staff",
-                  program_manager: "/pm",
-                  participant: "/participant",
-                };
-                router.push(destMap[role] || "/admin");
-              }}
-              className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[10px] uppercase tracking-wide"
-            >
-              <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
-              {t("navigation.dashboard")}
-            </button>
-            <div className="flex items-center gap-2 mt-2">
-              <Briefcase className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                {t("adminMisc.projectsList.internalOperations")}
-              </span>
-            </div>
-            <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              {t("adminMisc.projectsList.projects")}
-            </h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
-              <Briefcase className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-xs font-black">
-                {t("adminMisc.projectsList.projectsCount", {
-                  count: projects.length,
-                })}
-              </span>
-            </div>
-            {canCreate && (
-              <button
-                onClick={() => {
-                  openCreate();
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-sm font-bold uppercase tracking-wide hover:brightness-110 transition-all"
-              >
-                <Plus className="w-3.5 h-3.5" />{" "}
-                {t("adminMisc.projectsList.createProject")}
-              </button>
-            )}
-            <button
-              onClick={() => refreshProjects()}
-              className="p-2 rounded-xl hover:bg-white/5 transition-all"
-              title={t("common.refresh")}
-            >
-              <RefreshCw className="w-4 h-4 text-slate-500" />
-            </button>
-          </div>
-        </header>
+        <ProjectsHeader
+          projectCount={projects.length}
+          canCreate={canCreate}
+          onBack={goToDashboard}
+          onCreate={openCreate}
+          onRefresh={refreshProjects}
+        />
 
         {/* ANALYTICS ROW */}
-        {analytics && (
-          <>
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-              <div className="card flex items-center gap-3 p-3">
-                <div className="p-2 rounded-xl bg-white/5">
-                  <ListTodo className="w-3.5 h-3.5 text-[var(--text-primary)]" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                    {t("reports.tasks")}
-                  </p>
-                  <p className="text-base font-black">
-                    {analytics.tasks.total}
-                  </p>
-                </div>
-              </div>
-              <div className="card flex items-center gap-3 p-3">
-                <div className="p-2 rounded-xl bg-emerald-500/10">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                    {t("reports.completed")}
-                  </p>
-                  <p className="text-base font-black text-emerald-500">
-                    {analytics.completionRate}%
-                  </p>
-                </div>
-              </div>
-              <div className="card flex items-center gap-3 p-3">
-                <div className="p-2 rounded-xl bg-amber-500/10">
-                  <TrendingUp className="w-3.5 h-3.5 text-amber-500" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                    {t("reports.carriedOver")}
-                  </p>
-                  <p className="text-base font-black text-amber-500">
-                    {analytics.carryoverRate}%
-                  </p>
-                </div>
-              </div>
-              <div className="card flex items-center gap-3 p-3">
-                <div className="p-2 rounded-xl bg-rose-500/10">
-                  <Shield className="w-3.5 h-3.5 text-rose-500" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                    {t("reports.active")}
-                  </p>
-                  <p className="text-base font-black text-rose-500">
-                    {analytics.blockers.active}
-                  </p>
-                </div>
-              </div>
-              <div className="card flex items-center gap-3 p-3">
-                <div className="p-2 rounded-xl bg-blue-500/10">
-                  <Users className="w-3.5 h-3.5 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                    {t("reports.teamMembers")}
-                  </p>
-                  <p className="text-base font-black text-blue-500">
-                    {analytics.activeUsers}
-                  </p>
-                </div>
-              </div>
-              <div className="card flex items-center gap-3 p-3">
-                <div className="p-2 rounded-xl bg-indigo-500/10">
-                  <Briefcase className="w-3.5 h-3.5 text-indigo-500" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                    {t("admin.activePrograms")}
-                  </p>
-                  <p className="text-base font-black text-indigo-500">
-                    {analytics.projects}
-                  </p>
-                </div>
-              </div>
-              <div className="card flex items-center gap-3 p-3">
-                <div className="p-2 rounded-xl bg-orange-500/10">
-                  <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                    {t("admin.activeBlockerRate")}
-                  </p>
-                  <p className="text-base font-black text-orange-500">
-                    {analytics.blockerRate}%
-                  </p>
-                </div>
-              </div>
-              <div className="card flex items-center gap-3 p-3">
-                <div className="p-2 rounded-xl bg-cyan-500/10">
-                  <Clock className="w-3.5 h-3.5 text-cyan-500" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                    {t("reports.avgResolution")}
-                  </p>
-                  <p className="text-base font-black text-cyan-500">
-                    {analytics.avgResolutionHours}h
-                  </p>
-                </div>
-              </div>
-            </div>
-            {analytics.weeklyProductivity?.length > 0 && (
-              <div className="card p-4 space-y-2">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                  {t("staff.opReport.productivity")}
-                </p>
-                <div className="flex items-end gap-2 h-16">
-                  {[...analytics.weeklyProductivity].reverse().map((weekStat) => {
-                    const max = Math.max(
-                      ...analytics.weeklyProductivity.map((weekEntry) => weekEntry.completed),
-                      1,
-                    );
-                    return (
-                      <div
-                        key={`${weekStat.year}-${weekStat.week}`}
-                        className="flex-1 h-full flex flex-col justify-end items-center gap-1"
-                        title={`${t("staff.table.week")} ${weekStat.week}, ${weekStat.year}: ${weekStat.completed}`}
-                      >
-                        <div
-                          className="w-full bg-[var(--brand-orange)] opacity-60 rounded-t"
-                          style={{
-                            height: `${Math.max((weekStat.completed / max) * 100, 4)}%`,
-                          }}
-                        />
-                        <span className="text-[10px] font-medium text-[var(--text-secondary)]">
-                          {weekStat.week}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </>
-        )}
+        {analytics && <AnalyticsRow analytics={analytics} />}
 
         {/* FILTERS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder={t("common.search")}
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-sm font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
-            />
-          </div>
-          <div className="relative">
-            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <select
-              value={filterStatus}
-              onChange={(event) => setFilterStatus(event.target.value)}
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
-            >
-              <option value="all">
-                {t("adminMisc.projectsList.allStatuses")}
-              </option>
-              <option value="Active">
-                {t("adminMisc.projectsList.statusActive")}
-              </option>
-              <option value="Completed">
-                {t("adminMisc.projectsList.statusCompleted")}
-              </option>
-              <option value="Paused">
-                {t("adminMisc.projectsList.statusPaused")}
-              </option>
-              <option value="Archived">
-                {t("adminMisc.projectsList.statusArchived")}
-              </option>
-            </select>
-          </div>
-        </div>
+        <ProjectsFilters
+          search={search}
+          setSearch={setSearch}
+          filterStatus={filterStatus}
+          setFilterStatus={setFilterStatus}
+        />
 
         {/* PROJECTS TABLE */}
-        {loading ? (
-          <TableSkeleton rows={6} />
-        ) : filteredProjects.length === 0 ? (
-          <div className="card py-32 flex flex-col items-center justify-center text-center opacity-40 border-dashed">
-            <Briefcase className="w-16 h-16 mb-4" />
-            <p className="text-sm text-[var(--text-secondary)]">
-              {t("adminMisc.projectsList.noProjectsFound")}
-            </p>
-            <p className="text-sm text-[var(--text-secondary)] mt-2">
-              {t("adminMisc.projectsList.emptyStateDesc")}
-            </p>
-          </div>
-        ) : (
-          <div className="card !p-0 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[var(--border-primary)]">
-                    <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("adminMisc.projectsList.project")}
-                    </th>
-                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("adminMisc.projectsList.status")}
-                    </th>
-                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("adminMisc.projectsList.priority")}
-                    </th>
-                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("adminMisc.projectsList.tasks")}
-                    </th>
-                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("adminMisc.projectsList.completed")}
-                    </th>
-                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("adminMisc.projectsList.blockers")}
-                    </th>
-                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("adminMisc.projectsList.progress")}
-                    </th>
-                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("adminMisc.projectsList.start")}
-                    </th>
-                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("adminMisc.projectsList.end")}
-                    </th>
-                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredProjects.map((project) => (
-                    <tr
-                      key={project.id}
-                      className="border-b border-divider/50 hover:bg-white/5 transition-colors cursor-pointer"
-                      onClick={() =>
-                        router.push(`/admin/projects/${project.id}`)
-                      }
-                    >
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)]">
-                            <Briefcase className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold uppercase tracking-tight text-[var(--text-primary)]">
-                              {project.name}
-                            </p>
-                            <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                              {t("adminMisc.projectsList.project")}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="text-center p-4">
-                        <span
-                          className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${STATUS_BG[project.status] || "bg-slate-500/10"} ${STATUS_COLORS[project.status] || "text-slate-400"}`}
-                        >
-                          {project.status}
-                        </span>
-                      </td>
-                      <td className="text-center p-4">
-                        <span
-                          className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${
-                            project.priority === "critical"
-                              ? "bg-red-500/10 text-red-400"
-                              : project.priority === "high"
-                                ? "bg-amber-500/10 text-amber-400"
-                                : project.priority === "low"
-                                  ? "bg-slate-500/10 text-slate-400"
-                                  : "bg-blue-500/10 text-blue-400"
-                          }`}
-                        >
-                          {project.priority || "medium"}
-                        </span>
-                      </td>
-                      <td className="text-center p-4">
-                        <span className="text-sm font-black">
-                          {project.taskStats?.total || 0}
-                        </span>
-                      </td>
-                      <td className="text-center p-4">
-                        <span className="text-sm font-black text-emerald-500">
-                          {project.completionRate || 0}%
-                        </span>
-                      </td>
-                      <td className="text-center p-4">
-                        <div className="flex items-center justify-center gap-1">
-                          <Shield
-                            className={`w-3 h-3 ${project.blockerStats?.active > 0 ? "text-rose-500" : "text-slate-600"}`}
-                          />
-                          <span
-                            className={`text-sm font-black ${project.blockerStats?.active > 0 ? "text-rose-500" : "text-slate-600"}`}
-                          >
-                            {project.blockerStats?.active || 0}
-                          </span>
-                          {project.blockerStats?.total > 0 && (
-                            <span className="text-[10px] font-medium text-[var(--text-secondary)]">
-                              / {project.blockerStats.total}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1 h-2 bg-[var(--bg-primary)] rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-emerald-500 rounded-full transition-all"
-                              style={{
-                                width: `${project.completionRate || 0}%`,
-                              }}
-                            />
-                          </div>
-                          <span className="text-[10px] font-medium text-[var(--text-secondary)] w-8 text-right">
-                            {project.completionRate || 0}%
-                          </span>
-                        </div>
-                      </td>
-                      <td className="text-center p-4">
-                        <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                          {project.start_date
-                            ? new Date(project.start_date).toLocaleDateString(
-                                "en",
-                                { month: "short", day: "numeric" },
-                              )
-                            : "—"}
-                        </span>
-                      </td>
-                      <td className="text-center p-4">
-                        <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                          {project.end_date
-                            ? new Date(project.end_date).toLocaleDateString(
-                                "en",
-                                { month: "short", day: "numeric" },
-                              )
-                            : "—"}
-                        </span>
-                      </td>
-                      <td className="text-center p-4">
-                        <div className="flex items-center justify-center gap-2">
-                          {/* Status quick actions */}
-                          {project.status === "Active" && (
-                            <button
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                quickStatus(project, "Paused");
-                              }}
-                              disabled={actionLoading}
-                              className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-white transition-all disabled:opacity-40 disabled:cursor-wait"
-                            >
-                              {actionLoading
-                                ? "..."
-                                : t("adminMisc.projectsList.pause")}
-                            </button>
-                          )}
-                          {project.status === "Paused" && (
-                            <button
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                quickStatus(project, "Active");
-                              }}
-                              disabled={actionLoading}
-                              className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-40 disabled:cursor-wait"
-                            >
-                              {actionLoading
-                                ? "..."
-                                : t("adminMisc.projectsList.resume")}
-                            </button>
-                          )}
-                          {project.status === "Active" && (
-                            <button
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                quickStatus(
-                                  project,
-                                  "Completed",
-                                  "Mark as completed?",
-                                );
-                              }}
-                              disabled={actionLoading}
-                              className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest bg-purple-500/10 text-purple-400 hover:bg-purple-500 hover:text-white transition-all disabled:opacity-40 disabled:cursor-wait"
-                            >
-                              {actionLoading
-                                ? "..."
-                                : t("adminMisc.projectsList.complete")}
-                            </button>
-                          )}
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setShowMemberModal(project.id);
-                              setEditProject({
-                                id: project.id,
-                                name: project.name || "",
-                                description: project.meta?.description || "",
-                                status: project.status || "Active",
-                                priority: project.priority || "medium",
-                                start_date: project.start_date || "",
-                                end_date: project.end_date || "",
-                                leads:
-                                  project.meta?.assigned_pm_ids ||
-                                  (project.assigned_pm_id
-                                    ? [project.assigned_pm_id]
-                                    : []),
-                                conceptNoteUrl:
-                                  project.meta?.concept_note_url || "",
-                              });
-                              fetchMembers(project.id);
-                            }}
-                            className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest bg-brand-orange/10 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)] hover:text-black transition-all"
-                          >
-                            {t("adminMisc.projectsList.edit")}
-                          </button>
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              if (project.status === "Archived") {
-                                handleUnarchiveProject(project);
-                              } else {
-                                handleArchiveProject(project);
-                              }
-                            }}
-                            disabled={actionLoading}
-                            className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest transition-all disabled:opacity-40 disabled:cursor-wait ${
-                              project.status === "Archived"
-                                ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white"
-                                : "bg-slate-500/10 text-slate-500 hover:bg-rose-500 hover:text-white"
-                            }`}
-                          >
-                            {actionLoading
-                              ? "..."
-                              : project.status === "Archived"
-                                ? t("adminMisc.projectsList.restore")
-                                : t("adminMisc.projectsList.archive")}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        <ProjectsTable
+          loading={loading}
+          filteredProjects={filteredProjects}
+          onOpen={(project) => router.push(`/admin/projects/${project.id}`)}
+          actionLoading={actionLoading}
+          onQuickStatus={quickStatus}
+          onEdit={openEditor}
+          onArchiveToggle={handleArchiveToggle}
+        />
       </div>
 
       {/* PROJECT EDITOR + COLLABORATORS MODAL */}
       {showMemberModal && (
-        <div
-          className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
-          onClick={() => setShowMemberModal(null)}
-        >
-          <div
-            className="card w-full max-w-lg space-y-4 max-h-[85vh] overflow-y-auto"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                {t("adminMisc.projectsList.editProject")}
-              </h2>
-              <button onClick={() => setShowMemberModal(null)}>
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Editable project fields */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
-                  {t("adminMisc.projectsList.projectName")}
-                </label>
-                <input
-                  value={editProject.name}
-                  onChange={(event) =>
-                    setEditProject((previous) => ({ ...previous, name: event.target.value }))
-                  }
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-sm font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
-                />
-              </div>
-
-              <div className="col-span-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
-                  {t("adminMisc.projectsList.description")}
-                </label>
-                <textarea
-                  value={editProject.description}
-                  onChange={(event) =>
-                    setEditProject((previous) => ({
-                      ...previous,
-                      description: event.target.value,
-                    }))
-                  }
-                  placeholder={t("adminMisc.projectsList.descriptionPlaceholder")}
-                  rows={2}
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
-                  {t("adminMisc.projectsList.status")}
-                </label>
-                <select
-                  value={editProject.status}
-                  onChange={(event) =>
-                    setEditProject((previous) => ({ ...previous, status: event.target.value }))
-                  }
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-sm font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
-                >
-                  <option value="Active">
-                    {t("adminMisc.projectsList.statusActive")}
-                  </option>
-                  <option value="Paused">
-                    {t("adminMisc.projectsList.statusPaused")}
-                  </option>
-                  <option value="Completed">
-                    {t("adminMisc.projectsList.statusCompleted")}
-                  </option>
-                  <option value="Archived">
-                    {t("adminMisc.projectsList.statusArchived")}
-                  </option>
-                  <option value="Closed">
-                    {t("adminMisc.projectsList.statusClosed")}
-                  </option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
-                  {t("adminMisc.projectsList.priority")}
-                </label>
-                <select
-                  value={editProject.priority || "medium"}
-                  onChange={(event) =>
-                    setEditProject((previous) => ({ ...previous, priority: event.target.value }))
-                  }
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-sm font-bold outline-none appearance-none cursor-pointer"
-                >
-                  <option value="critical">
-                    {t("adminMisc.projectsList.priorityCritical")}
-                  </option>
-                  <option value="high">
-                    {t("adminMisc.projectsList.priorityHigh")}
-                  </option>
-                  <option value="medium">
-                    {t("adminMisc.projectsList.priorityMedium")}
-                  </option>
-                  <option value="low">
-                    {t("adminMisc.projectsList.priorityLow")}
-                  </option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
-                  {t("adminMisc.projectsList.startDate")}
-                </label>
-                <input
-                  type="date"
-                  value={editProject.start_date || ""}
-                  onChange={(event) =>
-                    setEditProject((previous) => ({
-                      ...previous,
-                      start_date: event.target.value,
-                    }))
-                  }
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
-                  {t("adminMisc.projectsList.endDate")}
-                </label>
-                <input
-                  type="date"
-                  value={editProject.end_date || ""}
-                  onChange={(event) =>
-                    setEditProject((previous) => ({ ...previous, end_date: event.target.value }))
-                  }
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none"
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
-                  {t("adminMisc.projectsList.projectLeads")}
-                </label>
-                <div className="max-h-32 overflow-y-auto space-y-1 border border-[var(--border-primary)] rounded-lg p-2">
-                  {allStaff.map((staffMember) => {
-                    const isSelected = editProject.leads.includes(
-                      staffMember.cid || staffMember.id,
-                    );
-                    return (
-                      <label
-                        key={staffMember.cid || staffMember.id}
-                        className="flex items-center gap-2 p-1.5 hover:bg-white/5 rounded cursor-pointer transition-colors"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(event) => {
-                            if (event.target.checked) {
-                              setEditProject((previous) => ({
-                                ...previous,
-                                leads: [...previous.leads, staffMember.cid || staffMember.id],
-                              }));
-                            } else {
-                              setEditProject((previous) => ({
-                                ...previous,
-                                leads: previous.leads.filter(
-                                  (id) => id !== (staffMember.cid || staffMember.id),
-                                ),
-                              }));
-                            }
-                          }}
-                          className="rounded border-[var(--border-primary)] bg-transparent text-[var(--brand-orange)] focus:ring-brand-orange/50"
-                        />
-                        <span className="text-[10px] text-[var(--text-primary)]">
-                          {staffMember.name}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Concept Note */}
-            <div className="p-3 rounded-lg bg-tertiary/50 border border-[var(--border-primary)] space-y-2">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                {t("adminMisc.projectsList.conceptNote")}{" "}
-                <span className="text-[var(--text-secondary)] font-normal normal-case">
-                  {t("adminMisc.projectsList.optional")}
-                </span>
-              </p>
-              <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                {t("adminMisc.projectsList.uploadOrLinkHint")}
-              </p>
-              {editProject.conceptNoteUrl && (
-                <a
-                  href={editProject.conceptNoteUrl}
-                  target="_blank"
-                  className="text-[10px] text-[var(--brand-orange)] font-bold underline truncate block" rel="noreferrer"
-                >
-                  {t("adminMisc.projectsList.viewCurrentConceptNote")}
-                </a>
-              )}
-              <div className="flex gap-2 items-center">
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.txt,.png,.jpg"
-                  id="edit-concept-file"
-                  className="hidden"
-                  onChange={(event) => setEditConceptFile(event.target.files[0])}
-                />
-                <button
-                  onClick={() =>
-                    document.getElementById("edit-concept-file")?.click()
-                  }
-                  className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-widest"
-                >
-                  {editProject.conceptNoteUrl
-                    ? t("adminMisc.projectsList.replaceFile")
-                    : t("adminMisc.projectsList.uploadFile")}
-                </button>
-                {editConceptFile && (
-                  <button
-                    onClick={async () => {
-                      setUploadingEditConcept(true);
-                      try {
-                        const { uploadFile } = await import("@/lib/storage");
-                        const uploadResult = await uploadFile(
-                          "project-files",
-                          `concepts/${Date.now()}-${editConceptFile.name}`,
-                          editConceptFile,
-                        );
-                        if (uploadResult.success)
-                          setEditProject((previous) => ({
-                            ...previous,
-                            conceptNoteUrl: uploadResult.url,
-                          }));
-                      } catch (error) {
-                        console.error(error);
-                      } finally {
-                        setUploadingEditConcept(false);
-                        setEditConceptFile(null);
-                      }
-                    }}
-                    disabled={uploadingEditConcept}
-                    className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[10px] font-bold uppercase tracking-widest disabled:opacity-30"
-                  >
-                    {uploadingEditConcept
-                      ? "..."
-                      : t("adminMisc.projectsList.save")}
-                  </button>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-px bg-[var(--border-primary)]" />
-                <span className="text-[10px] font-medium text-[var(--text-secondary)]">
-                  {t("adminMisc.projectsList.or")}
-                </span>
-                <div className="flex-1 h-px bg-[var(--border-primary)]" />
-              </div>
-              <input
-                type="url"
-                value={editProject.conceptNoteUrl || ""}
-                onChange={(event) =>
-                  setEditProject((previous) => ({
-                    ...previous,
-                    conceptNoteUrl: event.target.value,
-                  }))
-                }
-                placeholder={t("adminMisc.projectsList.pasteLinkPlaceholder")}
-                className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
-              />
-            </div>
-
-            <button
-              onClick={handleSaveProject}
-              disabled={savingEdit || !editProject.name.trim()}
-              className="w-full py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-sm font-bold uppercase tracking-wide hover:brightness-110 transition-all"
-            >
-              {savingEdit
-                ? t("adminMisc.projectsList.saving")
-                : t("adminMisc.projectsList.saveChanges")}
-            </button>
-
-            {/* Collaborators */}
-            <div className="pt-3 border-t border-divider/30">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">
-                {t("adminMisc.projectsList.collaborators")}
-              </p>
-              <div className="space-y-1.5 max-h-32 overflow-y-auto mb-3">
-                {(projectMembers[showMemberModal] || []).length === 0 ? (
-                  <p className="text-sm text-[var(--text-secondary)] text-center py-4">
-                    {t("adminMisc.projectsList.noCollaborators")}
-                  </p>
-                ) : (
-                  (projectMembers[showMemberModal] || []).map((member) => (
-                    <div
-                      key={member.user_cid}
-                      className="flex items-center justify-between p-2 rounded-lg bg-tertiary/50"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold uppercase">
-                          {member.name?.charAt(0) || "?"}
-                        </div>
-                        <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                          {member.name || member.user_cid}
-                        </span>
-                        <span className="text-[10px] font-medium text-[var(--text-secondary)] uppercase">
-                          {member.role}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() =>
-                          handleRemoveMember(showMemberModal, member.user_cid)
-                        }
-                        className="text-[10px] font-bold uppercase text-rose-400 hover:text-rose-300"
-                      >
-                        {t("adminMisc.projectsList.remove")}
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-              <div className="flex gap-2">
-                <select
-                  id="add-collab-select"
-                  className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
-                >
-                  <option value="">
-                    {t("adminMisc.projectsList.addCollaboratorPlaceholder")}
-                  </option>
-                  {allStaff
-                    .filter(
-                      (staffMember) =>
-                        !(projectMembers[showMemberModal] || []).find(
-                          (member) =>
-                            member.user_cid === (staffMember.cid || staffMember.id),
-                        ),
-                    )
-                    .map((staffMember) => (
-                      <option key={staffMember.cid || staffMember.id} value={staffMember.cid || staffMember.id}>
-                        {staffMember.name}
-                      </option>
-                    ))}
-                </select>
-                <button
-                  onClick={() => {
-                    const selectElement = document.getElementById("add-collab-select");
-                    if (selectElement?.value) {
-                      handleAddMember(showMemberModal, selectElement.value);
-                      selectElement.value = "";
-                    }
-                  }}
-                  className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-sm font-bold uppercase tracking-wide hover:brightness-110"
-                >
-                  {t("adminMisc.projectsList.add")}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ProjectEditorModal
+          projectId={showMemberModal}
+          editProject={editProject}
+          onFieldChange={updateEditField}
+          onToggleLead={toggleEditLead}
+          allStaff={allStaff}
+          editConceptFile={editConceptFile}
+          onConceptFileChange={setEditConceptFile}
+          uploadingEditConcept={uploadingEditConcept}
+          onUploadConcept={handleUploadEditConcept}
+          savingEdit={savingEdit}
+          onSave={handleSaveProject}
+          onClose={() => setShowMemberModal(null)}
+          projectMembers={projectMembers}
+          onRemoveMember={(userCid) =>
+            handleRemoveMember(showMemberModal, userCid)
+          }
+          onAddCollaborator={handleAddCollaboratorFromSelect}
+        />
       )}
 
       {/* CREATE PROJECT MODAL */}
       {showCreateModal && canCreate && (
-        <div
-          className="fixed inset-0 z-[500] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto"
-          onClick={() => closeCreate()}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="create-project-title"
-            className="card w-full max-w-lg flex flex-col max-h-[90vh] my-auto"
-            onClick={(event) => event.stopPropagation()}
-          >
-            {/* Sticky header */}
-            <div className="flex items-center justify-between shrink-0 px-5 pt-5 pb-3 border-b border-[var(--border-primary)]">
-              <h2 id="create-project-title" className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                {t("adminMisc.projectsList.createProject")}
-              </h2>
-              <button
-                onClick={() => closeCreate()}
-                aria-label={t("common.close")}
-                className="p-1 rounded-lg hover:bg-tertiary transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Scrollable body */}
-            <div className="space-y-4 overflow-y-auto flex-1 px-5 py-4">
-              <div>
-                <label htmlFor="project-name" className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
-                  {t("adminMisc.projectsList.projectNameRequired")}
-                </label>
-                <input
-                  id="project-name"
-                  value={newProject.name}
-                  onChange={(event) =>
-                    setNewProject((previous) => ({ ...previous, name: event.target.value }))
-                  }
-                  placeholder={t("adminMisc.projectsList.projectNameExample")}
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="project-description" className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
-                  {t("adminMisc.projectsList.description")}
-                </label>
-                <textarea
-                  id="project-description"
-                  value={newProject.description}
-                  onChange={(event) =>
-                    setNewProject((previous) => ({
-                      ...previous,
-                      description: event.target.value,
-                    }))
-                  }
-                  placeholder={t("adminMisc.projectsList.descriptionGoalsPlaceholder")}
-                  rows={3}
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
-                />
-              </div>
-
-              {/* Start / End Dates */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="project-start-date" className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
-                    {t("adminMisc.projectsList.startDate")}
-                  </label>
-                  <input
-                    id="project-start-date"
-                    type="date"
-                    value={newProject.start_date}
-                    onChange={(event) =>
-                      setNewProject((previous) => ({
-                        ...previous,
-                        start_date: event.target.value,
-                      }))
-                    }
-                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="project-end-date" className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
-                    {t("adminMisc.projectsList.endDate")}
-                  </label>
-                  <input
-                    id="project-end-date"
-                    type="date"
-                    value={newProject.end_date}
-                    onChange={(event) =>
-                      setNewProject((previous) => ({ ...previous, end_date: event.target.value }))
-                    }
-                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="project-concept-url" className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
-                  {t("adminMisc.projectsList.conceptNote")}{" "}
-                  <span className="text-[var(--text-secondary)] font-normal">
-                    {t("adminMisc.projectsList.optional")}
-                  </span>
-                </label>
-                <p className="text-[10px] font-medium text-[var(--text-secondary)] mb-2">
-                  {t("adminMisc.projectsList.uploadOrLinkHint")}
-                </p>
-                <div className="space-y-2">
-                  {/* Upload option */}
-                  <div className="flex gap-2 items-center">
-                    <input
-                      id="project-concept-file"
-                      type="file"
-                      accept=".pdf,.doc,.docx,.txt,.png,.jpg"
-                      onChange={(event) => setConceptNoteFile(event.target.files[0])}
-                      className="flex-1 text-[10px] text-[var(--text-secondary)] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:uppercase file:tracking-wider file:bg-[var(--brand-orange)] file:text-black file:cursor-pointer hover:file:brightness-110"
-                    />
-                    {conceptNoteFile && (
-                      <button
-                        onClick={async () => {
-                          if (!conceptNoteFile) return;
-                          setUploadingConcept(true);
-                          try {
-                            const { uploadFile } =
-                              await import("@/lib/storage");
-                            const uploadResult = await uploadFile(
-                              "project-files",
-                              `concepts/${Date.now()}-${conceptNoteFile.name}`,
-                              conceptNoteFile,
-                            );
-                            if (uploadResult.success) {
-                              setNewProject((previous) => ({
-                                ...previous,
-                                conceptNoteUrl: uploadResult.url,
-                              }));
-                            }
-                          } catch (error) {
-                            console.error(error);
-                          } finally {
-                            setUploadingConcept(false);
-                            setConceptNoteFile(null);
-                          }
-                        }}
-                        disabled={uploadingConcept}
-                        className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-widest disabled:opacity-30"
-                      >
-                        {uploadingConcept
-                          ? "..."
-                          : t("adminMisc.projectsList.upload")}
-                      </button>
-                    )}
-                  </div>
-                  {/* Divider */}
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-px bg-[var(--border-primary)]" />
-                    <span className="text-[8px] text-[var(--text-secondary)] font-bold">
-                      {t("adminMisc.projectsList.or")}
-                    </span>
-                    <div className="flex-1 h-px bg-[var(--border-primary)]" />
-                  </div>
-                  {/* URL option */}
-                  <input
-                    id="project-concept-url"
-                    type="url"
-                    value={newProject.conceptNoteUrlInput}
-                    onChange={(event) =>
-                      setNewProject((previous) => ({
-                        ...previous,
-                        conceptNoteUrlInput: event.target.value,
-                      }))
-                    }
-                    placeholder={t("adminMisc.projectsList.pasteLinkPlaceholder")}
-                    className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
-                  />
-                </div>
-                {newProject.conceptNoteUrl && (
-                  <a
-                    href={newProject.conceptNoteUrl}
-                    target="_blank"
-                    className="text-[9px] text-[var(--brand-orange)] font-bold underline mt-1 inline-block" rel="noreferrer"
-                  >
-                    {t("adminMisc.projectsList.viewUploadedConceptNote")}
-                  </a>
-                )}
-                {newProject.conceptNoteUrlInput &&
-                  !newProject.conceptNoteUrl && (
-                    <p className="text-[9px] text-[var(--text-secondary)] mt-1 italic">
-                      {t("adminMisc.projectsList.linkSavedHint")}
-                    </p>
-                  )}
-              </div>
-              <div>
-                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  {t("adminMisc.projectsList.projectLeads")}
-                </label>
-                <div className="max-h-32 overflow-y-auto space-y-1 border border-[var(--border-primary)] rounded-lg p-2">
-                  {allStaff.map((staffMember) => {
-                    const isSelected = newProject.leads.includes(
-                      staffMember.cid || staffMember.id,
-                    );
-                    return (
-                      <label
-                        key={staffMember.cid || staffMember.id}
-                        className="flex items-center gap-2 p-1.5 hover:bg-white/5 rounded cursor-pointer transition-colors"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(event) => {
-                            if (event.target.checked) {
-                              setNewProject((previous) => ({
-                                ...previous,
-                                leads: [...previous.leads, staffMember.cid || staffMember.id],
-                              }));
-                            } else {
-                              setNewProject((previous) => ({
-                                ...previous,
-                                leads: previous.leads.filter(
-                                  (id) => id !== (staffMember.cid || staffMember.id),
-                                ),
-                              }));
-                            }
-                          }}
-                          className="rounded border-[var(--border-primary)] bg-transparent text-[var(--brand-orange)] focus:ring-brand-orange/50"
-                        />
-                        <span className="text-[10px] text-[var(--text-primary)]">
-                          {staffMember.name}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  {t("adminMisc.projectsList.collaboratorsCount", {
-                    count: selectedMembers.length,
-                  })}
-                </label>
-                <div className="max-h-32 overflow-y-auto space-y-1 border border-[var(--border-primary)] rounded-lg p-2">
-                  {allStaff.map((staffMember) => {
-                    const staffId = staffMember.cid || staffMember.id;
-                    const isSelected = selectedMembers.includes(staffId);
-                    return (
-                      <label
-                        key={staffId}
-                        className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-tertiary cursor-pointer text-[10px]"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() =>
-                            setSelectedMembers((prev) =>
-                              isSelected
-                                ? prev.filter((id) => id !== staffId)
-                                : [...prev, staffId],
-                            )
-                          }
-                          className="accent-[var(--brand-orange)]"
-                        />
-                        <span className="font-bold">{staffMember.name}</span>
-                        <span className="text-slate-500">{staffMember.role}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Sticky footer */}
-            <div className="flex gap-3 shrink-0 px-5 pb-5 pt-3 border-t border-[var(--border-primary)] bg-secondary/80 backdrop-blur">
-              <button
-                onClick={() => closeCreate()}
-                className="flex-1 btn btn-secondary py-3 text-[10px] font-black uppercase tracking-widest"
-              >
-                {t("adminMisc.projectsList.cancel")}
-              </button>
-              <button
-                onClick={handleCreateProject}
-                disabled={creating || !newProject.name.trim()}
-                className="flex-1 btn btn-primary py-3 text-[10px] font-black uppercase tracking-widest"
-              >
-                {creating
-                  ? t("adminMisc.projectsList.creating")
-                  : t("adminMisc.projectsList.createProject")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <CreateProjectModal
+          newProject={newProject}
+          onFieldChange={updateNewField}
+          onToggleLead={toggleNewLead}
+          conceptNoteFile={conceptNoteFile}
+          onConceptFileChange={setConceptNoteFile}
+          uploadingConcept={uploadingConcept}
+          onUploadConcept={handleUploadConcept}
+          allStaff={allStaff}
+          selectedMembers={selectedMembers}
+          onToggleMember={toggleSelectedMember}
+          creating={creating}
+          onClose={closeCreate}
+          onCreate={handleCreateProject}
+        />
       )}
     </>
   );

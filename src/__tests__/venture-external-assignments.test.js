@@ -63,7 +63,7 @@ jest.mock("@/lib/db", () => {
 
 const mockChat = require("@/lib/deepseek").deepseekIntelligence.chat;
 const { __state: state } = require("@/lib/db");
-const { interpretPlanSheet, applyPlanImport } = require("@/models/venturePlanImport");
+const { interpretPlanSheet, applyPlanImport } = require("@/services/ventures/planImport");
 const {
   listExternalAssignees,
   resolveExternalAssignment,

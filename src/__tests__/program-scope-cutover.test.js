@@ -22,7 +22,7 @@
  * program-scoped-access.test.js.)
  */
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
@@ -31,7 +31,7 @@ jest.mock("@/lib/auth", () => ({
   logPermissionAudit: jest.fn(async () => true),
 }));
 
-jest.mock("@/models/authorization/programScopeReadiness", () => ({
+jest.mock("@/services/authorization/programScopeReadiness", () => ({
   buildProgramScopeReadiness: jest.fn(async () => ({
     success: true,
     unmanaged: [],
@@ -55,11 +55,11 @@ jest.mock("@/models/authorization/programAssignmentBackfill", () => ({
   })),
 }));
 
-const { requireAuthorization } = require("@/lib/authorization");
+const { requireAuthorization } = require("@/models/authorization/index");
 const { logPermissionAudit } = require("@/lib/auth");
 const {
   buildProgramScopeReadiness,
-} = require("@/models/authorization/programScopeReadiness");
+} = require("@/services/authorization/programScopeReadiness");
 const {
   repointProgramManagerDefaultToPortfolio,
 } = require("@/models/authorization/programAssignmentBackfill");

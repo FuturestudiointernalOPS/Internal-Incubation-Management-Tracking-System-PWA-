@@ -50,7 +50,7 @@ jest.mock("@/lib/db", () => ({
 }));
 
 const mockLogAuditEvent = jest.fn(async () => {});
-jest.mock("@/lib/audit", () => ({ logAuditEvent: mockLogAuditEvent }));
+jest.mock("@/services/tasks/auditLog", () => ({ logAuditEvent: mockLogAuditEvent }));
 
 const mockSession = { cid: "user-1", user_cid: "user-1", name: "PM One", role: "program_manager" };
 
@@ -60,7 +60,7 @@ jest.mock("@/lib/auth", () => ({
   assertNoParticipantFacilitatorConflict: jest.fn(async () => null),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
@@ -69,7 +69,7 @@ jest.mock("@/lib/programScopedAccess", () => ({
 }));
 
 const { GET, POST, PUT, DELETE } = require("@/app/api/pm/programs/route");
-const { requireAuthorization } = require("@/lib/authorization");
+const { requireAuthorization } = require("@/models/authorization/index");
 const { requireProgramScope } = require("@/lib/programScopedAccess");
 
 const readJson = (res) => res.json();

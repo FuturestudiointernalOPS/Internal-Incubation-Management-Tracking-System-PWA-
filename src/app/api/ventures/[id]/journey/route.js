@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
-import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans";
+import { resolvePlanAccess, allowsPlanAction } from "@/services/ventures/operatingPlans";
 import { roleIsPrivileged } from "@/lib/ventureAuth";
 import { canManageMilestones, releaseMilestonesForStage, activateDueStages } from "@/lib/ventureMilestoneEngine";
 import { evidenceDownloadUrl, isExternalEvidenceLink } from "@/lib/ventureEvidence";
@@ -15,7 +15,7 @@ import {
   nextJourneyStageOrder,
   moveJourneyStage,
   deleteJourneyStage,
-} from "@/lib/ventureJourneys";
+} from "@/services/ventures/journey";
 import { diffFields, recordVentureChange } from "@/models/ventureChangeLog";
 import {
   listJourneyMilestonesByStage,

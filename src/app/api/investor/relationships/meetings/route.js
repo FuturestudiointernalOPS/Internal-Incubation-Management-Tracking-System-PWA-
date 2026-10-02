@@ -1,25 +1,18 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-
-import {
-  getVentureIdByWorkspaceId,
-  getVentureNameForCompletedMeeting,
-  getVentureNameForScheduledMeeting,
-  getWorkspaceForMeetingCompletion,
-  insertMeetingCompletedTimeline,
-  insertMeetingScheduledTimeline,
-  insertRelationshipMeeting,
-  listMeetingsForWorkspace,
-  setWorkspaceNextAction,
-  updateRelationshipMeeting,
-} from "@/models/investorRelations";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
-import { resolveInvestorScope, investorOwnsWorkspace } from "@/models/authorization/investorScope";
+import {
+  listMeetingsForViewer,
+  createRelationshipMeeting,
+  updateRelationshipMeetingCascade,
+} from "@/services/investor";
 
 /**
  * GET /api/investor/relationships/meetings
  * List meetings for a workspace. Query: workspace_id (required)
+ *
+ * The own-scope binding of the workspace lives in `@/services/investor`.
  */
 export async function GET(req) {
   try {
@@ -30,20 +23,12 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const workspaceId = searchParams.get("workspace_id");
 
-    if (!workspaceId) {
-      return NextResponse.json({ success: false, error: "workspace_id required" }, { status: 400 });
+    const result = await listMeetingsForViewer({ workspaceId, session: await getSession() });
+    if (!result.ok) {
+      return NextResponse.json({ success: false, error: result.error }, { status: result.status });
     }
 
-    // Own-scope: the workspace id comes from the request, so bind it to the
-    // caller's investor profile before returning its meetings.
-    const scope = await resolveInvestorScope(await getSession());
-    if (!scope.management && !(await investorOwnsWorkspace(workspaceId, scope.profileId))) {
-      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    }
-
-    const result = await listMeetingsForWorkspace(workspaceId);
-
-    return NextResponse.json({ success: true, meetings: result.rows });
+    return NextResponse.json({ success: true, meetings: result.meetings });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -61,32 +46,31 @@ export async function POST(req) {
 
     const session = await getSession();
     const body = await req.json();
-    const { workspace_id, meeting_type, scheduled_date, scheduled_time, duration_minutes, location, notes } = body;
+    const {
+      workspace_id,
+      meeting_type,
+      scheduled_date,
+      scheduled_time,
+      duration_minutes,
+      location,
+      notes,
+    } = body;
 
-    if (!workspace_id) {
-      return NextResponse.json({ success: false, error: "workspace_id required" }, { status: 400 });
+    const result = await createRelationshipMeeting({
+      workspaceId: workspace_id,
+      meetingType: meeting_type,
+      scheduledDate: scheduled_date,
+      scheduledTime: scheduled_time,
+      durationMinutes: duration_minutes,
+      location,
+      notes,
+      session,
+    });
+    if (!result.ok) {
+      return NextResponse.json({ success: false, error: result.error }, { status: result.status });
     }
 
-    const result = await insertRelationshipMeeting(
-      workspace_id,
-      meeting_type || "introductory",
-      scheduled_date || null,
-      scheduled_time || null,
-      duration_minutes || 60,
-      location || null,
-      notes || null,
-    );
-
-    const meeting = result.rows[0];
-
-    // Get workspace info for timeline
-    const workspace = await getVentureIdByWorkspaceId(workspace_id);
-    await getVentureNameForScheduledMeeting(workspace.rows[0]?.venture_id);
-
-    // Timeline entry
-    await insertMeetingScheduledTimeline(workspace_id, `${meeting_type.replace(/_/g, " ")} meeting scheduled${scheduled_date ? " for " + scheduled_date : ""}`, session.cid || session.id);
-
-    return NextResponse.json({ success: true, meeting });
+    return NextResponse.json({ success: true, meeting: result.meeting });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -104,11 +88,8 @@ export async function PUT(req) {
 
     const session = await getSession();
     const body = await req.json();
-    const { id, status, notes, outcome, action_items, scheduled_date, scheduled_time, location, meeting_type } = body;
-
-    if (!id) return NextResponse.json({ success: false, error: "meeting id required" }, { status: 400 });
-
-    const result = await updateRelationshipMeeting(id, {
+    const {
+      id,
       status,
       notes,
       outcome,
@@ -117,36 +98,27 @@ export async function PUT(req) {
       scheduled_time,
       location,
       meeting_type,
+    } = body;
+
+    const result = await updateRelationshipMeetingCascade({
+      id,
+      fields: {
+        status,
+        notes,
+        outcome,
+        action_items,
+        scheduled_date,
+        scheduled_time,
+        location,
+        meeting_type,
+      },
+      session,
     });
-
-    if (result.updated === false) return NextResponse.json({ success: false, error: "Nothing to update" }, { status: 400 });
-
-    if (result.rows.length === 0) {
-      return NextResponse.json({ success: false, error: "Meeting not found" }, { status: 404 });
+    if (!result.ok) {
+      return NextResponse.json({ success: false, error: result.error }, { status: result.status });
     }
 
-    const meeting = result.rows[0];
-
-    // Timeline entry
-    if (status === "completed") {
-      // Get workspace id for timeline
-      const workspace = await getWorkspaceForMeetingCompletion(id);
-      if (workspace.rows.length > 0) {
-        const ventureName = (await getVentureNameForCompletedMeeting(workspace.rows[0].venture_id)).rows[0]?.name || "Venture";
-
-        await insertMeetingCompletedTimeline(workspace.rows[0].id, `Meeting completed${outcome ? ": " + outcome : ""} for ${ventureName}`, session.cid || session.id);
-
-        // Update workspace next_action if action_items provided
-        if (action_items) {
-          const items = typeof action_items === "string" ? JSON.parse(action_items) : action_items;
-          if (Array.isArray(items) && items.length > 0) {
-            await setWorkspaceNextAction(items[0], workspace.rows[0].id);
-          }
-        }
-      }
-    }
-
-    return NextResponse.json({ success: true, meeting });
+    return NextResponse.json({ success: true, meeting: result.meeting });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

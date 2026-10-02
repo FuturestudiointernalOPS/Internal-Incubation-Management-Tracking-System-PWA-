@@ -23,20 +23,20 @@ jest.mock("@/lib/auth", () => ({
 
 let mockCtx = null;
 let mockCapError = null;
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   getAuthorizationContext: jest.fn(async () => mockCtx),
   requireAuthorization: jest.fn(async () => mockCapError),
 }));
 
 let mockWithin = false;
-jest.mock("@/lib/authorization/scope", () => ({
+jest.mock("@/services/authorization/scope", () => ({
   resolveVentureScopeId: jest.fn(async () => "VNT-1"),
   isWithinScope: jest.fn(async () => mockWithin),
 }));
 
 const { requireVentureScopedAccess } = require("@/lib/ventureScopedAccess");
-const { requireAuthorization } = require("@/lib/authorization");
-const { isWithinScope } = require("@/lib/authorization/scope");
+const { requireAuthorization } = require("@/models/authorization/index");
+const { isWithinScope } = require("@/services/authorization/scope");
 const { summarizeVentureStrictAudit } = require("@/models/authorization/ventureScopeAudit");
 
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");

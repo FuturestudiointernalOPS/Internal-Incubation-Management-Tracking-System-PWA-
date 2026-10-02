@@ -1,6 +1,6 @@
 import {
   AlertTriangle, CheckCircle2, ChevronDown, Download, Eye, FileText, Filter,
-  Hash, History, Key, Loader2, Mail, Plus, RefreshCw, RotateCcw, Search, Send, X, XCircle,
+  Hash, History, Key, Loader2, Mail, Pencil, Plus, RefreshCw, RotateCcw, Search, Send, X, XCircle,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import AppPdfPreview from "@/components/ui/AppPdfPreview";
@@ -40,6 +40,7 @@ export default function OverviewTab({
   duplicateEmailSet,
   evaluatedSubmissionIds,
   openReview, handleDeleteSubmission,
+  onEditRespondentEmail,
   setSelectedSubmission, selectedSubmission,
   respTotalPages, setRespPage,
   bulkConfirmOpen, bulkIncludeResultPdf, allSelectedEvaluated, runBulkApprove,
@@ -627,6 +628,9 @@ export default function OverviewTab({
                                 {submission.status === "submitted" && (
                                   <button onClick={() => openReview(submission)} className="px-2 py-1 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:bg-brand-orange/20">{t("platformMisc.runs.review")}</button>
                                 )}
+                                <button onClick={() => onEditRespondentEmail(submission)} title={t("platformMisc.runs.editEmailTitle")} className="px-2 py-1 rounded-lg bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase tracking-wide hover:bg-amber-500/20 flex items-center gap-1">
+                                  <Pencil className="w-3 h-3" /> {t("platformMisc.runs.editEmail")}
+                                </button>
                                 <button onClick={() => handleDeleteSubmission(submission.id)} className="px-2 py-1 rounded-lg bg-rose-500/10 text-rose-500 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20">{t("platformMisc.runs.delete")}</button>
                               </div>
                             </td>

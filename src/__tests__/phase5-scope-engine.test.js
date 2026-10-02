@@ -31,11 +31,11 @@ jest.mock("@/lib/db", () => ({
 }));
 
 let mockAuthzDecision = null;
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn().mockImplementation(async () => mockAuthzDecision),
 }));
 
-const requireAuthorization = require("@/lib/authorization").requireAuthorization;
+const requireAuthorization = require("@/models/authorization/index").requireAuthorization;
 const route = require("@/app/api/engineering/permissions/scope-check/route");
 const {
   SCOPE_POLICY_KEYS,
@@ -43,8 +43,8 @@ const {
   SCOPE_DECISION_REASONS,
   evaluateScopeDecision,
   isScopePolicyImplemented,
-} = require("@/lib/authorization/scope-catalog");
-const { resolveScopeIds, isWithinScope, resolveVentureScopeId } = require("@/lib/authorization/scope");
+} = require("@/models/authorization/scope-catalog");
+const { resolveScopeIds, isWithinScope, resolveVentureScopeId } = require("@/services/authorization/scope");
 
 const getReq = (params) =>
   new Request(

@@ -53,6 +53,7 @@ const sources = (over = {}) => ({
 const PERMS = "src/components/permissions/";
 const EDITOR = `${PERMS}PermissionCenter.js`;
 const REPORT = `${PERMS}PeopleView.js`;
+const REPORT_MATRIX = `${PERMS}people-view/PeopleMatrix.js`;
 const SPECIAL = `${PERMS}AdvancedCapabilities.js`;
 
 // ─── 1. Late answers (A → B → A) ────────────────────────────────────────────
@@ -288,7 +289,7 @@ describe("UI-7 — no state is represented by a blank screen", () => {
 // ─── 4. One report, two editors ─────────────────────────────────────────────
 describe("UI-7 — the report reads, the editors write", () => {
   test("the report is labelled as a report and keeps every origin", () => {
-    const src = read(REPORT);
+    const src = read(REPORT_MATRIX);
     expect(src).toContain("peopleMatrixReportHint");
     expect(src).toContain("describeCapOrigins");
     expect(src).toContain("originText(state)");

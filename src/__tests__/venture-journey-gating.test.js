@@ -76,7 +76,7 @@ jest.mock("@/lib/ventureAuth", () => ({
   roleIsPrivileged: jest.requireActual("@/lib/ventureAuth").roleIsPrivileged,
 }));
 
-jest.mock("@/lib/ventureOperatingPlans", () => ({
+jest.mock("@/services/ventures/operatingPlans", () => ({
   resolvePlanAccess: jest.fn((...a) => mockPlans.resolvePlanAccess(...a)),
   allowsPlanAction: jest.fn((...a) => mockPlans.allowsPlanAction(...a)),
 }));

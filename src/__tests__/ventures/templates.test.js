@@ -11,7 +11,7 @@ jest.mock("@/lib/db", () => ({
 }));
 
 const db = require("@/lib/db").default;
-const { assignPlaybookToVenture } = require("@/lib/ventureTemplates");
+const { assignPlaybookToVenture } = require("@/models/ventureTemplates");
 
 beforeEach(() => {
   jest.clearAllMocks();

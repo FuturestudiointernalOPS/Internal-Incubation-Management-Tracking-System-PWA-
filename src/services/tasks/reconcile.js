@@ -24,7 +24,7 @@ import {
 } from "@/models/taskLifecycle";
 import { getTaskTitleById } from "@/models/tasks";
 import { completeCarryoverAncestors } from "@/models/taskCarryover";
-import { logAuditEvent } from "@/lib/audit";
+import { logAuditEvent } from "@/services/tasks/auditLog";
 import {
   seesWholePortfolio,
   resolveListingScope,

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireAuth, getSession } from "@/lib/auth";
-import { getLearnerCertificate } from "@/lib/lms/certificates";
-import { buildCertificatePdf } from "@/lib/lms/certificate-pdf";
-import { lmsErrorResponse, LmsError } from "@/lib/lms/errors";
+import { getLearnerCertificate } from "@/models/lms/certificates";
+import { buildCertificatePdf } from "@/models/lms/certificate-pdf";
+import { lmsErrorResponse, LmsError } from "@/models/lms/errors";
 
 export const dynamic = "force-dynamic";
 

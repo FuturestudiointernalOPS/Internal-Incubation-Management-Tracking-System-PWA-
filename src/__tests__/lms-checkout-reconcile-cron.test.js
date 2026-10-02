@@ -14,7 +14,7 @@
  *      403 for a wrong or missing secret, and only then does it run the sweep.
  */
 
-jest.mock("@/lib/lms/checkoutReconcile", () => ({
+jest.mock("@/services/lms/checkoutReconcile", () => ({
   reconcileRegistrations: jest.fn(async () => ({
     checked: 0,
     accessGranted: 0,
@@ -48,7 +48,7 @@ function loadRoute() {
   let reconcile;
   jest.isolateModules(() => {
     route = require("@/app/api/lms/checkout-reconcile/route");
-    reconcile = require("@/lib/lms/checkoutReconcile");
+    reconcile = require("@/services/lms/checkoutReconcile");
   });
   return { route, reconcile };
 }

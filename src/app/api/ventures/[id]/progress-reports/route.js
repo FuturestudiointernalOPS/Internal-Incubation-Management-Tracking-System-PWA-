@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { resolvePlanAccess, allowsPlanAction, resolveVentureCode } from "@/lib/ventureOperatingPlans";
+import { resolvePlanAccess, allowsPlanAction, resolveVentureCode } from "@/services/ventures/operatingPlans";
 import { isStaffActorForVenture, roleIsPrivileged } from "@/lib/ventureAuth";
 import { createVentureReport, listVentureReports, getVentureReport, updateVentureReportStatus, listJourneysMissingClosingReport } from "@/lib/ventureReports";
 

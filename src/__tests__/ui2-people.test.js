@@ -85,6 +85,7 @@ describe("UI-2b — screen wiring", () => {
   const route = "src/app/admin/security/permissions/people/page.js";
   const merged = "src/components/permissions/IndividualAccessScreen.js";
   const view = "src/components/permissions/PeopleView.js";
+  const matrix = "src/components/permissions/people-view/PeopleMatrix.js";
 
   test("the people route renders ONE merged Individual Access screen", () => {
     const src = read(route);
@@ -134,8 +135,9 @@ describe("UI-2b — screen wiring", () => {
     const src = read(view);
     expect(src).toContain("/api/engineering/permissions/user-context?cid=");
     expect(src).toContain("/api/engineering/permissions/scope-check?policy=");
-    expect(src).toContain("EffectiveBadge");
     expect(src).toContain("WhyDrawer");
+    // The matrix card is its own block; it carries the effective badge.
+    expect(read(matrix)).toContain("EffectiveBadge");
     // Scope column must never be fabricated client-side.
     expect(src).not.toContain("All · P4");
   });

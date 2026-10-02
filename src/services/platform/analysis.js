@@ -13,7 +13,7 @@
  * It reads and writes through `@/models/**` and `@/lib/**`.
  */
 
-import { analyzeSubmission, summarizeSubmission } from "@/lib/platform/integrations";
+import { analyzeSubmission, summarizeSubmission } from "@/models/platform/integrations";
 import {
   getFormForAiAnalysis,
   getRunForAiAnalysis,

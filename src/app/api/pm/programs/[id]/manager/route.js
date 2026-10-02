@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
-import { isWithinScope } from "@/lib/authorization/scope";
+import { requireAuthorization } from "@/models/authorization/index";
+import { isWithinScope } from "@/services/authorization/scope";
 import { changeProgramManager } from "@/services/programs/programManager";
 
 export const dynamic = "force-dynamic";
