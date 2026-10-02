@@ -1,13 +1,13 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession, logPermissionAudit } from "@/lib/auth";
-import { requireAuthorization, assertTemplateCapsEligible, invalidateAllAuthorizationContexts } from "@/models/authorization/index";
+import { requireAuthorization, invalidateAllAuthorizationContexts } from "@/models/authorization/index";
 import {
-  getActiveProfileForRoleDefault,
   setRoleDefaultProfile,
   removeRoleDefaultProfile,
   listRoleDefaultMappings,
 } from "@/models/authorization";
+import { assertRoleDefaultAssignable } from "@/services/authorization/accessProfileWrites";
 
 /**
  * PUT /api/access-profiles/role-defaults
@@ -31,30 +31,17 @@ export async function PUT(req) {
       );
     }
 
-    // Verify profile exists
-    const profile = await getActiveProfileForRoleDefault(profile_id);
-    if (profile.rows.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "Access profile not found or inactive" },
-        { status: 404 },
-      );
-    }
-
-    // Phase 2: eligibility is the boundary — a default template must never
-    // grant capabilities whose feature the role is not eligible for.
-    const { valid, violations } = await assertTemplateCapsEligible({
-      role: role_name,
-      groups: [],
-      profileId: profile_id,
-    });
-    if (!valid) {
+    // The profile must exist and be active, and the role must be eligible for
+    // every feature the profile grants. The boundary lives in the service.
+    const gate = await assertRoleDefaultAssignable(role_name, profile_id);
+    if (!gate.ok) {
       return NextResponse.json(
         {
           success: false,
-          error: "errors.ineligibleTemplateCaps",
-          violations,
+          error: gate.error,
+          ...(gate.violations ? { violations: gate.violations } : {}),
         },
-        { status: 400 },
+        { status: gate.status },
       );
     }
 
@@ -66,13 +53,13 @@ export async function PUT(req) {
       targetCid: "system",
       targetName: `role:${role_name}`,
       action: "role_default_changed",
-      details: `Set default access profile for role "${role_name}" to "${profile.rows[0].name}"`,
+      details: `Set default access profile for role "${role_name}" to "${gate.profileName}"`,
     });
     invalidateAllAuthorizationContexts();
 
     return NextResponse.json({
       success: true,
-      message: `Role "${role_name}" default set to "${profile.rows[0].name}"`,
+      message: `Role "${role_name}" default set to "${gate.profileName}"`,
     });
   } catch (error) {
     console.error("API Error:", error.message);

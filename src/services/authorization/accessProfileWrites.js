@@ -32,10 +32,14 @@ import {
   getProfileImpactCounts,
   clearProfileCapabilities,
   replaceProfileCapability,
+  getActiveProfileForRoleDefault,
 } from "@/models/authorization";
 import { MODULE_TO_FEATURE } from "@/models/authorization/eligibility";
 import { evaluateEligibility } from "./eligibility";
-import { validateCapabilitiesWithinEligibility } from "./eligibilityAdmin";
+import {
+  assertTemplateCapsEligible,
+  validateCapabilitiesWithinEligibility,
+} from "./eligibilityAdmin";
 
 /**
  * Dependency normalization for profile capabilities.
@@ -132,6 +136,47 @@ export async function assertCapsEligibleForProfile(capabilities, profileId) {
   // Validate what would actually be PERSISTED (normalization already applied):
   // an implied `view` must be checked against eligibility like any other row.
   return assertCapsEligibleForRoles(normalizeCapabilities(capabilities), defaultRoles);
+}
+
+/**
+ * The role-default ASSIGNMENT boundary (PUT /api/access-profiles/role-defaults).
+ *
+ * Two rules, in order:
+ *   1. the profile must exist and be ACTIVE (404 otherwise);
+ *   2. the role must be eligible for every feature the profile grants
+ *      (`ELIGIBLE ≠ GRANTED`, fail closed) — a default template must never
+ *      grant what its role cannot be eligible for (400 otherwise).
+ *
+ * Returns a decision, not a Response: `ok: true` carries the profile name for
+ * the audit entry; `ok: false` carries the HTTP status the boundary should use.
+ *
+ * @returns {Promise<{ok: true, profileName: string} | {ok: false, status: number, error: string, violations?: Array}>}
+ */
+export async function assertRoleDefaultAssignable(roleName, profileId) {
+  const profile = await getActiveProfileForRoleDefault(profileId);
+  if (profile.rows.length === 0) {
+    return {
+      ok: false,
+      status: 404,
+      error: "Access profile not found or inactive",
+    };
+  }
+
+  const { valid, violations } = await assertTemplateCapsEligible({
+    role: roleName,
+    groups: [],
+    profileId,
+  });
+  if (!valid) {
+    return {
+      ok: false,
+      status: 400,
+      error: "errors.ineligibleTemplateCaps",
+      violations,
+    };
+  }
+
+  return { ok: true, profileName: profile.rows[0].name };
 }
 
 /**

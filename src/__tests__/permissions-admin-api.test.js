@@ -71,6 +71,11 @@ jest.mock("@/services/authorization/context", () => ({
   authorize: mockAuthorize,
 }));
 
+jest.mock("@/services/authorization/eligibilityAdmin", () => ({
+  ...jest.requireActual("@/services/authorization/eligibilityAdmin"),
+  assertTemplateCapsEligible: jest.fn().mockResolvedValue({ valid: true, violations: [] }),
+}));
+
 const mockRealEligAdmin = jest.requireActual("@/services/authorization/eligibilityAdmin");
 const mockRealEligibility = jest.requireActual("@/lib/authorization/eligibility");
 jest.mock("@/models/authorization/index", () => ({
@@ -90,8 +95,12 @@ jest.mock("@/models/authorization/index", () => ({
   MODULE_TO_FEATURE: mockRealEligibility.MODULE_TO_FEATURE,
 }));
 
-const { requireAuthorization, invalidateAllAuthorizationContexts, assertTemplateCapsEligible, getAuthorizationContext } =
+const { requireAuthorization, invalidateAllAuthorizationContexts, getAuthorizationContext } =
   require("@/models/authorization/index");
+// The role-defaults eligibility boundary now lives in the accessProfileWrites
+// service, which reads assertTemplateCapsEligible straight from the
+// eligibilityAdmin service — so the stub must intercept that module too.
+const { assertTemplateCapsEligible } = require("@/services/authorization/eligibilityAdmin");
 const { logPermissionAudit } = require("@/lib/auth");
 const eligibilityRoute = require("@/app/api/engineering/permissions/eligibility/route");
 const roleDefaultsRoute = require("@/app/api/access-profiles/role-defaults/route");
