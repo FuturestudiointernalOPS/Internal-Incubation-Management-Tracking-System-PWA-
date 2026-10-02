@@ -64,7 +64,7 @@ describe("GET /api/notifications — the badge is a COUNT, not the page length",
 const SHELL = "src/components/layout/DashboardLayout.js";
 
 describe("the bell — a glance, on a live number", () => {
-  const src = read(SHELL);
+  const src = read(SHELL) + read("src/components/layout/shell/ShellHeader.js");
 
   test("the badge takes the server's count", () => {
     expect(src).toMatch(/data\.unread_count/);

@@ -2451,3 +2451,16 @@ decision is recorded, new modules stay plain JavaScript.
 | Decision surface intact | same suite | a renamed/removed export breaks the service barrel or the resolver facade |
 | No SQL in `server/authz` | `src/__tests__/server/authz-boundaries.test.js` | (pre-existing) authorization policy runs inline SQL |
 | Auth/authz import directions | `src/__tests__/server/auth-boundaries.test.js` | (pre-existing) |
+
+### Communications — reprise L8 / B1 / B6
+
+Les décisions d'accès des suivis et la distribution des opérations de notifications
+sont dans `src/services/communications/`. Les routes conservent authentification,
+validation et sérialisation HTTP. La messagerie interne est séparée en résolution
+du périmètre, lecture, envoi et marquage lu, derrière les mêmes exports publics.
+
+La coquille et le chat gardent leurs points d'entrée publics ; leurs blocs de rendu
+sont extraits vers `src/components/layout/shell/` et
+`src/components/messaging/chat/`. Aucun layout de section n'est modifié.
+Le périmètre exact et les responsabilités sont documentés dans
+`src/services/communications/README.md`.

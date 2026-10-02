@@ -1,41 +1,15 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import {
-  getFollowupById,
   listFollowups,
 } from "@/models/communications";
 import {
   ensureFollowupSchema,
   createFollowup,
-  updateFollowupRecord,
-  isParticipantInFacilitatorScope,
+  evaluateFollowupParticipantAccess,
+  updateScopedFollowup,
 } from "@/services/communications/followups";
-
-/**
- * For facilitators, resolve program assignment + team scope and return a guard.
- * Returns null for non-facilitators (no restriction).
- */
-async function getFacilitatorScopeGuard(req, programId) {
-  const session = await getSession();
-  if (session && hasProgramManagementAccess(session.role)) return null;
-  if (!programId) {
-    return {
-      deny: true,
-      response: NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      ),
-    };
-  }
-  const guardError = await requireAssignmentAccess({
-    resource: "program",
-    contextId: programId,
-  });
-  if (guardError) return { deny: true, response: guardError };
-  const scope = await getFacilitatorTeamScope(programId, session.cid);
-  return { scope };
-}
 
 /**
  * FOLLOW-UPS API — TRACK 3 ENHANCED
@@ -84,21 +58,8 @@ export const POST = createHandler(
       );
     }
 
-    // Facilitators may only create follow-ups for participants in their teams.
-    const scopeGuard = await getFacilitatorScopeGuard(req, program_id);
-    if (scopeGuard?.deny) return scopeGuard.response;
-    if (scopeGuard && scopeGuard.scope.scope !== "all") {
-      const inScope = await isParticipantInFacilitatorScope(
-        scopeGuard.scope,
-        participant_id,
-      );
-      if (!inScope) {
-        return NextResponse.json(
-          { success: false, error: "errors.insufficientPermissions" },
-          { status: 403 },
-        );
-      }
-    }
+    const access = await evaluateFollowupParticipantAccess({ session, programId: program_id, participantId: participant_id });
+    if (!access.allowed) return NextResponse.json({ success: false, error: access.errorKey }, { status: access.status });
 
     // Create follow-up record + calendar event + submission move
     const followup = await createFollowup({ session, payload: body });
@@ -119,34 +80,8 @@ export const PATCH = createHandler(
       );
     }
 
-    // Facilitators may only update follow-ups for participants in their teams.
-    const followupResult = await getFollowupById(id);
-    const followup = followupResult.rows[0];
-    if (followup) {
-      const scopeGuard = await getFacilitatorScopeGuard(req, followup.program_id);
-      if (scopeGuard?.deny) return scopeGuard.response;
-      if (scopeGuard && scopeGuard.scope.scope !== "all") {
-        const inScope = await isParticipantInFacilitatorScope(
-          scopeGuard.scope,
-          followup.participant_id,
-          { forUpdate: true },
-        );
-        if (!inScope) {
-          return NextResponse.json(
-            { success: false, error: "errors.insufficientPermissions" },
-            { status: 403 },
-          );
-        }
-      }
-    }
-
-    await updateFollowupRecord({
-      id,
-      status,
-      notes,
-      meetingLink: meeting_link,
-      scheduledAt: scheduled_at,
-    });
+    const outcome = await updateScopedFollowup({ id, status, notes, meetingLink: meeting_link, scheduledAt: scheduled_at });
+    if (!outcome.allowed) return NextResponse.json({ success: false, error: outcome.errorKey }, { status: outcome.status });
 
     return NextResponse.json({ success: true });
   },

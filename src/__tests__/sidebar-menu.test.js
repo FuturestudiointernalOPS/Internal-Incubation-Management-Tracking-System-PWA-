@@ -62,7 +62,7 @@ describe("UI-4a — hover intent vs explicit close", () => {
 });
 
 describe("UI-4a — the layout actually applies the rules", () => {
-  const src = read(LAYOUT);
+  const src = read(LAYOUT) + read("src/components/layout/shell/SidebarContent.js");
 
   test("the mobile drawer is a scrollable column", () => {
     // The drawer must be a flex column with hidden overflow, otherwise the

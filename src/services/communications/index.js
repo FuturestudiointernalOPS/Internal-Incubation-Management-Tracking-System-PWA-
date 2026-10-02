@@ -8,9 +8,9 @@
  *
  *   messageScope.js — who may see which message
  *   campaigns.js — the campaign step/audience use-cases
- *   internalComms.js — the internal message scope engine + inbox/send/read
+ *   internalComms.js — stable entry point for internal-comms/{scope,inbox,send,read}
  *   announcements.js — the announcement feed/publish/moderate use-cases
- *   followups.js — the follow-up create/update use-cases
+ *   followups.js — follow-up create/update and assignment/participant scope decisions
  *   events.js — the calendar-event create use-case
  */
 

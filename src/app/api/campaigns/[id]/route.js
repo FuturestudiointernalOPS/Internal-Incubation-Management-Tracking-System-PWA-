@@ -1,15 +1,8 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import {
-  deleteCampaignCascade,
-  deleteCampaignSteps,
-  getCampaignContacts,
-  getCampaignSteps,
-  getCampaignWithCounts,
-  updateCampaign,
-} from "@/models/communications";
-import { addCampaignSteps, syncCampaignAudience } from "@/services/communications/campaigns";
+import { deleteCampaignCascade } from "@/models/communications";
+import { loadCampaignDetail, updateCampaignDefinition } from "@/services/communications/campaigns";
 
 // ── CAMPAIGNS RETIRED ──────────────────────────────────────────────────────
 // Campaigns are hidden from the sidebar and their API is disabled (403).
@@ -28,38 +21,16 @@ export async function GET(req, { params }) {
     const authError = await requireAuth(["staff", "super_admin"]);
     if (authError) return authError;
 
-    // Get Campaign Info
-    const campaignResult = await getCampaignWithCounts(id);
+    // Campaign info + steps (with delivery counts) + contacts
+    const campaign = await loadCampaignDetail(id);
 
-    if (!campaignResult.rows[0])
+    if (!campaign)
       return NextResponse.json(
         { success: false, error: "errors.notFound" },
         { status: 404 },
       );
-    const campaign = campaignResult.rows[0];
 
-    // 1. Get individual Step Logic
-    const stepsResult = await getCampaignSteps(id);
-
-    // 2. Get Step-by-Step Delivery Counts
-    const contactsResult = await getCampaignContacts(id);
-
-    const nonPendingCount = contactsResult.rows.filter(
-      (contact) => contact.status !== "pending",
-    ).length;
-
-    const stepsWithCounts = stepsResult.rows.map((step) => {
-      return { ...step, delivered_count: nonPendingCount };
-    });
-
-    return NextResponse.json({
-      success: true,
-      campaign: {
-        ...campaign,
-        steps: stepsWithCounts,
-        contacts: contactsResult.rows,
-      },
-    });
+    return NextResponse.json({ success: true, campaign });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },
@@ -77,19 +48,8 @@ export async function PUT(req, { params }) {
     const authError = await requireAuth(["staff", "super_admin"]);
     if (authError) return authError;
 
-    // Update main info
-    await updateCampaign({ id, name: data.name, formId: data.form_id });
-
-    // Update steps
-    if (data.steps) {
-      await deleteCampaignSteps(id);
-      await addCampaignSteps(id, data.steps);
-    }
-
-    // Update contacts (Target Audience)
-    if (data.cids) {
-      await syncCampaignAudience(id, data.cids);
-    }
+    // Update main info, steps and target audience
+    await updateCampaignDefinition(id, data);
 
     return NextResponse.json({ success: true });
   } catch (error) {

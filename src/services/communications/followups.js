@@ -4,15 +4,21 @@
  * Creating a follow-up also writes a calendar event (end = start + duration) and,
  * when linked to a submission, moves that submission to `pending_followup`. Both
  * side effects are non-blocking. The facilitator team-membership check lives
- * here (isParticipantInFacilitatorScope); the guard that answers HTTP (the 403
- * responses) stays on the route.
+ * here, along with assignment and update scope decisions; HTTP responses stay
+ * on the route.
  *
  * Reads and writes go through `@/models/communications`; nothing here runs SQL.
  *
  * See docs/LAYER_SPLIT.md.
  */
 
+import { getSession } from "@/server/auth/session";
+import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { getFacilitatorTeamScope } from "@/models/authorization/accessQueries";
+import { evaluateAssignmentAccess } from "@/services/authorization/resourceGuards";
+
 import {
+  getFollowupById,
   ensureFollowupsCreatedByColumn,
   insertFollowup,
   insertFollowupCalendarEvent,
@@ -114,4 +120,30 @@ export async function isParticipantInFacilitatorScope(
     : isContactInFacilitatorTeams;
   const inScope = await lookup(participantId, scope.teamIds);
   return inScope.rows.length > 0;
+}
+
+/** Assignment and participant scope are decisions; callers serialize refusals. */
+export async function evaluateFollowupParticipantAccess({ session, programId, participantId, forUpdate = false }) {
+  if (session && hasProgramManagementAccess(session.role)) return { allowed: true };
+  if (!programId) return { allowed: false, status: 403, errorKey: "errors.insufficientPermissions" };
+  const assignment = await evaluateAssignmentAccess({ resource: "program", contextId: programId });
+  if (!assignment.allowed) return assignment;
+  const scope = await getFacilitatorTeamScope(programId, session.cid);
+  if (scope.scope !== "all" && !(await isParticipantInFacilitatorScope(scope, participantId, { forUpdate }))) {
+    return { allowed: false, status: 403, errorKey: "errors.insufficientPermissions" };
+  }
+  return { allowed: true };
+}
+
+/** Preserve the legacy missing-record update and check scope before any write. */
+export async function updateScopedFollowup(update) {
+  const result = await getFollowupById(update.id);
+  const followup = result.rows[0];
+  if (followup) {
+    const session = await getSession();
+    const access = await evaluateFollowupParticipantAccess({ session, programId: followup.program_id, participantId: followup.participant_id, forUpdate: true });
+    if (!access.allowed) return access;
+  }
+  await updateFollowupRecord(update);
+  return { allowed: true };
 }
