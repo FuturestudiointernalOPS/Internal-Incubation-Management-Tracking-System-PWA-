@@ -2396,6 +2396,137 @@ are green.
 
 ---
 
+### Domain 87 — the ops reports controller frontier (slice 123)
+
+`GET`/`POST /api/op-reports` still decided four things in the controller. They
+move to `services/dashboard/opReports.js`:
+
+- **who may read whose reports** — only a `super_admin` reads beyond their own;
+  another user's `user_id` is a 403 and issues no read at all (`listReports`);
+- **the upsert** — a report already stored for the same user + week + year + type
+  is updated in place, anything else is inserted (`saveReport`);
+- **the field-merge rule** — an update may touch a fixed set of columns, and an
+  empty `projects_tasks` never erases the stored (auto-generated) task list;
+- **the workspace** — a NEW report from an intern lands in `interns`, everyone
+  else in `main`.
+
+The service reads and writes through `@/models/adminOps` and answers
+`{ status, body }`; the controller keeps `initDb`, the `reports.create`
+capability gate for POST, the session read and the response envelope. The
+response shapes are unchanged.
+
+`op-reports.test.js` (13 cases) pins the moved decisions with the repository
+mocked — the refusal, the self-scoped read, the super-admin read, the
+required-field 400, create vs update, the intern/main split, the
+`lastInsertRowid` fallback and both `projects_tasks` merge paths.
+
+`npm test` (259 suites, 3818 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
+### Domain 88 — the KPI controller frontier (slice 124)
+
+Two surfaces: the strategic-KPI CRUD (`POST`/`PUT`/`DELETE /api/kpis`) and the
+objective-progress read (`GET /api/kpi-progress`,
+`POST /api/kpi-progress/recalculate`).
+
+- **`api/kpis`** — the three use-cases move to `services/dashboard/kpis.js`:
+  resolving which programme a KPI belongs to (so the scope gate is asked about
+  the right one, for the handlers that receive only a KPI id) and the write
+  itself, with the default target (80) owned in one place and reported back for
+  the audit entry. The controller keeps `initDb`, the roles gate, the
+  validation, the `requireProgramScope` gate (`wave: "groups"` — the coverage
+  census still sees it), `logAuditEvent` and the envelope. The three handlers'
+  repeated preamble (roles gate, validation, scope gate, audit) is factored into
+  local helpers, so the file shrank from 149 to 120 lines.
+  `program-scope-wiring.test.js` (which drives the real handlers) and
+  `program-scope-coverage.test.js` (which reads the route source) both still
+  pass unchanged.
+- **`api/kpi-progress`** — the read decisions move to
+  `services/dashboard/kpiProgress.js` (`getKpiProgress`, `recalculateAndSummarize`):
+  the schema-drift fallback (`source: "unavailable"`), the on-the-fly
+  recalculation when the cache is empty (and its `source` label), the plain
+  average, and the measurable-only average for the recalculation summary. The
+  recalculation engine itself stays in `services/programs/kpiProgress`. Both
+  routes keep their `createHandler` wrapper; only the decisions left the
+  handlers.
+
+`kpi-progress.test.js` (8 cases) and `kpis-service.test.js` (6 cases) pin the
+moved decisions with the repository and the recalculation mocked.
+
+`npm test` (261 suites, 3836 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
+### Domain 89 — the user-administration controller frontier (slice 125)
+
+Three surfaces: `POST /api/admin/approve-user`, `POST /api/admin/reject-user`
+and `GET /api/admin/pending-users`. Their work moves to
+`services/dashboard/userAdmin.js`:
+
+- **approve-user** — the existence (404) and status (400) checks, the ROLE rule
+  (only a Super Admin may name an arbitrary role; anyone else is limited to the
+  approvable set, so approval can never mint a Super Admin), the 24 h
+  password-setup token stored hashed, the setup email, the audit entry (actor
+  from the SESSION) and the notification clearing;
+- **reject-user** — the same shape for rejection;
+- **pending-users** — the read and the grouping by group name.
+
+The controller keeps `initDb`, the token-column bootstrap, the capability gate,
+ the base URL (from the request headers) and the envelope. The setup token is
+still never returned to the caller.
+
+Two source-level security contracts were repointed (invariant unchanged):
+`security-lot3-admin-authz.test.js` now reads the role rule and the audit actor
+from the service, and `security-lot6-hardening.test.js` reads the rejection
+actor there too. `admin-user-admin.test.js` (13 cases) pins the moved decisions,
+including a route-level case proving the audit actor comes from the session and
+the token is not echoed.
+
+`npm test` (262 suites, 3851 tests) is green. The full `npx eslint` / `npm run
+build` were momentarily red on an unrelated in-progress edit of
+`src/app/pm/programs/[id]/page.js` (V1), not on this slice; the slice's own files
+lint clean.
+
+---
+
+### Domain 90 — the admin analytics and admin project controller frontiers (slice 126)
+
+Two families in one slice.
+
+**Admin analytics** (`admin/analytics`, `admin/analytics/users`) →
+`services/dashboard/adminAnalytics.js`: the week/date framing (a single shared
+`getWeekNumber` helper in `services/dashboard/weeks.js`), the derived rates
+(carry-over, blocker, completion, average resolution hours), and the per-user
+aggregation with its batched reads and safe fallbacks.
+
+**Admin projects** (`admin/projects/**`) → four services:
+- `adminProjects.js` — the batched list aggregation (with the totals) and the
+  detail assembly (tasks with their blockers/subtasks/resources, the team union,
+  the timeline, the completion rate and timeline health);
+- `adminProjectUpdates.js` — the weekly narrative upsert;
+- `adminProjectApprovals.js` — the tolerant read, the validation, the
+  OBJECT-LEVEL check (the bodied request must belong to the project in the URL),
+  the approve/reject write, the task linking and the requester notification;
+- `adminProjectReports.js` — the auto-generated weekly report.
+
+The controllers keep `initDb`, the role checks, `requireProjectAccess` and the
+envelope. One source-level security contract was repointed here (invariant
+unchanged): `security-lot3-admin-authz.test.js` now reads the approval
+object-level check from the approvals service; `security-lot9-admin-scope.test.js`
+kept driving the real route (the scope guard stayed in the controller).
+
+`admin-analytics.test.js` (5 cases) and `admin-projects.test.js` (20 cases) pin
+the moved decisions.
+
+`npm test` (264 suites, 3888 tests) is green. The full `npx eslint` / `npm run
+build` were momentarily red on an unrelated in-progress edit of
+`src/app/pm/programs/[id]/page.js` (V1); this slice's own files lint clean.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** — **deleted** (slice 117): `resolver`, `scope`,
