@@ -12,7 +12,7 @@
  * It reads and writes through `@/models/**` and `@/lib/**`.
  */
 
-import { evaluateSubmission, formHasAiEvaluation, getEvaluation } from "@/lib/platform/ai/evaluate";
+import { evaluateSubmission, formHasAiEvaluation, getEvaluation } from "@/models/platform/ai/evaluate";
 import { maybeAutoApprove } from "@/models/platform/ai/autoApprove";
 import {
   claimEvaluationSubmission,

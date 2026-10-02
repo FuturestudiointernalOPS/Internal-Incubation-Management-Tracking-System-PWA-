@@ -12,7 +12,7 @@
  *            Coach / Facilitator do not).
  */
 
-import { hasVentureCapability, hasAnyVentureAssignment } from "@/lib/venturePermissions";
+import { hasVentureCapability, hasAnyVentureAssignment } from "@/services/ventures/permissions";
 
 /**
  * `venture_members` keys on the VNT business code (TEXT), not the internal

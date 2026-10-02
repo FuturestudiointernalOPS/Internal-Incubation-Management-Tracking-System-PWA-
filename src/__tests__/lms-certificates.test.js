@@ -26,25 +26,25 @@ jest.mock("@/lib/auth", () => ({
   requireAuth: jest.fn(async () => null),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
 const { requireAuth } = require("@/lib/auth");
-const { requireAuthorization } = require("@/lib/authorization");
+const { requireAuthorization } = require("@/models/authorization/index");
 const { getSession } = require("@/lib/auth");
 
 const {
   issueCertificate,
   getLearnerCertificate,
   revokeCertificate,
-} = require("@/lib/lms/certificates");
+} = require("@/models/lms/certificates");
 const {
   completeLesson,
   submitAssessment,
   getLearnerCourses,
-} = require("@/lib/lms/learning");
-const { buildCertificatePdf } = require("@/lib/lms/certificate-pdf");
+} = require("@/services/lms/learning");
+const { buildCertificatePdf } = require("@/models/lms/certificate-pdf");
 
 const { GET: certificatesGET } = require("@/app/api/lms/certificates/route");
 const { GET: certificateGET } = require("@/app/api/lms/certificates/[id]/route");
@@ -610,7 +610,7 @@ describe("LMS certificates migration (schema drift guard)", () => {
   });
 
   test("domain constant matches the CHECK values", () => {
-    const { LMS_CERTIFICATE_STATUSES } = require("@/lib/lms");
+    const { LMS_CERTIFICATE_STATUSES } = require("@/models/lms");
     for (const status of LMS_CERTIFICATE_STATUSES) expect(MIGRATION).toContain(`'${status}'`);
   });
 });

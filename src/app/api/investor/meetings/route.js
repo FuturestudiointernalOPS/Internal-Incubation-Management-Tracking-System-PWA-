@@ -2,14 +2,18 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 
-import {
-  insertInvestorMeeting,
-  listInvestorMeetingEvents,
-} from "@/models/investorRelations";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
-import { resolveInvestorScope } from "@/models/authorization/investorScope";
+import {
+  listInvestorMeetingsForViewer,
+  createInvestorMeeting,
+} from "@/services/investor";
 
-/** GET /api/investor/meetings?venture_id=X */
+/**
+ * GET /api/investor/meetings?venture_id=X
+ * POST /api/investor/meetings — schedule
+ *
+ * The venture-required scope rule lives in `@/services/investor`.
+ */
 export async function GET(req) {
   try {
     await initDb();
@@ -19,45 +23,42 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const ventureId = searchParams.get("venture_id");
 
-    // Own-scope: without a venture filter the query returns EVERY investor's
-    // meetings platform-wide. A self-service caller must name a venture.
-    const scope = await resolveInvestorScope(await getSession());
-    if (!scope.management && !ventureId) {
-      return NextResponse.json({ success: false, error: "venture_id required" }, { status: 400 });
+    const result = await listInvestorMeetingsForViewer({
+      ventureId,
+      session: await getSession(),
+    });
+    if (!result.ok) {
+      return NextResponse.json({ success: false, error: result.error }, { status: result.status });
     }
 
-    const result = await listInvestorMeetingEvents({ ventureId });
-    return NextResponse.json({ success: true, meetings: result.rows });
+    return NextResponse.json({ success: true, meetings: result.meetings });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
-/** POST /api/investor/meetings — schedule */
 export async function POST(req) {
   try {
     await initDb();
     const capError = await requireInvestorSelfServiceAuthorization("create");
     if (capError) return capError;
 
-    const session = await getSession();
     const { venture_id, title, description, start_time, end_time, location } = await req.json();
 
-    if (!title || !start_time) {
-      return NextResponse.json({ success: false, error: "Title and start_time required" }, { status: 400 });
+    const result = await createInvestorMeeting({
+      ventureId: venture_id,
+      title,
+      description,
+      startTime: start_time,
+      endTime: end_time,
+      location,
+      session: await getSession(),
+    });
+    if (!result.ok) {
+      return NextResponse.json({ success: false, error: result.error }, { status: result.status });
     }
 
-    const result = await insertInvestorMeeting(
-      venture_id || null,
-      title,
-      description || null,
-      start_time,
-      end_time || null,
-      location || "video",
-      session.cid || session.id,
-    );
-
-    return NextResponse.json({ success: true, meeting: result.rows[0] });
+    return NextResponse.json({ success: true, meeting: result.meeting });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

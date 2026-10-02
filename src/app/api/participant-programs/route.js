@@ -6,12 +6,12 @@ import {
   hasProgramManagementAccess,
   requireAssignmentAccess,
 } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import {
   requireProgramScope,
   requireProgramScopeForAll,
 } from "@/lib/programScopedAccess";
-import { ensureProgramEnrollments } from "@/lib/lms/programRequirements";
+import { ensureProgramEnrollments } from "@/models/lms/programRequirements";
 import {
   getParticipantProgramAssignments,
   getProgramById,

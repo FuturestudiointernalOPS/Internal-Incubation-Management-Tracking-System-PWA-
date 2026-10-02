@@ -1,34 +1,22 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import {
-  getAdminOverviewStats,
-  listAdminOverviewPipelines,
-  listAdminOverviewRequests,
-  listAdminOverviewWorkspaces,
-} from "@/models/investor";
+import { buildAdminOverview } from "@/services/investor";
 
-/** GET /api/investor/admin-overview — super admin DD/pipeline overview */
+/**
+ * GET /api/investor/admin-overview — super admin DD/pipeline overview
+ *
+ * The blocks the overview aggregates live in `@/services/investor`.
+ */
 export async function GET() {
   try {
     await initDb();
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
-    const [workspaces, pipelines, stats, requests] = await Promise.all([
-      listAdminOverviewWorkspaces(),
-      listAdminOverviewPipelines(),
-      getAdminOverviewStats(),
-      listAdminOverviewRequests(),
-    ]);
+    const overview = await buildAdminOverview();
 
-    return NextResponse.json({
-      success: true,
-      workspaces: workspaces.rows,
-      pipelines: pipelines.rows,
-      stats: stats.rows[0],
-      requests: requests.rows,
-    });
+    return NextResponse.json({ success: true, ...overview });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

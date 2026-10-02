@@ -1,12 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import {
   RefreshCw,
-  Loader2,
-  AlertCircle,
   CheckCircle2,
   AlertTriangle,
   ArrowRight,
@@ -30,62 +28,9 @@ import {
 } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import { activityLabel, activityDetails, isSystemActor } from "@/lib/ventureActivity";
-
-// ─── Widget Components ────────────────────────────────────────────────────
-
-function WidgetCard({ title, icon: Icon, iconColor, children, loading, error, onRefresh, empty, emptyMessage }) {
-  const { t } = useI18n();
-  return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${iconColor || "bg-brand-orange/10"}`}>
-            <Icon className="w-4 h-4 text-[var(--brand-orange)]" />
-          </div>
-          <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">{title}</h3>
-        </div>
-        {onRefresh && (
-          <button onClick={onRefresh} className="p-1.5 hover:bg-white/5 rounded-lg transition-all">
-            <RefreshCw className={`w-3 h-3 text-slate-500 ${loading ? "animate-spin" : ""}`} />
-          </button>
-        )}
-      </div>
-      {loading ? (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" />
-        </div>
-      ) : error ? (
-        <div className="flex flex-col items-center justify-center py-6 text-center">
-          <AlertCircle className="w-8 h-8 text-rose-400 mb-2" />
-          <p className="text-[10px] font-bold text-rose-400">{error}</p>
-        </div>
-      ) : empty ? (
-        <div className="flex flex-col items-center justify-center py-6 text-center">
-          <Icon className="w-8 h-8 text-slate-600 mb-2" />
-          <p className="text-[10px] font-bold text-[var(--text-secondary)]">{emptyMessage || t("vadmin.dashboard.noDataAvailable")}</p>
-        </div>
-      ) : (
-        children
-      )}
-    </div>
-  );
-}
-
-function SkeletonCard() {
-  return (
-    <div className="card animate-pulse">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="w-7 h-7 rounded-lg bg-slate-700/50" />
-        <div className="h-3 w-32 rounded bg-slate-700/50" />
-      </div>
-      <div className="space-y-3">
-        <div className="h-4 w-3/4 rounded bg-slate-700/50" />
-        <div className="h-4 w-1/2 rounded bg-slate-700/50" />
-        <div className="h-4 w-2/3 rounded bg-slate-700/50" />
-      </div>
-    </div>
-  );
-}
+import WidgetCard from "./venture-dashboard/WidgetCard";
+import SkeletonCard from "./venture-dashboard/SkeletonCard";
+import AttentionWidget from "./venture-dashboard/AttentionWidget";
 
 // ─── Read shapers (module scope: built once, never per render) ───────────
 
@@ -653,76 +598,5 @@ export default function VentureDashboard({ id, embedded = false }) {
         </div>
       </div>
     </>
-  );
-}
-
-/** Manager attention block (Vinance 3 Phase 2, doc §5) — what needs attention right now. */
-function AttentionWidget({ id }) {
-  const { t } = useI18n();
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(`/api/ventures/${id}/journey-report`);
-        const payload = await res.json();
-        if (payload.success) setData(payload.journey_report);
-        else setError(payload.error || "failed");
-      } catch (_) {
-        setError("failed");
-      }
-    })();
-  }, [id]);
-
-  const overdue = (data?.overdue || []).length;
-  const awaitingReview = (data?.tasks_by_status || {}).review || 0;
-  const awaitingDeliverables = data?.deliverables_awaiting_review || 0;
-  const upcomingSessions = data?.sessions?.upcoming || 0;
-  const awaitingApproval = (data?.milestones_by_status || {}).under_review || 0;
-  const stageTotal = data?.journey_progression?.total || 0;
-  const stagePct = data?.journey_progression?.progress_pct || 0;
-  const currentJourney = (data?.stages || []).find((stage) => stage.status === "active")?.name || (data?.stages || [])[0]?.name || null;
-
-  const items = [
-    { n: overdue, label: t("venture.attention.overdue") },
-    { n: awaitingReview, label: t("venture.attention.awaitingReview") },
-    ...(awaitingDeliverables > 0
-      ? [{ n: awaitingDeliverables, label: t("venture.attention.awaitingDeliverables", { n: awaitingDeliverables }) }]
-      : []),
-    { n: upcomingSessions, label: t("venture.attention.upcomingSessions") },
-    { n: awaitingApproval, label: t("venture.attention.awaitingApproval") },
-  ];
-
-  return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">{t("venture.attention.title")}</h3>
-        {stageTotal > 0 && (
-          <span className="text-[9px] font-bold text-slate-500">{t("venture.attention.journeyProgress")}: {stagePct}%</span>
-        )}
-      </div>
-      {error ? (
-        <p className="text-xs text-rose-400">{t("venture.attention.failed")}</p>
-      ) : !data ? (
-        <div className="flex items-center justify-center py-6"><Loader2 className="w-4 h-4 animate-spin text-[var(--brand-orange)]" /></div>
-      ) : (
-        <>
-          {currentJourney && (
-            <p className="text-xs text-[var(--text-secondary)] mb-3">
-              {t("venture.attention.currentJourney")}: <span className="font-bold text-[var(--text-primary)]">{currentJourney}</span>
-            </p>
-          )}
-          <div className="grid grid-cols-2 gap-2">
-            {items.map((item) => (
-              <div key={item.label} className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                <p className={`text-xl font-black ${item.n > 0 ? "text-amber-400" : "text-[var(--text-primary)]"}`}>{item.n}</p>
-                <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">{item.label}</p>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
   );
 }

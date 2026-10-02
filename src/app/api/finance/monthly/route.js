@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { requireAuthorization } from "@/lib/authorization";
-import { getMonthly } from "@/lib/finance/queries";
+import { requireAuthorization } from "@/models/authorization/index";
+import { getMonthly } from "@/services/finance/queries";
 
 export const GET = createHandler(async (req) => {
   const capError = await requireAuthorization("finance", "view");

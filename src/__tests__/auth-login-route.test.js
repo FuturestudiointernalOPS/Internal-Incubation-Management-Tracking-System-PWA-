@@ -28,7 +28,7 @@ jest.mock("@/lib/auth", () => ({
   }),
 }));
 
-jest.mock("@/lib/platform/roles", () => ({
+jest.mock("@/models/platform/roles", () => ({
   resolveEffectiveRole: jest.fn(() => "staff"),
 }));
 

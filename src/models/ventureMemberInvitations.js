@@ -103,7 +103,7 @@ async function applyVentureContextGrants(cid) {
   if (!cid) return;
   try {
     const { syncContextGrantsForUser } = await import(
-      "@/models/authorization/contextGrants"
+      "@/services/authorization/contextGrants"
     );
     await syncContextGrantsForUser(cid);
   } catch (_) {}

@@ -22,13 +22,13 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => {}),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
-const { requireAuthorization } = require("@/lib/authorization");
+const { requireAuthorization } = require("@/models/authorization/index");
 
-const { getLearnerJourney } = require("@/lib/lms/journey");
+const { getLearnerJourney } = require("@/models/lms/journey");
 const { GET: learningGET } = require("@/app/api/contacts/[cid]/learning/route");
 
 const readJson = async (res) => res.json();

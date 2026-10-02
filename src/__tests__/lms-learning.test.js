@@ -24,24 +24,24 @@ jest.mock("@/lib/auth", () => ({
   requireAuth: jest.fn(async () => null),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
 const { requireAuth } = require("@/lib/auth");
-const { requireAuthorization } = require("@/lib/authorization");
+const { requireAuthorization } = require("@/models/authorization/index");
 
 const {
   computeCourseProgress,
   findContinueLesson,
-} = require("@/lib/lms/learning");
+} = require("@/services/lms/learning");
 const {
   getLearnerCourses,
   getLearnerCourse,
   completeLesson,
   enrollLearner,
   listEnrollments,
-} = require("@/lib/lms/learning");
+} = require("@/services/lms/learning");
 
 const { GET: myLearningGET } = require("@/app/api/lms/my-learning/route");
 const { GET: learnGET } = require("@/app/api/lms/courses/[id]/learn/route");

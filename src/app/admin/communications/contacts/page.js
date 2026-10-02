@@ -27,7 +27,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
-import { INTERNAL_OPS_ROLES } from "@/lib/platform/roles";
+import { INTERNAL_OPS_ROLES } from "@/models/platform/roles";
 import { motion, AnimatePresence } from "framer-motion";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { useApi } from "@/lib/hooks/useApi";

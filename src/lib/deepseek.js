@@ -21,26 +21,21 @@ const DEEPSEEK_BASE = "https://api.deepseek.com/v1";
 export const DEFAULT_MODEL = "deepseek-chat";
 
 /**
- * Generic chat completion — send any prompt, get a text response.
- * API Reference: https://api-docs.deepseek.com/api/create-chat-completion
+ * The same call as `chat`, but the answer keeps the two facts a caller needs
+ * when the model's text cannot be used:
  *
- * `prompt` is either a plain string (a single `user` message — every existing
- * caller) or a full messages array. The array form exists so a caller can put
- * trusted platform guardrails in a `system` message and keep untrusted content
- * (an applicant's answers) in the `user` message, where it cannot promote
- * itself to an instruction.
+ *   finishReason  "stop" | "length" | …
+ *   truncated     true when finishReason is "length" — the answer was CUT OFF
+ *   usage         token counts, when the provider reports them
  *
- * @param {string|Array<{role: string, content: string}>} prompt
- * @param {string} [modelName] — defaults to "deepseek-chat"
- * @param {number} [maxTokens]
- * @param {{temperature?: number}} [options]
- * @returns {Promise<string>} text response
+ * The distinction matters and was previously thrown away: an answer that stopped
+ * at the length ceiling is UNFINISHED, not malformed, and the two need opposite
+ * answers from whoever is waiting (split the input, versus simply retry).
+ *
+ * `chat` is this function minus the metadata, so every existing caller keeps
+ * receiving the plain string it always has.
  */
-async function chat(prompt, modelName = DEFAULT_MODEL, maxTokens = 4096, options = {}) {
-  if (!DEEPSEEK_API_KEY) {
-    throw new Error("[DeepSeek] DEEPSEEK_API_KEY is not set in environment variables.");
-  }
-
+export async function chatDetailed(prompt, modelName = DEFAULT_MODEL, maxTokens = 4096, options = {}) {
   const messages = Array.isArray(prompt)
     ? prompt
     : [{ role: "user", content: String(prompt ?? "") }];
@@ -70,8 +65,34 @@ async function chat(prompt, modelName = DEFAULT_MODEL, maxTokens = 4096, options
   }
 
   const data = await res.json();
-  const content = data.choices?.[0]?.message?.content || "";
-  console.log(`[DeepSeek] Response received — length: ${content.length}`);
+  const choice = data.choices?.[0] || {};
+  const content = choice.message?.content || "";
+  const finishReason = choice.finish_reason || null;
+  console.log(`[DeepSeek] Response received — length: ${content.length}, finish_reason: ${finishReason}`);
+  return { content, finishReason, truncated: finishReason === "length", usage: data.usage || null };
+}
+
+/**
+ * Generic chat completion — send any prompt, get a text response.
+ * API Reference: https://api-docs.deepseek.com/api/create-chat-completion
+ *
+ * `prompt` is either a plain string (a single `user` message — every existing
+ * caller) or a full messages array. The array form exists so a caller can put
+ * trusted platform guardrails in a `system` message and keep untrusted content
+ * (an applicant's answers) in the `user` message, where it cannot promote
+ * itself to an instruction.
+ *
+ * @param {string|Array<{role: string, content: string}>} prompt
+ * @param {string} [modelName] — defaults to "deepseek-chat"
+ * @param {number} [maxTokens]
+ * @param {{temperature?: number}} [options]
+ * @returns {Promise<string>} text response
+ */
+async function chat(prompt, modelName = DEFAULT_MODEL, maxTokens = 4096, options = {}) {
+  if (!DEEPSEEK_API_KEY) {
+    throw new Error("[DeepSeek] DEEPSEEK_API_KEY is not set in environment variables.");
+  }
+  const { content } = await chatDetailed(prompt, modelName, maxTokens, options);
   return content;
 }
 
@@ -81,6 +102,7 @@ async function chat(prompt, modelName = DEFAULT_MODEL, maxTokens = 4096, options
  */
 export const deepseekIntelligence = {
   chat,
+  chatDetailed,
 
   /**
    * Parse mentor recordings into structured feedback templates.

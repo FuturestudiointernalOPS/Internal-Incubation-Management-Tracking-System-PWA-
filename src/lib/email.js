@@ -5,7 +5,7 @@
  * Replace with your own sender domain/email in RESEND_FROM_EMAIL.
  */
 
-import { normalizeToHtml } from "@/lib/platform/ai/email-personalize";
+import { normalizeToHtml } from "@/models/platform/ai/email-personalize";
 import { resolveAppUrl } from "@/lib/appUrl";
 import { TEMPLATE_VARIABLE_PATTERN, templateVariableNames } from "@/lib/constants";
 import { logger } from "@/lib/logger";

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { resourcePreviewKind } from "@/lib/lms/constants";
+import { resourcePreviewKind } from "@/models/lms/constants";
 import AppImage from "@/components/ui/AppImage";
 
 /**

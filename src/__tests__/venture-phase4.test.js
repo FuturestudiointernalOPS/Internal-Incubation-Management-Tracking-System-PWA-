@@ -8,7 +8,10 @@
  */
 const mockChat = jest.fn();
 jest.mock("@/lib/deepseek", () => ({
-  deepseekIntelligence: { chat: (...args) => mockChat(...args) },
+  deepseekIntelligence: {
+    chat: (...args) => mockChat(...args),
+    chatDetailed: async (...args) => ({ content: await mockChat(...args), finishReason: "stop", truncated: false }),
+  },
   default: { chat: (...args) => mockChat(...args) },
 }));
 
@@ -32,7 +35,7 @@ jest.mock("@/lib/db", () => {
 
 const { __state: state } = require("@/lib/db");
 const { normaliseChangeValue, diffFields, recordVentureChange, listVentureChanges } = require("@/models/ventureChangeLog");
-const { buildExistingProgramme, interpretPlanSheet, buildPlanPrompt } = require("@/models/venturePlanImport");
+const { buildExistingProgramme, interpretPlanSheet, buildPlanPrompt } = require("@/services/ventures/planImport");
 
 beforeEach(() => {
   jest.clearAllMocks();

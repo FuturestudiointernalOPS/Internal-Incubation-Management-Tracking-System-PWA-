@@ -149,8 +149,11 @@ describe("the decision surface survives the move", () => {
     expect(service[name]).toBeDefined();
   });
 
-  it.each(DECISION_EXPORTS)("is still exported by the model facade (%s)", (name) => {
-    const facade = require("@/models/authorization/resolver");
+  it.each(DECISION_EXPORTS)("is still exported by the lib facade (%s)", (name) => {
+    // The model facade (`@/models/authorization/resolver`) was deleted once
+    // nothing imported it (docs/LAYER_SPLIT.md §3); the lib facade now points
+    // straight at the service.
+    const facade = require("@/services/authorization/context");
     expect(facade[name]).toBeDefined();
   });
 });

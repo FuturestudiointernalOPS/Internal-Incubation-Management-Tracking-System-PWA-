@@ -21,11 +21,11 @@ jest.mock("@/lib/auth", () => ({
   getSession: jest.fn(async () => ({ cid: "U-ADMIN", name: "Admin", role: "super_admin" })),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
-const { requireAuthorization } = require("@/lib/authorization");
+const { requireAuthorization } = require("@/models/authorization/index");
 
 // ─── Route modules under test ──────────────────────────────────────────────
 const { GET: coursesGET, POST: coursesPOST } = require("@/app/api/lms/courses/route");

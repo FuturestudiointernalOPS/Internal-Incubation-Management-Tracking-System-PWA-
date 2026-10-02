@@ -14,7 +14,7 @@ import {
   createPlanImport,
   updatePlanImportProposal,
   discardPlanImport,
-} from "@/models/venturePlanImport";
+} from "@/services/ventures/planImport";
 
 export const dynamic = "force-dynamic";
 
@@ -162,7 +162,17 @@ export async function POST(req, { params }) {
       sheetName: planSheetName,
     });
     if (!interpretation.ok) {
-      return NextResponse.json({ success: false, error: interpretation.error }, { status: 422 });
+      // `error_key` is what a screen translates; `error` stays for logs and API
+      // consumers. Both travel, so no user-facing English is decided here.
+      return NextResponse.json(
+        {
+          success: false,
+          error: interpretation.error,
+          error_key: interpretation.error_key || null,
+          error_params: interpretation.error_params || null,
+        },
+        { status: 422 },
+      );
     }
 
     const sheetSummary = sheet.sheets.map((item) => ({
@@ -255,7 +265,17 @@ export async function PATCH(req, { params }) {
       if (!base) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
       const revised = await revisePlanProposal({ proposal: base, instruction: body.instruction });
-      if (!revised.ok) return NextResponse.json({ success: false, error: revised.error }, { status: 422 });
+      if (!revised.ok) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: revised.error,
+            error_key: revised.error_key || null,
+            error_params: revised.error_params || null,
+          },
+          { status: 422 },
+        );
+      }
 
       // NOTHING is stored: the reviewer decides whether to keep the suggestion.
       return NextResponse.json({

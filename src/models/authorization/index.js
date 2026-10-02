@@ -21,7 +21,7 @@ export {
   rowsToCaps,
   rowsToRestrictions,
   restrictionsToJson,
-} from "./resolver";
+} from "@/services/authorization/context";
 
 export {
   ensureEligibilitySchema,
@@ -37,7 +37,7 @@ export { evaluateEligibility } from "@/services/authorization/eligibility";
 
 export { runAuthzMigration } from "./migrations";
 
-export { resolveContextAssignment } from "./context";
+export { resolveContextAssignment } from "@/services/authorization/scopedAccess";
 
 // The HTTP boundary: the authorization DECISIONS come from the service layer,
 // and are turned into the 401/403 responses routes return as-is here. Moving
@@ -59,4 +59,4 @@ export {
   validateCapabilitiesWithinEligibility,
   assertTemplateCapsEligible,
   findTemplatesGrantingFeature,
-} from "./eligibility-admin";
+} from "@/services/authorization/eligibilityAdmin";

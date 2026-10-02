@@ -29,7 +29,7 @@ import AppPagination from "@/components/ui/AppPagination";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/lib/i18n";
 import { useDialogs } from "@/components/ui/DialogProvider";
-import { capabilityLabel, CAPABILITY_CATALOG, moduleCapabilityParents } from "@/lib/authorization/capability-catalog";
+import { capabilityLabel, CAPABILITY_CATALOG, moduleCapabilityParents } from "@/models/authorization/capability-catalog";
 import { FEATURE_ORDER } from "@/models/authorization/eligibility-defaults";
 import { deriveMembershipStatus } from "@/lib/membership-ui";
 import {

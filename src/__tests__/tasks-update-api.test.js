@@ -40,18 +40,17 @@ const mockFacade = {
   getTaskEndDateById: jest.fn(async () => null),
 };
 
-jest.mock("@/models/tasks", () => mockModels);
-jest.mock("@/lib/db/queries/tasks", () => mockFacade);
+jest.mock("@/models/tasks", () => ({ ...mockModels, ...mockFacade }));
 jest.mock("@/models/taskCarryover", () => ({
   completeCarryoverAncestors: jest.fn(async () => {}),
 }));
 jest.mock("@/models/contactGroups", () => ({
   validateTaskAssignment: jest.fn(async () => ({ allowed: true })),
 }));
-jest.mock("@/lib/standupUpsert", () => ({
+jest.mock("@/models/standupUpsert", () => ({
   rebuildStandupTasks: jest.fn(async () => {}),
 }));
-jest.mock("@/lib/taskAudit", () => ({
+jest.mock("@/models/taskAudit", () => ({
   logTaskEvent: jest.fn(async () => {}),
   ACTION_TYPES: {
     TASK_CREATED: "created",
@@ -61,7 +60,7 @@ jest.mock("@/lib/taskAudit", () => ({
     TASK_ASSIGNED: "assigned",
   },
 }));
-jest.mock("@/lib/audit", () => ({
+jest.mock("@/services/tasks/auditLog", () => ({
   logAuditEvent: jest.fn(async () => {}),
   isTaskLocked: jest.fn(async () => false),
 }));
@@ -78,7 +77,7 @@ jest.mock("@/lib/auth", () => ({
 }));
 
 const { validateTaskAssignment } = require("@/models/contactGroups");
-const { isTaskLocked } = require("@/lib/audit");
+const { isTaskLocked } = require("@/services/tasks/auditLog");
 const { PUT } = require("@/app/api/tasks/route");
 const readJson = (res) => res.json();
 const jsonReq = (body) =>

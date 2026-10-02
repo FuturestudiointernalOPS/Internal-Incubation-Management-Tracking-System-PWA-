@@ -8,7 +8,7 @@ const {
   extractYouTubeVideoId,
   isValidYouTubeVideoId,
   buildYouTubeEmbedUrl,
-} = require("@/lib/lms/youtube");
+} = require("@/models/lms/youtube");
 
 describe("extractYouTubeVideoId", () => {
   test("accepts a bare 11-char video ID", () => {

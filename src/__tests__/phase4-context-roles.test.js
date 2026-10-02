@@ -58,12 +58,12 @@ jest.mock("@/lib/auth", () => ({
 
 let mockAuthzDecision = null;
 const mockInvalidateAll = jest.fn();
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn().mockImplementation(async () => mockAuthzDecision),
   invalidateAllAuthorizationContexts: mockInvalidateAll,
 }));
 
-const requireAuthorization = require("@/lib/authorization").requireAuthorization;
+const requireAuthorization = require("@/models/authorization/index").requireAuthorization;
 const logPermissionAudit = require("@/lib/auth").logPermissionAudit;
 const invalidateAllAuthorizationContexts = mockInvalidateAll;
 const route = require("@/app/api/engineering/permissions/context-roles/route");

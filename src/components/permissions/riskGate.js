@@ -13,7 +13,7 @@
  * two screens would drift apart on the level that matters most.
  */
 
-import { capabilityRisk } from "@/lib/authorization/capability-catalog";
+import { capabilityRisk } from "@/models/authorization/capability-catalog";
 
 // The catalog lookup lives in the model layer (shared with the enforcement
 // code); re-exported here so a caller needs one import for "how risky is this".

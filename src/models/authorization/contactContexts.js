@@ -25,7 +25,7 @@
  */
 
 import db from "@/lib/db";
-import { resolveScopeIds, SCOPE_POLICIES } from "./scope";
+import { resolveScopeIds, SCOPE_POLICIES } from "@/services/authorization/scope";
 
 /** A pathological membership list must not blow up the payload or the query. */
 const MAX_IDS = 60;

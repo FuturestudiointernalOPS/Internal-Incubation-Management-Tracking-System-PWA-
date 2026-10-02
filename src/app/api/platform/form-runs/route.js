@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { after } from "next/server";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import {
   getSubmissionById,
   getRunById,
@@ -51,6 +51,7 @@ import {
   sendResultEmails,
   submitResponse,
   unassignRun,
+  updateRespondentEmail,
   updateRunMetadata,
 } from "@/services/platform/formRuns";
 
@@ -70,6 +71,8 @@ import {
  * POST /api/platform/form-runs?action=review            — Review a submission
  * POST /api/platform/form-runs?action=assign            — Add assignment
  * POST /api/platform/form-runs?action=unassign          — Remove assignment
+ * POST /api/platform/form-runs?action=update_respondent_email
+ *                                                        — Correct a respondent's email
  * POST /api/platform/form-runs?action=dispatch_scheduled_result_emails
  *                                                        — Send the result emails whose
  *                                                          scheduled time has passed (scheduler)
@@ -360,6 +363,30 @@ export async function POST(req) {
       const result = await manualAddRespondent({ run_id, name, email, data, status: subStatus, session });
       if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: result.statusCode || 500 });
       return NextResponse.json({ success: true, submission: result.submission });
+    }
+
+    // ─── UPDATE RESPONDENT EMAIL ACTION ───
+    // Corrects the address a respondent is contacted at — the fix for an email
+    // typed wrong on the form (or in a manual add). Governed by runs.edit, the
+    // same capability that lets someone send run emails and add respondents.
+    if (action === "update_respondent_email") {
+      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      const authError = await requireAuthorization("runs", "edit");
+      if (authError) return authError;
+
+      const { run_id, submission_id, email } = body;
+      if (!run_id || !submission_id || !email) {
+        return NextResponse.json({ success: false, error: "run_id, submission_id and email are required" }, { status: 400 });
+      }
+
+      const result = await updateRespondentEmail({ run_id, submission_id, email, session });
+      if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: result.statusCode || 500 });
+      return NextResponse.json({
+        success: true,
+        email: result.email,
+        contact_updated: result.contact_updated,
+        contact_conflict: result.contact_conflict,
+      });
     }
 
     // ─── REVIEW ACTION ───

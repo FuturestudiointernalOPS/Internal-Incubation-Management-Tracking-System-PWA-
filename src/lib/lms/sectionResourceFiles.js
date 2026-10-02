@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { LmsError } from "./errors";
+import { LmsError } from "@/models/lms/errors";
 import { safeStorageName, safeStoragePath } from "@/lib/storageNames";
 import {
   LMS_DOCUMENT_MIME_TYPES,
@@ -8,7 +8,7 @@ import {
   lmsMaxBytesForKind,
   LMS_MAX_DOCUMENT_BYTES,
   LMS_MAX_VIDEO_BYTES,
-} from "./constants";
+} from "@/models/lms/constants";
 
 /**
  * SECTION RESOURCE FILE STORAGE

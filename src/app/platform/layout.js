@@ -19,9 +19,9 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { getActiveModules } from "@/lib/platform/registry";
+import { getActiveModules } from "@/models/platform/registry";
 import { useSafeBack } from "@/lib/useSafeBack";
-import { roleHomeHref } from "@/lib/platform/roles";
+import { roleHomeHref } from "@/models/platform/roles";
 
 /**
  * PLATFORM LAYOUT

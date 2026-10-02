@@ -7,7 +7,7 @@
  * rows passed through mergeEffectiveCapabilities, exactly as the resolver
  * reads them from access_profile_capabilities.
  */
-const { authorize, mergeEffectiveCapabilities } = require("@/lib/authorization/resolver");
+const { authorize, mergeEffectiveCapabilities } = require("@/services/authorization/context");
 const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
 
 function resolveCtx({ role = "staff", eligibility = {}, profileCaps = {}, grants = {}, restrictions = {} }) {

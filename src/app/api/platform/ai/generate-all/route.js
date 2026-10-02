@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { initDb } from "@/lib/db";
 import { generateFormWithFramework } from "@/services/platform/formGeneration";
 

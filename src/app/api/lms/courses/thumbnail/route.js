@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { createClient } from "@supabase/supabase-js";
 import { safeStoragePath, safeStorageName } from "@/lib/storageNames";
 

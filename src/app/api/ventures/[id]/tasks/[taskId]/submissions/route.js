@@ -187,7 +187,7 @@ export const POST = createHandler(async (req, { params }) => {
     // Entity context lets the platform inbox drill down venture → journey →
     // milestone → task (Vinance 3 Phase 1).
     try {
-      const { notifyAndEmailVentureFounders } = await import("@/lib/ventureNotify");
+      const { notifyAndEmailVentureFounders } = await import("@/services/ventures/notify");
       const approved = decision === "approved";
       let stageId = null;
       if (task.milestone_id) {

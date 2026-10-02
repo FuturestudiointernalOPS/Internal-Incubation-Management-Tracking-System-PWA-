@@ -29,7 +29,7 @@ jest.mock("@/lib/ventureAuth", () => ({
   requireVentureAccess: jest.fn(),
 }));
 
-jest.mock("@/lib/ventureOperatingPlans", () => ({
+jest.mock("@/services/ventures/operatingPlans", () => ({
   __esModule: true,
   resolveVentureCode: jest.fn(async (id) => id),
 }));

@@ -27,7 +27,7 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => {}),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
@@ -43,24 +43,24 @@ jest.mock("@/models/platformAi", () => ({
   deleteEvaluationFrameworkByFormId: jest.fn(async () => {}),
 }));
 
-jest.mock("@/lib/integrations/calendar/sync", () => ({
+jest.mock("@/models/integrations/calendar/sync", () => ({
   checkCalendarHealth: jest.fn(async () => ({ configured: true })),
   syncRunDeadlines: jest.fn(async () => ({})),
   unsyncRunDeadlines: jest.fn(async () => ({})),
   syncAllRunDeadlines: jest.fn(async () => ({})),
 }));
 
-jest.mock("@/lib/integrations/notion/sync", () => ({
+jest.mock("@/models/integrations/notion/sync", () => ({
   checkNotionHealth: jest.fn(() => ({ configured: true })),
   syncSubmission: jest.fn(async () => ({})),
   syncAllSubmissions: jest.fn(async () => ({})),
 }));
 
-const { requireAuthorization } = require("@/lib/authorization");
+const { requireAuthorization } = require("@/models/authorization/index");
 const { listActiveInvites } = require("@/models/groups");
 const { getEvaluationFrameworkByFormId } = require("@/models/platformAi");
-const { checkCalendarHealth } = require("@/lib/integrations/calendar/sync");
-const { checkNotionHealth } = require("@/lib/integrations/notion/sync");
+const { checkCalendarHealth } = require("@/models/integrations/calendar/sync");
+const { checkNotionHealth } = require("@/models/integrations/notion/sync");
 
 const { GET: invitesGET } = require("@/app/api/invites/route");
 const { GET: evaluationConfigGET } = require("@/app/api/platform/ai/evaluation-config/route");

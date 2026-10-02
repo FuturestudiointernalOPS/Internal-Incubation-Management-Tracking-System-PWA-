@@ -23,13 +23,13 @@ jest.mock("@/lib/auth", () => ({
   hasProgramManagementAccess: jest.fn((role) => ["super_admin", "program_manager"].includes(role)),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   getAuthorizationContext: jest.fn(async () => ({ isSuperAdmin: false })),
   requireAuthorization: jest.fn(async () => null),
   authorize: jest.fn(() => false),
 }));
 
-jest.mock("@/lib/authorization/scope", () => ({
+jest.mock("@/services/authorization/scope", () => ({
   isWithinScope: jest.fn(async () => true),
 }));
 
@@ -70,7 +70,7 @@ jest.mock("@/models/lms/programRequirements", () => ({
   detachCourseFromProgram: jest.fn(async () => ({ success: true, id: 7 })),
 }));
 
-const { isWithinScope } = require("@/lib/authorization/scope");
+const { isWithinScope } = require("@/services/authorization/scope");
 const { getSession } = require("@/lib/auth");
 const formsModel = require("@/models/forms");
 const requirementsModel = require("@/models/lms/programRequirements");

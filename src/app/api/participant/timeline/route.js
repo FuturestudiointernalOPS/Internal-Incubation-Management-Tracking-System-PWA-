@@ -2,6 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { getParticipantTimeline } from "@/models/participantPortal";
+import { clampTimelineLimit } from "@/services/participant";
 
 export const dynamic = "force-dynamic";
 
@@ -27,10 +28,7 @@ export async function GET(req) {
     }
 
     const { searchParams } = new URL(req.url);
-    const limit = Math.min(
-      parseInt(searchParams.get("limit") || "100") || 100,
-      200,
-    );
+    const limit = clampTimelineLimit(searchParams.get("limit"));
 
     const result = await getParticipantTimeline(session.cid, limit);
 

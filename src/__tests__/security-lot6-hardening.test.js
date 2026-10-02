@@ -64,8 +64,11 @@ describe("privileged writes and secrets", () => {
 
 describe("no raw HTML and server-controlled fields", () => {
   test("the public success message is sanitised", () => {
-    const src = read("src/app/s/[runId]/page.js");
+    // The message is rendered by SubmissionSuccess since the public run page was
+    // split, so the guard follows the sanitiser to the file that now holds it.
+    const src = read("src/components/public/run-submit/SubmissionSuccess.js");
     expect(src).toMatch(/sanitizeRichText\(/);
+    expect(src).toMatch(/dangerouslySetInnerHTML/);
   });
 
   test("lms enrollments force the admin source", () => {
@@ -93,7 +96,9 @@ describe("no raw HTML and server-controlled fields", () => {
   });
 
   test("audit actors come from the session", () => {
-    expect(read("src/app/api/admin/reject-user/route.js")).toMatch(/session\?\.name \|\| session\?\.cid \|\| "system"/);
+    // The rejection actor rule moved to the administration service with the
+    // layer split; the invariant is unchanged — the actor is the session.
+    expect(read("src/services/dashboard/userAdmin.js")).toMatch(/actor\?\.name \|\| actor\?\.cid \|\| "system"/);
     expect(read("src/app/api/tasks/comments/route.js")).toMatch(/session\.name \|\| sender_name \|\| session\.cid/);
   });
 });
@@ -160,7 +165,9 @@ describe("legacy dependency endpoints are typed and shape-checked", () => {
 });
 
 describe("the Resend webhook cannot be replayed", () => {
-  const src = read("src/app/api/webhooks/resend/route.js");
+  // The route stays a thin envelope; the signature and freshness rules moved to
+  // the email service.
+  const src = read("src/services/email/resendWebhook.js");
 
   test("signatures are compared in constant time", () => {
     expect(src).toMatch(/crypto\.timingSafeEqual/);

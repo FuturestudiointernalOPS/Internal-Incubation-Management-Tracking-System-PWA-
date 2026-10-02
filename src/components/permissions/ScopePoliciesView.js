@@ -3,7 +3,7 @@
 import React from "react";
 import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { isScopePolicyImplemented } from "@/lib/authorization/scope-catalog";
+import { isScopePolicyImplemented } from "@/models/authorization/scope-catalog";
 
 /**
  * PHASE 5 — Scope Policies (Permission Center).

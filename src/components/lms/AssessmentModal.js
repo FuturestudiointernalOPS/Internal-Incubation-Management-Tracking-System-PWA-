@@ -11,7 +11,7 @@ import QuestionModal from "./QuestionModal";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
 import { useDialogs } from "@/components/ui/DialogProvider";
-import { analyzePassMark } from "@/lib/lms/scoring";
+import { analyzePassMark } from "@/models/lms/scoring";
 
 /**
  * Assessment authoring modal (create + edit) with question management.

@@ -33,7 +33,7 @@ jest.mock("@/lib/auth", () => ({
   seedDefaultResponsibilities: jest.fn(async () => true),
 }));
 
-jest.mock("@/lib/authorization", () => ({
+jest.mock("@/models/authorization/index", () => ({
   getAuthorizationContext: jest.fn(async () => ({ isSuperAdmin: false })),
   requireAuthorization: jest.fn(async () => null),
   authorize: jest.fn(() => false),
@@ -41,11 +41,11 @@ jest.mock("@/lib/authorization", () => ({
   invalidateAuthorizationContext: jest.fn(() => {}),
 }));
 
-jest.mock("@/lib/authorization/scope", () => ({
+jest.mock("@/services/authorization/scope", () => ({
   isWithinScope: jest.fn(async () => true),
 }));
 
-jest.mock("@/lib/kpi-progress", () => ({
+jest.mock("@/models/kpi-progress", () => ({
   recalculateKpiProgress: jest.fn(async () => ({})),
 }));
 
@@ -122,8 +122,8 @@ jest.mock("@/models/responsibilities", () => ({
   revokeResponsibilityBaseAccess: jest.fn(async () => []),
 }));
 
-const { isWithinScope } = require("@/lib/authorization/scope");
-const { getAuthorizationContext } = require("@/lib/authorization");
+const { isWithinScope } = require("@/services/authorization/scope");
+const { getAuthorizationContext } = require("@/models/authorization/index");
 const curriculumModel = require("@/models/curriculum");
 const programWorkspace = require("@/models/programWorkspace");
 const authorizationModel = require("@/models/authorization");

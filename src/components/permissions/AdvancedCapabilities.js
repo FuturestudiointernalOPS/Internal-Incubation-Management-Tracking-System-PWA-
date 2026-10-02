@@ -6,7 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import {
   CAPABILITY_CATALOG,
   capabilityLabel,
-} from "@/lib/authorization/capability-catalog";
+} from "@/models/authorization/capability-catalog";
 import { CRUD_CAPABILITIES } from "@/components/permissions/matrixHelpers";
 
 /**

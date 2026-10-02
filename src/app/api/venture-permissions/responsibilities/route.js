@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-import { listResponsibilities, getResponsibility } from "@/lib/venturePermissions";
+import { listResponsibilities, getResponsibility } from "@/services/ventures/permissions";
 import {
   insertVentureResponsibility,
   updateVentureResponsibility,

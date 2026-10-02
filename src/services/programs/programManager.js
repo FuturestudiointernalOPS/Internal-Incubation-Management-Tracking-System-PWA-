@@ -22,7 +22,7 @@
 
 import { getProgramManager, setProgramManager } from "@/models/programs";
 import { getContactNameAndRole } from "@/models/authorization";
-import { syncContextGrantsForUser } from "@/models/authorization/contextGrants";
+import { syncContextGrantsForUser } from "@/services/authorization/contextGrants";
 
 /**
  * Record who manages a program, and reconcile the access of both sides.

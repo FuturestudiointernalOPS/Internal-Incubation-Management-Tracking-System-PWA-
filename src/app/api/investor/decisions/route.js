@@ -2,51 +2,39 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 
-import {
-  getInvestorDecisionStats,
-  getInvestorProfileIdForDecisions,
-  listInvestorDecisions,
-  listInvestorHistoryTimeline,
-  recordInvestmentDecision,
-  updatePipelineStageAfterDecision,
-} from "@/models/investorRelations";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
-import { resolveInvestorScope, investorOwnsPipeline } from "@/models/authorization/investorScope";
+import { listDecisionsForViewer, recordDecision } from "@/services/investor";
 
-/** GET /api/investor/decisions — all decisions for current investor */
+/**
+ * GET /api/investor/decisions — all decisions for current investor
+ *
+ * POST /api/investor/decisions — record a decision
+ *
+ * The profile resolution, the valid decision types and the stage mapping live
+ * in `@/services/investor`.
+ */
 export async function GET(_req) {
   try {
     await initDb();
     const capError = await requireInvestorSelfServiceAuthorization("view");
     if (capError) return capError;
 
-    const session = await getSession();
-    const profileResult = await getInvestorProfileIdForDecisions(session.cid || session.id);
-    if (profileResult.rows.length === 0) {
-      return NextResponse.json({ success: true, decisions: [], history: [] });
+    const result = await listDecisionsForViewer({ session: await getSession() });
+    if (!result.ok) {
+      return NextResponse.json({ success: false, error: result.error }, { status: result.status });
     }
-
-    // All decisions with venture info
-    const decisions = await listInvestorDecisions(profileResult.rows[0].id);
-
-    // Investment history timeline (all pipeline activity)
-    const history = await listInvestorHistoryTimeline(profileResult.rows[0].id);
-
-    // Stats
-    const stats = await getInvestorDecisionStats(profileResult.rows[0].id);
 
     return NextResponse.json({
       success: true,
-      decisions: decisions.rows,
-      history: history.rows,
-      stats: stats.rows[0] || { total_invested: 0, total_capital: 0, total_declined: 0, total_decisions: 0 },
+      decisions: result.decisions,
+      history: result.history,
+      stats: result.stats,
     });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
-/** POST /api/investor/decisions — record a decision */
 export async function POST(req) {
   try {
     await initDb();
@@ -55,34 +43,16 @@ export async function POST(req) {
 
     const { pipeline_id, decision_type, investment_amount, decision_notes } = await req.json();
 
-    if (!pipeline_id || !decision_type) {
-      return NextResponse.json({ success: false, error: "pipeline_id and decision_type required" }, { status: 400 });
+    const result = await recordDecision({
+      pipelineId: pipeline_id,
+      decisionType: decision_type,
+      investmentAmount: investment_amount,
+      decisionNotes: decision_notes,
+      session: await getSession(),
+    });
+    if (!result.ok) {
+      return NextResponse.json({ success: false, error: result.error }, { status: result.status });
     }
-
-    const valid = ["invest", "decline", "continue_discussions", "revisit_later"];
-    if (!valid.includes(decision_type)) {
-      return NextResponse.json({ success: false, error: "Invalid decision_type" }, { status: 400 });
-    }
-
-    // Own-scope: the pipeline id comes from the request, so a decision can only
-    // be recorded on the caller's own pipeline.
-    const scope = await resolveInvestorScope(await getSession());
-    if (!scope.management && !(await investorOwnsPipeline(pipeline_id, scope.profileId))) {
-      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    }
-
-    // Record decision
-    await recordInvestmentDecision(pipeline_id, decision_type, investment_amount || null, decision_notes || null);
-
-    // Update pipeline stage
-    const stageMap = {
-      invest: "invested",
-      decline: "declined",
-      continue_discussions: "negotiation",
-      revisit_later: "watching",
-    };
-
-    await updatePipelineStageAfterDecision(stageMap[decision_type], pipeline_id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

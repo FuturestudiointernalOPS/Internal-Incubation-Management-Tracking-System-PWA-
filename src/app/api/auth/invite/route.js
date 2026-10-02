@@ -1,13 +1,13 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization } from "@/models/authorization/index";
 import { normalizeGroupName, INTERNAL_GROUP } from "@/lib/authorization/membership";
 import { v4 as uuidv4 } from "uuid";
 import { sendInviteEmail, sendLoginEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
-import { addContactToGroup } from "@/lib/contact-groups";
+import { addContactToGroup } from "@/models/contact-groups";
 import { isValidEmail, normalizeEmail } from "@/lib/email-utils";
 import {
   getContactBriefByEmailForResend,

@@ -6,7 +6,7 @@ import EmbeddedVideo from "./EmbeddedVideo";
 import SectionResourcesList from "./SectionResourcesList";
 import RichTextContent from "@/components/ui/RichTextContent";
 import { useI18n } from "@/lib/i18n";
-import { isValidYouTubeVideoId } from "@/lib/lms/youtube";
+import { isValidYouTubeVideoId } from "@/models/lms/youtube";
 import { formatDate } from "@/lib/constants";
 
 /**

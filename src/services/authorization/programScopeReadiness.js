@@ -29,7 +29,7 @@
  */
 
 import { initDb } from "@/lib/db";
-import { isProgramEnded } from "@/models/authorization/programAssignments";
+import { isProgramEnded } from "@/models/authorization/programAssignmentReads";
 import {
   PROGRAM_SCOPE_WAVES,
   PROGRAM_SCOPE_WAVE_INFO,

@@ -2197,13 +2197,424 @@ The controller is now thin over two services.
 `npm test` (244 suites, 3552 tests), `npx eslint` (0 errors) and `npm run build`
 are green.
 
+### Domain 80 — the dashboard overview (slice 116)
+
+`GET /api/dashboard`, the largest controller after the permission matrix. Its
+aggregation moves to `services/dashboard/overview.js` (`buildDashboardOverview`,
+`getDashboardKpiSummary`): the IDOR-safe scope resolution, the parallel read
+bundle, the calendar assembly (tasks spanning their date range, programs,
+sessions, venture sessions, deliverables, events) and the summary / attention /
+quick-access shaping — each widget guarded by its `allSettled` status so one
+failure never takes the page down. The route keeps `initDb`, the `requireAuth`
+gate (and the `super_admin` KPI shortcut), the session and the envelope.
+`dashboard-api.test.js` still passes over the moved code — its assertions are on
+the SQL the models run.
+
+`npm test` (251 suites, 3660 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
+### Domain 81 — the model facades are gone (slice 117)
+
+The eight compatibility facades that §3 held back are now deleted — every
+importer points straight at the service (or the reads store):
+`models/authorization/{resolver,scope,contextGrantReadiness,eligibility-admin,context,contextGrants,programAssignments,programScopeReadiness}.js`.
+The lib shims (`lib/authorization/{resolver,context,scope,eligibility-admin}.js`)
+now re-export the service directly, and the `models/authorization` barrel takes
+the decision surface from
+`@/services/authorization/{context,scopedAccess,eligibilityAdmin}`.
+`programAssignments` (which also re-exported its reads store) splits cleanly:
+callers take the reads from `models/authorization/programAssignmentReads` and the
+decisions from `services/authorization/programAssignments`. The
+`services-boundaries` façade assertion now reads the lib façade.
+
+Two model→service edges survive and stay listed in §3:
+`programAssignmentBackfill.js` and `models/authorization/contactContexts.js`
+(it needs `resolveScopeIds`).
+
+`npm test` (252 suites, 3675 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
+### Domain 82 — the LMS checkout settlement and reconciliation (slice 118)
+
+Two decisions the paid-course path still kept in its controllers:
+
+1. **The verified-payment rule was written twice.** The payer's own `verify`
+   (`api/public/checkout`) and the Kkiapay notification (`api/webhooks/kkiapay`)
+   each re-implemented "check the amount against the price we recorded, mark
+   paid, grant access, send the receipt, journal it" — with comments already
+   warning the two must never diverge. The rule now lives once in
+   `services/lms/checkout.js` as `settleVerifiedPayment(...)`, returning
+   `{ ok: true, fulfillment, delivery }` or
+   `{ ok: false, reason: "amount_mismatch" }`. Both controllers call it and keep
+   only their envelope; the journal field values are passed in so each path still
+   records the value the provider actually reported (the notification its own
+   `event`, the verify its `verified` answer), keeping the audit trail identical.
+
+2. **The reconciliation sweep was a lib module.** `lib/lms/checkoutReconcile.js`
+   — the safety net that replays a failed access step and re-verifies a success
+   we could not confirm — is now `services/lms/checkoutReconcile.js`; the lib
+   path is a facade. The two importers (`api/lms/registrations`,
+   `api/lms/checkout-reconcile`) and the cron test keep resolving unchanged.
+
+The behaviour net is the existing `lms-checkout.test.js`: it drives both the
+notification and the payer's own verify through the shared settlement — the
+falsified-amount refusal that journals and grants nothing, and the receipt that
+still goes out when the access step fails.
+
+`npm test` (253 suites, 3689 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
+### Domain 83 — the investor relationship workspaces and meetings (slice 119)
+
+`api/investor/relationships` and `api/investor/relationships/meetings` were the
+largest remaining investor controllers after the due-diligence, campaigns and
+pipeline slices. Their decisions move to `services/investor/relationships.js`
+(the own-scope binding of a workspace — the id comes from the request — the list
+scope, and the create/update orchestration with its timeline entries and the
+best-effort introduction notification) and
+`services/investor/relationshipMeetings.js` (the own-scope binding of a
+workspace's meetings, the creation with its scheduled timeline entry, and the
+completion cascade — the completed timeline entry plus the workspace
+`next_action` seeded from the first action item). Every statement stays in
+`@/models/investorRelations`; both routes keep only `initDb`, the
+capability/role gate and the envelope.
+
+`security-lot2-investor-scope.test.js` still drives the route end to end over the
+same mocked models, and a focused `investor-relationships.test.js` pins the moved
+decisions.
+
+`npm test` (254 suites, 3717 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
+### Domain 84 — the rest of the investor portal (slice 120)
+
+The remaining `api/investor/**` controllers that still held a decision, after
+slices 119:
+
+- **`evaluation`** — the own-scope binding of a pipeline (the id comes from the
+  request) and the write dispatch by `type` (founder vs risk) move to
+  `services/investor/evaluation.js`.
+- **`decisions`** — the profile resolution (no profile = an empty page), the
+  valid decision types, the own-scope binding and the decision→stage table move
+  to `services/investor/decisions.js`.
+- **`organizations`** — an organization is visible only to its members (or
+  management), the listing is scoped to the caller's own profile, and only an
+  administrator OF THAT organization may add or re-role a member — in
+  `services/investor/organizations.js`.
+- **`watchlist`**, **`preferences`**, **`meetings`** — the toggle, the profile
+  guard, and the "a self-service caller must name a venture, or the query returns
+  every investor's meetings" rule move to `watchlist.js`, `preferences.js` and
+  `meetings.js`.
+- **`dashboard`** — the recommendation scoring (industry 30 / country 25 /
+  stage 20 / ticket 15 / readiness 10) and its ordering, plus the block assembly,
+  move to `services/investor/dashboard.js`, with a pure `scoreVentures` helper.
+- **`executive-dashboard`** and **`admin-overview`** — the two super-admin
+  aggregations move to `services/investor/executiveDashboard.js` and
+  `adminOverview.js` (no decision beyond a row's shape; the `requireAuth`
+  super-admin gate stays at the boundary).
+- **`setup-password`** — the required fields, the length rule, the setup-token
+  lookup and its expiry move to `services/investor/setupPassword.js`.
+
+`register` is a retired 410 with no decision, so it is left as-is. The routes
+keep only `initDb`, the capability/role gate and the envelope; every statement
+stays in `@/models/investor*`. A focused `investor-portal.test.js` pins the moved
+decisions, and the existing `security-lot2-investor-scope.test.js` keeps driving
+the routes end to end over the same mocked models.
+
+`npm test` (255 suites, 3775 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
+### Domain 85 — the public registration surfaces (slice 121)
+
+`api/public/register` and `api/public/group-info` are the two public LMS
+surfaces still holding a decision:
+
+- **`register`** — the group lookup with its families→v2_groups fallback, the
+  "an existing email is NOT proof of ownership, so an anonymous form must never
+  rewrite an account's credentials" rule, the same-program facilitator/participant
+  conflict guard, and the canonical membership sync move to
+  `services/lms/publicRegistration.js` as `registerParticipantViaGroupLink`. Field
+  presence and the password length stay in the controller, which is where
+  validation belongs.
+- **`group-info`** — the same group resolution plus the program registration
+  window move to `buildPublicGroupInfo`.
+
+Every statement stays in `@/models/platformConfig`; both controllers keep only
+`initDb` and the envelope (the role-conflict response shape stays at the
+boundary). A focused `lms-public-registration.test.js` pins the moved decisions,
+and the static guard in `security-p0-regressions.test.js` now points at the
+service (the invariant is unchanged, only its home moved).
+
+`npm test` (256 suites, 3785 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
+### Domain 86 — the webhook decisions: Resend and Kkiapay (slice 122)
+
+Two webhook controllers still held a real decision:
+
+- **`api/webhooks/resend`** — the Svix signature check (constant-time, and any
+  of several candidates during secret rotation), the freshness window that stops
+  a captured delivery from being replayed, and the event → status map move to
+  `services/email/resendWebhook.js` (`processResendWebhook`, with a pure
+  `verifySvixSignature`). The controller keeps the secret, the header reads and
+  the envelope; the append to the log stays in `services/email/log`.
+- **`api/webhooks/kkiapay`** — the notification STATE MACHINE moves to
+  `services/lms/checkoutWebhook.js` (`processPaymentNotification`): an unknown
+  reference is journaled and never creates a registration, a duplicate on an
+  already-paid registration does nothing, an explicit failure is recorded, and
+  anything else is handed to the server-side verification and then the shared
+  `settleVerifiedPayment`. The controller keeps `initDb`, the provider, the
+  signature verification, the payload parsing and the response shape; the
+  outcome is a discriminated value.
+
+The two static guards that pinned the rules now point at the services
+(`security-lot6-hardening.test.js` for the Resend signature/freshness), and two
+focused suites pin the moved decisions (`email-resend-webhook.test.js`,
+`lms-payment-notification.test.js`). The end-to-end `lms-checkout.test.js`
+(34 cases) keeps driving the Kkiapay route unchanged.
+
+Assessed and deliberately left at the controller, because they hold no business
+decision: the `api/lms/registrations` action dispatch (`link-run` vs
+`reconcile` — the work already lives in the services), `api/gmail-v1-test` (a
+self-labelled temporary diagnostic), `api/integrations/**`,
+`api/public/course-match` and `api/webhooks/route.js` (already delegate).
+
+`npm test` (258 suites, 3803 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
+### Domain 87 — the ops reports controller frontier (slice 123)
+
+`GET`/`POST /api/op-reports` still decided four things in the controller. They
+move to `services/dashboard/opReports.js`:
+
+- **who may read whose reports** — only a `super_admin` reads beyond their own;
+  another user's `user_id` is a 403 and issues no read at all (`listReports`);
+- **the upsert** — a report already stored for the same user + week + year + type
+  is updated in place, anything else is inserted (`saveReport`);
+- **the field-merge rule** — an update may touch a fixed set of columns, and an
+  empty `projects_tasks` never erases the stored (auto-generated) task list;
+- **the workspace** — a NEW report from an intern lands in `interns`, everyone
+  else in `main`.
+
+The service reads and writes through `@/models/adminOps` and answers
+`{ status, body }`; the controller keeps `initDb`, the `reports.create`
+capability gate for POST, the session read and the response envelope. The
+response shapes are unchanged.
+
+`op-reports.test.js` (13 cases) pins the moved decisions with the repository
+mocked — the refusal, the self-scoped read, the super-admin read, the
+required-field 400, create vs update, the intern/main split, the
+`lastInsertRowid` fallback and both `projects_tasks` merge paths.
+
+`npm test` (259 suites, 3818 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
+### Domain 88 — the KPI controller frontier (slice 124)
+
+Two surfaces: the strategic-KPI CRUD (`POST`/`PUT`/`DELETE /api/kpis`) and the
+objective-progress read (`GET /api/kpi-progress`,
+`POST /api/kpi-progress/recalculate`).
+
+- **`api/kpis`** — the three use-cases move to `services/dashboard/kpis.js`:
+  resolving which programme a KPI belongs to (so the scope gate is asked about
+  the right one, for the handlers that receive only a KPI id) and the write
+  itself, with the default target (80) owned in one place and reported back for
+  the audit entry. The controller keeps `initDb`, the roles gate, the
+  validation, the `requireProgramScope` gate (`wave: "groups"` — the coverage
+  census still sees it), `logAuditEvent` and the envelope. The three handlers'
+  repeated preamble (roles gate, validation, scope gate, audit) is factored into
+  local helpers, so the file shrank from 149 to 120 lines.
+  `program-scope-wiring.test.js` (which drives the real handlers) and
+  `program-scope-coverage.test.js` (which reads the route source) both still
+  pass unchanged.
+- **`api/kpi-progress`** — the read decisions move to
+  `services/dashboard/kpiProgress.js` (`getKpiProgress`, `recalculateAndSummarize`):
+  the schema-drift fallback (`source: "unavailable"`), the on-the-fly
+  recalculation when the cache is empty (and its `source` label), the plain
+  average, and the measurable-only average for the recalculation summary. The
+  recalculation engine itself stays in `services/programs/kpiProgress`. Both
+  routes keep their `createHandler` wrapper; only the decisions left the
+  handlers.
+
+`kpi-progress.test.js` (8 cases) and `kpis-service.test.js` (6 cases) pin the
+moved decisions with the repository and the recalculation mocked.
+
+`npm test` (261 suites, 3836 tests), `npx eslint` (0 errors) and `npm run build`
+are green.
+
+---
+
+### Domain 89 — the user-administration controller frontier (slice 125)
+
+Three surfaces: `POST /api/admin/approve-user`, `POST /api/admin/reject-user`
+and `GET /api/admin/pending-users`. Their work moves to
+`services/dashboard/userAdmin.js`:
+
+- **approve-user** — the existence (404) and status (400) checks, the ROLE rule
+  (only a Super Admin may name an arbitrary role; anyone else is limited to the
+  approvable set, so approval can never mint a Super Admin), the 24 h
+  password-setup token stored hashed, the setup email, the audit entry (actor
+  from the SESSION) and the notification clearing;
+- **reject-user** — the same shape for rejection;
+- **pending-users** — the read and the grouping by group name.
+
+The controller keeps `initDb`, the token-column bootstrap, the capability gate,
+ the base URL (from the request headers) and the envelope. The setup token is
+still never returned to the caller.
+
+Two source-level security contracts were repointed (invariant unchanged):
+`security-lot3-admin-authz.test.js` now reads the role rule and the audit actor
+from the service, and `security-lot6-hardening.test.js` reads the rejection
+actor there too. `admin-user-admin.test.js` (13 cases) pins the moved decisions,
+including a route-level case proving the audit actor comes from the session and
+the token is not echoed.
+
+`npm test` (262 suites, 3851 tests) is green. The full `npx eslint` / `npm run
+build` were momentarily red on an unrelated in-progress edit of
+`src/app/pm/programs/[id]/page.js` (V1), not on this slice; the slice's own files
+lint clean.
+
+---
+
+### Domain 90 — the admin analytics and admin project controller frontiers (slice 126)
+
+Two families in one slice.
+
+**Admin analytics** (`admin/analytics`, `admin/analytics/users`) →
+`services/dashboard/adminAnalytics.js`: the week/date framing (a single shared
+`getWeekNumber` helper in `services/dashboard/weeks.js`), the derived rates
+(carry-over, blocker, completion, average resolution hours), and the per-user
+aggregation with its batched reads and safe fallbacks.
+
+**Admin projects** (`admin/projects/**`) → four services:
+- `adminProjects.js` — the batched list aggregation (with the totals) and the
+  detail assembly (tasks with their blockers/subtasks/resources, the team union,
+  the timeline, the completion rate and timeline health);
+- `adminProjectUpdates.js` — the weekly narrative upsert;
+- `adminProjectApprovals.js` — the tolerant read, the validation, the
+  OBJECT-LEVEL check (the bodied request must belong to the project in the URL),
+  the approve/reject write, the task linking and the requester notification;
+- `adminProjectReports.js` — the auto-generated weekly report.
+
+The controllers keep `initDb`, the role checks, `requireProjectAccess` and the
+envelope. One source-level security contract was repointed here (invariant
+unchanged): `security-lot3-admin-authz.test.js` now reads the approval
+object-level check from the approvals service; `security-lot9-admin-scope.test.js`
+kept driving the real route (the scope guard stayed in the controller).
+
+`admin-analytics.test.js` (5 cases) and `admin-projects.test.js` (20 cases) pin
+the moved decisions.
+
+`npm test` (264 suites, 3888 tests) is green. The full `npx eslint` / `npm run
+build` were momentarily red on an unrelated in-progress edit of
+`src/app/pm/programs/[id]/page.js` (V1); this slice's own files lint clean.
+
+---
+
+### Domain 91 — the bulk-upload controller frontier (slice 127)
+
+`POST /api/admin/bulk-upload` decided the CSV parse, the protected-group
+detection, the per-row validation (required fields, email shape, phone
+uniqueness), the role boundary (an importer without the role-assignment
+capability may only create self-service roles), the upsert, the rollback on a
+database failure and the completion notification. Those move to
+`services/dashboard/bulkImport.js` (`parseContactCsv`, `csvWantsInternalGroup`,
+`importContacts`), which parses with `papaparse`, hashes with
+`@/server/auth/password` and reads/writes through `@/models/**`. The controller
+keeps `initDb`, the three capability gates, the protected-group boundary (it
+parses first, then asks) and the envelope.
+
+One source-level security contract was repointed (invariant unchanged):
+`security-lot3-admin-authz.test.js` now reads `IMPORTABLE_ROLES` from the
+service while `const canAssignRole = !assignRoleError` stays on the route.
+`admin-bulk-import.test.js` (15 cases) pins the moved decisions.
+
+`npm test` (265 suites, 3905 tests) and `npm run build` are green. `npx eslint`
+is red only on the unrelated in-progress `src/app/pm/programs/[id]/page.js`
+(V1); this slice's files lint clean.
+
+---
+
+### Domain 92 — the admin venture-create controller frontier (slice 128)
+
+`POST /api/admin/ventures/create` decided the input validation, the duplicate
+handling, the founder INVITATION (never a fabricated account or a written
+membership), the recorded delivery outcome and the activity entry. Those move to
+`services/dashboard/adminVentures.js` (`createVentureWithFounderInvite`), which
+writes through `@/models/ventureAdmin` and `@/models/ventureMemberInvitations`,
+mails through `@/lib/email` and reads the app URL through `@/lib/appUrl`. The
+controller keeps the super-admin `createHandler` gate and the envelope.
+
+Assessed and deliberately left at the controller (no business decision):
+`api/admin/ventures` (a type/action dispatch over `@/lib/ventures`),
+`api/admin/run-migration` (a sanctioned, super-admin-only migration runner whose
+statements are data) and `api/admin/fix-participant` (a self-labelled temporary
+diagnostic).
+
+The existing `ventures/admin-venture-create.test.js` (7 cases) drives the route
+unchanged.
+
+`npm test` (265 suites, 3907 tests) is green. The full `npx eslint` / `npm run
+build` were momentarily red on the unrelated in-progress
+`src/app/pm/programs/[id]/page.js` (V1); this slice's files lint clean.
+
+---
+
+### Domain 93 — the remaining compatibility façades (slice 129, CH-4)
+
+The last chantier: the pure re-export shims kept alive only so importers would
+not have to change. **68 single-target façades** were removed by a mechanical
+codemod that rewrote every import site (absolute `@/...` **and** relative) to the
+module the façade pointed at, then deleted the shim — **61 under `src/lib/**`**
+(the LMS family, the platform family, the authorization/access façades, finance,
+contacts, tasks, the ventures façades, `audit`…) and **7 under `src/models/**`**
+(the model façades pointing at a service). No reference to a removed façade
+remains (a scan resolves every import, relative included).
+
+**Multi-target façades were left in place** — they re-export several modules, so a
+mechanical per-symbol rewrite is not safe: `@/lib/auth`, `@/lib/ventures`,
+`@/lib/authorization/membership`, `@/lib/authorization/eligibility`,
+`@/models/authorization/index`, `@/models/kpi-progress`,
+`@/models/ventureDocumentTypes`, `@/models/lms/index`. They cost nothing at
+runtime and can be split in a later pass.
+
+Three suites needed a touch because they mocked a removed façade:
+`services-boundaries.test.js` now requires the authorization services directly;
+`tasks-api`, `tasks-create-api` and `tasks-update-api` mocked
+`@/lib/db/queries/tasks` (gone), so their `@/models/tasks` mock is now complete
+(`...requireActual` / merged) and the real functions still run against the
+suite's fake database.
+
+`npm test` (265 suites, 3907 tests) is green; `npx eslint` reports **0 errors**
+in the tree. The full build was momentarily red on the unrelated in-progress
+`src/app/pm/programs/[id]/page.js` (V1).
+
 ---
 
 ## 3. Left aside on purpose (deferred, with reasons)
 
-1. **Model facades** (`resolver`, `scope`, `contextGrantReadiness`,
-   `eligibility-admin`, `context`, `contextGrants`, `programAssignments`) create
-   shim-only model→service edges; they are deleted once nothing imports them.
+1. **Model facades** — **deleted** (slice 117): `resolver`, `scope`,
+   `contextGrantReadiness`, `eligibility-admin`, `context`, `contextGrants`,
+   `programAssignments`, `programScopeReadiness`. Two model→service edges
+   remain: `programAssignmentBackfill.js` (item 2) and
+   `models/authorization/contactContexts.js`, which calls the scope service for
+   `resolveScopeIds`.
 2. **`models/authorization/programAssignmentBackfill.js` imports the level
    decision from the service** — a backfill (data work) that needs a decision;
    it stays in models for now.
@@ -2238,7 +2649,7 @@ cleanup, not layering:
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
-| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85), the `form-runs` Run-detail read (93), the `form-runs` email/report-document cluster (95), the import routes (96), the seeds (97), the AI form generation (98), the template personalizer (99), the advisory analysis (100), the evaluation scoreboard (101), the form-runs scoring engine (102), the review workflow (103), the forms/collections controllers (104) and the rest of the `form-runs` POST vocabulary — the respondent write path, the run lifecycle, the email actions, the messaging actions, the link/document/run actions (105–109), the PUT/DELETE verbs (110) and the remaining platform controllers — notifications, integrations, investor-run, evaluation-config, report-file (111) — **`/api/platform/form-runs` is now a thin controller over `services/platform/formRuns.js`** |
+| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85), the `form-runs` Run-detail read (93), the `form-runs` email/report-document cluster (95), the import routes (96), the seeds (97), the AI form generation (98), the template personalizer (99), the advisory analysis (100), the evaluation scoreboard (101), the form-runs scoring engine (102), the review workflow (103), the forms/collections controllers (104) and the rest of the `form-runs` POST vocabulary — the respondent write path, the run lifecycle, the email actions, the messaging actions, the link/document/run actions (105–109), the PUT/DELETE verbs (110) and the remaining platform controllers — notifications, integrations, investor-run, evaluation-config, report-file (111) — **`/api/platform/form-runs` is now a thin controller over `services/platform/formRuns.js`**; the checkout settlement is now shared once (`settleVerifiedPayment`) and the reconciliation sweep moved from lib into the service (slice 118) |
 | Communications | `services/communications/*` | ✅ **controller frontier complete** — message scope (earlier), campaigns (86), internal messages (87), announcements (88), follow-ups and events (89–90) |
 | Submissions | `services/ventures/submissions.js` | ✅ **controller frontier complete** — the submit POST (91), the review PATCH (92), the list GET (93) and the score PUT (94) |
 

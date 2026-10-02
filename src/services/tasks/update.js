@@ -48,10 +48,10 @@ import {
   getTaskEndDateRowById,
 } from "@/models/tasks";
 // Kept on the compatibility facades the existing task suite mocks.
-import { getTaskById, getTaskTitleById, getTaskEndDateById } from "@/lib/db/queries/tasks";
-import { rebuildStandupTasks } from "@/lib/standupUpsert";
-import { logTaskEvent, ACTION_TYPES } from "@/lib/taskAudit";
-import { logAuditEvent, isTaskLocked } from "@/lib/audit";
+import { getTaskById, getTaskTitleById, getTaskEndDateById } from "@/models/tasks";
+import { rebuildStandupTasks } from "@/models/standupUpsert";
+import { logTaskEvent, ACTION_TYPES } from "@/models/taskAudit";
+import { logAuditEvent, isTaskLocked } from "@/services/tasks/auditLog";
 import { completeCarryoverAncestors } from "@/models/taskCarryover";
 import { validateTaskAssignment } from "@/models/contactGroups";
 import { seesWholePortfolio } from "@/services/authorization/listingScope";

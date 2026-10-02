@@ -2,14 +2,8 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 
-import {
-  createFounderEvaluation,
-  listFounderEvaluationsByPipelineId,
-  listRiskAssessmentsByPipelineId,
-  upsertRiskAssessment,
-} from "@/models/investor";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
-import { resolveInvestorScope, investorOwnsPipeline } from "@/models/authorization/investorScope";
+import { listEvaluationsForViewer, createEvaluation } from "@/services/investor";
 
 /**
  * GET /api/investor/evaluation?pipeline_id=X
@@ -17,6 +11,9 @@ import { resolveInvestorScope, investorOwnsPipeline } from "@/models/authorizati
  *
  * POST /api/investor/evaluation
  * Body: { pipeline_id, type: "founder"|"risk", ...fields }
+ *
+ * The own-scope binding of the pipeline and the write dispatch by type live in
+ * `@/services/investor`.
  */
 export async function GET(req) {
   try {
@@ -26,23 +23,19 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url);
     const pipelineId = searchParams.get("pipeline_id");
-    if (!pipelineId) return NextResponse.json({ success: false, error: "pipeline_id required" }, { status: 400 });
 
-    // Own-scope: bind the pipeline to the caller before returning its evaluations.
-    const scope = await resolveInvestorScope(await getSession());
-    if (!scope.management && !(await investorOwnsPipeline(pipelineId, scope.profileId))) {
-      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const result = await listEvaluationsForViewer({
+      pipelineId,
+      session: await getSession(),
+    });
+    if (!result.ok) {
+      return NextResponse.json({ success: false, error: result.error }, { status: result.status });
     }
-
-    const [founders, risks] = await Promise.all([
-      listFounderEvaluationsByPipelineId(pipelineId),
-      listRiskAssessmentsByPipelineId(pipelineId),
-    ]);
 
     return NextResponse.json({
       success: true,
-      founder_evaluations: founders.rows,
-      risk_assessments: risks.rows,
+      founder_evaluations: result.founder_evaluations,
+      risk_assessments: result.risk_assessments,
     });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -55,38 +48,20 @@ export async function POST(req) {
     const capError = await requireInvestorSelfServiceAuthorization("create");
     if (capError) return capError;
 
-    const session = await getSession();
     const body = await req.json();
     const { pipeline_id, type, ...fields } = body;
 
-    if (!pipeline_id || !type) {
-      return NextResponse.json({ success: false, error: "pipeline_id and type required" }, { status: 400 });
+    const result = await createEvaluation({
+      pipelineId: pipeline_id,
+      type,
+      fields,
+      session: await getSession(),
+    });
+    if (!result.ok) {
+      return NextResponse.json({ success: false, error: result.error }, { status: result.status });
     }
 
-    // Own-scope: evaluations and risk assessments are written on the caller's
-    // own pipeline only.
-    const scope = await resolveInvestorScope(session);
-    if (!scope.management && !(await investorOwnsPipeline(pipeline_id, scope.profileId))) {
-      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    }
-
-    if (type === "founder") {
-      const { founder_name, role, experience_score, leadership_score, domain_expertise_score, overall_rating, notes } = fields;
-      if (!founder_name) return NextResponse.json({ success: false, error: "founder_name required" }, { status: 400 });
-
-      const result = await createFounderEvaluation({ pipeline_id, founder_name, role, experience_score, leadership_score, domain_expertise_score, overall_rating, notes, created_by: session.cid || session.id });
-      return NextResponse.json({ success: true, evaluation: result.rows[0] });
-    }
-
-    if (type === "risk") {
-      const { risk_category, risk_description, severity, mitigation, status } = fields;
-      if (!risk_category || !risk_description) return NextResponse.json({ success: false, error: "risk_category and risk_description required" }, { status: 400 });
-
-      const result = await upsertRiskAssessment({ pipeline_id, risk_category, risk_description, severity, mitigation, status, created_by: session.cid || session.id });
-      return NextResponse.json({ success: true, evaluation: result.rows[0] });
-    }
-
-    return NextResponse.json({ success: false, error: "Invalid type. Use 'founder' or 'risk'" }, { status: 400 });
+    return NextResponse.json({ success: true, evaluation: result.evaluation });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

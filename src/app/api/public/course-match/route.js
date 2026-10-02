@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { findCourseMatch } from "@/lib/lms/courseMatch";
-import { lmsErrorResponse } from "@/lib/lms/errors";
+import { findCourseMatch } from "@/models/lms/courseMatch";
+import { lmsErrorResponse } from "@/models/lms/errors";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";

@@ -10,7 +10,7 @@ import {
   requireAuthorization,
   getAuthorizationContext,
   authorize,
-} from "@/lib/authorization";
+} from "@/models/authorization/index";
 import { requireProgramScope } from "@/lib/programScopedAccess";
 import { deleteTeam, getTeamById } from "@/models/teams";
 import {

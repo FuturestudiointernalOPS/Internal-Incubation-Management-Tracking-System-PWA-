@@ -335,7 +335,7 @@ describe("capability projection — buildAccessNav contract", () => {
     buildRoleNav,
     buildAccessNav,
   } = require("@/lib/masterNavigation");
-  const { CAPABILITY_CATALOG } = require("@/lib/authorization/capability-catalog");
+  const { CAPABILITY_CATALOG } = require("@/models/authorization/capability-catalog");
 
   const collect = (items, out = []) => {
     (items || []).forEach((item) => {

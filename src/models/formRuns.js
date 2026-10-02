@@ -569,6 +569,17 @@ export async function updateSubmissionContentAndStatusById({ submissionId, data,
   });
 }
 
+/**
+ * Update ONLY an existing submission's stored answers — the respondent-email
+ * correction rewrites the email answer without touching status or timestamps.
+ */
+export async function updateSubmissionDataById(submissionId, data) {
+  return db.execute({
+    sql: `UPDATE platform_form_submissions SET data = ?, updated_at = NOW() WHERE id = ? RETURNING *`,
+    args: [JSON.stringify(data), parseInt(submissionId)],
+  });
+}
+
 /** Full run row for the submit automation context (existing submission). */
 export async function getFullRunForSubmissionAutomationById(runId) {
   return db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [parseInt(runId)] });
@@ -613,6 +624,16 @@ export async function findContactByLowerEmailForManualAdd(cleanEmail) {
 /** Fill a contact's name when the manual-add matched an unnamed contact. */
 export async function updateContactNameById(submitterId, cleanName) {
   return db.execute({ sql: "UPDATE contacts SET name = ? WHERE cid = ?", args: [cleanName, submitterId] });
+}
+
+/**
+ * Re-point a respondent's CRM contact at a corrected email address. Email is
+ * UNIQUE on contacts, so the caller checks for a conflicting owner first; a
+ * race that slips through surfaces as a thrown unique-violation, never a
+ * silent overwrite of another person.
+ */
+export async function updateContactEmailById(cid, cleanEmail) {
+  return db.execute({ sql: "UPDATE contacts SET email = ? WHERE cid = ?", args: [cleanEmail, cid] });
 }
 
 /** First group/program/organization/cohort assignment target of a run. */

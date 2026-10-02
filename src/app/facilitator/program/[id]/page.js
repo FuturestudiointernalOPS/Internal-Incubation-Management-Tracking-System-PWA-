@@ -1,24 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useRef, use, useCallback } from "react";
-import {
-  ChevronLeft,
-  Users,
-  CalendarCheck,
-  ClipboardList,
-  Send,
-  CheckCircle2,
-  Loader2,
-  LayoutDashboard,
-  BookOpen,
-  ExternalLink,
-  MessageSquareText,
-  RotateCcw,
-  XCircle,
-} from "lucide-react";
+import { useState, use, useCallback } from "react";
 import { useI18n } from "@/lib/i18n";
-import { getLocalToday, FACILITATOR_REVIEW_OPTIONS } from "@/lib/constants";
+import { getLocalToday } from "@/lib/constants";
 import { useApi } from "@/lib/hooks/useApi";
+import ProgramHeader from "@/components/facilitator/program-detail/ProgramHeader";
+import ProgramTabs from "@/components/facilitator/program-detail/ProgramTabs";
+import OverviewTab from "@/components/facilitator/program-detail/OverviewTab";
+import CurriculumTab from "@/components/facilitator/program-detail/CurriculumTab";
+import ParticipantsTab from "@/components/facilitator/program-detail/ParticipantsTab";
+import AttendanceTab from "@/components/facilitator/program-detail/AttendanceTab";
+import AssignmentsTab from "@/components/facilitator/program-detail/AssignmentsTab";
+import ReviewTab from "@/components/facilitator/program-detail/ReviewTab";
 
 export const dynamic = "force-dynamic";
 
@@ -191,26 +184,6 @@ export default function FacilitatorProgram({ params }) {
       new CustomEvent("impactos:notify", { detail: { type, message } }),
     );
 
-  const reviewRatingLabel = (value) =>
-    FACILITATOR_REVIEW_OPTIONS.ratings.includes(value)
-      ? t(`pmMisc.facilitators.weeklyReview.rating_${value}`)
-      : value || "";
-  const reviewEngagementLabel = (value) =>
-    FACILITATOR_REVIEW_OPTIONS.engagement.includes(value)
-      ? t(`pmMisc.facilitators.weeklyReview.engagement_${value}`)
-      : value || "";
-  const reviewAttentionLabel = (value) =>
-    FACILITATOR_REVIEW_OPTIONS.attention.includes(value)
-      ? t(`pmMisc.facilitators.weeklyReview.attention_${value}`)
-      : value || "";
-  const reviewStatusLabel = (reviewItem) => {
-    if (reviewItem.pm_decision === "changes_requested")
-      return t("pmMisc.facilitators.weeklyReview.status_changes_requested");
-    if (reviewItem.status === "decided")
-      return t("pmMisc.facilitators.weeklyReview.status_decided");
-    return t("pmMisc.facilitators.weeklyReview.status_submitted");
-  };
-
   const submitReview = async () => {
     if (!review.overall_rating) {
       notify("error", t("pmMisc.facilitators.weeklyReview.ratingRequired"));
@@ -335,617 +308,55 @@ export default function FacilitatorProgram({ params }) {
     );
   }
 
-  const tabs = [
-    { key: "overview", label: "Overview", icon: LayoutDashboard },
-    { key: "curriculum", label: "Curriculum", icon: BookOpen },
-    { key: "participants", label: "Participants", icon: Users },
-    { key: "attendance", label: "Attendance", icon: CalendarCheck },
-    { key: "assignments", label: "Assignments", icon: ClipboardList },
-    { key: "review", label: "My Review", icon: Send },
-  ];
-
   return (
     <>
       <div className="max-w-5xl mx-auto space-y-8 p-6">
-        <header>
-          <a
-            href="/facilitator"
-            className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] mb-2"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" /> My programs
-          </a>
-          <h1 className="text-xl font-black uppercase tracking-tight">
-            {program?.name || "Program"}
-          </h1>
-          <p className="text-[10px] text-[var(--text-secondary)] font-bold mt-1">
-            You only see data within your assigned scope.
-          </p>
-        </header>
+        <ProgramHeader program={program} />
 
-        <div className="flex gap-2 flex-wrap">
-          {tabs.map((tabItem) => (
-            <button
-              key={tabItem.key}
-              onClick={() => setTab(tabItem.key)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border text-[10px] font-bold uppercase tracking-wide transition-all ${
-                tab === tabItem.key
-                  ? "bg-brand-orange/10 border-[var(--brand-orange)] text-[var(--brand-orange)]"
-                  : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)]"
-              }`}
-            >
-              <tabItem.icon className="w-3.5 h-3.5" />
-              {tabItem.label}
-            </button>
-          ))}
-        </div>
+        <ProgramTabs tab={tab} onTabChange={setTab} />
 
-        {/* OVERVIEW (read-only) */}
         {tab === "overview" && (
-          <div className="space-y-4">
-            <div className="grid sm:grid-cols-3 gap-3">
-              <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
-                  Participants
-                </p>
-                <p className="text-2xl font-black">{participants.length}</p>
-              </div>
-              <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
-                  Sessions
-                </p>
-                <p className="text-2xl font-black">{sessions.length}</p>
-              </div>
-              <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
-                  Duration
-                </p>
-                <p className="text-2xl font-black">
-                  {program?.duration_weeks || "\u2014"} wks
-                </p>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-5 space-y-3">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
-                  Description
-                </p>
-                <p className="text-sm">{program?.description || "\u2014"}</p>
-              </div>
-              {program?.outcomes && (
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
-                    Outcomes
-                  </p>
-                  <p className="text-sm">{program.outcomes}</p>
-                </div>
-              )}
-            </div>
-          </div>
+          <OverviewTab
+            program={program}
+            participantCount={participants.length}
+            sessionCount={sessions.length}
+          />
         )}
 
-        {/* CURRICULUM (read-only) */}
-        {tab === "curriculum" && (
-          <div className="space-y-3">
-            {sessions.length === 0 && (
-              <p className="text-sm text-[var(--text-secondary)] py-8 text-center">
-                No sessions scheduled yet.
-              </p>
-            )}
-            {sessions.map((session) => (
-              <div
-                key={session.id}
-                className="flex items-center justify-between gap-3 p-4 rounded-2xl border border-[var(--border-primary)] bg-secondary"
-              >
-                <div>
-                  <p className="text-[11px] font-black uppercase">{session.title}</p>
-                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                    Week {session.week_number} \u00b7 {session.type}
-                  </p>
-                </div>
-                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-blue-500/10 text-blue-500">
-                  {session.status || "scheduled"}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+        {tab === "curriculum" && <CurriculumTab sessions={sessions} />}
 
-        {/* PARTICIPANTS */}
-        {tab === "participants" && (
-          <div className="space-y-3">
-            {participants.length === 0 && (
-              <p className="text-sm text-[var(--text-secondary)] py-8 text-center">
-                No participants in your assigned scope.
-              </p>
-            )}
-            {participants.map((participant) => (
-              <div
-                key={participant.id}
-                className="flex items-center justify-between gap-3 p-4 rounded-2xl border border-[var(--border-primary)] bg-secondary"
-              >
-                <div className="min-w-0">
-                  <p className="text-[11px] font-black uppercase truncate">
-                    {participant.name}
-                  </p>
-                  <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">
-                    {participant.email}
-                  </p>
-                </div>
-                <span
-                  className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded shrink-0 ${
-                    participant.status === "active"
-                      ? "bg-emerald-500/15 text-emerald-400"
-                      : "bg-amber-500/15 text-amber-400"
-                  }`}
-                >
-                  {participant.status || "—"}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+        {tab === "participants" && <ParticipantsTab participants={participants} />}
 
-        {/* ATTENDANCE */}
         {tab === "attendance" && (
-          <div className="space-y-6">
-            <div className="flex items-center gap-3 rounded-xl border border-[var(--border-primary)] bg-primary p-3">
-              <CalendarCheck className="w-4 h-4 text-[var(--text-secondary)]" />
-              <div className="flex-1">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
-                  Date
-                </p>
-                <input
-                  type="date"
-                  value={attendanceDate}
-                  onChange={(event) => setAttendanceDate(event.target.value)}
-                  max={getLocalToday()}
-                  min={getLocalToday()}
-                  className="w-full bg-transparent text-sm font-bold text-[var(--text-primary)] outline-none"
-                />
-              </div>
-            </div>
-            {sessions.length === 0 && (
-              <p className="text-sm text-[var(--text-secondary)] py-8 text-center">
-                No sessions scheduled yet.
-              </p>
-            )}
-            {sessions.map((session) => (
-              <div
-                key={session.id}
-                className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4 space-y-3"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-[11px] font-black uppercase">
-                      {session.title}
-                    </p>
-                    <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                      Week {session.week_number} · {session.type}
-                    </p>
-                  </div>
-                </div>
-                <div className="grid sm:grid-cols-2 gap-1.5">
-                  {participants.map((participant) => {
-                    const key = `${session.id}:${participant.id || participant.user_id}`;
-                    return (
-                      <div
-                        key={key}
-                        className="flex items-center justify-between gap-2 p-2 rounded-lg border border-[var(--border-primary)] bg-primary"
-                      >
-                        <span className="text-[10px] font-bold uppercase truncate">
-                          {participant.name}
-                        </span>
-                        <select
-                          value={attendance[key] || ""}
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            setMark(key, value);
-                            saveAttendanceForParticipant(session.id, participant.id || participant.user_id, value);
-                          }}
-                          className="bg-secondary border border-[var(--border-primary)] rounded px-1.5 py-1 text-[10px] font-bold uppercase outline-none cursor-pointer"
-                        >
-                          <option value="">{t("pmMisc.workspace.attendanceSelect")}</option>
-                          <option value="present">{t("pmMisc.workspace.attendancePresent")}</option>
-                          <option value="absent">{t("pmMisc.workspace.attendanceAbsent")}</option>
-                        </select>
-                      </div>
-                    );
-                  })}
-                </div>
-                <button
-                  disabled={savingAtt}
-                  onClick={() => saveAttendance(session.id)}
-                  className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-500/20 transition-all"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Save attendance
-                </button>
-              </div>
-            ))}
-          </div>
+          <AttendanceTab
+            sessions={sessions}
+            participants={participants}
+            attendanceDate={attendanceDate}
+            onDateChange={setAttendanceDate}
+            attendance={attendance}
+            onMark={setMark}
+            onSaveSession={saveAttendance}
+            onSaveParticipant={saveAttendanceForParticipant}
+            savingAtt={savingAtt}
+          />
         )}
 
-        {/* ASSIGNMENTS */}
         {tab === "assignments" && (
-          <div className="space-y-3">
-            {submissions.length === 0 && (
-              <p className="text-sm text-[var(--text-secondary)] py-8 text-center">
-                No submissions in your scope yet.
-              </p>
-            )}
-            {submissions.map((submission) => (
-              <SubmissionRow key={submission.id} sub={submission} onReview={reviewSubmission} t={t} />
-            ))}
-          </div>
+          <AssignmentsTab submissions={submissions} onReview={reviewSubmission} />
         )}
 
-        {/* REVIEW */}
         {tab === "review" && (
-          <div className="space-y-6">
-            <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-5 space-y-3">
-              <div>
-                <h2 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                  {t("pmMisc.facilitators.weeklyReview.title")}
-                </h2>
-                <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
-                  {t("pmMisc.facilitators.weeklyReview.subtitle")}
-                </p>
-                <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-[var(--border-primary)] px-3 py-1.5 bg-primary">
-                  <span className="text-[10px] font-bold uppercase text-[var(--text-secondary)]">
-                    {t("pmMisc.facilitators.weeklyReview.week")}
-                  </span>
-                  <input
-                    type="number"
-                    min="1"
-                    value={reviewWeek}
-                    onChange={(event) => setChosenWeek(parseInt(event.target.value) || 1)}
-                    className="w-16 bg-transparent text-center text-[11px] font-black text-[var(--text-primary)] outline-none"
-                  />
-                </div>
-              </div>
-
-              <ReviewSelect
-                label={t("pmMisc.facilitators.weeklyReview.q1")}
-                value={review.overall_rating}
-                onChange={(value) => setReview({ ...review, overall_rating: value })}
-                options={FACILITATOR_REVIEW_OPTIONS.ratings.map((option) => ({
-                  value: option,
-                  label: t(`pmMisc.facilitators.weeklyReview.rating_${option}`),
-                }))}
-              />
-
-              <ReviewField
-                label={t("pmMisc.facilitators.weeklyReview.q2")}
-                value={review.went_well}
-                onChange={(value) => setReview({ ...review, went_well: value })}
-              />
-
-              <ReviewField
-                label={t("pmMisc.facilitators.weeklyReview.q3")}
-                value={review.struggles}
-                onChange={(value) => setReview({ ...review, struggles: value })}
-              />
-
-              <ReviewSelect
-                label={t("pmMisc.facilitators.weeklyReview.q4")}
-                value={review.engagement}
-                onChange={(value) => setReview({ ...review, engagement: value })}
-                options={FACILITATOR_REVIEW_OPTIONS.engagement.map((option) => ({
-                  value: option,
-                  label: t(`pmMisc.facilitators.weeklyReview.engagement_${option}`),
-                }))}
-              />
-
-              <ReviewSelect
-                label={t("pmMisc.facilitators.weeklyReview.q5")}
-                value={review.needs_attention_type}
-                onChange={(value) => setReview({ ...review, needs_attention_type: value })}
-                options={FACILITATOR_REVIEW_OPTIONS.attention.map((option) => ({
-                  value: option,
-                  label: t(`pmMisc.facilitators.weeklyReview.attention_${option}`),
-                }))}
-              />
-
-              {review.needs_attention_type &&
-                review.needs_attention_type !== "nothing" && (
-                  <ReviewField
-                    label={t("pmMisc.facilitators.weeklyReview.q5note")}
-                    value={review.needs_attention_note}
-                    onChange={(value) =>
-                      setReview({ ...review, needs_attention_note: value })
-                    }
-                  />
-                )}
-
-              <ReviewField
-                label={t("pmMisc.facilitators.weeklyReview.q6")}
-                value={review.focus_next_week}
-                onChange={(value) => setReview({ ...review, focus_next_week: value })}
-              />
-
-              <ReviewField
-                label={t("pmMisc.facilitators.weeklyReview.q7")}
-                value={review.additional_notes}
-                onChange={(value) => setReview({ ...review, additional_notes: value })}
-              />
-
-              <button
-                disabled={savingReview}
-                onClick={submitReview}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--brand-orange)] text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
-              >
-                {savingReview ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Send className="w-3.5 h-3.5" />
-                )}
-                {t("pmMisc.facilitators.weeklyReview.submit")}
-              </button>
-            </div>
-
-            {myReviews.length > 0 && (
-              <div className="space-y-3">
-                <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                  {t("pmMisc.facilitators.weeklyReview.myReviews")}
-                </h2>
-                {myReviews.map((reviewItem) => (
-                  <div
-                    key={reviewItem.id}
-                    className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4 space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                        {t("pmMisc.facilitators.weeklyReview.submittedAt", {
-                          date: new Date(reviewItem.created_at).toLocaleDateString(),
-                        })}
-                        {reviewItem.week_number
-                          ? ` · ${t("pmMisc.facilitators.weeklyReview.week")} ${reviewItem.week_number}`
-                          : ""}
-                      </span>
-                      <span
-                        className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                          reviewItem.pm_decision === "changes_requested"
-                            ? "bg-rose-500/15 text-rose-400"
-                            : reviewItem.status === "decided"
-                              ? "bg-emerald-500/15 text-emerald-400"
-                              : "bg-amber-500/15 text-amber-400"
-                        }`}
-                      >
-                        {reviewStatusLabel(reviewItem)}
-                      </span>
-                    </div>
-                    <ReviewSummaryRow
-                      label={t("pmMisc.facilitators.weeklyReview.overall")}
-                      value={
-                        reviewRatingLabel(reviewItem.overall_rating) ||
-                        reviewItem.participant_progress
-                      }
-                    />
-                    <ReviewSummaryRow
-                      label={t("pmMisc.facilitators.weeklyReview.engagement")}
-                      value={reviewEngagementLabel(reviewItem.engagement)}
-                    />
-                    <ReviewSummaryRow
-                      label={t("pmMisc.facilitators.weeklyReview.wentWell")}
-                      value={reviewItem.went_well}
-                    />
-                    <ReviewSummaryRow
-                      label={t("pmMisc.facilitators.weeklyReview.struggles")}
-                      value={reviewItem.struggles || reviewItem.challenges}
-                    />
-                    <ReviewSummaryRow
-                      label={t("pmMisc.facilitators.weeklyReview.needsAttention")}
-                      value={
-                        reviewAttentionLabel(reviewItem.needs_attention_type) ||
-                        reviewItem.needs_attention
-                      }
-                      note={reviewItem.needs_attention_note}
-                    />
-                    <ReviewSummaryRow
-                      label={t("pmMisc.facilitators.weeklyReview.focusNextWeek")}
-                      value={reviewItem.focus_next_week || reviewItem.recommendations}
-                    />
-                    <ReviewSummaryRow
-                      label={t("pmMisc.facilitators.weeklyReview.additionalNotes")}
-                      value={reviewItem.additional_notes}
-                    />
-                    {reviewItem.pm_decision && (
-                      <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-                        <p className="text-[10px] font-bold uppercase text-emerald-400 mb-1">
-                          {t("pmMisc.facilitators.weeklyReview.decision")}
-                        </p>
-                        <p className="text-[10px] font-medium text-[var(--text-primary)]">
-                          {reviewItem.pm_decision}
-                        </p>
-                        {reviewItem.pm_decision_note && (
-                          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
-                            {reviewItem.pm_decision_note}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <ReviewTab
+            review={review}
+            onReviewChange={setReview}
+            reviewWeek={reviewWeek}
+            onWeekChange={setChosenWeek}
+            onSubmit={submitReview}
+            savingReview={savingReview}
+            myReviews={myReviews}
+          />
         )}
       </div>
     </>
-  );
-}
-
-function ReviewField({ label, value, onChange }) {
-  return (
-    <div className="space-y-1">
-      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-        {label}
-      </label>
-      <textarea
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        rows={2}
-        placeholder="Optional…"
-        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] resize-none"
-      />
-    </div>
-  );
-}
-
-function ReviewSelect({ label, value, onChange, options, placeholder }) {
-  return (
-    <div className="space-y-1">
-      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-        {label}
-      </label>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] cursor-pointer text-[var(--text-primary)]"
-      >
-        <option value="">{placeholder || "Select…"}</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
-function ReviewSummaryRow({ label, value, note }) {
-  if (!value && !note) return null;
-  return (
-    <div className="text-[10px]">
-      <p className="text-[var(--text-secondary)]">
-        <strong className="text-[var(--text-primary)]">{label}:</strong>{" "}
-        {value || ""}
-      </p>
-      {note && (
-        <p className="text-[var(--text-secondary)] mt-0.5 pl-1">{note}</p>
-      )}
-    </div>
-  );
-}
-
-const MAX_FEEDBACK_HEIGHT = 240; // px — beyond this the box scrolls internally
-
-function SubmissionRow({ sub, onReview, t }) {
-  const [feedback, setFeedback] = useState(sub.feedback || "");
-  const [expanded, setExpanded] = useState(false);
-  const textareaRef = useRef(null);
-
-  // Auto-grow the textarea with its content so long suggestions stay readable
-  // instead of being trapped behind a fixed 2-row box.
-  useEffect(() => {
-    if (!expanded) return;
-    const element = textareaRef.current;
-    if (!element) return;
-    element.style.height = "auto";
-    const overflows = element.scrollHeight > MAX_FEEDBACK_HEIGHT;
-    element.style.height = `${overflows ? MAX_FEEDBACK_HEIGHT : element.scrollHeight}px`;
-    element.style.overflowY = overflows ? "auto" : "hidden";
-  }, [expanded, feedback]);
-
-  return (
-    <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4 space-y-2">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between gap-3 text-left"
-      >
-        <div className="min-w-0">
-          <p className="text-[11px] font-black uppercase truncate">
-            {sub.participant_name || "Participant"}
-          </p>
-          <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">
-            {sub.deliverable_title || "Deliverable"}
-          </p>
-        </div>
-        <span
-          className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded shrink-0 ${
-            sub.status === "approved"
-              ? "bg-emerald-500/15 text-emerald-400"
-              : sub.status === "revision_requested"
-                ? "bg-amber-500/15 text-amber-400"
-                : sub.status === "rejected"
-                  ? "bg-rose-500/15 text-rose-400"
-                  : "bg-slate-500/15 text-[var(--text-secondary)]"
-          }`}
-        >
-          {sub.status}
-        </span>
-      </button>
-      {expanded && (
-        <div className="space-y-2.5 pt-2">
-          {/* Feedback composer */}
-          <div className="rounded-xl border border-[var(--border-primary)] bg-primary p-3 space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <label
-                htmlFor={`submission-feedback-${sub.id}`}
-                className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer"
-              >
-                <MessageSquareText className="w-3 h-3 text-[var(--brand-orange)] shrink-0" />
-                {t("pmMisc.submissions.feedbackLabel")}
-              </label>
-              {sub.file_url && (
-                <a
-                  href={sub.file_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-400 hover:underline shrink-0"
-                >
-                  <ExternalLink className="w-2.5 h-2.5" />
-                  {t("pmMisc.submissions.viewSubmissionFile")}
-                </a>
-              )}
-            </div>
-            <textarea
-              id={`submission-feedback-${sub.id}`}
-              ref={textareaRef}
-              value={feedback}
-              onChange={(event) => setFeedback(event.target.value)}
-              rows={3}
-              placeholder={t("pmMisc.submissions.feedbackPlaceholder")}
-              className="w-full resize-none overflow-hidden bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-[11px] font-medium leading-relaxed text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] placeholder:font-normal outline-none focus:border-[var(--brand-orange)] transition-colors"
-            />
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[10px] font-medium text-[var(--text-tertiary)]">
-                {t("pmMisc.submissions.feedbackHint")}
-              </p>
-              {feedback.length > 0 && (
-                <span className="text-[10px] font-bold tabular-nums text-[var(--text-tertiary)] shrink-0">
-                  {t("pmMisc.submissions.charCount", { count: feedback.length })}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Decision actions */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => onReview(sub.id, "approved", feedback)}
-              className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors"
-            >
-              <CheckCircle2 className="w-3 h-3" />
-              {t("pmMisc.submissions.approve")}
-            </button>
-            <button
-              onClick={() => onReview(sub.id, "revision_requested", feedback)}
-              className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide px-3 py-2 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 transition-colors"
-            >
-              <RotateCcw className="w-3 h-3" />
-              {t("pmMisc.submissions.requestRevision")}
-            </button>
-            <button
-              onClick={() => onReview(sub.id, "rejected", feedback)}
-              className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide px-3 py-2 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 transition-colors"
-            >
-              <XCircle className="w-3 h-3" />
-              {t("pmMisc.submissions.reject")}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
   );
 }

@@ -20,7 +20,18 @@
 const fs = require("fs");
 const path = require("path");
 
-const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+const read = (rel) => {
+  const text = fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+  // Slice 1: the review/email/result-document cluster moved from the route to
+  // the service — append it so assertions against either half still match.
+  if (rel === "src/app/api/platform/form-runs/route.js") {
+    // Searched first: a same-named call left in the route (e.g. a standalone
+    // resend action) must never be found before the one inside the moved
+    // service function that an order assertion is pinning.
+    return fs.readFileSync(path.join(process.cwd(), "src/services/platform/formRuns.js"), "utf8") + "\n" + text;
+  }
+  return text;
+};
 
 const FORM_RUNS_SERVICE = "src/services/platform/formRuns.js";
 const RESULT_PDF = "src/models/platform/resultPdf.js";
@@ -61,7 +72,7 @@ const {
   parseReportDocument,
   buildReportPrompt,
   getOrCreateSubmissionReport,
-} = require("@/models/platform/ai/report");
+} = require("@/services/platform/report");
 
 beforeEach(() => {
   mockStoredRows = [];
@@ -121,7 +132,7 @@ describe("the report store is created on demand", () => {
     jest.resetModules();
     mockQueries.length = 0;
     mockChat.mockResolvedValue(GOOD_ANSWER);
-    const fresh = require("@/models/platform/ai/report");
+    const fresh = require("@/services/platform/report");
 
     await fresh.getOrCreateSubmissionReport({
       submissionId: 42,

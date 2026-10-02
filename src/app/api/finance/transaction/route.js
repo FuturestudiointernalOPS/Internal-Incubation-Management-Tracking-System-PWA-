@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { requireAuthorization } from "@/lib/authorization";
-import { insertTransaction } from "@/lib/finance/queries";
+import { requireAuthorization } from "@/models/authorization/index";
+import { insertTransaction } from "@/services/finance/queries";
 
 export const POST = createHandler(async (req) => {
   const capError = await requireAuthorization("finance", "create");

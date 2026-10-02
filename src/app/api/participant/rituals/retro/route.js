@@ -1,6 +1,7 @@
-import { getRetrosByUserAndWeek, createRetro } from "@/models/participantPortal";
+import { getRetrosByUserAndWeek } from "@/models/participantPortal";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { recordRetro } from "@/services/participant";
 
 export const dynamic = "force-dynamic";
 
@@ -13,22 +14,23 @@ export const dynamic = "force-dynamic";
 export const GET = createHandler(async (req) => {
   const { getSession } = await import("@/lib/auth");
   const session = await getSession();
-  	const cid = session.cid;
-  	const { searchParams } = new URL(req.url);
-  	const weekNum = searchParams.get("week_number");
+  const cid = session.cid;
+  const { searchParams } = new URL(req.url);
+  const weekNum = searchParams.get("week_number");
 
-  	const result = await getRetrosByUserAndWeek(cid, weekNum);
-  	return NextResponse.json({ success: true, retros: result.rows });
+  const result = await getRetrosByUserAndWeek(cid, weekNum);
+  return NextResponse.json({ success: true, retros: result.rows });
 });
 
 export const POST = createHandler(async (req) => {
   const { getSession } = await import("@/lib/auth");
   const session = await getSession();
-  	const cid = session.cid;
-  	const userName = session.name || "";
-  	const currentYear = new Date().getFullYear();
-  	const { week_number } = await req.json();
+  const { week_number } = await req.json();
 
-  	await createRetro(cid, userName, week_number || 1, currentYear);
-  	return NextResponse.json({ success: true });
+  await recordRetro({
+    cid: session.cid,
+    userName: session.name || "",
+    weekNumber: week_number,
+  });
+  return NextResponse.json({ success: true });
 });

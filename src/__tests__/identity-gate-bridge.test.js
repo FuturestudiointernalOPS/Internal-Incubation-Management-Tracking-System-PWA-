@@ -207,8 +207,13 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     const src = fs.readFileSync(path.join(ROOT, file), "utf8");
     expect(bareAuthCount(file)).toBe(1);
     for (const list of authBlocks(file)) expect(containsContextual(list)).toBe(false);
-    expect(src).toMatch(/management = \["super_admin", "staff", "program_manager"\]/);
-    expect(src).toMatch(/investorId = profileResult\.rows\[0\]\.id/);
+    // The route stays bare; the scope-binding decision now lives in the service.
+    const service = fs.readFileSync(
+      path.join(ROOT, "src/services/investor/pipeline.js"),
+      "utf8",
+    );
+    expect(service).toMatch(/MANAGEMENT_ROLES = \["super_admin", "staff", "program_manager"\]/);
+    expect(service).toMatch(/investorId = profileResult\.rows\[0\]\.id/);
     // Model: venture reads are own-scoped when an investorId is bound.
     const model = fs.readFileSync(path.join(ROOT, "src/models/investor.js"), "utf8");
     expect(model).toMatch(/ventureId && investorId/);
@@ -220,7 +225,12 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     const src = fs.readFileSync(path.join(ROOT, file), "utf8");
     expect(bareAuthCount(file)).toBe(1);
     for (const list of authBlocks(file)) expect(containsContextual(list)).toBe(false);
-    expect(src).toMatch(/getInvestorProfileIdByUserIdForPipelineList/);
+    // The route stays bare; the own-scope resolution now lives in the service.
+    const service = fs.readFileSync(
+      path.join(ROOT, "src/services/investor/campaigns.js"),
+      "utf8",
+    );
+    expect(service).toMatch(/getInvestorProfileIdByUserIdForPipelineList/);
     const model = fs.readFileSync(
       path.join(ROOT, "src/models/investorRelations.js"),
       "utf8",
