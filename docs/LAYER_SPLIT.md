@@ -2702,6 +2702,19 @@ the original file kept as a same-surface barrel: `planImport` (1 178),
 
 `npm test` (3631 tests), `npx eslint` (0 errors) and `npm run build` are green.
 
+Follow-up (the lane's component and service leftovers). `JourneyManagerPanel.js`
+1 761 → 1 399 lines: six presentational parts in
+`src/components/ventures/journey/`. `PlanReview.js` 958 → 503 lines: five parts in
+`src/components/ventures/plan-import/`. `submissions.js` becomes a same-surface
+barrel over `src/services/ventures/submissions/` (five parts), and `schema.js` a
+barrel over `src/services/ventures/schema/` (seven parts concatenated in the
+original order). `identity-gate-bridge.test.js` was repointed at the new submission
+part (same assertions). The parent components keep all state and writes; the moved
+blocks are verbatim (translated keys and class names counted identical before and
+after). `npm test`, `npx eslint` (0 errors) and `npm run build` are green. Log in
+`docs/VENTURES_LANE.md`.
+
+
 ### Programs lane — the lifecycle, curriculum and participant services (task C)
 
 The programs lane (Fiche 3). Three big services are split by concern, each keeping
@@ -2823,9 +2836,12 @@ cleanup, not layering:
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
-| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85), the `form-runs` Run-detail read (93), the `form-runs` email/report-document cluster (95), the import routes (96), the seeds (97), the AI form generation (98), the template personalizer (99), the advisory analysis (100), the evaluation scoreboard (101), the form-runs scoring engine (102), the review workflow (103), the forms/collections controllers (104) and the rest of the `form-runs` POST vocabulary — the respondent write path, the run lifecycle, the email actions, the messaging actions, the link/document/run actions (105–109), the PUT/DELETE verbs (110) and the remaining platform controllers — notifications, integrations, investor-run, evaluation-config, report-file (111) — **`/api/platform/form-runs` is now a thin controller over `services/platform/formRuns.js`**; the checkout settlement is now shared once (`settleVerifiedPayment`) and the reconciliation sweep moved from lib into the service (slice 118) |
+| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85), the `form-runs` Run-detail read (93), the `form-runs` email/report-document cluster (95), the import routes (96), the seeds (97), the AI form generation (98), the template personalizer (99), the advisory analysis (100), the evaluation scoreboard (101), the form-runs scoring engine (102), the review workflow (103), the forms/collections controllers (104) and the rest of the `form-runs` POST vocabulary — the respondent write path, the run lifecycle, the email actions, the messaging actions, the link/document/run actions (105–109), the PUT/DELETE verbs (110) and the remaining platform controllers — notifications, integrations, investor-run, evaluation-config, report-file (111) — **`/api/platform/form-runs` is now a thin controller over `services/platform/formRuns.js`**; the checkout settlement is now shared once (`settleVerifiedPayment`) and the reconciliation sweep moved from lib into the service (slice 118) — and the two big services are now split into same-surface barrels (`learning/` eight parts, `checkout/` seven parts, see §7, Lead lane) |
 | Communications | `services/communications/*` | ✅ **controller frontier complete** — message scope (earlier), campaigns (86), internal messages (87), announcements (88), follow-ups and events (89–90) |
 | Submissions | `services/ventures/submissions.js` | ✅ **controller frontier complete** — the submit POST (91), the review PATCH (92), the list GET (93) and the score PUT (94) |
+| Participant | `services/participant/*` | ✅ **domain complete, and now split** — assignments, home, progress, follow-ups, full state, rituals, timeline, submissions; `home.js` (499) and `progress.js` (416) became same-surface barrels over `home/` + `progress/` on a shared `participant/rules.js` (see §7, Lead lane) |
+| Investor | `services/investor/*` | ✅ **domain complete, and now split** — diligence, campaigns, pipeline, relationships, evaluation, decisions, organisations, watchlist, preferences, meetings, dashboards, aggregators, password; `diligence.js` (337) became a same-surface barrel over `diligence/` (see §7, Lead lane) |
+| Dashboard & ops admin | `services/dashboard/*` | ✅ **aggregators complete, and now split** — `overview.js` (498) became a same-surface barrel over `overview/` (dates, calendar, attention, projects, kpi, build) |
 
 #### Remaining mixed model modules (the actual backlog)
 
@@ -3161,3 +3177,117 @@ passent de `text-slate-400` à `--text-tertiary`. Le rendu des blocs reste ident
 
 `npm test` (298 suites, 4 695 tests), `npm run lint` (0 erreur) et
 `npm run build` sont verts.
+
+### Lead — les six gros services découpés (couloirs réservés, 2026-10-02)
+
+Les six plus gros services des couloirs réservés au lead deviennent des
+**barillets de même surface** : le fichier `foo.js` reste à son chemin et
+réexporte le même contenu public, les décisions sont regroupées dans `foo/` par
+concern. Aucun importateur (route, page, test) ne change de chemin.
+
+| Service | Avant | Après | Modules |
+|---|---|---|---|
+| `lms/learning.js` | 601 | 41 | `learning/` : `structure`, `progress`, `enrollmentProgress`, `completion`, `catalog`, `lessons`, `assessments`, `enrollments` |
+| `lms/checkout.js` | 582 | 39 | `checkout/` : `runCourse`, `identity`, `accessToken`, `fulfillment`, `capture`, `resume`, `settlement` |
+| `participant/home.js` | 499 | 18 | `rules.js` (partagé) + `home/` : `metrics`, `actions`, `calendar`, `build` |
+| `participant/progress.js` | 416 | 16 | `progress/` : `program`, `summary`, `build` |
+| `dashboard/overview.js` | 498 | 21 | `overview/` : `dates`, `calendar`, `attention`, `projects`, `kpi`, `build` |
+| `investor/diligence.js` | 337 | 35 | `diligence/` : `json`, `status`, `questions`, `read`, `workspaceActions`, `requestActions`, `followUpActions`, `dispatch` |
+
+**Les règles de décision partagées sont sorties, pas dupliquées.**
+`isUnlockedSession` et `resolveDeliverableWeek` étaient importés par `progress`
+depuis `home` : ils vivent maintenant dans `participant/rules.js`, et les deux
+écrans les lisent. `home.js` et `progress.js` les réexportent, donc la surface
+publique et le barillet `@/services/participant` sont inchangés — les deux vues ne
+peuvent plus diverger sur la semaine courante.
+
+**Vérification.** Chaque fonction déplacée est **byte-identique** à l'originale
+(module normalisé : lignes trimées, commentaires et `export` retirés) — contrôle
+mécanique sur les 20 fonctions de `learning`, les 12 de `participant`, les 9 de
+`diligence` et les helpers de `overview` (plus un diff ligne à ligne des deux
+blocs de statistiques qui étaient en ligne). Le seul réécriture est
+`overview/`: les blocs « stats de tâches », « stats de blockers » et « projets
+quick-access », qui étaient **en ligne** dans `buildDashboardOverview`, deviennent
+`summarizeTaskStats`, `summarizeBlockers` et `buildQuickAccessProjects` ; le
+défaut de lecture (`Promise.allSettled`) retombe sur la même valeur nulle qu'avant
+(`summarizeTaskStats([], todayStr)`), donc un widget en échec ne change rien. Le
+`Promise.allSettled` et chaque test `fulfilled` restent en place à l'identique.
+
+**Le bug que le découpage a révélé.** `checkout/identity.js` importait
+`normalizeRegistrationEmail` depuis `@/models/lms/checkoutStore` au lieu de
+`@/models/lms/registrations` : le symbole était `undefined`, donc
+`findContactForPurchase` levait, `fulfillment` rattrapait, et **9 tests de
+`lms-checkout.test.js` voyaient `access: "failed"`** au lieu de `granted`. ESLint
+ne le voit pas (pas de `no-undef` sur ce motif) et les tests unitaires ne le
+voient pas quand le modèle est simulé. Le contrôle qui l'attrape : la provenance
+statique de chaque import nommé sur `src/**` (« ce module exporte-t-il vraiment
+ce symbole ? », en suivant les barillets et `export *`). Elle est désormais verte
+sur tout `src/` — le seul signal restant est un faux positif hors périmètre
+(`components/permissions/ContextScopeView.js`, `default as GovernanceView`).
+
+**Tests textuels repointés.** `lms-section-resource-learner-files.test.js` et
+`login-next-redirect.test.js` lisaient le contenu de `learning.js` et
+`checkout.js` ligne à ligne ; ils lisent désormais la surface concaténée
+(`readSurface`) via `src/__tests__/helpers/sourceSurface.js`, donc ils épinglent
+toujours le même texte, sur le barillet + ses modules. Mêmes assertions.
+
+**Audit des couloirs réservés.** Plus aucune route n'appelle une autre route
+(`grep 'from "@/app/api'` → 0 dans `src/app/api`), le calendrier et les workspaces
+sont déjà des contrôleurs fins (`services/workspace/calendar.js`), et
+`op-reports`, `kpis`, `kpi-progress`, `activity`, `dashboard` et les 18 routes
+`api/admin/**` ne portent plus de décision. Restent en contrôleurs, volontairement :
+`admin/run-migration` (DDL d'un runner temporaire), `admin/fix-participant`
+(réparation ponctuelle, CID codé en dur) et `admin/tasks` (agrégation de blockers
+par lot — mise en forme pure). `npm test` (298 suites, 4 754 tests),
+`npx eslint .` (0 erreur, 16 avertissements préexistants) et `npm run build` sont
+verts.
+
+---
+
+## Slice 130 — CH-4 : dissolution des façades pures (2026-10-02)
+
+Le domaine 93 avait supprimé les 68 façades à **cible unique** et laissé les
+**cibles multiples**,jugées non réécrivables mécaniquement. Ce slice termine le
+travail : `@/lib/ventures` (106 importateurs), `@/lib/ventureMilestoneEngine`
+(21), `@/models/contacts` (19), `@/models/groups` (14),
+`@/lib/authorization/membership` (9), `@/models/ventureDocumentTypes` (8),
+`@/models/kpi-progress` (6), `@/lib/authorization/eligibility` (4) et les dix
+façades `@/lib/venture*` restantes sont supprimées — **18 fichiers**.
+
+Le codemod ne se contente plus d'une cible : il résout le **propriétaire réel de
+chaque symbole** et réécrit le site d'import en conséquence, quel que soit sa
+forme — `import { … }`, `const { … } = require(…)`, `await import(…)`,
+`require(…)` en espace de noms, et **factory `jest.mock`** (une factory qui
+mélangeait deux modules devient une factory par module). Les commentaires
+d'en-tête qui promettaient « re-exported through the compatibility facade »
+ont été réécrits : ils décrivent un fichier qui n'existe plus.
+
+Trois contrôles ont trouvé ce que les 298 suites ne voyaient pas, et sont
+maintenus dans la routine :
+
+| Contrôle | Ce qu'il attrape | Exemple du slice |
+|---|---|---|
+| provenance des imports nommés | un module importé n'existant plus | `Could not locate module @/models/contacts` |
+| diff de surface (avant/après par fichier) | un symbole **perdu** | `getIntegrationProviders` supprimé de `api/integrations/route.js` (vu par ESLint : `no-undef`, pas par Jest) |
+| table des propriétaires | un symbole pointant vers le **mauvais** module | `logAuditEvent` réécrit vers `ventures/integrations` au lieu de `ventures/auditSecurity` |
+
+Le piège récurrent est le **mock mélangé** : une factory
+`jest.mock("@/models/contacts", () => ({ ...jest.requireActual(…), x: jest.fn() }))`
+répartie mécaniquement perd son spread, et la moitié réellement mockée
+disparaît — les tests repassaient quand même tant que la fonction non mockée
+n'était pas appelée. Les factories ont été recomposées en
+`...jest.requireActual("<module 1>"), ...jest.requireActual("<module 2>")`, et les
+espaces de noms reconstitués (`{ ...orgTeams, ...v2Groups }`). Deux suites ont
+dû apprendre les deux formes d'appel du pool (`execute({ sql, args })` et
+`execute(sql)` du runner de migration).
+
+**Trois surfaces restent, volontairement :** `@/lib/auth` (301 importateurs) n'est
+pas une façade pure — six fonctions y sont encore implémentées, retenues parce
+qu'elles ont une seconde implémentation parallèle sur les mêmes tables ;
+`@/models/authorization/index` et `@/models/lms/index` sont des barillets **de
+même surface** (un point d'entrée sur les modules d'un même dossier), pas des
+facades inter-couches ; `@/models/communications` appartient à un autre couloir.
+
+Gates du slice : `npm test` 298 suites / 4 754 tests, `npx eslint .` 0 erreur
+(16 avertissements préexistants), `npm run build` vert. Le journal destiné aux
+stagiaires est en `docs/REPARTITION_STAGIAIRES.md` § 4.8.
