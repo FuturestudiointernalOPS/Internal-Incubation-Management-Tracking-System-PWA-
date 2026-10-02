@@ -204,3 +204,111 @@ dans `DESIGN_SYSTEM.md`.
 Clair **et** sombre, FR **et** EN : `/admin`, `/admin/crm`, `/staff`,
 `/admin/system`, `/admin/security`, `/admin/integrations`, `/admin/audit-logs`,
 `/admin/communications/segments`, la sidebar (repliée / dépliée).
+
+---
+
+# Tâche B7 — Découper le panneau de parcours des ventures (2026-10-01)
+
+Fiche : `docs/REPARTITION_STAGIAIRES.md` → **Fiche 2 — Ventures** (tâches L2, B7).
+Branche : `ventures-b7` (créée à partir de `dashboard_refactoring_front`).
+
+## Le but
+Deux fichiers trop gros, à ranger en petits composants **sans rien changer** à
+l'affichage ni au comportement (règle de la fiche : « comportement identique ») :
+- `src/components/ventures/JourneyManagerPanel.js` — le panneau du staff / admin
+  (`/admin/ventures/<id>/journey`, `/staff/ventures/<id>`, `/participant/ventures/<id>`) ;
+- `src/components/ventures/workspace/tabs/JourneyPlaybookTabs.js` — l'onglet
+  « Journey » côté fondateur (venture).
+
+Tous les nouveaux fichiers vont dans **mon dossier** : `src/components/ventures/journey/`.
+
+## Vocabulaire
+Venture (startup) → **Parcours** (journey, les blocs numérotés ①②③) →
+**Jalon** (milestone, une étape d'un parcours) → livrables, tâches, sessions.
+
+## Méthode
+Le code est **déplacé tel quel**, jamais réécrit. Chaque morceau devient un
+composant qui reçoit en props les valeurs du panneau **sous le même nom**
+(états, setters, actions). Le panneau garde tout l'état et toutes les écritures ;
+les composants ne font qu'afficher. Les exports publics ne changent pas.
+
+Deux contraintes respectées :
+- `src/__tests__/journey-status-lexicon.test.js` lit le code source des deux
+  fichiers et exige qu'ils importent eux-mêmes `@/lib/ventureStatuses`
+  (`stageStatusWord`, `milestoneStatusWord`, `deliverableStatusWord`) → ces
+  usages restent dans les fichiers principaux ;
+- l'import public `{ JourneyTab, BusinessModelTab }` de
+  `participant/ventures/[id]/page.js` reste valable (ré-export).
+
+## Étape 1 — commit `8a6d3559` (testé ✅)
+`JourneyManagerPanel.js` : 2 617 → 2 409 lignes.
+| Fichier | Contenu |
+|---|---|
+| `journeyShapers.js` | mise en forme des lectures (parcours, sessions, rapports) + bornes des sélecteurs de date |
+| `JourneyConfirmModal.js` | fenêtre de confirmation (terminer / archiver un jalon ; archiver / restaurer / supprimer un parcours) |
+| `MilestoneSessionsList.js` | sessions réservées d'un jalon + édition du mémo |
+
+Test manuel : `/admin/ventures/9b5cabbb-7226-40fe-812b-ed086aae11b2/journey`
+(venture TecTof : 5 parcours, 13 jalons ; le jalon « introduction to ideation »
+du parcours « Ideation » a 3 sessions).
+
+## Étape 2 — fin de B7 (à tester, pas encore commitée)
+`JourneyManagerPanel.js` : 2 409 → **1 761** lignes.
+| Fichier | Ce que c'est à l'écran |
+|---|---|
+| `JourneyArchiveToolbar.js` | boutons Active / Archived, Select all, archiver / supprimer la sélection |
+| `JourneySaveTemplateForm.js` | « Save as template » |
+| `JourneyApplyTemplateBar.js` | « From template » (choix du modèle + générer) |
+| `JourneyAddStageForm.js` | « Add journey » (nom, description, objectif, date de début) |
+| `JourneyReportSection.js` | bloc « Journey report » d'un parcours (rapports, rapport de clôture manquant, rédaction) |
+| `MilestoneReviewInbox.js` | ce que la venture a soumis sur les tâches d'un jalon, avec les décisions |
+| `MilestoneDeliverables.js` | livrables d'un jalon ouvert (liste, statut, revue, preuve, modifier, ajouter) |
+| `MilestoneSessionBooking.js` | réserver une session sur un jalon |
+| `AddMilestoneForm.js` | « Add milestone » d'un parcours |
+
+`JourneyPlaybookTabs.js` : 654 → **515** lignes.
+| Fichier | Ce que c'est à l'écran (côté fondateur) |
+|---|---|
+| `FounderSessionBooking.js` | la venture réserve sa session sur le jalon en cours |
+| `FounderMilestoneSessions.js` | sessions réservées d'un jalon + mémo |
+| `FounderMilestoneTasks.js` | tâches d'un jalon + formulaire « soumettre pour revue » |
+| `BusinessModelTab.js` | onglet Business Model (ré-exporté par `JourneyPlaybookTabs.js`) |
+
+Vérifications : jest 3552/3552, eslint 0 erreur (5 warnings déjà présents
+ailleurs), `npm run build` OK.
+
+### À tester (étape 2)
+Admin — `/admin/ventures/9b5cabbb-7226-40fe-812b-ed086aae11b2/journey` :
+Active / Archived / Select all ; From template (ouvrir puis Cancel) ;
+Save as template (ouvrir puis Cancel) ; Add journey (ouvrir puis Cancel) ;
+Write report (ouvrir puis Cancel) ; ouvrir un jalon → livrables, soumissions,
+« Book session » (ouvrir puis Cancel) ; Add milestone (ouvrir puis Cancel).
+Fondateur — `/participant/ventures/<id>` avec un compte membre de la venture :
+onglet Journey (jalons, tâches, sessions) et onglet Business Model.
+
+⚠️ La base locale est la base de staging partagée : ouvrir puis **annuler**,
+ne pas créer de données de test.
+
+## Leçons
+- Ne pas lancer `npm run build` pendant qu'un `npm run dev` tourne (même dossier
+  `.next`) : le serveur de dev s'est bloqué.
+- Les comptes de test du README (`@impactos.staging`) n'existent plus dans cette
+  base.
+
+---
+
+# Tâche L2 — Couloir ventures (2026-10-01)
+
+Branche `ventures-l2`. Journal détaillé, tranche par tranche (L2.1 → L2.11) :
+**`docs/VENTURES_LANE.md`**, section « L2 ».
+
+En bref :
+- 8 contrôleurs allégés : la logique de décision part dans 12 nouveaux modules
+  de `src/services/ventures/` ; les routes gardent les vérifications d'accès,
+  la validation, les écritures et les réponses (inchangées).
+- 5 gros services découpés en dossiers (`planImport`, `milestoneEngine`,
+  `journey`, `verification`, `profile`), le fichier d'origine gardé comme
+  point d'entrée identique.
+- Non découpés exprès : `submissions.js` (un test lit ce fichier précis) et
+  `schema.js` (une seule fonction de création de tables).
+- 4 fichiers de tests ajoutés ; tests 3631/3631, lint 0 erreur, build OK.

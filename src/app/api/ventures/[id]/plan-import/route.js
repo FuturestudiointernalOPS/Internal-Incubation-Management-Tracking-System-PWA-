@@ -2,19 +2,16 @@ import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { resolveVentureDbId } from "@/lib/ventureOwnership";
-import { readPlanSheet, selectPlanSheet, normalizeSheetName, PLAN_SHEET_OK } from "@/lib/venturePlanSheet";
+import { readPlanSheet, PLAN_SHEET_OK } from "@/lib/venturePlanSheet";
 import { MAX_PLAN_UPLOAD_BYTES } from "@/lib/venturePlanSheetRules";
 import {
-  interpretPlanSheet,
-  buildExistingProgramme,
   revisePlanProposal,
-  applyPlanImport,
   getOpenPlanImport,
   getPlanImport,
-  createPlanImport,
   updatePlanImportProposal,
   discardPlanImport,
 } from "@/services/ventures/planImport";
+import { choosePlanSheet, proposePlanFromSheet, applyPlanDraft } from "@/services/ventures/planImportFlow";
 
 export const dynamic = "force-dynamic";
 
@@ -112,83 +109,33 @@ export async function POST(req, { params }) {
       );
     }
 
-    // ── WHICH SHEET CARRIES THE WORK ────────────────────────────────────────
-    // A workbook is not one table. Reading the wrong tab does not fail — it
-    // produces a confident, wrong programme. So the choice is made HERE, by
-    // name: the caller's answer wins, else a sheet called "Tracker", else the
-    // only sheet there is. Several sheets and none named is a QUESTION for the
-    // person who made the file, never a guess.
+    // Which sheet carries the work (the caller's answer, else "Tracker", else
+    // the only sheet; otherwise a question): services/ventures/planImportFlow.
     const requestedSheet = String(formData.get("sheet") || "").trim();
-    const choice = selectPlanSheet(sheet.sheets);
-    const picked = requestedSheet
-      ? sheet.sheets.find((item) => normalizeSheetName(item.name) === normalizeSheetName(requestedSheet)) || null
-      : null;
-
-    if (requestedSheet && !picked) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `This workbook has no sheet named "${requestedSheet}".`,
-          needsSheetChoice: true,
-          sheets: choice.names,
-        },
-        { status: 400 },
-      );
+    const sheetChoice = choosePlanSheet(sheet.sheets, requestedSheet);
+    if (!sheetChoice.ok) {
+      const { ok: _ok, ...refusal } = sheetChoice;
+      return NextResponse.json({ success: false, ...refusal }, { status: 400 });
     }
+    const planSheetName = sheetChoice.name;
 
-    if (!picked && choice.status === "ambiguous") {
-      // Nothing is stored: no draft, no proposal, no call to the model. The
-      // answer to "which sheet?" is the only thing that can decide the plan.
-      return NextResponse.json(
-        {
-          success: false,
-          error: "This workbook has several sheets and none of them is named \"Tracker\". Choose the sheet that holds the activities.",
-          needsSheetChoice: true,
-          sheets: choice.names,
-        },
-        { status: 400 },
-      );
-    }
-
-    const planSheetName = picked ? picked.name : choice.name;
-
-    // A reassessment must know what the Venture already has, or the analyst will
-    // happily propose the same programme a second time.
-    const existing = await buildExistingProgramme({ dbId });
-    const interpretation = await interpretPlanSheet({
-      sheets: sheet.sheets,
-      contextText,
-      existingProgrammeText: existing.text,
-      sheetName: planSheetName,
+    // Interpret the sheet and store the open draft: services/ventures/planImportFlow.
+    const proposed = await proposePlanFromSheet({
+      dbId, sheet, contextText, planSheetName,
+      fileName: file.name, actorCid: access.session?.cid,
     });
-    if (!interpretation.ok) {
-      // `error_key` is what a screen translates; `error` stays for logs and API
-      // consumers. Both travel, so no user-facing English is decided here.
+    if (!proposed.ok) {
       return NextResponse.json(
         {
           success: false,
-          error: interpretation.error,
-          error_key: interpretation.error_key || null,
-          error_params: interpretation.error_params || null,
+          error: proposed.error,
+          error_key: proposed.error_key || null,
+          error_params: proposed.error_params || null,
         },
         { status: 422 },
       );
     }
-
-    const sheetSummary = sheet.sheets.map((item) => ({
-      name: item.name,
-      rows: item.rows.length,
-      plan: item.name === planSheetName,
-    }));
-    const saved = await createPlanImport({
-      ventureId: dbId,
-      fileName: file.name || null,
-      fileKind: sheet.kind,
-      sheets: sheetSummary,
-      proposal: interpretation.proposal,
-      warnings: interpretation.warnings,
-      actorCid: access.session?.cid || null,
-    });
+    const { saved, interpretation, existing, sheetSummary } = proposed;
 
     return NextResponse.json({
       success: true,
@@ -232,27 +179,11 @@ export async function PATCH(req, { params }) {
 
     // ── APPLY: save what is on screen, then build the programme ──────────
     if (body.action === "apply") {
-      let draft = await getPlanImport({ id: draftId, ventureId: dbId });
-      if (!draft) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-      if (draft.status !== "proposed") {
-        return NextResponse.json({ success: false, error: "This proposal is no longer open for review." }, { status: 409 });
-      }
-
-      // The reviewer's last edits are saved FIRST, so what gets built is what
-      // they were looking at — never a stale row behind their back.
-      if (body.proposal && Array.isArray(body.proposal.journeys)) {
-        const saved = await updatePlanImportProposal({ id: draftId, ventureId: dbId, proposal: body.proposal });
-        if (saved.error) return NextResponse.json({ success: false, error: saved.error }, { status: 409 });
-        draft = saved.draft;
-      }
-
-      const result = await applyPlanImport({
-        dbId,
-        importId: draftId,
-        proposal: draft.proposal,
-        actorCid: access.session?.cid || null,
+      const applied = await applyPlanDraft({
+        dbId, draftId, proposal: body.proposal, actorCid: access.session?.cid,
       });
-      if (result.error) return NextResponse.json({ success: false, error: result.error }, { status: 409 });
+      if (applied.error) return NextResponse.json({ success: false, error: applied.error }, { status: applied.status });
+      const { result } = applied;
 
       return NextResponse.json({ success: true, applied: result.counts, warnings: result.warnings });
     }

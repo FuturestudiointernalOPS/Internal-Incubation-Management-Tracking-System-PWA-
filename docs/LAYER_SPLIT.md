@@ -2604,6 +2604,43 @@ suite's fake database.
 `npm test` (265 suites, 3907 tests) is green; `npx eslint` reports **0 errors**
 in the tree. The full build was momentarily red on the unrelated in-progress
 `src/app/pm/programs/[id]/page.js` (V1).
+### View split — the Venture Journey panel (task B7)
+
+Not a layer move: the **view** side of the ventures lane (Fiche 2). The staff
+Journey manager `src/components/ventures/JourneyManagerPanel.js` (2 617 → 1 761
+lines) and the founder Journey tab
+`src/components/ventures/workspace/tabs/JourneyPlaybookTabs.js` (654 → 515) are
+split into 16 files under `src/components/ventures/journey/` (15
+components and one pure helper module). Code is
+moved verbatim; each block receives the parent's values as props of the same
+name, the parent keeps every state and every write. Public exports are
+unchanged (`JourneyManagerPanel`, `{ JourneyTab, BusinessModelTab }` — the
+latter re-exported). The `@/lib/ventureStatuses` usages stay in both parents
+(`journey-status-lexicon.test.js`). Commits `8a6d3559`, `58e9f5b8` on
+`ventures-b7`; the full inventory is in `docs/VENTURES_LANE.md`.
+
+`npm test` (3552 tests), `npx eslint` (0 errors) and `npm run build` are green.
+
+### Ventures lane — controllers and big services (task L2)
+
+The ventures lane (Fiche 2). Decisions leave eight controllers for 12 new
+modules in `src/services/ventures/` (listed in its `index.js`): session
+booking rules, booking targets, calendar authority and notices; the journey
+read assembly and stage actions; roster follow-ups; the task board and status
+gates; deliverable review; the Venture dashboard aggregate; milestone
+completion settling; the plan-import flow. The routes keep the HTTP boundary
+and their response contracts: `sessions` 555 → 234, `journey` 445 → 247,
+`members` 383 → 284, `tasks` 330 → 230, `deliverables` 309 → 243,
+`dashboard` 307 → 38, `milestones` 306 → 221, `plan-import` 284 → 217.
+Services import the same facades the controllers used, so route-level
+`jest.mock`s keep intercepting. Five big services are split into folders with
+the original file kept as a same-surface barrel: `planImport` (1 178),
+`milestoneEngine` (548), `journey` (520), `verification` (487), `profile` (441).
+`submissions` stays whole (`identity-gate-bridge.test.js` reads its source) and
+`schema` is one DDL function. Branch `ventures-l2`; the slice-by-slice log is in
+`docs/VENTURES_LANE.md`.
+
+`npm test` (3631 tests), `npx eslint` (0 errors) and `npm run build` are green.
 
 ---
 

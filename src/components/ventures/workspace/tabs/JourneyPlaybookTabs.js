@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, CalendarPlus, X, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import {
   stageStatusWord,
@@ -14,18 +14,20 @@ import {
 import {
   minSessionStartInput,
   isValidSessionStart,
-  SESSION_MATERIALS_MAX,
   toDateInput,
   toTimeInput,
 } from "@/lib/ventureSessionRules";
 import { useVenture } from "../VentureContext";
+import FounderMilestoneSessions from "@/components/ventures/journey/FounderMilestoneSessions";
+import FounderMilestoneTasks from "@/components/ventures/journey/FounderMilestoneTasks";
+import FounderSessionBooking from "@/components/ventures/journey/FounderSessionBooking";
 
 /* Journey Tab — the Venture journey as its operating workspace.
    Each stage lists the milestones bound to it; each milestone lists its
    tasks. Founders can submit work (document URL + notes) on tasks; staff
    review each submission (approved / changes requested). */
 export function JourneyTab() {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const { journeyStages, cardStyle, params, notifyMsg, fetchJourney, journeyDeliverablesUnavailable } = useVenture();
   const [openId, setOpenId] = useState(null);
   const [tasksByMilestone, setTasksByMilestone] = useState({});
@@ -444,119 +446,32 @@ export function JourneyTab() {
                               {/* The Venture books its own sessions — strictly against
                                   the milestone that is currently open. */}
                               {isCurrent && (
-                                <div className="space-y-1.5 pt-1">
-                                  {bookFor === milestone.id ? (
-                                    <form onSubmit={(event) => bookSession(event, stage, milestone)} className="rounded-lg border p-2.5 space-y-2" style={{ borderColor: 'rgb(255 255 255 / 0.08)' }}>
-                                      <p className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5" style={{ color: 'var(--brand-orange)' }}>
-                                        <CalendarPlus size={13} /> {t('venture.manager.bookSession')}
-                                      </p>
-                                      <textarea
-                                        value={bookForm.note}
-                                        onChange={(event) => setBookForm({ ...bookForm, note: event.target.value })}
-                                        rows={3}
-                                        required
-                                        placeholder={t('venture.manager.memoPlaceholder')}
-                                        className="w-full px-2.5 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-                                      />
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        <input type="date" required min={toDateInput(new Date())} value={bookForm.date} onChange={(event) => setBookForm({ ...bookForm, date: event.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
-                                        <input type="time" required min={bookForm.min_time || undefined} value={bookForm.time} onChange={(event) => setBookForm({ ...bookForm, time: event.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
-                                        <select value={bookForm.duration} onChange={(event) => setBookForm({ ...bookForm, duration: event.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]">
-                                          {["30", "45", "60", "90"].map((durationOption) => (
-                                            <option key={durationOption} value={durationOption}>{t('venture.manager.minutes', { n: durationOption })}</option>
-                                          ))}
-                                        </select>
-                                      </div>
-                                      <div className="space-y-1">
-                                        <p className="text-[8px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>{t('venture.manager.sessionMaterials')}</p>
-                                        <input
-                                          type="file"
-                                          multiple
-                                          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-                                          onChange={(event) => setBookForm({ ...bookForm, files: Array.from(event.target.files || []).slice(0, SESSION_MATERIALS_MAX) })}
-                                          className="w-full text-[10px]"
-                                          style={{ color: 'var(--text-secondary)' }}
-                                        />
-                                        {(bookForm.files || []).length > 0 && (
-                                          <ul className="space-y-0.5">
-                                            {bookForm.files.map((file, index) => (
-                                              <li key={`${file.name}-${index}`} className="flex items-center justify-between gap-2 text-[10px]" style={{ color: 'var(--text-secondary)' }}>
-                                                <span className="truncate">{file.name}</span>
-                                                <button type="button" aria-label={t('venture.manager.sessionMaterialsRemove')} onClick={() => setBookForm({ ...bookForm, files: bookForm.files.filter((_, fileIndex) => fileIndex !== index) })} className="shrink-0">
-                                                  <X size={12} />
-                                                </button>
-                                              </li>
-                                            ))}
-                                          </ul>
-                                        )}
-                                        <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.manager.sessionMaterialsHint')}</p>
-                                      </div>
-                                      <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.manager.sessionLeadHint')}</p>
-                                      <div className="flex justify-end gap-2">
-                                        <button type="button" onClick={() => setBookFor(null)} className="px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest" style={{ borderColor: 'rgb(255 255 255 / 0.15)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
-                                        <button type="submit" disabled={bookSaving} className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-black flex items-center gap-1.5 disabled:opacity-50" style={{ backgroundColor: 'var(--brand-orange)' }}>
-                                          {bookSaving ? <Loader2 size={12} className="animate-spin" /> : <CalendarPlus size={12} />} {t('venture.manager.bookSession')}
-                                        </button>
-                                      </div>
-                                    </form>
-                                  ) : (
-                                    <button type="button" onClick={() => openBooking(milestone)} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-orange)' }}>
-                                      <CalendarPlus size={12} /> {t('venture.manager.bookSession')}
-                                    </button>
-                                  )}
-                                </div>
+                                <FounderSessionBooking
+                                  bookFor={bookFor}
+                                  bookForm={bookForm}
+                                  bookSaving={bookSaving}
+                                  bookSession={bookSession}
+                                  milestone={milestone}
+                                  openBooking={openBooking}
+                                  setBookFor={setBookFor}
+                                  setBookForm={setBookForm}
+                                  stage={stage}
+                                />
                               )}
 
                               {/* Sessions already booked on this milestone, with the
                                   documents they were booked with. */}
                               {(sessionsByMilestone[String(milestone.id)] || []).length > 0 && (
-                                <div className="space-y-1 pt-1">
-                                  <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>{t('venture.manager.milestoneSessions', { n: (sessionsByMilestone[String(milestone.id)] || []).length })}</p>
-                                  {(sessionsByMilestone[String(milestone.id)] || []).map((session) => (
-                                    <div key={session.id} className="space-y-0.5">
-                                      <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                                        <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{new Date(session.start_time).toLocaleString(lang || undefined)}</span>
-                                        {' · '}{session.title}
-                                        {session.coach_name ? ` · ${session.coach_name}` : ''}
-                                        {(session.materials || []).map((material, index) =>
-                                          material.url ? (
-                                            <a key={`${material.name}-${index}`} href={material.url} target="_blank" rel="noreferrer" className="ml-2 font-bold" style={{ color: 'var(--brand-orange)' }}>{material.name}</a>
-                                          ) : (
-                                            <span key={`${material.name}-${index}`} className="ml-2">{material.name}</span>
-                                          ),
-                                        )}
-                                      </div>
-                                      {/* The session's ONE note — shown here and edited in
-                                          place, never appended to. */}
-                                      {noteEditFor === session.id ? (
-                                        <div className="space-y-1">
-                                          <textarea
-                                            value={noteDraft}
-                                            onChange={(event) => setNoteDraft(event.target.value)}
-                                            rows={2}
-                                            className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-[11px] text-[var(--text-primary)]"
-                                          />
-                                          <div className="flex justify-end gap-2">
-                                            <button type="button" onClick={() => { setNoteEditFor(null); setNoteDraft(""); }} className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border" style={{ borderColor: 'rgb(255 255 255 / 0.15)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
-                                            <button type="button" disabled={noteSaving || !noteDraft.trim()} onClick={() => saveSessionNote(session.id)} className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg text-black disabled:opacity-50" style={{ backgroundColor: 'var(--brand-orange)' }}>{t('common.save')}</button>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <div className="flex items-start gap-2">
-                                          {session.description && (
-                                            <p className="flex-1 min-w-0 text-[10px]" style={{ color: 'var(--text-secondary)' }}>
-                                              <span className="font-black uppercase tracking-widest mr-1.5">{t('venture.manager.memoLabel')}</span>
-                                              <span className="whitespace-pre-wrap">{session.description}</span>
-                                            </p>
-                                          )}
-                                          <button type="button" onClick={() => { setNoteEditFor(session.id); setNoteDraft(session.description || ""); }} className="shrink-0 text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-orange)' }}>
-                                            {t('venture.manager.editMemo')}
-                                          </button>
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
+                                <FounderMilestoneSessions
+                                  milestone={milestone}
+                                  noteDraft={noteDraft}
+                                  noteEditFor={noteEditFor}
+                                  noteSaving={noteSaving}
+                                  saveSessionNote={saveSessionNote}
+                                  sessionsByMilestone={sessionsByMilestone}
+                                  setNoteDraft={setNoteDraft}
+                                  setNoteEditFor={setNoteEditFor}
+                                />
                               )}
                               {stage.status === 'upcoming' ? null : tasks.length === 0 && tasksByMilestone[milestone.id] !== undefined ? (
                                 <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{t('venture.noTasksYet')}</p>
@@ -564,48 +479,20 @@ export function JourneyTab() {
                               {stage.status !== 'upcoming' && (tasksByMilestone[milestone.id] === undefined ? (
                                 <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.loading') || 'Loading...'}</p>
                               ) : tasks.length > 0 ? (
-                                <div className="space-y-1.5">
-                                  {tasks.map((task) => {
-                                    const isTaskOpen = openTaskId === task.id;
-                                    const canSubmit = stage.status === 'active' && !task.dependency_blocked && !['done', 'completed', 'accepted', 'cancelled'].includes(task.status);
-                                    return (
-                                      <div key={task.id} className="rounded-lg border p-2.5" style={{ borderColor: 'rgb(255 255 255 / 0.08)' }}>
-                                        <button type="button" onClick={() => toggleTask(task.id)} className="w-full flex items-center gap-2 text-left">
-                                          <span className={`w-2 h-2 rounded-full shrink-0 ${['done', 'completed', 'accepted'].includes(task.status) ? 'bg-green-500' : task.status === 'in_progress' || task.status === 'review' ? 'bg-amber-400' : 'bg-slate-500'}`} />
-                                          <span className="flex-1 min-w-0">
-                                            <span className="block text-xs font-medium truncate">{task.title}</span>
-                                            {task.due_date && <span className="block text-[10px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.deadline') || 'Deadline'}: {new Date(task.due_date).toLocaleDateString()}</span>}
-                                          </span>
-                                          <span className="text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-white/10 text-slate-400">{label(task.status, TASK_LABEL_KEYS)}</span>
-                                          {submissionChip(task.id)}
-                                          {isTaskOpen ? <ChevronDown size={14} className="shrink-0" /> : <ChevronRight size={14} className="shrink-0" />}
-                                        </button>
-                                        {isTaskOpen && (
-                                          <div className="mt-2 pt-2 border-t space-y-2" style={{ borderColor: 'rgb(255 255 255 / 0.06)' }}>
-                                            {task.description && <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{task.description}</p>}
-                                            {task.dependency_blocked && (
-                                              <p className="text-[10px] px-2 py-1 rounded-lg bg-rose-500/10 text-rose-400">
-                                                {t('status.blocked')}: {(task.blocked_by_titles || []).join(', ')}
-                                              </p>
-                                            )}
-                                            {subsByTask[task.id] && subsByTask[task.id] !== null && (
-                                              <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.latestSubmission')}: v{subsByTask[task.id].version} {submissionChip(task.id)}</p>
-                                            )}
-                                            {canSubmit ? (
-                                              <div className="space-y-1.5">
-                                                <input value={(drafts[task.id] || {}).url || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [task.id]: { ...(prev[task.id] || {}), url: event.target.value } }))} placeholder={t('venture.urlPlaceholder')} className="w-full px-2.5 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
-                                                <textarea value={(drafts[task.id] || {}).notes || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [task.id]: { ...(prev[task.id] || {}), notes: event.target.value } }))} rows={2} placeholder={t('venture.notesOptional')} className="w-full px-2.5 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
-                                                <button type="button" onClick={() => submitTask(task.id, milestone.id)} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-black" style={{ backgroundColor: 'var(--brand-orange)' }}>{t('venture.submitForReview')}</button>
-                                              </div>
-                                            ) : (
-                                              <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.taskLocked') || 'This task is closed.'}</p>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
+                                <FounderMilestoneTasks
+                                  TASK_LABEL_KEYS={TASK_LABEL_KEYS}
+                                  drafts={drafts}
+                                  label={label}
+                                  milestone={milestone}
+                                  openTaskId={openTaskId}
+                                  setDrafts={setDrafts}
+                                  stage={stage}
+                                  submissionChip={submissionChip}
+                                  submitTask={submitTask}
+                                  subsByTask={subsByTask}
+                                  tasks={tasks}
+                                  toggleTask={toggleTask}
+                                />
                               ) : null)}
                             </div>
                           );
@@ -623,32 +510,6 @@ export function JourneyTab() {
   );
 }
 
-/* Business Model Tab */
-export function BusinessModelTab() {
-  const { t } = useI18n();
-  const { bmData, setBmData, params, notifyMsg, fetchBm, inputStyle, cardStyle } = useVenture();
-  return (
-    <div className="space-y-4">
-      <form onSubmit={async (event) => { event.preventDefault(); await fetch(`/api/ventures/${params.id}/business-model`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bmData || {}) }); notifyMsg('Saved'); fetchBm(); }} className="space-y-4">
-        <div className="rounded-xl p-6 space-y-4 border" style={cardStyle}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {['keyPartners', 'keyActivities', 'keyResources', 'valuePropositions', 'customerRelationships', 'channels', 'customerSegments', 'costStructure', 'revenueStreams'].map(field => (
-              <div key={field}>
-                <label className="block text-sm font-medium mb-1">{t(`venture.${field}`)}</label>
-                <textarea className="w-full px-3 py-2 rounded-lg outline-none border text-sm" style={inputStyle} rows={3}
-                  value={bmData?.business_model_canvas?.[field] || ''}
-                  onChange={(event) => {
-                    const canvas = { ...(bmData?.business_model_canvas || {}), [field]: event.target.value };
-                    setBmData({ ...bmData, business_model_canvas: canvas, venture_id: params.id });
-                  }} />
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-end pt-4 border-t" style={{ borderColor: 'rgb(255 255 255 / 0.1)' }}>
-            <button type="submit" className="px-6 py-2 rounded-lg text-white" style={{ backgroundColor: 'var(--brand-orange)' }}>{t('venture.save')}</button>
-          </div>
-        </div>
-      </form>
-    </div>
-  );
-}
+// The Business Model tab lives in its own file; re-exported here so the
+// participant venture page keeps importing both tabs from this module.
+export { BusinessModelTab } from "@/components/ventures/journey/BusinessModelTab";
