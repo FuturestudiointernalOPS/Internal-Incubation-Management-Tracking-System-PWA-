@@ -154,6 +154,36 @@ export async function resolveUserMessageScope(session) {
 }
 
 /**
+ * The visibility plan for one caller: the same decision the inbox renders, so a
+ * writer (marking read) can be restricted to exactly what the caller may list.
+ *
+ * A Super Admin plan is unrestricted (`isSuperAdmin: true`, no scope lookups);
+ * every other caller's plan carries their own cid plus the group/program scopes
+ * they belong to. `targetCid` is the cid the plan is read against (the caller's
+ * own for a mark-read).
+ */
+export async function resolveMessageVisibilityPlan(session, targetCid) {
+  if (session.role === "super_admin") {
+    return {
+      isSuperAdmin: true,
+      targetCid: targetCid || session.cid,
+      groupIds: [],
+      programIds: [],
+      isFutureStudioStaff: false,
+    };
+  }
+
+  const scope = await resolveUserMessageScope(session);
+  return {
+    isSuperAdmin: false,
+    targetCid: targetCid || session.cid,
+    groupIds: Array.from(scope.groupIds),
+    programIds: Array.from(scope.programIds),
+    isFutureStudioStaff: scope.isFutureStudioStaff,
+  };
+}
+
+/**
  * Individual message recipients must share at least one program with the sender
  * (or belong to FUTURE STUDIO staff) — direct messages stay program-scoped for
  * non-SA users.
