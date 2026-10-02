@@ -20,10 +20,15 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const SCHEMA_SOURCE = fs.readFileSync(
-  path.join(__dirname, "..", "services", "ventures", "schema.js"),
-  "utf8",
-);
+// The schema self-heal is split into parts under `services/ventures/schema/`;
+// the pin reads the whole set, so a statement moving between parts is not a failure.
+const SCHEMA_DIR = path.join(__dirname, "..", "services", "ventures", "schema");
+const SCHEMA_SOURCE = fs
+  .readdirSync(SCHEMA_DIR)
+  .filter((file) => file.endsWith(".js"))
+  .sort()
+  .map((file) => fs.readFileSync(path.join(SCHEMA_DIR, file), "utf8"))
+  .join("\n");
 
 /** table -> [identity column, name column] */
 const ASSIGNMENT_TABLES = {

@@ -96,14 +96,20 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     // Own-scope fallback for no-programId reads + self-service identity binding
     // — both now live in the service.
     expect(src).toMatch(/applyOwnSubmissionScope/);
-    const service = fs.readFileSync(
-      path.join(ROOT, "src/services/ventures/submissions.js"),
+    // The service is split into parts; the same assertions read their new home
+    // (the split is a move, the surface is unchanged).
+    const serviceScope = fs.readFileSync(
+      path.join(ROOT, "src/services/ventures/submissions/scope.js"),
       "utf8",
     );
-    expect(service).toMatch(/export function applyOwnSubmissionScope/);
-    expect(service).toMatch(/return session\.cid;/);
-    expect(service).toMatch(/body\.participant_id = session\.cid/);
-    expect(service).toMatch(/body\.team_id = session\.cid/);
+    const serviceCreate = fs.readFileSync(
+      path.join(ROOT, "src/services/ventures/submissions/createSubmission.js"),
+      "utf8",
+    );
+    expect(serviceScope).toMatch(/export function applyOwnSubmissionScope/);
+    expect(serviceScope).toMatch(/return session\.cid;/);
+    expect(serviceCreate).toMatch(/body\.participant_id = session\.cid/);
+    expect(serviceCreate).toMatch(/body\.team_id = session\.cid/);
   });
 
   test("phase 1.1: ventures/[id]/history — bare + unified membership/assignment gate", () => {
