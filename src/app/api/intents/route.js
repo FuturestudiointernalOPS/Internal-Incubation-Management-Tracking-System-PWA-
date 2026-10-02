@@ -1,18 +1,12 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
-import { logAuditEvent } from "@/services/tasks/auditLog";
+import { requireAuth, getSession } from "@/lib/auth";
 import {
-  createIntent,
-  deleteIntent,
-  getContactForResponsibleCheck,
-  getExistingIntent,
-  getIntentsByFilters,
-  getIntentTaskCounts,
-  getIntentToDelete,
-  unlinkTasksFromIntent,
-  updateIntentFields,
-} from "@/models/intents";
+  createIntentForSession,
+  deleteIntentForSession,
+  listIntentsForSession,
+  updateIntentForSession,
+} from "@/services/platform/intents";
 
 /**
  * INTENTS API — Phase 4
@@ -24,18 +18,18 @@ import {
  * POST   /api/intents  { title, description, responsible_id, context_type, ... }
  * PUT    /api/intents  { id, title, ... }
  * DELETE /api/intents?id=X
+ *
+ * Thin controller: the decisions (visibility, responsible-exists, ownership,
+ * the update field set) live in `services/platform/intents`.
  */
 
-/**
- * GET — List intents filtered by context, status, responsible person.
- */
+/** GET — List intents filtered by context, status, responsible person. */
 export async function GET(req) {
   try {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
 
-    const { getSession } = await import("@/lib/auth");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -45,57 +39,17 @@ export async function GET(req) {
     }
 
     const { searchParams } = new URL(req.url);
-    const context_type = searchParams.get("context_type");
-    const context_id = searchParams.get("context_id");
-    const responsible_id = searchParams.get("responsible_id");
-    const status = searchParams.get("status");
-    const project_id = searchParams.get("project_id");
-
-    // SECURITY: Non-SA users see only their own intents + intents in their context
-    if (
-      session.role !== "super_admin" &&
-      responsible_id &&
-      String(responsible_id) !== String(session.cid)
-    ) {
-      return NextResponse.json(
-        { success: false, error: "You can only view your own intents." },
-        { status: 403 },
-      );
-    }
-
-    // SQL assembled in src/models/intents.js (getIntentsByFilters)
-    const result = await getIntentsByFilters({
-      isSuperAdmin: session.role === "super_admin",
-      sessionCid: session.cid,
-      responsibleId: responsible_id,
-      contextType: context_type,
-      contextId: context_id,
-      status,
-      projectId: project_id,
+    const result = await listIntentsForSession({
+      session,
+      filters: {
+        contextType: searchParams.get("context_type"),
+        contextId: searchParams.get("context_id"),
+        responsibleId: searchParams.get("responsible_id"),
+        status: searchParams.get("status"),
+        projectId: searchParams.get("project_id"),
+      },
     });
-
-    // Batch per-intent task counts into ONE grouped query instead of one
-    // query per intent. Produces identical `taskCounts` per intent.
-    const intentIds = result.rows.map((intent) => String(intent.id));
-    const countMap = {};
-    if (intentIds.length > 0) {
-      const countResult = await getIntentTaskCounts(intentIds);
-      for (const countRow of countResult.rows || []) countMap[countRow.iid] = countRow;
-    }
-
-    const intents = result.rows.map((intent) => {
-      const intentId = String(intent.id);
-      return {
-        ...intent,
-        taskCounts: countMap[intentId] || {
-          active_count: 0,
-          completed_count: 0,
-          total_count: 0,
-        },
-      };
-    });
-
-    return NextResponse.json({ success: true, intents });
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error("GET intents error:", error);
     return NextResponse.json(
@@ -105,16 +59,13 @@ export async function GET(req) {
   }
 }
 
-/**
- * POST — Create a new Intent.
- */
+/** POST — Create a new Intent. */
 export async function POST(req) {
   try {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
 
-    const { getSession } = await import("@/lib/auth");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -124,74 +75,8 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const {
-      title,
-      description,
-      responsible_id,
-      context_type,
-      context_id,
-      contact_group_id,
-      project_id,
-      status,
-      start_date,
-      target_date,
-    } = body;
-
-    if (!title) {
-      return NextResponse.json(
-        { success: false, error: "title is required" },
-        { status: 400 },
-      );
-    }
-
-    const finalResponsibleId = responsible_id || session.cid;
-    const finalContextType = context_type || "staff";
-
-    // SECURITY: Verify responsible person exists
-    const responsibleCheck = await getContactForResponsibleCheck(finalResponsibleId);
-    if (responsibleCheck.rows.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "Responsible person not found." },
-        { status: 400 },
-      );
-    }
-
-    const result = await createIntent({
-      title,
-      description,
-      responsible_id: finalResponsibleId,
-      context_type: finalContextType,
-      context_id,
-      contact_group_id,
-      project_id,
-      status,
-      start_date,
-      target_date,
-    });
-
-    const intentId = result.rows[0].id;
-
-    // Audit log
-    await logAuditEvent({
-      entity_type: "intent",
-      entity_id: intentId,
-      user_id: session.cid,
-      user_name: session.name || "",
-      action: "created",
-      details: `Intent "${title}" created`,
-      metadata: {
-        title,
-        context_type: finalContextType,
-        context_id: context_id || null,
-        responsible_id: finalResponsibleId,
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      id: intentId,
-      action: "created",
-    });
+    const result = await createIntentForSession({ session, input: body });
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error("POST intents error:", error);
     return NextResponse.json(
@@ -201,16 +86,13 @@ export async function POST(req) {
   }
 }
 
-/**
- * PUT — Update an existing Intent.
- */
+/** PUT — Update an existing Intent. */
 export async function PUT(req) {
   try {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
 
-    const { getSession } = await import("@/lib/auth");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -220,123 +102,8 @@ export async function PUT(req) {
     }
 
     const body = await req.json();
-    const {
-      id,
-      title,
-      description,
-      responsible_id,
-      context_type,
-      context_id,
-      contact_group_id,
-      project_id,
-      status,
-      start_date,
-      target_date,
-    } = body;
-
-    if (!id) {
-      return NextResponse.json(
-        { success: false, error: "id is required" },
-        { status: 400 },
-      );
-    }
-
-    // Fetch existing intent
-    const existing = await getExistingIntent(id);
-    if (existing.rows.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "Intent not found" },
-        { status: 404 },
-      );
-    }
-
-    const intent = existing.rows[0];
-
-    // SECURITY: Only responsible person or SA can update
-    if (
-      session.role !== "super_admin" &&
-      String(intent.responsible_id) !== String(session.cid)
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Only the responsible person can update this intent.",
-        },
-        { status: 403 },
-      );
-    }
-
-    const updates = [];
-    const args = [];
-
-    if (title !== undefined) {
-      updates.push("title = ?");
-      args.push(title);
-    }
-    if (description !== undefined) {
-      updates.push("description = ?");
-      args.push(description);
-    }
-    if (responsible_id !== undefined) {
-      updates.push("responsible_id = ?");
-      args.push(responsible_id);
-    }
-    if (context_type !== undefined) {
-      updates.push("context_type = ?");
-      args.push(context_type);
-    }
-    if (context_id !== undefined) {
-      updates.push("context_id = ?");
-      args.push(context_id);
-    }
-    if (contact_group_id !== undefined) {
-      updates.push("contact_group_id = ?");
-      args.push(contact_group_id);
-    }
-    if (project_id !== undefined) {
-      updates.push("project_id = ?");
-      args.push(project_id);
-    }
-    if (status !== undefined) {
-      updates.push("status = ?");
-      args.push(status);
-      if (status === "completed") {
-        updates.push("completed_at = NOW()");
-      }
-    }
-    if (start_date !== undefined) {
-      updates.push("start_date = ?");
-      args.push(start_date);
-    }
-    if (target_date !== undefined) {
-      updates.push("target_date = ?");
-      args.push(target_date);
-    }
-
-    if (updates.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "No fields to update" },
-        { status: 400 },
-      );
-    }
-
-    updates.push("updated_at = NOW()");
-    args.push(id);
-
-    await updateIntentFields(updates, args);
-
-    // Audit log
-    await logAuditEvent({
-      entity_type: "intent",
-      entity_id: id,
-      user_id: session.cid,
-      user_name: session.name || "",
-      action: "updated",
-      details: `Intent "${intent.title}" updated`,
-      metadata: { updated_fields: Object.keys(body).filter((key) => key !== "id") },
-    });
-
-    return NextResponse.json({ success: true, action: "updated" });
+    const result = await updateIntentForSession({ session, input: body });
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error("PUT intents error:", error);
     return NextResponse.json(
@@ -346,16 +113,13 @@ export async function PUT(req) {
   }
 }
 
-/**
- * DELETE — Delete an Intent and unlink its tasks.
- */
+/** DELETE — Delete an Intent and unlink its tasks. */
 export async function DELETE(req) {
   try {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
 
-    const { getSession } = await import("@/lib/auth");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -365,54 +129,11 @@ export async function DELETE(req) {
     }
 
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-
-    if (!id) {
-      return NextResponse.json(
-        { success: false, error: "id is required" },
-        { status: 400 },
-      );
-    }
-
-    // Fetch intent
-    const existing = await getIntentToDelete(id);
-    if (existing.rows.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "Intent not found" },
-        { status: 404 },
-      );
-    }
-
-    const intent = existing.rows[0];
-
-    // SECURITY: Only responsible person or SA can delete
-    if (
-      session.role !== "super_admin" &&
-      String(intent.responsible_id) !== String(session.cid)
-    ) {
-      return NextResponse.json(
-        { success: false, error: "Only the responsible person can delete this intent." },
-        { status: 403 },
-      );
-    }
-
-    // Unlink tasks (set intent_id to NULL, remove supervisor)
-    await unlinkTasksFromIntent(id);
-
-    // Delete the intent
-    await deleteIntent(id);
-
-    // Audit log
-    await logAuditEvent({
-      entity_type: "intent",
-      entity_id: id,
-      user_id: session.cid,
-      user_name: session.name || "",
-      action: "deleted",
-      details: `Intent "${intent.title}" deleted`,
+    const result = await deleteIntentForSession({
+      session,
+      id: searchParams.get("id"),
     });
-
-    return NextResponse.json({ success: true, action: "deleted" });
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error("DELETE intents error:", error);
     return NextResponse.json(

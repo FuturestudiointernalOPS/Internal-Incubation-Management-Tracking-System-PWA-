@@ -1,11 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
-import {
-  checkVentureMembership,
-  createIntentTask,
-  getIntentForTaskCreation,
-} from "@/models/intents";
+import { requireAuth, getSession } from "@/lib/auth";
+import { createIntentTaskForSession } from "@/services/platform/intents";
 
 /**
  * POST /api/intents/[id]/tasks
@@ -13,12 +9,8 @@ import {
  * Creates a task under a specific Intent.
  * Auto-inherits context_type, context_id, and supervisor_id from the Intent.
  *
- * Body: { title, description, assigned_to, project_id, category,
- *         start_date, end_date, priority, user_id, user_name,
- *         created_week, created_year }
- *
- * Contact Group enforcement applies — assignee must share a group
- * with the Intent's responsible person.
+ * Thin controller: the access decision, the Contact-Group assignment rule and
+ * the inherited context/week defaults live in `services/platform/intents`.
  */
 export async function POST(req, { params }) {
   try {
@@ -26,7 +18,6 @@ export async function POST(req, { params }) {
     const authError = await requireAuth();
     if (authError) return authError;
 
-    const { getSession } = await import("@/lib/auth");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -36,135 +27,13 @@ export async function POST(req, { params }) {
     }
 
     const { id: intentId } = await params;
-
-    // Fetch the intent
-    const intentResult = await getIntentForTaskCreation(intentId);
-
-    if (intentResult.rows.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "Intent not found" },
-        { status: 404 },
-      );
-    }
-
-    const intent = intentResult.rows[0];
-
-    // SECURITY: Only staff, SA, or the same-context users can add tasks to intent
-    if (
-      session.role !== "super_admin" &&
-      String(intent.responsible_id) !== String(session.cid)
-    ) {
-      // For venture intents, check membership
-      if (intent.context_type === "venture" && intent.context_id) {
-        const memberCheck = await checkVentureMembership(
-          intent.context_id,
-          session.cid,
-        );
-        if (memberCheck.rows.length === 0) {
-          return NextResponse.json(
-            {
-              success: false,
-              error:
-                "You do not have permission to add tasks to this intent.",
-            },
-            { status: 403 },
-          );
-        }
-      } else {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Only the responsible person can add tasks to this intent.",
-          },
-          { status: 403 },
-        );
-      }
-    }
-
     const body = await req.json();
-    const {
-      user_id,
-      user_name,
-      title,
-      description,
-      assigned_to,
-      project_id,
-      category,
-      start_date,
-      end_date,
-      priority,
-      created_week,
-      created_year,
-    } = body;
-
-    if (!title) {
-      return NextResponse.json(
-        { success: false, error: "title is required" },
-        { status: 400 },
-      );
-    }
-
-    const finalUserId = user_id || session.cid;
-    const finalAssignedTo = assigned_to || null;
-
-    // Contact Group enforcement for assignment under intent
-    if (finalAssignedTo && session.role !== "super_admin") {
-      const { validateTaskAssignment } = await import("@/models/contactGroups");
-      const groupCheck = await validateTaskAssignment(
-        finalUserId,
-        finalAssignedTo,
-        {
-          context_type: intent.context_type,
-          context_id: intent.context_id,
-        },
-      );
-      if (!groupCheck.allowed) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Cannot assign task outside the Intent's Contact Group. ${groupCheck.reason || "No shared group found."}`,
-          },
-          { status: 403 },
-        );
-      }
-    }
-
-    // Inherit context + supervisor from intent
-    const finalContextType = intent.context_type;
-    const finalContextId = intent.context_id;
-    const finalSupervisorId = intent.responsible_id;
-
-    // Determine week/year
-    const weekNum = created_week || getCurrentWeekNumber().week;
-    const yearNum = created_year || getCurrentWeekNumber().year;
-
-    const result = await createIntentTask({
-      user_id: finalUserId,
-      user_name: user_name || session.name || "",
-      title,
-      description: description || null,
-      project_id: project_id || intent.project_id || null,
-      category: category || null,
-      created_week: weekNum,
-      created_year: yearNum,
-      start_date: start_date || null,
-      end_date: end_date || null,
-      assigned_to: finalAssignedTo,
-      priority: priority || "medium",
-      context_type: finalContextType,
-      context_id: finalContextId,
-      supervisor_id: finalSupervisorId,
-      intent_id: intentId,
+    const result = await createIntentTaskForSession({
+      session,
+      intentId,
+      input: body,
     });
-
-    const taskId = Number(result.rows[0]?.id || result.lastInsertRowid);
-
-    return NextResponse.json({
-      success: true,
-      id: taskId,
-      intent_id: intentId,
-      action: "created",
-    });
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     console.error("POST intent tasks error:", error);
     return NextResponse.json(
@@ -172,14 +41,4 @@ export async function POST(req, { params }) {
       { status: 500 },
     );
   }
-}
-
-/** Helper: current ISO week number and year */
-function getCurrentWeekNumber() {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 1);
-  const diff = now - start;
-  const oneWeek = 604800000;
-  const week = Math.ceil((diff / oneWeek + start.getDay() + 1) / 7);
-  return { week: Math.min(week, 52), year: now.getFullYear() };
 }

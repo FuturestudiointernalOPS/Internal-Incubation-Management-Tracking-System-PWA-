@@ -32,6 +32,10 @@
  *   investorIntake.js — the Investor Run reference + public URL
  *   evaluationConfig.js — a form's AI evaluation framework read/save/remove
  *   reportFiles.js — a Run's report-file attach/read/detach
+ *   intents.js — the Intent decisions (visibility, ownership, the task
+ *               counts batch, the progress summary, the Contact-Group rule)
+ *   publicSubmit.js — the public form-submit decision flow (run resolution,
+ *               deadline/consent, identity, duplicates, checkout capture)
  */
 
 export * from "./report";
@@ -52,3 +56,5 @@ export * from "./integrations";
 export * from "./investorIntake";
 export * from "./evaluationConfig";
 export * from "./reportFiles";
+export * from "./intents";
+export * from "./publicSubmit";
