@@ -2963,6 +2963,89 @@ decision is recorded, new modules stay plain JavaScript.
 
 ---
 
+### Domain 94 — the platform services: the formRuns/import/seed/report split (slice 130, 2026-10-02)
+
+The four oversized platform SERVICE files are now thin barrels at the same path
+over cohesive modules in a sibling folder (the `PermissionCenter.js` +
+`permission-center/` convention). No code crossed a layer: same-layer
+decomposition, public surfaces byte-identical, imports and tests unchanged.
+
+- **`formRuns.js` (2 260) → `formRuns/`**: `detail` (the Run-detail read and
+  `enrichAssignments`), `resultEmails` (`logTimeline`, the decision/result
+  senders and the scheduled dispatcher), `review` (`processReviewInternal`),
+  `lifecycle` (status vocabulary, launch, assignments), `submitters` (the submit /
+  manual-add / email-correction path), `sends` (retry/cancel/bulk/manual/activation
+  sends) and `actions` (slug rotation, submission delete, report re-roll, run
+  create/metadata/archive). Each module declares exactly the imports it uses;
+  `review`/`submitters`/`sends`/`actions` import `resultEmails` directly, never
+  through the barrel, so there is no cycle. Non-exported helpers stay with their
+  only caller.
+- **`report.js` (426) → `report/`**: `prompt` (the guardrails, the identity and
+  prompt helpers and the parser) and `store` (the stored-report reuse and the one
+  `getOrCreateSubmissionReport` entry point). `MODEL`/`nonEmptyString` live once
+  in `prompt`; the barrel re-exports only the original public names, so nothing
+  new leaks.
+- **`import.js` (609) → `import/`**: `preview` (parse + fuzzy match),
+  `execute` (contact resolution + the row loop) and `reviewFlags`.
+- **`seed.js` (535) → `seed/`**: `founderAssessment` and `investorApplication`.
+
+The `readSurface` concatenation is sort-order-sensitive, so the module names
+carrying ordering-pinned calls were chosen to keep the pins true: `review` sorts
+before `sends` (so the `await sendDecisionEmailForSubmission(` call the review
+gate must precede is first found in `review`), and `resultEmails` sorts before
+`submitters` (so the loud run/form-context read is found before the
+respondent-email correction's own).
+
+Verification: `npx eslint src/services/platform` → 0 errors; the 13 platform /
+source-pin suites → 13 suites, 200 tests green (same as before); the DB budgets
+(`db-sequencing-audit`, `db-roundtrip-budget`) → 2 suites, 9 tests green.
+
+---
+
+### Domain 95 — the platform VIEWS and the public/intents controllers (slice 131, 2026-10-02)
+
+The same lane's remaining size debt: the two oversized platform screens and the
+last two deciding controllers.
+
+- **`src/app/platform/runs/page.js` (V2) 2 925 → 2 391.** The inline modals and
+  panels move to module-scope components in `src/components/platform/runs/`:
+  `ReviewModal`, `ManualAddModal`, `MessageComposerModal`, `ExportOptionsModal`,
+  `RunDetailHeader`, `EvalProgressPanel`, `RunTabs`, `DashboardStats`,
+  `RunsToolbar`, `CreateRunModal`, `DatePickerModal`. The page keeps state, data
+  fetching, handlers and orchestration; the rendered markup is unchanged. (The
+  control at column 0 rule matters here: a component created during a render
+  remounts its inputs every keystroke — the editors stay module-scope.)
+- **`src/app/platform/forms/page.js` (V6) 1 979 → 886.** The list, the builder
+  (palette/canvas/field), the config panels, the template editor and the three
+  modals move to `src/components/platform/forms/` (`TemplateEditor`,
+  `TemplatesPanel`, `FormsListView`, `BuilderHeader`, `ScoringPanel`,
+  `WorkflowPanel`, `EvaluationFrameworkPanel`, `FormCanvas`, …).
+- **The `intents` controllers** (`/api/intents`, `/api/intents/[id]`,
+  `/api/intents/[id]/tasks`) → `services/platform/intents.js`. The visibility,
+  ownership, responsible-exists, Contact-Group and progress decisions leave the
+  three routes, which keep `requireAuth`, `initDb`, the parsing and the envelope.
+- **`/api/s/public-submit` (502 → ~140)** →
+  `services/platform/publicSubmit.js` (`submitPublicResponse`). The run-by-slug
+  resolution, the deadline/auto-close, the paid-run consent gate, the IP rate
+  limit, the identity read from the form's own labels, the duplicate idempotency,
+  the submission limit, the draft upgrade, the checkout capture and the
+  post-submission automation/evaluation leave the route. The route keeps the
+  HTTP boundary: the schema self-heal, the payload-size guard, the capture cookie
+  and the injected `after` hook.
+
+The source-pin suites now read a module's whole SURFACE via
+`src/__tests__/helpers/sourceSurface.js` (base file + same-named folder), so a
+pin cannot go vacuously green once the code moves into a sibling file.
+
+Verification: `npx eslint src/services/platform src/app/api/intents
+src/app/api/s/public-submit/route.js src/app/platform/runs/page.js
+src/components/platform/runs src/app/platform/forms/page.js
+src/components/platform/forms` → 0 errors; `lms-checkout`, the platform suites,
+`server/services-boundaries`, `route-catalog-contract` and the two security lots
+→ green.
+
+---
+
 ## 6. How to run the next slice (recipe)
 
 1. Pick one module that mixes decisions with reads.
