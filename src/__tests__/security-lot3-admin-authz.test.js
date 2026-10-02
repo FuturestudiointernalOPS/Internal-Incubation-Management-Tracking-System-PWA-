@@ -37,9 +37,13 @@ describe("role changes are not capability grants", () => {
   });
 
   test("the CSV import cannot assign privileged roles without the capability", () => {
-    const src = read("src/app/api/admin/bulk-upload/route.js");
+    // The importable-role boundary moved to the bulk-import service with the
+    // layer split; the controller still resolves `canAssignRole` from the
+    // capability gate.
+    const src = read("src/services/dashboard/bulkImport.js");
     expect(src).toMatch(/IMPORTABLE_ROLES/);
-    expect(src).toMatch(/const canAssignRole = !assignRoleError/);
+    const route = read("src/app/api/admin/bulk-upload/route.js");
+    expect(route).toMatch(/const canAssignRole = !assignRoleError/);
   });
 
   test("contacts PUT gates `role` on the assign-roles capability", () => {
