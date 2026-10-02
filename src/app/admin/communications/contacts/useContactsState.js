@@ -11,8 +11,12 @@ import {
   EMPTY_REGISTRY,
   pickRegistry,
   pickPrograms,
-  PAGE_SIZE,
 } from "./contactsConstants";
+import {
+  filterContacts,
+  buildSegmentCounts,
+  paginateContacts,
+} from "./contactsDerivations";
 
 export function useContactsState() {
   const searchParams = useSearchParams();
@@ -435,48 +439,16 @@ export function useContactsState() {
       page: typeof next === "function" ? next(currentPage) : next,
     });
 
-  const filtered = contacts.filter((contact) => {
-    const lowerSearch = search.toLowerCase();
-    const matchesSearch =
-      (contact.name || "").toLowerCase().includes(lowerSearch) ||
-      (contact.email || "").toLowerCase().includes(lowerSearch);
-    const matchesGroup =
-      selectedGroup === "All Contacts" ||
-      contact.group_name?.toUpperCase() === selectedGroup.toUpperCase();
-
-    // Nested Sub-team Filter
-    const matchesTeam =
-      selectedTeamTab === "All Teams" || contact.v2_team_id === selectedTeamTab;
-
-    let matchesStatus = true;
-    if (statusFilter === "Active")
-      matchesStatus = contact.status === "active";
-    else if (statusFilter === "Approved")
-      matchesStatus = contact.status === "approved";
-    else if (statusFilter === "Pending")
-      matchesStatus = contact.status === "pending";
-    else if (statusFilter === "Inactive")
-      matchesStatus = contact.status === "inactive";
-    else if (statusFilter === "All")
-      matchesStatus = true;
-    // "Archived" is filtered server-side
-
-    return (
-      matchesSearch &&
-      matchesGroup &&
-      matchesTeam &&
-      matchesStatus
-    );
+  const filtered = filterContacts(contacts, {
+    search,
+    selectedGroup,
+    selectedTeamTab,
+    statusFilter,
   });
 
   // Segment counts — how many contacts belong to each segment (used for the
   // sidebar badges; "All Contacts" shows the total in the current view).
-  const segmentCounts = {};
-  for (const contact of contacts) {
-    if (contact.status === "pending") continue;
-    const key = String(contact.group_name || "UNASSIGNED").toUpperCase();
-    segmentCounts[key] = (segmentCounts[key] || 0) + 1;
-  }
+  const segmentCounts = buildSegmentCounts(contacts);
 
   const handlePivotToEntity = async (contact) => {
     setIsProcessing(true);
@@ -506,9 +478,7 @@ export function useContactsState() {
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(currentPage, totalPages);
-  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const { totalPages, safePage, paginated } = paginateContacts(filtered, currentPage);
 
   const openNewContact = () => {
     setForm({
