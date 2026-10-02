@@ -2,6 +2,7 @@
 
 import { TrendingUp, DollarSign, Users, Target, BarChart3, Megaphone, Activity, Briefcase, Loader2 } from "lucide-react";
 import AppCard from "@/components/ui/AppCard";
+import AppLinkCard from "@/components/ui/AppLinkCard";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 
@@ -11,6 +12,22 @@ const STAGE_COLORS = { interested: "bg-slate-500/10 text-slate-400", watching: "
 // so an inline arrow would give it a new identity on every render and refetch in
 // a loop.
 const pickExecutiveDashboard = (payload) => (payload?.success ? payload : null);
+
+// Where each card of this dashboard leads. A card navigates only when
+// `isDeveloped` is true; otherwise it nudges on click and stays put. Flip the
+// flag (and set `redirectTo`) the day the target page ships.
+const CARD_LINKS = {
+  verifiedInvestors: { isDeveloped: true, redirectTo: "/admin/investors?status=approved" },
+  activeCampaigns: { isDeveloped: true, redirectTo: "/admin/investors/campaigns?status=active" },
+  totalCommitted: { isDeveloped: false, redirectTo: null }, // no investment-decisions page yet
+  investedDeals: { isDeveloped: false, redirectTo: null }, // no "invested" pipeline view yet
+  fundraising: { isDeveloped: true, redirectTo: "/admin/investors/campaigns" },
+  relationships: { isDeveloped: true, redirectTo: "/admin/investors/relationships" },
+  pipeline: { isDeveloped: true, redirectTo: "/admin/investors/overview" },
+  campaignPerformance: { isDeveloped: true, redirectTo: "/admin/investors/campaigns" },
+  sectorDemand: { isDeveloped: false, redirectTo: null }, // no sector analytics page yet
+  topInvestors: { isDeveloped: true, redirectTo: "/admin/investors" },
+};
 
 export default function ExecutiveDashboardPage() {
   const { t } = useI18n();
@@ -41,12 +58,12 @@ export default function ExecutiveDashboardPage() {
         {/* KPI Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: t("investorAdmin.dashboard.verifiedInvestors"), value: investorStats.total_verified || 0, icon: Users, color: "text-blue-400" },
-            { label: t("investorAdmin.dashboard.activeCampaigns"), value: ventureStats.active_campaigns || 0, icon: Megaphone, color: "text-amber-400" },
-            { label: t("investorAdmin.dashboard.totalCommitted"), value: `$${((fundraisingStats.total_committed || 0) / 1000).toFixed(0)}K`, icon: DollarSign, color: "text-emerald-400" },
-            { label: t("investorAdmin.dashboard.investedDeals"), value: relationshipStats.total_invested || 0, icon: Target, color: "text-[var(--brand-orange)]" },
-          ].map((kpi, i) => (
-            <AppCard key={i} padding="md">
+            { id: "verifiedInvestors", label: t("investorAdmin.dashboard.verifiedInvestors"), value: investorStats.total_verified || 0, icon: Users, color: "text-blue-400" },
+            { id: "activeCampaigns", label: t("investorAdmin.dashboard.activeCampaigns"), value: ventureStats.active_campaigns || 0, icon: Megaphone, color: "text-amber-400" },
+            { id: "totalCommitted", label: t("investorAdmin.dashboard.totalCommitted"), value: `$${((fundraisingStats.total_committed || 0) / 1000).toFixed(0)}K`, icon: DollarSign, color: "text-emerald-400" },
+            { id: "investedDeals", label: t("investorAdmin.dashboard.investedDeals"), value: relationshipStats.total_invested || 0, icon: Target, color: "text-[var(--brand-orange)]" },
+          ].map((kpi) => (
+            <AppLinkCard key={kpi.id} padding="md" ariaLabel={kpi.label} {...CARD_LINKS[kpi.id]}>
               <div className="flex items-center gap-3">
                 <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
                 <div>
@@ -54,13 +71,13 @@ export default function ExecutiveDashboardPage() {
                   <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{kpi.label}</p>
                 </div>
               </div>
-            </AppCard>
+            </AppLinkCard>
           ))}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Fundraising KPIs */}
-          <AppCard padding="lg">
+          <AppLinkCard padding="lg" {...CARD_LINKS.fundraising}>
             <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><DollarSign className="w-4 h-4 text-emerald-400" /> {t("investorAdmin.dashboard.fundraising")}</h3>
             <div className="grid grid-cols-2 gap-3">
               {[
@@ -75,10 +92,10 @@ export default function ExecutiveDashboardPage() {
                 </div>
               ))}
             </div>
-          </AppCard>
+          </AppLinkCard>
 
           {/* Relationships */}
-          <AppCard padding="lg">
+          <AppLinkCard padding="lg" {...CARD_LINKS.relationships}>
             <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><Briefcase className="w-4 h-4 text-purple-400" /> {t("investorAdmin.dashboard.relationships")}</h3>
             <div className="grid grid-cols-2 gap-3">
               {[
@@ -93,11 +110,11 @@ export default function ExecutiveDashboardPage() {
                 </div>
               ))}
             </div>
-          </AppCard>
+          </AppLinkCard>
         </div>
 
         {/* Pipeline Funnel */}
-        <AppCard padding="lg">
+        <AppLinkCard padding="lg" {...CARD_LINKS.pipeline}>
           <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4 text-[var(--brand-orange)]" /> {t("investorAdmin.dashboard.investmentPipeline")}</h3>
           <div className="flex flex-wrap gap-2">
             {(dashboard.pipeline || []).map(stage => (
@@ -108,11 +125,11 @@ export default function ExecutiveDashboardPage() {
             ))}
             {(dashboard.pipeline || []).length === 0 && <p className="text-xs text-[var(--text-tertiary)]">{t("investorAdmin.dashboard.noPipelineActivity")}</p>}
           </div>
-        </AppCard>
+        </AppLinkCard>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Campaign Performance */}
-          <AppCard padding="lg">
+          <AppLinkCard padding="lg" {...CARD_LINKS.campaignPerformance}>
             <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-emerald-400" /> {t("investorAdmin.dashboard.campaignPerformance")}</h3>
             {(dashboard.campaignPerformance || []).length === 0 ? (
               <p className="text-xs text-[var(--text-tertiary)]">{t("investorAdmin.dashboard.noActiveCampaigns")}</p>
@@ -134,10 +151,10 @@ export default function ExecutiveDashboardPage() {
                 ))}
               </div>
             )}
-          </AppCard>
+          </AppLinkCard>
 
           {/* Sector Demand */}
-          <AppCard padding="lg">
+          <AppLinkCard padding="lg" {...CARD_LINKS.sectorDemand}>
             <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><Activity className="w-4 h-4 text-blue-400" /> {t("investorAdmin.dashboard.sectorDemand")}</h3>
             {(dashboard.sectorDemand || []).length === 0 ? (
               <p className="text-xs text-[var(--text-tertiary)]">{t("investorAdmin.dashboard.noData")}</p>
@@ -151,11 +168,11 @@ export default function ExecutiveDashboardPage() {
                 ))}
               </div>
             )}
-          </AppCard>
+          </AppLinkCard>
         </div>
 
         {/* Top Investors */}
-        <AppCard padding="lg">
+        <AppLinkCard padding="lg" {...CARD_LINKS.topInvestors}>
           <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><Users className="w-4 h-4 text-amber-400" /> {t("investorAdmin.dashboard.topInvestors")}</h3>
           {(dashboard.topInvestors || []).length === 0 ? (
             <p className="text-xs text-[var(--text-tertiary)]">{t("investorAdmin.dashboard.noInvestorActivity")}</p>
@@ -172,7 +189,7 @@ export default function ExecutiveDashboardPage() {
               ))}
             </div>
           )}
-        </AppCard>
+        </AppLinkCard>
       </div>
     </>
   );

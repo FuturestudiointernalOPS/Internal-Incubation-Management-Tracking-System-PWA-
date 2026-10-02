@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Building2, CheckCircle2, XCircle,
   Search, Loader2, Clock, Ban, Check, Copy, RefreshCw, X, UserPlus,
@@ -26,6 +27,10 @@ const STATUS_LABELS = {
   suspended: "investorAdmin.list.statusSuspended",
 };
 
+// The filter tabs. `?status=` in the address (e.g. from the executive
+// dashboard's "Verified Investors" card) preselects one of them.
+const STATUS_FILTERS = ["all", "pending_review", "approved"];
+
 const ACTION_LABELS = {
   approve: "investorAdmin.list.actionApproved",
   reject: "investorAdmin.list.actionRejected",
@@ -38,7 +43,11 @@ const ACTION_LABELS = {
 const pickInvestors = (payload) => (payload?.success ? payload.investors || [] : []);
 
 export default function AdminInvestorsPage() {
-  const [statusFilter, setStatusFilter] = useState("all");
+  const searchParams = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState(() => {
+    const requested = searchParams.get("status");
+    return STATUS_FILTERS.includes(requested) ? requested : "all";
+  });
   const [search, setSearch] = useState("");
   const [acting, setActing] = useState(null);
   const [detail, setDetail] = useState(null);
@@ -158,7 +167,7 @@ export default function AdminInvestorsPage() {
         {/* FILTERS */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex gap-2">
-            {["all", "pending_review", "approved"].map(statusOption => (
+            {STATUS_FILTERS.map(statusOption => (
               <button
                 key={statusOption}
                 onClick={() => setStatusFilter(statusOption)}

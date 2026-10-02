@@ -25,6 +25,7 @@
       "createDraft": "Créer le brouillon",
       "emptyTitle": "Aucune campagne pour le moment",
       "emptyHint": "Créez votre première campagne de financement",
+      "noMatch": "Aucune campagne avec ce statut",
       "publish": "Publier",
       "updateRaised": "Mettre à jour la levée",
       "pause": "Mettre en pause",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Megaphone, Plus, Loader2, DollarSign,
   Calendar, Play, Pause, XCircle,
@@ -47,6 +48,16 @@ const STATUS_ICONS = {
   closed: XCircle,
 };
 
+// The filter tabs and their labels. `?status=` in the address (e.g. from the
+// executive dashboard's "Active Campaigns" card) preselects one of them.
+const STATUS_FILTERS = ["all", "active", "draft", "closed"];
+const FILTER_LABELS = {
+  all: "investorAdmin.list.all",
+  active: "investorAdmin.campaigns.statActive",
+  draft: "investorAdmin.campaigns.statDraft",
+  closed: "investorAdmin.campaigns.statClosed",
+};
+
 const VIS_LABELS = {
   public: "investorAdmin.campaigns.visibilityPublic",
   invite_only: "investorAdmin.campaigns.visibilityInviteOnly",
@@ -58,6 +69,11 @@ export default function AdminCampaignsPage() {
   const { confirm, prompt } = useDialogs();
   const [showCreate, setShowCreate] = useState(false);
   const [toast, setToast] = useState(null);
+  const searchParams = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState(() => {
+    const requested = searchParams.get("status");
+    return STATUS_FILTERS.includes(requested) ? requested : "all";
+  });
 
   // The two lists, read through the shared hook: it owns the cache, the
   // cache-first paint and the discarding of a stale answer, so the page keeps no
@@ -150,6 +166,9 @@ export default function AdminCampaignsPage() {
     draft: campaigns.filter(campaign => campaign.status === "draft").length,
     closed: campaigns.filter(campaign => campaign.status === "closed").length,
   };
+  const visibleCampaigns = statusFilter === "all"
+    ? campaigns
+    : campaigns.filter(campaign => campaign.status === statusFilter);
 
   return (
     <>
@@ -270,6 +289,24 @@ export default function AdminCampaignsPage() {
           </div>
         )}
 
+        {/* FILTERS */}
+        <div className="flex flex-wrap gap-2">
+          {STATUS_FILTERS.map(statusOption => (
+            <button
+              key={statusOption}
+              onClick={() => setStatusFilter(statusOption)}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                statusFilter === statusOption
+                  ? "bg-[var(--brand-orange)] text-white"
+                  : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              {t(FILTER_LABELS[statusOption])}
+              <span className="ml-2 opacity-60">{counts[statusOption] || 0}</span>
+            </button>
+          ))}
+        </div>
+
         {/* Campaign List */}
         {loading ? (
           <div className="flex justify-center py-20">
@@ -281,9 +318,11 @@ export default function AdminCampaignsPage() {
             <p className="text-sm font-bold text-[var(--text-secondary)]">{t("investorAdmin.campaigns.emptyTitle")}</p>
             <p className="text-xs text-[var(--text-tertiary)] mt-1">{t("investorAdmin.campaigns.emptyHint")}</p>
           </div>
+        ) : visibleCampaigns.length === 0 ? (
+          <p className="text-center py-16 text-xs text-[var(--text-tertiary)]">{t("investorAdmin.campaigns.noMatch")}</p>
         ) : (
           <div className="space-y-3">
-            {campaigns.map(campaign => {
+            {visibleCampaigns.map(campaign => {
               const percentage = progressPct(campaign);
               const _StatusIcon = STATUS_ICONS[campaign.status] || Edit3;
               return (

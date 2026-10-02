@@ -312,3 +312,19 @@ En bref :
 - Non découpés exprès : `submissions.js` (un test lit ce fichier précis) et
   `schema.js` (une seule fonction de création de tables).
 - 4 fichiers de tests ajoutés ; tests 3631/3631, lint 0 erreur, build OK.
+
+---
+
+# Tâche — Cartes cliquables du tableau de bord investisseurs (2026-10-02)
+
+Branche `dashboard_refactoring_front`, commit `709405fb`. Détail complet :
+**`docs/INVESTOR_DASHBOARD_CARDS.md`**.
+
+En bref :
+- Nouveau composant `AppLinkCard` : la carte ouvre sa page seulement si
+  `isDeveloped` est vrai (flèche ↗), sinon petite secousse au clic, sans
+  navigation. Survol discret (montée de 2 px + bordure orange).
+- Executive Dashboard : 4 KPI + 6 sections pilotés par la table `CARD_LINKS`.
+- Investor Management et Campaigns lisent `?status=` ; Campaigns a maintenant
+  des onglets All / Active / Draft / Closed.
+- Lint 0 erreur, i18n OK, build OK ; 2 tests en échec déjà avant (sans lien).
