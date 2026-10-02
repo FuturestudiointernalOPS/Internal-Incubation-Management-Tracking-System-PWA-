@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { notifyVentureFounders } from "@/lib/ventures";
+import { notifyVentureFounders } from "@/services/ventures/activity";
 import {
   getRetroForWeek,
   getVentureDbIdForRetros,

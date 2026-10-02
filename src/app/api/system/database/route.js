@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { getDatabaseInfo } from "@/lib/ventures";
+import { getDatabaseInfo } from "@/services/ventures/monitoring";
 import { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { requireAuthorization } from "@/models/authorization/index";

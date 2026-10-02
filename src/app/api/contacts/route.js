@@ -2,7 +2,10 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 import { requireAuthorization } from "@/models/authorization/index";
-import { normalizeGroupName, INTERNAL_GROUP } from "@/lib/authorization/membership";
+import {
+  normalizeGroupName,
+  INTERNAL_GROUP,
+} from "@/models/authorization/membership";
 import { readRegistryContacts } from "@/services/contacts/registryRead";
 import { softDeleteRegistryContact } from "@/services/contacts/deletion";
 import { registerContacts } from "@/services/contacts/registration";
@@ -15,9 +18,11 @@ import {
 } from "@/services/contacts/update";
 import {
   updateContactFields,
+} from "@/models/contacts/contactStore";
+import {
   deleteContactPrograms,
   ensureContactProgramMembership,
-} from "@/models/contacts";
+} from "@/models/contacts/programMembership";
 export const dynamic = "force-dynamic";
 
 /**

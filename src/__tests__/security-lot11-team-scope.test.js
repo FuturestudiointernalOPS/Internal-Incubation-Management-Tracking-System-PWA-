@@ -42,7 +42,7 @@ jest.mock("@/models/teams", () => ({
   setTeamVentureReady: jest.fn(async () => ({})),
 }));
 
-jest.mock("@/models/groups", () => ({
+jest.mock("@/models/groups/orgTeams", () => ({
   getOrgTeams: jest.fn(async () => ({ rows: [{ id: "TEAM-1", name: "Alpha", password: "FST123", team_username: "alpha_1" }] })),
   getOrgTeamMembers: jest.fn(async () => ({ rows: [] })),
 }));

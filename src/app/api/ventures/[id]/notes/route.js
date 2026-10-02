@@ -188,7 +188,7 @@ export const POST = createHandler(
       attachments,
     });
     try {
-      const { addVentureHistory } = await import("@/lib/ventures");
+      const { addVentureHistory } = await import("@/services/ventures/activity");
       await addVentureHistory({ venture_id: code, event_type: "INTERNAL_NOTE_CREATED", description: `Internal note "${title}" created` });
     } catch (_) {}
     return NextResponse.json({ success: true, id: insertResult.rows?.[0]?.id ?? null });
@@ -225,7 +225,7 @@ export const DELETE = createHandler(
 
     await archiveVentureNote(noteId);
     try {
-      const { addVentureHistory } = await import("@/lib/ventures");
+      const { addVentureHistory } = await import("@/services/ventures/activity");
       await addVentureHistory({ venture_id: code, event_type: "INTERNAL_NOTE_ARCHIVED", description: `Internal note archived` });
     } catch (_) {}
     return NextResponse.json({ success: true });

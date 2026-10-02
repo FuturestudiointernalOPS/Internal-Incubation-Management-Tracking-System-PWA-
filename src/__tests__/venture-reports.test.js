@@ -44,7 +44,7 @@ jest.mock("@/lib/ventureAuth", () => ({
   roleIsPrivileged: jest.requireActual("@/lib/ventureAuth").roleIsPrivileged,
 }));
 
-jest.mock("@/lib/ventures", () => ({
+jest.mock("@/services/ventures/activity", () => ({
   addVentureHistory: jest.fn().mockResolvedValue(true),
 }));
 
@@ -87,7 +87,7 @@ describe("Venture Progress Reports", () => {
     expect(JSON.parse(insert.args[6])).toEqual(["Pitch Deck", "Business Plan"]);
     expect(JSON.parse(insert.args[7])).toEqual(["Validation Report"]);
 
-    const { addVentureHistory } = require("@/lib/ventures");
+    const { addVentureHistory } = require("@/services/ventures/activity");
     expect(addVentureHistory).toHaveBeenCalledWith(expect.objectContaining({ event_type: "VENTURE_REPORT_CREATED" }));
   });
 

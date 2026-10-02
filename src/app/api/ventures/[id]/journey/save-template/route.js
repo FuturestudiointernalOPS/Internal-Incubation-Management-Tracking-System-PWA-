@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { resolvePlanAccess, allowsPlanAction } from "@/services/ventures/operatingPlans";
 import { ensureJourneyTable, resolveVentureInternalId } from "@/services/ventures/journey";
-import { saveJourneyAsTemplate } from "@/lib/ventureJourneyTemplates";
-import { ensureVentureSchema } from "@/lib/ventures";
+import { saveJourneyAsTemplate } from "@/services/ventures/journey";
+import { ensureVentureSchema } from "@/services/ventures/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +53,7 @@ export async function POST(req, { params }) {
     }
 
     try {
-      const { addVentureHistory } = await import("@/lib/ventures");
+      const { addVentureHistory } = await import("@/services/ventures/activity");
       await addVentureHistory({
         venture_id: id,
         event_type: "JOURNEY_TEMPLATE_SAVED",

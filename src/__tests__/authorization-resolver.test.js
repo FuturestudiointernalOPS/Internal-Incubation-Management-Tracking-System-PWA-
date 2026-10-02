@@ -79,7 +79,9 @@ const {
   mergeEffectiveCapabilities,
   authorize,
 } = require("@/services/authorization/context");
-const { evaluateEligibility } = require("@/lib/authorization/eligibility");
+const {
+  evaluateEligibility,
+} = require("@/services/authorization/eligibility");
 const { requireAuthorization } = require("@/models/authorization/index");
 
 // ─── mergeEffectiveCapabilities: V2 semantics ───────────────────────────────
@@ -257,7 +259,9 @@ describe("authorize() — non-Super Admin", () => {
 
 describe("knowledge module (Phase 2)", () => {
   test("MODULE_TO_FEATURE maps knowledge → knowledge", () => {
-    const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
+    const {
+  MODULE_TO_FEATURE,
+} = require("@/models/authorization/eligibility");
     expect(MODULE_TO_FEATURE.knowledge).toBe("knowledge");
   });
 
@@ -284,12 +288,16 @@ describe("knowledge module (Phase 2)", () => {
 
 describe("reports module (Phase 3)", () => {
   test("MODULE_TO_FEATURE maps reports → reports", () => {
-    const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
+    const {
+  MODULE_TO_FEATURE,
+} = require("@/models/authorization/eligibility");
     expect(MODULE_TO_FEATURE.reports).toBe("reports");
   });
 
   test("reports eligibility defaults cover the submit routes (admin/developer removed)", () => {
-    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    const {
+  FEATURE_ELIGIBILITY_DEFAULTS,
+} = require("@/models/authorization/eligibility");
     const reports = FEATURE_ELIGIBILITY_DEFAULTS.reports;
     expect(reports).toEqual(
       expect.arrayContaining(["super_admin", "staff", "program_manager"]),
@@ -324,12 +332,16 @@ describe("reports module (Phase 3)", () => {
 
 describe("contacts module (Phase 4)", () => {
   test("MODULE_TO_FEATURE maps contacts → crm", () => {
-    const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
+    const {
+  MODULE_TO_FEATURE,
+} = require("@/models/authorization/eligibility");
     expect(MODULE_TO_FEATURE.contacts).toBe("crm");
   });
 
   test("crm eligibility defaults are internal identities only (participant/founder removed by policy #3)", () => {
-    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    const {
+  FEATURE_ELIGIBILITY_DEFAULTS,
+} = require("@/models/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).toEqual(
       expect.arrayContaining(["super_admin", "staff", "program_manager"]),
     );
@@ -378,13 +390,17 @@ describe("contacts module (Phase 4)", () => {
 
 describe("communication feature (Messages + Announcements)", () => {
   test("MODULE_TO_FEATURE maps messaging + internal_comms → communication", () => {
-    const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
+    const {
+  MODULE_TO_FEATURE,
+} = require("@/models/authorization/eligibility");
     expect(MODULE_TO_FEATURE.messaging).toBe("communication");
     expect(MODULE_TO_FEATURE.internal_comms).toBe("communication");
   });
 
   test("communication eligibility defaults cover the CRM-like allowlist (PO decision, no admin)", () => {
-    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    const {
+  FEATURE_ELIGIBILITY_DEFAULTS,
+} = require("@/models/authorization/eligibility");
     // participant / mentor / investor are listed because their OWN seeded
     // default templates (Participant Default, Mentor) carry messaging caps. A
     // role must be eligible for every feature its default template grants —
@@ -426,7 +442,9 @@ describe("communication feature (Messages + Announcements)", () => {
 
 describe("projects module (Phase 6)", () => {
   test("MODULE_TO_FEATURE maps projects → operations", () => {
-    const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
+    const {
+  MODULE_TO_FEATURE,
+} = require("@/models/authorization/eligibility");
     expect(MODULE_TO_FEATURE.projects).toBe("operations");
   });
 
@@ -472,12 +490,16 @@ describe("projects module (Phase 6)", () => {
 
 describe("tasks module (Phase 7)", () => {
   test("MODULE_TO_FEATURE maps tasks → operations", () => {
-    const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
+    const {
+  MODULE_TO_FEATURE,
+} = require("@/models/authorization/eligibility");
     expect(MODULE_TO_FEATURE.tasks).toBe("operations");
   });
 
   test("operations eligibility defaults cover the tasks allowlist incl. team", () => {
-    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    const {
+  FEATURE_ELIGIBILITY_DEFAULTS,
+} = require("@/models/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.operations).toEqual(
       expect.arrayContaining(["super_admin", "staff", "program_manager", "team"]),
     );
@@ -509,7 +531,9 @@ describe("tasks module (Phase 7)", () => {
 
 describe("engineering module (Phase 8)", () => {
   test("MODULE_TO_FEATURE maps engineering → settings", () => {
-    const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
+    const {
+  MODULE_TO_FEATURE,
+} = require("@/models/authorization/eligibility");
     expect(MODULE_TO_FEATURE.engineering).toBe("settings");
   });
 
@@ -544,7 +568,9 @@ describe("engineering module (Phase 8)", () => {
 
 describe("programs module (Phase 9)", () => {
   test("MODULE_TO_FEATURE maps programs → programs", () => {
-    const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
+    const {
+  MODULE_TO_FEATURE,
+} = require("@/models/authorization/eligibility");
     expect(MODULE_TO_FEATURE.programs).toBe("programs");
   });
 
@@ -586,12 +612,16 @@ describe("programs module (Phase 9)", () => {
 
 describe("ventures module (Phase 10)", () => {
   test("MODULE_TO_FEATURE maps ventures → ventures", () => {
-    const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
+    const {
+  MODULE_TO_FEATURE,
+} = require("@/models/authorization/eligibility");
     expect(MODULE_TO_FEATURE.ventures).toBe("ventures");
   });
 
   test("ventures eligibility defaults cover the CRUD allowlist", () => {
-    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    const {
+  FEATURE_ELIGIBILITY_DEFAULTS,
+} = require("@/models/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.ventures).toEqual(
       expect.arrayContaining(["super_admin", "staff", "program_manager"]),
     );
@@ -603,7 +633,9 @@ describe("ventures module (Phase 10)", () => {
   // first and fails closed). Eligibility stays a CEILING: the capability and
   // the venture scope still decide.
   test("member is eligible for ventures, and eligibility remains a ceiling", () => {
-    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    const {
+  FEATURE_ELIGIBILITY_DEFAULTS,
+} = require("@/models/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.ventures).toContain("member");
 
     const memberWithGrant = staffCtx({
@@ -655,12 +687,16 @@ describe("ventures module (Phase 10)", () => {
 
 describe("investor module (Phase 11)", () => {
   test("MODULE_TO_FEATURE maps investor → investors", () => {
-    const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
+    const {
+  MODULE_TO_FEATURE,
+} = require("@/models/authorization/eligibility");
     expect(MODULE_TO_FEATURE.investor).toBe("investors");
   });
 
   test("investor eligibility covers the uniform portal allowlist (no PM)", () => {
-    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    const {
+  FEATURE_ELIGIBILITY_DEFAULTS,
+} = require("@/models/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.investors).toEqual(
       expect.arrayContaining(["super_admin", "staff", "investor"]),
     );
@@ -700,7 +736,9 @@ describe("investor module (Phase 11)", () => {
 
 describe("messaging module (communication feature)", () => {
   test("messaging eligibility now rides the communication feature (internal roles per PO)", () => {
-    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    const {
+  FEATURE_ELIGIBILITY_DEFAULTS,
+} = require("@/models/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.communication).toEqual([
       "super_admin",
       "staff",
@@ -805,7 +843,9 @@ describe("requireAuthorization", () => {
 
 describe("lms module", () => {
   test("MODULE_TO_FEATURE maps lms → lms (feature-gated)", () => {
-    const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
+    const {
+  MODULE_TO_FEATURE,
+} = require("@/models/authorization/eligibility");
     expect(MODULE_TO_FEATURE.lms).toBe("lms");
   });
 
@@ -887,7 +927,9 @@ describe("lms module", () => {
   });
 
   test("program_manager is eligible for the lms feature (PM surface is reachable)", () => {
-    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    const {
+  FEATURE_ELIGIBILITY_DEFAULTS,
+} = require("@/models/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.lms).toContain("program_manager");
   });
 
@@ -962,13 +1004,17 @@ describe("lms module", () => {
 
 describe("final eligibility policy (#3)", () => {
   test("admin is NOT eligible for communication (internal_comms legacy) or reports", () => {
-    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    const {
+  FEATURE_ELIGIBILITY_DEFAULTS,
+} = require("@/models/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.communication).not.toContain("admin");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.reports).not.toContain("admin");
   });
 
   test("participant and founder are NOT crm-eligible", () => {
-    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    const {
+  FEATURE_ELIGIBILITY_DEFAULTS,
+} = require("@/models/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("participant");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("founder");
   });
@@ -1306,7 +1352,10 @@ describe("validateEligibilityChanges (eligibility API)", () => {
     // the seeded default templates were reconciled with their roles' ceilings.
     // It must add exactly what a fresh database gets from the defaults — a
     // divergence would make the two populations behave differently.
-    const { TEMPLATE_CEILING_ROWS, FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    const {
+  TEMPLATE_CEILING_ROWS,
+  FEATURE_ELIGIBILITY_DEFAULTS,
+} = require("@/models/authorization/eligibility");
     const rows = Object.entries(TEMPLATE_CEILING_ROWS);
     expect(rows.length).toBeGreaterThan(0);
     for (const [featureKey, roles] of rows) {

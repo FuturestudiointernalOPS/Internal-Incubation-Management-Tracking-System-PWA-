@@ -3,7 +3,7 @@ import { getSession } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { resolvePlanAccess, allowsPlanAction } from "@/services/ventures/operatingPlans";
 import { roleIsPrivileged } from "@/lib/ventureAuth";
-import { canManageMilestones, activateDueStages } from "@/lib/ventureMilestoneEngine";
+import { canManageMilestones, activateDueStages } from "@/services/ventures/milestoneEngine";
 import { evidenceDownloadUrl, isExternalEvidenceLink } from "@/lib/ventureEvidence";
 import { projectJourneyStagesForVenture } from "@/lib/ventureVisibility";
 import {

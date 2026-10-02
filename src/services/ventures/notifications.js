@@ -9,7 +9,8 @@
  * default preferences and the templated send — live here; every statement is in
  * `@/models/ventureNotificationsStore`. Nothing here runs SQL.
  *
- * Re-exported unchanged through `@/lib/ventures` (the module it came from) — see
+ * This module used to be re-exported through the `@/lib/ventures` barrel; that
+ * barrel is gone (CH-4) and importers read this module directly — see
  * docs/LAYER_SPLIT.md. (Distinct from `@/services/ventures/notify`, which backs
  * the founder/coach/Lead-Manager delivery.)
  */

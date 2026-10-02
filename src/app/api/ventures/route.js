@@ -3,7 +3,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/lib/auth";
 import { getAuthorizationContext, requireAuthorization } from "@/models/authorization/index";
 import { isWithinScope, resolveVentureScopeId } from "@/services/authorization/scope";
-import { updateVenture } from "@/lib/ventures";
+import { updateVenture } from "@/services/ventures/record";
 import { listVentureDocumentReadiness } from "@/models/ventureReadiness";
 import {
   listVenturesWithCounts,

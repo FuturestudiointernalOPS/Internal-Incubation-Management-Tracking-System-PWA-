@@ -45,11 +45,11 @@ jest.mock("@/services/authorization/scope", () => ({
   isWithinScope: jest.fn(async () => true),
 }));
 
-jest.mock("@/models/kpi-progress", () => ({
+jest.mock("@/services/programs/kpiProgress", () => ({
   recalculateKpiProgress: jest.fn(async () => ({})),
 }));
 
-jest.mock("@/models/kpi-progress", () => ({
+jest.mock("@/models/kpiProgressStore", () => ({
   listKpiNamesForPrograms: jest.fn(async () => ({ rows: [] })),
 }));
 

@@ -9,9 +9,11 @@ import {
   ensureMembershipSchema,
   normalizeGroupName,
   MEMBERSHIP_ACTIONS,
-  applyMembershipAction,
   getMembership,
-} from "@/lib/authorization/membership";
+} from "@/models/authorization/membership";
+import {
+  applyMembershipAction,
+} from "@/services/authorization/membership";
 import {
   buildMembershipFilter,
   resolveProtectedGroupFlags,

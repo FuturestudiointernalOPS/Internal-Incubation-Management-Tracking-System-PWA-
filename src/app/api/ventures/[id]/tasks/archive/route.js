@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { applyBulk } from "@/lib/ventureArchive";
+import { applyBulk } from "@/services/ventures/archive";
 import { listTasksForArchive } from "@/models/ventureWorkspace";
 
 /**

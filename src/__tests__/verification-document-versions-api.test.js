@@ -33,8 +33,7 @@ jest.mock("@/lib/ventureEvidence", () => ({
   signEvidencePath: jest.fn(),
 }));
 
-jest.mock("@/lib/ventures", () => ({
-  __esModule: true,
+jest.mock("@/services/ventures/verification", () => ({
   listVerificationDocumentVersions: jest.fn(),
   addVerificationDocumentVersion: jest.fn(),
   canSubmitVerification: jest.fn(),
@@ -43,11 +42,7 @@ jest.mock("@/lib/ventures", () => ({
 const { getSession } = require("@/lib/auth");
 const { hasActiveVentureAssignment } = require("@/lib/ventureAuth");
 const { signEvidencePath } = require("@/lib/ventureEvidence");
-const {
-  listVerificationDocumentVersions,
-  addVerificationDocumentVersion,
-  canSubmitVerification,
-} = require("@/lib/ventures");
+const { listVerificationDocumentVersions, addVerificationDocumentVersion, canSubmitVerification } = require("@/services/ventures/verification");
 const { GET, POST } = require("@/app/api/ventures/[id]/verification/documents/[docId]/versions/route");
 
 const VENTURE_ID = "VNT-1";

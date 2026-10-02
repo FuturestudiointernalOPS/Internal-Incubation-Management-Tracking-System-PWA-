@@ -24,8 +24,9 @@
  * events.
  *
  * Every statement lives in `@/models/ventureMilestoneEngineStore`; nothing here
- * runs SQL. Re-exported unchanged through the compatibility facade
- * `@/lib/ventureMilestoneEngine` — see docs/LAYER_SPLIT.md.
+ * runs SQL. This module used to be re-exported through the
+ * `@/lib/ventureMilestoneEngine` facade; that facade is gone (CH-4) and importers
+ * read this module directly.
  *
  * Split (lane L2): the code lives in `./milestoneEngine/` — authority, availability, status.
  * This file re-exports the same public surface (named + default when there is

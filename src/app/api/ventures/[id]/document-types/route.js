@@ -7,8 +7,10 @@ import {
   canManageVentureDocumentTypes,
   createVentureDocumentType,
   ensureVentureDocumentTypesForVenture,
+} from "@/services/ventures/ventureDocumentTypes";
+import {
   listVentureDocumentTypes,
-} from "@/models/ventureDocumentTypes";
+} from "@/models/ventureDocumentTypesStore";
 
 /**
  * /api/ventures/[id]/document-types — the documents THIS Venture's Data bank

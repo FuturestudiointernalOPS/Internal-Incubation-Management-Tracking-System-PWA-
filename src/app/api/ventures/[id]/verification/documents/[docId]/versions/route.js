@@ -3,11 +3,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/lib/auth";
 import { signEvidencePath } from "@/lib/ventureEvidence";
 import { isActiveVentureMember } from "@/models/ventureWorkspace";
-import {
-  listVerificationDocumentVersions,
-  addVerificationDocumentVersion,
-  canSubmitVerification,
-} from "@/lib/ventures";
+import { listVerificationDocumentVersions, addVerificationDocumentVersion, canSubmitVerification } from "@/services/ventures/verification";
 
 /**
  * /api/ventures/[id]/verification/documents/[docId]/versions — the version

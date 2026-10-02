@@ -13,9 +13,9 @@
  * Every statement lives in `@/models/ventureJourneyStore`; nothing here runs
  * SQL (the boundary is pinned by `server/services-boundaries.test.js`).
  *
- * Re-exported unchanged through the compatibility facades
- * `@/lib/ventureJourneys`, `@/lib/ventureJourneyArchive` and
- * `@/lib/ventureJourneyTemplates` — see docs/LAYER_SPLIT.md.
+ * This module used to be re-exported through the `@/lib/ventureJourneys`,
+ * `@/lib/ventureJourneyArchive` and `@/lib/ventureJourneyTemplates` facades;
+ * those facades are gone (CH-4) and importers read this module directly.
  *
  * Split (lane L2): the code lives in `./journey/` — stages, archive, templates.
  * This file re-exports the same public surface (named + default when there is

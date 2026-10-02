@@ -25,7 +25,7 @@ const {
   deriveMilestoneStatusFromTasks,
   combineMilestoneStatus,
   syncMilestoneFromWork,
-} = require("@/lib/ventureMilestoneEngine");
+} = require("@/services/ventures/milestoneEngine");
 
 const MS = "ms-1";
 const DB = "v-1";

@@ -79,7 +79,7 @@ export const POST = createHandler(
     }
 
     try {
-      const { addVentureHistory } = await import("@/lib/ventures");
+      const { addVentureHistory } = await import("@/services/ventures/activity");
       await addVentureHistory({ venture_id: id, event_type: "JOURNEY_TEMPLATE_APPLIED", description: `Journey generated from template "${template.name}"` });
     } catch (_) {}
 

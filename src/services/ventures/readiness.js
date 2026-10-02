@@ -17,9 +17,9 @@
  * Venture with stages but no tasks yet still gets a meaningful signal.
  *
  * This is a pure read layer: no writes. Every statement lives in
- * `@/models/ventureReadinessStore`; nothing here runs SQL. Re-exported unchanged
- * through the compatibility facade `@/lib/ventureReadiness` — see
- * docs/LAYER_SPLIT.md.
+ * `@/models/ventureReadinessStore`; nothing here runs SQL. This module used to
+ * be re-exported through the `@/lib/ventureReadiness` facade; that facade is
+ * gone (CH-4) and importers read this module directly.
  */
 
 import { isJourneyStageComplete, isMilestoneComplete, isTaskComplete, isSubmissionApproved } from "@/lib/ventureStatuses";

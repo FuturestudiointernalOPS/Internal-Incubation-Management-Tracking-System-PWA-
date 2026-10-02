@@ -10,8 +10,10 @@ import {
   createPasswordSetupToken,
   markContactInvited,
   findContactCidByPhone,
+} from "@/models/contacts/contactStore";
+import {
   findContactByEmail,
-} from "@/models/contacts";
+} from "@/services/contacts/contactLookup";
 
 export const dynamic = "force-dynamic";
 

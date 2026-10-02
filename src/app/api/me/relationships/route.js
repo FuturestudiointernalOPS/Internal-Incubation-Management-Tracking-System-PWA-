@@ -5,7 +5,7 @@ import {
   hasParticipantProgramMembership,
   hasV2ParticipantRecord,
   getVentureMembershipsForContact,
-} from "@/models/contacts";
+} from "@/models/contacts/programMembership";
 import { isFounderMembership } from "@/models/platform/roles";
 import { getApprovedInvestorProfileIdByUserId } from "@/models/investor";
 

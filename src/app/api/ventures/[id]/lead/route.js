@@ -18,7 +18,7 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireAuth, getSession } from "@/lib/auth";
-import { changeVentureLead } from "@/lib/ventures";
+import { changeVentureLead } from "@/services/ventures/record";
 import {
   findLeadFounderMembership,
   getLeadVentureCodeByUuid,
@@ -103,7 +103,7 @@ export async function POST(req, { params }) {
       );
     } catch (_) {}
     try {
-      const { createVentureNotification } = await import("@/lib/ventures");
+      const { createVentureNotification } = await import("@/services/ventures/activity");
       await createVentureNotification({
         recipient_id: session.cid || "sa",
         title: "Venture Lead Changed",

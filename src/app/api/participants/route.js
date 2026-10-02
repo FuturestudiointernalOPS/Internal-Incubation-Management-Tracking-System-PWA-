@@ -10,7 +10,7 @@ import {
   enrollPendingParticipantProgram,
   logParticipantEnrollment,
   getProgramParticipants,
-} from "@/models/groups";
+} from "@/models/groups/enrollment";
 
 /**
  * PARTICIPANTS API — ENROLLMENT ENGINE

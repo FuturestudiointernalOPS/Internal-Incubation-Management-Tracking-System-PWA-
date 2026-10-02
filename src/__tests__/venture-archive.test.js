@@ -57,7 +57,7 @@ const {
   archiveMilestone,
   restoreMilestone,
   applyBulk,
-} = require("@/lib/ventureArchive");
+} = require("@/services/ventures/archive");
 
 /** Point the db double at this test's rows (and clear the recorded calls). */
 function fakeDb(fixtures = {}) {

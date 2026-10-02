@@ -167,7 +167,7 @@ jest.mock("@/services/ventures/operatingPlans", () => ({
   allowsPlanAction: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/ventures", () => ({
+jest.mock("@/services/ventures/activity", () => ({
   addVentureHistory: jest.fn().mockResolvedValue(true),
 }));
 
@@ -249,7 +249,7 @@ describe("POST /journey/duplicate", () => {
     expect(forbidden.length).toBe(0);
 
     // History event recorded.
-    const { addVentureHistory } = require("@/lib/ventures");
+    const { addVentureHistory } = require("@/services/ventures/activity");
     expect(addVentureHistory).toHaveBeenCalledWith(
       expect.objectContaining({ event_type: "JOURNEY_STAGE_DUPLICATED" }),
     );

@@ -64,7 +64,9 @@ jest.mock("@/lib/ventureAuth", () => ({
   roleIsPrivileged: jest.requireActual("@/lib/ventureAuth").roleIsPrivileged,
 }));
 
-jest.mock("@/lib/ventures", () => ({ addVentureHistory: jest.fn().mockResolvedValue(true) }));
+jest.mock("@/services/ventures/activity", () => ({
+  addVentureHistory: jest.fn().mockResolvedValue(true),
+}));
 
 const { GET, POST } = require("@/app/api/ventures/[id]/progress-reports/route");
 const ctx = { params: { id: VENTURE_DB_ID } };

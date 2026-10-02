@@ -11,7 +11,9 @@
  * It reads and writes through `@/models/**`.
  */
 
-import { recalculateKpiProgress } from "@/models/kpi-progress";
+import {
+  recalculateKpiProgress,
+} from "@/services/programs/kpiProgress";
 import {
   addSessionRequirement,
   countActiveParticipantsForProgram,

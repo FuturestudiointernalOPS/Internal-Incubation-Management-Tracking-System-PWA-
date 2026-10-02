@@ -4,15 +4,7 @@ import { getSession } from "@/lib/auth";
 import { signEvidencePath } from "@/lib/ventureEvidence";
 import { computeVentureDocumentReadiness } from "@/models/ventureReadiness";
 import { isActiveVentureMember } from "@/models/ventureWorkspace";
-import {
-  getOrCreateVerification,
-  submitVerification,
-  resubmitVerification,
-  uploadVerificationDocument,
-  deleteVerificationDocument,
-  addVerificationComment,
-  canSubmitVerification,
-} from "@/lib/ventures";
+import { getOrCreateVerification, submitVerification, resubmitVerification, uploadVerificationDocument, deleteVerificationDocument, addVerificationComment, canSubmitVerification } from "@/services/ventures/verification";
 
 /**
  * Who may read or annotate a Venture's verification state: a global role, an

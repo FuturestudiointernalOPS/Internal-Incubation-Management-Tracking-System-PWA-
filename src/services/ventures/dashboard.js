@@ -12,10 +12,8 @@
  * Same facades as the controller used, so route-level test mocks still apply.
  * No SQL, no HTTP.
  */
-import {
-  getOrCreateStartupProfile,
-  getOrCreateVerification,
-} from "@/lib/ventures";
+import { getOrCreateStartupProfile } from "@/services/ventures/profile";
+import { getOrCreateVerification } from "@/services/ventures/verification";
 import { listVentureMembers, summarizeVentureMembers } from "@/models/ventureMembers";
 import {
   getVentureByCode,

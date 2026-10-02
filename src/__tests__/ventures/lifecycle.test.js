@@ -31,7 +31,7 @@ const {
   resolveVentureLifecycle,
   requireOperationalVentureAccess,
 } = require("@/lib/ventureAuth");
-const { resetVentureAccessCache } = require("@/lib/ventureAccessFacts");
+const { resetVentureAccessCache } = require("@/services/ventures/accessFacts");
 
 // The Venture's own facts are remembered process-wide for a real 10 s window, so
 // each test starts from an empty cache — otherwise one test's Venture would

@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/lib/auth";
-import {
-  getFounderById,
-  updateFounderRole,
-  removeFounder,
-  canManageFounders,
-  logVentureActivity,
-} from "@/lib/ventures";
+import { logVentureActivity } from "@/services/ventures/activity";
+import { getFounderById, updateFounderRole, removeFounder, canManageFounders } from "@/services/ventures/founders";
 
 /**
  * GET /api/ventures/[id]/founders/[founderId]

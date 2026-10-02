@@ -61,13 +61,17 @@ jest.mock("@/services/authorization/context", () => ({
   invalidateAllAuthorizationContexts: jest.fn(),
 }));
 
-const mockMembershipLib = jest.requireActual("@/lib/authorization/membership");
-jest.mock("@/lib/authorization/membership", () => ({
-  ...mockMembershipLib,
+jest.mock("@/models/authorization/membership", () => ({
+  ...jest.requireActual("@/models/authorization/membership"),
+  ...jest.requireActual("@/services/authorization/membership"),
   ensureMembershipSchema: jest.fn().mockResolvedValue(true),
   getMembership: jest.fn(async () => mockState.membership),
   // isGroupProtected stays REAL: it runs against the mocked @/lib/db, so the
   // per-group statements it issues are observable.
+}));
+jest.mock("@/services/authorization/membership", () => ({
+  ...jest.requireActual("@/models/authorization/membership"),
+  ...jest.requireActual("@/services/authorization/membership"),
 }));
 
 jest.mock("@/models/authorization", () => ({
@@ -80,7 +84,7 @@ jest.mock("@/models/authorization", () => ({
 }));
 
 const model = require("@/models/authorization");
-const membership = require("@/lib/authorization/membership");
+const membership = require("@/models/authorization/membership");
 const { invalidateAllAuthorizationContexts } = require("@/services/authorization/context");
 const route = require("@/app/api/org-membership/route");
 

@@ -75,14 +75,16 @@ describe("PATCH/DELETE /api/ventures/[id]/tasks — cross-venture ids are refuse
     insertVentureTaskReview: jest.fn(),
   }));
 
-  jest.mock("@/lib/ventureArchive", () => ({
+  jest.mock("@/services/ventures/archive", () => ({
     archiveTask: jest.fn().mockResolvedValue({ ok: true }),
   }));
 
-  jest.mock("@/lib/ventures", () => ({
+    jest.mock("@/services/ventures/deliverables", () => ({
+    getMilestone: jest.fn().mockResolvedValue(null),
+  }));
+  jest.mock("@/services/ventures/tasks", () => ({
     listTasks: jest.fn().mockResolvedValue([]),
     getTask: jest.fn(),
-    getMilestone: jest.fn().mockResolvedValue(null),
     createTask: jest.fn().mockResolvedValue({ id: 1 }),
     updateTask: jest.fn().mockResolvedValue({ updated: true }),
     listTaskComments: jest.fn().mockResolvedValue([]),
@@ -99,8 +101,8 @@ describe("PATCH/DELETE /api/ventures/[id]/tasks — cross-venture ids are refuse
   }));
 
   const { PATCH, DELETE } = require("@/app/api/ventures/[id]/tasks/route");
-  const { getTask, updateTask } = require("@/lib/ventures");
-  const { archiveTask } = require("@/lib/ventureArchive");
+  const { getTask, updateTask } = require("@/services/ventures/tasks");
+  const { archiveTask } = require("@/services/ventures/archive");
 
   const ctx = { params: Promise.resolve({ id: "VNT-1" }) };
   const patchReq = (body) => ({

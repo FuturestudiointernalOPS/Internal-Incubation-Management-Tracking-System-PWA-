@@ -3,10 +3,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { requireAuthorization } from "@/models/authorization/index";
 import { resolveVentureDbId } from "@/lib/ventureOwnership";
-import {
-  listCoaches, getCoach, createCoach, updateCoach, deleteCoach,
-  getVentureAssignments, assignCoachToVenture, removeAssignment,
-} from "@/lib/ventures";
+import { listCoaches, getCoach, createCoach, updateCoach, deleteCoach, getVentureAssignments, assignCoachToVenture, removeAssignment } from "@/services/ventures/coaches";
 
 /**
  * GET /api/ventures/[id]/coaches[?type=coach|advisor]

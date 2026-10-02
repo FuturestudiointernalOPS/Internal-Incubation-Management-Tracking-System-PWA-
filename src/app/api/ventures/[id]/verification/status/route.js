@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/lib/auth";
-import {
-  updateVerificationStatus,
-  canManageVerification,
-  getOrCreateVerification,
-} from "@/lib/ventures";
+import { updateVerificationStatus, canManageVerification, getOrCreateVerification } from "@/services/ventures/verification";
 
 /**
  * PATCH /api/ventures/[id]/verification/status

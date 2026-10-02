@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireAuthorization } from "@/models/authorization/index";
-import { revokeApiKey, rotateApiKey } from "@/lib/ventures";
+import { revokeApiKey, rotateApiKey } from "@/services/ventures/integrations";
 
 export const DELETE = createHandler(async (req, { params }) => {
   const capError = await requireAuthorization("settings", "edit");

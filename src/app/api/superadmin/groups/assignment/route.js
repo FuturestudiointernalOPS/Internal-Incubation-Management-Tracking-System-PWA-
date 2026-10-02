@@ -5,9 +5,11 @@ import {
   getV2ProgramById,
   updateContactsProgramAssignment,
   getAssignmentContactsByGroupName,
-  upsertV2ParticipantActiveWithFallback,
   insertParticipantProgramMembership,
-} from "@/models/groups";
+} from "@/models/groups/v2Groups";
+import {
+  upsertV2ParticipantActiveWithFallback,
+} from "@/services/contacts/participantSync";
 
 export const POST = createHandler({ roles: ["super_admin"] }, async (req) => {
   const { group_name, program_id, program_name } = await req.json();

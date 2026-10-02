@@ -9,9 +9,10 @@
  * rules, the primary replacement, the removal scope — live here; every statement
  * is in `@/models/ventureCoachesStore`. Nothing here runs SQL.
  *
- * Re-exported unchanged through `@/lib/ventures` (the module it came from) — see
- * docs/LAYER_SPLIT.md. (Distinct from `@/services/ventures/coach`, which backs the
- * coach IDENTITY and INVITATION layer.)
+ * This module used to be re-exported through `@/lib/ventures`; that barrel is
+ * gone (CH-4) and importers read this module directly. See docs/LAYER_SPLIT.md.
+ * (Distinct from `@/services/ventures/coach`, which backs the coach IDENTITY and
+ * INVITATION layer.)
  */
 
 import {

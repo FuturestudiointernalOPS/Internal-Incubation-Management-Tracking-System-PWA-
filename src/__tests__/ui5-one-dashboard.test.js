@@ -101,8 +101,8 @@ describe("sidebar additions — the doors live in the sidebar", () => {
 
 describe("founder classification — ownership, not the role string", () => {
   test("the memberships the sidebar reads are active memberships", () => {
-    const contacts = require("@/models/contacts");
-    expect(typeof contacts.getVentureMembershipsForContact).toBe("function");
+    const { getVentureMembershipsForContact } = require("@/models/contacts/programMembership");
+    expect(typeof getVentureMembershipsForContact).toBe("function");
   });
 
   test("the relationships API derives isFounder from ownership/founder type", () => {

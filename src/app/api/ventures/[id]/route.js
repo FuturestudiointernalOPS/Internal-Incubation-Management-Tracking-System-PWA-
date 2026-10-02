@@ -4,12 +4,8 @@ import { getSession } from "@/lib/auth";
 import { getAuthorizationContext, requireAuthorization } from "@/models/authorization/index";
 import { isWithinScope, resolveVentureScopeId } from "@/services/authorization/scope";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import {
-  getVentureById,
-  updateVenture,
-  logVentureActivity,
-  addVentureHistory,
-} from "@/lib/ventures";
+import { logVentureActivity, addVentureHistory } from "@/services/ventures/activity";
+import { getVentureById, updateVenture } from "@/services/ventures/record";
 
 /**
  * GET /api/ventures/[id]

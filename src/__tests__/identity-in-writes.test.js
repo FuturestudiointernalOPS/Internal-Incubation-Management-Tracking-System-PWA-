@@ -35,14 +35,18 @@ jest.mock("@/models/communications", () => ({
   notifyAnnouncementGroupMembers: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/models/contacts", () => ({
+jest.mock("@/models/contacts/contactStore", () => ({
   updateContactFields: jest.fn(),
+}));
+jest.mock("@/models/contacts/programMembership", () => ({
   deleteContactPrograms: jest.fn().mockResolvedValue(true),
 }));
 
 const { getSession } = require("@/lib/auth");
 const { createAnnouncement } = require("@/models/communications");
-const { updateContactFields } = require("@/models/contacts");
+const {
+  updateContactFields,
+} = require("@/models/contacts/contactStore");
 
 const { POST: postAnnouncement } = require("@/app/api/announcements/route");
 const { PUT: putContact } = require("@/app/api/contacts/route");

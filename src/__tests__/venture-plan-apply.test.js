@@ -15,7 +15,9 @@ jest.mock("@/lib/deepseek", () => ({
   default: { chat: (...args) => mockChat(...args) },
 }));
 
-jest.mock("@/lib/ventures", () => ({ addDependency: jest.fn(async () => ({ success: true })) }));
+jest.mock("@/services/ventures/timeline", () => ({
+  addDependency: jest.fn(async () => ({ success: true })),
+}));
 
 const mockContacts = { byName: new Map() };
 jest.mock("@/lib/db", () => {
@@ -41,7 +43,7 @@ jest.mock("@/lib/db", () => {
 });
 
 const { __state: state } = require("@/lib/db");
-const { addDependency } = require("@/lib/ventures");
+const { addDependency } = require("@/services/ventures/timeline");
 const { diffProposals, revisePlanProposal, applyPlanImport } = require("@/services/ventures/planImport");
 
 const PROPOSAL = {

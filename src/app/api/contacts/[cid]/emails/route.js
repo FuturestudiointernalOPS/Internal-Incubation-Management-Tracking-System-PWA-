@@ -2,7 +2,9 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/models/authorization/index";
-import { getEmailLogForContact } from "@/models/contacts";
+import {
+  getEmailLogForContact,
+} from "@/models/contacts/registry";
 
 /**
  * GET /api/contacts/[cid]/emails

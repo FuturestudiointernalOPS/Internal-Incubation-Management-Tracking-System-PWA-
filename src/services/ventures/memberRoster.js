@@ -12,7 +12,7 @@
  * Same facades as the controller used, so route-level test mocks still apply.
  * No SQL, no HTTP.
  */
-import { invalidateVentureAccess } from "@/lib/ventureAccessFacts";
+import { invalidateVentureAccess } from "@/services/ventures/accessFacts";
 import { sendVentureMemberInvitationEmail } from "@/lib/email";
 import { resolveAppUrl } from "@/lib/appUrl";
 import { recordVentureMemberInvitationDelivery } from "@/models/ventureMemberInvitations";

@@ -1,7 +1,9 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/models/authorization/index";
-import { getContactRolesByCid } from "@/models/contacts";
+import {
+  getContactRolesByCid,
+} from "@/models/contacts/contactStore";
 
 export const dynamic = "force-dynamic";
 

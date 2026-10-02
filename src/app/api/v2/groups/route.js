@@ -15,7 +15,7 @@ import {
   updateV2GroupFields,
   getFamilyGroupRowsByProgram,
   getV2GroupRowsByProgram,
-} from "@/models/groups";
+} from "@/models/groups/v2Groups";
 
 export async function POST(req) {
   try {

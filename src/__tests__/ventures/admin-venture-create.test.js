@@ -20,7 +20,7 @@ jest.mock("@/lib/auth", () => ({
   getSession: jest.fn(),
 }));
 
-jest.mock("@/lib/ventures", () => ({
+jest.mock("@/services/ventures/activity", () => ({
   logVentureActivity: jest.fn().mockResolvedValue(undefined),
 }));
 

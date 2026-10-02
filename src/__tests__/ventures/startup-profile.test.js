@@ -27,21 +27,7 @@ jest.mock("@/lib/ventureAuth", () => ({
 
 import db from "@/lib/db";
 import { hasActiveVentureAssignment } from "@/lib/ventureAuth";
-import {
-  calculateCompletion,
-  validateStep,
-  validateFullProfile,
-  WIZARD_STEP_VALIDATORS,
-  ALLOWED_DOCUMENT_TYPES,
-  ALLOWED_FILE_EXTENSIONS,
-  TOTAL_WIZARD_STEPS,
-  WIZARD_STEPS_MAP,
-  canEditStartupProfile,
-  canReadStartupProfile,
-  updateWizardStep,
-  submitStartupProfile,
-  uploadProfileDocument,
-} from "@/lib/ventures";
+import { calculateCompletion, validateStep, validateFullProfile, WIZARD_STEP_VALIDATORS, ALLOWED_DOCUMENT_TYPES, ALLOWED_FILE_EXTENSIONS, TOTAL_WIZARD_STEPS, WIZARD_STEPS_MAP, canEditStartupProfile, canReadStartupProfile, updateWizardStep, submitStartupProfile, uploadProfileDocument } from "@/services/ventures/profile";
 
 describe("Startup Profile Wizard — Business Logic", () => {
   beforeEach(() => {

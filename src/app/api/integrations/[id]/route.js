@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireAuthorization } from "@/models/authorization/index";
-import { updateIntegration, deleteIntegration } from "@/lib/ventures";
+import { updateIntegration, deleteIntegration } from "@/services/ventures/integrations";
 
 export const PATCH = createHandler(async (req, { params }) => {
   const capError = await requireAuthorization("settings", "edit");

@@ -92,7 +92,7 @@ jest.mock("@/lib/ventureScopedAccess", () => ({
   }),
 }));
 
-jest.mock("@/lib/ventures", () => ({
+jest.mock("@/services/ventures/activity", () => ({
   notifyVentureFounders: jest.fn().mockResolvedValue(true),
   addVentureHistory: jest.fn().mockResolvedValue(true),
 }));
@@ -103,7 +103,7 @@ const {
   completeStageIfAllMilestonesDone,
   deriveMilestoneStatusFromTasks,
   combineMilestoneStatus,
-} = require("@/lib/ventureMilestoneEngine");
+} = require("@/services/ventures/milestoneEngine");
 
 const milestoneCtx = { params: { id: "VNT-3ECFB390" } };
 const readJson = async (res) => res.json();

@@ -2,13 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { requireAuthorization } from "@/models/authorization/index";
-import {
-  listResources, getResource, createResource, updateResource, deleteResource,
-  listCategories, toggleBookmark, getUserBookmarks, markResourceComplete,
-  getRecommendedResources,
-  getLearningProgress, getPersonalizedRecommendations, getLearningHistory,
-  listLearningPaths, createLearningPath, getVentureLearningPaths, assignLearningPath,
-} from "@/lib/ventures";
+import { listResources, getResource, createResource, updateResource, deleteResource, listCategories, toggleBookmark, getUserBookmarks, markResourceComplete, getRecommendedResources, getLearningProgress, getPersonalizedRecommendations, getLearningHistory, listLearningPaths, createLearningPath, getVentureLearningPaths, assignLearningPath } from "@/services/ventures/knowledge";
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;

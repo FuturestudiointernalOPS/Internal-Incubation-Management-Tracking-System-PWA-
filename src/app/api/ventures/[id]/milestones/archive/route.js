@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { applyBulk } from "@/lib/ventureArchive";
-import { canManageMilestones, completeStageIfAllMilestonesDone } from "@/lib/ventureMilestoneEngine";
+import { applyBulk } from "@/services/ventures/archive";
+import { canManageMilestones, completeStageIfAllMilestonesDone } from "@/services/ventures/milestoneEngine";
 import { listMilestonesForArchive } from "@/models/ventureWorkspace";
 
 /**

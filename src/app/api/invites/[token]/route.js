@@ -13,7 +13,7 @@ import {
   createContactFromInvite,
   markInviteTokenUsed,
   addActiveProgramEnrollment,
-} from "@/models/groups";
+} from "@/models/groups/invitations";
 
 export const dynamic = "force-dynamic";
 

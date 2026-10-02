@@ -22,7 +22,7 @@ import {
   linkOrgTeamContactsByCidOnUpdate,
   clearOrgTeamMemberLinksOnDelete,
   deleteOrgTeam,
-} from "@/models/groups";
+} from "@/models/groups/orgTeams";
 
 export async function GET(req) {
   try {

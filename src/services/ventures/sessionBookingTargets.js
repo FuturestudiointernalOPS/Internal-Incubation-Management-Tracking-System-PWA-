@@ -13,9 +13,9 @@
  * Same facades as the controller used, so route-level test mocks still apply.
  * No SQL, no HTTP.
  */
-import { resolveCoachContact } from "@/lib/ventureCoach";
-import { getDeliverable } from "@/lib/ventures";
-import { assertBookableMilestone, activateDueStages } from "@/lib/ventureMilestoneEngine";
+import { resolveCoachContact } from "@/services/ventures/coach";
+import { getDeliverable } from "@/services/ventures/deliverables";
+import { assertBookableMilestone, activateDueStages } from "@/services/ventures/milestoneEngine";
 import { getVentureDbIdByCodeOrId } from "@/models/ventureWorkspace";
 
 /**

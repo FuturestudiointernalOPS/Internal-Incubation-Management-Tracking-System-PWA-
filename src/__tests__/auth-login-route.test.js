@@ -32,11 +32,9 @@ jest.mock("@/models/platform/roles", () => ({
   resolveEffectiveRole: jest.fn(() => "staff"),
 }));
 
-jest.mock("@/lib/authorization/membership", () => ({
+jest.mock("@/services/authorization/membership", () => ({
   getEffectiveGroupsForUser: jest.fn(async () => []),
-}));
-
-jest.mock("@/lib/rate-limit", () => ({
+}));jest.mock("@/lib/rate-limit", () => ({
   enforceRateLimit: jest.fn(() => null),
   getClientIp: jest.fn(() => "203.0.113.7"),
 }));

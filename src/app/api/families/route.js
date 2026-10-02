@@ -23,7 +23,7 @@ import {
   updateFamilyArchiveStatus,
   ensureFamilyArchiveColumn,
   deleteFamily,
-} from "@/models/contacts";
+} from "@/models/contacts/families";
 
 /**
  * Columns that must never leave this API. A family/group row also carries the

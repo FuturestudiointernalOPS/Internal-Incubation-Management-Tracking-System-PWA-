@@ -8,7 +8,7 @@
 // Edges are added through the ONE dependency writer in the platform, so an
 // imported plan gets the same cycle refusal (including transitive) that a
 // hand-made edge gets.
-import { addDependency } from "@/lib/ventures";
+import { addDependency } from "@/services/ventures/timeline";
 import { recordVentureChange } from "@/models/ventureChangeLog";
 import {
   applyPlanImportDraft,

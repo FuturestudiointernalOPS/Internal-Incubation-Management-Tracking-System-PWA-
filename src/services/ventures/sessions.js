@@ -10,8 +10,8 @@
  * the status side-effects and the action-item scope — live here; every statement
  * is in `@/models/ventureSessionsStore`. Nothing here runs SQL.
  *
- * Re-exported unchanged through `@/lib/ventures` (the module it came from) — see
- * docs/LAYER_SPLIT.md.
+ * This module used to be re-exported through `@/lib/ventures`; that barrel is
+ * gone (CH-4) and importers read this module directly. See docs/LAYER_SPLIT.md.
  */
 
 import {

@@ -59,19 +59,15 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/models/ventureDocumentTypes", () => ({
-  __esModule: true,
+jest.mock("@/services/ventures/ventureDocumentTypes", () => ({
   listActiveVentureDocumentTypesOrDefaults: jest.fn(async () => [{ code: "legal_documents" }]),
   canManageVentureDocumentTypes: jest.fn(),
 }));
 
+const { uploadVerificationDocument, listVerificationDocumentVersions, addVerificationDocumentVersion, canManageVerification } = require("@/services/ventures/verification");
 const {
-  uploadVerificationDocument,
-  listVerificationDocumentVersions,
-  addVerificationDocumentVersion,
-  canManageVerification,
-} = require("@/lib/ventures");
-const { canManageVentureDocumentTypes } = require("@/models/ventureDocumentTypes");
+  canManageVentureDocumentTypes,
+} = require("@/services/ventures/ventureDocumentTypes");
 
 const DOCUMENT = {
   id: 11,

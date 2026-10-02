@@ -2,14 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { resolveVentureDbId } from "@/lib/ventureOwnership";
-import {
-  getProjectTimeline,
-  getGanttData,
-  calculateProjectProgress,
-  getDelaySummary,
-  addDependency,
-  removeDependency,
-} from "@/lib/ventures";
+import { getProjectTimeline, getGanttData, calculateProjectProgress, getDelaySummary, addDependency, removeDependency } from "@/services/ventures/timeline";
 
 /** The only entity kinds a legacy dependency may connect. */
 const DEPENDENCY_TYPES = new Set(["milestone", "task"]);

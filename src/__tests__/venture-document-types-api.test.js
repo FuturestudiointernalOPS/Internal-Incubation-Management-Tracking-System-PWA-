@@ -34,19 +34,23 @@ jest.mock("@/services/ventures/operatingPlans", () => ({
   resolveVentureCode: jest.fn(async (id) => id),
 }));
 
-jest.mock("@/models/ventureDocumentTypes", () => ({
-  __esModule: true,
+jest.mock("@/services/ventures/ventureDocumentTypes", () => ({
   canManageVentureDocumentTypes: jest.fn(),
   createVentureDocumentType: jest.fn(),
   deleteVentureDocumentType: jest.fn(),
   ensureVentureDocumentTypesForVenture: jest.fn().mockResolvedValue(undefined),
-  listVentureDocumentTypes: jest.fn().mockResolvedValue([]),
   updateVentureDocumentType: jest.fn(),
+}));
+jest.mock("@/models/ventureDocumentTypesStore", () => ({
+  listVentureDocumentTypes: jest.fn().mockResolvedValue([]),
 }));
 
 const { getSession } = require("@/lib/auth");
 const { requireVentureAccess } = require("@/lib/ventureAuth");
-const model = require("@/models/ventureDocumentTypes");
+const model = {
+  ...require("@/services/ventures/ventureDocumentTypes"),
+  ...require("@/models/ventureDocumentTypesStore"),
+}; // was @/models/ventureDocumentTypes
 const {
   GET: listTypes,
   POST: createType,

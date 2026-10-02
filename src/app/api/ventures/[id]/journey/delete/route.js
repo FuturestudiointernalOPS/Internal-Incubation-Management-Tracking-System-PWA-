@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { resolvePlanAccess, allowsPlanAction } from "@/services/ventures/operatingPlans";
 import { ensureJourneyTable, resolveVentureInternalId, listJourneyStages } from "@/services/ventures/journey";
-import { deleteJourneyStages } from "@/lib/ventureJourneyArchive";
+import { deleteJourneyStages } from "@/services/ventures/journey";
 
 export const dynamic = "force-dynamic";
 

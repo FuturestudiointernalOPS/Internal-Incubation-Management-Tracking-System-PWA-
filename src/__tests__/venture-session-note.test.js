@@ -64,15 +64,17 @@ jest.mock("@/lib/ventureScopedAccess", () => ({
   }),
 }));
 
-jest.mock("@/lib/ventureCoach", () => ({
+jest.mock("@/services/ventures/coach", () => ({
   resolveCoachContact: jest.fn().mockResolvedValue(null),
 }));
 
-jest.mock("@/lib/ventures", () => ({
+jest.mock("@/services/ventures/deliverables", () => ({
+  getDeliverable: (...args) => mockGetDeliverable(...args),
+}));
+jest.mock("@/services/ventures/sessions", () => ({
   listSessions: jest.fn().mockResolvedValue([]),
   getSession: (...args) => mockGetSession(...args),
   createSession: (...args) => mockCreateSession(...args),
-  getDeliverable: (...args) => mockGetDeliverable(...args),
   updateSession: (...args) => mockUpdateSession(...args),
   cancelSession: jest.fn(),
   rescheduleSession: jest.fn(),

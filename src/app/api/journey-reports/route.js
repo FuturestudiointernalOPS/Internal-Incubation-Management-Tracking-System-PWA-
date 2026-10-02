@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { listPortfolioReports, listPortfolioMissingClosingReports } from "@/lib/ventureReports";
+import { listPortfolioReports, listPortfolioMissingClosingReports } from "@/services/ventures/reports";
 
 export const dynamic = "force-dynamic";
 

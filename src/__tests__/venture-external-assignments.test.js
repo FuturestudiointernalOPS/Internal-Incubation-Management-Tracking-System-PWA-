@@ -21,7 +21,9 @@ jest.mock("@/lib/deepseek", () => {
     default: { chat },
   };
 });
-jest.mock("@/lib/ventures", () => ({ addDependency: jest.fn(async () => ({ success: true })) }));
+jest.mock("@/services/ventures/timeline", () => ({
+  addDependency: jest.fn(async () => ({ success: true })),
+}));
 
 jest.mock("@/lib/db", () => {
   const state = { queries: [], updateRows: null };

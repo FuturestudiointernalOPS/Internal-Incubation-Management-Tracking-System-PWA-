@@ -16,7 +16,7 @@ import { toDayString } from "@/lib/programProgress";
 import {
   recalculateKpiProgress,
   refreshKpiProgressIfStale,
-} from "@/models/kpi-progress";
+} from "@/services/programs/kpiProgress";
 import {
   getAssistantContactsByCids,
   getPersistedKpiProgress,

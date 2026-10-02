@@ -113,7 +113,7 @@ jest.mock("@/lib/auth", () => ({
 
 const mockAuth = require("@/lib/auth");
 
-const { resolveCoachContact, inviteCoachByEmail } = require("@/lib/ventureCoach");
+const { resolveCoachContact, inviteCoachByEmail } = require("@/services/ventures/coach");
 const { notifyVentureCoach, notifyVentureLeadManagers } = require("@/services/ventures/notify");
 const { GET: calendarGET } = require("@/app/api/calendar/route");
 const { sendStandaloneEmail, sendInviteEmail, sendLoginEmail } = require("@/lib/email");

@@ -213,7 +213,9 @@ export async function applySubmissionReview({ session, payload }) {
   // 6. Recalculate KPI progress when the status becomes a final decision
   if ((status === "approved" || status === "rejected") && submission?.program_id) {
     try {
-      const { recalculateKpiProgress } = await import("@/models/kpi-progress");
+      const {
+  recalculateKpiProgress,
+} = require("@/services/programs/kpiProgress");
       await recalculateKpiProgress(submission.program_id);
     } catch (_) {}
   }

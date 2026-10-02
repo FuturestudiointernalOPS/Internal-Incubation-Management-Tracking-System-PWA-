@@ -11,7 +11,8 @@
  * per-row archived/restored/blocked classification); every statement lives in
  * `@/models/ventureArchiveStore`. Nothing here runs SQL.
  *
- * Re-exported unchanged through the compatibility facade `@/lib/ventureArchive`
+ * This module used to be re-exported through the `@/lib/ventureArchive` facade;
+ * that facade is gone (CH-4) and importers read this module directly.
  * — see docs/LAYER_SPLIT.md. Column additions (is_archived, archived_at,
  * archived_by) live in ensureVentureSchema (ventures.js).
  */

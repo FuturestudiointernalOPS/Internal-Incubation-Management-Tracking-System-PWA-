@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { resolvePlanAccess, allowsPlanAction } from "@/services/ventures/operatingPlans";
 import { ensureJourneyTable, resolveVentureInternalId, listJourneyStages } from "@/services/ventures/journey";
-import { archiveJourneyStages, restoreJourneyStages } from "@/lib/ventureJourneyArchive";
+import { archiveJourneyStages, restoreJourneyStages } from "@/services/ventures/journey";
 
 export const dynamic = "force-dynamic";
 

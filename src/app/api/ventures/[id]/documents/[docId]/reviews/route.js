@@ -7,7 +7,7 @@ import {
   getVentureIdByCodeForReviewsSubmit, getDocumentForReviewsSubmit,
   insertDocumentReview,
 } from "@/models/ventureAssets";
-import { notifyVentureFounders } from "@/lib/ventures";
+import { notifyVentureFounders } from "@/services/ventures/activity";
 
 const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin"];
 // Reviewers stand-in until Track 5's venture_advisors ships. TODO Track 5: scope to actual assigned advisor.

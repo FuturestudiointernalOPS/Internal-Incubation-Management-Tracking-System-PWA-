@@ -77,7 +77,10 @@ jest.mock("@/services/authorization/eligibilityAdmin", () => ({
 }));
 
 const mockRealEligAdmin = jest.requireActual("@/services/authorization/eligibilityAdmin");
-const mockRealEligibility = jest.requireActual("@/lib/authorization/eligibility");
+const mockRealEligibility = {
+  ...jest.requireActual("@/models/authorization/eligibility"),
+  ...jest.requireActual("@/services/authorization/eligibility"),
+};
 jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn().mockImplementation(async () => mockAuthzDecision),
   invalidateAllAuthorizationContexts: jest.fn(),

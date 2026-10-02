@@ -7,7 +7,7 @@ import {
   getGroups,
   deleteGroup,
   getFamilyProgramId,
-} from "@/models/groups";
+} from "@/models/groups/contactGroups";
 import { createContactGroup, updateContactGroup } from "@/services/contacts/groups";
 export const dynamic = "force-dynamic";
 

@@ -23,11 +23,15 @@ import {
   markContactInvited,
   upsertContact,
   createAccessRequestNotification,
+  findContactCidByPhone,
+} from "@/models/contacts/contactStore";
+import {
   assignContactToProgram,
   createParticipantProgramAudit,
-  findContactCidByPhone,
+} from "@/models/contacts/programMembership";
+import {
   createDuplicatePhoneFlag,
-} from "@/models/contacts";
+} from "@/models/contacts/duplicates";
 
 /**
  * Self-service roles: the only roles a caller WITHOUT the role-assignment

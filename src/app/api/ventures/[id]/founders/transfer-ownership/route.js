@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/lib/auth";
-import {
-  transferOwnership,
-  canManageFounders,
-} from "@/lib/ventures";
+import { transferOwnership, canManageFounders } from "@/services/ventures/founders";
 
 /**
  * POST /api/ventures/[id]/founders/transfer-ownership

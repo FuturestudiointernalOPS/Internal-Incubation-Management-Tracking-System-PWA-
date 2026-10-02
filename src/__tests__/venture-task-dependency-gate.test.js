@@ -44,12 +44,14 @@ jest.mock("@/models/ventureWorkspace", () => ({
   insertVentureTaskReview: jest.fn(),
 }));
 
-jest.mock("@/lib/ventureArchive", () => ({ archiveTask: jest.fn().mockResolvedValue({ ok: true }) }));
+jest.mock("@/services/ventures/archive", () => ({ archiveTask: jest.fn().mockResolvedValue({ ok: true }) }));
 
-jest.mock("@/lib/ventures", () => ({
+jest.mock("@/services/ventures/deliverables", () => ({
+  getMilestone: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/services/ventures/tasks", () => ({
   listTasks: jest.fn().mockResolvedValue([]),
   getTask: jest.fn().mockResolvedValue({ id: 5, venture_id: 1, title: "Task B", status: "todo", review_required: false }),
-  getMilestone: jest.fn().mockResolvedValue(null),
   createTask: jest.fn().mockResolvedValue({ id: 5 }),
   updateTask: jest.fn().mockResolvedValue({ updated: true }),
   listTaskComments: jest.fn().mockResolvedValue([]),
@@ -66,7 +68,7 @@ jest.mock("@/lib/ventures", () => ({
 }));
 
 const { GET, PATCH } = require("@/app/api/ventures/[id]/tasks/route");
-const { getTask, updateTask, listTasks } = require("@/lib/ventures");
+const { getTask, updateTask, listTasks } = require("@/services/ventures/tasks");
 
 const ctx = { params: Promise.resolve({ id: "VNT-1" }) };
 const patchReq = (body) => ({ url: "http://localhost/api/ventures/VNT-1/tasks?id=5", json: async () => body });

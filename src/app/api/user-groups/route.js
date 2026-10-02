@@ -2,7 +2,9 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/models/authorization/index";
-import { isGroupProtected } from "@/lib/authorization/membership";
+import {
+  isGroupProtected,
+} from "@/models/authorization/membership";
 import {
   listUserGroups,
   joinUserGroup,

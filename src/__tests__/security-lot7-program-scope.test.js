@@ -60,7 +60,7 @@ jest.mock("@/models/teams", () => ({
   getTeams: jest.fn(async () => ({ rows: [] })),
 }));
 
-jest.mock("@/models/groups", () => ({
+jest.mock("@/models/groups/orgTeams", () => ({
   getOrgTeams: jest.fn(async () => ({ rows: [{ id: "TEAM-1", program_id: "P1" }] })),
   createOrgTeam: jest.fn(async () => ({ rows: [{ id: "TEAM-NEW", program_id: "P1" }] })),
   updateOrgTeam: jest.fn(async () => ({})),
@@ -72,6 +72,15 @@ jest.mock("@/models/groups", () => ({
   linkOrgTeamContactsByEmail: jest.fn(async () => ({})),
   linkOrgTeamContactsByCid: jest.fn(async () => ({})),
   linkOrgTeamContactsByCidOnUpdate: jest.fn(async () => ({})),
+}));
+jest.mock("@/models/groups/v2Groups", () => ({
+  getGroupProgramId: jest.fn(async () => ({ rows: [{ program_id: "P1" }] })),
+  getParticipantGroupPrograms: jest.fn(async () => ({ rows: [] })),
+  insertGroupMember: jest.fn(async () => ({ rows: [{ id: 1 }] })),
+  getGroupMembers: jest.fn(async () => ({ rows: [] })),
+  getGroupMemberParticipants: jest.fn(async () => ({ rows: [] })),
+}));
+jest.mock("@/models/groups/v2Groups", () => ({
   getGroupProgramId: jest.fn(async () => ({ rows: [{ program_id: "P1" }] })),
   getParticipantGroupPrograms: jest.fn(async () => ({ rows: [] })),
   insertGroupMember: jest.fn(async () => ({ rows: [{ id: 1 }] })),
@@ -82,7 +91,9 @@ jest.mock("@/models/groups", () => ({
 const { isWithinScope } = require("@/services/authorization/scope");
 const { getAuthorizationContext } = require("@/models/authorization/index");
 const teamsModel = require("@/models/teams");
-const groupsModel = require("@/models/groups");
+const orgTeamsModel = require("@/models/groups/orgTeams");
+const v2GroupsModel = require("@/models/groups/v2Groups");
+const groupsModel = { ...orgTeamsModel, ...v2GroupsModel };
 
 const pmTeams = require("@/app/api/pm/teams/route");
 const teams = require("@/app/api/teams/route");
