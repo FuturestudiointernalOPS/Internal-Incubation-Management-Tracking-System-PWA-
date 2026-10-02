@@ -2,11 +2,9 @@ import { initDb } from "@/lib/db";
 import { requireProjectAccess } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import {
-  getProjectUpdates,
-  findProjectUpdateId,
-  updateProjectUpdate,
-  createProjectUpdate,
-} from "@/models/projects";
+  listProjectUpdates,
+  saveProjectUpdate,
+} from "@/services/dashboard/adminProjectUpdates";
 
 /**
  * PROJECT UPDATES API
@@ -21,17 +19,10 @@ import {
  *   user_id, user_name, week_number, year, status,
  *   accomplishments, current_focus, blockers, next_steps,
  *   overall_status, notes
+ *
+ * The upsert lives in `services/dashboard/adminProjectUpdates`; this controller
+ * keeps `initDb`, the project-scope guard and the envelope.
  */
-
-function getWeekNumber(date) {
-  const utcDate = new Date(
-    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
-  );
-  const dayNum = utcDate.getUTCDay() || 7;
-  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
-  return Math.ceil(((utcDate - yearStart) / 86400000 + 1) / 7);
-}
 
 export async function GET(req, { params }) {
   try {
@@ -40,9 +31,8 @@ export async function GET(req, { params }) {
     const authError = await requireProjectAccess(id);
     if (authError) return authError;
 
-    const result = await getProjectUpdates(id);
-
-    return NextResponse.json({ success: true, updates: result.rows });
+    const { status, body } = await listProjectUpdates(id);
+    return NextResponse.json(body, { status });
   } catch (error) {
     console.error("GET project updates error:", error);
     return NextResponse.json(
@@ -58,97 +48,10 @@ export async function POST(req, { params }) {
     const { id } = await params;
     const authError = await requireProjectAccess(id);
     if (authError) return authError;
-    const body = await req.json();
 
-    const {
-      user_id,
-      user_name,
-      week_number,
-      year,
-      status,
-      accomplishments,
-      current_focus,
-      blockers,
-      next_steps,
-      overall_status,
-      notes,
-    } = body;
-
-    if (!user_id) {
-      return NextResponse.json(
-        { success: false, error: "user_id is required" },
-        { status: 400 },
-      );
-    }
-
-    const currentWeek = week_number || getWeekNumber(new Date());
-    const currentYear = year || new Date().getFullYear();
-
-    // Check if an update already exists for this week
-    const existing = await findProjectUpdateId(id, currentWeek, currentYear);
-
-    if (existing.rows.length > 0) {
-      // Update existing
-      const updateFields = [];
-      const updateArgs = [];
-
-      const fields = {
-        accomplishments,
-        current_focus,
-        blockers,
-        next_steps,
-        overall_status,
-        notes,
-        status,
-        user_name,
-      };
-
-      for (const [key, value] of Object.entries(fields)) {
-        if (value !== undefined) {
-          updateFields.push(`${key} = ?`);
-          updateArgs.push(value);
-        }
-      }
-
-      if (updateFields.length > 0) {
-        updateFields.push("updated_at = CURRENT_TIMESTAMP");
-        updateArgs.push(existing.rows[0].id);
-
-        await updateProjectUpdate(updateFields, updateArgs);
-      }
-
-      return NextResponse.json({
-        success: true,
-        id: existing.rows[0].id,
-        action: "updated",
-        week_number: currentWeek,
-        year: currentYear,
-      });
-    }
-
-    // Create new
-    const result = await createProjectUpdate(
-      id,
-      user_id,
-      user_name,
-      currentWeek,
-      currentYear,
-      status,
-      accomplishments,
-      current_focus,
-      blockers,
-      next_steps,
-      overall_status,
-      notes,
-    );
-
-    return NextResponse.json({
-      success: true,
-      id: Number(result.rows[0]?.id ?? result.lastInsertRowid),
-      action: "created",
-      week_number: currentWeek,
-      year: currentYear,
-    });
+    const payload = await req.json();
+    const { status, body } = await saveProjectUpdate({ projectId: id, payload });
+    return NextResponse.json(body, { status });
   } catch (error) {
     console.error("POST project updates error:", error);
     return NextResponse.json(

@@ -96,7 +96,9 @@ describe("no raw HTML and server-controlled fields", () => {
   });
 
   test("audit actors come from the session", () => {
-    expect(read("src/app/api/admin/reject-user/route.js")).toMatch(/session\?\.name \|\| session\?\.cid \|\| "system"/);
+    // The rejection actor rule moved to the administration service with the
+    // layer split; the invariant is unchanged — the actor is the session.
+    expect(read("src/services/dashboard/userAdmin.js")).toMatch(/actor\?\.name \|\| actor\?\.cid \|\| "system"/);
     expect(read("src/app/api/tasks/comments/route.js")).toMatch(/session\.name \|\| sender_name \|\| session\.cid/);
   });
 });
