@@ -28,7 +28,8 @@ jest.mock("@/lib/email", () => ({
 const mockEval = {
   evaluateSubmission: jest.fn(),
   formHasAiEvaluation: jest.fn(),
-  getEvaluation: jest.fn(),
+  // Resolves to "no stored evaluation" by default, which is the FIRST run.
+  getEvaluation: jest.fn(async () => null),
 };
 jest.mock("@/lib/platform/ai/evaluate", () => mockEval);
 
@@ -135,12 +136,22 @@ describe("POST single", () => {
     expect(mockAi.deleteEvaluationsForSubmission).not.toHaveBeenCalled();
   });
 
-  test("force clears the prior evaluation and failure first", async () => {
+  test("force on an ALREADY-evaluated response returns the STORED row — it does not decide again", async () => {
+    // A model is not deterministic, so a second call moves the number — and the
+    // row it would replace is the one a reviewer's own values live on.
+    const stored = { overall_score: 42, final_score: 42, human_override: true };
+    mockEval.getEvaluation.mockResolvedValueOnce(stored);
     const res = await POST(postReq({ submission_id: 9, force: true }));
     const data = await readJson(res);
-    expect(data.re_evaluated).toBe(true);
-    expect(mockAi.deleteEvaluationsForSubmission).toHaveBeenCalledWith(9);
-    expect(mockAi.resetEvaluationFailuresForSubmission).toHaveBeenCalledWith(9);
+    expect(res.status).toBe(200);
+    expect(data.evaluation).toEqual(stored);
+    expect(data.stored).toBe(true);
+    expect(data.re_evaluated).toBe(false);
+    // Nothing is decided again, and nothing is deleted: the record survives.
+    expect(mockEval.evaluateSubmission).not.toHaveBeenCalled();
+    expect(mockAi.deleteEvaluationsForSubmission).not.toHaveBeenCalled();
+    expect(mockAi.resetEvaluationFailuresForSubmission).not.toHaveBeenCalled();
+    expect(maybeAutoApprove).not.toHaveBeenCalled();
   });
 
   test("a null evaluation answer is a 400", async () => {
