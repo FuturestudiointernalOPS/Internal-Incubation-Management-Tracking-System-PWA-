@@ -2527,6 +2527,30 @@ build` were momentarily red on an unrelated in-progress edit of
 
 ---
 
+### Domain 91 — the bulk-upload controller frontier (slice 127)
+
+`POST /api/admin/bulk-upload` decided the CSV parse, the protected-group
+detection, the per-row validation (required fields, email shape, phone
+uniqueness), the role boundary (an importer without the role-assignment
+capability may only create self-service roles), the upsert, the rollback on a
+database failure and the completion notification. Those move to
+`services/dashboard/bulkImport.js` (`parseContactCsv`, `csvWantsInternalGroup`,
+`importContacts`), which parses with `papaparse`, hashes with
+`@/server/auth/password` and reads/writes through `@/models/**`. The controller
+keeps `initDb`, the three capability gates, the protected-group boundary (it
+parses first, then asks) and the envelope.
+
+One source-level security contract was repointed (invariant unchanged):
+`security-lot3-admin-authz.test.js` now reads `IMPORTABLE_ROLES` from the
+service while `const canAssignRole = !assignRoleError` stays on the route.
+`admin-bulk-import.test.js` (15 cases) pins the moved decisions.
+
+`npm test` (265 suites, 3905 tests) and `npm run build` are green. `npx eslint`
+is red only on the unrelated in-progress `src/app/pm/programs/[id]/page.js`
+(V1); this slice's files lint clean.
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** — **deleted** (slice 117): `resolver`, `scope`,
