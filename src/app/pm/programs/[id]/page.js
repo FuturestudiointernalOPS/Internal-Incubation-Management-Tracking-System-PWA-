@@ -1,49 +1,55 @@
 "use client";
-
-import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  Suspense,
+} from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   Users,
   Activity,
   CheckCircle2,
-  ChevronRight,
-  ExternalLink,
   FileText,
-  Mail,
   MessageCircle,
-  Plus,
   Shield,
-  Target,
-  Zap,
-  Clock,
-  AlertCircle,
-  Trash2,
   LayoutDashboard,
-  X,
-  Save,
   BarChart3,
-  User,
-  Paperclip,
-  BookOpen,
-  CheckSquare,
-  Square,
   UserPlus,
-  Calendar,
-  RefreshCw,
-  Bell,
-  Copy,
-  Pencil,
-  Check,
-  UserMinus,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { getWeekNumber, getLocalToday, FACILITATOR_REVIEW_OPTIONS } from "@/lib/constants";
+import {
+  getWeekNumber,
+  getLocalToday,
+  FACILITATOR_REVIEW_OPTIONS,
+} from "@/lib/constants";
 import { FacilitatorsPanel } from "@/components/pm/FacilitatorsPanel";
-import { ProgramProgressPanel } from "@/components/pm/ProgramProgressPanel";
-import ProgramLearningSection from "@/components/lms/ProgramLearningSection";
-import CoachingRequestsPanel from "@/components/lms/CoachingRequestsPanel";
 import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import ProgramLoading from "@/components/pm/program-workspace/ProgramLoading";
+import ProgramHeader from "@/components/pm/program-workspace/ProgramHeader";
+import ProgramTabs from "@/components/pm/program-workspace/ProgramTabs";
+import OverviewTab from "@/components/pm/program-workspace/OverviewTab";
+import ParticipantsTab from "@/components/pm/program-workspace/ParticipantsTab";
+import CurriculumTab from "@/components/pm/program-workspace/CurriculumTab";
+import AttendanceTab from "@/components/pm/program-workspace/AttendanceTab";
+import ConfigTab from "@/components/pm/program-workspace/ConfigTab";
+import ReviewsTab from "@/components/pm/program-workspace/ReviewsTab";
+import ReportsTab from "@/components/pm/program-workspace/ReportsTab";
+import SubmissionsTab from "@/components/pm/program-workspace/SubmissionsTab";
+import PdfViewerModal from "@/components/pm/program-workspace/PdfViewerModal";
+import ProgramToast from "@/components/pm/program-workspace/ProgramToast";
+import DeployTeamModal from "@/components/pm/program-workspace/DeployTeamModal";
+import SessionModal from "@/components/pm/program-workspace/SessionModal";
+import ReviewModal from "@/components/pm/program-workspace/ReviewModal";
+import StaffAssignmentModal from "@/components/pm/program-workspace/StaffAssignmentModal";
+import KpiModal from "@/components/pm/program-workspace/KpiModal";
+import RequirementModal from "@/components/pm/program-workspace/RequirementModal";
+import AttendanceModal from "@/components/pm/program-workspace/AttendanceModal";
+import PmReportModal from "@/components/pm/program-workspace/PmReportModal";
+import TeamDetailsModal from "@/components/pm/program-workspace/TeamDetailsModal";
+import ConfirmActionDialog from "@/components/pm/program-workspace/ConfirmActionDialog";
 
 export const dynamic = "force-dynamic";
 
@@ -173,7 +179,10 @@ function ProgramWorkspace() {
       const unique = Array.from(
         new Map(allAvailable.map((member) => [member.cid, member])).values(),
       );
-      return unique.filter((member) => approvedIds.includes(member.cid) && member.role !== "investor");
+      return unique.filter(
+        (member) =>
+          approvedIds.includes(member.cid) && member.role !== "investor",
+      );
     } catch {
       return [];
     }
@@ -184,7 +193,12 @@ function ProgramWorkspace() {
   const oversightCandidates = React.useMemo(() => {
     const merged = [...assignedStaff, ...facilitators];
     return Array.from(
-      new Map(merged.map((member) => [member.cid ?? member.email ?? member.id, member])).values(),
+      new Map(
+        merged.map((member) => [
+          member.cid ?? member.email ?? member.id,
+          member,
+        ]),
+      ).values(),
     );
   }, [assignedStaff, facilitators]);
 
@@ -207,9 +221,7 @@ function ProgramWorkspace() {
   // never rewrites or clears marks recorded elsewhere (e.g. by a facilitator
   // for their team).
   const [attendanceLoaded, setAttendanceLoaded] = useState({});
-  const [attendanceDate, setAttendanceDate] = useState(
-    () => getLocalToday()
-  );
+  const [attendanceDate, setAttendanceDate] = useState(() => getLocalToday());
   const [pmReportAttachments, setPmReportAttachments] = useState({
     type: "",
     url: "",
@@ -224,11 +236,16 @@ function ProgramWorkspace() {
 
   // Load existing attendance when modal opens
   useEffect(() => {
-    if (!showAttendanceModal || !selectedSessionForAttendance || !attendanceDate) return;
+    if (
+      !showAttendanceModal ||
+      !selectedSessionForAttendance ||
+      !attendanceDate
+    )
+      return;
     const loadAttendance = async () => {
       try {
         const response = await fetch(
-          `/api/attendance?session_id=${selectedSessionForAttendance.id}&program_id=${id}&date=${attendanceDate}`
+          `/api/attendance?session_id=${selectedSessionForAttendance.id}&program_id=${id}&date=${attendanceDate}`,
         );
         const data = await response.json();
         if (data.success && data.attendance) {
@@ -341,7 +358,9 @@ function ProgramWorkspace() {
   const configGradingRef = useRef(null);
 
   const notify = (message, type = "success") => {
-    window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type, message } }));
+    window.dispatchEvent(
+      new CustomEvent("impactos:notify", { detail: { type, message } }),
+    );
   };
 
   const saveConfig = async () => {
@@ -373,7 +392,13 @@ function ProgramWorkspace() {
       if (data.success) {
         notify(t("pmMisc.workspace.saved"));
         fetchProgramData(true);
-      } else notify(t((data.error || t("pmMisc.workspace.saveFailed")) || "") || (data.error || t("pmMisc.workspace.saveFailed")), "error");
+      } else
+        notify(
+          t(data.error || t("pmMisc.workspace.saveFailed") || "") ||
+            data.error ||
+            t("pmMisc.workspace.saveFailed"),
+          "error",
+        );
     } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
@@ -400,19 +425,21 @@ function ProgramWorkspace() {
       const payload =
         teamAssignmentMode === "new"
           ? {
-            name: newTeam.name,
-            group_name: detectedGroupName,
-            program_id: id,
-            member_ids: selectedParticipants,
-            is_management_group: true,
-            ...(newTeam.handler_name ? { handler_name: newTeam.handler_name } : {}),
-            ...(newTeam.staff_id ? { handler_id: newTeam.staff_id } : {}),
-            ...(newTeam.leader_id ? { leader_id: newTeam.leader_id } : {}),
-          }
+              name: newTeam.name,
+              group_name: detectedGroupName,
+              program_id: id,
+              member_ids: selectedParticipants,
+              is_management_group: true,
+              ...(newTeam.handler_name
+                ? { handler_name: newTeam.handler_name }
+                : {}),
+              ...(newTeam.staff_id ? { handler_id: newTeam.staff_id } : {}),
+              ...(newTeam.leader_id ? { leader_id: newTeam.leader_id } : {}),
+            }
           : {
-            team_id: selectedExistingTeamId,
-            member_ids: selectedParticipants,
-          };
+              team_id: selectedExistingTeamId,
+              member_ids: selectedParticipants,
+            };
 
       const response = await fetch(endpoint, {
         method: method,
@@ -441,7 +468,13 @@ function ProgramWorkspace() {
         setSelectedParticipants([]);
         setActiveTab("teams");
         setActiveSubTab("groups");
-      } else notify(t((data.error || t("pmMisc.workspace.operationFailed")) || "") || (data.error || t("pmMisc.workspace.operationFailed")), "error");
+      } else
+        notify(
+          t(data.error || t("pmMisc.workspace.operationFailed") || "") ||
+            data.error ||
+            t("pmMisc.workspace.operationFailed"),
+          "error",
+        );
     } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
@@ -466,7 +499,12 @@ function ProgramWorkspace() {
         notify(t("pmMisc.workspace.participantMoved"));
         fetchProgramData(true);
       } else {
-        notify(t((data.error || t("pmMisc.workspace.moveParticipantFailed")) || "") || (data.error || t("pmMisc.workspace.moveParticipantFailed")), "error");
+        notify(
+          t(data.error || t("pmMisc.workspace.moveParticipantFailed") || "") ||
+            data.error ||
+            t("pmMisc.workspace.moveParticipantFailed"),
+          "error",
+        );
       }
     } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
@@ -501,12 +539,23 @@ function ProgramWorkspace() {
         setFacilitatorDraftId("");
         setSelectedTeam((prev) =>
           prev
-            ? { ...prev, handler_id: handlerId || null, handler_name: handlerName }
+            ? {
+                ...prev,
+                handler_id: handlerId || null,
+                handler_name: handlerName,
+              }
             : prev,
         );
         fetchProgramData(true);
       } else {
-        notify(t((data.error || t("pmMisc.workspace.facilitatorUpdateFailed")) || "") || (data.error || t("pmMisc.workspace.facilitatorUpdateFailed")), "error");
+        notify(
+          t(
+            data.error || t("pmMisc.workspace.facilitatorUpdateFailed") || "",
+          ) ||
+            data.error ||
+            t("pmMisc.workspace.facilitatorUpdateFailed"),
+          "error",
+        );
       }
     } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
@@ -534,7 +583,12 @@ function ProgramWorkspace() {
         notify(t("pmMisc.workspace.memberRemoved"));
         fetchProgramData(true);
       } else {
-        notify(t((data.error || t("pmMisc.workspace.removeMemberFailed")) || "") || (data.error || t("pmMisc.workspace.removeMemberFailed")), "error");
+        notify(
+          t(data.error || t("pmMisc.workspace.removeMemberFailed") || "") ||
+            data.error ||
+            t("pmMisc.workspace.removeMemberFailed"),
+          "error",
+        );
       }
     } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
@@ -628,7 +682,9 @@ function ProgramWorkspace() {
           title: "",
           week_number:
             sessions.length > 0
-              ? Math.max(...sessions.map((session) => session.week_number || 0)) + 1
+              ? Math.max(
+                  ...sessions.map((session) => session.week_number || 0),
+                ) + 1
               : 1,
           status: "pending",
           kpi_ids: [],
@@ -642,7 +698,13 @@ function ProgramWorkspace() {
           requirements: [],
         });
         fetchProgramData(true);
-      } else notify(t((data.error || t("pmMisc.workspace.addFailed")) || "") || (data.error || t("pmMisc.workspace.addFailed")), "error");
+      } else
+        notify(
+          t(data.error || t("pmMisc.workspace.addFailed") || "") ||
+            data.error ||
+            t("pmMisc.workspace.addFailed"),
+          "error",
+        );
     } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
@@ -693,7 +755,13 @@ function ProgramWorkspace() {
           resource_label: "",
         });
         fetchProgramData(true);
-      } else notify(t((data.error || t("pmMisc.workspace.failed")) || "") || (data.error || t("pmMisc.workspace.failed")), "error");
+      } else
+        notify(
+          t(data.error || t("pmMisc.workspace.failed") || "") ||
+            data.error ||
+            t("pmMisc.workspace.failed"),
+          "error",
+        );
     } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
@@ -705,7 +773,9 @@ function ProgramWorkspace() {
     // Optimistic Update
     const previousSessions = [...sessions];
     setSessions((prev) =>
-      prev.map((session) => (session.id === sessionId ? { ...session, status } : session)),
+      prev.map((session) =>
+        session.id === sessionId ? { ...session, status } : session,
+      ),
     );
 
     try {
@@ -721,7 +791,11 @@ function ProgramWorkspace() {
       });
       const data = await response.json();
       if (data.success) {
-        notify(t("pmMisc.workspace.statusUpdatedTo", { status: status.toUpperCase() }));
+        notify(
+          t("pmMisc.workspace.statusUpdatedTo", {
+            status: status.toUpperCase(),
+          }),
+        );
         // Sync with server just in case
         fetchProgramData(true);
       } else {
@@ -769,7 +843,9 @@ function ProgramWorkspace() {
 
         // When a staff member is assigned, create a task for their calendar
         if (field === "handler_id" && value && handlerName) {
-          const session = sessions.find((candidate) => candidate.id === sessionId);
+          const session = sessions.find(
+            (candidate) => candidate.id === sessionId,
+          );
           if (session) {
             const now = new Date();
             const weekNumber = getWeekNumber(now);
@@ -797,7 +873,12 @@ function ProgramWorkspace() {
         if (response.status === 401) {
           notify(t("pmMisc.workspace.sessionExpired"), "error");
         } else {
-          notify(t((data.error || t("pmMisc.workspace.fieldSyncFailed")) || "") || (data.error || t("pmMisc.workspace.fieldSyncFailed")), "error");
+          notify(
+            t(data.error || t("pmMisc.workspace.fieldSyncFailed") || "") ||
+              data.error ||
+              t("pmMisc.workspace.fieldSyncFailed"),
+            "error",
+          );
         }
       }
     } catch {
@@ -818,13 +899,25 @@ function ProgramWorkspace() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const response = await fetch("/api/upload", { method: "POST", body: formData });
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
       const data = await response.json();
       if (data.success && data.url) {
-        setPmReportAttachments((prev) => ({ ...prev, type: "file", url: data.url }));
+        setPmReportAttachments((prev) => ({
+          ...prev,
+          type: "file",
+          url: data.url,
+        }));
         notify(t("pmMisc.workspace.attachmentUploaded"));
       } else {
-        notify(t((data.error || t("pmMisc.workspace.attachmentUploadFailed")) || "") || (data.error || t("pmMisc.workspace.attachmentUploadFailed")), "error");
+        notify(
+          t(data.error || t("pmMisc.workspace.attachmentUploadFailed") || "") ||
+            data.error ||
+            t("pmMisc.workspace.attachmentUploadFailed"),
+          "error",
+        );
       }
     } catch (_) {
       notify(t("pmMisc.workspace.attachmentUploadFailed"), "error");
@@ -841,10 +934,7 @@ function ProgramWorkspace() {
       !newPMReport.week_rating ||
       !newPMReport.main_topic?.trim()
     ) {
-      notify(
-        t("pmMisc.workspace.reportRequiredFields"),
-        "error",
-      );
+      notify(t("pmMisc.workspace.reportRequiredFields"), "error");
       return;
     }
     setIsSaving(true);
@@ -853,8 +943,9 @@ function ProgramWorkspace() {
         action: "submit_pm_report",
         program_id: id,
         session_id: selectedSessionId,
-        week_number: sessions.find((session) => session.id === selectedSessionId)
-          ?.week_number,
+        week_number: sessions.find(
+          (session) => session.id === selectedSessionId,
+        )?.week_number,
         summary: newPMReport.summary,
         status: newPMReport.status,
         pm_id: user.cid || user.id,
@@ -926,7 +1017,13 @@ function ProgramWorkspace() {
           planned_adjustments: "",
         });
         fetchProgramData(true);
-      } else notify(t((data.error || t("pmMisc.workspace.failed")) || "") || (data.error || t("pmMisc.workspace.failed")), "error");
+      } else
+        notify(
+          t(data.error || t("pmMisc.workspace.failed") || "") ||
+            data.error ||
+            t("pmMisc.workspace.failed"),
+          "error",
+        );
     } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
@@ -953,7 +1050,13 @@ function ProgramWorkspace() {
         setShowKPIModal(false);
         setNewKPI({ title: "" });
         fetchProgramData(true);
-      } else notify(t((data.error || t("pmMisc.workspace.failed")) || "") || (data.error || t("pmMisc.workspace.failed")), "error");
+      } else
+        notify(
+          t(data.error || t("pmMisc.workspace.failed") || "") ||
+            data.error ||
+            t("pmMisc.workspace.failed"),
+          "error",
+        );
     } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
@@ -981,7 +1084,7 @@ function ProgramWorkspace() {
       });
       notify(t("pmMisc.workspace.kpiRemoved"));
       fetchProgramData(true);
-    } catch { }
+    } catch {}
   };
 
   const assignStaff = async () => {
@@ -999,7 +1102,13 @@ function ProgramWorkspace() {
         setShowStaffModal(false);
         setNewStaff({ staff_id: "", role: "staff" });
         fetchProgramData(true);
-      } else notify(t((data.error || t("pmMisc.workspace.assignmentFailed")) || "") || (data.error || t("pmMisc.workspace.assignmentFailed")), "error");
+      } else
+        notify(
+          t(data.error || t("pmMisc.workspace.assignmentFailed") || "") ||
+            data.error ||
+            t("pmMisc.workspace.assignmentFailed"),
+          "error",
+        );
     } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
@@ -1026,7 +1135,7 @@ function ProgramWorkspace() {
         notify(t("pmMisc.workspace.personnelRemoved"));
         fetchProgramData(true);
       }
-    } catch { }
+    } catch {}
   };
 
   const deleteTeam = (teamId) => {
@@ -1077,7 +1186,7 @@ function ProgramWorkspace() {
       });
       notify(t("pmMisc.workspace.sessionArchived"));
       fetchProgramData(true);
-    } catch { }
+    } catch {}
   };
 
   const handleReviewSubmission = async () => {
@@ -1102,7 +1211,13 @@ function ProgramWorkspace() {
         setFollowupDate("");
         setFollowupTime("");
         fetchProgramData(true);
-      } else notify(t((data.error || t("pmMisc.workspace.gradeFailed")) || "") || (data.error || t("pmMisc.workspace.gradeFailed")), "error");
+      } else
+        notify(
+          t(data.error || t("pmMisc.workspace.gradeFailed") || "") ||
+            data.error ||
+            t("pmMisc.workspace.gradeFailed"),
+          "error",
+        );
     } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
@@ -1248,7 +1363,13 @@ function ProgramWorkspace() {
         setFollowupDate("");
         setFollowupTime("");
         fetchProgramData(true);
-      } else notify(t((data.error || t("pmMisc.workspace.followupScheduleFailed")) || "") || (data.error || t("pmMisc.workspace.followupScheduleFailed")), "error");
+      } else
+        notify(
+          t(data.error || t("pmMisc.workspace.followupScheduleFailed") || "") ||
+            data.error ||
+            t("pmMisc.workspace.followupScheduleFailed"),
+          "error",
+        );
     } catch {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
@@ -1360,7 +1481,9 @@ function ProgramWorkspace() {
         setLoading(false);
       }
     },
-    [id],
+    // setFamilies is listed because react-hooks infers it here; a useState
+    // setter is stable, so the callback identity is unchanged.
+    [id, setFamilies],
   );
 
   useEffect(() => {
@@ -1368,16 +1491,7 @@ function ProgramWorkspace() {
   }, [fetchProgramData]);
 
   if (loading) {
-    return (
-      <>
-        <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-          <div className="w-12 h-12 border-4 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
-          <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">
-            {t("common.loading")}
-          </p>
-        </div>
-      </>
-    );
+    return <ProgramLoading />;
   }
 
   const pendingSubmissionCount = submissions.filter(
@@ -1385,19 +1499,49 @@ function ProgramWorkspace() {
   ).length;
 
   const allTabs = [
-    { id: "overview", name: t("pmMisc.workspace.tabOverview"), icon: LayoutDashboard },
+    {
+      id: "overview",
+      name: t("pmMisc.workspace.tabOverview"),
+      icon: LayoutDashboard,
+    },
     {
       id: "config",
       name: t("pmMisc.workspace.tabConfiguration"),
       icon: Shield,
       roles: ["super_admin", "program_manager"],
     },
-    { id: "curriculum", name: t("pmMisc.workspace.tabCurriculum"), icon: FileText },
-    { id: "attendance", name: t("pmMisc.workspace.tabAttendance"), icon: CheckCircle2 },
-    { id: "reports", name: t("pmMisc.workspace.tabReports"), icon: BarChart3, roles: ["super_admin", "program_manager", "staff"] },
-    { id: "reviews", name: t("pmMisc.workspace.tabReviews"), icon: MessageCircle, roles: ["super_admin", "program_manager", "staff"] },
-    { id: "participants", name: t("pmMisc.workspace.tabParticipants"), icon: Users },
-    { id: "submissions", name: t("pmMisc.workspace.tabSubmissions"), icon: Activity },
+    {
+      id: "curriculum",
+      name: t("pmMisc.workspace.tabCurriculum"),
+      icon: FileText,
+    },
+    {
+      id: "attendance",
+      name: t("pmMisc.workspace.tabAttendance"),
+      icon: CheckCircle2,
+    },
+    {
+      id: "reports",
+      name: t("pmMisc.workspace.tabReports"),
+      icon: BarChart3,
+      roles: ["super_admin", "program_manager", "staff"],
+    },
+    {
+      id: "reviews",
+      name: t("pmMisc.workspace.tabReviews"),
+      icon: MessageCircle,
+      roles: ["super_admin", "program_manager", "staff"],
+    },
+    {
+      id: "participants",
+      name: t("pmMisc.workspace.tabParticipants"),
+      icon: Users,
+    },
+    {
+      id: "submissions",
+      name: t("pmMisc.workspace.tabSubmissions"),
+      icon: Activity,
+    },
     {
       id: "facilitators",
       name: t("pmMisc.workspace.tabFacilitators"),
@@ -1438,2197 +1582,601 @@ function ProgramWorkspace() {
 
   // curriculum content moved inline below
 
+  const handleSelectTab = (tab) => {
+    if (tab.href) router.push(tab.href);
+    else {
+      if (tab.id === "submissions") {
+        setSubmissionsSeen(true);
+        // Tell the global sidebar badge to clear too.
+        window.dispatchEvent(new CustomEvent("pm:submissions-seen"));
+      }
+      setActiveTab(tab.id);
+    }
+  };
+
+  const handleCopyRegFormLink = () => {
+    navigator.clipboard.writeText(regForm.link);
+    window.dispatchEvent(
+      new CustomEvent("impactos:notify", {
+        detail: {
+          type: "success",
+          message: t("pmMisc.workspace.registrationLinkCopied"),
+        },
+      }),
+    );
+  };
+
+  const handleDeployTeam = () => {
+    setNewTeam({
+      name: "",
+      handler_name: "",
+      member_ids: selectedParticipants,
+    });
+    setEmailInput("");
+    setShowTeamModal(true);
+  };
+
+  const handleToggleParticipant = (isSelected, participant) => {
+    if (isSelected)
+      setSelectedParticipants(
+        selectedParticipants.filter((id) => id !== participant.id),
+      );
+    else setSelectedParticipants([...selectedParticipants, participant.id]);
+  };
+
+  const handleChangeParticipantTeam = (event, participant) => {
+    const newTeamId = event.target.value;
+    if (newTeamId && newTeamId !== (participant.v2_team_id || "")) {
+      changeParticipantTeam(participant.id, newTeamId);
+    }
+  };
+
+  const handleOpenTeamDetails = (team) => {
+    setSelectedTeam(team);
+    setShowTeamDetails(true);
+  };
+
+  const handleAddSession = () => {
+    const nextWeekNumber =
+      sessions.length > 0
+        ? Math.max(...sessions.map((session) => session.week_number || 0)) + 1
+        : 1;
+    setNewSession({
+      title: "",
+      week_number: nextWeekNumber,
+      status: "pending",
+      kpi_ids: [],
+      handler_ids: [],
+      handler_names: [],
+      scheduled_date: "",
+      start_time: "",
+      end_time: "",
+      notes: "",
+      extra_materials: [],
+    });
+    setShowSessionModal(true);
+  };
+
+  const handleToggleSessionExpanded = (event, session) => {
+    event.stopPropagation();
+    setExpandedSessionId(expandedSessionId === session.id ? null : session.id);
+  };
+
+  const handleOpenSessionAttendance = (event, session) => {
+    event.stopPropagation();
+    setSelectedSessionId(session.id);
+    setSelectedSessionForAttendance(session);
+    setShowAttendanceModal(true);
+  };
+
+  const handleOpenSessionPMReport = (event, session) => {
+    event.stopPropagation();
+    setSelectedSessionId(session.id);
+    setShowPMReportModal(true);
+  };
+
+  const handleToggleSessionLock = (event, session) => {
+    event.stopPropagation();
+    const newStatus = session.status === "locked" ? "not started" : "locked";
+    updateSessionStatus(session.id, newStatus);
+  };
+
+  const handleDeleteSession = (event, session) => {
+    event.stopPropagation();
+    deleteSession(session.id);
+  };
+
+  const handleEditSessionDescription = (event, session) => {
+    // Update local state only, save on blur
+    const updated = sessions.map((item) =>
+      item.id === session.id
+        ? { ...item, description: event.target.value }
+        : item,
+    );
+    setSessions(updated);
+  };
+
+  const handleToggleSessionHandler = (event, session, stringId) => {
+    const checked = event.target.checked;
+    let currentIds = [];
+    try {
+      currentIds = JSON.parse(session.handler_id || "[]");
+      if (!Array.isArray(currentIds))
+        currentIds = session.handler_id ? [session.handler_id] : [];
+    } catch {
+      currentIds = session.handler_id ? [session.handler_id] : [];
+    }
+
+    let newIds;
+    if (checked) {
+      newIds = [...new Set([...currentIds, stringId])];
+    } else {
+      newIds = currentIds.filter((id) => id !== stringId);
+    }
+
+    const staffList =
+      programTeamMembers.length > 0 ? programTeamMembers : assignedStaff;
+    const selectedStaff = staffList.filter((staff) =>
+      newIds.includes(String(staff.cid)),
+    );
+    const selectedNames = selectedStaff.map((staff) => staff.name);
+
+    updateSessionField(
+      session.id,
+      "handler_id",
+      JSON.stringify(newIds),
+      JSON.stringify(selectedNames),
+    );
+  };
+
+  const handleOpenRequirementForSession = (session) => {
+    setSelectedSessionId(session.id);
+    // Pre-populate KPIs from the session (handle JSON string or array)
+    let sessionKpiIds = session.kpi_ids || [];
+    if (typeof sessionKpiIds === "string") {
+      try {
+        sessionKpiIds = JSON.parse(sessionKpiIds);
+      } catch (_) {
+        sessionKpiIds = [];
+      }
+    }
+    if (!Array.isArray(sessionKpiIds)) sessionKpiIds = [];
+    setNewRequirement((prev) => ({ ...prev, kpi_ids: sessionKpiIds }));
+    setShowRequirementModal(true);
+  };
+
+  const handleSendRequirementReminder = async (requirement) => {
+    try {
+      const response = await fetch("/api/pm/curriculum", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "send_reminder",
+          requirement_id: requirement.id,
+          program_id: id,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        const message =
+          data.sent > 0
+            ? t("pmMisc.workspace.reminderSentTo", { count: data.sent })
+            : t("pmMisc.workspace.reminderSent");
+        notify(message);
+      } else {
+        notify(t("pmMisc.workspace.reminderFailed"));
+      }
+    } catch {
+      notify(t("pmMisc.workspace.reminderError"));
+    }
+  };
+
+  const handleOpenAttendanceModal = (session) => {
+    setSelectedSessionForAttendance(session);
+    setShowAttendanceModal(true);
+  };
+
+  const handleOpenPdfViewer = (event, url) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setActivePDF({ url: url || "#", name });
+  };
+
+  const handleRecalculateKpis = async () => {
+    try {
+      const response = await fetch(`/api/kpi-progress?program_id=${id}`);
+      const data = await response.json();
+      if (data.success) {
+        notify(t("pmMisc.workspace.kpiRecalculated"));
+        fetchProgramData(true);
+      }
+    } catch (_) {
+      notify(t("pmMisc.workspace.recalculationFailed"), "error");
+    }
+  };
+
+  const handleExportPmReport = async (type, format, label) => {
+    try {
+      const response = await fetch(
+        `/api/pm/export?type=${type}&program_id=${id}&format=${format}`,
+        {
+          credentials: "include",
+        },
+      );
+      if (!response.ok) throw new Error("Export failed");
+      if (format === "pdf") {
+        const { rows: data, filename } = await response.json();
+        const { default: jsPDF } = await import("jspdf");
+        const doc = new jsPDF({ orientation: "landscape" });
+        doc.setFontSize(12);
+        doc.text(`${type.toUpperCase()} - Talent for Startups`, 10, 10);
+        if (data && data.length > 0) {
+          const headers = Object.keys(data[0]);
+          let lineY = 20;
+          doc.setFontSize(7);
+          // Header row
+          headers.forEach((header, columnIndex) =>
+            doc.text(String(header), 10 + columnIndex * 35, lineY),
+          );
+          lineY += 5;
+          // Data rows (max 40 rows per page)
+          data.slice(0, 80).forEach((row, _ri) => {
+            if (lineY > 180) {
+              doc.addPage();
+              lineY = 15;
+            }
+            headers.forEach((header, columnIndex) => {
+              const cellValue = String(row[header] ?? "").substring(0, 20);
+              doc.text(cellValue, 10 + columnIndex * 35, lineY);
+            });
+            lineY += 4;
+          });
+        }
+        doc.save(filename);
+      } else {
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        const fileExtension = format === "xlsx" ? "xlsx" : "csv";
+        anchor.href = url;
+        anchor.download = `${type}-${id}.${fileExtension}`;
+        anchor.click();
+        URL.revokeObjectURL(url);
+      }
+      notify(t("pmMisc.workspace.exported", { label }));
+    } catch {
+      notify(t("pmMisc.workspace.exportFailed"), "error");
+    }
+  };
+
+  const handleOpenReviewModal = (submission) => {
+    setSelectedSubmission(submission);
+    setReviewScore(submission.score || 0);
+    setShowReviewModal(true);
+  };
+
+  const handleChangeNewTeamStaff = (event) => {
+    const staff = oversightCandidates.find(
+      (member) => String(member.cid) === event.target.value,
+    );
+    setNewTeam((prev) => ({
+      ...prev,
+      staff_id: event.target.value,
+      handler_name: staff?.name || "",
+    }));
+  };
+
+  const handleToggleSessionStaff = (staff) => {
+    const handlerIds = newSession.handler_ids || [];
+    const handlerNames = newSession.handler_names || [];
+    const staffCid = String(staff.cid);
+    if (handlerIds.includes(staffCid)) {
+      const index = handlerIds.indexOf(staffCid);
+      setNewSession((prev) => ({
+        ...prev,
+        handler_ids: handlerIds.filter((id) => id !== staffCid),
+        handler_names: handlerNames.filter(
+          (_, nameIndex) => nameIndex !== index,
+        ),
+      }));
+    } else {
+      setNewSession((prev) => ({
+        ...prev,
+        handler_ids: [...handlerIds, staffCid],
+        handler_names: [...handlerNames, staff.name],
+      }));
+    }
+  };
+
+  const handleSessionMaterialFile = (event) => {
+    const file = event.target.files?.[0];
+    if (file)
+      setNewSessionMaterial((prev) => ({
+        ...prev,
+        content: file.name,
+        name: file.name,
+      }));
+  };
+
+  const handleAttachSessionMaterial = () => {
+    if (!newSessionMaterial.content.trim()) return;
+    setNewSession((prev) => ({
+      ...prev,
+      extra_materials: [
+        ...(prev.extra_materials || []),
+        { ...newSessionMaterial },
+      ],
+    }));
+    setNewSessionMaterial({
+      type: "text",
+      content: "",
+      name: "",
+    });
+  };
+
+  const handleAddSessionRequirement = () => {
+    setNewSession((prev) => ({
+      ...prev,
+      requirements: [
+        ...(prev.requirements || []),
+        { ...newRequirement, kpi_ids: prev.kpi_ids || [] },
+      ],
+    }));
+    setNewRequirement({
+      title: "",
+      description: "",
+      allowed_format: "pdf",
+      kpi_ids: [],
+      due_date: "",
+      assignee_type: "all",
+      assignee_id: "",
+      resource_url: "",
+      resource_label: "",
+    });
+  };
+
+  const handleResetFollowupFields = () => {
+    setShowFollowupFields(false);
+    setFollowupDate("");
+    setFollowupTime("");
+  };
+
+  const handleSaveAttendance = async () => {
+    if (!selectedSessionForAttendance || !attendanceDate) return;
+    setIsSaving(true);
+    try {
+      // Delta-only save: send only participants whose mark
+      // changed since the modal opened (empty = explicit
+      // clear). Marks the PM did not touch — including those
+      // recorded by a facilitator for their team — are left
+      // exactly as they are.
+      const records = participants
+        .map((participant) => {
+          const participantId =
+            participant.user_id || participant.cid || participant.id;
+          return {
+            session_id: selectedSessionForAttendance.id,
+            program_id: id,
+            participant_id: participantId,
+            status: attendanceRecords[participantId] || "",
+            date: attendanceDate,
+          };
+        })
+        .filter(
+          (record) =>
+            record.participant_id &&
+            record.status !== (attendanceLoaded[record.participant_id] || ""),
+        );
+      const response = await fetch("/api/attendance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(records),
+      });
+      const data = await response.json();
+      if (!data.success)
+        throw new Error(
+          t(data.error || "Unknown error") || data.error || "Unknown error",
+        );
+      notify(
+        t("pmMisc.workspace.attendanceRecorded", { count: data.upserted }),
+      );
+      setShowAttendanceModal(false);
+      setAttendanceRecords({});
+      setAttendanceLoaded({});
+    } catch (error) {
+      notify(
+        (error && error.message) || t("pmMisc.workspace.attendanceSaveFailed"),
+        "error",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCloseTeamDetails = () => {
+    setShowTeamDetails(false);
+    setSelectedTeam(null);
+    setEditingScoreFor(null);
+    setScoreDraft("");
+  };
+
+  const handleCancelFacilitatorSelect = () => {
+    setShowFacilitatorSelect(false);
+    setFacilitatorDraftId("");
+  };
+
+  const handleOpenFacilitatorSelect = () => {
+    setFacilitatorDraftId(selectedTeam.handler_id || "");
+    setShowFacilitatorSelect(true);
+  };
+
+  const handleParticipantScoreKeyDown = (event, participantId) => {
+    if (event.key === "Enter") {
+      updateParticipantScores(participantId, scoreDraft);
+    }
+  };
+
+  const handleCancelScoreEdit = () => {
+    setEditingScoreFor(null);
+    setScoreDraft("");
+  };
+
+  const handleEditParticipantScore = (participantId, avgScore) => {
+    setEditingScoreFor(participantId);
+    setScoreDraft(String(avgScore || ""));
+  };
+
+  const handleConfirmAction = () => {
+    confirmTarget.onConfirm();
+    setConfirmTarget(null);
+  };
+
   return (
     <>
       <div className="space-y-8 animate-in">
         {/* HEADER SECTION */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="status-badge bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                {{
-                  active: t("pmMisc.workspace.programStatusActive"),
-                  archived: t("pmMisc.workspace.programStatusArchived"),
-                  draft: t("pmMisc.workspace.programStatusDraft"),
-                }[program?.status] || t("pmMisc.workspace.programStatusActive")}
-              </span>
-              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                {program?.id}
-              </span>
-            </div>
-            <h1 className="text-4xl font-bold tracking-tight text-[var(--text-primary)]">
-              {program?.name}
-            </h1>
-            <p className="text-[var(--text-secondary)] text-sm max-w-2xl">
-              {program?.description}
-            </p>
-          </div>
-        </header>
+        <ProgramHeader program={program} />
 
         {/* TAB NAVIGATION */}
-        <div className="flex gap-1 border-b border-[var(--border-primary)] overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                if (tab.href) router.push(tab.href);
-                else {
-                  if (tab.id === "submissions") {
-                    setSubmissionsSeen(true);
-                    // Tell the global sidebar badge to clear too.
-                    window.dispatchEvent(
-                      new CustomEvent("pm:submissions-seen"),
-                    );
-                  }
-                  setActiveTab(tab.id);
-                }
-              }}
-              className={`px-6 py-3 text-sm font-bold uppercase tracking-wide transition-all border-b-2 whitespace-nowrap shrink-0 ${activeTab === tab.id ? "border-[var(--brand-orange)] text-[var(--text-primary)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-            >
-              {tab.name}
-              {tab.id === "submissions" &&
-                !submissionsSeen &&
-                pendingSubmissionCount > 0 && (
-                  <span className="ml-2 text-[10px] font-bold bg-[var(--brand-orange)] text-black px-1.5 py-0.5 rounded-full align-middle">
-                    {pendingSubmissionCount}
-                  </span>
-                )}
-            </button>
-          ))}
-        </div>
+        <ProgramTabs
+          activeTab={activeTab}
+          onSelectTab={handleSelectTab}
+          pendingSubmissionCount={pendingSubmissionCount}
+          submissionsSeen={submissionsSeen}
+          tabs={tabs}
+        />
 
         {/* WORKSPACE CONTENT */}
         <div className="pt-4">
           {activeTab === "overview" && (
-            <>
-            <div className="mb-6">
-              <ProgramProgressPanel
-                program={program}
-                sessions={sessions}
-                requirements={requirements}
-                reports={reports}
-                submissions={submissions}
-                participants={participants}
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="card space-y-4 border-l-4 border-blue-500">
-                <div className="flex justify-between items-start">
-                  <div className="p-3 bg-blue-500/10 rounded-xl text-blue-500">
-                    <Users className="w-6 h-6" />
-                  </div>
-                  <span className="text-2xl font-bold">
-                    {participants.length}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                    {t("pmMisc.workspace.overviewTotalParticipants")}
-                  </p>
-                  <p className="text-[10px] text-emerald-500 font-bold mt-1">
-                    {sessions.length}{" "}
-                    {t(sessions.length !== 1 ? "pmMisc.workspace.sessions" : "pmMisc.workspace.session")}{" "}
-                    · {t("pmMisc.workspace.weekProgram", { weeks: program?.duration_weeks || "?" })}
-                  </p>
-                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-2 leading-relaxed">
-                    {t("pmMisc.workspace.overviewParticipantsDesc")}
-                  </p>
-                </div>
-              </div>
-
-              <div className="card space-y-4 border-l-4 border-orange-500">
-                <div className="flex justify-between items-start">
-                  <div className="p-3 bg-orange-500/10 rounded-xl text-orange-500">
-                    <Activity className="w-6 h-6" />
-                  </div>
-                  <span className="text-2xl font-bold">
-                    {submissions.length}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase text-[var(--text-secondary)] tracking-wider">
-                    {t("pmMisc.workspace.overviewOperationalSubmissions")}
-                  </p>
-                  <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                    {t("pmMisc.workspace.overviewCompletionRate")}{" "}
-                    {participants.length > 0 && requirements.length > 0
-                      ? Math.round(
-                          (submissions.length /
-                            (participants.length * requirements.length)) *
-                            100,
-                        )
-                      : 0}
-                    %
-                  </p>
-                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-2 leading-relaxed">
-                    {t("pmMisc.workspace.overviewSubmissionsDesc")}
-                  </p>
-                </div>
-              </div>
-
-              <div className="card space-y-4 border-l-4 border-purple-500">
-                <div className="flex justify-between items-start">
-                  <div className="p-3 bg-purple-500/10 rounded-xl text-purple-500">
-                    <Target className="w-6 h-6" />
-                  </div>
-                  <span className="text-2xl font-bold">{teams.length}</span>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                    {t("pmMisc.workspace.overviewActiveStudentGroups")}
-                  </p>
-                  <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                    {assignedStaff.length} {t("pmMisc.workspace.staff")} · {reports.length}{" "}
-                    {t(reports.length !== 1 ? "pmMisc.workspace.reports" : "pmMisc.workspace.report")}
-                  </p>
-                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-2 leading-relaxed">
-                    {t("pmMisc.workspace.overviewGroupsDesc")}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* REGISTRATION - assigned Form link (Form is the participant intake point) */}
-            {families.length > 0 && families[0] && (
-              <div className="card mt-6 border-l-4 border-emerald-500">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1 flex-1">
-                    <p className="text-xs font-black uppercase text-[var(--text-secondary)] tracking-wider">
-                      {t("pmMisc.workspace.registrationLink")}
-                    </p>
-                    {regForm ? (
-                      <>
-                        <p className="text-[10px] font-medium text-emerald-500 mt-1">
-                          {t("pmMisc.workspace.assignedRegistrationForm")}: <strong className="uppercase">{regForm.name}</strong>
-                        </p>
-                        <div className="flex items-center gap-2 mt-3">
-                          <code className="text-[10px] font-mono bg-black/30 px-3 py-2 rounded-lg border border-[var(--border-primary)] truncate max-w-[450px] block" style={{ color: "var(--text-primary)" }}>
-                            {regForm.link}
-                          </code>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(regForm.link);
-                              window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t("pmMisc.workspace.registrationLinkCopied") } }));
-                            }}
-                            className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all border border-emerald-500/20"
-                            title={t("pmMisc.workspace.copyRegistrationLink")}
-                          >
-                            <Copy className="w-4 h-4" />
-                          </button>
-                          <a
-                            href={regForm.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-2.5 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all border border-blue-500/20"
-                            title={t("pmMisc.workspace.openForm")}
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="space-y-2 mt-2">
-                        <p className="text-[10px] font-black uppercase text-amber-400">{t("pmMisc.workspace.noFormYet")}</p>
-                        <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("pmMisc.workspace.noFormYetHint")}</p>
-                        <a
-                          href="/platform/runs"
-                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all border border-blue-500/20 text-[10px] font-bold uppercase tracking-wide"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" /> {t("pmMisc.workspace.goToCrmForms")}
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-            </>
+            <OverviewTab
+              assignedStaff={assignedStaff}
+              families={families}
+              onCopyRegFormLink={handleCopyRegFormLink}
+              participants={participants}
+              program={program}
+              regForm={regForm}
+              reports={reports}
+              requirements={requirements}
+              sessions={sessions}
+              submissions={submissions}
+              teams={teams}
+            />
           )}
 
           {activeTab === "participants" && (
-            <div className="space-y-6 animate-in">
-              {/* SUB-TAB NAVIGATION */}
-              <div className="flex gap-4 border-b border-divider/30 pb-2">
-                <button
-                  onClick={() => setActiveSubTab("individuals")}
-                  className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeSubTab === "individuals" ? "border-[var(--brand-orange)] text-[var(--text-primary)]" : "border-transparent text-[var(--text-secondary)] opacity-50 hover:opacity-100"}`}
-                >
-                  {t("pmMisc.workspace.subTabIndividuals")} ({participants.filter(participant => participant.status !== 'archived').length})
-                </button>
-                <button
-                  onClick={() => setActiveSubTab("groups")}
-                  className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeSubTab === "groups" ? "border-[var(--brand-orange)] text-[var(--text-primary)]" : "border-transparent text-[var(--text-secondary)] opacity-50 hover:opacity-100"}`}
-                >
-                  {t("pmMisc.workspace.subTabTeams")} ({teams.length})
-                </button>
-                <button
-                  onClick={() => setActiveSubTab("staff")}
-                  className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeSubTab === "staff" ? "border-[var(--brand-orange)] text-[var(--text-primary)]" : "border-transparent text-[var(--text-secondary)] opacity-50 hover:opacity-100"}`}
-                >
-                  {t("pmMisc.workspace.subTabProgramStaff")} ({assignedStaff.length})
-                </button>
-              </div>
-
-              {activeSubTab === "individuals" && (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center bg-tertiary p-4 rounded-xl border border-[var(--border-primary)]">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        {t("pmMisc.workspace.selection")}:
-                      </span>
-                      <span className="text-sm font-black text-[var(--brand-orange)]">
-                        {selectedParticipants.length} {t("pmMisc.workspace.selected")}
-                      </span>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() =>
-                          setSelectedParticipants(participants.filter(participant => participant.status !== 'archived').map((participant) => participant.id))
-                        }
-                        className="text-[10px] font-bold uppercase text-blue-500 hover:underline"
-                      >
-                        {t("pmMisc.workspace.selectAll")}
-                      </button>
-                      <button
-                        onClick={() => setSelectedParticipants([])}
-                        className="text-[10px] font-bold uppercase text-rose-500 hover:underline"
-                      >
-                        {t("pmMisc.workspace.clear")}
-                      </button>
-                      {canEdit && (
-                        <button
-                          onClick={() => {
-                            setNewTeam({
-                              name: "",
-                              handler_name: "",
-                              member_ids: selectedParticipants,
-                            });
-                            setEmailInput("");
-                            setShowTeamModal(true);
-                          }}
-                          className="btn btn-primary btn-sm py-1 px-4 gap-2"
-                        >
-                          <Target className="w-3 h-3" /> {t("pmMisc.workspace.groupStudents")}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="table-container">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th className="w-10">
-                            <div className="flex items-center justify-center">
-                              <CheckSquare className="w-4 h-4 opacity-20" />
-                            </div>
-                          </th>
-                          <th>{t("pmMisc.workspace.tableParticipant")}</th>
-                          <th>{t("pmMisc.workspace.tableEmail")}</th>
-                          <th>{t("pmMisc.workspace.tableGroup")}</th>
-                          <th>{t("pmMisc.workspace.tableStatus")}</th>
-                          <th className="text-right">{t("pmMisc.workspace.tableActions")}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {participants.filter(participant => participant.status !== 'archived').map((participant) => {
-                          const isSelected = selectedParticipants.includes(
-                            participant.id,
-                          );
-                          return (
-                            <tr
-                              key={participant.id}
-                              className={isSelected ? "bg-orange-500/5" : ""}
-                            >
-                              <td className="text-center">
-                                <button
-                                  onClick={() => {
-                                    if (isSelected)
-                                      setSelectedParticipants(
-                                        selectedParticipants.filter(
-                                          (id) => id !== participant.id,
-                                        ),
-                                      );
-                                    else
-                                      setSelectedParticipants([
-                                        ...selectedParticipants,
-                                        participant.id,
-                                      ]);
-                                  }}
-                                  className={`p-2 transition-colors ${isSelected ? "text-[var(--brand-orange)]" : "text-slate-500 opacity-20 hover:opacity-100"}`}
-                                >
-                                  {isSelected ? (
-                                    <CheckSquare className="w-5 h-5" />
-                                  ) : (
-                                    <Square className="w-5 h-5" />
-                                  )}
-                                </button>
-                              </td>
-                              <td className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center font-bold text-xs border border-[var(--border-primary)]">
-                                  {participant.name.charAt(0)}
-                                </div>
-                                <span className="font-bold">{participant.name}</span>
-                              </td>
-                              <td>{participant.email}</td>
-                              <td>
-                                <div className="flex flex-col">
-                                  <span className="text-[10px] font-bold uppercase text-blue-500 tracking-widest">
-                                    {teams.find((team) => team.id === participant.v2_team_id)
-                                      ?.name || t("pmMisc.workspace.individual")}
-                                  </span>
-                                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
-                                    {t("pmMisc.workspace.segment")}: {participant.group_name || t("pmMisc.workspace.na")}
-                                  </span>
-                                </div>
-                              </td>
-                              <td>
-                                <div className="flex items-center gap-2">
-                                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                  <span className="text-xs font-medium">
-                                    {t("pmMisc.workspace.operational")}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="text-right">
-                                <div className="flex justify-end gap-2 items-center">
-                                  <select
-                                    className="text-[10px] font-black uppercase bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1"
-                                    value={participant.v2_team_id || ""}
-                                    onChange={(event) => {
-                                      const newTeamId = event.target.value;
-                                      if (newTeamId && newTeamId !== (participant.v2_team_id || "")) {
-                                        changeParticipantTeam(participant.id, newTeamId);
-                                      }
-                                    }}
-                                  >
-                                    <option value="">{t("pmMisc.workspace.teamNoTeam")}</option>
-                                    {teams.map((team) => (
-                                      <option key={team.id} value={team.id}>
-                                        {team.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <button className="p-2 hover:text-[var(--brand-blue)]">
-                                    <Mail className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {activeSubTab === "groups" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {teams.map((team) => (
-                    <div
-                      key={team.id}
-                      className="card group hover:border-[var(--brand-orange)] transition-all"
-                    >
-                      <div className="flex justify-between items-start mb-6">
-                        <div className="w-12 h-12 rounded-xl bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[var(--brand-orange)]">
-                          <Target className="w-6 h-6" />
-                        </div>
-                        {canEdit && (
-                          <button
-                            onClick={() => deleteTeam(team.id)}
-                            className="p-2 opacity-0 group-hover:opacity-100 transition-opacity text-rose-500"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                      <div className="mb-4">
-                        <h3 className="text-xl font-black uppercase tracking-tighter">
-                          {team.name}
-                        </h3>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mt-0.5">
-                          {t("pmMisc.workspace.group")}: {team.group_name || t("pmMisc.workspace.na")}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3 mb-6">
-                        <div className="flex -space-x-2">
-                          {participants
-                            .filter((participant) => participant.v2_team_id === team.id)
-                            .slice(0, 3)
-                            .map((participant) => (
-                              <div
-                                key={participant.id}
-                                className="w-6 h-6 rounded-full bg-tertiary border-2 border-[var(--bg-secondary)] flex items-center justify-center text-[10px] font-bold uppercase"
-                              >
-                                {participant.name.charAt(0)}
-                              </div>
-                            ))}
-                        </div>
-                        <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">
-                          {
-                            participants.filter((participant) => participant.v2_team_id === team.id)
-                              .length
-                          }{" "}
-                          {t("pmMisc.workspace.members")}
-                        </span>
-                      </div>
-                      <div className="space-y-1 mb-6">
-                        <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                          {t("pmMisc.workspace.assignedStaffLabel")}
-                        </p>
-                        <p className="text-xs text-[var(--text-primary)] font-black uppercase tracking-tight">
-                          {team.handler_name || t("pmMisc.workspace.unassigned")}
-                        </p>
-                      </div>
-                      <div className="flex justify-between items-center pt-4 border-t border-[var(--border-primary)]">
-                        <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
-                          {team.is_venture_ready ? t("pmMisc.workspace.ventureReady") : t("pmMisc.workspace.inProgram")}
-                        </span>
-                        <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            setSelectedTeam(team);
-                            setShowTeamDetails(true);
-                          }}
-                          className="btn btn-secondary btn-sm"
-                        >
-                          <ChevronRight className="w-3 h-3" /> {t("pmMisc.workspace.view")}
-                        </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {teams.length === 0 && (
-                    <div className="card border-dashed flex flex-col items-center justify-center gap-3 opacity-40 min-h-[160px] col-span-full py-8 text-center">
-                      <Target className="w-8 h-8 text-[var(--text-secondary)]" />
-                      <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                        {t("pmMisc.workspace.noGroupsFound")}
-                        <br />
-                        {t("pmMisc.workspace.noGroupsFoundHint")}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeSubTab === "staff" && (
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="text-xl font-black uppercase tracking-tighter">
-                        {t("pmMisc.workspace.subTabProgramStaff")}
-                      </h3>
-                      <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">
-                        {t("pmMisc.workspace.programStaffDesc")}
-                      </p>
-                    </div>
-                    {canEdit && (
-                      <button
-                        onClick={() => setShowStaffModal(true)}
-                        className="btn btn-primary btn-sm px-4 gap-2"
-                      >
-                        <UserPlus className="w-3 h-3" /> {t("pmMisc.workspace.assignPersonnel")}
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {assignedStaff.map((staff) => (
-                      <div
-                        key={staff.cid}
-                        className="card flex items-center justify-between p-4 hover:border-[var(--brand-orange)] transition-all"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-brand-orange/10 text-[var(--brand-orange)] flex items-center justify-center text-xs font-black uppercase border border-brand-orange/20">
-                            {staff.name?.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="text-xs font-black uppercase tracking-tight">
-                              {staff.name}
-                            </p>
-                            <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-wider">
-                              {staff.role}
-                            </p>
-                          </div>
-                        </div>
-                        {canEdit && (
-                          <button
-                            onClick={() => removeStaff(staff.cid)}
-                            className="text-rose-500 hover:scale-110 transition-transform"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    {assignedStaff.length === 0 && (
-                      <div className="card border-dashed flex flex-col items-center justify-center gap-3 opacity-40 min-h-[120px] col-span-full py-8 text-center">
-                        <Users className="w-8 h-8 text-[var(--text-secondary)]" />
-                        <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                          {t("pmMisc.workspace.noStaffAssigned")}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+            <ParticipantsTab
+              activeSubTab={activeSubTab}
+              assignedStaff={assignedStaff}
+              canEdit={canEdit}
+              onActiveSubTab={setActiveSubTab}
+              onActiveSubTabGroups={setActiveSubTab}
+              onActiveSubTabStaff={setActiveSubTab}
+              onChangeParticipantTeam={handleChangeParticipantTeam}
+              onDeleteTeam={deleteTeam}
+              onDeployTeam={handleDeployTeam}
+              onOpenStaffModal={() => setShowStaffModal(true)}
+              onOpenTeamDetails={handleOpenTeamDetails}
+              onRemoveStaff={removeStaff}
+              onSelectedParticipants={setSelectedParticipants}
+              onSelectedParticipants2={setSelectedParticipants}
+              onToggleParticipant={handleToggleParticipant}
+              participants={participants}
+              selectedParticipants={selectedParticipants}
+              teams={teams}
+            />
           )}
 
           {activeTab === "curriculum" && (
-            <div className="space-y-6">
-              <div className="flex justify-between items-center flex-wrap gap-4 pb-6 border-b border-[var(--border-primary)]">
-                <h3 className="text-xl font-black uppercase tracking-tighter">
-                  {t("pmMisc.workspace.curriculumTitle")}
-                </h3>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setShowArchivedSessions((prev) => !prev)}
-                    className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg border transition-all ${showArchivedSessions
-                      ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
-                      : "bg-transparent border-white/10 text-slate-600 hover:text-slate-400"
-                      }`}
-                  >
-                    {showArchivedSessions ? t("pmMisc.workspace.showingArchived") : t("pmMisc.workspace.archived")}
-                  </button>
-                  {canEdit && (
-                    <button
-                      onClick={() => {
-                        const nextWeekNumber =
-                          sessions.length > 0
-                            ? Math.max(
-                              ...sessions.map((session) => session.week_number || 0),
-                            ) + 1
-                            : 1;
-                        setNewSession({
-                          title: "",
-                          week_number: nextWeekNumber,
-                          status: "pending",
-                          kpi_ids: [],
-                          handler_ids: [],
-                          handler_names: [],
-                          scheduled_date: "",
-                          start_time: "",
-                          end_time: "",
-                          notes: "",
-                          extra_materials: [],
-                        });
-                        setShowSessionModal(true);
-                      }}
-                      className="btn btn-primary btn-sm gap-2"
-                    >
-                      <Plus className="w-4 h-4" /> {t("pmMisc.workspace.create")}
-                    </button>
-                  )}
-                </div>
-              </div>
-              {/* Phase 8 — learner coaching requests raised from the LMS view */}
-              <CoachingRequestsPanel programId={id} canEdit={canEdit} />
-
-              <div className="flex flex-col gap-4 mt-4">
-                {(sessions || [])
-                  .filter(
-                    (session) => showArchivedSessions || session.status !== "archived",
-                  )
-                  .map((session) => (
-                    <div
-                      key={session.id}
-                      className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-brand-orange/50 transition-all shadow-xl bg-secondary group"
-                    >
-                      {/* STEP 0: THE HEADER (GLOBAL STATE) — click to toggle */}
-                      <div
-                        onClick={() =>
-                          setExpandedSessionId(
-                            expandedSessionId === session.id
-                              ? null
-                              : session.id,
-                          )
-                        }
-                        className="px-6 py-4 bg-gradient-to-r from-[var(--bg-tertiary)] to-[var(--bg-secondary)] flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border-primary)] hover:border-brand-orange/50 transition-all cursor-pointer"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-primary border border-[var(--border-primary)] shadow-inner">
-                            <span className="text-[10px] font-black text-[var(--text-secondary)] opacity-50">
-                              {t("pmMisc.workspace.weekAbbr")}
-                            </span>
-                            <span className="text-sm font-black text-[var(--brand-orange)] -mt-1">
-                              {session.week_number}
-                            </span>
-                          </div>
-                          <div>
-                            <h4 className="text-base font-black text-[var(--text-primary)] uppercase tracking-tight">
-                              {session.title}
-                            </h4>
-                            <div className="flex items-center gap-2 mt-1">
-                              {(() => {
-                                const now = new Date();
-                                const today = new Date(
-                                  now.getFullYear(),
-                                  now.getMonth(),
-                                  now.getDate(),
-                                );
-                                let displayStatus = session.status;
-                                let statusColor = "bg-amber-500";
-                                if (session.status === "locked") {
-                                  displayStatus = "locked";
-                                  statusColor = "bg-rose-500";
-                                } else if (session.scheduled_date) {
-                                  const scheduledDate = new Date(
-                                    session.scheduled_date,
-                                  );
-                                  const scheduledDay = new Date(
-                                    scheduledDate.getFullYear(),
-                                    scheduledDate.getMonth(),
-                                    scheduledDate.getDate(),
-                                  );
-                                  if (session.status === "completed") {
-                                    displayStatus = "completed";
-                                    statusColor = "bg-emerald-500";
-                                  } else if (scheduledDay <= today && session.status !== "not started") {
-                                    displayStatus = "active";
-                                    statusColor = "bg-indigo-500";
-                                  } else if (session.status === "not started") {
-                                    displayStatus = "not started";
-                                    statusColor = "bg-slate-500";
-                                  } else {
-                                    displayStatus = "pending";
-                                    statusColor = "bg-amber-500";
-                                  }
-                                } else {
-                                  if (session.status === "completed") {
-                                    displayStatus = "completed";
-                                    statusColor = "bg-emerald-500";
-                                  } else if (
-                                    session.status === "in progress" ||
-                                    session.status === "active"
-                                  ) {
-                                    displayStatus = "active";
-                                    statusColor = "bg-indigo-500";
-                                  } else {
-                                    displayStatus = "pending";
-                                    statusColor = "bg-amber-500";
-                                  }
-                                }
-                                return (
-                                  <>
-                                    <span
-                                      className={`w-2 h-2 rounded-full animate-pulse ${statusColor}`}
-                                    />
-                                    <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">
-                                      {t("pmMisc.workspace.state")}: {{
-                                        locked: t("pmMisc.workspace.sessionStatusLocked"),
-                                        completed: t("pmMisc.workspace.sessionStatusCompleted"),
-                                        active: t("pmMisc.workspace.sessionStatusActive"),
-                                        "not started": t("pmMisc.workspace.sessionStatusNotStarted"),
-                                        pending: t("pmMisc.workspace.sessionStatusPending"),
-                                      }[displayStatus] || displayStatus}
-                                    </span>
-                                  </>
-                                );
-                              })()}
-                              {session.scheduled_date && (
-                                <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest ml-2">
-                                  📅{" "}
-                                  {new Date(
-                                    session.scheduled_date,
-                                  ).toLocaleDateString()}
-                                </span>
-                              )}
-                              {session.timezone && session.timezone !== 'UTC' && (
-                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">
-                                  {session.timezone}
-                                </span>
-                              )}
-                              {session.notes && (
-                                <span
-                                  className="text-[10px] font-bold text-amber-400 uppercase tracking-widest ml-2"
-                                  title={session.notes}
-                                >
-                                  📌 {t("pmMisc.workspace.notes")}
-                                </span>
-                              )}
-                            </div>
-                            {session.handler_name && (
-                              <div className="flex items-center gap-1 mt-1">
-                                <Users className="w-3 h-3 text-slate-500" />
-                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                                  {session.handler_name}
-                                </span>
-                              </div>
-                            )}
-                            <div className="flex flex-wrap gap-2 mt-3">
-                              {(() => {
-                                try {
-                                  const ids =
-                                    typeof session.kpi_ids === "string"
-                                      ? JSON.parse(session.kpi_ids)
-                                      : session.kpi_ids || [];
-                                  return kpis
-                                    .filter((kpi) => ids.includes(kpi.id))
-                                    .map((kpi) => (
-                                      <span
-                                        key={kpi.id}
-                                        className="px-2 py-0.5 bg-[#FF6600]/10 border border-[#FF6600]/20 text-[#FF6600] text-[10px] font-bold uppercase rounded-md"
-                                      >
-                                        {kpi.title}
-                                      </span>
-                                    ));
-                                } catch {
-                                  return null;
-                                }
-                              })()}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setExpandedSessionId(
-                                expandedSessionId === session.id
-                                  ? null
-                                  : session.id,
-                              );
-                            }}
-                            title={t("pmMisc.workspace.sessionDetailsTitle")}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all ${expandedSessionId === session.id ? "bg-brand-orange/10 border-[var(--brand-orange)] text-[var(--brand-orange)]" : "bg-transparent border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-brand-orange/50 hover:text-[var(--text-primary)]"}`}
-                          >
-                            <ChevronRight className={`w-3 h-3 transition-transform ${expandedSessionId === session.id ? "rotate-90" : ""}`} />
-                            {expandedSessionId === session.id ? t("pmMisc.workspace.hideDetails") : t("pmMisc.workspace.viewDetails")}
-                          </button>
-                        </div>
-
-                        <div
-                          className="flex items-center gap-3"
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setSelectedSessionId(session.id);
-                              setSelectedSessionForAttendance(session);
-                              setShowAttendanceModal(true);
-                            }}
-                            className="btn btn-secondary !py-2 !px-4 flex items-center gap-2 border-indigo-500/20 text-indigo-500 hover:bg-indigo-500/5 transition-all"
-                          >
-                            <Users className="w-3.5 h-3.5" />
-                            <span className="text-[10px] font-bold uppercase tracking-wider">
-                              {t("pmMisc.workspace.attendance")}
-                            </span>
-                          </button>
-                          {canContribute && (
-                            <button
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setSelectedSessionId(session.id);
-                                setShowPMReportModal(true);
-                              }}
-                              className="btn btn-secondary !py-2 !px-4 flex items-center gap-2 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/5 transition-all"
-                            >
-                              <Activity className="w-3.5 h-3.5" />
-                              <span className="text-[10px] font-bold uppercase tracking-wider">
-                                {t("pmMisc.workspace.giveWeeklyReport")}
-                              </span>
-                            </button>
-                          )}
-                          {canEdit && (
-                            <button
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                const newStatus = session.status === "locked" ? "not started" : "locked";
-                                updateSessionStatus(session.id, newStatus);
-                              }}
-                              title={session.status === "locked" ? t("pmMisc.workspace.unlockWeek") : t("pmMisc.workspace.lockWeek")}
-                              className={`btn btn-secondary !py-2 !px-4 flex items-center gap-2 transition-all ${
-                                session.status === "locked"
-                                  ? "border-rose-500/20 text-rose-500 hover:bg-rose-500/5"
-                                  : "border-amber-500/20 text-amber-500 hover:bg-amber-500/5"
-                              }`}
-                            >
-                              <span className="text-sm">{session.status === "locked" ? "🔓" : "🔒"}</span>
-                              <span className="text-[10px] font-bold uppercase tracking-wider">
-                                {session.status === "locked" ? t("pmMisc.workspace.unlock") : t("pmMisc.workspace.lock")}
-                              </span>
-                            </button>
-                          )}
-                          {canEdit && (
-                            <button
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                deleteSession(session.id);
-                              }}
-                              className="p-2 text-rose-500/20 hover:text-rose-500 transition-all"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      <div
-                        className={`p-6 ${expandedSessionId !== session.id ? "hidden" : ""}`}
-                      >
-                        <div className="space-y-8">
-                          {/* PHASE 1: LOGISTICS (THE SETUP) */}
-                          <div className="space-y-6">
-                            <div className="flex items-center gap-2 pb-3 border-b border-indigo-500/20">
-                              <div className="w-6 h-6 rounded-full bg-indigo-500/10 flex items-center justify-center text-[10px] font-bold text-indigo-500 border border-indigo-500/20 shadow-sm">
-                                1
-                              </div>
-                              <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-500">
-                                {t("pmMisc.workspace.curriculumLogistics")}
-                              </span>
-                            </div>
-
-                            <div className={`space-y-4 p-5 bg-primary rounded-2xl border border-[var(--border-primary)] shadow-sm ${!canEdit ? "pointer-events-none opacity-60" : ""}`}>
-                              {/* Session Title */}
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
-                                  {t("pmMisc.workspace.sessionTitle")}
-                                </label>
-                                <input
-                                  type="text"
-                                  value={session.title || ""}
-                                  onChange={(event) =>
-                                    updateSessionField(
-                                      session.id,
-                                      "title",
-                                      event.target.value,
-                                    )
-                                  }
-                                  disabled={session.status === "locked"}
-                                  className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                />
-                              </div>
-
-                              {/* Description */}
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
-                                  {t("pmMisc.workspace.description")}
-                                </label>
-                                <textarea
-                                  value={session.description || ""}
-                                  onBlur={(event) =>
-                                    updateSessionField(
-                                      session.id,
-                                      "description",
-                                      event.target.value,
-                                    )
-                                  }
-                                  onChange={(event) => {
-                                    // Update local state only, save on blur
-                                    const updated = sessions.map(item => item.id === session.id ? {...item, description: event.target.value} : item);
-                                    setSessions(updated);
-                                  }}
-                                  rows={2}
-                                  className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[11px] font-bold outline-none focus:border-indigo-500 transition-all resize-none"
-                                />
-                              </div>
-
-                              {/* Week Number + Start/End Time */}
-                              <div className="grid grid-cols-3 gap-3">
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
-                                    {t("pmMisc.workspace.week")}
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    value={session.week_number || 1}
-                                    onChange={(event) =>
-                                      updateSessionField(
-                                        session.id,
-                                        "week_number",
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
-                                  />
-                                </div>
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1 flex items-center gap-1">
-                                    <Clock className="w-2.5 h-2.5" /> {t("pmMisc.workspace.startTime")}
-                                  </label>
-                                  <input
-                                    type="time"
-                                    value={session.start_time || ""}
-                                    onChange={(event) =>
-                                      updateSessionField(
-                                        session.id,
-                                        "start_time",
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
-                                  />
-                                </div>
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1 flex items-center gap-1">
-                                    <Clock className="w-2.5 h-2.5" /> {t("pmMisc.workspace.endTime")}
-                                  </label>
-                                  <input
-                                    type="time"
-                                    value={session.end_time || ""}
-                                    onChange={(event) =>
-                                      updateSessionField(
-                                        session.id,
-                                        "end_time",
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Timezone */}
-                              <div className="space-y-1 mt-2">
-                                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
-                                  {t("pmMisc.workspace.timezone")}
-                                </label>
-                                <select
-                                  value={session.timezone || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC')}
-                                  onChange={(event) =>
-                                    updateSessionField(session.id, "timezone", event.target.value)
-                                  }
-                                  className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
-                                >
-                                  {["UTC", "Africa/Porto-Novo", "Europe/Paris", "America/New_York", "Asia/Dubai", "Europe/London"].map(timezone => (
-                                    <option key={timezone} value={timezone}>{timezone}</option>
-                                  ))}
-                                </select>
-                              </div>
-
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
-                                  {t("pmMisc.workspace.assignStaffMembers")}
-                                </label>
-                                <div className="space-y-2 p-3 bg-tertiary border border-[var(--border-primary)] rounded-xl max-h-40 overflow-y-auto custom-scrollbar">
-                                  {(programTeamMembers.length > 0
-                                    ? programTeamMembers
-                                    : assignedStaff
-                                  ).map((staffMember) => {
-                                    const stringId = String(staffMember.cid);
-                                    let isSelected = false;
-                                    try {
-                                      const ids = JSON.parse(
-                                        session.handler_id || "[]",
-                                      );
-                                      isSelected = Array.isArray(ids)
-                                        ? ids.includes(stringId)
-                                        : session.handler_id === stringId;
-                                    } catch {
-                                      isSelected = session.handler_id === stringId;
-                                    }
-                                    return (
-                                      <label
-                                        key={staffMember.cid}
-                                        className="flex items-center gap-2 cursor-pointer"
-                                      >
-                                        <input
-                                          type="checkbox"
-                                          checked={isSelected}
-                                          onChange={(event) => {
-                                            const checked = event.target.checked;
-                                            let currentIds = [];
-                                            try {
-                                              currentIds = JSON.parse(
-                                                session.handler_id || "[]",
-                                              );
-                                              if (!Array.isArray(currentIds))
-                                                currentIds = session.handler_id
-                                                  ? [session.handler_id]
-                                                  : [];
-                                            } catch {
-                                              currentIds = session.handler_id
-                                                ? [session.handler_id]
-                                                : [];
-                                            }
-
-                                            let newIds;
-                                            if (checked) {
-                                              newIds = [
-                                                ...new Set([...currentIds, stringId]),
-                                              ];
-                                            } else {
-                                              newIds = currentIds.filter(
-                                                (id) => id !== stringId,
-                                              );
-                                            }
-
-                                            const staffList =
-                                              programTeamMembers.length > 0
-                                                ? programTeamMembers
-                                                : assignedStaff;
-                                            const selectedStaff = staffList.filter(
-                                              (staff) =>
-                                                newIds.includes(String(staff.cid)),
-                                            );
-                                            const selectedNames = selectedStaff.map(
-                                              (staff) => staff.name,
-                                            );
-
-                                            updateSessionField(
-                                              session.id,
-                                              "handler_id",
-                                              JSON.stringify(newIds),
-                                              JSON.stringify(selectedNames),
-                                            );
-                                          }}
-                                          className="rounded border-[var(--border-primary)] bg-[var(--surface-2)] text-indigo-500"
-                                        />
-                                        <span className="text-[11px] font-bold text-[var(--text-primary)]">
-                                          {staffMember.name} ({staffMember.role})
-                                        </span>
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1 flex items-center gap-1">
-                                    <Calendar className="w-2.5 h-2.5 text-white" />{" "}
-                                    {t("pmMisc.workspace.startDate")}
-                                  </label>
-                                  <input
-                                    type="date"
-                                    value={
-                                      session.scheduled_date
-                                        ? new Date(session.scheduled_date)
-                                          .toISOString()
-                                          .split("T")[0]
-                                        : ""
-                                    }
-                                    onChange={(event) =>
-                                      updateSessionField(
-                                        session.id,
-                                        "scheduled_date",
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
-                                  />
-                                </div>
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1 flex items-center gap-1">
-                                    <Calendar className="w-2.5 h-2.5 text-white" />{" "}
-                                    {t("pmMisc.workspace.finishDate")}
-                                  </label>
-                                  <input
-                                    type="date"
-                                    value={
-                                      session.end_date
-                                        ? new Date(session.end_date)
-                                          .toISOString()
-                                          .split("T")[0]
-                                        : ""
-                                    }
-                                    onChange={(event) =>
-                                      updateSessionField(
-                                        session.id,
-                                        "end_date",
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-indigo-500"
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="pt-2">
-                                <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
-                                  {t("pmMisc.workspace.operationalState")}
-                                </label>
-                                <select
-                                  value={session.status}
-                                  onChange={(event) =>
-                                    updateSessionStatus(
-                                      session.id,
-                                      event.target.value,
-                                    )
-                                  }
-                                  disabled={session.status === "locked"}
-                                  className={`w-full mt-1 px-4 py-3 rounded-xl border text-[10px] font-black uppercase outline-none transition-all cursor-pointer ${
-                                    session.status === "locked"
-                                      ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
-                                      : session.status === "completed"
-                                        ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-                                        : session.status === "in progress"
-                                          ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/30"
-                                          : session.status === "not started"
-                                            ? "bg-slate-500/10 text-slate-400 border-slate-500/30"
-                                            : "bg-amber-500/10 text-amber-500 border-amber-500/30"
-                                  }`}
-                                >
-                                  <option value="not started">{t("pmMisc.workspace.sessionStatusNotStarted")}</option>
-                                  <option value="pending">{t("pmMisc.workspace.sessionStatusPending")}</option>
-                                  <option value="in progress">
-                                    {t("pmMisc.workspace.sessionStatusInProgress")}
-                                  </option>
-                                  <option value="completed">{t("pmMisc.workspace.sessionStatusCompleted")}</option>
-                                  <option value="locked">{t("pmMisc.workspace.sessionStatusLockedOption")}</option>
-                                </select>
-                              </div>
-                              {session.version > 1 && (
-                                <div className="mt-2 flex items-center gap-2">
-                                  <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                                    {t("pmMisc.workspace.version")}: {session.version}
-                                  </span>
-                                  <span className="text-[7px] text-slate-500">
-                                    ({session.version - 1} {t(session.version > 2 ? "pmMisc.workspace.revisions" : "pmMisc.workspace.revision")})
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* SEPARATOR */}
-                          <div className="w-full h-px bg-gradient-to-r from-transparent via-indigo-500/20 to-transparent" />
-
-                          {/* PHASE 2: CURRICULUM (THE CORE) */}
-                          <div className="space-y-6">
-                            <div className="flex items-center justify-between pb-3 border-b border-brand-orange/20">
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-brand-orange/10 flex items-center justify-center text-[9px] font-black text-[var(--brand-orange)] border border-brand-orange/20 shadow-sm">
-                                  2
-                                </div>
-                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-orange)]">
-                                  {t("pmMisc.workspace.curriculumAssessments")}
-                                </span>
-                              </div>
-                              {canEdit && (
-                                <button
-                                  onClick={() => {
-                                    setSelectedSessionId(session.id);
-                                    // Pre-populate KPIs from the session (handle JSON string or array)
-                                    let sessionKpiIds = session.kpi_ids || [];
-                                    if (typeof sessionKpiIds === "string") {
-                                      try { sessionKpiIds = JSON.parse(sessionKpiIds); } catch (_) { sessionKpiIds = []; }
-                                    }
-                                    if (!Array.isArray(sessionKpiIds)) sessionKpiIds = [];
-                                    setNewRequirement((prev) => ({ ...prev, kpi_ids: sessionKpiIds }));
-                                    setShowRequirementModal(true);
-                                  }}
-                                  className="text-[9px] font-black text-[var(--brand-orange)] uppercase hover:underline flex items-center gap-1"
-                                >
-                                  <Plus className="w-3 h-3" /> {t("pmMisc.workspace.addRequirement")}
-                                </button>
-                              )}
-                            </div>
-
-                            <div className="space-y-2 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
-                              {requirements
-                                .filter((requirement) => requirement.session_id === session.id)
-                                .map((requirement) => (
-                                  <div
-                                    key={requirement.id}
-                                    className="flex items-center justify-between p-4 bg-primary rounded-2xl border border-[var(--border-primary)] hover:border-brand-orange/30 transition-all shadow-sm"
-                                  >
-                                    <div className="flex items-center gap-4">
-                                      <div className="w-9 h-9 rounded-xl bg-indigo-500/5 flex items-center justify-center">
-                                        <FileText className="w-5 h-5 text-indigo-500" />
-                                      </div>
-                                      <div>
-                                        <p className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tight">
-                                          {requirement.title}
-                                        </p>
-                                        <p className="text-[8px] text-[var(--text-secondary)] font-black uppercase tracking-widest mt-0.5 italic flex items-center gap-2">
-                                          <span>{t("pmMisc.workspace.requirement")}: {requirement.allowed_format || "PDF"}</span>
-                                          {requirement.due_date && (() => {
-                                            const now = new Date();
-                                            const due = new Date(requirement.due_date);
-                                            const diffDays = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
-                                            const isOverdue = diffDays < 0;
-                                            const isDueSoon = diffDays >= 0 && diffDays <= 3;
-                                            return (
-                                              <>
-                                                <span>•</span>
-                                                <span className={isOverdue ? "text-rose-500" : isDueSoon ? "text-amber-500" : "text-amber-500/60"}>
-                                                  {t("pmMisc.workspace.due")}: {due.toLocaleDateString()}
-                                                </span>
-                                                {isOverdue && (
-                                                  <span className="px-1.5 py-0.5 rounded text-[7px] font-black bg-rose-500/20 text-rose-400">{t("pmMisc.workspace.overdue")}</span>
-                                                )}
-                                                {isDueSoon && (
-                                                  <span className="px-1.5 py-0.5 rounded text-[7px] font-black bg-amber-500/20 text-amber-400">{t("pmMisc.workspace.dueSoon")}</span>
-                                                )}
-                                              </>
-                                            );
-                                          })()}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                      {requirement.due_date && canEdit && (
-                                        <button
-                                          onClick={async () => {
-                                            try {
-                                              const response = await fetch("/api/pm/curriculum", {
-                                                method: "POST",
-                                                headers: { "Content-Type": "application/json" },
-                                                body: JSON.stringify({
-                                                  action: "send_reminder",
-                                                  requirement_id: requirement.id,
-                                                  program_id: id,
-                                                }),
-                                              });
-                                              const data = await response.json();
-                                              if (data.success) {
-                                                const message = data.sent > 0
-                                                  ? t("pmMisc.workspace.reminderSentTo", { count: data.sent })
-                                                  : t("pmMisc.workspace.reminderSent");
-                                                notify(message);
-                                              } else {
-                                                notify(t("pmMisc.workspace.reminderFailed"));
-                                              }
-                                            } catch {
-                                              notify(t("pmMisc.workspace.reminderError"));
-                                            }
-                                          }}
-                                          className="text-[7px] font-black uppercase text-brand-orange/60 hover:text-[var(--brand-orange)] transition-all px-2 py-1 rounded border border-brand-orange/20 hover:border-brand-orange/50"
-                                          title={t("pmMisc.workspace.sendReminderTitle")}
-                                        >
-                                          <Bell className="w-3 h-3 inline mr-1" />
-                                          {t("pmMisc.workspace.remind")}
-                                        </button>
-                                      )}
-                                      {canEdit && (
-                                        <button className="text-rose-500/10 hover:text-rose-500 transition-all">
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
-                              {requirements.filter(
-                                (requirement) => requirement.session_id === session.id,
-                              ).length === 0 && (
-                                  <div className="py-16 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
-                                    <Shield className="w-10 h-10 mb-2" />
-                                    <p className="text-[10px] font-bold uppercase tracking-widest">
-                                      {t("pmMisc.workspace.noRequirementsSet")}
-                                    </p>
-                                  </div>
-                                )}
-                            </div>
-                            <p className="text-[8px] font-bold text-slate-500/50 uppercase tracking-widest italic text-center px-6">
-                              {t("pmMisc.workspace.curriculumEvidenceNote")}
-                            </p>
-                          </div>
-
-                          {/* SEPARATOR */}
-                          <div className="w-full h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent" />
-
-                          {/* PHASE 4: LEARNING (LMS — Phase 6) */}
-                          <ProgramLearningSection
-                            programId={id}
-                            weekNumber={session.week_number}
-                            sessionId={session.id}
-                            canEdit={canEdit}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                }
-              </div>
-            </div>
+            <CurriculumTab
+              assignedStaff={assignedStaff}
+              canContribute={canContribute}
+              canEdit={canEdit}
+              expandedSessionId={expandedSessionId}
+              id={id}
+              kpis={kpis}
+              onAddSession={handleAddSession}
+              onDeleteSession={handleDeleteSession}
+              onEditSessionDescription={handleEditSessionDescription}
+              onExpandedSessionId={setExpandedSessionId}
+              onOpenRequirementForSession={handleOpenRequirementForSession}
+              onOpenSessionAttendance={handleOpenSessionAttendance}
+              onOpenSessionPMReport={handleOpenSessionPMReport}
+              onSendRequirementReminder={handleSendRequirementReminder}
+              onShowArchivedSessions={setShowArchivedSessions}
+              onToggleSessionExpanded={handleToggleSessionExpanded}
+              onToggleSessionHandler={handleToggleSessionHandler}
+              onToggleSessionLock={handleToggleSessionLock}
+              onUpdateSessionFieldBlur={updateSessionField}
+              onUpdateSessionFieldChange={updateSessionField}
+              onUpdateSessionFieldEndDateChange={updateSessionField}
+              onUpdateSessionFieldEndTimeChange={updateSessionField}
+              onUpdateSessionFieldScheduledDateChange={updateSessionField}
+              onUpdateSessionFieldStartTimeChange={updateSessionField}
+              onUpdateSessionFieldTimezoneChange={updateSessionField}
+              onUpdateSessionFieldWeekNumberChange={updateSessionField}
+              onUpdateSessionStatusChange={updateSessionStatus}
+              programTeamMembers={programTeamMembers}
+              requirements={requirements}
+              sessions={sessions}
+              showArchivedSessions={showArchivedSessions}
+            />
           )}
 
           {activeTab === "attendance" && (
-            <div className="space-y-6 animate-in">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-primary)]">
-                  {t("pmMisc.workspace.attendanceOverview")}
-                </h3>
-              </div>
-              <p className="text-[10px] text-[var(--text-secondary)]">
-                {t("pmMisc.workspace.attendanceSelectWeek")}
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {sessions
-                  .filter((session) => session.type === "session")
-                  .sort((first, second) => (first.week_number || 0) - (second.week_number || 0))
-                  .map((session) => (
-                    <div
-                      key={session.id}
-                      className="card border border-[var(--border-primary)] hover:border-indigo-500/30 transition-all cursor-pointer"
-                      onClick={() => {
-                        setSelectedSessionForAttendance(session);
-                        setShowAttendanceModal(true);
-                      }}
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-lg font-black text-indigo-400">
-                          {session.week_number || "?"}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                            {session.title}
-                          </p>
-                          <p className="text-[8px] text-[var(--text-secondary)] uppercase tracking-wider">
-                            {t("pmMisc.workspace.week")} {session.week_number}
-                          </p>
-                        </div>
-                      </div>
-                      {session.scheduled_date && (
-                        <p className="text-[9px] text-[var(--text-secondary)] mb-2">
-                          {new Date(session.scheduled_date).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
-                        </p>
-                      )}
-                      <button
-                        className="w-full py-2 rounded-lg bg-indigo-500/10 text-indigo-400 text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition-all"
-                      >
-                        {t("pmMisc.workspace.openAttendance")}
-                      </button>
-                    </div>
-                  ))}
-                {sessions.filter((session) => session.type === "session").length === 0 && (
-                  <div className="col-span-3 py-12 text-center">
-                    <p className="text-[11px] text-slate-500">{t("pmMisc.workspace.noSessionsYet")}</p>
-                  </div>
-                )}
-              </div>
-            </div>
+            <AttendanceTab
+              onOpenAttendanceModal={handleOpenAttendanceModal}
+              sessions={sessions}
+            />
           )}
 
           {activeTab === "config" && (
-            <div className="space-y-8 animate-in">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-6">
-                  {/* STRATEGIC MATERIALS (PDFs) — MOVED TO TOP FOR VISIBILITY */}
-                  <div className="space-y-6 mb-8">
-                    <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-blue-500" />
-                      {t("pmMisc.workspace.configAssignedMaterials")}
-                    </h3>
-                    <div className="card space-y-4">
-                      <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">
-                        {t("pmMisc.workspace.configAssignedAssets")}
-                      </p>
-                      <div className="grid grid-cols-1 gap-3">
-                        {(() => {
-                          let materials = [];
-                          const rawMaterials = program?.materials;
-                          const knowledgeAssets = program?.knowledge_assets || [];
-
-                          if (rawMaterials) {
-                            if (Array.isArray(rawMaterials))
-                              materials = rawMaterials.filter(
-                                (entry) => entry && entry !== "[]" && entry !== "",
-                              );
-                            else if (typeof rawMaterials === "string") {
-                              if (rawMaterials.startsWith("[") || rawMaterials.startsWith("{")) {
-                                try {
-                                  let parsed = JSON.parse(rawMaterials);
-                                  if (typeof parsed === "string")
-                                    parsed = JSON.parse(parsed);
-                                  materials = Array.isArray(parsed)
-                                    ? parsed.filter(
-                                      (entry) => entry && entry !== "[]" && entry !== "",
-                                    )
-                                    : [parsed];
-                                } catch {
-                                  materials = rawMaterials === "[]" ? [] : [rawMaterials];
-                                }
-                              } else {
-                                materials =
-                                  rawMaterials === "" || rawMaterials === "[]" ? [] : [rawMaterials];
-                              }
-                            }
-                          }
-
-                          // Merge with Knowledge Base Assets with safe mapping
-                          const allMaterials = [
-                            ...materials.map((material) => {
-                              let item = material;
-                              // Handle stringified JSON inside array items
-                              if (typeof item === "string") {
-                                try {
-                                  let parsed = JSON.parse(item);
-                                  if (typeof parsed === "string") parsed = JSON.parse(parsed);
-                                  if (Array.isArray(parsed)) item = parsed[0];
-                                  else item = parsed;
-                                } catch { }
-                              }
-                              if (Array.isArray(item)) item = item[0];
-                              if (item && typeof item === "object") {
-                                return {
-                                  name:
-                                    item.name ||
-                                    item.NAME ||
-                                    item.title ||
-                                    item.TITLE ||
-                                    t("pmMisc.workspace.programDocument"),
-                                  url:
-                                    item.url ||
-                                    item.URL ||
-                                    item.path ||
-                                    item.PATH ||
-                                    "",
-                                  source: "curriculum",
-                                };
-                              }
-                              if (typeof material === "string" && material.trim())
-                                return {
-                                  url: material,
-                                  name: material.split("/").pop(),
-                                  source: "curriculum",
-                                };
-                              return null;
-                            }),
-                            ...knowledgeAssets.map((asset) => {
-                              if (typeof asset === "object" && asset !== null)
-                                return { ...asset, source: "knowledge" };
-                              if (typeof asset === "string" && asset.trim())
-                                return {
-                                  url: asset,
-                                  name: asset.split("/").pop(),
-                                  source: "knowledge",
-                                };
-                              return null;
-                            }),
-                          ].filter(
-                            (item) =>
-                              item && (item.name || item.url || item.path),
-                          );
-
-                          if (allMaterials.length === 0) {
-                            return (
-                              <p className="text-xs italic text-[var(--text-secondary)] opacity-40 p-4 border border-dashed border-[var(--border-primary)] rounded-xl text-center">
-                                {t("pmMisc.workspace.noMaterialsAnchored")}
-                              </p>
-                            );
-                          }
-
-                          return allMaterials.map((file, index) => {
-                            const url =
-                              typeof file === "object"
-                                ? file.url || file.URL || file.path || ""
-                                : typeof file === "string"
-                                  ? file
-                                  : "";
-                            const rawName =
-                              typeof file === "object"
-                                ? file.name ||
-                                file.NAME ||
-                                file.title ||
-                                file.TITLE ||
-                                (typeof (file.url || file.URL) === "string"
-                                  ? (file.url || file.URL).split("/").pop()
-                                  : t("pmMisc.workspace.programDocument"))
-                                : typeof file === "string"
-                                  ? file.split("/").pop()
-                                  : t("pmMisc.workspace.programDocument");
-                            const name = rawName
-                              .replace(/\.[^.]+$/, "") // strip extension (.pdf, .docx…)
-                              .replace(/[_-]+/g, " ") // underscores/hyphens → spaces
-                              .replace(/\s+/g, " ") // collapse extra spaces
-                              .trim()
-                              .toLowerCase()
-                              .replace(/\b\w/g, (char) => char.toUpperCase()); // Title Case
-                            const isKB = file.source === "knowledge";
-
-                            // Items without valid URL will still show name, OPEN will use in-app viewer
-
-                            return (
-                              <div
-                                key={index}
-                                className={`w-full flex items-center justify-between p-4 bg-tertiary rounded-xl border transition-all group text-left ${isKB ? "border-emerald-500/30 hover:border-emerald-500" : "border-[var(--border-primary)] hover:border-blue-500/50"}`}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div
-                                    className={`p-2 rounded-lg ${isKB ? "bg-emerald-500/10 text-emerald-500" : "bg-blue-500/10 text-blue-500"}`}
-                                  >
-                                    <FileText className="w-4 h-4" />
-                                  </div>
-                                  <div>
-                                    <span className="font-bold text-xs uppercase tracking-tight truncate max-w-[200px] block">
-                                      {name}
-                                    </span>
-                                    <span
-                                      className={`text-[8px] font-black uppercase tracking-widest ${isKB ? "text-emerald-500" : "text-blue-500"}`}
-                                    >
-                                      {isKB
-                                        ? t("pmMisc.workspace.knowledgeAsset")
-                                        : t("pmMisc.workspace.programMaterial")}
-                                    </span>
-                                  </div>
-                                </div>
-                                <button
-                                  onClick={(event) => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    setActivePDF({ url: url || "#", name });
-                                  }}
-                                  className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${isKB ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-black border border-emerald-500/20" : "bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-black border border-blue-500/20"}`}
-                                >
-                                  {t("pmMisc.workspace.open")}
-                                </button>
-                              </div>
-                            );
-                          });
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-
-                  <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-[var(--brand-orange)]" />
-                    {t("pmMisc.workspace.configProgramIdentity")}
-                  </h3>
-                  <div className="card space-y-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        {t("pmMisc.workspace.programName")}
-                      </label>
-                      <input
-                        ref={configNameRef}
-                        type="text"
-                        defaultValue={program?.name}
-                        disabled={user.role === "program_manager"}
-                        className={`w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold ${user.role === "program_manager" ? "opacity-50 cursor-not-allowed" : ""}`}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        {t("pmMisc.workspace.conceptNote")}
-                      </label>
-                      <textarea
-                        ref={configDescRef}
-                        rows="4"
-                        defaultValue={program?.description}
-                        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                          {t("pmMisc.workspace.durationWeeks")}
-                        </label>
-                        <input
-                          ref={configWeeksRef}
-                          type="number"
-                          defaultValue={program?.duration_weeks}
-                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                          {t("pmMisc.workspace.operationalStatus")}
-                        </label>
-                        <select
-                          ref={configStatusRef}
-                          defaultValue={program?.status}
-                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold"
-                        >
-                          <option value="active">{t("pmMisc.workspace.programStatusActive")}</option>
-                          <option value="archived">{t("pmMisc.workspace.programStatusArchived")}</option>
-                          <option value="draft">{t("pmMisc.workspace.programStatusDraft")}</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-purple-500 flex items-center gap-2">
-                          <Shield className="w-3 h-3 text-white" /> {t("pmMisc.workspace.gradingMode")}
-                        </label>
-                        <select
-                          ref={configGradingRef}
-                          defaultValue={program?.grading_mode || "graded"}
-                          className="w-full bg-primary border border-purple-500/30 rounded-lg px-4 py-3 text-sm focus:border-purple-500 outline-none transition-all font-bold"
-                        >
-                          <option value="graded">
-                            {t("pmMisc.workspace.gradingGraded")}
-                          </option>
-                          <option value="review">{t("pmMisc.workspace.gradingReviewOnly")}</option>
-                          <option value="followup">
-                            {t("pmMisc.workspace.gradingFollowup")}
-                          </option>
-                        </select>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-2">
-                          <Calendar className="w-3 h-3 text-white" />{" "}
-                          {t("pmMisc.workspace.projectStartDate")}
-                        </label>
-                        <input
-                          ref={configStartRef}
-                          type="date"
-                          defaultValue={
-                            program?.start_date
-                              ? new Date(program.start_date)
-                                .toISOString()
-                                .split("T")[0]
-                              : ""
-                          }
-                          className="w-full bg-primary border border-emerald-500/30 rounded-lg px-4 py-3 text-sm focus:border-emerald-500 outline-none transition-all font-bold"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-rose-500 flex items-center gap-2">
-                          <Calendar className="w-3 h-3 text-white" />{" "}
-                          {t("pmMisc.workspace.projectFinishDate")}
-                        </label>
-                        <input
-                          ref={configEndRef}
-                          type="date"
-                          defaultValue={
-                            program?.end_date
-                              ? new Date(program.end_date)
-                                .toISOString()
-                                .split("T")[0]
-                              : ""
-                          }
-                          className="w-full bg-primary border border-rose-500/30 rounded-lg px-4 py-3 text-sm focus:border-rose-500 outline-none transition-all font-bold"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1 mt-4">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] ml-2">
-                        {t("pmMisc.workspace.programManager")}
-                      </label>
-                      <div className="w-full bg-primary/50 border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--brand-orange)] flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <User className="w-4 h-4" />
-                          <span className="uppercase">
-                            {program?.pm_name || t("pmMisc.workspace.notAssigned")}
-                          </span>
-                        </div>
-                        <Shield className="w-4 h-4 opacity-30" />
-                      </div>
-                    </div>
-                    <button
-                      onClick={saveConfig}
-                      disabled={isSaving}
-                      className="btn btn-primary w-full py-4 mt-4 gap-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      {isSaving ? t("pmMisc.workspace.saving") : t("pmMisc.workspace.syncGlobalSettings")}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-purple-500" />
-                    {t("pmMisc.workspace.configStrategicKpis")}
-                    <button
-                      onClick={async () => {
-                        try {
-                          const response = await fetch(
-                            `/api/kpi-progress?program_id=${id}`,
-                          );
-                          const data = await response.json();
-                          if (data.success) {
-                            notify(t("pmMisc.workspace.kpiRecalculated"));
-                            fetchProgramData(true);
-                          }
-                        } catch (_) {
-                          notify(t("pmMisc.workspace.recalculationFailed"), "error");
-                        }
-                      }}
-                      className="ml-auto text-[8px] font-black text-purple-400 uppercase hover:underline flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-purple-500/10 transition-all"
-                    >
-                      <RefreshCw className="w-3 h-3" /> {t("pmMisc.workspace.recalculate")}
-                    </button>
-                  </h3>
-                  <div className="card space-y-4">
-                    {/* READ-ONLY KNOWLEDGE BASE FOR PM */}
-                    {program?.note_title && (
-                      <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl space-y-3 mb-6">
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="w-4 h-4 text-emerald-500" />
-                          <h4 className="text-[11px] font-black uppercase text-white tracking-tight">
-                            {program.note_title}
-                          </h4>
-                        </div>
-                        <p className="text-[10px] text-slate-400 font-bold leading-relaxed">
-                          {program.note_description}
-                        </p>
-                        <div className="space-y-2 pt-2 border-t border-emerald-500/10">
-                          {program.knowledge_assets?.map((asset, index) => (
-                            <button
-                              key={index}
-                              onClick={() =>
-                                setActivePDF({
-                                  url: asset.url,
-                                  name: asset.name,
-                                })
-                              }
-                              className="w-full flex items-center justify-between p-2 hover:bg-emerald-500/10 rounded-lg transition-all group"
-                            >
-                              <span className="text-[9px] font-bold text-slate-300 uppercase truncate">
-                                {asset.name}
-                              </span>
-                              <ExternalLink className="w-3 h-3 text-emerald-500 opacity-0 group-hover:opacity-100" />
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {kpis.map((kpi, kpiIdx) => {
-                        const kpiProgress = kpi.progress || 0;
-                        const isMeasurable = kpi.measurable !== false;
-                        return (
-                          <div
-                            key={kpi.id}
-                            className="card !p-4 hover:border-brand-orange/30 transition-all group"
-                          >
-                            <div className="flex items-center justify-between mb-3">
-                              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                                {t("pmMisc.workspace.kpi")} {kpiIdx + 1}
-                              </span>
-                              <span className="text-sm font-black text-[var(--brand-orange)]">
-                                {isMeasurable ? `${kpiProgress}%` : "—"}
-                              </span>
-                            </div>
-                            <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-tight mb-3 group-hover:text-[var(--brand-orange)] transition-colors">
-                              {kpi.title}
-                            </p>
-                            <div className="w-full h-2 bg-divider/20 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-orange-400 rounded-full transition-all duration-700"
-                                style={{ width: `${isMeasurable ? kpiProgress : 0}%` }}
-                              />
-                            </div>
-                            <div className="flex items-center gap-3 mt-2">
-                              {isMeasurable ? (
-                                <span className="text-[10px] font-bold text-slate-500">
-                                  {kpi.linkedDocs} {t("pmMisc.workspace.docsLower")}
-                                </span>
-                              ) : (
-                                <span className="text-[10px] font-bold text-slate-600">
-                                  {t("pmMisc.workspace.nonMeasurable")}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {kpis.length === 0 && (
-                        <div className="col-span-full p-8 text-center">
-                          <p className="text-sm text-[var(--text-secondary)]">
-                            {t("pmMisc.workspace.noKpisConfigured")}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <ConfigTab
+              configDescRef={configDescRef}
+              configEndRef={configEndRef}
+              configGradingRef={configGradingRef}
+              configNameRef={configNameRef}
+              configStartRef={configStartRef}
+              configStatusRef={configStatusRef}
+              configWeeksRef={configWeeksRef}
+              isSaving={isSaving}
+              kpis={kpis}
+              onActivePDF={setActivePDF}
+              onOpenPdfViewer={handleOpenPdfViewer}
+              onRecalculateKpis={handleRecalculateKpis}
+              onSaveConfig={saveConfig}
+              program={program}
+              user={user}
+            />
           )}
 
           {activeTab === "reviews" && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-                  {t("pmMisc.workspace.tabReviews")}
-                </h3>
-                <button onClick={refreshReviews} className="text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] hover:underline">
-                  {t("common.refresh") || "Refresh"}
-                </button>
-              </div>
-              {reviewsLoading ? (
-                <p className="text-sm text-[var(--text-secondary)] py-8 text-center">Loading…</p>
-              ) : facilitatorReviews.length === 0 ? (
-                <p className="text-sm text-[var(--text-secondary)] py-8 text-center">
-                  No facilitator reviews submitted yet.
-                </p>
-              ) : (
-                facilitatorReviews.map((review) => (
-                  <div key={review.id} className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4 space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <p className="text-[11px] font-black uppercase">{review.facilitator_name || review.facilitator_id || "Facilitator"}</p>
-                        <p className="text-[10px] text-[var(--text-secondary)]">
-                          {t("pmMisc.facilitators.weeklyReview.week")} {review.week_number || "—"} ·{" "}
-                          {t("pmMisc.facilitators.weeklyReview.submittedAt", {
-                            date: new Date(review.created_at).toLocaleDateString(),
-                          })}
-                        </p>
-                      </div>
-                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                        review.pm_decision === "changes_requested"
-                          ? "bg-rose-500/15 text-rose-400"
-                          : review.status === "decided"
-                            ? "bg-emerald-500/15 text-emerald-400"
-                            : "bg-amber-500/15 text-amber-400"
-                      }`}>
-                        {review.pm_decision === "changes_requested"
-                          ? t("pmMisc.facilitators.weeklyReview.status_changes_requested")
-                          : review.status === "decided"
-                            ? t("pmMisc.facilitators.weeklyReview.status_decided")
-                            : t("pmMisc.facilitators.weeklyReview.status_submitted")}
-                      </span>
-                    </div>
-
-                    {(review.overall_rating || review.participant_progress) && (
-                      <p className="text-[10px] text-[var(--text-secondary)]">
-                        <strong className="text-[var(--text-primary)]">
-                          {t("pmMisc.facilitators.weeklyReview.overall")}:
-                        </strong>{" "}
-                        {reviewRatingLabel(review.overall_rating) || review.participant_progress}
-                      </p>
-                    )}
-                    {review.engagement && (
-                      <p className="text-[10px] text-[var(--text-secondary)]">
-                        <strong className="text-[var(--text-primary)]">
-                          {t("pmMisc.facilitators.weeklyReview.engagement")}:
-                        </strong>{" "}
-                        {reviewEngagementLabel(review.engagement)}
-                      </p>
-                    )}
-                    {(review.went_well || review.completed_work) && (
-                      <p className="text-[10px] text-[var(--text-secondary)]">
-                        <strong className="text-[var(--text-primary)]">
-                          {t("pmMisc.facilitators.weeklyReview.wentWell")}:
-                        </strong>{" "}
-                        {review.went_well || review.completed_work}
-                      </p>
-                    )}
-                    {(review.struggles || review.challenges) && (
-                      <p className="text-[10px] text-[var(--text-secondary)]">
-                        <strong className="text-[var(--text-primary)]">
-                          {t("pmMisc.facilitators.weeklyReview.struggles")}:
-                        </strong>{" "}
-                        {review.struggles || review.challenges}
-                      </p>
-                    )}
-                    {(review.needs_attention_type || review.needs_attention || review.needs_attention_note) && (
-                      <div className="text-[10px] text-[var(--text-secondary)]">
-                        <p>
-                          <strong className="text-[var(--text-primary)]">
-                            {t("pmMisc.facilitators.weeklyReview.needsAttention")}:
-                          </strong>{" "}
-                          {reviewAttentionLabel(review.needs_attention_type) || review.needs_attention}
-                        </p>
-                        {review.needs_attention_note && (
-                          <p className="mt-0.5 pl-1">{review.needs_attention_note}</p>
-                        )}
-                      </div>
-                    )}
-                    {(review.focus_next_week || review.recommendations) && (
-                      <p className="text-[10px] text-[var(--text-secondary)]">
-                        <strong className="text-[var(--text-primary)]">
-                          {t("pmMisc.facilitators.weeklyReview.focusNextWeek")}:
-                        </strong>{" "}
-                        {review.focus_next_week || review.recommendations}
-                      </p>
-                    )}
-                    {review.additional_notes && (
-                      <p className="text-[10px] text-[var(--text-secondary)]">
-                        <strong className="text-[var(--text-primary)]">
-                          {t("pmMisc.facilitators.weeklyReview.additionalNotes")}:
-                        </strong>{" "}
-                        {review.additional_notes}
-                      </p>
-                    )}
-
-                    {review.pm_decision && (
-                      <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-                        <p className="text-[10px] font-bold uppercase text-emerald-400 mb-1">
-                          {t("pmMisc.facilitators.weeklyReview.decision")}
-                        </p>
-                        <p className="text-[10px] font-medium text-[var(--text-primary)]">{review.pm_decision}</p>
-                        {review.pm_decision_note && (
-                          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">{review.pm_decision_note}</p>
-                        )}
-                      </div>
-                    )}
-                    {review.status !== "decided" && (
-                      <div className="flex gap-2">
-                        <button onClick={() => handleReviewDecision(review.id, "acknowledged")} className="text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25">
-                          {t("pmMisc.facilitators.weeklyReview.acknowledge")}
-                        </button>
-                        <button onClick={() => handleReviewDecision(review.id, "changes_requested")} className="text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25">
-                          {t("pmMisc.facilitators.weeklyReview.requestChanges")}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
+            <ReviewsTab
+              facilitatorReviews={facilitatorReviews}
+              onRefreshReviews={refreshReviews}
+              onReviewDecision={handleReviewDecision}
+              onReviewDecisionChangesRequested={handleReviewDecision}
+              reviewAttentionLabel={reviewAttentionLabel}
+              reviewEngagementLabel={reviewEngagementLabel}
+              reviewRatingLabel={reviewRatingLabel}
+              reviewsLoading={reviewsLoading}
+            />
           )}
           {activeTab === "reports" && (
-            <div className="space-y-6">
-              {user.role === "program_manager" && (
-                <div className="flex items-start gap-3 p-4 rounded-xl border border-brand-orange/30 bg-brand-orange/5">
-                  <FileText className="w-5 h-5 text-[var(--brand-orange)] shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-tight text-[var(--text-primary)]">
-                      {t("pmMisc.workspace.reportsGoToCurriculumTitle")}
-                    </p>
-                    <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-relaxed">
-                      {t("pmMisc.workspace.reportsGoToCurriculumHint")}
-                    </p>
-                  </div>
-                </div>
-              )}
-              {/* Export Bar */}
-              <div className="flex flex-wrap items-center gap-2 p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mr-2">{t("pmMisc.workspace.exportLabel")}</span>
-                {[
-                  { label: t("pmMisc.workspace.exportParticipantsCsv"), type: "participants", format: "csv" },
-                  { label: t("pmMisc.workspace.exportParticipantsXlsx"), type: "participants", format: "xlsx" },
-                  { label: t("pmMisc.workspace.exportAttendanceCsv"), type: "attendance", format: "csv" },
-                  { label: t("pmMisc.workspace.exportSubmissionsCsv"), type: "submissions", format: "csv" },
-                  { label: t("pmMisc.workspace.exportTeamsCsv"), type: "teams", format: "csv" },
-                  { label: t("pmMisc.workspace.exportCalendarIcal"), type: "ical", format: "ical" },
-                  { label: t("pmMisc.workspace.exportParticipantsPdf"), type: "participants", format: "pdf" },
-                ].map(({ label, type, format }) => (
-                  <button
-                    key={`${type}-${format}`}
-                    onClick={async () => {
-                      try {
-                        const response = await fetch(`/api/pm/export?type=${type}&program_id=${id}&format=${format}`, {
-                          credentials: "include",
-                        });
-                        if (!response.ok) throw new Error("Export failed");
-                        if (format === "pdf") {
-                          const { rows: data, filename } = await response.json();
-                          const { default: jsPDF } = await import("jspdf");
-                          const doc = new jsPDF({ orientation: "landscape" });
-                          doc.setFontSize(12);
-                          doc.text(`${type.toUpperCase()} - Talent for Startups`, 10, 10);
-                          if (data && data.length > 0) {
-                            const headers = Object.keys(data[0]);
-                            let lineY = 20;
-                            doc.setFontSize(7);
-                            // Header row
-                            headers.forEach((header, columnIndex) => doc.text(String(header), 10 + columnIndex * 35, lineY));
-                            lineY += 5;
-                            // Data rows (max 40 rows per page)
-                            data.slice(0, 80).forEach((row, _ri) => {
-                              if (lineY > 180) { doc.addPage(); lineY = 15; }
-                              headers.forEach((header, columnIndex) => {
-                                const cellValue = String(row[header] ?? "").substring(0, 20);
-                                doc.text(cellValue, 10 + columnIndex * 35, lineY);
-                              });
-                              lineY += 4;
-                            });
-                          }
-                          doc.save(filename);
-                        } else {
-                          const blob = await response.blob();
-                          const url = URL.createObjectURL(blob);
-                          const anchor = document.createElement("a");
-                          const fileExtension = format === "xlsx" ? "xlsx" : "csv";
-                          anchor.href = url;
-                          anchor.download = `${type}-${id}.${fileExtension}`;
-                          anchor.click();
-                          URL.revokeObjectURL(url);
-                        }
-                        notify(t("pmMisc.workspace.exported", { label }));
-                      } catch {
-                        notify(t("pmMisc.workspace.exportFailed"), "error");
-                      }
-                    }}
-                    className={`px-3 py-1.5 text-[10px] font-bold uppercase rounded-lg border transition-all ${
-                      format === "xlsx"
-                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
-                        : format === "pdf"
-                          ? "bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20"
-                          : "bg-brand-orange/10 text-[var(--brand-orange)] border-brand-orange/20 hover:bg-brand-orange/20"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-black uppercase tracking-tighter">
-                  {t("pmMisc.workspace.reportsWeeklyFeed")}
-                </h3>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">
-                    {t("pmMisc.workspace.totalSignals")}
-                  </span>
-                  <span className="text-sm font-black">{reports.length}</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4">
-                {reports.map((report, index) => (
-                  <div
-                    key={report.id || index}
-                    className="card !p-0 overflow-hidden border-[var(--border-primary)] hover:border-[var(--brand-orange)] transition-all"
-                  >
-                    <div className="p-4 bg-tertiary flex justify-between items-center border-b border-[var(--border-primary)]">
-                      <div className="flex items-center gap-4">
-                        <div className="px-3 py-1 bg-[var(--brand-orange)] text-white text-[10px] font-black rounded uppercase">
-                          Wk{report.week_number}
-                        </div>
-                        <span className="text-xs font-bold uppercase tracking-tight text-[var(--text-primary)]">
-                          {t("pmMisc.workspace.submissionBy", { name: report.staff_name || report.teacher_name || t("pmMisc.workspace.staffMember") })}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-medium text-[var(--text-secondary)]">
-                        {new Date(report.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-4">
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)] mb-1">
-                            {t("pmMisc.workspace.reportChallenges")}
-                          </p>
-                          <p className="text-xs text-[var(--text-primary)] leading-relaxed">
-                            {report.challenges || t("pmMisc.workspace.noDataReported")}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mb-1">
-                            {t("pmMisc.workspace.reportHighlights")}
-                          </p>
-                          <p className="text-xs text-[var(--text-primary)] leading-relaxed">
-                            {report.highlights || t("pmMisc.workspace.noDataReported")}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="space-y-4">
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1">
-                            {t("pmMisc.workspace.reportNextSteps")}
-                          </p>
-                          <p className="text-xs text-[var(--text-primary)] leading-relaxed">
-                            {report.planned_adjustments || report.next_steps || t("pmMisc.workspace.noDataReported")}
-                          </p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 pt-2">
-                          <div className="p-3 bg-primary rounded-lg border border-[var(--border-primary)]">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                              {t("pmMisc.workspace.attendance")}
-                            </p>
-                            <p className="text-sm font-black">
-                              {report.attendance_count || 0}
-                            </p>
-                          </div>
-                          <div className="p-3 bg-primary rounded-lg border border-[var(--border-primary)]">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                              {t("pmMisc.workspace.sessions")}
-                            </p>
-                            <p className="text-sm font-black">
-                              {report.sessions_completed || 0}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {reports.length === 0 && (
-                  <div className="py-20 text-center card border-dashed opacity-40">
-                    <BarChart3 className="w-10 h-10 mx-auto mb-4 opacity-20" />
-                    <p className="text-xs font-bold uppercase tracking-widest">
-                      {t("pmMisc.workspace.awaitingReports")}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
+            <ReportsTab
+              onExportPmReport={handleExportPmReport}
+              reports={reports}
+              user={user}
+            />
           )}
 
           {activeTab === "submissions" && (
-            <div className="table-container">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>{t("pmMisc.workspace.tableParticipant")}</th>
-                    <th>{t("pmMisc.workspace.tableDeliverable")}</th>
-                    <th>{t("pmMisc.workspace.tableDate")}</th>
-                    <th>{t("pmMisc.workspace.tableStatus")}</th>
-                    <th className="text-right">{t("pmMisc.workspace.tableAction")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {submissions.map((submission) => (
-                    <tr
-                      key={submission.id}
-                      className={
-                        submission.status === "pending" && !submissionsSeen
-                          ? "bg-brand-orange/5"
-                          : ""
-                      }
-                    >
-                      <td>
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-2">
-                            {submission.status === "pending" && !submissionsSeen && (
-                              <span className="w-2 h-2 rounded-full bg-[var(--brand-orange)] shrink-0" />
-                            )}
-                            <span className="font-black text-[var(--text-primary)]">
-                              {submission.participant_name || t("pmMisc.workspace.na")}
-                            </span>
-                          </div>
-                          <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">
-                            {submission.group_name || t("pmMisc.workspace.individual")}
-                          </span>
-                        </div>
-                      </td>
-                      <td>{submission.deliverable_title}</td>
-                      <td className="text-[10px] opacity-60 font-bold">
-                        {new Date(submission.created_at).toLocaleDateString()}
-                      </td>
-                      <td>
-                        <span
-                          className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${submission.status === "approved" ? "bg-emerald-500/10 text-emerald-500" : "bg-orange-500/10 text-orange-500"}`}
-                        >
-                          {{
-                            approved: t("pmMisc.workspace.submissionStatusApproved"),
-                            pending: t("pmMisc.workspace.submissionStatusPending"),
-                            submitted: t("pmMisc.workspace.submissionStatusSubmitted"),
-                            rejected: t("pmMisc.workspace.submissionStatusRejected"),
-                            revision_requested: t("pmMisc.workspace.submissionStatusRevision"),
-                            pending_followup: t("pmMisc.workspace.submissionStatusFollowup"),
-                          }[submission.status] || submission.status}
-                        </span>
-                      </td>
-                      <td className="text-right">
-                        <div className="flex items-center justify-end gap-4">
-                          <button
-                            onClick={() => handleViewSubmission(submission)}
-                            className="text-[var(--brand-orange)] text-[10px] font-bold uppercase"
-                          >
-                            {t("pmMisc.workspace.viewSubmission")}
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedSubmission(submission);
-                              setReviewScore(submission.score || 0);
-                              setShowReviewModal(true);
-                            }}
-                            className="text-[var(--brand-blue)] text-[10px] font-bold uppercase"
-                          >
-                            {t("pmMisc.workspace.review")}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {submissions.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan="5"
-                        className="py-20 text-center opacity-30"
-                      >
-                        {t("pmMisc.workspace.noSubmissions")}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <SubmissionsTab
+              onOpenReviewModal={handleOpenReviewModal}
+              onViewSubmission={handleViewSubmission}
+              submissions={submissions}
+              submissionsSeen={submissionsSeen}
+            />
           )}
 
           {activeTab === "facilitators" && <FacilitatorsPanel programId={id} />}
@@ -3636,3063 +2184,266 @@ function ProgramWorkspace() {
 
         {/* PDF VIEWER MODAL */}
         {activePDF && (
-          <div
-            className="fixed inset-0 z-[600] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in"
-            onClick={() => setActivePDF(null)}
-          >
-            <div
-              className="card w-full max-w-5xl h-[90vh] flex flex-col space-y-4 shadow-2xl border-[var(--border-primary)]"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="flex items-center justify-between border-b border-[var(--border-primary)] pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)]">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-black uppercase text-[var(--text-primary)]">
-                      {activePDF.name}
-                    </h3>
-                    <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                      {t("pmMisc.workspace.documentPreview")}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <a
-                    href={activePDF.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="btn btn-secondary !py-2 text-[10px] gap-2"
-                  >
-                    <ExternalLink className="w-4 h-4" /> {t("pmMisc.workspace.openInNewTab")}
-                  </a>
-                  <button
-                    onClick={() => setActivePDF(null)}
-                    className="btn btn-secondary !py-2 hover:bg-rose-500/10 hover:text-rose-500 border-none"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 bg-tertiary rounded-xl overflow-hidden border border-[var(--border-primary)] relative">
-                {!activePDF.url || activePDF.url === "#" ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 opacity-50">
-                    <FileText className="w-16 h-16 mb-4 text-[var(--text-secondary)] opacity-20" />
-                    <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("pmMisc.workspace.noDocumentUrl")}
-                    </h3>
-                    <p className="text-[10px] text-[var(--text-secondary)] mt-2 max-w-sm leading-relaxed">
-                      {t("pmMisc.workspace.noDocumentUrlDesc")}
-                    </p>
-                  </div>
-                ) : (
-                  <iframe
-                    src={`${activePDF.url}#toolbar=0`}
-                    className="w-full h-full"
-                    title={t("pmMisc.workspace.pdfViewer")}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
+          <PdfViewerModal
+            activePDF={activePDF}
+            onClearActivePDF={() => setActivePDF(null)}
+          />
         )}
 
         {/* TOAST */}
-        {toast && (
-          <div
-            className={`fixed bottom-6 right-6 z-[500] px-6 py-3 rounded-lg text-sm font-bold uppercase tracking-widest border ${toast.type === "error"
-              ? "bg-rose-50 text-rose-700 border-rose-200"
-              : "bg-emerald-50 text-emerald-700 border-emerald-200"
-              }`}
-          >
-            {toast.msg}
-          </div>
-        )}
+        {toast && <ProgramToast toast={toast} />}
 
         {/* DEPLOY STUDENT GROUP MODAL */}
         {showTeamModal && (
-          <div
-            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-            onClick={() => setShowTeamModal(false)}
-          >
-            <div
-              className="card w-full max-w-sm space-y-6"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="flex justify-between items-center">
-                <div className="space-y-1">
-                  <h3
-                    className="text-base font-black uppercase tracking-tight"
-                    style={{ color: "var(--text-primary)" }}
-                  >
-                    {t("pmMisc.workspace.teamModalTitle")}
-                  </h3>
-                  <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">
-                    {t("pmMisc.workspace.teamModalDesc")}
-                  </p>
-                </div>
-                <button onClick={() => setShowTeamModal(false)}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <div className="flex bg-primary p-1 rounded-xl border border-[var(--border-primary)]">
-                  <button
-                    onClick={() => setTeamAssignmentMode("new")}
-                    className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${teamAssignmentMode === "new" ? "bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20" : "text-[var(--text-secondary)] opacity-50"}`}
-                  >
-                    {t("pmMisc.workspace.createNew")}
-                  </button>
-                  <button
-                    onClick={() => setTeamAssignmentMode("existing")}
-                    className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${teamAssignmentMode === "existing" ? "bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20" : "text-[var(--text-secondary)] opacity-50"}`}
-                  >
-                    {t("pmMisc.workspace.addToExisting")}
-                  </button>
-                </div>
-
-                {teamAssignmentMode === "new" ? (
-                  <div className="space-y-1">
-                    <label
-                      className="text-[10px] font-black uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("pmMisc.workspace.teamInternalName")}
-                    </label>
-                    <input
-                      value={newTeam.name}
-                      onChange={(event) =>
-                        setNewTeam((prev) => ({ ...prev, name: event.target.value }))
-                      }
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                      placeholder={t("pmMisc.workspace.teamNamePlaceholder")}
-                    />
-                    <p className="text-[8px] font-bold text-[var(--brand-orange)] uppercase mt-1">
-                      {t("pmMisc.workspace.teamNoteAutoLink")}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    <label
-                      className="text-[10px] font-black uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("pmMisc.workspace.selectTargetGroup")}
-                    </label>
-                    <select
-                      value={selectedExistingTeamId}
-                      onChange={(event) =>
-                        setSelectedExistingTeamId(event.target.value)
-                      }
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      <option value="">{t("pmMisc.workspace.selectExistingTeam")}</option>
-                      {teams.map((team) => (
-                        <option key={team.id} value={team.id}>
-                          {team.name.toUpperCase()} ({t("pmMisc.workspace.group")}: {team.group_name})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {t("pmMisc.workspace.addByEmailLabel")}
-                  </label>
-                  <textarea
-                    value={emailInput}
-                    onChange={(event) => setEmailInput(event.target.value)}
-                    rows={3}
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold resize-none"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder={t("pmMisc.workspace.emailListPlaceholder")}
-                  />
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase opacity-60">
-                      {t("pmMisc.workspace.selection")}{" "}
-                      {selectedParticipants.length}{" "}
-                      {t("pmMisc.workspace.selected")}
-                    </p>
-                    <button
-                      onClick={addEmailsToSelection}
-                      disabled={!emailInput.trim()}
-                      className="btn btn-primary btn-sm"
-                    >
-                      <UserPlus className="w-3 h-3" />{" "}
-                      {t("pmMisc.workspace.addEmailsButton")}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {t("pmMisc.workspace.assignGroupLead")}
-                  </label>
-                  <select
-                    value={newTeam.leader_id}
-                    onChange={(event) =>
-                      setNewTeam((prev) => ({ ...prev, leader_id: event.target.value }))
-                    }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    <option value="">{t("pmMisc.workspace.selectLead")}</option>
-                    {participants
-                      .filter((participant) => newTeam.member_ids.includes(participant.id))
-                      .map((participant) => (
-                        <option key={participant.id} value={participant.id}>
-                          {participant.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {t("pmMisc.workspace.assignOversight")}
-                  </label>
-                  <select
-                    value={newTeam.staff_id}
-                    onChange={(event) => {
-                      const staff = oversightCandidates.find(
-                        (member) => String(member.cid) === event.target.value,
-                      );
-                      setNewTeam((prev) => ({
-                        ...prev,
-                        staff_id: event.target.value,
-                        handler_name: staff?.name || "",
-                      }));
-                    }}
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    <option value="">{t("pmMisc.workspace.noStaffAssignedOptional")}</option>
-                    {oversightCandidates.map((member) => (
-                      <option key={member.cid ?? member.email ?? member.id} value={member.cid}>
-                        {/* Backward compatibility for legacy rows: an assignment
-                            saved before the teacher persona was retired may still
-                            carry that stored role, so label it as an instructor on
-                            purpose instead of falling through to the raw value. */}
-                        {member.name} ({member.role === "teacher" ? t("pmMisc.workspace.instructor") : member.role}
-                        )
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowTeamModal(false)}
-                  className="flex-1 btn btn-secondary"
-                >
-                  {t("pmMisc.workspace.cancel")}
-                </button>
-                 <button
-                  onClick={deployTeam}
-                  disabled={isSaving || (teamAssignmentMode === "new" && !newTeam.name.trim()) || (teamAssignmentMode === "existing" && !selectedExistingTeamId)}
-                  className="flex-1 btn btn-primary"
-                >
-                  {isSaving ? t("pmMisc.workspace.initializing") : t("pmMisc.workspace.initializeGroup")}
-                </button>
-              </div>
-            </div>
-          </div>
+          <DeployTeamModal
+            emailInput={emailInput}
+            isSaving={isSaving}
+            newTeam={newTeam}
+            onAddEmailsToSelection={addEmailsToSelection}
+            onChangeNewTeamStaff={handleChangeNewTeamStaff}
+            onCloseTeamModal={() => setShowTeamModal(false)}
+            onDeployTeam={deployTeam}
+            onEmailInputChange={setEmailInput}
+            onLeaderIdChange={setNewTeam}
+            onNewTeamChange={setNewTeam}
+            onSelectedExistingTeamIdChange={setSelectedExistingTeamId}
+            onTeamAssignmentMode={setTeamAssignmentMode}
+            onTeamAssignmentModeExisting={setTeamAssignmentMode}
+            oversightCandidates={oversightCandidates}
+            participants={participants}
+            selectedExistingTeamId={selectedExistingTeamId}
+            selectedParticipants={selectedParticipants}
+            teamAssignmentMode={teamAssignmentMode}
+            teams={teams}
+          />
         )}
 
         {/* ADD SESSION MODAL */}
         {showSessionModal && (
-          <div
-            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-            onClick={closeSessionModal}
-          >
-            <div
-              className="card w-full max-w-lg space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="flex justify-between items-center pb-4 border-b border-[var(--border-primary)]">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-brand-orange/10 flex items-center justify-center">
-                    <FileText className="w-4 h-4 text-[var(--brand-orange)]" />
-                  </div>
-                  <div>
-                    <h3
-                      className="text-sm font-black uppercase tracking-tight"
-                      style={{ color: "var(--text-primary)" }}
-                    >
-                      {t("pmMisc.workspace.newSessionTitle")}
-                    </h3>
-                    <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-0.5">
-                      {t("pmMisc.workspace.week")} {newSession.week_number}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={closeSessionModal}
-                  className="p-2 hover:bg-[var(--surface-2)] rounded-lg transition-all"
-                >
-                  <X
-                    className="w-4 h-4"
-                    style={{ color: "var(--text-tertiary)" }}
-                  />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <label
-                    className="text-[9px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {t("pmMisc.workspace.sessionTitle")}
-                  </label>
-                  <input
-                    value={newSession.title}
-                    onChange={(event) =>
-                      setNewSession((prev) => ({ ...prev, title: event.target.value }))
-                    }
-                    className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold transition-all focus:border-[var(--brand-orange)]"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder={t("pmMisc.workspace.sessionTitlePlaceholder")}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label
-                      className="text-[9px] font-black uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("pmMisc.workspace.startDate")}
-                    </label>
-                    <input
-                      type="date"
-                      value={newSession.scheduled_date}
-                      onChange={(event) =>
-                        setNewSession((prev) => ({
-                          ...prev,
-                          scheduled_date: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label
-                      className="text-[9px] font-black uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("pmMisc.workspace.finishDate")}
-                    </label>
-                    <input
-                      type="date"
-                      value={newSession.end_date}
-                      onChange={(event) =>
-                        setNewSession((prev) => ({
-                          ...prev,
-                          end_date: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label
-                      className="text-[9px] font-black uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("pmMisc.workspace.startTime")}
-                    </label>
-                    <input
-                      type="time"
-                      value={newSession.start_time}
-                      onChange={(event) =>
-                        setNewSession((prev) => ({
-                          ...prev,
-                          start_time: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label
-                      className="text-[9px] font-black uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("pmMisc.workspace.endTime")}
-                    </label>
-                    <input
-                      type="time"
-                      value={newSession.end_time}
-                      onChange={(event) =>
-                        setNewSession((prev) => ({
-                          ...prev,
-                          end_time: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-xl px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {t("pmMisc.workspace.assignHandlers")}
-                  </label>
-                  <div className="grid grid-cols-2 gap-1.5 max-h-[120px] overflow-y-auto p-1 custom-scrollbar">
-                    {programTeamMembers.map((staff) => {
-                      const isSelected = (
-                        newSession.handler_ids || []
-                      ).includes(String(staff.cid));
-                      return (
-                        <button
-                          key={staff.cid}
-                          type="button"
-                          onClick={() => {
-                            const handlerIds = newSession.handler_ids || [];
-                            const handlerNames = newSession.handler_names || [];
-                            const staffCid = String(staff.cid);
-                            if (handlerIds.includes(staffCid)) {
-                              const index = handlerIds.indexOf(staffCid);
-                              setNewSession((prev) => ({
-                                ...prev,
-                                handler_ids: handlerIds.filter((id) => id !== staffCid),
-                                handler_names: handlerNames.filter(
-                                  (_, nameIndex) => nameIndex !== index,
-                                ),
-                              }));
-                            } else {
-                              setNewSession((prev) => ({
-                                ...prev,
-                                handler_ids: [...handlerIds, staffCid],
-                                handler_names: [...handlerNames, staff.name],
-                              }));
-                            }
-                          }}
-                          className={`flex items-center gap-2 p-2 rounded-lg border text-[11px] font-bold transition-all text-left ${isSelected
-                            ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
-                            : "bg-black/20 border-white/5 text-slate-400 hover:border-white/20"
-                            }`}
-                        >
-                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-[7px]">
-                            {staff.name?.charAt(0)}
-                          </div>
-                          <span className="truncate">{staff.name}</span>
-                        </button>
-                      );
-                    })}
-                    {programTeamMembers.length === 0 && (
-                      <p className="text-[10px] text-slate-600 italic col-span-full px-2">
-                        {t("pmMisc.workspace.noStaffAssignedHint")}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {t("pmMisc.workspace.sessionNotes")}
-                  </label>
-                  <textarea
-                    value={newSession.notes}
-                    onChange={(event) =>
-                      setNewSession((prev) => ({
-                        ...prev,
-                        notes: event.target.value,
-                      }))
-                    }
-                    rows={3}
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold resize-none"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder={t("pmMisc.workspace.sessionNotesPlaceholder")}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {t("pmMisc.workspace.extraCourseMaterials")}
-                  </label>
-                  {/* Material type selector */}
-                  <div className="flex gap-1 bg-primary rounded-lg p-1 border border-[var(--border-primary)] w-fit">
-                    {[
-                      { id: "text", label: t("pmMisc.workspace.materialTypeText"), icon: FileText },
-                      { id: "link", label: t("pmMisc.workspace.materialTypeLink"), icon: Plus },
-                      { id: "upload", label: t("pmMisc.workspace.materialTypeFile"), icon: Paperclip },
-                    ].map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() =>
-                          setNewSessionMaterial({
-                            type: opt.id,
-                            content: "",
-                            name: "",
-                          })
-                        }
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${newSessionMaterial.type === opt.id
-                          ? "bg-[var(--brand-orange)] text-black"
-                          : "text-slate-500 hover:text-white"
-                          }`}
-                      >
-                        <opt.icon className="w-3 h-3" />
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Material input */}
-                  <div className="flex gap-2">
-                    {newSessionMaterial.type === "text" && (
-                      <input
-                        value={newSessionMaterial.content}
-                        onChange={(event) =>
-                          setNewSessionMaterial((prev) => ({
-                            ...prev,
-                            content: event.target.value,
-                            name: "Text Note",
-                          }))
-                        }
-                        placeholder={t("pmMisc.workspace.textNotePlaceholder")}
-                        className="flex-1 rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                        style={{
-                          background: "var(--bg-primary)",
-                          border: "1px solid var(--border-primary)",
-                          color: "var(--text-primary)",
-                        }}
-                      />
-                    )}
-                    {newSessionMaterial.type === "link" && (
-                      <input
-                        type="url"
-                        value={newSessionMaterial.content}
-                        onChange={(event) =>
-                          setNewSessionMaterial((prev) => ({
-                            ...prev,
-                            content: event.target.value,
-                            name:
-                              event.target.value.split("/").pop() ||
-                              "External Link",
-                          }))
-                        }
-                        placeholder="https://..."
-                        className="flex-1 rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                        style={{
-                          background: "var(--bg-primary)",
-                          border: "1px solid var(--border-primary)",
-                          color: "var(--text-primary)",
-                        }}
-                      />
-                    )}
-                    {newSessionMaterial.type === "upload" && (
-                      <div className="flex-1 relative group">
-                        <input
-                          type="file"
-                          accept=".pdf,.doc,.docx"
-                          onChange={(event) => {
-                            const file = event.target.files?.[0];
-                            if (file)
-                              setNewSessionMaterial((prev) => ({
-                                ...prev,
-                                content: file.name,
-                                name: file.name,
-                              }));
-                          }}
-                          className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                        />
-                        <div
-                          className="flex items-center gap-2 px-4 py-3 rounded-lg border border-dashed text-sm font-bold"
-                          style={{
-                            background: "var(--bg-primary)",
-                            borderColor: "var(--border-primary)",
-                            color: "var(--text-secondary)",
-                          }}
-                        >
-                          <Paperclip className="w-4 h-4" />
-                          {newSessionMaterial.content || t("pmMisc.workspace.clickToAttach")}
-                        </div>
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!newSessionMaterial.content.trim()) return;
-                        setNewSession((prev) => ({
-                          ...prev,
-                          extra_materials: [
-                            ...(prev.extra_materials || []),
-                            { ...newSessionMaterial },
-                          ],
-                        }));
-                        setNewSessionMaterial({
-                          type: "text",
-                          content: "",
-                          name: "",
-                        });
-                      }}
-                      className="px-4 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
-                    >
-                      {t("pmMisc.workspace.add")}
-                    </button>
-                  </div>
-
-                  {/* Added materials list */}
-                  {(newSession.extra_materials || []).length > 0 && (
-                    <div className="space-y-1.5 mt-2">
-                      {(newSession.extra_materials || []).map((material, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-2 rounded-lg"
-                          style={{
-                            background: "var(--bg-tertiary)",
-                            border: "1px solid var(--border-primary)",
-                          }}
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            {material.type === "text" && (
-                              <FileText className="w-3 h-3 text-blue-500 shrink-0" />
-                            )}
-                            {material.type === "link" && (
-                              <Plus className="w-3 h-3 text-emerald-500 shrink-0" />
-                            )}
-                            {material.type === "upload" && (
-                              <Paperclip className="w-3 h-3 text-[#FF6600] shrink-0" />
-                            )}
-                            <span className="text-[10px] font-bold truncate text-[var(--text-primary)]">
-                              {material.name || material.content}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setNewSession((prev) => ({
-                                ...prev,
-                                extra_materials: (
-                                  prev.extra_materials || []
-                                ).filter((_, materialIndex) => materialIndex !== index),
-                              }))
-                            }
-                            className="text-rose-500 hover:scale-110 transition-all shrink-0"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">
-                    <Target className="w-3 h-3 text-[#FF6600]" /> {t("pmMisc.workspace.linkStrategicKpis")}
-                  </label>
-                  <div className="grid grid-cols-1 gap-2 max-h-[120px] overflow-y-auto p-1 custom-scrollbar text-left">
-                    {kpis.map((kpi) => (
-                      <button
-                        key={kpi.id}
-                        onClick={() => toggleKpi("session", kpi.id)}
-                        className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left ${(newSession.kpi_ids || []).includes(kpi.id)
-                          ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
-                          : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
-                          }`}
-                      >
-                        <span className="text-[10px] font-bold uppercase tracking-tight">
-                          {kpi.title}
-                        </span>
-                        {(newSession.kpi_ids || []).includes(kpi.id) && (
-                          <CheckCircle2 className="w-3 h-3 text-[#FF6600]" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-2 mt-4 pt-4 border-t border-[var(--border-primary)]">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">
-                    <FileText className="w-3 h-3 text-indigo-400" /> {t("pmMisc.workspace.deliverablesRequirements")}
-                  </label>
-                  
-                  {/* List of added requirements */}
-                  {(newSession.requirements || []).length > 0 && (
-                    <div className="space-y-2 mb-3">
-                      {(newSession.requirements || []).map((requirement, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] shadow-sm">
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] font-black text-[var(--text-primary)] uppercase">{requirement.title}</span>
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-orange/10 text-[var(--brand-orange)] uppercase">
-                                {requirement.allowed_format}
-                              </span>
-                            </div>
-                            {requirement.due_date && <span className="text-[10px] text-[var(--text-secondary)]">Due: {requirement.due_date}</span>}
-                          </div>
-                          <button type="button" onClick={() => setNewSession(prev => ({ ...prev, requirements: prev.requirements.filter((_, requirementIndex) => requirementIndex !== index) }))} className="text-rose-500 hover:bg-rose-500/10 p-2 rounded-md transition-all">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Inline Form to add a new requirement */}
-                  <div className="p-4 bg-[var(--surface-1)] rounded-xl border border-[var(--border-primary)] shadow-inner space-y-4">
-                    <p className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wider mb-2">{t("pmMisc.workspace.configNewReq")}</p>
-                    
-                    {/* 1. Type Dropdown */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.reqTypeLabel")}</label>
-                      <select
-                        value={newRequirement.allowed_format}
-                        onChange={(event) => setNewRequirement(prev => ({ ...prev, allowed_format: event.target.value }))}
-                        className="w-full rounded-lg px-3 py-2 text-xs font-bold outline-none transition-colors"
-                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                      >
-                        <option value="pdf">{t("pmMisc.workspace.formatPdf")}</option>
-                        <option value="image">{t("pmMisc.workspace.formatImage")}</option>
-                        <option value="link">{t("pmMisc.workspace.formatLink")}</option>
-                        <option value="video">{t("pmMisc.workspace.formatVideo")}</option>
-                      </select>
-                    </div>
-
-                    {/* 2. Title */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.titleLabel")}</label>
-                      <input
-                        value={newRequirement.title}
-                        onChange={(event) => setNewRequirement(prev => ({ ...prev, title: event.target.value }))}
-                        placeholder={t("pmMisc.workspace.requirementTitlePlaceholder")}
-                        className="w-full rounded-lg px-3 py-2 text-xs font-bold outline-none transition-colors"
-                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                      />
-                    </div>
-
-                    {/* 3. Description */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.descLabel")}</label>
-                      <textarea
-                        value={newRequirement.description || ""}
-                        onChange={(event) => setNewRequirement(prev => ({ ...prev, description: event.target.value }))}
-                        placeholder={t("pmMisc.workspace.instructionsPlaceholder")}
-                        rows={2}
-                        className="w-full rounded-lg px-3 py-2 text-xs font-medium outline-none transition-colors"
-                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                      />
-                    </div>
-
-                    {/* 4. Conditional URL/Label */}
-                    {(newRequirement.allowed_format === "link" || newRequirement.allowed_format === "video") && (
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.urlLabel")}</label>
-                          <input
-                            type="text"
-                            value={newRequirement.resource_url || ""}
-                            onChange={(event) => setNewRequirement(prev => ({ ...prev, resource_url: event.target.value }))}
-                            placeholder={t("pmMisc.workspace.resourceUrlPlaceholder")}
-                            className="w-full rounded-lg px-3 py-2 text-xs font-medium outline-none transition-colors"
-                            style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.btnLabel")}</label>
-                          <input
-                            type="text"
-                            value={newRequirement.resource_label || ""}
-                            onChange={(event) => setNewRequirement(prev => ({ ...prev, resource_label: event.target.value }))}
-                            placeholder={t("pmMisc.workspace.resourceLabelPlaceholder")}
-                            className="w-full rounded-lg px-3 py-2 text-xs font-medium outline-none transition-colors"
-                            style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* 5. Due Date & Target */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.deadlineLabel")}</label>
-                        <input
-                          type="date"
-                          value={newRequirement.due_date || ""}
-                          onChange={(event) => setNewRequirement(prev => ({ ...prev, due_date: event.target.value }))}
-                          className="w-full rounded-lg px-3 py-2 text-xs font-medium outline-none transition-colors"
-                          style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.targetAudienceLabel")}</label>
-                        <select
-                          value={newRequirement.assignee_type || "all"}
-                          onChange={(event) => setNewRequirement(prev => ({ ...prev, assignee_type: event.target.value, assignee_id: "" }))}
-                          className="w-full rounded-lg px-3 py-2 text-xs font-bold outline-none transition-colors"
-                          style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                        >
-                          <option value="all">{t("pmMisc.workspace.assigneeAll")}</option>
-                          <option value="team">{t("pmMisc.workspace.assigneeTeam")}</option>
-                          <option value="individual">{t("pmMisc.workspace.assigneeIndividual")}</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="pt-2">
-                      <button
-                        type="button"
-                        disabled={!newRequirement.title.trim()}
-                        onClick={() => {
-                          setNewSession(prev => ({ ...prev, requirements: [...(prev.requirements || []), { ...newRequirement, kpi_ids: prev.kpi_ids || [] }] }));
-                          setNewRequirement({ title: "", description: "", allowed_format: "pdf", kpi_ids: [], due_date: "", assignee_type: "all", assignee_id: "", resource_url: "", resource_label: "" });
-                        }}
-                        className="w-full py-2.5 rounded-lg bg-[var(--surface-2)] text-[var(--text-primary)] border border-[var(--border-primary)] text-xs font-black uppercase tracking-widest hover:bg-[var(--surface-3)] disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                      >
-                        <Plus className="w-4 h-4" /> {t("pmMisc.workspace.addToRequirementList")}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowSessionModal(false)}
-                  className="flex-1 btn btn-secondary"
-                >
-                  {t("pmMisc.workspace.cancel")}
-                </button>
-                <button
-                  onClick={addSession}
-                  disabled={isSaving || !newSession.title.trim() || (kpis.length > 0 && (!newSession.kpi_ids || newSession.kpi_ids.length === 0))}
-                  className="flex-1 btn btn-primary"
-                >
-                  {isSaving ? t("pmMisc.workspace.creating") : t("pmMisc.workspace.createSession")}
-                </button>
-              </div>
-            </div>
-          </div>
+          <SessionModal
+            isSaving={isSaving}
+            kpis={kpis}
+            newRequirement={newRequirement}
+            newSession={newSession}
+            newSessionMaterial={newSessionMaterial}
+            onAddSession={addSession}
+            onAddSessionRequirement={handleAddSessionRequirement}
+            onAssigneeTypeChange={setNewRequirement}
+            onAttachSessionMaterial={handleAttachSessionMaterial}
+            onCloseSessionModal={closeSessionModal}
+            onCloseSessionModal2={() => setShowSessionModal(false)}
+            onDescriptionChange={setNewRequirement}
+            onDueDateChange={setNewRequirement}
+            onEndDateChange={setNewSession}
+            onEndTimeChange={setNewSession}
+            onNewRequirementChange={setNewRequirement}
+            onNewSession={setNewSession}
+            onNewSessionChange={setNewSession}
+            onNewSessionMaterial={setNewSessionMaterial}
+            onNewSessionMaterialChange={setNewSessionMaterial}
+            onNewSessionMaterialExternalLinkChange={setNewSessionMaterial}
+            onNotesChange={setNewSession}
+            onRequirements={setNewSession}
+            onResourceLabelChange={setNewRequirement}
+            onResourceUrlChange={setNewRequirement}
+            onScheduledDateChange={setNewSession}
+            onSessionMaterialFile={handleSessionMaterialFile}
+            onStartTimeChange={setNewSession}
+            onTitleChange={setNewRequirement}
+            onToggleKpi={toggleKpi}
+            onToggleSessionStaff={handleToggleSessionStaff}
+            programTeamMembers={programTeamMembers}
+          />
         )}
 
         {/* REVIEW & GRADE MODAL */}
         {showReviewModal && (
-          <div
-            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-            onClick={() => setShowReviewModal(false)}
-          >
-            <div
-              className="card w-full max-w-md max-h-[85vh] overflow-y-auto space-y-6"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="flex justify-between items-center">
-                <h3
-                  className="text-base font-black uppercase tracking-tight"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  {t("pmMisc.workspace.gradeSubmission")}
-                </h3>
-                <button onClick={() => setShowReviewModal(false)}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="p-4 bg-tertiary border border-[var(--border-primary)] rounded-xl space-y-2">
-                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">
-                  {t("pmMisc.workspace.tableParticipant")}
-                </p>
-                <p className="text-sm font-black text-[var(--text-primary)]">
-                  {selectedSubmission?.participant_name || t("pmMisc.workspace.groupSubmission")}
-                </p>
-                <a
-                  href={selectedSubmission?.file_url || selectedSubmission?.submission_url || selectedSubmission?.submission_link || '#'}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[10px] font-bold text-indigo-400 uppercase flex items-center gap-1 mt-2 hover:text-white transition-colors"
-                >
-                  <ExternalLink className="w-3 h-3" /> {t("pmMisc.workspace.viewSourceMaterial")}
-                </a>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {t("pmMisc.workspace.numericalGrade")}
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={reviewScore}
-                    onChange={(event) => setReviewScore(event.target.value)}
-                    className="w-full rounded-lg px-4 py-3 text-2xl outline-none font-black text-center text-[var(--brand-orange)]"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "2px solid var(--border-primary)",
-                    }}
-                    placeholder={t("pmMisc.workspace.gradeScorePlaceholder")}
-                  />
-                  <p className="text-[10px] font-bold text-slate-500 text-center uppercase mt-2">
-                    {t("pmMisc.workspace.scoreSyncNote")}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
-                    Feedback / Notes
-                  </label>
-                  <textarea
-                    value={reviewFeedback}
-                    onChange={(event) => setReviewFeedback(event.target.value)}
-                    rows={2}
-                    placeholder="Optional feedback or rejection reason"
-                    className="w-full rounded-lg px-3 py-2 text-xs font-bold outline-none"
-                    style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                  />
-                </div>
-              </div>
-              {!showFollowupFields ? (
-                <>
-                  <button
-                    onClick={() => setShowFollowupFields(true)}
-                    className="w-full py-2.5 rounded-xl border border-dashed border-indigo-400/40 text-[10px] font-bold uppercase tracking-widest text-indigo-400 hover:bg-indigo-400/10 transition-all flex items-center justify-center gap-2"
-                  >
-                    <Calendar className="w-3.5 h-3.5" /> {t("pmMisc.workspace.scheduleFollowup")}
-                  </button>
-                  <div className="space-y-2 pt-2">
-                    <button
-                      onClick={handleReviewSubmission}
-                      disabled={isSaving || reviewScore === ""}
-                      className="w-full btn btn-primary"
-                    >
-                      {isSaving ? t("pmMisc.workspace.grading") : t("pmMisc.workspace.approveAndGrade")}
-                    </button>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => setShowReviewModal(false)}
-                        className="flex-1 btn btn-secondary"
-                      >
-                        {t("pmMisc.workspace.cancel")}
-                      </button>
-                      <button
-                        onClick={handleRequestRevision}
-                        disabled={isSaving}
-                        className="flex-1 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 transition-all"
-                      >
-                        Request revision
-                      </button>
-                      <button
-                        onClick={handleRejectSubmission}
-                        disabled={isSaving}
-                        className="flex-1 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 transition-all"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="space-y-4 pt-2 border-t border-[var(--border-primary)]">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">
-                    <Calendar className="w-3 h-3 inline mr-1" /> {t("pmMisc.workspace.scheduleFollowupMeeting")}
-                  </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.dateRequired")}</label>
-                      <input type="date" value={followupDate}
-                        onChange={(event) => setFollowupDate(event.target.value)}
-                        className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
-                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.timeRequired")}</label>
-                      <input type="time" value={followupTime}
-                        onChange={(event) => setFollowupTime(event.target.value)}
-                        className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
-                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.durationMinutes")}</label>
-                    <select value={followupDuration} onChange={(event) => setFollowupDuration(event.target.value)}
-                      className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
-                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                    >
-                      <option value="15">15 min</option>
-                      <option value="30">30 min</option>
-                      <option value="45">45 min</option>
-                      <option value="60">60 min</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.meetingLinkOptional")}</label>
-                    <input type="url" value={followupMeetingLink}
-                      onChange={(event) => setFollowupMeetingLink(event.target.value)}
-                      placeholder="https://meet.google.com/..."
-                      className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
-                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("pmMisc.workspace.notesOptional")}</label>
-                    <textarea value={followupNotes}
-                      onChange={(event) => setFollowupNotes(event.target.value)}
-                      placeholder={t("pmMisc.workspace.followupNotesPlaceholder")} rows={2}
-                      className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold resize-none"
-                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                    />
-                  </div>
-                  <div className="flex gap-3 pt-2">
-                    <button onClick={() => { setShowFollowupFields(false); setFollowupDate(""); setFollowupTime(""); }}
-                      className="flex-1 py-2.5 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
-                    >
-                      {t("pmMisc.workspace.back")}
-                    </button>
-                    <button onClick={handleScheduleFollowup}
-                      disabled={isSaving || !followupDate || !followupTime}
-                      className="flex-1 py-2.5 bg-indigo-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
-                    >
-                      {isSaving ? t("pmMisc.workspace.scheduling") : <><Calendar className="w-3 h-3" /> {t("pmMisc.workspace.confirmFollowup")}</>}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          <ReviewModal
+            followupDate={followupDate}
+            followupDuration={followupDuration}
+            followupMeetingLink={followupMeetingLink}
+            followupNotes={followupNotes}
+            followupTime={followupTime}
+            isSaving={isSaving}
+            onCloseReviewModal={() => setShowReviewModal(false)}
+            onFollowupDateChange={setFollowupDate}
+            onFollowupDurationChange={setFollowupDuration}
+            onFollowupMeetingLinkChange={setFollowupMeetingLink}
+            onFollowupNotesChange={setFollowupNotes}
+            onFollowupTimeChange={setFollowupTime}
+            onOpenFollowupFields={() => setShowFollowupFields(true)}
+            onRejectSubmission={handleRejectSubmission}
+            onRequestRevision={handleRequestRevision}
+            onResetFollowupFields={handleResetFollowupFields}
+            onReviewFeedbackChange={setReviewFeedback}
+            onReviewScoreChange={setReviewScore}
+            onReviewSubmission={handleReviewSubmission}
+            onScheduleFollowup={handleScheduleFollowup}
+            reviewFeedback={reviewFeedback}
+            reviewScore={reviewScore}
+            selectedSubmission={selectedSubmission}
+            showFollowupFields={showFollowupFields}
+          />
         )}
 
         {/* ASSIGN STAFF MODAL */}
         {showStaffModal && (
-          <div
-            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-            onClick={() => setShowStaffModal(false)}
-          >
-            <div
-              className="card w-full max-w-sm space-y-6"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="flex justify-between items-center">
-                <h3
-                  className="text-base font-black uppercase tracking-tight"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  {t("pmMisc.workspace.assignPersonnel")}
-                </h3>
-                <button onClick={() => setShowStaffModal(false)}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {t("pmMisc.workspace.selectStaffMember")}
-                  </label>
-                  <select
-                    value={newStaff.staff_id}
-                    onChange={(event) =>
-                      setNewStaff((prev) => ({ ...prev, staff_id: event.target.value }))
-                    }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    <option value="">{t("pmMisc.workspace.selectMember")}</option>
-                    {staffList
-                      .filter((member) => member.role !== "super_admin")
-                      .map((member) => (
-                        <option key={member.cid} value={member.cid}>
-                          {member.name} ({member.role})
-                        </option>
-                      ))}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {t("pmMisc.workspace.assignedRole")}
-                  </label>
-                  <select
-                    value={newStaff.role}
-                    onChange={(event) =>
-                      setNewStaff((prev) => ({ ...prev, role: event.target.value }))
-                    }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    <option value="staff">{t("pmMisc.workspace.roleStaffMember")}</option>
-                    <option value="assistant">{t("pmMisc.workspace.roleAssistant")}</option>
-                    <option value="evaluator">{t("pmMisc.workspace.roleEvaluator")}</option>
-                    <option value="handler">{t("pmMisc.workspace.roleHandler")}</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowStaffModal(false)}
-                  className="flex-1 btn btn-secondary"
-                >
-                  {t("pmMisc.workspace.cancel")}
-                </button>
-                <button
-                  onClick={assignStaff}
-                  disabled={isSaving || !newStaff.staff_id}
-                  className="flex-1 btn btn-primary"
-                >
-                  {isSaving ? t("pmMisc.workspace.assigning") : t("pmMisc.workspace.assign")}
-                </button>
-              </div>
-            </div>
-          </div>
+          <StaffAssignmentModal
+            isSaving={isSaving}
+            newStaff={newStaff}
+            onAssignStaff={assignStaff}
+            onCloseStaffModal={() => setShowStaffModal(false)}
+            onNewStaffChange={setNewStaff}
+            onRoleChange={setNewStaff}
+            staffList={staffList}
+          />
         )}
 
         {/* DEFINE KPI MODAL */}
         {showKPIModal && (
-          <div
-            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-            onClick={() => setShowKPIModal(false)}
-          >
-            <div
-              className="card w-full max-w-sm space-y-6"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="flex justify-between items-center">
-                <h3
-                  className="text-base font-black uppercase tracking-tight"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  {t("pmMisc.workspace.defineKpiTarget")}
-                </h3>
-                <button onClick={() => setShowKPIModal(false)}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {t("pmMisc.workspace.kpiTitle")}
-                  </label>
-                  <input
-                    value={newKPI.title}
-                    onChange={(event) =>
-                      setNewKPI((prev) => ({ ...prev, title: event.target.value }))
-                    }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder={t("pmMisc.workspace.kpiTitlePlaceholder")}
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowKPIModal(false)}
-                  className="flex-1 btn btn-secondary"
-                >
-                  {t("pmMisc.workspace.cancel")}
-                </button>
-                <button
-                  onClick={addKPI}
-                  disabled={isSaving || !newKPI.title.trim()}
-                  className="flex-1 btn btn-primary"
-                >
-                  {isSaving ? t("pmMisc.workspace.defining") : t("pmMisc.workspace.define")}
-                </button>
-              </div>
-            </div>
-          </div>
+          <KpiModal
+            isSaving={isSaving}
+            newKPI={newKPI}
+            onAddKPI={addKPI}
+            onCloseKPIModal={() => setShowKPIModal(false)}
+            onNewKPIChange={setNewKPI}
+          />
         )}
 
         {/* ANCHOR REQUIREMENT MODAL */}
         {showRequirementModal && (
-          <div
-            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-            onClick={() => setShowRequirementModal(false)}
-          >
-            <div
-              className="card w-full max-w-sm space-y-6 max-h-[85vh] overflow-y-auto"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="flex justify-between items-center">
-                <h3
-                  className="text-base font-black uppercase tracking-tight"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  {t("pmMisc.workspace.addRequirement")}
-                </h3>
-                <button onClick={() => setShowRequirementModal(false)}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {t("pmMisc.workspace.requirementTitle")}
-                  </label>
-                  <input
-                    value={newRequirement.title}
-                    onChange={(event) =>
-                      setNewRequirement((prev) => ({
-                        ...prev,
-                        title: event.target.value,
-                      }))
-                    }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder={t("pmMisc.workspace.requirementTitleExample")}
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {t("pmMisc.workspace.instructions")}
-                  </label>
-                  <textarea
-                    value={newRequirement.description || ""}
-                    onChange={(event) =>
-                      setNewRequirement((prev) => ({
-                        ...prev,
-                        description: event.target.value,
-                      }))
-                    }
-                    rows={3}
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder={t("pmMisc.workspace.instructionsPlaceholder")}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label
-                      className="text-[10px] font-black uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("pmMisc.workspace.allowedFormat")}
-                    </label>
-                    <select
-                      value={newRequirement.allowed_format}
-                      onChange={(event) =>
-                        setNewRequirement((prev) => ({
-                          ...prev,
-                          allowed_format: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      <option value="pdf">{t("pmMisc.workspace.formatPdf")}</option>
-                      <option value="image">{t("pmMisc.workspace.formatImage")}</option>
-                      <option value="link">{t("pmMisc.workspace.formatLink")}</option>
-                      <option value="video">{t("pmMisc.workspace.formatVideo")}</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label
-                      className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      <Calendar className="w-3 h-3" /> {t("pmMisc.workspace.dueDate")}
-                    </label>
-                    <input
-                      type="date"
-                      value={newRequirement.due_date || ""}
-                      onChange={(event) =>
-                        setNewRequirement((prev) => ({
-                          ...prev,
-                          due_date: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {t("pmMisc.workspace.resourceUrl")}
-                  </label>
-                  <input
-                    type="text"
-                    value={newRequirement.resource_url || ""}
-                    onChange={(event) =>
-                      setNewRequirement((prev) => ({
-                        ...prev,
-                        resource_url: event.target.value,
-                      }))
-                    }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder={t("pmMisc.workspace.resourceUrlPlaceholder")}
-                  />
-                  <p className="text-[8px] text-[var(--text-secondary)]">
-                    {t("pmMisc.workspace.resourceHint")}
-                  </p>
-                </div>
-
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {t("pmMisc.workspace.resourceLabel")}
-                  </label>
-                  <input
-                    type="text"
-                    value={newRequirement.resource_label || ""}
-                    onChange={(event) =>
-                      setNewRequirement((prev) => ({
-                        ...prev,
-                        resource_label: event.target.value,
-                      }))
-                    }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                    placeholder={t("pmMisc.workspace.resourceLabelPlaceholder")}
-                  />
-                </div>
-
-                {/* Grading — derived from linked KPIs */}
-                <div className="p-3 rounded-xl bg-purple-500/5 border border-purple-500/10">
-                  <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest mb-2">
-                    <Target className="w-3 h-3 inline mr-1" /> {t("pmMisc.workspace.gradingFromKpis")}
-                  </p>
-                  {(() => {
-                    const linked = kpis.filter(kpi => (newRequirement.kpi_ids || []).includes(kpi.id));
-                    if (linked.length === 0) {
-                      return <p className="text-[8px] text-slate-500 italic">{t("pmMisc.workspace.gradingKpiHint")}</p>;
-                    }
-                    return <div className="grid grid-cols-1 gap-2 text-[10px]">
-                      <div><span className="text-slate-500">{t("pmMisc.workspace.kpisLinked")}</span> <span className="font-bold text-purple-400">{linked.length}</span></div>
-                    </div>;
-                  })()}
-                </div>
-
-                <div className="space-y-1">
-                  <label
-                    className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    <Users className="w-3 h-3" /> {t("pmMisc.workspace.assignTo")}
-                  </label>
-                  <select
-                    value={newRequirement.assignee_type || "all"}
-                    onChange={(event) =>
-                      setNewRequirement((prev) => ({
-                        ...prev,
-                        assignee_type: event.target.value,
-                        assignee_id: "",
-                      }))
-                    }
-                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                    style={{
-                      background: "var(--bg-primary)",
-                      border: "1px solid var(--border-primary)",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    <option value="all">{t("pmMisc.workspace.assigneeAll")}</option>
-                    <option value="team">{t("pmMisc.workspace.assigneeTeam")}</option>
-                    <option value="individual">{t("pmMisc.workspace.assigneeIndividual")}</option>
-                  </select>
-                </div>
-
-                {newRequirement.assignee_type === "team" && (
-                  <div className="space-y-1">
-                    <select
-                      value={newRequirement.assignee_id || ""}
-                      onChange={(event) =>
-                        setNewRequirement((prev) => ({
-                          ...prev,
-                          assignee_id: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      <option value="">{t("pmMisc.workspace.selectTeam")}</option>
-                      {teams.map((team) => (
-                        <option key={team.id} value={team.id}>
-                          {team.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {newRequirement.assignee_type === "individual" && (
-                  <div className="space-y-1">
-                    <select
-                      value={newRequirement.assignee_id || ""}
-                      onChange={(event) =>
-                        setNewRequirement((prev) => ({
-                          ...prev,
-                          assignee_id: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      <option value="">{t("pmMisc.workspace.selectParticipant")}</option>
-                      {participants.slice(0, 50).map((participant) => (
-                        <option key={participant.id} value={participant.id}>
-                          {participant.name} ({participant.email})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">
-                    <Target className="w-3 h-3 text-[#FF6600]" /> {t("pmMisc.workspace.strategicImpact")}
-                  </label>
-                  <div className="grid grid-cols-1 gap-2 max-h-[100px] overflow-y-auto p-1 custom-scrollbar text-left">
-                    {kpis.map((kpi) => (
-                      <button
-                        key={kpi.id}
-                        onClick={() => toggleKpi("requirement", kpi.id)}
-                        className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left ${(newRequirement.kpi_ids || []).includes(kpi.id)
-                          ? "bg-[#FF6600]/10 border-[#FF6600] text-white"
-                          : "bg-black/20 border-white/5 text-slate-500 hover:border-white/20"
-                          }`}
-                      >
-                        <span className="text-[10px] font-bold uppercase tracking-tight">
-                          {kpi.title}
-                        </span>
-                        {(newRequirement.kpi_ids || []).includes(kpi.id) && (
-                          <CheckCircle2 className="w-3 h-3 text-[#FF6600]" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowRequirementModal(false)}
-                  className="flex-1 btn btn-secondary"
-                >
-                  {t("pmMisc.workspace.cancel")}
-                </button>
-                <div className="flex-1 flex flex-col gap-2">
-                  <button
-                    onClick={() => addRequirement(false)}
-                    disabled={isSaving || !newRequirement.title.trim() || (newRequirement.kpi_ids || []).length === 0}
-                    className="w-full btn btn-secondary text-[9px] py-2 border-dashed"
-                  >
-                    {isSaving ? t("pmMisc.workspace.saving") : t("pmMisc.workspace.saveAndAddAnother")}
-                  </button>
-                  <button
-                    onClick={() => addRequirement(true)}
-                    disabled={isSaving || !newRequirement.title.trim() || (newRequirement.kpi_ids || []).length === 0}
-                    className="w-full btn btn-primary py-3"
-                  >
-                    {isSaving ? t("pmMisc.workspace.saving") : t("pmMisc.workspace.saveAndClose")}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <RequirementModal
+            isSaving={isSaving}
+            kpis={kpis}
+            newRequirement={newRequirement}
+            onAllowedFormatChange={setNewRequirement}
+            onAssigneeIdChange={setNewRequirement}
+            onAssigneeTypeChange={setNewRequirement}
+            onCloseAddRequirement={() => addRequirement(false)}
+            onCloseRequirementModal={() => setShowRequirementModal(false)}
+            onDescriptionChange={setNewRequirement}
+            onDueDateChange={setNewRequirement}
+            onNewRequirementChange={setNewRequirement}
+            onOpenAddRequirement={() => addRequirement(true)}
+            onResourceLabelChange={setNewRequirement}
+            onResourceUrlChange={setNewRequirement}
+            onToggleKpi={toggleKpi}
+            participants={participants}
+            teams={teams}
+          />
         )}
 
         {/* ATTENDANCE MODAL */}
         {showAttendanceModal && selectedSessionForAttendance && (
-          <div
-            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-            onClick={() => setShowAttendanceModal(false)}
-          >
-            <div
-              className="card w-full max-w-2xl space-y-6 max-h-[85vh] overflow-y-auto"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="flex justify-between items-center">
-                <h3
-                  className="text-base font-black uppercase tracking-tight"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  {t("pmMisc.workspace.attendance")} — {selectedSessionForAttendance.title}
-                </h3>
-                <button onClick={() => setShowAttendanceModal(false)}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-3 bg-[var(--bg-secondary)] p-3 rounded-xl border border-[var(--border-primary)]">
-                <Calendar className="w-4 h-4 text-[var(--text-secondary)]" />
-                <div className="flex-1">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)] mb-1">
-                    Date
-                  </p>
-                  <input
-                    type="date"
-                    value={attendanceDate}
-                    onChange={(event) => setAttendanceDate(event.target.value)}
-                    className="w-full bg-transparent text-sm font-bold text-[var(--text-primary)] outline-none"
-                    max={getLocalToday()}
-                    min={getLocalToday()}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {participants.filter(participant => participant.status !== 'archived').map((participant) => {
-                  const status = attendanceRecords[participant.id] || "";
-                  return (
-                    <div
-                      key={participant.id}
-                      className="flex items-center justify-between p-4 bg-primary rounded-xl border border-[var(--border-primary)]"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-brand-orange/10 flex items-center justify-center text-[10px] font-black uppercase">
-                          {participant.name?.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-[var(--text-primary)]">
-                            {participant.name}
-                          </p>
-                          <p className="text-[9px] text-[var(--text-secondary)]">
-                            {participant.email}
-                          </p>
-                        </div>
-                      </div>
-                      <select
-                        value={status}
-                        onChange={(event) =>
-                          setAttendanceRecords((prev) => ({
-                            ...prev,
-                            [participant.id]: event.target.value,
-                          }))
-                        }
-                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border outline-none ${!status
-                          ? "bg-[var(--border-primary)] text-[var(--text-secondary)] border-[var(--border-primary)]"
-                          : status === "present"
-                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-                          : "bg-rose-500/10 text-rose-500 border-rose-500/30"
-                          }`}
-                      >
-                        <option value="">{t("pmMisc.workspace.attendanceSelect")}</option>
-                        <option value="present">{t("pmMisc.workspace.attendancePresent")}</option>
-                        <option value="absent">{t("pmMisc.workspace.attendanceAbsent")}</option>
-                      </select>
-                    </div>
-                  );
-                })}
-                {participants.length === 0 && (
-                  <p className="text-center text-[var(--text-secondary)] italic py-8">
-                    {t("pmMisc.workspace.noParticipantsEnrolled")}
-                  </p>
-                )}
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowAttendanceModal(false)}
-                  className="flex-1 btn btn-secondary"
-                >
-                  {t("pmMisc.workspace.cancel")}
-                </button>
-                <button
-                  onClick={async () => {
-                    if (!selectedSessionForAttendance || !attendanceDate) return;
-                    setIsSaving(true);
-                    try {
-                      // Delta-only save: send only participants whose mark
-                      // changed since the modal opened (empty = explicit
-                      // clear). Marks the PM did not touch — including those
-                      // recorded by a facilitator for their team — are left
-                      // exactly as they are.
-                      const records = participants
-                        .map((participant) => {
-                          const participantId = participant.user_id || participant.cid || participant.id;
-                          return {
-                            session_id: selectedSessionForAttendance.id,
-                            program_id: id,
-                            participant_id: participantId,
-                            status: attendanceRecords[participantId] || "",
-                            date: attendanceDate,
-                          };
-                        })
-                        .filter(
-                          (record) =>
-                            record.participant_id &&
-                            record.status !== (attendanceLoaded[record.participant_id] || ""),
-                        );
-                      const response = await fetch("/api/attendance", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(records),
-                      });
-                      const data = await response.json();
-                      if (!data.success) throw new Error(t(data.error || "Unknown error") || data.error || "Unknown error");
-                      notify(t("pmMisc.workspace.attendanceRecorded", { count: data.upserted }));
-                      setShowAttendanceModal(false);
-                      setAttendanceRecords({});
-                      setAttendanceLoaded({});
-                    } catch (error) {
-                      notify(
-                        (error && error.message) ||
-                          t("pmMisc.workspace.attendanceSaveFailed"),
-                        "error",
-                      );
-                    } finally {
-                      setIsSaving(false);
-                    }
-                  }}
-                  disabled={isSaving}
-                  className="flex-1 btn btn-primary"
-                >
-                  {isSaving ? t("pmMisc.workspace.saving") : t("pmMisc.workspace.saveAttendance")}
-                </button>
-              </div>
-            </div>
-          </div>
+          <AttendanceModal
+            attendanceDate={attendanceDate}
+            attendanceRecords={attendanceRecords}
+            isSaving={isSaving}
+            onAttendanceDateChange={setAttendanceDate}
+            onAttendanceRecordsChange={setAttendanceRecords}
+            onCloseAttendanceModal={() => setShowAttendanceModal(false)}
+            onSaveAttendance={handleSaveAttendance}
+            participants={participants}
+            selectedSessionForAttendance={selectedSessionForAttendance}
+          />
         )}
 
         {/* PM WEEKLY REPORT MODAL — Structured Reporting Flow */}
         {showPMReportModal && (
-          <div
-            className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-            onClick={() => setShowPMReportModal(false)}
-          >
-            <div
-              className="card w-full max-w-lg space-y-6 max-h-[85vh] overflow-y-auto custom-scrollbar"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="flex justify-between items-center sticky top-0 bg-secondary z-10 pb-4 border-b border-[var(--border-primary)]">
-                <h3
-                  className="text-base font-black uppercase tracking-tight"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  {t("pmMisc.workspace.reportWeeklyReport")}
-                </h3>
-                <button onClick={() => setShowPMReportModal(false)}>
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-8">
-                {/* ────────── SECTION 1: WEEKLY OVERVIEW ────────── */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-brand-orange/20">
-                    <div className="w-5 h-5 rounded-full bg-brand-orange/10 flex items-center justify-center text-[8px] font-black text-[var(--brand-orange)] border border-brand-orange/20">
-                      1
-                    </div>
-                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--brand-orange)]">
-                      {t("pmMisc.workspace.reportWeeklyOverview")}
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {/* Week Status — Required */}
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        {t("pmMisc.workspace.weekStatus")} <span className="text-rose-500">*</span>
-                      </label>
-                      <div className="flex gap-2 flex-wrap">
-                        {[
-                          "successful",
-                          "partially_completed",
-                          "not_completed",
-                        ].map((opt) => (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() =>
-                              setNewPMReport((prev) => ({
-                                ...prev,
-                                week_status: opt,
-                              }))
-                            }
-                            className={`px-4 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.week_status === opt
-                              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                              }`}
-                          >
-                            {{
-                              successful: t("pmMisc.workspace.weekStatusSuccessful"),
-                              partially_completed: t("pmMisc.workspace.weekStatusPartiallyCompleted"),
-                              not_completed: t("pmMisc.workspace.weekStatusNotCompleted"),
-                            }[opt] || opt}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Overall Week Rating — Required */}
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        {t("pmMisc.workspace.overallWeekRating")}{" "}
-                        <span className="text-rose-500">*</span>
-                      </label>
-                      <div className="flex gap-2 flex-wrap">
-                        {["excellent", "good", "fair", "poor"].map((opt) => (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() =>
-                              setNewPMReport((prev) => ({
-                                ...prev,
-                                week_rating: opt,
-                              }))
-                            }
-                            className={`px-4 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all ${newPMReport.week_rating === opt
-                              ? opt === "excellent"
-                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-                                : opt === "good"
-                                  ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
-                                  : opt === "fair"
-                                    ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
-                                    : "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                              }`}
-                          >
-                            {{
-                              excellent: t("pmMisc.workspace.ratingExcellent"),
-                              good: t("pmMisc.workspace.ratingGood"),
-                              fair: t("pmMisc.workspace.ratingFair"),
-                              poor: t("pmMisc.workspace.ratingPoor"),
-                            }[opt] || opt}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Main Topic — Required */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                        {t("pmMisc.workspace.mainTopic")}{" "}
-                        <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={newPMReport.main_topic}
-                        onChange={(event) =>
-                          setNewPMReport((prev) => ({
-                            ...prev,
-                            main_topic: event.target.value,
-                          }))
-                        }
-                        placeholder={t("pmMisc.workspace.mainTopicPlaceholder")}
-                        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* ────────── ASSIGNMENT TRACKING ────────── */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-violet-500/20">
-                    <div className="w-5 h-5 rounded-full bg-violet-500/10 flex items-center justify-center text-[10px] font-bold text-violet-500 border border-violet-500/20">
-                      +
-                    </div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-violet-500">
-                      {t("pmMisc.workspace.assignmentTracking")}
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {/* Was An Assignment Given? — Required */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                        {t("pmMisc.workspace.assignmentGiven")}{" "}
-                        <span className="text-rose-500">*</span>
-                      </label>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewPMReport((prev) => ({
-                              ...prev,
-                              assignment_given: true,
-                            }))
-                          }
-                          className={`px-5 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all ${newPMReport.assignment_given === true
-                            ? "bg-violet-500/10 border-violet-500/30 text-violet-500"
-                            : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
-                        >
-                          {t("pmMisc.workspace.yes")}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewPMReport((prev) => ({
-                              ...prev,
-                              assignment_given: false,
-                              assignment_kpi_ids: [],
-                              assignment_objective: "",
-                              assignment_outcome: "",
-                            }))
-                          }
-                          className={`px-5 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all ${newPMReport.assignment_given === false
-                            ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                            : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
-                        >
-                          {t("pmMisc.workspace.no")}
-                        </button>
-                      </div>
-                    </div>
-
-                    {newPMReport.assignment_given && (
-                      <>
-                        {/* Select Related KPI(s) — Required */}
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                            {t("pmMisc.workspace.selectRelatedKpis")}{" "}
-                            <span className="text-rose-500">*</span>
-                          </label>
-                          {kpis.length === 0 ? (
-                            <p className="text-sm text-slate-500 px-2">
-                              {t("pmMisc.workspace.noKpisForProgram")}
-                            </p>
-                          ) : (
-                            <div className="grid grid-cols-1 gap-1.5 max-h-[160px] overflow-y-auto p-1 custom-scrollbar">
-                              {kpis.map((kpi, kpiIndex) => {
-                                const kpiShare = Math.floor(100 / kpis.length);
-                                const kpiPercent =
-                                  kpiIndex === kpis.length - 1
-                                    ? 100 - kpiShare * (kpis.length - 1)
-                                    : kpiShare;
-                                const isSelected = (
-                                  newPMReport.assignment_kpi_ids || []
-                                ).includes(kpi.id);
-                                return (
-                                  <button
-                                    key={kpi.id}
-                                    type="button"
-                                    onClick={() =>
-                                      setNewPMReport((prev) => ({
-                                        ...prev,
-                                        assignment_kpi_ids: isSelected
-                                          ? prev.assignment_kpi_ids.filter(
-                                            (id) => id !== kpi.id,
-                                          )
-                                          : [...prev.assignment_kpi_ids, kpi.id],
-                                      }))
-                                    }
-                                    className={`flex items-center justify-between p-2.5 rounded-lg border text-[10px] font-bold uppercase tracking-tight transition-all text-left ${isSelected
-                                      ? "bg-violet-500/10 border-violet-500/30 text-violet-500"
-                                      : "bg-black/20 border-white/5 text-slate-400 hover:border-white/20"
-                                      }`}
-                                  >
-                                    <span>{kpi.title}</span>
-                                    <span className="text-[10px] opacity-50">
-                                      {kpiPercent}%
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Assignment Objective — Required */}
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                            {t("pmMisc.workspace.assignmentObjective")}{" "}
-                            <span className="text-rose-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={newPMReport.assignment_objective}
-                            onChange={(event) =>
-                              setNewPMReport((prev) => ({
-                                ...prev,
-                                assignment_objective: event.target.value,
-                              }))
-                            }
-                            placeholder={t("pmMisc.workspace.assignmentObjectivePlaceholder")}
-                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-violet-500 transition-all"
-                          />
-                        </div>
-
-                        {/* Expected Outcome — Optional */}
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                            {t("pmMisc.workspace.expectedOutcome")}
-                          </label>
-                          <textarea
-                            value={newPMReport.assignment_outcome}
-                            onChange={(event) =>
-                              setNewPMReport((prev) => ({
-                                ...prev,
-                                assignment_outcome: event.target.value,
-                              }))
-                            }
-                            rows={2}
-                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-violet-500 transition-all resize-none"
-                            placeholder={t("pmMisc.workspace.expectedOutcomePlaceholder")}
-                          />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* ────────── SECTION 2: PARTICIPATION ────────── */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-indigo-500/20">
-                    <div className="w-5 h-5 rounded-full bg-indigo-500/10 flex items-center justify-center text-[10px] font-bold text-indigo-500 border border-indigo-500/20">
-                      2
-                    </div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-500">
-                      {t("pmMisc.workspace.participation")}
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {/* Attendance Level */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                        {t("pmMisc.workspace.attendanceLevel")}
-                      </label>
-                      <div className="flex gap-2 flex-wrap">
-                        {["high", "moderate", "low"].map((opt) => (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() =>
-                              setNewPMReport((prev) => ({
-                                ...prev,
-                                attendance_level: opt,
-                              }))
-                            }
-                            className={`px-4 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all ${newPMReport.attendance_level === opt
-                              ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-500"
-                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                              }`}
-                          >
-                            {{
-                              high: t("pmMisc.workspace.levelHigh"),
-                              moderate: t("pmMisc.workspace.levelModerate"),
-                              low: t("pmMisc.workspace.levelLow"),
-                            }[opt] || opt}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Participation Level */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                        {t("pmMisc.workspace.participationLevel")}
-                      </label>
-                      <div className="flex gap-2 flex-wrap">
-                        {["very_active", "active", "passive"].map((opt) => (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() =>
-                              setNewPMReport((prev) => ({
-                                ...prev,
-                                participation_level: opt,
-                              }))
-                            }
-                            className={`px-4 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all ${newPMReport.participation_level === opt
-                              ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-500"
-                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                              }`}
-                          >
-                            {{
-                              very_active: t("pmMisc.workspace.participationVeryActive"),
-                              active: t("pmMisc.workspace.participationActive"),
-                              passive: t("pmMisc.workspace.participationPassive"),
-                            }[opt] || opt}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Participants/Groups Need Attention — Toggle + conditional note */}
-                    <div className="space-y-2 p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                          {t("pmMisc.workspace.participantsNeedAttention")}
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewPMReport((prev) => ({
-                              ...prev,
-                              participants_need_attention:
-                                !prev.participants_need_attention,
-                            }))
-                          }
-                          className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.participants_need_attention
-                            ? "bg-amber-500"
-                            : "bg-white/10"
-                            }`}
-                        >
-                          <div
-                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${newPMReport.participants_need_attention
-                              ? "left-5"
-                              : "left-0.5"
-                              }`}
-                          />
-                        </button>
-                      </div>
-                      {newPMReport.participants_need_attention && (
-                        <textarea
-                          value={newPMReport.participants_attention_notes}
-                          onChange={(event) =>
-                            setNewPMReport((prev) => ({
-                              ...prev,
-                              participants_attention_notes: event.target.value,
-                            }))
-                          }
-                          rows={2}
-                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-amber-500 transition-all resize-none"
-                          placeholder={t("pmMisc.workspace.shortNotePlaceholder")}
-                        />
-                      )}
-                    </div>
-
-                    {/* Standout Participants — Toggle + conditional note */}
-                    <div className="space-y-2 p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                          {t("pmMisc.workspace.standoutParticipants")}
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewPMReport((prev) => ({
-                              ...prev,
-                              standout_participants: !prev.standout_participants,
-                            }))
-                          }
-                          className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.standout_participants
-                            ? "bg-emerald-500"
-                            : "bg-white/10"
-                            }`}
-                        >
-                          <div
-                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${newPMReport.standout_participants
-                              ? "left-5"
-                              : "left-0.5"
-                              }`}
-                          />
-                        </button>
-                      </div>
-                      {newPMReport.standout_participants && (
-                        <textarea
-                          value={newPMReport.standout_notes}
-                          onChange={(event) =>
-                            setNewPMReport((prev) => ({
-                              ...prev,
-                              standout_notes: event.target.value,
-                            }))
-                          }
-                          rows={2}
-                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-emerald-500 transition-all resize-none"
-                          placeholder={t("pmMisc.workspace.shortNotePlaceholder")}
-                        />
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* ────────── SECTION 3: DELIVERY FEEDBACK ────────── */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-blue-500/20">
-                    <div className="w-5 h-5 rounded-full bg-blue-500/10 flex items-center justify-center text-[10px] font-bold text-blue-500 border border-blue-500/20">
-                      3
-                    </div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-blue-500">
-                      {t("pmMisc.workspace.deliveryFeedback")}
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {/* Session Delivery Quality */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                        {t("pmMisc.workspace.sessionDeliveryQuality")}
-                      </label>
-                      <div className="flex gap-2 flex-wrap">
-                        {["excellent", "good", "fair", "poor"].map((opt) => (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() =>
-                              setNewPMReport((prev) => ({
-                                ...prev,
-                                delivery_quality: opt,
-                              }))
-                            }
-                            className={`px-4 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all ${newPMReport.delivery_quality === opt
-                              ? opt === "excellent"
-                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-                                : opt === "good"
-                                  ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
-                                  : opt === "fair"
-                                    ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
-                                    : "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                              }`}
-                          >
-                            {{
-                              excellent: t("pmMisc.workspace.ratingExcellent"),
-                              good: t("pmMisc.workspace.ratingGood"),
-                              fair: t("pmMisc.workspace.ratingFair"),
-                              poor: t("pmMisc.workspace.ratingPoor"),
-                            }[opt] || opt}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Participant Understanding */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                        {t("pmMisc.workspace.participantUnderstanding")}
-                      </label>
-                      <div className="flex gap-2 flex-wrap">
-                        {["high", "moderate", "low"].map((opt) => (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() =>
-                              setNewPMReport((prev) => ({
-                                ...prev,
-                                participant_understanding: opt,
-                              }))
-                            }
-                            className={`px-4 py-2 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all ${newPMReport.participant_understanding === opt
-                              ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
-                              : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                              }`}
-                          >
-                            {{
-                              high: t("pmMisc.workspace.levelHigh"),
-                              moderate: t("pmMisc.workspace.levelModerate"),
-                              low: t("pmMisc.workspace.levelLow"),
-                            }[opt] || opt}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Delivery Challenges — Toggle + conditional note */}
-                    <div className="space-y-2 p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                          {t("pmMisc.workspace.deliveryChallenges")}
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewPMReport((prev) => ({
-                              ...prev,
-                              delivery_challenges: !prev.delivery_challenges,
-                            }))
-                          }
-                          className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.delivery_challenges
-                            ? "bg-rose-500"
-                            : "bg-white/10"
-                            }`}
-                        >
-                          <div
-                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${newPMReport.delivery_challenges
-                              ? "left-5"
-                              : "left-0.5"
-                              }`}
-                          />
-                        </button>
-                      </div>
-                      {newPMReport.delivery_challenges && (
-                        <textarea
-                          value={newPMReport.delivery_challenge_note}
-                          onChange={(event) =>
-                            setNewPMReport((prev) => ({
-                              ...prev,
-                              delivery_challenge_note: event.target.value,
-                            }))
-                          }
-                          rows={2}
-                          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all resize-none"
-                          placeholder={t("pmMisc.workspace.shortNotePlaceholder")}
-                        />
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* ────────── SECTION 4: ISSUES & SUPPORT ────────── */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-rose-500/20">
-                    <div className="w-5 h-5 rounded-full bg-rose-500/10 flex items-center justify-center text-[10px] font-bold text-rose-500 border border-rose-500/20">
-                      4
-                    </div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-rose-500">
-                      {t("pmMisc.workspace.issuesAndSupport")}
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {/* Had Issues — Toggle */}
-                    <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                          {t("pmMisc.workspace.wereThereIssues")}
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewPMReport((prev) => ({
-                              ...prev,
-                              had_issues: !prev.had_issues,
-                            }))
-                          }
-                          className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.had_issues
-                            ? "bg-rose-500"
-                            : "bg-white/10"
-                            }`}
-                        >
-                          <div
-                            className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${newPMReport.had_issues ? "left-5" : "left-0.5"
-                              }`}
-                          />
-                        </button>
-                      </div>
-
-                      {newPMReport.had_issues && (
-                        <div className="mt-3 space-y-3">
-                          {/* Issue Types — Multi-select chips */}
-                          <div>
-                            <label className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-60 mb-1.5 block">
-                              {t("pmMisc.workspace.issueTypes")}
-                            </label>
-                            <div className="flex gap-1.5 flex-wrap">
-                              {[
-                                "technical",
-                                "attendance",
-                                "participation",
-                                "curriculum",
-                                "behavioral",
-                                "other",
-                              ].map((type) => {
-                                const isSelected =
-                                  newPMReport.issue_types.includes(type);
-                                return (
-                                  <button
-                                    key={type}
-                                    type="button"
-                                    onClick={() =>
-                                      setNewPMReport((prev) => ({
-                                        ...prev,
-                                        issue_types: isSelected
-                                          ? prev.issue_types.filter(
-                                            (issueType) => issueType !== type,
-                                          )
-                                          : [...prev.issue_types, type],
-                                      }))
-                                    }
-                                    className={`px-3 py-1.5 rounded-lg border text-[8px] font-black uppercase tracking-widest transition-all ${isSelected
-                                      ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                                      : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                                      }`}
-                                  >
-                                    {{
-                                      technical: t("pmMisc.workspace.issueTechnical"),
-                                      attendance: t("pmMisc.workspace.issueAttendance"),
-                                      participation: t("pmMisc.workspace.issueParticipation"),
-                                      curriculum: t("pmMisc.workspace.issueCurriculum"),
-                                      behavioral: t("pmMisc.workspace.issueBehavioral"),
-                                      other: t("pmMisc.workspace.issueOther"),
-                                    }[type] || type}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* Requires Super Admin Attention — Toggle */}
-                          <div className="flex items-center justify-between">
-                            <label className="text-[8px] font-black uppercase tracking-widest text-amber-500">
-                              {t("pmMisc.workspace.requiresSuperAdmin")}
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setNewPMReport((prev) => ({
-                                  ...prev,
-                                  requires_admin_attention:
-                                    !prev.requires_admin_attention,
-                                }))
-                              }
-                              className={`w-10 h-5 rounded-full transition-all relative ${newPMReport.requires_admin_attention
-                                ? "bg-amber-500"
-                                : "bg-white/10"
-                                }`}
-                            >
-                              <div
-                                className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${newPMReport.requires_admin_attention
-                                  ? "left-5"
-                                  : "left-0.5"
-                                  }`}
-                              />
-                            </button>
-                          </div>
-
-                          {/* Additional Note */}
-                          <textarea
-                            value={newPMReport.additional_issue_note}
-                            onChange={(event) =>
-                              setNewPMReport((prev) => ({
-                                ...prev,
-                                additional_issue_note: event.target.value,
-                              }))
-                            }
-                            rows={2}
-                            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all resize-none"
-                            placeholder={t("pmMisc.workspace.additionalNotePlaceholder")}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* ────────── SECTION 5: NEXT WEEK ────────── */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-emerald-500/20">
-                    <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-[8px] font-black text-emerald-500 border border-emerald-500/20">
-                      5
-                    </div>
-                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-500">
-                      {t("pmMisc.workspace.nextWeek")}
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {/* Program On Track — Required */}
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        {t("pmMisc.workspace.programOnTrack")}{" "}
-                        <span className="text-rose-500">*</span>
-                      </label>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewPMReport((prev) => ({
-                              ...prev,
-                              program_on_track: true,
-                            }))
-                          }
-                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.program_on_track === true
-                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-                            : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
-                        >
-                          {t("pmMisc.workspace.yes")}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setNewPMReport((prev) => ({
-                              ...prev,
-                              program_on_track: false,
-                            }))
-                          }
-                          className={`px-5 py-2 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${newPMReport.program_on_track === false
-                            ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                            : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                            }`}
-                        >
-                          {t("pmMisc.workspace.no")}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Planned Adjustments */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                        {t("pmMisc.workspace.plannedAdjustments")}
-                      </label>
-                      <textarea
-                        value={newPMReport.planned_adjustments}
-                        onChange={(event) =>
-                          setNewPMReport((prev) => ({
-                            ...prev,
-                            planned_adjustments: event.target.value,
-                          }))
-                        }
-                        rows={2}
-                        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
-                        placeholder={t("pmMisc.workspace.plannedAdjustmentsPlaceholder")}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* ────────── NOTES (free text for PM) ────────── */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-slate-500/20">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                      {t("pmMisc.workspace.strategicHealthNotes")}
-                    </span>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("pmMisc.workspace.strategicHealth")}
-                    </label>
-                    <select
-                      value={newPMReport.status}
-                      onChange={(event) =>
-                        setNewPMReport((prev) => ({
-                          ...prev,
-                          status: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
-                      style={{
-                        background: "var(--bg-primary)",
-                        border: "1px solid var(--border-primary)",
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      <option value="optimal">{t("pmMisc.workspace.healthOptimal")}</option>
-                      <option value="stable">{t("pmMisc.workspace.healthStable")}</option>
-                      <option value="at_risk">{t("pmMisc.workspace.healthAtRisk")}</option>
-                      <option value="critical">{t("pmMisc.workspace.healthCritical")}</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("pmMisc.workspace.additionalNotes")}
-                    </label>
-                    <textarea
-                      value={newPMReport.summary}
-                      onChange={(event) =>
-                        setNewPMReport((prev) => ({
-                          ...prev,
-                          summary: event.target.value,
-                        }))
-                      }
-                      rows={3}
-                      className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
-                      placeholder={t("pmMisc.workspace.additionalNotesPlaceholder")}
-                    />
-                  </div>
-
-                  {/* Attachment: URL link or PDF upload */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("pmMisc.workspace.reportAttachment")}
-                    </label>
-                    <div className="flex gap-2 flex-wrap items-center">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPmReportAttachments((prev) => ({
-                            type: "link",
-                            url: prev.type === "link" ? prev.url : "",
-                          }))
-                        }
-                        className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all ${pmReportAttachments.type === "link"
-                          ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
-                          : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                          }`}
-                      >
-                        {t("pmMisc.workspace.attachmentLink")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPmReportAttachments((prev) => ({
-                            type: "file",
-                            url: prev.type === "file" ? prev.url : "",
-                          }))
-                        }
-                        className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-widest transition-all ${pmReportAttachments.type === "file"
-                          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-                          : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
-                          }`}
-                      >
-                        {t("pmMisc.workspace.attachmentPdf")}
-                      </button>
-                      {pmReportAttachments.url && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPmReportAttachments({ type: "", url: "" })
-                          }
-                          className="ml-auto flex items-center gap-1 px-2 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all text-[10px] font-bold uppercase tracking-widest"
-                        >
-                          <X className="w-3 h-3" />{" "}
-                          {t("pmMisc.workspace.attachmentRemove")}
-                        </button>
-                      )}
-                    </div>
-
-                    {pmReportAttachments.type === "link" && (
-                      <input
-                        type="url"
-                        value={pmReportAttachments.url}
-                        onChange={(event) =>
-                          setPmReportAttachments((prev) => ({
-                            ...prev,
-                            url: event.target.value,
-                          }))
-                        }
-                        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
-                        placeholder={t("pmMisc.workspace.attachmentUrlPlaceholder")}
-                      />
-                    )}
-
-                    {pmReportAttachments.type === "file" && (
-                      <div className="flex items-center gap-3">
-                        <label className="btn btn-secondary btn-sm cursor-pointer">
-                          {isSaving && !pmReportAttachments.url
-                            ? t("pmMisc.workspace.attachmentUploading")
-                            : t("pmMisc.workspace.attachmentChoosePdf")}
-                          <input
-                            type="file"
-                            accept="application/pdf,.pdf"
-                            className="hidden"
-                            onChange={handleReportAttachmentUpload}
-                            disabled={isSaving}
-                          />
-                        </label>
-                        {pmReportAttachments.url && (
-                          <a
-                            href={pmReportAttachments.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest truncate max-w-[220px] hover:underline"
-                          >
-                            {t("pmMisc.workspace.attachmentUploaded")}
-                          </a>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3 sticky bottom-0 bg-secondary pt-4 border-t border-[var(--border-primary)]">
-                <button
-                  onClick={() => setShowPMReportModal(false)}
-                  className="flex-1 btn btn-secondary"
-                >
-                  {t("pmMisc.workspace.cancel")}
-                </button>
-                <button
-                  onClick={submitPMReport}
-                  disabled={isSaving}
-                  className="flex-1 btn btn-primary"
-                >
-                  {isSaving ? t("pmMisc.workspace.submitting") : t("pmMisc.workspace.submitReport")}
-                </button>
-              </div>
-            </div>
-          </div>
+          <PmReportModal
+            isSaving={isSaving}
+            kpis={kpis}
+            newPMReport={newPMReport}
+            onAdditionalIssueNoteChange={setNewPMReport}
+            onAssignmentGivenSet={setNewPMReport}
+            onAssignmentGivenUnset={setNewPMReport}
+            onAssignmentKpiIds={setNewPMReport}
+            onAssignmentObjectiveChange={setNewPMReport}
+            onAssignmentOutcomeChange={setNewPMReport}
+            onAttendanceLevel={setNewPMReport}
+            onClosePMReportModal={() => setShowPMReportModal(false)}
+            onDeliveryChallengeNoteChange={setNewPMReport}
+            onDeliveryChallenges={setNewPMReport}
+            onDeliveryQuality={setNewPMReport}
+            onHadIssues={setNewPMReport}
+            onIssueTypes={setNewPMReport}
+            onNewPMReport={setNewPMReport}
+            onNewPMReportChange={setNewPMReport}
+            onParticipantUnderstanding={setNewPMReport}
+            onParticipantsAttentionNotesChange={setNewPMReport}
+            onParticipantsNeedAttention={setNewPMReport}
+            onParticipationLevel={setNewPMReport}
+            onPlannedAdjustmentsChange={setNewPMReport}
+            onPmReportAttachments={setPmReportAttachments}
+            onPmReportAttachmentsChange={setPmReportAttachments}
+            onPmReportAttachmentsFile={setPmReportAttachments}
+            onProgramOnTrackSet={setNewPMReport}
+            onProgramOnTrackUnset={setNewPMReport}
+            onReportAttachmentUploadChange={handleReportAttachmentUpload}
+            onRequiresAdminAttention={setNewPMReport}
+            onResetPmReportAttachments={setPmReportAttachments}
+            onStandoutNotesChange={setNewPMReport}
+            onStandoutParticipants={setNewPMReport}
+            onStatusChange={setNewPMReport}
+            onSubmitPMReport={submitPMReport}
+            onSummaryChange={setNewPMReport}
+            onWeekRating={setNewPMReport}
+            pmReportAttachments={pmReportAttachments}
+          />
         )}
         {/* TEAM DETAILS MODAL */}
         {showTeamDetails && selectedTeam && (
-          <div
-            className="fixed inset-0 z-[500] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6"
-            onClick={() => {
-              setShowTeamDetails(false);
-              setSelectedTeam(null);
-              setEditingScoreFor(null);
-              setScoreDraft("");
-            }}
-          >
-            <div
-              className="card w-full max-w-5xl max-h-[85vh] flex flex-col p-0 overflow-hidden shadow-2xl border-indigo-500/30"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="p-8 border-b border-[var(--border-primary)] bg-gradient-to-r from-[var(--bg-secondary)] to-[var(--bg-tertiary)] flex justify-between items-center">
-                <div>
-                  <h3 className="text-2xl font-black uppercase tracking-tight text-[var(--text-primary)] flex items-center gap-3">
-                    <Target className="w-6 h-6 text-[var(--brand-orange)]" />
-                    {selectedTeam.name} — {t("pmMisc.workspace.teamReview")}
-                  </h3>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.2em] mt-1">
-                    {t("pmMisc.workspace.teamReviewSubtitle")}
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowTeamDetails(false);
-                    setSelectedTeam(null);
-                    setEditingScoreFor(null);
-                    setScoreDraft("");
-                  }}
-                  className="p-2 hover:bg-rose-500/10 hover:text-rose-500 rounded-xl transition-all"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                {/* Facilitator management — PM can reassign the team's handler */}
-                <div className="bg-primary/50 border border-[var(--border-primary)] rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 mb-8">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("pmMisc.workspace.assignedStaffLabel")}
-                    </p>
-                    <p className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-                      {selectedTeam.handler_name || t("pmMisc.workspace.unassigned")}
-                    </p>
-                  </div>
-                  {canEdit &&
-                    (showFacilitatorSelect ? (
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={facilitatorDraftId}
-                          onChange={(event) => setFacilitatorDraftId(event.target.value)}
-                          className="rounded-lg px-3 py-2 text-xs font-bold outline-none"
-                          style={{
-                            background: "var(--bg-primary)",
-                            border: "1px solid var(--border-primary)",
-                            color: "var(--text-primary)",
-                          }}
-                        >
-                          <option value="">{t("pmMisc.workspace.unassigned")}</option>
-                          {oversightCandidates.map((member) => (
-                            <option key={member.cid ?? member.email ?? member.id} value={member.cid}>
-                              {member.name}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() =>
-                            changeTeamHandler(selectedTeam.id, facilitatorDraftId)
-                          }
-                          disabled={isSaving}
-                          className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all disabled:opacity-40"
-                          title={t("pmMisc.workspace.saveMarks")}
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setShowFacilitatorSelect(false);
-                            setFacilitatorDraftId("");
-                          }}
-                          className="p-2 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all"
-                          title={t("pmMisc.workspace.cancel")}
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setFacilitatorDraftId(selectedTeam.handler_id || "");
-                          setShowFacilitatorSelect(true);
-                        }}
-                        className="btn btn-secondary btn-sm"
-                      >
-                        <RefreshCw className="w-3 h-3" />{" "}
-                        {t("pmMisc.workspace.changeFacilitator")}
-                      </button>
-                    ))}
-                </div>
-
-                <div className="grid grid-cols-1 gap-8">
-                  {/* Participant Table */}
-                  <div className="table-container !border-none !shadow-none">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>{t("pmMisc.workspace.teamMember")}</th>
-                          <th>{t("pmMisc.workspace.submissions")}</th>
-                          <th className="w-48 text-center">{t("pmMisc.workspace.marksAwarded")}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {participants
-                          .filter((participant) => participant.v2_team_id === selectedTeam.id)
-                          .map((participant) => {
-                            const participantId = String(participant.cid || participant.id);
-                            // Match submissions made by the participant directly
-                            // OR by their team (team-level submissions carry team_id).
-                            const participantSubmissions = submissions.filter(
-                              (submission) =>
-                                String(submission.participant_id) === participantId ||
-                                (selectedTeam.id &&
-                                  String(submission.team_id) === String(selectedTeam.id)),
-                            );
-                            const scoredSubmissions = participantSubmissions.filter(
-                              (submission) =>
-                                (submission.score ?? submission.evaluation_score ?? null) != null,
-                            );
-                            const avgScore =
-                              scoredSubmissions.length > 0
-                                ? Math.round(
-                                  scoredSubmissions.reduce(
-                                    (acc, submission) =>
-                                      acc + (submission.score ?? submission.evaluation_score ?? 0),
-                                    0,
-                                  ) / scoredSubmissions.length,
-                                )
-                                : 0;
-                            const isEditing = editingScoreFor === participantId;
-
-                            return (
-                              <tr
-                                key={participant.id}
-                                className="hover:bg-indigo-500/5 transition-colors"
-                              >
-                                <td className="py-6">
-                                  <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-black text-sm border border-indigo-500/20">
-                                      {participant.name.charAt(0)}
-                                    </div>
-                                    <div>
-                                      <p className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-                                        {participant.name}
-                                      </p>
-                                      <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase opacity-60">
-                                        {participant.email}
-                                      </p>
-                                    </div>
-                                    {canEdit && (
-                                      <button
-                                        onClick={() =>
-                                          setConfirmTarget({
-                                            id: participant.id,
-                                            message: t("pmMisc.workspace.confirmRemoveMember", { name: participant.name }),
-                                            onConfirm: () => removeParticipantFromTeam(participant.id),
-                                          })
-                                        }
-                                        className="ml-auto p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all"
-                                        title={t("pmMisc.workspace.removeFromGroup")}
-                                      >
-                                        <UserMinus className="w-3.5 h-3.5" />
-                                      </button>
-                                    )}
-                                  </div>
-                                </td>
-                                <td>
-                                  <div className="flex flex-wrap gap-2">
-                                    {participantSubmissions.map((submission) => (
-                                      <div
-                                        key={submission.id}
-                                        className="group relative"
-                                      >
-                                        <button
-                                          onClick={() =>
-                                            setActivePDF({
-                                              url:
-                                                submission.file_url ||
-                                                submission.submission_url ||
-                                                submission.submission_link ||
-                                                "#",
-                                              name:
-                                                submission.deliverable_title ||
-                                                `Submission_${submission.id}`,
-                                            })
-                                          }
-                                          className="flex items-center gap-1.5 px-3 py-1.5 bg-tertiary rounded-lg border border-[var(--border-primary)] hover:border-emerald-500/50 transition-all"
-                                        >
-                                          <FileText className="w-3.5 h-3.5 text-emerald-500" />
-                                          <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                                            {submission.deliverable_title || t("pmMisc.workspace.artifact")}
-                                          </span>
-                                          <span className="text-[10px] font-black text-emerald-500">
-                                            [{(submission.score ?? submission.evaluation_score ?? "—")}]
-                                          </span>
-                                        </button>
-                                      </div>
-                                    ))}
-                                    {participantSubmissions.length === 0 && (
-                                      <span className="text-[10px] font-bold uppercase tracking-widest text-rose-500/40">
-                                        {t("pmMisc.workspace.noSubmissionsFound")}
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="text-center">
-                                  <div className="inline-flex flex-col items-center gap-2">
-                                    <div
-                                      className={`text-2xl font-black ${avgScore >= 70 ? "text-emerald-500" : avgScore >= 40 ? "text-amber-500" : "text-rose-500"}`}
-                                    >
-                                      {avgScore}%
-                                    </div>
-                                    {isEditing ? (
-                                      <div className="flex items-center gap-1.5">
-                                        <input
-                                          type="number"
-                                          min={0}
-                                          max={100}
-                                          value={scoreDraft}
-                                          onChange={(event) =>
-                                            setScoreDraft(event.target.value)
-                                          }
-                                          onKeyDown={(event) => {
-                                            if (event.key === "Enter") {
-                                              updateParticipantScores(
-                                                participantId,
-                                                scoreDraft,
-                                              );
-                                            }
-                                          }}
-                                          className="w-20 bg-tertiary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[11px] font-black text-center outline-none focus:border-indigo-500"
-                                          autoFocus
-                                        />
-                                        <button
-                                          onClick={() =>
-                                            updateParticipantScores(
-                                              participantId,
-                                              scoreDraft,
-                                            )
-                                          }
-                                          disabled={isSaving}
-                                          className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all disabled:opacity-40"
-                                          title={t("pmMisc.workspace.saveMarks")}
-                                        >
-                                          <Check className="w-3.5 h-3.5" />
-                                        </button>
-                                        <button
-                                          onClick={() => {
-                                            setEditingScoreFor(null);
-                                            setScoreDraft("");
-                                          }}
-                                          className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all"
-                                          title={t("pmMisc.workspace.cancel")}
-                                        >
-                                          <X className="w-3.5 h-3.5" />
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      <button
-                                        onClick={() => {
-                                          setEditingScoreFor(participantId);
-                                          setScoreDraft(String(avgScore || ""));
-                                        }}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-tertiary border border-[var(--border-primary)] rounded-lg hover:border-indigo-500/50 transition-all"
-                                      >
-                                        <Pencil className="w-3 h-3 text-indigo-400" />
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                                          {t("pmMisc.workspace.editMarks")}
-                                        </span>
-                                      </button>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {participants.filter(
-                    (participant) => participant.v2_team_id === selectedTeam.id,
-                  ).length === 0 && (
-                      <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
-                        <Users className="w-12 h-12 mb-4" />
-                        <p className="text-sm font-black uppercase tracking-[0.3em]">
-                          {t("pmMisc.workspace.noMembersInTeam")}
-                        </p>
-                      </div>
-                    )}
-                </div>
-              </div>
-
-              <div className="p-6 bg-tertiary border-t border-[var(--border-primary)] flex justify-end gap-3">
-                <button
-                  onClick={() => {
-                    setShowTeamDetails(false);
-                    setSelectedTeam(null);
-                    setEditingScoreFor(null);
-                    setScoreDraft("");
-                  }}
-                  className="btn btn-secondary px-8"
-                >
-                  {t("pmMisc.workspace.closeAudit")}
-                </button>
-              </div>
-            </div>
-          </div>
+          <TeamDetailsModal
+            canEdit={canEdit}
+            editingScoreFor={editingScoreFor}
+            facilitatorDraftId={facilitatorDraftId}
+            isSaving={isSaving}
+            onActivePDF={setActivePDF}
+            onCancelFacilitatorSelect={handleCancelFacilitatorSelect}
+            onCancelScoreEdit={handleCancelScoreEdit}
+            onChangeTeamHandler={changeTeamHandler}
+            onCloseTeamDetails={handleCloseTeamDetails}
+            onCloseTeamDetails2={handleCloseTeamDetails}
+            onCloseTeamDetails3={handleCloseTeamDetails}
+            onConfirmTarget={setConfirmTarget}
+            onEditParticipantScore={handleEditParticipantScore}
+            onFacilitatorDraftIdChange={setFacilitatorDraftId}
+            onOpenFacilitatorSelect={handleOpenFacilitatorSelect}
+            onParticipantScoreKeyDown={handleParticipantScoreKeyDown}
+            onScoreDraftChange={setScoreDraft}
+            onUpdateParticipantScores={updateParticipantScores}
+            oversightCandidates={oversightCandidates}
+            participants={participants}
+            removeParticipantFromTeam={removeParticipantFromTeam}
+            scoreDraft={scoreDraft}
+            selectedTeam={selectedTeam}
+            showFacilitatorSelect={showFacilitatorSelect}
+            submissions={submissions}
+          />
         )}
 
-      {/* CONFIRMATION MODAL */}
-      {confirmTarget && (
-        <div
-          className="fixed inset-0 z-[500] bg-black/60 flex items-center justify-center p-6"
-          onClick={() => setConfirmTarget(null)}
-        >
-          <div
-            className="card w-full max-w-sm space-y-5"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center flex-shrink-0">
-                <AlertCircle className="w-5 h-5 text-rose-500" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-bold">{t("pmMisc.workspace.confirmAction")}</p>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  {confirmTarget.message}
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmTarget(null)}
-                className="flex-1 px-4 py-2.5 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-lg text-sm font-bold hover:opacity-80"
-              >
-                {t("pmMisc.workspace.cancel")}
-              </button>
-              <button
-                onClick={() => {
-                  confirmTarget.onConfirm();
-                  setConfirmTarget(null);
-                }}
-                className="flex-1 px-4 py-2.5 bg-rose-500 text-white rounded-lg text-sm font-bold hover:bg-rose-600"
-              >
-                {t("pmMisc.workspace.confirm")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-        </div>
+        {/* CONFIRMATION MODAL */}
+        {confirmTarget && (
+          <ConfirmActionDialog
+            confirmTarget={confirmTarget}
+            onClearConfirmTarget={() => setConfirmTarget(null)}
+            onConfirmAction={handleConfirmAction}
+          />
+        )}
+      </div>
     </>
   );
 }
 
 export default function ProgramWorkspacePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-primary flex items-center justify-center"><div className="w-8 h-8 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" /></div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-primary flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
       <ProgramWorkspace />
     </Suspense>
   );
