@@ -119,7 +119,7 @@ describe("founder classification — ownership, not the role string", () => {
   });
 
   test("a removed membership is not a relationship", () => {
-    const src = read("src/models/contacts.js");
+    const src = read("src/models/contacts/programMembership.js");
     expect(src).toContain("(vm.user_cid = ? OR vm.contact_id = ?) AND vm.removed_at IS NULL");
   });
 });

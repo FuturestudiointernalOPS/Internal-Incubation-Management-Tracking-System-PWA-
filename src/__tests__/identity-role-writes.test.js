@@ -85,7 +85,7 @@ test("dynamic contact updaters are watched (never fed contextual roles)", () => 
   // updateContactFields builds SET from caller fields — it is a legitimate
   // admin edit surface, but contextual flows must never pass `role` through
   // it. Watch-list only (no failure today):
-  const contacts = fs.readFileSync("src/models/contacts.js", "utf8");
+  const contacts = fs.readFileSync("src/models/contacts/contactStore.js", "utf8");
   expect(contacts).toMatch(/export async function updateContactFields/);
 });
 
