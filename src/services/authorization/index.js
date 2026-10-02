@@ -48,6 +48,7 @@ export * from "./scope";
 export * from "./scopedAccess";
 export * from "./resourceGuards";
 export * from "./accessProfiles";
+export * from "./baseCapabilities";
 export * from "./permissionMatrix";
 export * from "./permissionWrites";
 export * from "./listingScope";

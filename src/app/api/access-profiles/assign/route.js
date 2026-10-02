@@ -11,9 +11,9 @@ import {
   getContactAssignmentState,
   getAccessProfileSummary,
   getRoleDefaultAccessProfile,
-  getCurrentBaseCapabilities,
   getProfileCapabilities,
 } from "@/models/authorization";
+import { resolveCurrentBaseCapabilities } from "@/services/authorization/baseCapabilities";
 import {
   isSelfAssignment,
   assertAssignmentEligible,
@@ -94,7 +94,7 @@ export async function PUT(req) {
       // profile therefore silently strips access, so make the loss explicit and
       // require confirm:true before proceeding.
       if (confirm !== true) {
-        const current = await getCurrentBaseCapabilities(user_cid);
+        const current = await resolveCurrentBaseCapabilities(user_cid);
         const newCaps = (await getProfileCapabilities(profile_id)).rows || [];
 
         const { loss, refusal } = evaluateCapabilityLoss(

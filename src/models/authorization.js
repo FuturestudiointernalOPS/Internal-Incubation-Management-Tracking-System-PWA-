@@ -359,78 +359,11 @@ export async function getRoleDefaultProfileName(role) {
   });
 }
 
-/**
- * PUT assign — the user's CURRENT base capabilities, resolved the SAME way as
- * the resolver (authorization/resolver.js, "user override → role default →
- * legacy"):
- *   - an active profile assigned to the contact wins (source "profile")
- *   - otherwise the role's active default profile (source "role_default")
- *   - otherwise the legacy role_capabilities rows (source "legacy")
- * Only the base layer is read (group/individual layers are additive and are
- * not affected by an assignment), so the caller can warn before a swap
- * replaces the base and strips capabilities.
- *
- * Returns { source, profileName, caps: [{ module, capability, access_level }] }.
- */
-export async function getCurrentBaseCapabilities(userCid) {
-  const contactRes = await db.execute({
-    sql: "SELECT role, access_profile_id FROM contacts WHERE cid = ?",
-    args: [userCid],
-  });
-  const contact = contactRes.rows[0] || {};
-  const role = contact.role;
-
-  const [overrideRes, roleDefaultRes] = await Promise.all([
-    contact.access_profile_id
-      ? db.execute({
-          sql: "SELECT id, name FROM access_profiles WHERE id = ? AND is_active = 1",
-          args: [contact.access_profile_id],
-        })
-      : Promise.resolve({ rows: [] }),
-    role
-      ? db.execute({
-          sql: `SELECT ap.id, ap.name
-                FROM role_access_profile_defaults rpd
-                JOIN access_profiles ap ON ap.id = rpd.access_profile_id
-                WHERE rpd.role_name = ? AND ap.is_active = 1`,
-          args: [role],
-        })
-      : Promise.resolve({ rows: [] }),
-  ]);
-
-  let source = "legacy";
-  let profileId = null;
-  let profileName = null;
-  if (overrideRes.rows[0]) {
-    source = "profile";
-    profileId = overrideRes.rows[0].id;
-    profileName = overrideRes.rows[0].name;
-  } else if (roleDefaultRes.rows[0]) {
-    source = "role_default";
-    profileId = roleDefaultRes.rows[0].id;
-    profileName = roleDefaultRes.rows[0].name;
-  }
-
-  const capsRes = profileId
-    ? await db.execute({
-        sql: "SELECT module, capability, access_level FROM access_profile_capabilities WHERE profile_id = ?",
-        args: [profileId],
-      })
-    : await db.execute({
-        sql: "SELECT module, capability, access_level FROM role_capabilities WHERE role = ?",
-        args: [role],
-      });
-
-  return {
-    source,
-    profileName,
-    caps: (capsRes.rows || []).map((row) => ({
-      module: row.module,
-      capability: row.capability,
-      access_level: Number(row.access_level) || 0,
-    })),
-  };
-}
+// NOTE: the base-capability PRECEDENCE that used to live here
+// (`getCurrentBaseCapabilities`) is a business rule, not data access (audit A1,
+// finding #1). It now lives in `@/services/authorization/baseCapabilities`, over
+// the reads in `@/models/authorization/baseCapabilityReads`. No importer pointed
+// at the old symbol once the assign route was repointed (grep-audited).
 
 /** GET — contact row (with access_profile_id) for the assignment readback. */
 export async function getContactAssignmentState(userCid) {
