@@ -2576,6 +2576,37 @@ build` were momentarily red on the unrelated in-progress
 
 ---
 
+### Domain 93 — the remaining compatibility façades (slice 129, CH-4)
+
+The last chantier: the pure re-export shims kept alive only so importers would
+not have to change. **68 single-target façades** were removed by a mechanical
+codemod that rewrote every import site (absolute `@/...` **and** relative) to the
+module the façade pointed at, then deleted the shim — **61 under `src/lib/**`**
+(the LMS family, the platform family, the authorization/access façades, finance,
+contacts, tasks, the ventures façades, `audit`…) and **7 under `src/models/**`**
+(the model façades pointing at a service). No reference to a removed façade
+remains (a scan resolves every import, relative included).
+
+**Multi-target façades were left in place** — they re-export several modules, so a
+mechanical per-symbol rewrite is not safe: `@/lib/auth`, `@/lib/ventures`,
+`@/lib/authorization/membership`, `@/lib/authorization/eligibility`,
+`@/models/authorization/index`, `@/models/kpi-progress`,
+`@/models/ventureDocumentTypes`, `@/models/lms/index`. They cost nothing at
+runtime and can be split in a later pass.
+
+Three suites needed a touch because they mocked a removed façade:
+`services-boundaries.test.js` now requires the authorization services directly;
+`tasks-api`, `tasks-create-api` and `tasks-update-api` mocked
+`@/lib/db/queries/tasks` (gone), so their `@/models/tasks` mock is now complete
+(`...requireActual` / merged) and the real functions still run against the
+suite's fake database.
+
+`npm test` (265 suites, 3907 tests) is green; `npx eslint` reports **0 errors**
+in the tree. The full build was momentarily red on the unrelated in-progress
+`src/app/pm/programs/[id]/page.js` (V1).
+
+---
+
 ## 3. Left aside on purpose (deferred, with reasons)
 
 1. **Model facades** — **deleted** (slice 117): `resolver`, `scope`,
