@@ -350,6 +350,8 @@
     "investment": "Investment Readiness",
     "verification": "Data bank",
     "verificationTab": {
+      "unassignedDocuments": "Unassigned documents",
+      "unassignedDocumentsHint": "These files are stored in the Data bank but no document type asks for them. They are listed here so nothing goes missing.",
       "yourDocuments": "Your documents",
       "missingDocuments": "No document uploaded yet",
       "stillRequired": "Still required: {items}",
@@ -364,6 +366,10 @@
       "versionsLoadFailed": "Could not load the version history.",
       "fromReviewer": "Review team",
       "confirmedAnotherWay": "Confirmed another way — nothing to upload"
+    },
+    "dashboardReadiness": {
+      "uploadDocuments": "Upload supporting documents",
+      "completeVerification": "Complete verification ({count} pending)"
     },
     "documentTypes": {
       "title": "Data Bank documents",
@@ -388,6 +394,15 @@
       "methodUpload": "Upload a document",
       "methodExternal": "Confirmed another way",
       "requiredLabel": "Required before submitting for review",
+      "readinessLabel": "Counts for readiness",
+      "readinessHint": "Readiness documents are part of the Investment Readiness score. The others are stored in the Data bank only and leave the score alone.",
+      "readinessNoBadge": "Data bank only",
+      "readinessPromote": "Add to readiness",
+      "readinessPromoted": "Added to readiness.",
+      "promoteFailedStatus": "Readiness update failed ({status}).",
+      "promoteFailedNetwork": "Server unreachable. Check your connection and try again.",
+      "promoteFailedUnexpectedDev": "The server returned an unexpected response ({status}). Reload the page and try again.",
+      "promoteFailedUnexpectedProd": "The server returned an unexpected response ({status}). Try again, or contact an administrator if it persists.",
       "addAction": "Add document",
       "emptyTitle": "No document types yet",
       "emptyDescription": "Add the first document the Data bank should ask for.",
