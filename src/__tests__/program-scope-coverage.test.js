@@ -61,6 +61,18 @@ const COVERAGE = {
 };
 
 /**
+ * Surfaces whose guard no longer lives in the route file itself. The route only
+ * authenticates and shapes the answer; the record-scope consult moved with the
+ * decision into the service it delegates to. The surface stays in the census,
+ * which reads where the guard now sits — so thinning a route cannot silently
+ * drop its coverage.
+ */
+const GUARD_IN_SERVICE = {
+  "src/app/api/participant-programs/route.js":
+    "src/services/programs/participantPrograms.js",
+};
+
+/**
  * Files that are part of a domain's SURFACE but deliberately not wired, because a
  * project instruction reserves them. Asserted to still carry that instruction
  * and to NOT contain a guard. Only the routes a human still has to convert
@@ -125,7 +137,8 @@ describe("every declared wave is wired somewhere", () => {
 describe("wired surfaces consult the record-scope guard", () => {
   for (const [wave, files] of Object.entries(COVERAGE)) {
     test.each(files)(`${wave}: %s imports and calls requireProgramScope`, (file) => {
-      const src = read(file);
+      // A surface's guard may have followed its decision into a service.
+      const src = read(GUARD_IN_SERVICE[file] || file);
       expect(src).toContain("@/lib/programScopedAccess");
       expect(src).toMatch(/requireProgramScope(ForAll)?\(/);
       // The wave name must appear, so a file cannot be wired for the wrong one.
