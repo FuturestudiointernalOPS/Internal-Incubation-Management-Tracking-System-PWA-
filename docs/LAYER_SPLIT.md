@@ -2702,6 +2702,38 @@ the original file kept as a same-surface barrel: `planImport` (1 178),
 
 `npm test` (3631 tests), `npx eslint` (0 errors) and `npm run build` are green.
 
+### Programs lane — the lifecycle, curriculum and participant services (task C)
+
+The programs lane (Fiche 3). Three big services are split by concern, each keeping
+its public entry point as a same-surface barrel so the routes and their tests are
+untouched:
+
+- `services/programs/workspace.js` (790) → `programList.js` (the list read and its
+  completion index), `programCreate.js` (slug, duplicate/date rules, defaults,
+  audit), `programUpdate.js` (archive shortcut, field update, segment sync),
+  `programDelete.js` (the protected-data guard) and `programV2.js` (the v2 create /
+  directory / whitelisted update), with a `programShared.js` helper. `workspace.js`
+  (22) is now the barrel.
+- `services/programs/curriculum.js` (539) → `curriculumSchema.js` (the self-healing
+  schema steps), `curriculumShared.js` (version snapshot + KPI refresh),
+  `curriculumScope.js` (which record's program authorises the action),
+  `curriculumActions.js` (the POST vocabulary), `curriculumUpdate.js` and
+  `curriculumDelete.js`. `curriculum.js` (26) is the barrel.
+- `services/programs/participant.js` (402 → 189): the pure assembly moves to
+  `participantCurriculum.js` (weeks and lock state), `participantMetrics.js`
+  (completion / attendance / KPI achievement) and `participantResources.js`.
+
+Admin V16: the two remaining monoliths are split too. `NewProgramForm.js`
+1 346 → 491 with ten parts under `src/components/admin/programs/new-form/` (six
+form sections, the asset-loading hook, the network actions, the toast, the
+template selector, constants). `EditProgramModal.js` 1 491 → 709 with eight parts
+under `src/components/admin/programs/edit-modal/`. The moved blocks are verbatim:
+the translated-key multisets and the API-URL surfaces were counted identical
+before and after, and the build is green.
+
+`npm test` is green except `venture-assignment-columns.test.js`, an in-progress
+change of the ventures lane (a concurrent writer), unrelated to this task.
+`npx eslint` 0 errors on the touched scope; `npm run build` green.
 
 ---
 
@@ -2742,7 +2774,7 @@ cleanup, not layering:
 | Domain | Service to create | Notes |
 |---|---|---|
 | Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
-| Programs | `services/programs/*` | ✅ **controller frontier complete** (slices 13, 68–72, 76) — lifecycle, workspace bundle, exports, weekly reports, teams, curriculum |
+| Programs | `services/programs/*` | ✅ **controller frontier complete** (slices 13, 68–72, 76) — lifecycle, workspace bundle, exports, weekly reports, teams, curriculum — and the big services are now split (lifecycle, curriculum, participant); the admin form/editor components are split too (see §2, Programs lane, task C) |
 | Contacts / CRM | `services/contacts/*` | ✅ **controller frontier complete** — sync (slice 14), the decision helpers (slice 22), groups (65), user groups (66), the registry feed (67), alternative emails (73), group members (74, retiring the last Supabase route), directory search (75), duplicate flags (77), timeline (78), merge (79) and the `/api/contacts` registry controller — list read (80), soft-delete (81), registration (82), update (83). |
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
