@@ -76,6 +76,9 @@ export const POST = createHandler(async (req, { params }) => {
       required: body.required !== false,
       verification_method: body.verification_method,
       sort_order: body.sort_order,
+      // A type an admin invents is Data-bank storage unless they say otherwise;
+      // the built-in seeds are the ones that count for readiness.
+      is_readiness: body.is_readiness === true,
       created_by: req.session?.cid || null,
     });
     return NextResponse.json({ success: true, ...created });
