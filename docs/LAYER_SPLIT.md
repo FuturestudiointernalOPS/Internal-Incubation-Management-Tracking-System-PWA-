@@ -3803,3 +3803,41 @@ puisque le JSX ne connecte rien au niveau du type) ; et `OverviewTab` rend bien
 
 Gates du slice : `npm test` 305 suites / 4 796 tests, `npx eslint` 0 erreur,
 `npm run build` vert.
+
+## Slice 140 — Modale de rapport hebdo PM : les sections du formulaire (2026-10-03)
+
+Neuvième tranche de la série sur la **taille des écrans**, troisième de la
+Phase 1. Cible : `src/components/pm/program-workspace/PmReportModal.js`,
+1 043 lignes. Comme l'onglet d'aperçu des runs (slice 139), c'était déjà un
+composant **purement présentationnel** — aucune valeur d'état, aucun effet,
+seulement `useI18n` et **39 props**. Le long formulaire est découpé par section
+métier ; la modale ne garde que la coquille (racine cliquable, en-tête collant,
+pied avec Annuler/Soumettre) et compose sept sous-panneaux.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `PmReportModal.js` | 66 | la coquille : racine, en-tête, pied, composition des sept sections |
+| `PmReportOverviewSection.js` | 124 | semaine : statut, note globale, sujet principal |
+| `PmReportAssignmentSection.js` | 167 | suivi d'assignation : donnée ?, KPI(s), objectif, résultat attendu |
+| `PmReportParticipationSection.js` | 180 | participation : assiduité, niveau, participants à surveiller, remarquables |
+| `PmReportDeliverySection.js` | 137 | livraison : qualité, compréhension, défis |
+| `PmReportIssuesSection.js` | 158 | problèmes : a-t-il eu des soucis ?, types, attention super-admin, note |
+| `PmReportNextWeekSection.js` | 86 | semaine prochaine : programme sur la bonne voie, ajustements |
+| `PmReportNotesSection.js` | 166 | notes libres du PM + pièce jointe (lien ou PDF) |
+
+**La liste de `ctx` n'est pas devinée.** Un script lit l'AST et, pour chaque
+tranche de lignes (un frère JSX du conteneur `space-y-8`), calcule les
+identifiants référencés mais liés hors de la tranche : la portée module donne les
+imports (seule la section Notes utilise `X`), la portée composant donne les clés
+`ctx`, et les locaux des callbacks restent dans la section. `t` est traité à
+part : chaque section appelle `useI18n()`. L'union des sept listes fait **36
+clés** ; les 3 props restantes (`isSaving`, `onClosePMReportModal`,
+`onSubmitPMReport`) ne vivent que dans l'en-tête et le pied, gardés par la coquille.
+
+Deux garde-fous ajoutés à `src/__tests__/program-workspace-wiring.test.js` :
+chaque clé que les sections destructurent de `ctx` est une prop que
+`WorkspaceModals` passe réellement à `<PmReportModal>` ; et `PmReportModal` rend
+bien les sept `<PmReport…Section ctx={props} />`.
+
+Gates du slice : `npm test` 305 suites / 4 798 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
