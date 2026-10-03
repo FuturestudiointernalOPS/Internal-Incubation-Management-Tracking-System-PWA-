@@ -19,6 +19,7 @@
  */
 const fs = require("node:fs");
 const path = require("node:path");
+const { readSurface } = require("./helpers/sourceSurface");
 
 const ROOT = path.join(__dirname, "..", "..");
 
@@ -120,7 +121,7 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(src).toMatch(/hasActiveVentureAssignment/);
     // The membership probe moved to the model; the route keeps the gate.
     expect(src).toMatch(/isActiveVentureMember/);
-    const model = fs.readFileSync(path.join(ROOT, "src/models/ventureWorkspace.js"), "utf8");
+    const model = readSurface("src/models/ventureWorkspace.js");
     expect(model).toMatch(/venture_members WHERE venture_id/);
   });
 
