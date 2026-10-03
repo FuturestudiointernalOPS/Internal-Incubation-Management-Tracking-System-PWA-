@@ -4095,3 +4095,32 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint` 0 erreur,
 `npm run build` vert.
 
 La **Phase 1 est terminée** : plus aucune page écran ne dépasse 800 lignes.
+
+## Slice 149 — Modèle ventureWorkspace : éclatement en trois fichiers (2026-10-03)
+
+Première tranche de la **Phase 2** (les modèles de données). Cible :
+`src/models/ventureWorkspace.js`, 1 349 lignes, 143 fonctions d'accès aux
+données. On applique la convention du dépôt (`formRuns.js` + dossier
+`formRuns/`) : le fichier d'origine devient un **barrel** qui réexporte
+`export *` depuis un dossier homonyme, et les fonctions partent par blocs
+contigus, à l'identique.
+
+| Fichier | Lignes | Contenu |
+|---|---|---|
+| `ventureWorkspace.js` (barrel) | 24 | le commentaire de module + trois `export *` |
+| `ventureWorkspace/journeyAndReports.js` | 638 | ventures, membres, progression, tâches, soumissions, file de revue, notes, plans opérationnels, parcours, responsabilités, modèles de plan, calendrier, rapport de parcours |
+| `ventureWorkspace/dashboardAndCheckins.js` | 298 | fiche tableau de bord, bloqueurs, standups, rétros |
+| `ventureWorkspace/milestonesAndAccess.js` | 401 | jalons, suivis, plans d'action, affectations, mon-accès, historique, coach, archivage |
+
+Avant de découper, on a **vérifié qu'aucune des 143 fonctions n'en appelle une
+autre** (chacune un seul `db.execute`) : le déplacement est donc purement
+mécanique, sans graphe d'appels à recâbler. Vérifié après coup : les 143 noms
+exportés sont préservés à l'identique, et chaque bloc est byte-à-byte le texte
+d'origine.
+
+Deux suites lisaient le fichier avec `readFileSync` : elles passent à
+`readSurface("src/models/ventureWorkspace.js")`, qui concatène le barrel **et**
+son dossier — la garantie dont le helper `sourceSurface` existe pour ça.
+
+Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
+`npm run build` vert.
