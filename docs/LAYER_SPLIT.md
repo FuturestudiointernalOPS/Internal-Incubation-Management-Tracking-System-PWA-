@@ -3503,3 +3503,79 @@ d'acyclicité tombe (`delivery.js → templates.js → delivery.js`).
 
 Gates du slice : `npm test` 302 suites / 4 771 tests, `npm run lint` 0 erreur
 (16 avertissements préexistants), `npm run build` vert.
+
+## Slice 135 — Panneau Venture Journey : le page d'écran (2026-10-03)
+
+Cinquième tranche de la série sur la **taille des écrans**. Cible :
+`src/components/ventures/JourneyManagerPanel.js`, 1 399 lignes — le plus gros
+fichier de composant du dépôt avant ce slice. Le dossier `journey/` comptait déjà
+22 petites vues (stage, milestone, deliverable, session, inbox…), mais le panneau
+gardait la colonne vertébrale : 66 gestionnaires, 52 valeurs d'état, 5 lectures et
+un `return` de 202 lignes de JSX.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `JourneyManagerPanel.js` | 384 | l'état, les lectures, `setStages`, la composition |
+| `journey/actions/stageWrites.js` | 223 | créer, éditer, dupliquer, patcher, les deux flux template |
+| `journey/actions/journeyBulk.js` | 239 | sélecteurs, sélection, bulk archive/restore/delete, confirmation |
+| `journey/actions/milestones.js` | 279 | ajouter, éditer, déplacer, dupliquer un jalon, son menu |
+| `journey/actions/deliverables.js` | 271 | lignes de livrable, preuve soumise, revue |
+| `journey/actions/booking.js` | 163 | la réservation de session et sa note |
+| `journey/actions/reports.js` | 100 | composer un rapport de progression, l'envoyer |
+| `journey/actions/submissions.js` | 70 | lire les soumissions d'un jalon, décider |
+| `journey/actions/labels.js` | 61 | les helpers purs : statut, date, textarea qui grandit |
+| `journey/JourneyManagerModals.js` | 67 | les trois modales : template, sauvegarde, ajout |
+| `journey/JourneyStageList.js` | 242 | le spinner, l'état vide, ou les cartes de jalon |
+
+Les 125 déclarations du plan se répartissent ainsi : 52 `useState` et 5 lectures
+restent dans le panneau, 66 gestionnaires partent, et deux déclarations restent
+parce qu'elles doivent voir l'état lui-même — `setStages` (l'adaptateur qui publie
+une écriture dans sa propre lecture) et la destructure `stages, access,
+templateSource, milestoneAuthority, deliverablesUnavailable`. Les huit fabriques
+sont ordonnées par **tri topologique** : `stageWrites → journeyLabels →
+reportWrites → submissionWrites → milestoneWrites → deliverableWrites →
+sessionBooking → journeySelection`. Aucune ne lit une fabrique placée plus bas —
+`milestoneWrites` a besoin de `fmtDate` (labels) et de `loadMilestoneSubmissions`
+(submissions), `journeySelection` a besoin de `openReportComposer` (reports) et de
+`patchMilestone` (milestones) : l'ordre tombe du graphe, pas de la main.
+
+Chaque corps part **verbatim**, bloc de commentaire compris : la plage de lignes
+du monolithe bouge d'un bloc, donc laisser le commentaire derrière l'aurait
+supprimé du dépôt. 125 déclarations (toutes les `const` du composant, commentaire
+de tête compris) et les 494 chaînes littérales ou morceaux de gabarit du
+monolithe — 155 distincts — sont comparés octet pour octet par 7 contrôles en
+lecture seule (`/tmp/opencode/journey/verify.cjs` : il ne régénère rien, donc une
+retouche manuelle après la génération est attrapée au lieu d'être écrasée).
+
+Les deux blocs gardent leurs accolades : `<JourneyStageList ctx={ctx} />` rend
+exactement ce que rendait le `{ loading ? … : … }` qu'il remplace — un fragment ne
+crée pas de nœud DOM.
+
+Cinq pièges réels :
+
+| Piège | Symptôme | Résolution |
+|---|---|---|
+| nom de fabrique masqué par un état | la fabrique `milestoneSubmissions` était appelée par le panneau… où `const [milestoneSubmissions, setMilestoneSubmissions] = useState({})` déclarait le même nom : l'import était mort, l'appel levait « not a function » au premier rendu | garde dans le générateur : un nom de fabrique ne peut être ni un nom du panneau ni un import du module. La fabrique s'appelle `submissionWrites` |
+| paramètre du composant oublié dans `values` | `ventureId` n'est pas une déclaration, c'est le paramètre du panneau : les fabriques lisaient `undefined` et toutes les URL devenaient `/api/ventures/undefined/journey` — ESLint **vert**, build **vert** | l'inventaire des valeurs part du paramètre du composant, pas seulement de ses déclarations. C'est le vérificateur indépendant qui l'a trouvé, pas les tests |
+| icône importée *et* reçue en paramètre | `journeyBulk` declarait `Play`, `Lock`, `RotateCcw`… à la fois dans son `import` et dans sa signature : `SyntaxError: Identifier 'Play' has already been declared` | une fabrique **réimporte** ce que la portée module avait ; elle ne **reçoit** que ce que le panneau détient. Même règle pour les blocs, qui importent les composants qu'ils rendent |
+| `Set.add(...noms)` n'ajoute qu'un nom | l'analyse de lectures gardait `kind` mais perdait `rawId`, `action`, `step` : les paramètres déstructurés d'un handler passaient pour des lectures libres | `Set.prototype.add` prend **un** argument ; l'ajout passe par une boucle explicite |
+| lecture d'un membre optionnel comptée comme un nom | `editing?.deliverables` leakait `deliverables` comme paramètre orphelin | Babel distingue `OptionalMemberExpression` de `MemberExpression` : les deux sont traités |
+
+**Le contrôle** — `src/__tests__/journey-wiring.test.js` (9 tests) : paramètres de
+fabrique ⊂ `values` ∪ handlers retournés, et l'appel doit étaler le spread qui les
+porte ; chaque nom lu par un bloc est une valeur ou un handler retourné ; **tout
+nom libre du markup d'un bloc est listé dans sa signature** (analyse AST, pas
+regex) ; `ctx` porte chaque fabrique et se termine par `...values,` ; `values`
+sans nom fantôme, **sans handler qui masquerait un résultat** et sans nom que le
+panneau ne déclare pas ; les fabriques sans état ni lecture ; le panneau rend bien
+les deux blocs. Mutation testée sur dix coups
+(`/tmp/opencode/journey/mutate.cjs`) : **10/10 attrapés**, suite verte ensuite.
+
+Un pin voisin a dû suivre le déplacement : `journey-status-lexicon.test.js`
+affirmait que `JourneyManagerPanel.js` importe `@/lib/ventureStatuses` — le
+vocabulaire a migré dans `actions/labels.js` et `actions/deliverables.js`. Le pin
+lit maintenant **la surface** (panneau + ses deux fabriques) : l'intention — un
+seul vocabulaire, aucune carte locale — reste vérifiée là où le code vit.
+
+Gates du slice : `npm test` 303 suites / 4 780 tests, `npm run lint` 0 erreur
+(16 avertissements préexistants), `npm run build` vert.
