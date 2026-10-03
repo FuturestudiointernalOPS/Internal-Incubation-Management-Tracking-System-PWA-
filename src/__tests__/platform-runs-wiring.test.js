@@ -25,7 +25,7 @@ const ROOT = path.join(__dirname, "..");
 const PAGE = path.join(ROOT, "app", "platform", "runs", "page.js");
 const ACTIONS_DIR = path.join(ROOT, "app", "platform", "runs", "actions");
 const BLOCKS_DIR = path.join(ROOT, "components", "platform", "runs");
-const BLOCKS = ["RunResponsesPanel.js", "RunAdminTabs.js", "RunDetailModals.js", "RunListView.js"];
+const BLOCKS = ["RunResponsesPanel.js", "RunAdminTabs.js", "RunDetailModals.js", "RunListView.js", "RunDetailView.js"];
 
 // the refs, and the two abortable batch loops that read them: handed over as
 // plain props, because `values` and `ctx` reach functions during render
