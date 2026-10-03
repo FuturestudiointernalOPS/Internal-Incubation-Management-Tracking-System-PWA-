@@ -3724,3 +3724,46 @@ la vérification « pas de nom fantôme » reste vraie sans modification.
 
 Gates du slice : `npm test` 304 suites / 4 791 tests, `npx eslint` 0 erreur sur
 les six fichiers, `npm run build` vert.
+
+## Slice 138 — Éditeur d'accès individuel : le markup de la vue (2026-10-03)
+
+Septième tranche de la série sur la **taille des écrans**, et première de la
+Phase 1. Cible : `src/components/permissions/permission-center/PersonAccessScreen.js`,
+1 145 lignes. L'écran garde toute sa colonne vertébrale — 18 valeurs d'état, la
+garde `createLatestGuard`, les 3 effets, les lectures et les écritures
+(`selectUser`, `saveProfileOverride`, `applyQuickAction`, `handleQuickAction`,
+`refreshUserPerms`) — mais son markup part dans une vue qui ne lit qu'un objet
+`ctx`. Même recette que le slice 132/137 : le rendu ne décide de rien, il reçoit
+tout.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `PersonAccessScreen.js` | 551 | l'état, les 3 effets, les lectures/écritures, la construction de `ctx`, la composition |
+| `person-access/PersonAccessView.js` | 699 | le markup : états de chargement/échec, remplacement de profil, la grille CRUD, le bloc d'exceptions, les modales |
+
+**La liste de `ctx` n'est pas devinée.** Un script lit l'AST : il prend
+l'expression `superAdminAction` et le `return` de `PersonAccessScreen`, calcule
+leurs identifiants libres (référencés mais liés hors du sous-arbre), puis les
+classe en trois tas — 22 imports (composants, icônes, helpers), la portée
+module ; **42 clés `ctx`** (état, dérivées, gestionnaires), la portée composant ;
+et les locaux des callbacks (`section`, `modKey`, `cap`…) qui restent dans la
+vue. `superAdminAction` déménage avec le markup : il ne lit que des noms de
+`ctx`. La découpe est donc exhaustive par construction, pas relue à la main.
+
+Deux pins voisins ont été repointés, pas affaiblis. `ui2-people` et
+`ui7-access-clarity` lisaient le fichier de l'éditeur pour des chaînes qui
+vivaient dans le markup (`visibleFeatures={personFeatures}`,
+`LEVEL_CHIP_ACTIVE`, `{selectedUser && !userPerms && (`, `<Skeleton`…). Le
+markup ayant changé de fichier, ces assertions lisent maintenant **la surface**
+(`readPermissionCenterSurface()`, qui inclut tout `permission-center/`), donc
+une copie plantée ailleurs échoue encore. Les pins de logique — `createLatestGuard`,
+`.begin()`, `isCurrent(token)`, `setUserPerms(null)` — **restent sur
+`PersonAccessScreen.js`**, qui garde l'état et la garde.
+
+**Le nouveau contrôle** — `src/__tests__/person-access-wiring.test.js` (3 tests) :
+chaque nom que la vue destructure de `ctx` est une clé que l'écran met vraiment
+dans `ctx` ; chaque clé de `ctx` est un nom que `PersonAccessScreen` déclare
+(pas de clé fantôme) ; et l'écran rend bien `<PersonAccessView ctx={ctx} />`.
+
+Gates du slice : `npm test` 305 suites / 4 794 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
