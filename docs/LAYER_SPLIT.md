@@ -4066,3 +4066,32 @@ l'écran rend `<ProgramDetailView ctx={ctx} />`.
 
 Gates du slice : `npm test` 312 suites / 4 820 tests, `npx eslint` 0 erreur,
 `npm run build` vert.
+
+## Slice 148 — Détail d'une venture : la vue d'écran (2026-10-03)
+
+Dix-septième tranche de la **taille des écrans**, onzième et dernière de la
+Phase 1. Cible : `src/app/admin/ventures/[id]/page.js`, 807 lignes. Les trois
+branches de rendu (chargement, erreur, tableau de bord) pèsent ~604 lignes
+contre ~160 pour l'état, la lecture et les getters de présentation. On les sort
+dans une vue.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `page.js` | 177 | l'état (`activeTab`), les lecteurs de module, `getStageConfig`/`getActivityIcon`/`getActivityColor`, `actorText`, les tables `STAGE_CONFIG`/`ACTIVITY_ICONS`/`ACTIVITY_COLORS`, la construction de `ctx` |
+| `components/admin/ventures/VentureDetailView.js` | 683 | le branchage chargement/erreur, les helpers de membre (`memberStatusColor`, `MEMBER_ROLE_KEYS`, `memberRoleLabel`), `WIZARD_STEPS`, l'en-tête, les onglets, le tableau de bord embarqué, l'activité et l'équipe |
+
+`ctx` compte **15 clés** (`loading`, condition seule, ajouté à la main ; `React`
+reste dans la page pour `React.use(params)`). Piège nouveau : le balayage des
+`return` ne voit pas les icônes qui n'apparaissent que dans une **constante de
+module déplacée** — `WIZARD_STEPS` utilise `Briefcase`, invisible pour l'analyse
+JSX, donc l'erreur `no-undef` n'est apparue qu'à l'eslint. Il faut ajouter à la
+main les icônes référencées par les constantes qui partent dans la vue.
+
+Nouveau contrôle — `src/__tests__/venture-detail-view-wiring.test.js` (3 tests) :
+chaque nom lu par la vue est une clé de `ctx` ; chaque clé de `ctx` est lue ;
+l'écran rend `<VentureDetailView ctx={ctx} />`.
+
+Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
+
+La **Phase 1 est terminée** : plus aucune page écran ne dépasse 800 lignes.
