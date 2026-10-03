@@ -4154,3 +4154,24 @@ planificateur, resté sur place : elle reste verte sans retouche.
 
 Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
 `npm run build` vert.
+
+## Slice 151 — Modèle forms : plateforme, soumissions, réponses+savoir (2026-10-03)
+
+Troisième tranche de la **Phase 2** (modèles). Cible : `src/models/forms.js`,
+1 099 lignes, 79 fonctions d'accès aux données couvrant huit contrôleurs. Aucune
+fonction n'en appelle une autre et il n'y a aucune constante de module : la
+découpe est purement mécanique, par contrôleur.
+
+| Fichier | Lignes | Contenu |
+|---|---|---|
+| `forms.js` (barrel) | 26 | le commentaire de module + trois `export *` |
+| `forms/platform.js` | 447 | formulaires, collections, notifications |
+| `forms/submissions.js` | 505 | soumissions, réponses, revue des réponses |
+| `forms/respondAndKnowledge.js` | 130 | réponse publique, banque de savoir |
+
+Vérifié après coup : 79 exports à l'identique, trois blocs byte-à-byte. Les cinq
+suites qui touchent ce modèle le remplacent par un `jest.mock` — le barrel tient
+donc la surface sans qu'aucune ne soit retouchée.
+
+Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
+`npm run build` vert.
