@@ -3579,3 +3579,104 @@ seul vocabulaire, aucune carte locale — reste vérifiée là où le code vit.
 
 Gates du slice : `npm test` 303 suites / 4 780 tests, `npm run lint` 0 erreur
 (16 avertissements préexistants), `npm run build` vert.
+
+## Slice 136 — Éditeur de profils d'accès : le page d'écran (2026-10-03)
+
+Sixième tranche de la série sur la **taille des écrans**. Cible :
+`src/components/permissions/permission-center/AccessProfilesView.js`, 1 318 lignes.
+Le dossier `permission-center/` comptait déjà 11 vues extraites, mais l'éditeur de
+profils gardait la colonne vertébrale : 34 valeurs d'état, 2 lectures, 2
+chargementeurs, 3 effets, un `return` de 530 lignes de JSX et 32 gestionnaires de
+haut en bas — le seul écran où l'on pouvait encore « créer / dupliquer / renommer /
+désactiver / supprimer », « assigner un rôle par défaut », « le brouillon des
+capacités » et « sectionner le catalogue » dans un même fichier.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `AccessProfilesView.js` | 409 | l'état, les lectures, les 2 chargeurs, les 3 effets, le retour anticipé, la composition |
+| `profiles/actions/profileList.js` | 240 | créer, dupliquer, activer/désactiver, supprimer, renommer |
+| `profiles/actions/capsDraft.js` | 181 | le brouillon, la revue, la sauvegarde, les confirmations |
+| `profiles/actions/catalogSections.js` | 110 | les sections, l'éligibilité, les capacités éditables |
+| `profiles/actions/roleDefaults.js` | 98 | poser/retirer un rôle par défaut |
+| `profiles/actions/profileSelection.js` | 56 | le sélecteur → sélection, et le lien profond `?profile=<id>` |
+| `profiles/ProfileDetail.js` | 435 | le détail : impact, brouillon, matrice des capacités |
+| `profiles/ProfileDialogs.js` | 70 | les quatre modales |
+| `profiles/ProfileCreateForm.js` | 68 | le formulaire de création |
+| `profiles/ProfileNotices.js` | 66 | les trois avis : fait, échec, refus d'éligibilité |
+| `profiles/ProfilePicker.js` | 53 | le sélecteur de profil |
+
+Les 68 déclarations du plan se répartissent ainsi : 34 `useState` et 2 lectures
+restent dans le panneau, 32 gestionnaires partent. Cinq gestionnaires restent
+malgré tout, parce qu'ils voient l'état lui-même : les deux chargeurs
+mémoïsés (`fetchProfiles`, `selectProfile`, les deux seuls `useCallback` du
+fichier) et les trois dérivées (`availableModules`, `changesCount`,
+`selectedIsDefaultFor`). Les 3 `useEffect` — l'impact du profil sélectionné, la
+présélection par lien profond, le nettoyage des capacités stockées — ne
+bougent pas : un effet déplacé dans une fabrique s'exécuterait au mauvais moment
+de l'ordre des hooks.
+
+Les cinq fabriques sont ordonnées par **tri topologique** : `profileSelection →
+profileList → roleDefaultWrites → capsDraft → catalogSections`. Aucune ne lit une
+fabrique placée plus bas — ici le graphe est plat, `spreads: none` partout : chaque
+fabrique ne lit que `values`. Les deux gestionnaires que le panneau nomme encore
+(`computeChanges`, `defaultRolesFor`) sont **destructurés du résultat** de
+`capsDraftResult`, pas d'un `ctx` partiel : un `ctx` construit deux fois serait
+une deuxième source de vérité.
+
+Chaque corps part **verbatim**, bloc de commentaire compris : la plage de lignes
+du monolithe bouge d'un bloc, donc laisser le commentaire derrière l'aurait
+supprimé du dépôt. 68 déclarations et les chaînes littérales ou morceaux de
+gabarit du monolithe sont comparés octet pour octet par 9 contrôles en lecture
+seule (`/tmp/opencode/profiles/verify.cjs` : il ne régénère rien, donc une
+retouche manuelle après la génération est attrapée au lieu d'être écrasée).
+
+**Une seule phrase a dû être réécrite**, et le vérificateur l'exige au lieu de la
+lâcher : le commentaire de `computeChanges` disait « `availableModules` is defined
+later in the component body », ce qui est devenu faux au moment où les
+dérivées ont changé de place. Il dit maintenant que la vérité du registre arrive
+en paramètre. Le vérificateur connaît le couple avant/après, exige que la
+remplacement apparaisse **exactement une fois** et que l'ancien texte disparaisse
+de toute la surface : la dérogation est écrite, pas concédée.
+
+Cinq pièges réels — dont un que **ni ESLint ni le build ne pouvaient voir** :
+
+| Piège | Symptôme | Résolution |
+|---|---|---|
+| **retour anticipé au milieu du câblage** | dans le monolithe, `changesCount` et `selectedIsDefaultFor` étaient calculés **après** `if (loading) { return … }`. La première version générée les nommait dans `values`, construit **avant** ce retour : lecture dans la zone morte temporelle, `ReferenceError: Cannot access 'changesCount' before initialization` **au premier rendu** — ESLint vert, build vert, 304 suites vertes | câblage étagé : `values` sans ces deux noms, quatre fabriques, `const { computeChanges, defaultRolesFor } = capsDraftResult`, le retour anticipé, puis les deux dérivées, puis `catalogSections({ …values, selectedIsDefaultFor })`, puis `ctx`. Les deux noms voyagent sur `ctx`, entre les handlers et `...values`. Un contrôle du vérificateur et un test du suite refusent désormais qu'un nom soit lu avant sa déclaration, quel que soit le nom |
+| fabrique qui retourne ce que personne ne lit | `isChanged`, `editableModules`, `allSections`… étaient retournés alors qu'ils ne servaient qu'à l'intérieur de leur propre fabrique. Un nom exporté et non lu ressemble à un câblage : il masque une écriture mal rangée | le générateur **trimme** chaque retour aux noms que l'autre côté consomme (paramètre de fabrique, prop de bloc, lecture du panneau) et **lève** si un retour ne trouve aucun lecteur. Le suite vérifie la même propriété dans l'autre sens |
+| nom de fabrique masqué par un état | la fabrique `roleDefaults` était appelée par le panneau… où `const [roleDefaults, setRoleDefaults] = useState({})` déclarait le même nom : l'import était mort, l'appel levait « not a function » | garde dans le générateur : un nom de fabrique ne peut être ni un nom du panneau ni un import du module. La fabrique s'appelle `roleDefaultWrites` |
+| effet ou hook aspiré par une fabrique | `persistCaps`, `saveChanges`, `confirmSave` appelaient `setSaving` puis un `useApi` de rafraîchissement : déplacés tels quels dans `capsDraft.js`, l'ordre des hooks changeait | une fabrique **ne appelle aucun hook** : les deux `useCallback` et les trois `useEffect` restent dans le panneau, qui garde les deux chargeurs ; le contrôle le refuse explicitement |
+| déclaration et boucle séparées | `const editableCaps = […]` est suivi d'une boucle `for` qui la remplit : couper entre les deux produisait `editableCaps is not defined` | la boucle est coupée avec sa déclaration, et le générateur refuse une plage qui commence dans une déclaration et finit dans une autre |
+
+Les cinq blocs gardent leurs accolades : `<ProfileDetail ctx={ctx} />` rend
+exactement ce que rendait le `{selectedProfile && ( … )}` qu'il remplace — un
+fragment ne crée pas de nœud DOM.
+
+**Le contrôle** — `src/__tests__/access-profiles-wiring.test.js` (11 tests) :
+paramètres de fabrique ⊂ ce que déclare le panneau ∪ `values` ∪ handlers
+retournés, et l'appel doit étaler le spread qui les porte (ou nommer
+explicitement la dérivée du panneau) ; chaque prop d'un bloc est portée par
+`ctx` ; **`ctx` porte les cinq fabriques dans l'ordre d'appel**, puis ses deux
+propres noms, puis `...values,` en dernier ; `values` sans nom fantôme, **sans
+handler qui masquerait un résultat** et sans nom que le panneau ne déclare pas ;
+une fabrique **sans retour mort** ; tout nom libre du markup d'un bloc est listé
+dans sa signature (analyse AST, pas regex) ; chaque fabrique appelée **une seule
+fois** ; le panneau garde son paramètre, ses 2 `useCallback`, ses 3 `useEffect`,
+et son retour anticipé **avant** les deux dérivées. Mutation testée sur quinze
+coups (`/tmp/opencode/profiles/mutate.cjs`) : **15/15 attrapés**, suite verte
+ensuite.
+
+Trois pins voisins ont dû suivre le déplacement, et ils ne lisent pas tous la même
+chose. `ui2-profiles`, `ui3-followups` et `ui4-definitions` lisaient
+`AccessProfilesView.js` en entier : `reason: reason.trim() || undefined` est parti
+dans `capsDraft.js`, `PendingChangesList` et `impactAffects` dans `ProfileDetail.js`,
+`catalogUnavailable` et le garde `moduleCatalog && visibleSections.length === 0`
+aussi, `assignRoleDefault` et l'URL des défauts dans `roleDefaults.js`. Ces
+assertions lisent maintenant **la surface** (le panneau + ses dix modules), donc une
+copie plantée ailleurs échoue encore. Les assertions qui décrivent le panneau lui-même
+— la présélection par lien profond, `setModuleCatalog(data.modules || {})`,
+`availableModules`, l'URL de l'impact — **restent sur le panneau** : c'est là
+qu'elles sont vraies, et les relire ailleurs affaiblirait le pin.
+
+Gates du slice : `npm test` 304 suites / 4 791 tests, `npm run lint` 0 erreur
+(16 avertissements préexistants), `npm run build` vert.
