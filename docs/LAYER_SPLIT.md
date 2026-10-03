@@ -3921,3 +3921,38 @@ exactement les arguments attendus.
 
 Gates du slice : `npm test` 307 suites / 4 805 tests, `npx eslint` 0 erreur,
 `npm run build` vert.
+
+## Slice 143 — Formulaires plateforme : la vue d'écran (2026-10-03)
+
+Douzième tranche de la série sur la **taille des écrans**, sixième de la
+Phase 1. Cible : `src/app/platform/forms/page.js`, 886 lignes. Particularité :
+l'écran a **deux `return`** — la liste des formulaires (dans un `if
+(!showBuilder)`) et le constructeur — et le gros des sous-panneaux existait
+déjà (`FormsListView`, `CreateFormModal`, `BuilderHeader`, `FormCanvas`…). On
+sort donc les deux retours, verbatim, dans une vue qui branche sur
+`showBuilder`.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `page.js` | 790 | l'état, les lectures `useApi`, tous les gestionnaires (publication, sections/champs, scoring, workflow, modèles, évaluation IA), la construction de `ctx` |
+| `components/platform/forms/PlatformFormsView.js` | 299 | la liste (grille + modales création/archive) et le constructeur (en-tête + panneaux + palette + canevas + modale republish) |
+
+La vue est placée sous `src/components/platform/forms/` pour rester dans la
+**surface** que lit `result-email-schedule.test.js`
+(`readSurface("…/forms/page.js", "src/components/platform/forms")`) : les pins
+`<ResultDelayEditor`, `updateTemplate("result", "delay_minutes", …)` et
+`function TemplateEditor(` restent donc couverts.
+
+Le calcul de `ctx` par AST donne 93 clés — les identifiants libres des deux
+retours. Un piège : `showBuilder` n'apparaît que dans la **condition** `if
+(!showBuilder)` (hors des sous-arbres des `return`), il faut donc l'ajouter à
+la main — 94 clés au total. La vue ayant désormais besoin de `showBuilder`, le
+`const [showBuilder, setShowBuilder]` du parent reste lu (plus d'avertissement
+`no-unused-vars`).
+
+Nouveau contrôle — `src/__tests__/forms-view-wiring.test.js` (3 tests) : chaque
+nom que la vue destructure de `ctx` est une clé que l'écran déclare ; chaque clé
+de `ctx` est lue par la vue ; et l'écran rend `<PlatformFormsView ctx={ctx} />`.
+
+Gates du slice : `npm test` 308 suites / 4 808 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
