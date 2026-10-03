@@ -3983,3 +3983,32 @@ rend `<ImportView ctx={ctx} />`.
 
 Gates du slice : `npm test` 309 suites / 4 811 tests, `npx eslint` 0 erreur,
 `npm run build` vert.
+
+## Slice 145 — Accès utilisateurs : la vue d'écran (2026-10-03)
+
+Quatorzième tranche de la **taille des écrans**, huitième de la Phase 1. Cible :
+`src/app/admin/access/page.js`, 849 lignes. Le JSX pèse ~582 lignes (un seul
+`return`) contre ~178 pour l'état, les lectures et les gestionnaires de
+superviseur. On sort le markup dans une vue, avec les quatre tables de
+présentation (`ACCESS_LEVEL_KEYS`, `ACCESS_SHORT`, `ACCESS_COLORS`,
+`MODULE_CATEGORIES`), l'import `isResponsibilityBlockedForRole` et les icônes,
+qui ne servaient qu'au rendu.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `page.js` | 259 | l'état (`searchQuery`, `selectedUser`, `userData`, le sélecteur de superviseur), les lecteurs de module (`pickPeople`/`pickModules`/`filterPeople`), `fetchUserSummary`, l'affectation/retrait de superviseur, la pagination, la construction de `ctx` |
+| `components/admin/access/UserAccessView.js` | 663 | l'en-tête, la recherche, la liste des personnes, le panneau de résumé, la grille des modules, le sélecteur de superviseur |
+
+`ctx` compte **30 clés**. Deux pièges évités : aucun identifiant de `ctx`
+n'était utilisé par la logique de l'écran (les seules occurrences avant le
+`return` étaient les lignes de définition), donc la page a
+pu lâcher `React`, `isResponsibilityBlockedForRole` et toutes les icônes ; et
+les constantes de présentation ont été déplacées à l'identique, vérifiées
+byte-à-byte.
+
+Nouveau contrôle — `src/__tests__/access-view-wiring.test.js` (3 tests) : chaque
+nom lu par la vue est une clé de `ctx` ; chaque clé de `ctx` est lue ; l'écran
+rend `<UserAccessView ctx={ctx} />`.
+
+Gates du slice : `npm test` 310 suites / 4 814 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
