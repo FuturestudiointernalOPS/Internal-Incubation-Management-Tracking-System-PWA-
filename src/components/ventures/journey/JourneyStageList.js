@@ -1,0 +1,242 @@
+/**
+ * The stages themselves: a spinner while loading, an empty state, or the cards.
+ *
+ * Cut out of src/components/ventures/JourneyManagerPanel.js as-is: the panel
+ * keeps every state value and every write, and hands this block what it reads
+ * through `ctx`. The names it needs are listed in the signature — nothing else.
+ */
+
+"use client";
+import { Loader2 } from "lucide-react";
+import JourneyEmptyState from "@/components/ventures/journey/JourneyEmptyState";
+import JourneyStageCard from "@/components/ventures/journey/JourneyStageCard";
+
+export default function JourneyStageList({ ctx }) {
+  const {
+    DELIVERABLE_TYPES,
+    access,
+    addDeliverable,
+    addMilestone,
+    addMilestoneDeliverable,
+    autoGrow,
+    bookFor,
+    bookForm,
+    bookSaving,
+    bookSession,
+    bulkBusy,
+    coachOptions,
+    decideSubmission,
+    deliverableAction,
+    deliverableAddFor,
+    deliverableBusy,
+    deliverableFile,
+    deliverableForm,
+    deliverableMenuItems,
+    deliverableNewUrl,
+    deliverableSaving,
+    deliverableStatus,
+    deliverableText,
+    editForm,
+    editId,
+    emptyDeliverableForm,
+    emptyMilestoneForm,
+    fmtDate,
+    journeyMenuItems,
+    loading,
+    milestoneAddFor,
+    milestoneAuthority,
+    milestoneBusy,
+    milestoneDeliverables,
+    milestoneDotClass,
+    milestoneEditForm,
+    milestoneEditId,
+    milestoneForm,
+    milestoneMenuItems,
+    milestoneOpenId,
+    milestoneSaving,
+    milestoneStatusClass,
+    milestoneStatusKey,
+    milestoneSubmissions,
+    noteDraft,
+    noteEditFor,
+    noteSaving,
+    notesMilestoneId,
+    openBooking,
+    openReportComposer,
+    removeMilestoneDeliverable,
+    reportFor,
+    reportForm,
+    reportOpenId,
+    reportSaving,
+    reportStatusLabel,
+    reportsByStage,
+    restoreOneJourney,
+    reviewDeliverable,
+    saveDeliverableEdit,
+    saveEdit,
+    saveMilestoneEdit,
+    saveReport,
+    saveSessionNote,
+    selectedStageIds,
+    sessionStatusKey,
+    setBookFor,
+    setBookForm,
+    setDeliverableAction,
+    setDeliverableAddFor,
+    setDeliverableFile,
+    setDeliverableForm,
+    setDeliverableNewFile,
+    setDeliverableNewUrl,
+    setDeliverableText,
+    setEditForm,
+    setEditId,
+    setMilestoneAddFor,
+    setMilestoneDeliverables,
+    setMilestoneEditForm,
+    setMilestoneEditId,
+    setMilestoneForm,
+    setNoteDraft,
+    setNoteEditFor,
+    setReportFor,
+    setReportForm,
+    setReportOpenId,
+    setSubmissionComment,
+    setSubmissionReview,
+    stageNodeClass,
+    stages,
+    statusPill,
+    submissionComment,
+    submissionReview,
+    submissionsBusy,
+    submitDeliverableEvidence,
+    toggleMilestoneOpen,
+    toggleSelectStage,
+    updateMilestoneDeliverable,
+    ventureId,
+    ventureSessions,
+    viewArchived,
+    visibleStages,
+  } = ctx;
+
+  return (
+    <>
+      {loading ? (
+        <div className="text-center py-6"><Loader2 className="w-5 h-5 animate-spin mx-auto text-slate-400" /></div>
+      ) : visibleStages.length === 0 ? (
+        <JourneyEmptyState viewArchived={viewArchived} />
+      ) : (
+        <div className="space-y-5">
+          {visibleStages.map((stage, index) => (
+            <JourneyStageCard
+              key={stage.id}
+              stage={stage}
+              index={index}
+              visibleStagesCount={visibleStages.length}
+              access={access}
+              editId={editId}
+              setEditId={setEditId}
+              editForm={editForm}
+              setEditForm={setEditForm}
+              saveEdit={saveEdit}
+              stageNodeClass={stageNodeClass}
+              statusPill={statusPill}
+              toggleSelectStage={toggleSelectStage}
+              selectedStageIds={selectedStageIds}
+              journeyMenuItems={journeyMenuItems}
+              restoreOneJourney={restoreOneJourney}
+              bulkBusy={bulkBusy}
+              reportsByStage={reportsByStage}
+              reportFor={reportFor}
+              reportForm={reportForm}
+              reportOpenId={reportOpenId}
+              reportSaving={reportSaving}
+              reportStatusLabel={reportStatusLabel}
+              saveReport={saveReport}
+              setReportFor={setReportFor}
+              setReportForm={setReportForm}
+              setReportOpenId={setReportOpenId}
+              openReportComposer={openReportComposer}
+              autoGrow={autoGrow}
+              stages={stages}
+              milestoneAuthority={milestoneAuthority}
+              milestoneEditId={milestoneEditId}
+              setMilestoneEditId={setMilestoneEditId}
+              milestoneEditForm={milestoneEditForm}
+              setMilestoneEditForm={setMilestoneEditForm}
+              saveMilestoneEdit={saveMilestoneEdit}
+              milestoneOpenId={milestoneOpenId}
+              toggleMilestoneOpen={toggleMilestoneOpen}
+              milestoneBusy={milestoneBusy}
+              milestoneMenuItems={milestoneMenuItems}
+              milestoneDotClass={milestoneDotClass}
+              milestoneStatusClass={milestoneStatusClass}
+              milestoneStatusKey={milestoneStatusKey}
+              fmtDate={fmtDate}
+              milestoneSubmissions={milestoneSubmissions}
+              submissionReview={submissionReview}
+              submissionComment={submissionComment}
+              submissionsBusy={submissionsBusy}
+              decideSubmission={decideSubmission}
+              setSubmissionReview={setSubmissionReview}
+              setSubmissionComment={setSubmissionComment}
+              DELIVERABLE_TYPES={DELIVERABLE_TYPES}
+              addDeliverable={addDeliverable}
+              deliverableAction={deliverableAction}
+              deliverableAddFor={deliverableAddFor}
+              deliverableBusy={deliverableBusy}
+              deliverableFile={deliverableFile}
+              deliverableForm={deliverableForm}
+              deliverableMenuItems={deliverableMenuItems}
+              deliverableNewUrl={deliverableNewUrl}
+              deliverableSaving={deliverableSaving}
+              deliverableStatus={deliverableStatus}
+              deliverableText={deliverableText}
+              emptyDeliverableForm={emptyDeliverableForm}
+              reviewDeliverable={reviewDeliverable}
+              saveDeliverableEdit={saveDeliverableEdit}
+              setDeliverableAction={setDeliverableAction}
+              setDeliverableAddFor={setDeliverableAddFor}
+              setDeliverableFile={setDeliverableFile}
+              setDeliverableForm={setDeliverableForm}
+              setDeliverableNewFile={setDeliverableNewFile}
+              setDeliverableNewUrl={setDeliverableNewUrl}
+              setDeliverableText={setDeliverableText}
+              submitDeliverableEvidence={submitDeliverableEvidence}
+              bookFor={bookFor}
+              bookForm={bookForm}
+              bookSaving={bookSaving}
+              bookSession={bookSession}
+              coachOptions={coachOptions}
+              openBooking={openBooking}
+              setBookFor={setBookFor}
+              setBookForm={setBookForm}
+              ventureId={ventureId}
+              ventureSessions={ventureSessions}
+              sessionStatusKey={sessionStatusKey}
+              noteEditFor={noteEditFor}
+              noteDraft={noteDraft}
+              setNoteDraft={setNoteDraft}
+              noteSaving={noteSaving}
+              saveSessionNote={saveSessionNote}
+              setNoteEditFor={setNoteEditFor}
+              notesMilestoneId={notesMilestoneId}
+              addMilestone={addMilestone}
+              addMilestoneDeliverable={addMilestoneDeliverable}
+              emptyMilestoneForm={emptyMilestoneForm}
+              milestoneAddFor={milestoneAddFor}
+              milestoneDeliverables={milestoneDeliverables}
+              milestoneForm={milestoneForm}
+              milestoneSaving={milestoneSaving}
+              removeMilestoneDeliverable={removeMilestoneDeliverable}
+              setMilestoneAddFor={setMilestoneAddFor}
+              setMilestoneDeliverables={setMilestoneDeliverables}
+              setMilestoneForm={setMilestoneForm}
+              updateMilestoneDeliverable={updateMilestoneDeliverable}
+
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}

@@ -37,7 +37,13 @@ const englishStatus = require("@/locales/en/status.json").status;
 const frenchStatus = require("@/locales/fr/status.json").status;
 
 const FOUNDER = "src/components/ventures/workspace/tabs/JourneyPlaybookTabs.js";
-const MANAGER = "src/components/ventures/JourneyManagerPanel.js";
+// the Venture Manager panel and the factories its writes moved into: the surface
+// that renders the journey vocabulary
+const MANAGER = [
+  "src/components/ventures/JourneyManagerPanel.js",
+  "src/components/ventures/journey/actions/labels.js",
+  "src/components/ventures/journey/actions/deliverables.js",
+];
 const ADMIN_TIMELINE = "src/app/admin/ventures/[id]/timeline/page.js";
 const ADMIN_REPORTS = "src/app/admin/ventures/[id]/reports/page.js";
 const ADMIN_SESSIONS = "src/app/admin/ventures/[id]/sessions/page.js";
@@ -197,7 +203,7 @@ describe("every surface reads the one source", () => {
   });
 
   test("the Venture Manager panel delegates for milestones, deliverables and stages", () => {
-    const src = read(MANAGER);
+    const src = MANAGER.map(read).join("\n");
     expect(src).toContain('from "@/lib/ventureStatuses"');
     expect(src).toContain("stageStatusWord");
     expect(src).toContain("milestoneStatusWord");
