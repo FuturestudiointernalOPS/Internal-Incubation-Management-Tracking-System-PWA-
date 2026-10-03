@@ -7,12 +7,12 @@
  * sender, a lost flag would silently push the Founder Fit wording into every
  * run's result email — which is exactly what this protects.
  */
-const fs = require("fs");
-const path = require("path");
 const { readSurface } = require("./helpers/sourceSurface");
 
-const ROOT = path.resolve(__dirname, "..", "..");
-const EMAIL = fs.readFileSync(path.join(ROOT, "src/lib/email.js"), "utf8");
+// The sender was split out of src/lib/email.js into src/lib/email/: read the
+// whole surface (facade + modules) so these pins cannot go vacuously green —
+// they must follow the copy wherever it now lives.
+const EMAIL = readSurface("src/lib/email.js");
 // The service is split across `formRuns/`; read the whole surface so a pin
 // cannot go vacuously green when the code moves into a sibling file.
 const SERVICE = readSurface("src/services/platform/formRuns.js");
