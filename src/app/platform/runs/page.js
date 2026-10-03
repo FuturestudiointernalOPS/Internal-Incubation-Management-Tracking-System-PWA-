@@ -1,40 +1,36 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import {
-  Loader2, Send, Users, FileText, Settings, Link2, BarChart3, Mail,
-} from "lucide-react";
+
+import { useState as useState, useEffect as useEffect, useCallback as useCallback, useMemo as useMemo, useRef as useRef } from "react";
+import { Send as Send, Users as Users, FileText as FileText, Settings as Settings, Link2 as Link2, BarChart3 as BarChart3, Mail as Mail } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { usePermissions } from "@/lib/PermissionProvider";
 import { useDialogs } from "@/components/ui/DialogProvider";
-import {
-  SUB_STATUS, EMAIL_STATUS_CONFIG, EMAIL_PAGE_SIZE,
-  RETRYABLE_EMAIL_STATUSES, EMAIL_FILTER_OPTIONS, REVIEW_FILTER_OPTIONS, STATUS_FILTER_OPTIONS,
-  ACCOUNT_STATUS_OPTIONS, ACCOUNT_STATUS_STYLES, TRACKING_FILTERS,
-} from "@/components/platform/runs/constants";
+import { EMAIL_PAGE_SIZE as EMAIL_PAGE_SIZE, RETRYABLE_EMAIL_STATUSES as RETRYABLE_EMAIL_STATUSES, TRACKING_FILTERS as TRACKING_FILTERS } from "@/components/platform/runs/constants";
 import {
   EMPTY_RUN_LIST, EMPTY_SELECTION,
   pickRunList, fmtAnswer, pickPaymentsBySubmission, accountStatusOf,
 } from "@/components/platform/runs/helpers";
-import RunsTable from "@/components/platform/runs/RunsTable";
-import ShareTab from "@/components/platform/runs/ShareTab";
-import AssignmentsTab from "@/components/platform/runs/AssignmentsTab";
-import SettingsTab from "@/components/platform/runs/SettingsTab";
-import EmailsTab from "@/components/platform/runs/EmailsTab";
-import TemplatesTab from "@/components/platform/runs/TemplatesTab";
-import OverviewTab from "@/components/platform/runs/OverviewTab";
-import ReviewModal from "@/components/platform/runs/ReviewModal";
-import ManualAddModal from "@/components/platform/runs/ManualAddModal";
-import MessageComposerModal from "@/components/platform/runs/MessageComposerModal";
-import ExportOptionsModal from "@/components/platform/runs/ExportOptionsModal";
 import RunDetailHeader from "@/components/platform/runs/RunDetailHeader";
 import EvalProgressPanel from "@/components/platform/runs/EvalProgressPanel";
 import RunTabs from "@/components/platform/runs/RunTabs";
-import CreateRunModal from "@/components/platform/runs/CreateRunModal";
-import DatePickerModal from "@/components/platform/runs/DatePickerModal";
-import DashboardStats from "@/components/platform/runs/DashboardStats";
-import RunsToolbar from "@/components/platform/runs/RunsToolbar";
+import { runFormActions } from "./actions/runForms";
+import { runLifecycleActions } from "./actions/runLifecycle";
+import { reviewActions } from "./actions/review";
+import { assignmentActions } from "./actions/assignment";
+import { runSettingsActions } from "./actions/runSettings";
+import { runAutomationActions } from "./actions/runAutomation";
+import { evaluationActions } from "./actions/evaluation";
+import { runFilterActions } from "./actions/filters";
+import { runExportActions } from "./actions/exportRun";
+import { messagingActions } from "./actions/messaging";
+import { runEmailActions } from "./actions/emails";
+import RunResponsesPanel from "@/components/platform/runs/RunResponsesPanel";
+import RunAdminTabs from "@/components/platform/runs/RunAdminTabs";
+import RunDetailModals from "@/components/platform/runs/RunDetailModals";
+import RunListView from "@/components/platform/runs/RunListView";
+
 
 /**
  * PLATFORM FORM RUNS — Launch, assign, collect, review
@@ -385,32 +381,7 @@ export default function FormRunsPage() {
     } catch (_) {}
   }, []);
 
-  const handleCreateGroupInline = async (onDone) => {
-    const name = inlineGroupName.trim();
-    if (!name) return;
-    setCreatingGroup(true);
-    try {
-      const response = await fetch("/api/groups", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      const data = await response.json();
-      if (data.success && data.group) {
-        notify(t("platformMisc.runs.groupCreated"));
-        setShowInlineGroup(false);
-        setInlineGroupName("");
-        await fetchGroups(true);
-        if (onDone) onDone(data.group);
-      } else {
-        notify(t((data.error || t("platformMisc.runs.failedToCreateGroup")) || "") || (data.error || t("platformMisc.runs.failedToCreateGroup")));
-      }
-    } catch (_) {
-      notify(t("platformMisc.runs.failedToCreateGroup"));
-    } finally {
-      setCreatingGroup(false);
-    }
-  };
+
 
   const fetchDashboardStats = useCallback(async (bypassCache = false) => {
     const url = "/api/platform/form-runs?dashboard=true";
@@ -506,586 +477,63 @@ export default function FormRunsPage() {
     // The three records this reset writes are DERIVED from the filter combination
     // in force (see the respondent table's view records), so resetting them for a
     // fresh run genuinely depends on the combination they belong to.
-  }, [setRespPage, setSelectedIds, setShowDuplicates]);
+  }, [setRespPage, setSelectedIds, setShowDuplicates, setDetailTab, setSelectedRun]);
 
-  const handleCreate = async () => {
-    if (!createData.form_id || !createData.name.trim()) return;
-    setSaving(true);
-    try {
-      const body = { ...createData };
-      // Attach group assignment if selected
-      if (createData.group_id) {
-        body.assignments = [{ target_type: "group", target_id: createData.group_id }];
-      }
-      delete body.group_id; // not a DB column
-      const response = await fetch("/api/platform/form-runs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await response.json();
-      if (data.success) {
-        notify(t("platformMisc.runs.formRunCreated"));
-        setShowCreate(false);
-        refreshRuns();
-        openRun(data.run);
-      }
-    } catch (_) {}
-    setSaving(false);
-  };
 
-  const handleLaunch = async (id) => {
-    try {
-      const response = await fetch("/api/platform/form-runs?action=launch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        notify(t("platformMisc.runs.runLaunched"));
-        refreshRuns();
-        setSelectedRun(data.run);
-      }
-    } catch (_) {}
-  };
 
-  const handleStatusChange = async (id, newStatus) => {
-    try {
-      const response = await fetch("/api/platform/form-runs?action=status", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status: newStatus }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        notify(t("platformMisc.runs.runStatusChanged", { status: newStatus }));
-        setSelectedRun(data.run);
-        refreshRuns();
-      }
-    } catch (_) {}
-  };
 
-  const handleDeleteRun = async (id) => {
-    if (!(await confirm({ message: t("platformMisc.runs.deleteRunConfirm"), tone: "danger" }))) return;
-    try {
-      const response = await fetch(`/api/platform/form-runs?id=${id}`, { method: "DELETE" });
-      const data = await response.json();
-      if (data.success) {
-        notify(t("platformMisc.runs.runDeleted"));
-        setSelectedRun(null);
-        refreshRuns();
-      }
-    } catch (_) {}
-  };
 
-  const handleArchiveRun = async (id) => {
-    if (!(await confirm({ message: t("platformMisc.runs.archiveRunConfirm"), tone: "danger" }))) return;
-    try {
-      const response = await fetch("/api/platform/form-runs?action=status", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status: "archived" }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        notify(t("platformMisc.runs.runStatusChanged", { status: "archived" }));
-        refreshRuns();
-      }
-    } catch (_) {}
-  };
 
-  const handleRestoreRun = async (id) => {
-    if (!(await confirm({ message: t("platformMisc.runs.restoreRunConfirm") }))) return;
-    try {
-      const response = await fetch("/api/platform/form-runs?action=status", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status: "draft" }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        notify(t("platformMisc.runs.runStatusChanged", { status: "draft" }));
-        refreshRuns();
-      }
-    } catch (_) {}
-  };
 
-  // Closing always drops the "also send the AI result PDF" opt-in, so a tick
-  // never carries over to another submission or to the next opening.
-  const closeReview = () => {
-    setShowReview(false);
-    setReviewIncludeResultPdf(false);
-  };
 
-  const handleReview = async () => {
-    if (!reviewing) return;
-    setSaving(true);
-    try {
-      const response = await fetch("/api/platform/form-runs?action=review", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          submission_id: reviewing.id,
-          ...reviewData,
-          ...(reviewIncludeResultPdf && reviewData.decision === "approved" ? { include_result_pdf: true } : {}),
-        }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        // The decision went through; only the document could not follow. A 409
-        // refusal falls into the error branch below and shows data.error as-is.
-        if (data.result_pdf?.status === "failed") {
-          notify(t("platformMisc.runs.resultPdfSendFailed", { error: data.result_pdf.error || t("platformMisc.runs.failedFallback") }));
-        } else {
-          notify(data.already_approved ? t("platformMisc.runs.alreadyApproved") : t("platformMisc.runs.reviewSubmitted"));
-        }
-        closeReview();
-        setReviewTimeline([]);
-        if (selectedRun) openRun(selectedRun);
-      } else {
-        notify(t((data.error || t("platformMisc.runs.reviewFailed")) || "") || (data.error || t("platformMisc.runs.reviewFailed")));
-      }
-    } catch (_) {}
-    setSaving(false);
-  };
 
-  // Manual Re-evaluate: the ONE deliberate exception to skip-already-evaluated
-  const handleReevaluate = async () => {
-    if (!canReview) return;
-    if (!reviewing) return;
-    setSaving(true);
-    try {
-      const response = await fetch("/api/platform/ai/evaluate-submission", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submission_id: reviewing.id, force: true }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        notify(t("platformMisc.runs.reevaluationComplete"));
-        setEvaluation(data.evaluation);
-        if (selectedRun) openRun(selectedRun);
-      } else {
-        notify(t((data.error || t("platformMisc.runs.reevaluationFailed")) || "") || (data.error || t("platformMisc.runs.reevaluationFailed")));
-      }
-    } catch (_) {
-      notify(t("platformMisc.runs.networkError"));
-    }
-    setSaving(false);
-  };
 
-  const openReview = async (submission) => {
-    setReviewing(submission);
-    setReviewData({ decision: "approved", comment: "", internal_note: "" });
-    setReviewIncludeResultPdf(false);
-    setShowReview(true);
-    setReviewTimeline([]);
-    setEvaluation(null);
-    // Load timeline
-    try {
-      const response = await fetch(`/api/platform/form-runs?timeline=${submission.id}`);
-      const data = await response.json();
-      if (data.success) setReviewTimeline(data.timeline || []);
-    } catch (_) {}
-    // Load AI evaluation from separate table
-    try {
-      const evaluationResponse = await fetch(`/api/platform/ai/evaluate-submission?submission_id=${submission.id}`);
-      const evaluationData = await evaluationResponse.json();
-      if (evaluationData.success && evaluationData.evaluation) setEvaluation(evaluationData.evaluation);
-    } catch (_) {}
-    // Fetch form fields to map IDs to labels
-    if (selectedRun?.form_id) {
-      try {
-        const formResponse = await fetch(`/api/platform/forms?id=${selectedRun.form_id}`);
-        const formData = await formResponse.json();
-        if (formData.success) {
-          setRunFormFields((formData.fields || []).filter(field => !["hidden"].includes(field.field_type)));
-        }
-      } catch (_) {}
-    }
-  };
 
-  const resetAssignModal = () => {
-    setAssignTypes({ user: false, group: false, program: false, other: false });
-    setAssignUserId("");
-    setAssignGroupId("");
-    setAssignProgramId("");
-    setAssignOtherId("");
-    setAssignOtherType("cohort");
-  };
 
-  const toggleAssignType = (type) => setAssignTypes((prev) => ({ ...prev, [type]: !prev[type] }));
 
-  const handleAssignWithGroup = (group) => {
-    setAssignGroupId(group.registration_id || group.id);
-    setAssignTypes((prev) => ({ ...prev, group: true }));
-    handleAssign();
-  };
 
-  const handleAssign = async () => {
-    if (!selectedRun) return;
 
-    const targets = [];
-    if (assignTypes.user && assignUserId) targets.push({ target_type: "user", target_id: assignUserId });
-    if (assignTypes.group && assignGroupId) targets.push({ target_type: "group", target_id: assignGroupId });
-    if (assignTypes.program && assignProgramId) targets.push({ target_type: "program", target_id: assignProgramId });
-    if (assignTypes.other && assignOtherId.trim()) targets.push({ target_type: assignOtherType, target_id: assignOtherId.trim() });
 
-    const checkedTypes = Object.keys(assignTypes).filter((typeKey) => assignTypes[typeKey]);
-    if (checkedTypes.length === 0) {
-      notify(t("platformMisc.runs.assignErrorNoTargets"));
-      return;
-    }
-    const missing = checkedTypes.find((typeKey) =>
-      typeKey === "user" ? !assignUserId : typeKey === "group" ? !assignGroupId : typeKey === "program" ? !assignProgramId : !assignOtherId.trim(),
-    );
-    if (missing) {
-      const typeLabel =
-        missing === "user" ? t("platformMisc.runs.targetUser")
-        : missing === "group" ? t("platformMisc.runs.targetGroup")
-        : missing === "program" ? t("platformMisc.runs.targetProgram")
-        : t("platformMisc.runs.targetId");
-      notify(t("platformMisc.runs.assignErrorMissing", { type: typeLabel }));
-      return;
-    }
 
-    setSaving(true);
-    try {
-      const response = await fetch("/api/platform/form-runs?action=assign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ run_id: selectedRun.id, targets }),
-      });
-      let data = null;
-      try { data = await response.json(); } catch (_) { data = null; }
-      if (data && data.success) {
-        setAssignments(data.assignments || []);
-        const added = data.added ?? targets.length;
-        const skipped = data.skipped ?? 0;
-        if (added > 0 && skipped > 0) notify(t("platformMisc.runs.assignmentsAddedWithSkipped", { added, skipped }));
-        else if (added > 0) notify(t("platformMisc.runs.assignmentsAdded", { count: added }));
-        else notify(t("platformMisc.runs.assignmentsSkipped", { count: skipped }));
-        setShowAssign(false);
-        setShowInlineGroup(false);
-        setInlineGroupName("");
-        resetAssignModal();
-      } else {
-        notify(t((data?.error || t("platformMisc.runs.assignFailed")) || "") || (data?.error || t("platformMisc.runs.assignFailed")));
-      }
-    } catch (_) {
-      notify(t("platformMisc.runs.assignFailed"));
-    }
-    setSaving(false);
-  };
 
-  const handleUnassign = async (assignmentId) => {
-    try {
-      const response = await fetch("/api/platform/form-runs?action=unassign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assignment_id: assignmentId }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        setAssignments(data.assignments || []);
-        notify(t("platformMisc.runs.assignmentRemoved"));
-      }
-    } catch (_) {}
-  };
 
-  const handleDeleteSubmission = async (submissionId) => {
-    if (!(await confirm({ message: t("platformMisc.runs.deleteSubmissionConfirm"), tone: "danger" }))) return;
-    try {
-      const response = await fetch(`/api/platform/form-runs?action=delete_submission`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submission_id: submissionId }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        notify(t("platformMisc.runs.submissionDeleted"));
-        // Reload run data
-        if (selectedRun) openRun(selectedRun);
-      } else {
-        notify(t((data.error || t("platformMisc.runs.deleteFailed")) || "") || (data.error || t("platformMisc.runs.deleteFailed")));
-      }
-    } catch (_) {}
-  };
 
-  const handleSaveSettings = async () => {
-    if (!selectedRun) return;
-    setSaving(true);
-    try {
-      const response = await fetch("/api/platform/form-runs", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: selectedRun.id, settings: runSettings }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        setSelectedRun(data.run);
-        setRunSettings(data.run.settings || {});
-        notify(t("platformMisc.runs.settingsSaved"));
-        setEditingSettings(false);
-      } else {
-        // Server errors are i18n keys when they are ours; `t` passes anything
-        // else through unchanged.
-        notify(data.error ? t(data.error) : t("platformMisc.runs.settingsSaveFailed"));
-      }
-    } catch (_) {
-      notify(t("platformMisc.runs.settingsSaveFailed"));
-    }
-    setSaving(false);
-  };
 
-  // Re-roll the AI-composed report for an unchanged instruction. Meaningful
-  // only when this run carries an Output Instruction — otherwise the server
-  // keeps answering with the default document and this is a no-op.
-  const regenerateReport = async (submissionId) => {
-    if (reportRegenerating) return;
-    setReportRegenerating(submissionId);
-    try {
-      const response = await fetch("/api/platform/form-runs?action=regenerate_report", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submission_id: submissionId }),
-      });
-      if (response.ok) {
-        notify(t("platformMisc.runs.regenerateReportDone"));
-        setPreviewNonce((previousNonce) => previousNonce + 1); // reload the preview with the new document
-      } else {
-        let message = "";
-        try { const data = await response.json(); message = data?.error || ""; } catch (_) {}
-        notify(message ? t(message) : t("platformMisc.runs.regenerateReportFailed"));
-      }
-    } catch (_) {
-      notify(t("platformMisc.runs.regenerateReportFailed"));
-    }
-    setReportRegenerating(null);
-  };
 
-  // ─── Reference document — the file half of the report brief ───
-  //
-  // Attaching a document is its OWN immediate action rather than part of the
-  // settings form: the file travels as an upload, it is read into text on the
-  // server, and the row it writes is what the report writer then reads. Nothing
-  // is deferred, so there is no half-saved state to reconcile with "Save".
-  const uploadReportFile = async (file) => {
-    if (!selectedRun || !file || reportFileBusy) return;
-    setReportFileBusy(true);
-    try {
-      const body = new FormData();
-      body.append("run_id", String(selectedRun.id));
-      body.append("file", file);
-      const response = await fetch("/api/platform/form-runs/report-file", { method: "POST", body });
-      const data = await response.json();
-      if (data.success) {
-        setReportFile(data.file || null);
-        setReportFileText(null);
-        setReportFileTextOpen(false);
-        // Any report already generated was written from the PREVIOUS document.
-        setPreviewNonce((previousNonce) => previousNonce + 1);
-        notify(t("platformMisc.runs.reportFileUploaded"));
-      } else {
-        notify(data.error ? t(data.error) : t("platformMisc.runs.reportFileUploadFailed"));
-      }
-    } catch (_) {
-      notify(t("platformMisc.runs.reportFileUploadFailed"));
-    }
-    setReportFileBusy(false);
-  };
 
-  // The link is minted on click and expires: never held in state.
-  const openReportFile = async () => {
-    if (!selectedRun) return;
-    // Opened SYNCHRONOUSLY and pointed at the signed link once it arrives: a
-    // window opened after an await is treated as a popup and blocked.
-    const tab = window.open("", "_blank");
-    if (tab) {
-      try { tab.opener = null; } catch (_) {}
-    }
-    try {
-      const response = await fetch(`/api/platform/form-runs/report-file?run_id=${selectedRun.id}`);
-      const data = await response.json();
-      if (data.success && data.file?.url) {
-        if (tab) tab.location.href = data.file.url;
-        else window.open(data.file.url, "_blank", "noopener,noreferrer");
-      } else {
-        if (tab) tab.close();
-        notify(t("platformMisc.runs.reportFileOpenFailed"));
-      }
-    } catch (_) {
-      if (tab) tab.close();
-      notify(t("platformMisc.runs.reportFileOpenFailed"));
-    }
-  };
 
-  // Show exactly what the report writer is given — including how much of a long
-  // document it actually reads, so an attachment never looks fully used when it
-  // is not.
-  const toggleReportFileText = async () => {
-    if (!selectedRun) return;
-    if (reportFileTextOpen) {
-      setReportFileTextOpen(false);
-      return;
-    }
-    setReportFileTextOpen(true);
-    if (reportFileText && !reportFileText.error) return; // already read once
-    setReportFileText({ loading: true });
-    try {
-      const response = await fetch(`/api/platform/form-runs/report-file?run_id=${selectedRun.id}&text=1`);
-      const data = await response.json();
-      if (data.success) {
-        setReportFileText({ text: data.text || "", prompt_limit: data.prompt_limit || null });
-      } else {
-        setReportFileText({ error: true });
-      }
-    } catch (_) {
-      setReportFileText({ error: true });
-    }
-  };
 
-  const removeReportFile = async () => {
-    if (!selectedRun || reportFileBusy) return;
-    if (!(await confirm({ message: t("platformMisc.runs.reportFileRemoveConfirm"), tone: "danger" }))) return;
-    setReportFileBusy(true);
-    try {
-      const response = await fetch(`/api/platform/form-runs/report-file?run_id=${selectedRun.id}`, { method: "DELETE" });
-      const data = await response.json();
-      if (data.success) {
-        setReportFile(null);
-        setReportFileText(null);
-        setReportFileTextOpen(false);
-        setPreviewNonce((previousNonce) => previousNonce + 1);
-        notify(t("platformMisc.runs.reportFileRemoved"));
-      } else {
-        notify(data.error ? t(data.error) : t("platformMisc.runs.reportFileRemoveFailed"));
-      }
-    } catch (_) {
-      notify(t("platformMisc.runs.reportFileRemoveFailed"));
-    }
-    setReportFileBusy(false);
-  };
 
-  // Run automation switches — same resolution order as the server (run → form →
-  // on), computed locally so this screen never imports server code.
-  const runAutomationValue = (section, flag) => {
-    const runSettingValue = runSettings?.automation?.[section]?.[flag];
-    if (typeof runSettingValue === "boolean") return runSettingValue;
-    const formSettingValue = runFormSettings?.automation?.[section]?.[flag];
-    if (typeof formSettingValue === "boolean") return formSettingValue;
-    return true;
-  };
 
-  const isRunAutomationOverride = (section, flag) => typeof runSettings?.automation?.[section]?.[flag] === "boolean";
 
-  // Write an explicit boolean so the run overrides the form from then on.
-  const setRunAutomationFlag = (section, flag, value) => {
-    const prev = runSettings || {};
-    const automation = { ...(prev.automation || {}) };
-    automation[section] = { ...(automation[section] || {}), [flag]: value };
-    setRunSettings({ ...prev, automation });
-  };
 
-  // Drop every run override — the PUT body then omits `automation` entirely.
-  const resetRunAutomation = () => setRunSettings({ ...(runSettings || {}), automation: undefined });
 
-  const fetchEvalProgress = async (formId) => {
-    try {
-      const response = await fetch("/api/platform/ai/evaluate-submission", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ form_id: formId, action: "progress" }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        setEvalStats({ approvals: data.approvals || { approved: 0, rejected: 0 }, emails: data.emails || { sent: 0, failed: 0, pending: 0, activation_sent: 0, approval_sent: 0 } });
-        return data.progress;
-      }
-      return null;
-    } catch (_) {
-      return null;
-    }
-  };
 
-  const handleBatchEvaluate = async (retryOnly = false) => {
-    // Belt and braces: the control is not rendered without the capability, and
-    // the server refuses the call too.
-    if (!canReview) return;
-    if (!selectedRun?.form_id) return notify(t("platformMisc.runs.noFormLinked"));
-    const formId = selectedRun.form_id;
 
-    // Initial progress snapshot
-    const initial = await fetchEvalProgress(formId);
-    if (initial) {
-      setEvalProgress({ ...initial, running: true, batch: 0, stopped: false });
-      if (initial.remaining === 0) {
-        notify(initial.failed > 0 ? t("platformMisc.runs.evalCompleteRetry", { failed: initial.failed }) : t("platformMisc.runs.allEvaluated"));
-        setEvalProgress((previousProgress) => previousProgress && { ...previousProgress, running: false, stopped: true });
-        return;
-      }
-    } else {
-      notify(t("platformMisc.runs.evalProgressUnreadable"));
-      return;
-    }
 
-    // Client-driven loop: one request per batch of 20
-    let batchNo = 0;
-    let stopped = false;
-    while (true) {
-      batchNo++;
-      setEvalProgress((previousProgress) => previousProgress && { ...previousProgress, batch: batchNo });
-      let data;
-      try {
-        const response = await fetch("/api/platform/ai/evaluate-submission", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            form_id: formId,
-            action: retryOnly ? "retry_failed" : "batch",
-            batch_size: 20,
-          }),
-        });
-        data = await response.json();
-      } catch (_) {
-        stopped = true;
-        setEvalProgress((previousProgress) => previousProgress && { ...previousProgress, running: false, stopped: true });
-        notify(t("platformMisc.runs.networkErrorPaused"));
-        break;
-      }
 
-      if (!data.success) {
-        stopped = true;
-        setEvalProgress((previousProgress) => previousProgress && { ...previousProgress, running: false, stopped: true });
-        notify(t((data.error || t("platformMisc.runs.evalStopped")) || "") || (data.error || t("platformMisc.runs.evalStopped")));
-        break;
-      }
 
-      const progress = data.progress;
-      setEvalProgress({ ...progress, running: true, batch: batchNo, stopped: false });
 
-      if (progress.remaining === 0) {
-        setEvalProgress({ ...progress, running: false, batch: batchNo, stopped: true });
-        notify(
-          t("platformMisc.runs.evalCompleteCount", { evaluated: progress.evaluated, total: progress.total }) +
-            (progress.failed > 0 ? t("platformMisc.runs.evalFailedCount", { failed: progress.failed }) : "")
-        );
-        await fetchEvalProgress(formId); // refresh approval + email stats
-        break;
-      }
 
-      if (data.processed === 0 && data.evaluated === 0) {
-        // Nothing processed this round (all claimed/failed) — avoid infinite loop
-        setEvalProgress({ ...progress, running: false, batch: batchNo, stopped: true });
-        notify(t("platformMisc.runs.noProgressBatch"));
-        break;
-      }
-    }
 
-    if (selectedRun) openRun(selectedRun);
-    return { stopped };
-  };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   // ─── RUN-SCOPED FILTERING (Overview) ───
   // Runs against ONLY this run's submissions + their AI evaluations.
@@ -1178,31 +626,9 @@ export default function FormRunsPage() {
   // longer dependencies of their own.
   }, [selectedRun, submissions, evaluations, subFilter, respSearch, scoreOp, scoreValue, scoreValue2, fieldFilters, submissionAnswers, latestReviewOf, emailStatusOf, approvalEmailFilter, activationEmailFilter, reviewFilter, accountStatusFilter]);
 
-  const hasRunFilters = !!(
-    respSearch.trim() ||
-    (scoreOp && scoreValue !== "") ||
-    Object.values(fieldFilters).some(Boolean) ||
-    approvalEmailFilter ||
-    activationEmailFilter ||
-    reviewFilter ||
-    accountStatusFilter
-  );
 
-  const clearRunFilters = () => {
-    setRespSearch("");
-    setScoreOp("");
-    setScoreValue("");
-    setScoreValue2("");
-    setFieldFilters({});
-    setApprovalEmailFilter("");
-    setActivationEmailFilter("");
-    setReviewFilter("");
-    setAccountStatusFilter("");
-    setRespPage(1);
-    setSelectedIds([]);
-    setFilterPickerOpen(false);
-    setFilterPickerMode(null);
-  };
+
+
 
   // ─── Filter chips (presentation only — the underlying filter state is the
   // same scoreOp/scoreValue/fieldFilters the filtering logic already uses) ───
@@ -1226,31 +652,9 @@ export default function FormRunsPage() {
     if (key === "account_status") return accountStatusFilter;
     return "";
   };
-  const setTrackingFilter = (key, value) => {
-    if (key === "approval_email") setApprovalEmailFilter(value);
-    else if (key === "review") setReviewFilter(value);
-    else if (key === "status") setSubFilter(value || "all");
-    else if (key === "activation_email") setActivationEmailFilter(value);
-    else if (key === "account_status") setAccountStatusFilter(value);
-  };
-  const trackingFilterOptions = (key) => {
-    if (key === "approval_email" || key === "activation_email") return EMAIL_FILTER_OPTIONS;
-    if (key === "review") return REVIEW_FILTER_OPTIONS;
-    if (key === "status") return STATUS_FILTER_OPTIONS;
-    if (key === "account_status") return ACCOUNT_STATUS_OPTIONS;
-    return [];
-  };
-  const trackingFilterOptionLabel = (key, optionValue) => {
-    if (key === "account_status") {
-      const statusStyle = ACCOUNT_STATUS_STYLES[optionValue];
-      return statusStyle ? t(statusStyle.label) : optionValue;
-    }
-    if (key === "approval_email" || key === "activation_email") {
-      if (optionValue === "not_sent") return t("platformMisc.runs.emailNotSent");
-      return EMAIL_STATUS_CONFIG[optionValue] ? t(EMAIL_STATUS_CONFIG[optionValue].label) : optionValue;
-    }
-    return SUB_STATUS[optionValue] ? t(SUB_STATUS[optionValue].label) : optionValue;
-  };
+
+
+
   const activeTrackingFilters = TRACKING_FILTERS
     .map((filter) => ({ key: filter.key, label: filter.label, value: trackingFilterValue(filter.key) }))
     .filter((filter) => filter.value);
@@ -1266,18 +670,9 @@ export default function FormRunsPage() {
   ];
   const fieldOptionsOf = (label) => filterableFields.find((field) => field.label === label)?.options || [];
 
-  const removeFieldFilter = (label) =>
-    setFieldFilters((prev) => {
-      const next = { ...prev };
-      delete next[label];
-      return next;
-    });
 
-  const clearScoreFilter = () => {
-    setScoreOp("");
-    setScoreValue("");
-    setScoreValue2("");
-  };
+
+
 
   // Clicking anywhere outside the filter row closes the Add Filter dropdown
   // and any open inline editor automatically.
@@ -1293,12 +688,7 @@ export default function FormRunsPage() {
     return () => document.removeEventListener("mousedown", onDown);
   }, [filterPickerOpen, filterPickerMode]);
 
-  const pickFilterParam = (param) => {
-    setFilterPickerOpen(false);
-    if (param.key === "score") setFilterPickerMode("score");
-    else if (param.key.startsWith("field:")) setFilterPickerMode({ type: "field", label: param.label });
-    else setFilterPickerMode({ type: "status", key: param.key });
-  };
+
 
   // ─── Duplicate detection: same resolved email appearing multiple times ───
   // The keeper (highest AI score) is marked; the rest are duplicates. After
@@ -1361,15 +751,9 @@ export default function FormRunsPage() {
   const allFilteredSelected =
     visibleSubmissions.length > 0 && visibleSubmissions.every((submission) => selectedSet.has(submission.id));
 
-  const toggleSelect = (id) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((selectedId) => selectedId !== id) : [...prev, id]
-    );
-  };
 
-  const toggleSelectAllFiltered = () => {
-    setSelectedIds(allFilteredSelected ? [] : visibleSubmissions.map((submission) => submission.id));
-  };
+
+
 
   // Bulk approve: batches of 10 through the SAME review workflow as a single
   // approval (server-side action=bulk_review → processReviewInternal).
@@ -1539,305 +923,25 @@ export default function FormRunsPage() {
   const pagedEmailRows = visibleEmailRows.slice((safeEmailPage - 1) * EMAIL_PAGE_SIZE, safeEmailPage * EMAIL_PAGE_SIZE);
 
   const retrySelectedSet = useMemo(() => new Set(retrySelected), [retrySelected]);
-  const toggleRetrySelect = (key) =>
-    setRetrySelected((prev) => (prev.includes(key) ? prev.filter((retryKey) => retryKey !== key) : [...prev, key]));
 
-  // ─── Export (shared dataset: Overview = Messaging = Export) ───
-  // Always one row per participant. Each form question becomes a COLUMN;
-  // answers stay in the participant's row. No joins/arrays/events may ever
-  // duplicate a participant.
-  const buildExportRows = (submissionList) => {
-    const seen = new Set();
-    const unique = submissionList.filter((submission) => {
-      if (seen.has(submission.id)) return false;
-      seen.add(submission.id);
-      return true;
-    });
 
-    // Form questions as ordered columns (hidden fields already excluded).
-    // Fall back to fieldLabels when the field list has not loaded yet.
-    const questionFields = runFormFields.length > 0
-      ? runFormFields.map((field) => ({ id: String(field.id), label: field.label }))
-      : Object.entries(fieldLabels)
-          .filter(([, label]) => label)
-          .map(([id, label]) => ({ id, label }));
 
-    const headers = [
-      t("platformMisc.runs.colSn"),
-      t("platformMisc.runs.colName"),
-      t("platformMisc.runs.colEmail"),
-      ...questionFields.map((questionField) => questionField.label),
-      t("platformMisc.runs.colAiScore"),
-      t("platformMisc.runs.colApprovalEmail"),
-      t("platformMisc.runs.colActivationEmail"),
-      t("platformMisc.runs.colAccountStatus"),
-    ];
 
-    const rows = unique.map((submission, index) => {
-      const evalRow = evaluations.find((evaluation) => evaluation.submission_id === submission.id);
-      const activationEmail = emailLog
-        .filter((email) => email.submission_id === submission.id && email.email_type === "activation")
-        .slice(-1)[0];
-      const approvalEmail = emailLog
-        .filter((email) => email.submission_id === submission.id && email.email_type === "approval")
-        .slice(-1)[0];
-      const accountStatus = submission.account_status || (submission.account_activated
-        ? "active"
-        : submission.account_created
-          ? "activation_pending"
-          : "not_created");
-      const answers = submissionAnswers(submission);
-      const cells = [
-        index + 1,
-        submission.display_name || submission.submitter_name || submission.submitter_id,
-        submission.email || "",
-      ];
-      for (const questionField of questionFields) cells.push(answers[questionField.label] ?? "");
-      cells.push(
-        evalRow != null ? evalRow.overall_score : (submission.data?._scores?.overall ?? ""),
-        approvalEmail ? approvalEmail.status : "",
-        activationEmail ? activationEmail.status : "",
-        accountStatus,
-      );
-      return cells;
-    });
-    return { headers, rows };
-  };
 
-  const exportParticipants = async (format, scope) => {
-    const source = scope === "selected"
-      ? visibleSubmissions.filter((submission) => selectedSet.has(submission.id))
-      : visibleSubmissions;
-    if (!source.length) return;
 
-    const { headers, rows } = buildExportRows(source);
-    const baseName = `${selectedRun?.name || "run"}-participants`;
 
-    if (format === "xlsx") {
-      try {
-        const { default: writeXlsxFile } = await import("write-excel-file/browser");
-        await writeXlsxFile([headers, ...rows], { sheet: "Participants" }).toFile(`${baseName}.xlsx`);
-      } catch (_) {
-        notify(t("platformMisc.runs.excelExportFailed"));
-      }
-    } else {
-      const escapeCsv = (value) => {
-        const text = value == null ? "" : String(value);
-        return `"${text.replace(/"/g, '""')}"`;
-      };
-      const csv = "\uFEFF" + [headers.map(escapeCsv).join(","), ...rows.map((row) => row.map(escapeCsv).join(","))].join("\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${baseName}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
-    }
-    setShowExportOptions(false);
-  };
 
-  // ─── Manual message (Room Overview → selected participants) ───
-  const openMessageComposer = () => {
-    setMessageSubject("");
-    setMessageBody("");
-    setMessageResult(null);
-    setBulkMenuOpen(false);
-    setShowMessageComposer(true);
-  };
 
-  // ─── Manual add respondent (super admin injects a test person) ───
-  const openManualAdd = () => {
-    setManualAddName("");
-    setManualAddEmail("");
-    setBulkMenuOpen(false);
-    setShowManualAdd(true);
-  };
 
-  const submitManualAdd = async () => {
-    if (!selectedRun || manualAdding) return;
-    if (!manualAddName.trim() && !manualAddEmail.trim()) {
-      notify(t("platformMisc.runs.manualAddNameOrEmailRequired"));
-      return;
-    }
-    setManualAdding(true);
-    try {
-      const response = await fetch("/api/platform/form-runs?action=manual_add", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          run_id: selectedRun.id,
-          name: manualAddName.trim(),
-          email: manualAddEmail.trim(),
-        }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        notify(t("platformMisc.runs.manualAddSuccess"));
-        setShowManualAdd(false);
-        setManualAddName("");
-        setManualAddEmail("");
-        if (selectedRun) await openRun(selectedRun, { keepTab: true });
-      } else {
-        notify(data.error || t("platformMisc.runs.manualAddFailed"));
-      }
-    } catch (_) {
-      notify(t("platformMisc.runs.manualAddFailed"));
-    }
-    setManualAdding(false);
-  };
 
-  // ─── Correct a respondent's email (a wrong address typed on the form / manual add) ───
-  const editRespondentEmail = async (submission) => {
-    const current = String(submission.email || "").trim();
-    const next = await prompt({
-      message: t("platformMisc.runs.editEmailPrompt"),
-      inputLabel: t("platformMisc.runs.editEmailLabel"),
-      defaultValue: current,
-      inputType: "email",
-      placeholder: t("platformMisc.runs.editEmailPlaceholder"),
-      confirmLabel: t("platformMisc.runs.editEmailSave"),
-      validate: (value) =>
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value).trim()) ? null : t("errors.invalidEmail"),
-    });
-    if (next == null) return;
-    const cleanEmail = String(next).trim();
-    if (!cleanEmail || cleanEmail.toLowerCase() === current.toLowerCase()) return;
-    try {
-      const response = await fetch("/api/platform/form-runs?action=update_respondent_email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ run_id: selectedRun?.id, submission_id: submission.id, email: cleanEmail }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        notify(
-          data.contact_conflict
-            ? t("platformMisc.runs.editEmailConflict")
-            : t("platformMisc.runs.editEmailSuccess"),
-        );
-        if (selectedRun) await openRun(selectedRun, { keepTab: true });
-      } else {
-        notify(data.error || t("platformMisc.runs.editEmailFailed"));
-      }
-    } catch (_) {
-      notify(t("platformMisc.runs.editEmailFailed"));
-    }
-  };
 
-  const personalizeMessage = async () => {
-    setAiPersonalizing(true);
-    try {
-      const response = await fetch("/api/platform/ai/personalize-template", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          template_key: "manual",
-          existing_subject: messageSubject,
-          existing_body: messageBody,
-        }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        if (data.subject) setMessageSubject(data.subject);
-        if (data.body) setMessageBody(data.body);
-        notify(t("platformMisc.runs.aiPersonalized"));
-      } else {
-        notify(data.error || t("platformMisc.runs.personalizeFailed"));
-      }
-    } catch (_) {
-      notify(t("platformMisc.runs.personalizeFailed"));
-    }
-    setAiPersonalizing(false);
-  };
 
-  /**
-   * Render a manual-message result TRUTHFULLY.
-   *
-   * `success` only means the request was processed — the API answers
-   * `success: true` even when every single recipient failed, so reading it
-   * reported a total failure as a green "Message sent" with no reason shown.
-   * The outcome lives in `sent` / `failed`, and the reason only ever appears in
-   * `results[].error` ("No usable recipient email", "Refused — placeholder
-   * address is not a real recipient", a transport error, …).
-   *
-   * Colour classes stay full literals — never interpolated — so Tailwind's
-   * scanner keeps them in the build.
-   */
-  const renderMessageResult = (result) => {
-    if (!result) return null;
-    const sent = result.sent || 0;
-    const failed = result.failed || 0;
-    const failures = (result.results || []).filter((resultRow) => resultRow.status !== "sent");
-    const box =
-      sent === 0
-        ? "bg-rose-500/10 border-rose-500/20"
-        : failed > 0
-          ? "bg-amber-500/10 border-amber-500/20"
-          : "bg-emerald-500/10 border-emerald-500/20";
-    const text =
-      sent === 0 ? "text-rose-400" : failed > 0 ? "text-amber-400" : "text-emerald-400";
-    const title =
-      sent === 0
-        ? t("platformMisc.runs.messageNothingSentTitle")
-        : failed > 0
-          ? t("platformMisc.runs.messagePartialTitle")
-          : t("platformMisc.runs.messageSentTitle");
 
-    return (
-      <div className="space-y-3">
-        <div className={`p-4 rounded-xl border ${box}`}>
-          <p className={`text-sm font-black ${text}`}>{title}</p>
-          <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.messageRecipientsCount", { count: result.recipients })}</p>
-          <p className={`text-[10px] font-bold mt-1 ${sent > 0 ? "text-emerald-400" : "text-[var(--text-secondary)]"}`}>{t("platformMisc.runs.messageSentCount", { count: sent })}</p>
-          {failed > 0 && <p className="text-[10px] font-bold text-rose-400 mt-1">{t("platformMisc.runs.messageFailedCount", { count: failed })}</p>}
-        </div>
-        {failures.length > 0 && (
-          <div className="p-4 rounded-xl bg-secondary/40 border border-[var(--border-primary)] space-y-2">
-            <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.messageFailureReasons")}</p>
-            {failures.map((failure) => (
-              <div key={failure.submission_id} className="text-[10px] leading-relaxed">
-                <span className="font-bold text-[var(--text-primary)]">{failure.name || failure.to || `#${failure.submission_id}`}</span>
-                <span className="block text-rose-400">{failure.error || t("platformMisc.runs.messageFailureUnknown")}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        <button onClick={() => { setShowMessageComposer(false); setMessageResult(null); }} className="w-full py-2.5 rounded-lg bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide">{t("platformMisc.runs.done")}</button>
-      </div>
-    );
-  };
 
-  const sendManualMessages = async () => {
-    if (!selectedRun || selectedIds.length === 0 || messageSending) return;
-    if (!messageSubject.trim() || !messageBody.trim()) {
-      notify(t("platformMisc.runs.messageSubjectBodyRequired"));
-      return;
-    }
-    setMessageSending(true);
-    setMessageResult(null);
-    try {
-      const response = await fetch("/api/platform/form-runs?action=send_manual_message", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          run_id: selectedRun.id,
-          submission_ids: selectedIds,
-          subject: messageSubject,
-          body: messageBody,
-        }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        setMessageResult(data);
-      } else {
-        notify(data.error || t("platformMisc.runs.messageSendFailed"));
-      }
-    } catch (_) {
-      notify(t("platformMisc.runs.messageSendFailed"));
-    }
-    setMessageSending(false);
-  };
+
+
+
+
 
   // Activation history per submission (real email log — the ONLY source of truth
   // for "was the activation email ever sent?" — never derived from account status).
@@ -1878,74 +982,9 @@ export default function FormRunsPage() {
     });
   }, [selectedIds, submissions, hasActivationEmailSent]);
 
-  const openActivationConfirm = (forceResend = false) => {
-    setBulkMenuOpen(false);
-    const ids = forceResend ? eligibleResendActivationIds : eligibleSendActivationIds;
-    if (ids.length === 0) {
-      // State-aware messaging: the empty list means different things for
-      // Send vs Resend, and the message must never claim an email was
-      // "already sent" when it was not (or vice versa).
-      if (!forceResend && eligibleResendActivationIds.length > 0) {
-        notify(t("platformMisc.runs.noEligibleSendAlreadySent"));
-      } else if (forceResend && eligibleSendActivationIds.length > 0) {
-        notify(t("platformMisc.runs.noEligibleResendNotSentYet"));
-      } else {
-        notify(t(forceResend ? "platformMisc.runs.noEligibleResendNone" : "platformMisc.runs.noEligibleSendNone"));
-      }
-      return;
-    }
-    setActivationForceResend(forceResend);
-    setActivationConfirmOpen(true);
-  };
 
-  const runSendActivationMessages = async () => {
-    const targetIds = activationForceResend ? eligibleResendActivationIds : eligibleSendActivationIds;
-    if (!selectedRun || targetIds.length === 0 || activationProcessing) return;
-    setActivationConfirmOpen(false);
-    setActivationProcessing(true);
-    const forceResend = activationForceResend;
-    const CHUNK = 30;
-    const ids = [...targetIds];
-    const summary = { sent: 0, already_sent: 0, skipped: 0, failed: 0, total: ids.length };
-    setActivationProgress({ done: 0, total: ids.length });
-    try {
-      for (let chunkStart = 0; chunkStart < ids.length; chunkStart += CHUNK) {
-        const chunk = ids.slice(chunkStart, chunkStart + CHUNK);
-        const response = await fetch("/api/platform/form-runs?action=send_activation_messages", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ run_id: selectedRun.id, submission_ids: chunk, force: forceResend }),
-        });
-        const data = await response.json();
-        if (!data.success) {
-          notify(data.error || t("platformMisc.runs.messageSendFailed"));
-          break;
-        }
-        for (const result of data.results || []) {
-          if (result.status === "sent") summary.sent++;
-          else if (result.status === "already_sent") summary.already_sent++;
-          else if (result.status === "failed" || result.status === "not_found") summary.failed++;
-          else summary.skipped++;
-        }
-        setActivationProgress({ done: Math.min(chunkStart + CHUNK, ids.length), total: ids.length });
-      }
-      setMessageSummary({
-        title: t(forceResend ? "platformMisc.runs.sendActivationResendMessage" : "platformMisc.runs.sendActivationMessage"),
-        sent: summary.sent,
-        already_sent: summary.already_sent,
-        skipped: summary.skipped,
-        failed: summary.failed,
-      });
-      setSelectedIds([]);
-      if (selectedRun) await openRun(selectedRun);
-    } catch (_) {
-      notify(t("platformMisc.runs.messageSendFailed"));
-    } finally {
-      setActivationProcessing(false);
-      setActivationForceResend(false);
-      setActivationProgress({ done: 0, total: 0 });
-    }
-  };
+
+
 
   // Send Result (response PDF): any non-draft selected submission that has an
   // evaluation row. Failed/never-sent results are re-attempted server-side;
@@ -1963,69 +1002,11 @@ export default function FormRunsPage() {
     });
   }, [selectedIds, submissions, evaluatedSubmissionIds]);
 
-  const openSendResultConfirm = () => {
-    setBulkMenuOpen(false);
-    if (eligibleSendResultIds.length === 0) {
-      notify(t("platformMisc.runs.noEligibleSendResult"));
-      return;
-    }
-    // Open on the first recipient's document — it is the one most likely to be
-    // reviewed, and any recipient can then be picked in the dialog.
-    setResultPreviewId(eligibleSendResultIds[0]);
-    setResultConfirmOpen(true);
-  };
 
-  const closeSendResultConfirm = () => {
-    setResultConfirmOpen(false);
-    setResultPreviewId(null);
-  };
 
-  const runSendResultEmails = async () => {
-    if (!selectedRun || eligibleSendResultIds.length === 0 || resultProcessing) return;
-    setResultConfirmOpen(false);
-    setResultProcessing(true);
-    const CHUNK = 30;
-    const ids = [...eligibleSendResultIds];
-    const summary = { sent: 0, already_sent: 0, skipped: 0, failed: 0, total: ids.length };
-    setResultProgress({ done: 0, total: ids.length });
-    try {
-      setResultPreviewId(null);
-      for (let chunkStart = 0; chunkStart < ids.length; chunkStart += CHUNK) {
-        const chunk = ids.slice(chunkStart, chunkStart + CHUNK);
-        const response = await fetch("/api/platform/form-runs?action=send_result_emails", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ run_id: selectedRun.id, submission_ids: chunk }),
-        });
-        const data = await response.json();
-        if (!data.success) {
-          notify(data.error || t("platformMisc.runs.sendResultFailed"));
-          break;
-        }
-        for (const result of data.results || []) {
-          if (result.status === "sent") summary.sent++;
-          else if (result.status === "already_sent") summary.already_sent++;
-          else if (result.status === "failed" || result.status === "not_found") summary.failed++;
-          else summary.skipped++;
-        }
-        setResultProgress({ done: Math.min(chunkStart + CHUNK, ids.length), total: ids.length });
-      }
-      setMessageSummary({
-        title: t("platformMisc.runs.sendResponseComplete"),
-        sent: summary.sent,
-        already_sent: summary.already_sent,
-        skipped: summary.skipped,
-        failed: summary.failed,
-      });
-      setSelectedIds([]);
-      if (selectedRun) await openRun(selectedRun);
-    } catch (_) {
-      notify(t("platformMisc.runs.sendResultFailed"));
-    } finally {
-      setResultProcessing(false);
-      setResultProgress({ done: 0, total: 0 });
-    }
-  };
+
+
+
 
   const runRetryEmails = async () => {
     if (!selectedRun || retrySelected.length === 0 || retryProcessing) return;
@@ -2096,15 +1077,307 @@ export default function FormRunsPage() {
     );
   };
 
+  const subtotal = submissions.length;
+  const submitted = submissions.filter((submission) => submission.status === "submitted").length;
+  const approved = submissions.filter((submission) => submission.status === "approved").length;
+  const rejected = submissions.filter((submission) => submission.status === "rejected").length;
+  const revision = submissions.filter((submission) => submission.status === "revision_requested").length;
+  const drafts = submissions.filter((submission) => submission.status === "draft").length;
+  const overdue = submissions.filter((submission) => submission.status === "submitted" && selectedRun.closes_at && new Date(submission.submitted_at) > new Date(selectedRun.closes_at)).length;
+
+  // ─── THE SCREEN'S OTHER HALF ───
+  // Every state value and every read stays here; the writes live in ./actions
+  // (one factory per concern) and the markup in components/platform/runs. Both
+  // sides read the page through `values` (what it holds) and `ctx` (what it holds
+  // plus every handler) — each block lists the names it needs in its own signature.
+  const values = {
+    t,
+    confirm,
+    prompt,
+    canReview,
+    forms,
+    contacts,
+    groups,
+    programs,
+    notification,
+    statusFilter,
+    setStatusFilter,
+    search,
+    setSearch,
+    page,
+    setPage,
+    perPage,
+    sortField,
+    setSortField,
+    sortDir,
+    setSortDir,
+    selectedRun,
+    setSelectedRun,
+    submissions,
+    reviews,
+    assignments,
+    setAssignments,
+    subLoading,
+    detailTab,
+    subFilter,
+    setSubFilter,
+    showCreate,
+    setShowCreate,
+    createData,
+    setCreateData,
+    saving,
+    setSaving,
+    showDatePicker,
+    setShowDatePicker,
+    showInlineGroup,
+    setShowInlineGroup,
+    inlineGroupName,
+    setInlineGroupName,
+    creatingGroup,
+    setCreatingGroup,
+    showReview,
+    setShowReview,
+    reviewing,
+    setReviewing,
+    reviewData,
+    setReviewData,
+    reviewTimeline,
+    setReviewTimeline,
+    evaluation,
+    setEvaluation,
+    reviewIncludeResultPdf,
+    setReviewIncludeResultPdf,
+    showAssign,
+    setShowAssign,
+    assignTypes,
+    setAssignTypes,
+    assignUserId,
+    setAssignUserId,
+    assignGroupId,
+    setAssignGroupId,
+    assignProgramId,
+    setAssignProgramId,
+    assignOtherType,
+    setAssignOtherType,
+    assignOtherId,
+    setAssignOtherId,
+    runSettings,
+    setRunSettings,
+    editingSettings,
+    setEditingSettings,
+    selectedSubmission,
+    setSelectedSubmission,
+    runFormFields,
+    setRunFormFields,
+    dashboardStats,
+    setEvalProgress,
+    setEvalStats,
+    evaluations,
+    emailLog,
+    runTemplates,
+    setRunTemplates,
+    runFormSettings,
+    runTplSaving,
+    setRunTplSaving,
+    runPersonalizing,
+    setRunPersonalizing,
+    reportFile,
+    setReportFile,
+    reportFileBusy,
+    setReportFileBusy,
+    reportFileText,
+    setReportFileText,
+    reportFileTextOpen,
+    setReportFileTextOpen,
+    respSearch,
+    setRespSearch,
+    scoreOp,
+    setScoreOp,
+    scoreValue,
+    setScoreValue,
+    scoreValue2,
+    setScoreValue2,
+    fieldFilters,
+    setFieldFilters,
+    approvalEmailFilter,
+    setApprovalEmailFilter,
+    activationEmailFilter,
+    setActivationEmailFilter,
+    reviewFilter,
+    setReviewFilter,
+    accountStatusFilter,
+    setAccountStatusFilter,
+    fieldLabels,
+    filterPickerOpen,
+    setFilterPickerOpen,
+    filterPickerMode,
+    setFilterPickerMode,
+    paymentsBySubmission,
+    setRespPage,
+    selectedIds,
+    setSelectedIds,
+    showDuplicates,
+    setShowDuplicates,
+    bulkMenuOpen,
+    setBulkMenuOpen,
+    bulkConfirmOpen,
+    setBulkConfirmOpen,
+    bulkProcessing,
+    bulkProgress,
+    bulkSummary,
+    setBulkSummary,
+    bulkIncludeResultPdf,
+    setBulkIncludeResultPdf,
+    retrySelected,
+    setRetrySelected,
+    retryProcessing,
+    retryProgress,
+    retrySummary,
+    setRetrySummary,
+    activationConfirmOpen,
+    setActivationConfirmOpen,
+    activationForceResend,
+    setActivationForceResend,
+    activationProcessing,
+    setActivationProcessing,
+    activationProgress,
+    setActivationProgress,
+    resultConfirmOpen,
+    setResultConfirmOpen,
+    resultProcessing,
+    setResultProcessing,
+    resultProgress,
+    setResultProgress,
+    resultPreviewId,
+    setResultPreviewId,
+    previewSubmission,
+    setPreviewSubmission,
+    previewNonce,
+    setPreviewNonce,
+    reportRegenerating,
+    setReportRegenerating,
+    showMessageComposer,
+    setShowMessageComposer,
+    messageSubject,
+    setMessageSubject,
+    messageBody,
+    setMessageBody,
+    messageSending,
+    setMessageSending,
+    messageResult,
+    setMessageResult,
+    messageSummary,
+    setMessageSummary,
+    aiPersonalizing,
+    setAiPersonalizing,
+    showManualAdd,
+    setShowManualAdd,
+    manualAddName,
+    setManualAddName,
+    manualAddEmail,
+    setManualAddEmail,
+    manualAdding,
+    setManualAdding,
+    showExportOptions,
+    setShowExportOptions,
+    exportFormat,
+    setExportFormat,
+    exportScope,
+    setExportScope,
+    notify,
+    loading,
+    refreshRuns,
+    runs,
+    totalRuns,
+    runListNotice,
+    fetchGroups,
+    openRun,
+    submissionAnswers,
+    filteredSubmissions,
+    scoreChipActive,
+    scoreChipLabel,
+    activeFieldFilters,
+    activeTrackingFilters,
+    availableParams,
+    fieldOptionsOf,
+    duplicateGroups,
+    duplicateEmailSet,
+    visibleSubmissions,
+    respTotalPages,
+    respSafePage,
+    pagedSubmissions,
+    selectedSet,
+    allFilteredSelected,
+    allSelectedEvaluated,
+    emailSummary,
+    allEmailRows,
+    emailStatusFilter,
+    setEmailStatusFilter,
+    emailDateFrom,
+    setEmailDateFrom,
+    emailDateTo,
+    setEmailDateTo,
+    emailSearch,
+    setEmailSearch,
+    emailTypeFilter,
+    setEmailTypeFilter,
+    setEmailPage,
+    visibleEmailRows,
+    retryableVisible,
+    emailStatusSets,
+    emailTotalPages,
+    safeEmailPage,
+    pagedEmailRows,
+    retrySelectedSet,
+    eligibleSendActivationIds,
+    eligibleResendActivationIds,
+    evaluatedSubmissionIds,
+    eligibleSendResultIds,
+    subtotal,
+    submitted,
+    approved,
+    rejected,
+    revision,
+    drafts,
+    overdue,
+  };
+
+  const runFormActionsResult = runFormActions(values);
+  const runLifecycleActionsResult = runLifecycleActions(values);
+  const reviewActionsResult = reviewActions(values);
+  const assignmentActionsResult = assignmentActions(values);
+  const runSettingsActionsResult = runSettingsActions(values);
+  const runAutomationActionsResult = runAutomationActions(values);
+  const evaluationActionsResult = evaluationActions(values);
+  const runFilterActionsResult = runFilterActions(values);
+  const runExportActionsResult = runExportActions(values);
+  const messagingActionsResult = messagingActions(values);
+  const runEmailActionsResult = runEmailActions(values);
+
+  // The handlers this page renders with itself (its own header and tab bar).
+  const { handleLaunch } = runLifecycleActionsResult;
+  const { handleStatusChange } = runLifecycleActionsResult;
+  const { handleDeleteRun } = runLifecycleActionsResult;
+  const { handleBatchEvaluate } = evaluationActionsResult;
+  const { openManualAdd } = messagingActionsResult;
+
+  const ctx = {
+    ...runFormActionsResult,
+    ...runLifecycleActionsResult,
+    ...reviewActionsResult,
+    ...assignmentActionsResult,
+    ...runSettingsActionsResult,
+    ...runAutomationActionsResult,
+    ...evaluationActionsResult,
+    ...runFilterActionsResult,
+    ...runExportActionsResult,
+    ...messagingActionsResult,
+    ...runEmailActionsResult,
+    ...values,
+  };
+
   // ─── RUN DETAIL VIEW ───
   if (selectedRun) {
-    const subtotal = submissions.length;
-    const submitted = submissions.filter((submission) => submission.status === "submitted").length;
-    const approved = submissions.filter((submission) => submission.status === "approved").length;
-    const rejected = submissions.filter((submission) => submission.status === "rejected").length;
-    const revision = submissions.filter((submission) => submission.status === "revision_requested").length;
-    const drafts = submissions.filter((submission) => submission.status === "draft").length;
-    const overdue = submissions.filter((submission) => submission.status === "submitted" && selectedRun.closes_at && new Date(submission.submitted_at) > new Date(selectedRun.closes_at)).length;
 
     const tabs = [
       { id: "overview", label: t("platformMisc.runs.tabOverview"), icon: BarChart3 },
@@ -2142,191 +1415,12 @@ export default function FormRunsPage() {
 
         {/* Tab Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* ─── OVERVIEW TAB ─── */}
-          {detailTab === "overview" && (
-            <OverviewTab
-              subtotal={subtotal} submitted={submitted} approved={approved} rejected={rejected} revision={revision} drafts={drafts} overdue={overdue}
-              respSearch={respSearch} setRespSearch={setRespSearch}
-              scoreChipActive={scoreChipActive} scoreChipLabel={scoreChipLabel} clearScoreFilter={clearScoreFilter}
-              activeFieldFilters={activeFieldFilters} removeFieldFilter={removeFieldFilter}
-              activeTrackingFilters={activeTrackingFilters} setTrackingFilter={setTrackingFilter}
-              filterPickerMode={filterPickerMode} setFilterPickerMode={setFilterPickerMode} filterRowRef={filterRowRef}
-              scoreOp={scoreOp} setScoreOp={setScoreOp} scoreValue={scoreValue} setScoreValue={setScoreValue} scoreValue2={scoreValue2} setScoreValue2={setScoreValue2}
-              fieldOptionsOf={fieldOptionsOf} setFieldFilters={setFieldFilters}
-              filterPickerOpen={filterPickerOpen} setFilterPickerOpen={setFilterPickerOpen}
-              availableParams={availableParams} pickFilterParam={pickFilterParam}
-              trackingFilterOptions={trackingFilterOptions} trackingFilterOptionLabel={trackingFilterOptionLabel}
-              duplicateGroups={duplicateGroups} showDuplicates={showDuplicates} setShowDuplicates={setShowDuplicates}
-              hasRunFilters={hasRunFilters} clearRunFilters={clearRunFilters}
-              visibleSubmissions={visibleSubmissions} setShowExportOptions={setShowExportOptions} setExportScope={setExportScope}
-              allFilteredSelected={allFilteredSelected} toggleSelectAllFiltered={toggleSelectAllFiltered}
-              filteredSubmissions={filteredSubmissions}
-              selectedIds={selectedIds} selectedSet={selectedSet} toggleSelect={toggleSelect}
-              bulkMenuOpen={bulkMenuOpen} setBulkMenuOpen={setBulkMenuOpen} bulkProcessing={bulkProcessing}
-              setBulkIncludeResultPdf={setBulkIncludeResultPdf} setBulkConfirmOpen={setBulkConfirmOpen}
-              openActivationConfirm={openActivationConfirm} openSendResultConfirm={openSendResultConfirm} openMessageComposer={openMessageComposer}
-              respSafePage={respSafePage} perPage={perPage}
-              subLoading={subLoading}
-              runFormFields={runFormFields}
-              pagedSubmissions={pagedSubmissions}
-              paymentsBySubmission={paymentsBySubmission} reviews={reviews} evaluations={evaluations} emailLog={emailLog}
-              duplicateEmailSet={duplicateEmailSet}
-              evaluatedSubmissionIds={evaluatedSubmissionIds}
-              openReview={openReview} handleDeleteSubmission={handleDeleteSubmission}
-              setSelectedSubmission={setSelectedSubmission} selectedSubmission={selectedSubmission}
-              respTotalPages={respTotalPages} setRespPage={setRespPage}
-              bulkConfirmOpen={bulkConfirmOpen} bulkIncludeResultPdf={bulkIncludeResultPdf} allSelectedEvaluated={allSelectedEvaluated} runBulkApprove={runBulkApprove}
-              activationConfirmOpen={activationConfirmOpen} activationForceResend={activationForceResend}
-              eligibleResendActivationIds={eligibleResendActivationIds} eligibleSendActivationIds={eligibleSendActivationIds}
-              submissions={submissions}
-              setActivationConfirmOpen={setActivationConfirmOpen} activationProcessing={activationProcessing} runSendActivationMessages={runSendActivationMessages}
-              activationProgress={activationProgress}
-              resultConfirmOpen={resultConfirmOpen} eligibleSendResultIds={eligibleSendResultIds}
-              resultPreviewId={resultPreviewId} setResultPreviewId={setResultPreviewId}
-              closeSendResultConfirm={closeSendResultConfirm} resultProcessing={resultProcessing} runSendResultEmails={runSendResultEmails}
-              previewSubmission={previewSubmission} runSettings={runSettings} reportFile={reportFile} regenerateReport={regenerateReport} reportRegenerating={reportRegenerating}
-              previewNonce={previewNonce} setPreviewSubmission={setPreviewSubmission}
-              resultProgress={resultProgress}
-              bulkAbortRef={bulkAbortRef} bulkProgress={bulkProgress}
-              bulkSummary={bulkSummary} setBulkSummary={setBulkSummary}
-              messageSummary={messageSummary} setMessageSummary={setMessageSummary}
-              subFilter={subFilter} setSubFilter={setSubFilter}
-              onEditRespondentEmail={editRespondentEmail}
-            />
-          )}
+          <RunResponsesPanel bulkAbortRef={bulkAbortRef} filterRowRef={filterRowRef} runBulkApprove={runBulkApprove} ctx={ctx} />
 
-          {/* ─── EMAILS TAB ─── */}
-          {detailTab === "emails" && (
-            <EmailsTab
-              allEmailRows={allEmailRows} visibleEmailRows={visibleEmailRows} pagedEmailRows={pagedEmailRows}
-              retryableVisible={retryableVisible} retrySelectedSet={retrySelectedSet} emailStatusSets={emailStatusSets} emailSummary={emailSummary}
-              emailTypeFilter={emailTypeFilter} setEmailTypeFilter={setEmailTypeFilter}
-              emailStatusFilter={emailStatusFilter} setEmailStatusFilter={setEmailStatusFilter}
-              emailSearch={emailSearch} setEmailSearch={setEmailSearch}
-              emailDateFrom={emailDateFrom} setEmailDateFrom={setEmailDateFrom}
-              emailDateTo={emailDateTo} setEmailDateTo={setEmailDateTo}
-              setEmailPage={setEmailPage}
-              retrySelected={retrySelected} setRetrySelected={setRetrySelected}
-              retryProcessing={retryProcessing} runRetryEmails={runRetryEmails} toggleRetrySelect={toggleRetrySelect}
-              safeEmailPage={safeEmailPage} emailTotalPages={emailTotalPages}
-              retryProgress={retryProgress} retrySummary={retrySummary} setRetrySummary={setRetrySummary} retryAbortRef={retryAbortRef}
-            />
-          )}
-
-          {/* ─── SHARE TAB ─── */}
-          {detailTab === "share" && <ShareTab selectedRun={selectedRun} notify={notify} />}
-
-          {/* ─── ASSIGNMENTS TAB ─── */}
-          {detailTab === "assignments" && (
-            <AssignmentsTab
-              assignments={assignments} groups={groups} contacts={contacts} programs={programs}
-              showAssign={showAssign} setShowAssign={setShowAssign} resetAssignModal={resetAssignModal}
-              assignTypes={assignTypes} toggleAssignType={toggleAssignType}
-              assignUserId={assignUserId} setAssignUserId={setAssignUserId}
-              assignGroupId={assignGroupId} setAssignGroupId={setAssignGroupId}
-              showInlineGroup={showInlineGroup} setShowInlineGroup={setShowInlineGroup}
-              inlineGroupName={inlineGroupName} setInlineGroupName={setInlineGroupName}
-              handleCreateGroupInline={handleCreateGroupInline} handleAssignWithGroup={handleAssignWithGroup} creatingGroup={creatingGroup}
-              assignProgramId={assignProgramId} setAssignProgramId={setAssignProgramId}
-              assignOtherType={assignOtherType} setAssignOtherType={setAssignOtherType}
-              assignOtherId={assignOtherId} setAssignOtherId={setAssignOtherId}
-              handleAssign={handleAssign} saving={saving} handleUnassign={handleUnassign}
-            />
-          )}
-
-          {/* ─── SETTINGS TAB ─── */}
-          {detailTab === "settings" && (
-            <SettingsTab
-              selectedRun={selectedRun} editingSettings={editingSettings} setEditingSettings={setEditingSettings}
-              runSettings={runSettings} setRunSettings={setRunSettings} saving={saving} handleSaveSettings={handleSaveSettings}
-              reportFile={reportFile} reportFileBusy={reportFileBusy} reportFileText={reportFileText} reportFileTextOpen={reportFileTextOpen}
-              openReportFile={openReportFile} toggleReportFileText={toggleReportFileText} removeReportFile={removeReportFile} uploadReportFile={uploadReportFile}
-              runFormSettings={runFormSettings} runAutomationValue={runAutomationValue} isRunAutomationOverride={isRunAutomationOverride}
-              setRunAutomationFlag={setRunAutomationFlag} resetRunAutomation={resetRunAutomation}
-            />
-          )}
-
-          {/* ─── TEMPLATES TAB (run-level email overrides) ─── */}
-          {detailTab === "templates" && (
-            <TemplatesTab
-              selectedRun={selectedRun} setSelectedRun={setSelectedRun}
-              runSettings={runSettings} setRunSettings={setRunSettings}
-              runTemplates={runTemplates} setRunTemplates={setRunTemplates}
-              runTplSaving={runTplSaving} setRunTplSaving={setRunTplSaving}
-              runFormSettings={runFormSettings} runPersonalizing={runPersonalizing} setRunPersonalizing={setRunPersonalizing}
-              notify={notify}
-            />
-          )}
+          <RunAdminTabs retryAbortRef={retryAbortRef} runRetryEmails={runRetryEmails} ctx={ctx} />
         </div>
 
-        {/* Review Modal */}
-        {showReview && reviewing && (
-          <ReviewModal
-            reviewing={reviewing}
-            evaluation={evaluation}
-            setEvaluation={setEvaluation}
-            runFormFields={runFormFields}
-            reviewTimeline={reviewTimeline}
-            reviewData={reviewData}
-            setReviewData={setReviewData}
-            reviewIncludeResultPdf={reviewIncludeResultPdf}
-            setReviewIncludeResultPdf={setReviewIncludeResultPdf}
-            canReview={canReview}
-            saving={saving}
-            closeReview={closeReview}
-            handleReview={handleReview}
-            handleReevaluate={handleReevaluate}
-            t={t}
-          />
-        )}
-
-        {/* ─── MANUAL ADD RESPONDENT MODAL ─── */}
-        {showManualAdd && (
-          <ManualAddModal
-            onClose={() => setShowManualAdd(false)}
-            name={manualAddName}
-            setName={setManualAddName}
-            email={manualAddEmail}
-            setEmail={setManualAddEmail}
-            adding={manualAdding}
-            onSubmit={submitManualAdd}
-            t={t}
-          />
-        )}
-
-        {/* ─── MESSAGE COMPOSER MODAL ─── */}
-        {showMessageComposer && (
-          <MessageComposerModal
-            messageResult={messageResult}
-            renderMessageResult={renderMessageResult}
-            messageSubject={messageSubject}
-            setMessageSubject={setMessageSubject}
-            messageBody={messageBody}
-            setMessageBody={setMessageBody}
-            aiPersonalizing={aiPersonalizing}
-            onPersonalize={personalizeMessage}
-            messageSending={messageSending}
-            onSend={sendManualMessages}
-            selectedCount={selectedIds.length}
-            onClose={() => setShowMessageComposer(false)}
-            t={t}
-          />
-        )}
-
-        {/* ─── EXPORT OPTIONS MODAL ─── */}
-        {showExportOptions && (
-          <ExportOptionsModal
-            exportFormat={exportFormat}
-            setExportFormat={setExportFormat}
-            exportScope={exportScope}
-            setExportScope={setExportScope}
-            selectedCount={selectedIds.length}
-            filteredCount={visibleSubmissions.length}
-            onExport={() => exportParticipants(exportFormat, exportScope)}
-            onClose={() => setShowExportOptions(false)}
-            t={t}
-          />
-        )}
+        <RunDetailModals ctx={ctx} />
 
       </div>
     );
@@ -2334,58 +1428,5 @@ export default function FormRunsPage() {
 
   // ─── LIST VIEW ───
 
-  return (
-    <div className="p-6 space-y-6 animate-in">
-      {(notification || runListNotice) && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-[10px] font-bold uppercase">{notification || runListNotice}</div>}
-
-      {/* Operational Dashboard */}
-      <DashboardStats dashboardStats={dashboardStats} t={t} />
-
-      <RunsToolbar
-        search={search}
-        setSearch={setSearch}
-        statusFilter={statusFilter}
-        onStatusFilterChange={(value) => { setStatusFilter(value); setPage(1); }}
-        onNewRun={() => setShowCreate(true)}
-        t={t}
-      />
-      {loading ? <div className="flex justify-center py-20"><Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" /></div> : (
-        <RunsTable runs={runs} search={search} statusFilter={statusFilter} sortField={sortField} sortDir={sortDir} page={page} perPage={perPage} total={totalRuns} onSort={(field, direction) => { setSortField(field); setSortDir(direction); setPage(1); }} onPage={setPage} openRun={openRun} groups={groups} onArchive={handleArchiveRun} onRestore={handleRestoreRun} onDelete={handleDeleteRun} />
-      )}
-
-      {/* Create modal */}
-      {/* ─── Date Picker Modal (completely outside create modal, no clipping) ─── */}
-      {showDatePicker && (
-        <DatePickerModal
-          datePicker={showDatePicker}
-          createData={createData}
-          setCreateData={setCreateData}
-          onClose={() => setShowDatePicker(null)}
-          t={t}
-        />
-      )}
-
-      {showCreate && (
-        <CreateRunModal
-          createData={createData}
-          setCreateData={setCreateData}
-          forms={forms}
-          groups={groups}
-          saving={saving}
-          handleCreate={handleCreate}
-          showInlineGroup={showInlineGroup}
-          setShowInlineGroup={setShowInlineGroup}
-          inlineGroupName={inlineGroupName}
-          setInlineGroupName={setInlineGroupName}
-          creatingGroup={creatingGroup}
-          handleCreateGroupInline={handleCreateGroupInline}
-          setShowDatePicker={setShowDatePicker}
-          onClose={() => setShowCreate(false)}
-          onDismiss={() => { setShowCreate(false); setShowDatePicker(null); }}
-          t={t}
-        />
-      )}
-
-    </div>
-  );
+    <RunListView ctx={ctx} />
 }
