@@ -4040,3 +4040,29 @@ est lue ; l'écran rend `<VentureFoundersView ctx={ctx} />`.
 
 Gates du slice : `npm test` 311 suites / 4 817 tests, `npx eslint` 0 erreur,
 `npm run build` vert.
+
+## Slice 147 — Détail d'un programme : la vue d'écran (2026-10-03)
+
+Seizième tranche de la **taille des écrans**, dixième de la Phase 1. Cible :
+`src/components/admin/programs/ProgramDetail.js`, 815 lignes. Le rendu (le
+retour chargement + le grand écran) pèse ~621 lignes contre ~180 pour l'état, la
+lecture et les gestionnaires de KPI/suivi. On sort les deux branches dans une
+vue.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `ProgramDetail.js` | 215 | l'état (session sélectionnée, suivi, édition de KPI), les lecteurs de module (`pickFullState`, `pickReports`, `pickFollowups`, `pickAttendance`, `pickRegistrationLink`), `reload`, `handleAddFollowup`, `handleKpiAction`, la construction de `ctx` |
+| `ProgramDetailView.js` | 670 | le retour chargement, les dérivés de progression (`totalWeeks`, `weeks`, `startMs`, `elapsedWeeks`), l'en-tête exécutif, les sessions, les KPI, les suivis, les ressources et liens |
+
+`ctx` compte **24 clés**. `isLoadingData` n'apparaît que dans la condition du
+retour anticipé, hors des sous-arbres `return` : ajouté à la main au `ctx`
+(piège déjà rencontré). Trois imports réellement morts ont été retirés au
+passage (`React`, `Activity`, `Trash2`) plutôt que dupliqués dans la vue ; aucun
+test ne les épinglait.
+
+Nouveau contrôle — `src/__tests__/program-detail-view-wiring.test.js` (3 tests) :
+chaque nom lu par la vue est une clé de `ctx` ; chaque clé de `ctx` est lue ;
+l'écran rend `<ProgramDetailView ctx={ctx} />`.
+
+Gates du slice : `npm test` 312 suites / 4 820 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
