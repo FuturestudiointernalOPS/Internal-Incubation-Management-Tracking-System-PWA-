@@ -153,3 +153,36 @@ describe("the platform runs screen wiring", () => {
     expect(valueKeys.filter((name) => !declared.has(name))).toEqual([]);
   });
 });
+
+describe("the runs overview tab wiring", () => {
+  const OVERVIEW_PARTS = ["OverviewStats.js", "OverviewFilters.js", "OverviewResponsesTable.js", "OverviewRunModals.js"];
+
+  // the props `RunResponsesPanel` hands to `<OverviewTab>`: they become its `ctx`
+  const provided = (() => {
+    const src = read(path.join(BLOCKS_DIR, "RunResponsesPanel.js"));
+    const from = src.indexOf("<OverviewTab");
+    const tag = src.slice(from, src.indexOf("/>", from));
+    return new Set([...tag.matchAll(/([A-Za-z_$][\w$]*)=\{/g)].map((m) => m[1]));
+  })();
+
+  const ctxKeys = (src) => {
+    const match = src.match(/const \{([^}]*)\} = ctx;/);
+    return match ? match[1].split(",").map((s) => s.trim()).filter(Boolean) : [];
+  };
+
+  test("every Overview sub-panel reads a prop `RunResponsesPanel` passes", () => {
+    const orphans = [];
+    for (const file of OVERVIEW_PARTS) {
+      const src = read(path.join(BLOCKS_DIR, file));
+      for (const key of ctxKeys(src)) if (!provided.has(key)) orphans.push(`${file}: ${key}`);
+    }
+    expect(orphans).toEqual([]);
+  });
+
+  test("OverviewTab forwards its props to every sub-panel", () => {
+    const src = read(path.join(BLOCKS_DIR, "OverviewTab.js"));
+    for (const part of OVERVIEW_PARTS.map((n) => n.replace(".js", ""))) {
+      expect(src).toContain(`<${part} ctx={props} />`);
+    }
+  });
+});
