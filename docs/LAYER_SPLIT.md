@@ -4012,3 +4012,31 @@ rend `<UserAccessView ctx={ctx} />`.
 
 Gates du slice : `npm test` 310 suites / 4 814 tests, `npx eslint` 0 erreur,
 `npm run build` vert.
+
+## Slice 146 — Fondateurs d'une venture : la vue d'écran (2026-10-03)
+
+Quinzième tranche de la **taille des écrans**, neuvième de la Phase 1. Cible :
+`src/app/admin/ventures/[id]/founders/page.js`, 844 lignes. Les trois branches
+de rendu (chargement, erreur, écran principal) pèsent ~546 lignes contre ~230
+pour l'état et les gestionnaires. On les sort dans une vue, avec la table
+`VENTURE_ROLES` et les icônes qui ne servaient qu'au rendu.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `page.js` | 288 | l'état (invitation, transfert, confirmation, toast, recherche), les lecteurs de module (`pickVenture`/`pickFounders`), `reload`, `notify`, les gestionnaires (`handleInvite`, `handleSuspend`, `handleReactivate`, `handleRemove`, `handleRoleUpdate`), `getRoleColor`, `filteredFounders`, la construction de `ctx` |
+| `components/admin/ventures/VentureFoundersView.js` | 630 | le branchage chargement/erreur, le propriétaire dérivé (`owner`), l'en-tête, la recherche, la liste des fondateurs, le menu d'actions, les deux modales |
+
+`ctx` compte **33 clés**. Deux points d'attention : `loading` n'apparaît que
+dans une condition `if` en dehors des sous-arbres `return`, donc le balayage des
+`return` ne le voit pas — il a été ajouté à la main au `ctx` (même piège que
+`showBuilder` à la slice 143) ; et `const owner = founders.find(...)` était
+calculé *après* les retours anticipés, donc il se déplace naturellement dans la
+vue et n'entre pas dans le `ctx`. `router` reste, lui, dans la page et transite
+par le `ctx` pour que les branches de rendu puissent naviguer.
+
+Nouveau contrôle — `src/__tests__/venture-founders-view-wiring.test.js`
+(3 tests) : chaque nom lu par la vue est une clé de `ctx` ; chaque clé de `ctx`
+est lue ; l'écran rend `<VentureFoundersView ctx={ctx} />`.
+
+Gates du slice : `npm test` 311 suites / 4 817 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
