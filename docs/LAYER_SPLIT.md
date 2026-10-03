@@ -3877,3 +3877,47 @@ de `ctx` est lue par la vue (pas de clé morte) ; et l'écran rend bien
 
 Gates du slice : `npm test` 306 suites / 4 801 tests, `npx eslint` 0 erreur,
 `npm run build` vert.
+
+## Slice 142 — Coquille du tableau de bord : les hooks contrôleurs du shell (2026-10-03)
+
+Onzième tranche de la série sur la **taille des écrans**, cinquième de la
+Phase 1. Cible : `src/components/layout/DashboardLayout.js`, 1 187 lignes — la
+coquille partagée par **tous les rôles**, donc blast radius maximal. Ici,
+extraire le seul markup ne suffit pas : la logique du composant fait à elle
+seule ~822 lignes. On sort donc la logique dans **deux hooks contrôleurs**, par
+préoccupation, sans déplacer une ligne de comportement.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `DashboardLayout.js` | 586 | la composition : état d'UI, session, `initAuth`, PM programs, relations, venture assignments, `commonProps`, le markup et le wrapper `PermissionProvider` |
+| `shell/useDashboardBadges.js` | 415 | l'inbox et les badges : annonces épinglées, notifications, messages non lus, approbations en attente, invitations, affectations, soumissions PM, l'accordéon des compteurs et les effets (poll, foreground, refresh) |
+| `shell/useDashboardNavigation.js` | 307 | le sidebar : `buildAccessNav` + icônes, branche personnelle pilotée par les relations, porte « My Learning », console Venture, accordéon `activePathIds`/`openMenus`/`toggleMenu` |
+
+**Le découpage suit les dépendances.** `useDashboardBadges({ effectiveCaps,
+pathname })` est appelé juste après `usePermissions()` ; l'effet `initAuth` du
+parent consomme ses fetchers et ses setters, ce qui est stable (les fetchers
+sont des `useCallback([])`). `useDashboardNavigation({ pathname, role, user,
+effectiveCaps, pmPrograms, ventureAssignCount, relationships })` est appelé
+après les lectures de relations : il possède aussi le `useApi` de la porte
+apprenant (`PERSONAL_ROLES.includes(sessionRole)`) et rend `activeRole`, si
+bien que le parent n'a plus besoin de `shellRole` ni de `PERSONAL_ROLES`. Les
+constantes et helpers (`SEEN_KEYS`, marques de lecture, `NOTIFICATIONS_*`,
+`NAV_ICONS`, `attachIcons`, `shellRole`, `PERSONAL_ROLES`, `pickLmsEnrollment`)
+partent avec leur hook ; seul `NOTIFICATIONS_PREVIEW` reste, car il n'habille
+que le JSX du parent.
+
+Le transfert a déplacé les blocs à l'identique par plages de lignes, puis on a
+ajusté les dépendances : `setNotifications`/`setUnreadCount` rejoignent les deps
+de `initAuth` (setters stables), `activeRole` celle du `useMemo` de nav, et
+`role`/`user.role` en sortent (redondants). Les tests qui lisent la source du
+shell ont été repointés vers les hooks : `notification-badge` verse
+`useDashboardBadges`, `ui5-one-dashboard` et `login-landing` vers
+`useDashboardNavigation`.
+
+Nouveau contrôle — `src/__tests__/dashboard-shell-wiring.test.js` (4 tests) :
+chaque valeur que le parent destructure de `useDashboardBadges` /
+`useDashboardNavigation` est une clé rendue par le hook, et chaque hook reçoit
+exactement les arguments attendus.
+
+Gates du slice : `npm test` 307 suites / 4 805 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
