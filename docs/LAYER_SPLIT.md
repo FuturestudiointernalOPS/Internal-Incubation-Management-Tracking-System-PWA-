@@ -3956,3 +3956,30 @@ de `ctx` est lue par la vue ; et l'écran rend `<PlatformFormsView ctx={ctx} />`
 
 Gates du slice : `npm test` 308 suites / 4 808 tests, `npx eslint` 0 erreur,
 `npm run build` vert.
+
+## Slice 144 — Import plateforme : la vue d'écran (2026-10-03)
+
+Treizième tranche de la série sur la **taille des écrans**, septième de la
+Phase 1. Cible : `src/app/admin/platform/import/page.js`, 852 lignes. Le wizard
+d'import (dépôt/aperçu/mapping/exécution) n'a qu'un `return` mais il pèse à lui
+seul ~527 lignes, contre ~233 pour l'état et les gestionnaires. On sort donc le
+markup dans une vue, en déplaçant aussi la constante `STEPS` et les imports
+d'icônes/`framer-motion`/`Link` qui ne servaient qu'au rendu.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `page.js` | 338 | l'état du wizard, les lectures (`fetchForms`/`fetchRuns`), la lecture de fichier, `handlePreview`/`handleExecute`, `simpleHash`/`parseTextToRows`, la construction de `ctx` |
+| `components/admin/platform/import/ImportView.js` | 587 | l'en-tête, les indicateurs d'étape, les panneaux des quatre étapes et les animations `motion`/`AnimatePresence` |
+
+`ctx` compte **28 clés**. Le piège du transfert : un composant utilisé en forme
+pointée à racine **minuscule** (`<motion.div>`) échappe au balayage naïf des
+`JSXMemberExpression` — il faut enregistrer la racine quel que soit sa casse,
+sinon `motion` n'est pas importé dans la vue. Le script de calcul de `ctx` a
+donc été corrigé (il excluait à tort les identifiants en minuscules).
+
+Nouveau contrôle — `src/__tests__/import-view-wiring.test.js` (3 tests) : chaque
+nom lu par la vue est une clé de `ctx` ; chaque clé de `ctx` est lue ; l'écran
+rend `<ImportView ctx={ctx} />`.
+
+Gates du slice : `npm test` 309 suites / 4 811 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
