@@ -3291,3 +3291,108 @@ facades inter-couches ; `@/models/communications` appartient à un autre couloir
 Gates du slice : `npm test` 298 suites / 4 754 tests, `npx eslint .` 0 erreur
 (16 avertissements préexistants), `npm run build` vert. Le journal destiné aux
 stagiaires est en `docs/REPARTITION_STAGIAIRES.md` § 4.8.
+
+## Slice 131 — PM program workspace : le page d'écran (2026-10-03)
+
+Première tranche d'une série consacrée à la **taille des écrans** (la couche V),
+distincte de la répartition des couches. Cible : `src/app/pm/programs/[id]/page.js`,
+2 450 lignes, qui avait grandi en absorbant le workspace entier (onglets, modales,
+44 gestionnaires, 55 handlers). Découpage **latéral, même couche** : aucune
+requête déplacée, aucun contrat d'API touché, aucun état déplacé hors de la page.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `page.js` | 719 | l'état, les deux lectures, la config, la composition |
+| `actions/` (9 fabriques) | 1 800 | les écritures, une par préoccupation |
+| `useAttendanceMarks.js` | 58 | l'effet de chargement des présences |
+| `WorkspaceContent.js` | 224 | le contenu des onglets |
+| `WorkspaceModals.js` | 389 | les 13 modales |
+
+Le **parent garde tout l'état et toutes les écritures**, comme le contrat l'exige :
+chaque fabrique est sans état et sans SQL, lue dans un objet unique. Deux objets
+sont construits à la main dans la page — `values` (état, setters, lectures) puis
+`ctx` (`values` + tous les handlers, les fabriques déversées **avant** pour qu'un
+nom commun reste un handler) — et les deux blocs de rendu lisent `ctx`, chacun
+listant **ses** dépendances dans sa propre signature (69 et 114 noms). C'est ce
+qui fait tomber les ~230 lignes de simple réacheminement de props : elles sont
+maintenant dans le bloc qui en a besoin, pas dans la page.
+
+Trois pièges réels de ce slice :
+
+| Piège | Symptôme | Résolution |
+|---|---|---|
+| passant des `ref` pendant le render | ESLint `react-hooks/refs` : *cannot access refs during render* | pas de fabrique pour la config ; `saveConfig` reste dans la page, seul `readConfigFields` était à déplacer |
+| objets fusionnés dans le désordre | `const ctx = { ...handlers, ...state }` en TSDZ — les fabriques référencées avant leur déclaration | `values` d'abord, `ctx` ensuite, spreads testés par un ordre explicite |
+| sur-indentation des corps extraits | 4 espaces au lieu de 2 dans les 9 fabriques | l'outillage de découpe dédupliquait `[id]` de sa propre liste de fichiers (`glob` y lit une classe de caractères) : les neuf modules ont été vérifiés **verbatim** contre l'original, puis réalignés |
+
+Les blocs de markup ont eux aussi été comparés **octet pour octet** à l'original
+(`/tmp/opencode/pmws/verify2.cjs`) avant remontage : une découpe « à l'œil » d'un
+extrait de 250 lignes est une réécriture silencieuse.
+
+**Le contrôle qui manque d'habitude** — `src/__tests__/program-workspace-wiring.test.js`
+(3 tests) : rien ne relie les trois côtés au niveau des types, et aucune suite ne
+rend cet écran. Un nom qui n'atteint plus son bloc est donc invisible — la fabrique
+reçoit `undefined`, ou le composant lit un champ absent ; ESLint ne voit rien non
+plus, chaque nom étant déclaré quelque part. La suite épingle le câblage : les
+paramètres de chaque fabrique doivent être des clés de `values`, chaque nom lu par
+un bloc doit être une valeur ou un handler retourné, et l'ordre des spreads de
+`ctx` est vérifié. Mutation testée (retrait d'une clé de `values`) : le suite
+échoue bien, puis passe après restauration.
+
+Gates du slice : `npm test` 299 suites / 4 757 tests, `npm run lint` 0 erreur
+(16 avertissements préexistants), `npm run build` vert. Suite : la page `runs`
+(2 391 lignes).
+
+## Slice 132 — Plateforme runs : le page d'écran (2026-10-03)
+
+Deuxième tranche de la série sur la **taille des écrans**. Cible :
+`src/app/platform/runs/page.js`, 2 391 lignes — l'écran le plus long du dépôt
+après PM. Elle avait déjà été découpée en « rounds » successifs (onze onglets,
+modales et panneaux vivent dans `components/platform/runs/`) : ce qui restait
+donc dans le fichier était la **colonne vertébrale** — l'état, les lectures, les
+effets, 57 gestionnaires et quatre gros blocs de JSX.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `page.js` | 1 432 | l'état, les lectures, les effets, la composition |
+| `actions/` (11 fabriques) | 1 518 | les écritures, une par préoccupation |
+| `RunListView.js` | 114 | tableau de bord, barre d'outils, table, création |
+| `RunResponsesPanel.js` | 180 | filtres, table des réponses, sélection, menu bulk |
+| `RunAdminTabs.js` | 171 | les cinq onglets d'administration |
+| `RunDetailModals.js` | 137 | review, ajout manuel, composeur, export |
+
+54 gestionnaires déplacés, 1 029 lignes de corps vérifiées **verbatim**, et 236
+lignes de markup comparées octet pour octet (`/tmp/opencode/runs/verify_actions.cjs`,
+`verify_views.cjs`). Même contrat que slice 131 : le parent garde l'état et les
+lectures, chaque fabrique est sans état, et `values` puis `ctx` (spreads des
+fabriques d'abord) relient les trois côtés.
+
+Quatre pièges réels, tous diagnostiqués par le build ou par le compilateur :
+
+| Piège | Symptôme | Résolution |
+|---|---|---|
+| `values` de 249 noms | « c'est juste un sac à variables vidé dans un autre fichier » — le page devient illisible | assumé, comme en slice 131 : `values` est la frontière, et le test de câblage interdit qu'un nom s'y glisse sans être lu par quelqu'un (le builder échoue si une valeur n'est lue par ni une vue ni une fabrique) |
+| `ref` passant pendant le render | ESLint `react-hooks/refs` sur `filterRowRef`, `bulkAbortRef`, `retryAbortRef` | `runBulkApprove` et `runRetryEmails` **restent dans la page** (ils lisent ces refs) et passent en props explicites ; jamais via `ctx` |
+| valeur dérivée lisant un handler déplacé | `ReferenceError: Cannot access 'eR' before initialization` au prerender | `trackingFilterValue` est une lecture pure de l'état des filtres : elle reste dans la page. Une valeur dérivée ne peut pas vivre au-dessus du câblage qui instancie la fabrique qui la retourne |
+| imports laissés derrière | `Parsing error: Identifier 'React' has already been declared` | le pruneur d'imports tourne sur le corps **après** coupure des handler et des vues, jamais avant |
+
+Deux autres pièges, cette fois dans l'outillage de découpe :
+
+- l'import par défaut devient nomné si le script écrit `import { X }` pour un
+  module `export default` : ESLint est vert, `npm test` est vert, **seul le build
+  échoue** (`Export X doesn't exist in target module`). C'est le seul filet.
+- un pin de test qui lit le chemin de la page devient *vacuement* vert quand le
+  code migre : `run-report-file.test.js` lisait la page seule, son aiguille
+  `/api/platform/form-runs/report-file` ayant rejoint `actions/runSettings.js`. Le
+  helper lit maintenant `page + actions/ + components/` (300 suites vertes, la
+  garde est plus large qu'avant, pas plus lâche).
+
+**Le contrôle qui manque** — `src/__tests__/platform-runs-wiring.test.js` (5 tests) :
+paramètres de fabrique ⊂ `values`, noms lus par un bloc ⊂ valeurs ∪ handlers,
+refs et handlers de batch hors de `values` et en props, ordre des spreads de `ctx`,
+et `values` sans nom fantôme. Mutation testée (retrait de `selectedRun` de
+`values`) : 2 tests tombent, puis tout repasse après restauration.
+
+Gates du slice : `npm test` 300 suites / 4 762 tests, `npm run lint` 0 erreur
+(16 avertissements préexistants), `npm run build` vert. Suite : le rapport
+opérationnel staff (1 800 lignes).
