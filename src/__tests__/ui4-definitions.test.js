@@ -23,7 +23,11 @@ const resolveKey = (bundle, dotted) =>
   dotted.split(".").reduce((acc, part) => (acc == null ? undefined : acc[part]), bundle);
 
 // The editor moved out of the shim into its own module, so the positives below
-// are pinned against the file that holds them rather than against the shim.
+// are pinned against the file that holds them rather than against the shim. It
+// then split in two: the panel keeps the state, the catalog effect and the
+// derivations, while the catalog matrix moved to the detail block and the
+// defaults to a factory. The panel's own effect is still pinned to the panel;
+// everything else reads the surface, so duplicating it elsewhere fails.
 const CENTER = "src/components/permissions/permission-center/AccessProfilesView.js";
 
 describe("UI-4b — the editor reads the server catalog", () => {
@@ -46,8 +50,10 @@ describe("UI-4b — the editor reads the server catalog", () => {
     expect(src).toContain("setModuleCatalog(data.modules || {})");
     expect(src).toContain("const availableModules = moduleCatalog ? buildEditableModules(moduleCatalog) : {};");
     // A missing catalog must not masquerade as "this profile has no features".
-    expect(src).toContain("catalogUnavailable");
-    expect(src).toContain("moduleCatalog && visibleSections.length === 0");
+    // That sentence is the detail block's, where the matrix is rendered.
+    const surface = readPermissionCenterSurface();
+    expect(surface).toContain("catalogUnavailable");
+    expect(surface).toContain("moduleCatalog && visibleSections.length === 0");
   });
 
   test("the 'Default for' control replaces the retired Role → Profile grid", () => {
@@ -59,9 +65,12 @@ describe("UI-4b — the editor reads the server catalog", () => {
       "src/components/permissions/permission-center/ProfileRoleDefaultsModal.js",
     );
     expect(modal).toContain("defaultForTitle");
-    expect(src).toContain("assignRoleDefault");
-    expect(src).toContain("/api/access-profiles/role-defaults");
-    expect(src).toContain("selectedIsDefaultFor");
+    // the write is a factory's, and the read feeds the factory that builds the
+    // sections: neither is in the panel any more
+    const surface = readPermissionCenterSurface();
+    expect(surface).toContain("assignRoleDefault");
+    expect(surface).toContain("/api/access-profiles/role-defaults");
+    expect(surface).toContain("selectedIsDefaultFor");
   });
 });
 
