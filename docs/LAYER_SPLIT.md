@@ -3443,3 +3443,63 @@ test d'ownership seul tombe (c'est lui qui l'attrape).
 Gates du slice : `npm test` 301 suites / 4 767 tests, `npm run lint` 0 erreur
 (16 avertissements préexistants), `npm run build` vert. Suite : `src/lib/email.js`
 (1 626 lignes).
+
+## Slice 134 — `src/lib/email.js` : le service d'email (2026-10-03)
+
+Quatrième tranche de la série sur la **taille des fichiers**, mais plus un écran :
+1 627 lignes de service d'email dans `src/lib/email.js`. Ici le découpage n'a pas
+d'états à partager ni de composants à extraire — c'est un **monolithe de module** :
+61 déclarations de portée module, deux transports, un moteur de template, onze
+points d'entrée publics et 27 fichiers qui importent `@/lib/email`.
+
+Le découpage garde la convention du dépôt : `src/lib/email.js` reste le point
+d'entrée (une façade de 81 lignes), l'implémentation vit dans `src/lib/email/`,
+un module par préoccupation. Aucun des 27 importateurs n'est touché.
+
+| Module | Lignes | Rôle |
+|---|---|---|
+| `email.js` (façade) | 81 | la surface publique, rien d'autre |
+| `config.js` | 56 | les constantes lues dans l'environnement |
+| `resend.js` | 44 | le transport Resend |
+| `gmail.js` | 122 | le transport Google Workspace (MIME, pièces jointes, OAuth) |
+| `templates.js` | 163 | copy par défaut, `{{variable}}`, templates conçus |
+| `addresses.js` | 272 | adresse, nom, langue : toute décision pure de destinataire |
+| `send.js` | 85 | le choix de fournisseur (primaire, repli, erreur) |
+| `delivery.js` | 137 | envoi + journal de livraison |
+| `senders/accounts.js` | 293 | invitation, connexion, bienvenue, mot de passe |
+| `senders/ventures.js` | 175 | invitations venture (membre, fondateur) |
+| `senders/workflow.js` | 105 | décision, confirmation |
+| `senders/results.js` | 281 | copy du résultat et livraison du PDF |
+
+Le graphe est un **DAG** vérifié par tri topologique : `config → gmail/resend →
+send → delivery → senders/*`, plus `templates` et `addresses` en feuilles. Un
+cycle est impossible par construction ici (une seule exception au programme
+ci-dessous), mais il est **détecté** : `templates.js` qui importerait
+`delivery.js` fait tomber la génération.
+
+Chaque déclaration part **verbatim**, bloc de commentaire compris : la plage de
+lignes du monolithe bouge d'un bloc, donc laisser le commentaire derrière
+l'aurait supprimé du dépôt. 207 contrôles en lecture seule
+(`/tmp/opencode/email/verify.cjs` — il ne régénère rien, donc une retouche
+manuelle après la génération est attrapée).
+
+Cinq pièges réels :
+
+| Piège | Symptôme | Résolution |
+|---|---|---|
+| nom privé lu par un autre module | ESLint : 12 avertissements `no-unused-vars` sur des `const`/`function` que d'autres modules importent | seule dérogation à l'identique : le mot-clé `export` est ajouté devant la définition lue ailleurs. Réordonner ou renommer une constante dans un modulecassait tous ses consommateurs sans erreur ici |
+| `sections` du fichier devenues fausses | les invitations étaient sous le bandeau `TEMPLATE ENGINE` : les bandeaux décrivent l'ordre de lecture d'un jour, pas les frontières | le module d'un nom vient d'un `PLAN` explicite, jamais du fichier |
+| specificateur nu | `./addresses` devient `addresses` : un module sans préfixe `./` ou `@/` est un paquet. `npm run lint` **vert**, `npm run build` **vert** | garde dans le générateur : tout specificateur doit être relatif ou aliasé. Seul `npm test` l'a vu |
+| import dupliqué | `import { X } from "./config"` émis sept fois dans `gmail.js` | l'entrée d'un import n'est poussée qu'à sa création |
+| pin de test devenu vide | `result-email-founder-fit.test.js` lisait `src/lib/email.js` : ses 15 pins passaient sur une façade de 81 lignes, la copy ayant migré dans `senders/results.js` | le test lit `readSurface("src/lib/email.js")` — le helper concatène la façade **et** le dossier `email/`, donc le pin suit la copy (15 tests verts) |
+
+**Le contrôle** — `src/__tests__/email-module-surface.test.js` (4 tests) : tout
+nom importé de `@/lib/email` est exporté par la façade ; tout nom exporté est
+défini par exactement un module (sauf le journal de livraison, réexporté depuis
+`@/services/email/log`) ; le graphe est acyclique ; aucun module n'importe un
+nom qu'il n'utilise pas. Mutation testée : `sendDecisionEmail` retiré de la
+façade → 1 test tombe ; `templates.js` important `delivery.js` → le test
+d'acyclicité tombe (`delivery.js → templates.js → delivery.js`).
+
+Gates du slice : `npm test` 302 suites / 4 771 tests, `npm run lint` 0 erreur
+(16 avertissements préexistants), `npm run build` vert.
