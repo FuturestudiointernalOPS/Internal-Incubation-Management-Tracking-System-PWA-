@@ -4124,3 +4124,33 @@ son dossier — la garantie dont le helper `sourceSurface` existe pour ça.
 
 Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
 `npm run build` vert.
+
+## Slice 150 — Backfill d'autorisation : planificateur + modules + politiques (2026-10-03)
+
+Deuxième tranche de la **Phase 2** (modèles). Cible :
+`src/models/authorization/backfill.js`, 1 176 lignes. Le fichier n'était pas un
+simple chapelet de requêtes : un **planificateur** (`ensureCapabilityBackfills`)
+appelle seize routines de rattrapage (`ensureKnowledgeBackfill`,
+`ensureReportsBackfill`, …), chacune suivant sa table de capacités. On sépare le
+planificateur des routines, et les routines de modules des politiques.
+
+| Fichier | Lignes | Contenu |
+|---|---|---|
+| `backfill.js` (barrel) | 195 | le commentaire de module, `reportFailedMigrations`, le planificateur `ensureCapabilityBackfills` (qui garde ses `runAuthzMigration`), les réexports publics |
+| `backfill/moduleBackfills.js` | 737 | `KNOWLEDGE_CAPS` + les rattrapages par module (knowledge, reports, announcements, forms, runs, projects, tasks, programs, ventures, investor) et leurs constantes |
+| `backfill/policies.js` | 294 | la retraite LMS, la vue LMS du PM, la politique messagerie, la politique finale, la communication, le nettoyage des rôles retirés |
+
+Point de méthode : les routines de module n'étaient **pas exportées**. Pour ne pas
+altérer leur texte, on les a laissées telles quelles et on les a exportées par
+une liste `export { … }` en fin de fichier ; le barrel les **importe** (sans les
+réexporter) pour le planificateur, et ne réexporte que les quatre entrées
+publiques (`ensureLmsViewBackfill`, `ensureFinalPolicyBackfill`,
+`ensureCommunicationFeatureBackfill`, `ensureRetiredRoleCleanup`) plus
+`ensureCapabilityBackfills`, local. Vérifié avant découpe : aucune des routines
+n'en appelle une autre — seul `reportFailedMigrations` est appelé, et il reste
+dans le barrel. Une suite lit le fichier directement, mais elle épingle
+l'enregistrement `"retire-developer-admin-roles-v1"` qui vit dans le
+planificateur, resté sur place : elle reste verte sans retouche.
+
+Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
+`npm run build` vert.
