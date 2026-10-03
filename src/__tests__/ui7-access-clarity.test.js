@@ -36,6 +36,7 @@ const {
 
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
+const { readPermissionCenterSurface } = require("./helpers/permissionCenterSource");
 
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const resolveKey = (bundle, dotted) =>
@@ -54,6 +55,10 @@ const PERMS = "src/components/permissions/";
 // The individual-access editor was extracted out of the shim; its behaviour
 // pins read the file that now owns it (PersonAccessScreen.js).
 const EDITOR = `${PERMS}permission-center/PersonAccessScreen.js`;
+// The editor's markup moved to the view it hands its ctx to, so the panel-state
+// pins read the whole surface (screen + view) while the logic pins stay on the
+// file that owns the state.
+const EDITOR_SURFACE = readPermissionCenterSurface();
 const REPORT = `${PERMS}PeopleView.js`;
 const REPORT_MATRIX = `${PERMS}people-view/PeopleMatrix.js`;
 const SPECIAL = `${PERMS}AdvancedCapabilities.js`;
@@ -251,7 +256,7 @@ describe("UI-7 — origin report", () => {
 
 // ─── 3. The panel states ────────────────────────────────────────────────────
 describe("UI-7 — no state is represented by a blank screen", () => {
-  const src = read(EDITOR);
+  const src = EDITOR_SURFACE;
 
   test("the panel keeps its heading when there is no data yet", () => {
     expect(src).toContain("accessEditorTitle");
@@ -314,7 +319,7 @@ describe("UI-7 — the report reads, the editors write", () => {
   });
 
   test("the four rights state the current situation before the chips", () => {
-    expect(read(EDITOR)).toContain("originText(modKey, cap)");
+    expect(EDITOR_SURFACE).toContain("originText(modKey, cap)");
   });
 
   test("the exceptions block is named for what it does", () => {
