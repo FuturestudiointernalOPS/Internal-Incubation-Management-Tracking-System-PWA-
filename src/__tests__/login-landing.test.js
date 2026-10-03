@@ -205,7 +205,9 @@ describe("every caller uses that one rule", () => {
   });
 
   test("the personal sidebar offers the investor door from the profile, not the badge", () => {
-    const shell = src("src/components/layout/DashboardLayout.js");
+    const shell =
+      src("src/components/layout/DashboardLayout.js") +
+      src("src/components/layout/shell/useDashboardNavigation.js");
     expect(shell).toContain("rel.isInvestor");
     expect(shell).toContain('href: "/investor/dashboard"');
   });

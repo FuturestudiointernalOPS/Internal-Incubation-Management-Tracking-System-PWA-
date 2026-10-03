@@ -62,9 +62,10 @@ describe("GET /api/notifications — the badge is a COUNT, not the page length",
 
 // ── The shell: it obeys that number, limits the panel, and keeps it fresh ──
 const SHELL = "src/components/layout/DashboardLayout.js";
+const BADGES = "src/components/layout/shell/useDashboardBadges.js";
 
 describe("the bell — a glance, on a live number", () => {
-  const src = read(SHELL) + read("src/components/layout/shell/ShellHeader.js");
+  const src = read(SHELL) + read(BADGES) + read("src/components/layout/shell/ShellHeader.js");
 
   test("the badge takes the server's count", () => {
     expect(src).toMatch(/data\.unread_count/);

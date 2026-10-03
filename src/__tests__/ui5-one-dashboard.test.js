@@ -26,6 +26,7 @@ const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const exists = (rel) => fs.existsSync(path.join(process.cwd(), rel));
 
 const DASHBOARD = "src/components/layout/DashboardLayout.js";
+const NAV_HOOK = "src/components/layout/shell/useDashboardNavigation.js";
 
 describe("one dashboard — the calendar page is the only dashboard", () => {
   test("the staff dashboard renders the calendar dashboard, with no cards", () => {
@@ -45,7 +46,7 @@ describe("one dashboard — the calendar page is the only dashboard", () => {
 });
 
 describe("sidebar additions — the doors live in the sidebar", () => {
-  const src = read(DASHBOARD);
+  const src = read(DASHBOARD) + read(NAV_HOOK);
 
   test("assigned staff get the ventures door, opening ALL ventures", () => {
     expect(src).toContain("withVentureConsole");
@@ -141,7 +142,7 @@ describe("landing — the dashboard shows first, not the workspace hub", () => {
     // Regression: a member on /participant has activeRole "participant" but
     // sessionRole "member"; keying off sessionRole sent Dashboard back to
     // /workspaces. The personal branch must resolve the href from activeRole.
-    const src = read(DASHBOARD);
+    const src = read(DASHBOARD) + read(NAV_HOOK);
     expect(src).not.toMatch(/homeRole\s*=\s*sessionRole/);
     expect(src).toContain('activeRole === "team" ? "/team" : "/participant"');
   });
