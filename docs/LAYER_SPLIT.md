@@ -3396,3 +3396,50 @@ et `values` sans nom fantôme. Mutation testée (retrait de `selectedRun` de
 Gates du slice : `npm test` 300 suites / 4 762 tests, `npm run lint` 0 erreur
 (16 avertissements préexistants), `npm run build` vert. Suite : le rapport
 opérationnel staff (1 800 lignes).
+
+## Slice 133 — Rapport opérationnel staff : le page d'écran (2026-10-03)
+
+Troisième tranche de la série sur la **taille des écrans**. Cible :
+`src/app/staff/op-report/page.js`, 1 800 lignes. Le dossier
+`components/staff/op-report/` comptait déjà une vingtaine de petites vues, mais
+le page gardait la colonne vertébrale : 42 gestionnaires, 11 helpers de module,
+les gestionnaires de brouillon et deux gros blocs de JSX.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `page.js` | 672 | l'état, les lectures, les effets, les brouillons, la composition |
+| `readers.js` | 215 | les 11 helpers purs de portée module |
+| `useOpReportNav.js` | 47 | les trois gestionnaires de navigation (header) |
+| `actions/` (12 fabriques) | 1 276 | les écritures, une par préoccupation |
+| `ReportContent.js` | 216 | la vue stand-up, retro ou résumé de semaine |
+| `OpReportModals.js` | 125 | les quatre modales |
+
+42 gestionnaires déplacés, 44 corps vérifiés **verbatim** et 211 lignes de markup
+comparées octet pour octet (`/tmp/opencode/oprep/verify.cjs`, en lecture seule :
+il ne régénère rien, donc une retouche manuelle après la génération est attrapée
+au lieu d'être écrasée). `surface.cjs` rejoue l'inventaire des 132 noms que
+l'écran déclarait avant et exige que chacun reste atteignable — page, `readers`,
+handler retourné ou `ctx` de bloc.
+
+Cinq pièges réels :
+
+| Piège | Symptôme | Résolution |
+|---|---|---|
+| hook de brouillons extrait | ESLint `react-hooks/exhaustive-deps` (6 avertissements) parce que les setters d'un `useState` multiple n'ont pas d'identité stable | les brouillons **restent dans la page** ; seuls les trois gestionnaires du header partent, dans un hook sans état |
+| paramètre compté comme lu à tort | `no-unused-vars` sur `userId`, `getWeekNumber` : une déclaration locale (`const userId = user?.cid`) ou un paramètre de fonction imbriquée masquait la lecture du nom de la page | l'analyse de lectures exclut ce qu'une déclaration imbriquée masque, sinon la fabrique réclame un paramètre qu'elle n'utilise pas |
+| `keptText` incluant les imports | 18 imports morts laissés dans le page (aucun plus utilisé) | le texte de référence exclut les lignes d'import : un import n'est jamais une preuve d'usage |
+| `import { getCurrentWeek as getCurrentWeek }` | ESLint vert, build vert, mais du bruit dans chaque module | le rétrécissement d'import réutilise la forme d'origine quand les noms sont identiques |
+| vérification verbatim tautologique | `dedent(...).slice(0, 0) || original` comparait toujours `original` à lui-même : 44 « vérifications » vertes sans rien vérifier | le vérificateur compare le corps dé-indenté ré-indenté de deux espaces, et un test de mutation (un `notify` → `notifY`) le fait tomber |
+
+**Le contrôle** — `src/__tests__/op-report-wiring.test.js` (5 tests) : paramètres de
+fabrique ⊂ `values` ∪ handlers retournés ∪ noms du hook, noms lus par un bloc ⊂
+valeurs ∪ handlers, chaque spread de `ctx` présent, `values` sans nom fantôme et
+sans `draftTimerRef`, et l'ownership des spreads (un paramètre rendu par une autre
+fabrique doit arriver par `...cetteFabriqueResult`). Mutation testée sur trois
+coups : clé de `values` retirée, spread de `ctx` retiré, `orphanKey` ajouté — 3
+tests tombent ; puis le spread de `notify` retiré d'un appel de fabrique — le
+test d'ownership seul tombe (c'est lui qui l'attrape).
+
+Gates du slice : `npm test` 301 suites / 4 767 tests, `npm run lint` 0 erreur
+(16 avertissements préexistants), `npm run build` vert. Suite : `src/lib/email.js`
+(1 626 lignes).
