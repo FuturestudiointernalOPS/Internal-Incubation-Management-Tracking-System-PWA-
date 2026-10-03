@@ -3680,3 +3680,47 @@ qu'elles sont vraies, et les relire ailleurs affaiblirait le pin.
 
 Gates du slice : `npm test` 304 suites / 4 791 tests, `npm run lint` 0 erreur
 (16 avertissements préexistants), `npm run build` vert.
+
+## Slice 137 — Plateforme runs : les hooks contrôleurs du page d'écran (2026-10-03)
+
+Suite du slice 132 (`page.js` de la plateforme runs, laissée à 1 432 lignes). La
+page garde son rôle d'orchestrateur, mais la colonne vertébrale — l'état, les
+lectures et les gros calculs — part dans quatre hooks contrôleurs, et la vue
+détail dans un composant. Décision actée au slice précédent : pour un écran à
+colonne vertébrale lourde, on extrait un **hook contrôleur** plutôt que de laisser
+1 400 lignes dans un seul fichier.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `page.js` | 776 | orchestration : composition des hooks, `openRun`, `runList`, `values`/`ctx`, rendu |
+| `RunDetailView.js` | 71 | la vue détail : en-tête, onglets et composition des panneaux/modales |
+| `useRunsReferenceData.js` | 147 | état + lectures de référence (formulaires, contacts, groupes, programmes, statistiques) |
+| `useRunDerivedData.js` | 432 | calculs dérivés purs (réponses, filtres, doublons, emails, activation, statistiques) |
+| `useRunResponseFilters.js` | 127 | la combinaison de filtres de la table et tout ce qu'elle mémorise avec elle |
+| `useRunBulkActions.js` | 228 | état + les deux opérations par lots (approbation, renvoi d'emails) et les lots d'activation/résultat |
+
+Deux points de conception méritent d'être notés.
+
+**Le hook de filtres déplace de la logique rendue, pas seulement de l'état.** Le
+`respFilterKey` et les trois enregistrements clés (`respPageState`,
+`selectionState`, `duplicatesKey`) sont inséparables : le reset *est* la
+comparaison de clés, exécutée pendant le rendu (§4.3). Les garder ensemble dans
+`useRunResponseFilters` évite qu'un futur changement de la page casse la
+propriété de sûreté — une sélection cachée ne doit jamais pouvoir être
+approuvée/exportée. `resetFilters()` rejoue exactement la suite d'écritures de
+`openRun`, avec la même capture de la clé en cours.
+
+**Le hook des lots lit `openRun` par une ref, pas par paramètre.** `runBulkApprove`
+et `runRetryEmails` doivent rafraîchir l'exécution ouverte, mais `openRun` est
+défini *après* le hook (qui, lui, doit être appelé tôt pour que `openRun` puisse
+appeler `resetBulk()`). La ref `openRunRef` est renseignée dans un
+`useEffect(…, [openRun])` : une affectation directe pendant le rendu est refusée
+par `react-hooks/refs` (« Cannot access refs during render »).
+
+Le test de câblage `src/__tests__/platform-runs-wiring.test.js` a suivi : `BLOCKS`
+inclut désormais `RunDetailView.js`, et la liste `values` continue de nommer
+chaque valeur — y compris celles désormais destructurées des hooks — si bien que
+la vérification « pas de nom fantôme » reste vraie sans modification.
+
+Gates du slice : `npm test` 304 suites / 4 791 tests, `npx eslint` 0 erreur sur
+les six fichiers, `npm run build` vert.
