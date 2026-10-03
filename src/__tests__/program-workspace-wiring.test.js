@@ -135,3 +135,51 @@ describe("the PM program workspace wiring", () => {
     expect(ctx).toMatch(/\.\.\.\w+Handlers,\n\s*\.\.\.values,/);
   });
 });
+
+describe("the PM weekly-report modal wiring", () => {
+  const SECTIONS = [
+    "PmReportOverviewSection.js",
+    "PmReportAssignmentSection.js",
+    "PmReportParticipationSection.js",
+    "PmReportDeliverySection.js",
+    "PmReportIssuesSection.js",
+    "PmReportNextWeekSection.js",
+    "PmReportNotesSection.js",
+  ];
+
+  // the props `WorkspaceModals` hands to `<PmReportModal>`: they become its `ctx`
+  const provided = (() => {
+    const src = read(path.join(WORKSPACE_DIR, "WorkspaceModals.js"));
+    const from = src.indexOf("<PmReportModal");
+    const tag = src.slice(from, src.indexOf("/>", from));
+    return new Set([...tag.matchAll(/([A-Za-z_$][\w$]*)=\{/g)].map((m) => m[1]));
+  })();
+
+  const ctxKeys = (src) => {
+    const match = src.match(/const \{([^}]*)\} = ctx;/);
+    return match
+      ? match[1]
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
+  };
+
+  test("every report section reads a prop `WorkspaceModals` passes", () => {
+    const orphans = [];
+    for (const file of SECTIONS) {
+      const src = read(path.join(WORKSPACE_DIR, file));
+      for (const key of ctxKeys(src)) {
+        if (!provided.has(key)) orphans.push(`${file}: ${key}`);
+      }
+    }
+    expect(orphans).toEqual([]);
+  });
+
+  test("PmReportModal forwards its props to every section", () => {
+    const src = read(path.join(WORKSPACE_DIR, "PmReportModal.js"));
+    for (const part of SECTIONS.map((n) => n.replace(".js", ""))) {
+      expect(src).toContain(`<${part} ctx={props} />`);
+    }
+  });
+});
