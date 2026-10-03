@@ -3767,3 +3767,39 @@ dans `ctx` ; chaque clé de `ctx` est un nom que `PersonAccessScreen` déclare
 
 Gates du slice : `npm test` 305 suites / 4 794 tests, `npx eslint` 0 erreur,
 `npm run build` vert.
+
+## Slice 139 — Onglet d'aperçu des runs : les sous-panneaux de la vue (2026-10-03)
+
+Huitième tranche de la série sur la **taille des écrans**, deuxième de la Phase 1.
+Cible : `src/components/platform/runs/OverviewTab.js`, 970 lignes. Particularité :
+c'était déjà un composant **purement présentationnel** — aucune valeur d'état,
+aucun effet, aucun accès données, seulement **109 props** et ~900 lignes de JSX.
+Il n'y avait donc pas de colonne vertébrale à garder : c'est la vue elle-même
+qu'on découpe. `OverviewTab` devient une composition de 15 lignes qui passe ses
+`props` à quatre sous-panneaux, chacun ne lisant qu'un objet `ctx`.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `OverviewTab.js` | 15 | la composition : rend les quatre sous-panneaux et leur passe `props` |
+| `OverviewStats.js` | 38 | la rangée de cartes de statut (total, soumis, approuvé, rejeté, révision, brouillons, en retard) |
+| `OverviewFilters.js` | 311 | la recherche du run, les puces de filtres actifs, les éditeurs en ligne (score, champ, suivi), l'ajout de filtre, la barre de sélection/actions |
+| `OverviewResponsesTable.js` | 292 | le tableau des réponses (colonnes e-mail, score IA, e-mails, statut, compte, paiement, actions) + la timeline |
+| `OverviewRunModals.js` | 313 | les modales : approbation groupée, envoi/renvoi d'activation, confirmation et aperçu du PDF de résultat, progressions, résumés |
+
+**La liste de `ctx` n'est pas devinée.** Un script lit l'AST et, pour chaque
+tranche de lignes (les quatre blocs JSX frères), calcule les identifiants
+référencés mais liés hors de la tranche : les liaisons de portée module deviennent
+des imports, celles de la portée composant deviennent des clés `ctx`, et les
+locaux des callbacks (`statCard`, `fieldValueText`, `filter`, `option`…) restent
+dans le sous-panneau. `t` est traité à part : chaque sous-panneau appelle
+`useI18n()` lui-même. L'union des quatre listes fait **109 clés = exactement les
+109 paramètres d'origine** ; la découpe est donc exhaustive par construction.
+
+Deux garde-fous ajoutés à `src/__tests__/platform-runs-wiring.test.js` : chaque
+clé que les sous-panneaux destructurent de `ctx` est une prop que
+`RunResponsesPanel` passe réellement à `<OverviewTab>` (pas de nom fantôme,
+puisque le JSX ne connecte rien au niveau du type) ; et `OverviewTab` rend bien
+`<OverviewStats ctx={props} />` et ses trois voisins.
+
+Gates du slice : `npm test` 305 suites / 4 796 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
