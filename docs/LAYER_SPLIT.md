@@ -3841,3 +3841,39 @@ bien les sept `<PmReport…Section ctx={props} />`.
 
 Gates du slice : `npm test` 305 suites / 4 798 tests, `npx eslint` 0 erreur,
 `npm run build` vert.
+
+## Slice 141 — Vue de profil : le markup de la vue (2026-10-03)
+
+Dixième tranche de la série sur la **taille des écrans**, quatrième de la
+Phase 1. Cible : `src/components/dashboard/ProfileView.js`, 909 lignes. Contrairement
+aux slices 139/140, l'écran a une vraie colonne vertébrale : état (`useState`),
+sept lectures `useApi`, la session (`useSessionUser`), des gestionnaires et deux
+retours précoces (chargement, erreur). On applique donc la recette du slice 138 :
+le markup part dans une vue qui ne lit qu'un `ctx`, l'écran garde tout le reste.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `ProfileView.js` | 430 | l'état, les lectures, la session, les gestionnaires, les retours chargement/erreur, la construction de `ctx` |
+| `profile-view/ProfileViewContent.js` | 504 | le markup : en-tête, avatar, coordonnées, préférences, langue, e-mails alternatifs, photo, programmes, historique, groupe |
+
+**La liste de `ctx` n'est pas devinée.** Un script lit l'AST, prend le `return`
+principal de `ProfileView` et calcule ses identifiants libres : la portée module
+donne les imports, la portée composant donne les **35 clés `ctx`**, et les locaux
+des callbacks (`email`, `entry`, `event`, `program`, `submission`) restent dans la
+vue. Les imports du parent sont ensuite élagués à ce qu'il utilise encore
+(`AlertCircle`, `RefreshCw`, `useState`/`useMemo`, `useI18n`, `profile-options`,
+`useApi`, `useSessionUser`) ; le reste part dans la vue.
+
+Deux pièges du transfert : un composant utilisé seulement en forme pointée
+(`<motion.div>`) échappe au balayage des `JSXIdentifier` — il faut le rattraper
+sinon `motion` n'est pas importé ; et les imports relatifs de la vue se
+réécrivent (`./profile-view/InfoRow` → `./InfoRow`) puisqu'elle vit dans le
+sous-dossier.
+
+Nouveau contrôle — `src/__tests__/profile-view-wiring.test.js` (3 tests) : chaque
+nom que la vue destructure de `ctx` est une clé que l'écran déclare ; chaque clé
+de `ctx` est lue par la vue (pas de clé morte) ; et l'écran rend bien
+`<ProfileViewContent ctx={ctx} />`.
+
+Gates du slice : `npm test` 306 suites / 4 801 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
