@@ -1,7 +1,6 @@
 [
   "src/app/admin/blockers/page.js",
   "src/app/admin/integrations/page.js",
-  "src/app/admin/page.js",
   "src/app/admin/programs/[id]/teams/page.js",
   "src/app/admin/reports/responses/page.js",
   "src/app/admin/security/page.js",
