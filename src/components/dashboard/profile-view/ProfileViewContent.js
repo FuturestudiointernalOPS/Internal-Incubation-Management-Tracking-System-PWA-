@@ -1,10 +1,11 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { AlertCircle, BadgeCheck, BookOpen, Building2, Calendar, Camera, CheckCircle2, Clock, ExternalLink, FileText, Globe, Languages, Mail, Phone, Rocket, Save, Shield, Target, User } from "lucide-react";
+import { BadgeCheck, BookOpen, Building2, Calendar, Camera, Clock, ExternalLink, FileText, Globe, Languages, Mail, Phone, Rocket, Shield, Target, User } from "lucide-react";
 import AppImage from "@/components/ui/AppImage";
 import HistoryGroup from "./HistoryGroup";
 import InfoRow from "./InfoRow";
+import ProfileSaveActions from "./ProfileSaveActions";
 import SearchableSelect from "@/components/ui/SearchableSelect";
 import SectionCard from "./SectionCard";
 
@@ -472,34 +473,12 @@ return (
       </div>
 
       {/* Save actions — at the bottom of the profile form */}
-      <div className="space-y-3">
-        {saveMessage && (
-          <div
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-bold ${
-              saveMessage.type === "success"
-                ? "bg-emerald-500/10 text-emerald-400"
-                : "bg-rose-500/10 text-rose-400"
-            }`}
-          >
-            {saveMessage.type === "success" ? (
-              <CheckCircle2 className="w-4 h-4" />
-            ) : (
-              <AlertCircle className="w-4 h-4" />
-            )}
-            {saveMessage.text}
-          </div>
-        )}
-        <div className="flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all disabled:opacity-30"
-          >
-            <Save className="w-3.5 h-3.5" />{" "}
-            {saving ? t("adminMisc.profile.saving") : t("adminMisc.profile.saveChanges")}
-          </button>
-        </div>
-      </div>
+      <ProfileSaveActions
+        t={t}
+        saveMessage={saveMessage}
+        saving={saving}
+        onSave={handleSave}
+      />
     </motion.div>
   );
 }
