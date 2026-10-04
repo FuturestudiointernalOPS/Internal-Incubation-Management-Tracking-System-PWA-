@@ -14,12 +14,17 @@ import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import ProgramLoading from "@/components/pm/program-workspace/ProgramLoading";
 import ProgramWorkspaceView from "@/components/pm/programs/ProgramWorkspaceView";
 import ProgramSuspenseFallback from "@/components/pm/programs/ProgramSuspenseFallback";
-import { buildProgramTabs } from "@/components/pm/programs/programTabs";
+import { INITIAL_WORKSPACE_FORMS } from "@/components/pm/programs/programWorkspaceInitialState";
+import {
+  buildRegFormUrl,
+  countPendingSubmissions,
+  selectWorkspaceTabs,
+} from "@/components/pm/programs/programWorkspaceDerivations";
+import { buildProgramConfigPayload } from "@/components/pm/programs/programWorkspacePayloads";
 import {
   selectOversightCandidates,
   selectProgramAccess,
   selectProgramTeamMembers,
-  selectVisibleTabs,
 } from "@/components/pm/programs/programWorkspaceSelectors";
 import { pickRegForm, pickReviews } from "@/components/pm/programs/programWorkspaceShapes";
 import useAttendanceMarks from "@/app/pm/programs/[id]/useAttendanceMarks";
@@ -70,14 +75,7 @@ function ProgramWorkspace() {
   const [reports, setReports] = useState([]);
   const [activeSubTab, setActiveSubTab] = useState("individuals");
   const [selectedParticipants, setSelectedParticipants] = useState([]);
-  const [newTeam, setNewTeam] = useState({
-    name: "",
-    group_name: "",
-    handler_name: "",
-    member_ids: [],
-    leader_id: "",
-    staff_id: "",
-  });
+  const [newTeam, setNewTeam] = useState(INITIAL_WORKSPACE_FORMS.newTeam);
   const [kpis, setKpis] = useState([]);
   const [, setEvents] = useState([]);
   const [assignedStaff, setAssignedStaff] = useState([]);
@@ -87,17 +85,8 @@ function ProgramWorkspace() {
   const [toast] = useState(null);
   const [activePDF, setActivePDF] = useState(null);
   const [families, setFamilies] = useState([]);
-  // Assigned registration form (public link) - resolved from the Form Run
-  // assigned directly to this Program (target_type = "program"), or to the
-  // person's family when the screen has no program id. The ADDRESS says which of
-  // the two questions is being asked, so "nothing to ask" is simply no address
-  // and the read's default (null) is what the header shows.
   const regGroupId = families[0]?.registration_id || families[0]?.id;
-  const regFormUrl = id
-    ? `/api/platform/form-runs?program_id=${encodeURIComponent(String(id))}`
-    : regGroupId
-      ? `/api/platform/form-runs?group_id=${encodeURIComponent(String(regGroupId))}`
-      : null;
+  const regFormUrl = buildRegFormUrl(id, regGroupId);
   const { data: regForm } = useApi(regFormUrl, {
     defaultValue: null,
     transform: pickRegForm,
@@ -125,7 +114,7 @@ function ProgramWorkspace() {
 
   const [showRequirementModal, setShowRequirementModal] = useState(false);
   const [showKPIModal, setShowKPIModal] = useState(false);
-  const [newKPI, setNewKPI] = useState({ title: "" });
+  const [newKPI, setNewKPI] = useState(INITIAL_WORKSPACE_FORMS.newKPI);
   const [showPMReportModal, setShowPMReportModal] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [selectedSessionForAttendance, setSelectedSessionForAttendance] =
@@ -137,10 +126,9 @@ function ProgramWorkspace() {
   // for their team).
   const [attendanceLoaded, setAttendanceLoaded] = useState({});
   const [attendanceDate, setAttendanceDate] = useState(() => getLocalToday());
-  const [pmReportAttachments, setPmReportAttachments] = useState({
-    type: "",
-    url: "",
-  });
+  const [pmReportAttachments, setPmReportAttachments] = useState(
+    INITIAL_WORKSPACE_FORMS.pmReportAttachments,
+  );
   const [showTeamDetails, setShowTeamDetails] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [showFacilitatorSelect, setShowFacilitatorSelect] = useState(false);
@@ -154,68 +142,20 @@ function ProgramWorkspace() {
 
   const [expandedSessionId, setExpandedSessionId] = useState(null);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
-  const [newSession, setNewSession] = useState({
-    title: "",
-    week_number: 1,
-    status: "pending",
-    kpi_ids: [],
-    handler_ids: [],
-    handler_names: [],
-    scheduled_date: "",
-    end_date: "",
-    start_time: "",
-    end_time: "",
-    notes: "",
-    extra_materials: [],
-    requirements: [],
-  });
+  const [newSession, setNewSession] = useState(
+    INITIAL_WORKSPACE_FORMS.newSession,
+  );
 
-  const [newSessionMaterial, setNewSessionMaterial] = useState({
-    type: "text",
-    content: "",
-    name: "",
-  });
-  const [newRequirement, setNewRequirement] = useState({
-    title: "",
-    description: "",
-    allowed_format: "pdf",
-    kpi_ids: [],
-    due_date: "",
-    assignee_type: "all",
-    assignee_id: "",
-    resource_url: "",
-    resource_label: "",
-  });
-  const [newPMReport, setNewPMReport] = useState({
-    summary: "",
-    status: "optimal",
-    // New structured fields
-    week_status: "",
-    week_rating: "",
-    main_topic: "",
-    // KPI-linked assignment tracking
-    assignment_given: false,
-    assignment_kpi_ids: [],
-    assignment_objective: "",
-    assignment_outcome: "",
-    attendance_level: "",
-    participation_level: "",
-    participants_need_attention: false,
-    participants_attention_notes: "",
-    standout_participants: false,
-    standout_notes: "",
-    delivery_quality: "",
-    participant_understanding: "",
-    delivery_challenges: false,
-    delivery_challenge_note: "",
-    had_issues: false,
-    issue_types: [],
-    requires_admin_attention: false,
-    additional_issue_note: "",
-    program_on_track: true,
-    planned_adjustments: "",
-  });
-  const [newStaff, setNewStaff] = useState({ staff_id: "", role: "staff" });
+  const [newSessionMaterial, setNewSessionMaterial] = useState(
+    INITIAL_WORKSPACE_FORMS.newSessionMaterial,
+  );
+  const [newRequirement, setNewRequirement] = useState(
+    INITIAL_WORKSPACE_FORMS.newRequirement,
+  );
+  const [newPMReport, setNewPMReport] = useState(
+    INITIAL_WORKSPACE_FORMS.newPMReport,
+  );
+  const [newStaff, setNewStaff] = useState(INITIAL_WORKSPACE_FORMS.newStaff);
 
   const [confirmTarget, setConfirmTarget] = useState(null); // { id, message, onConfirm } or null
 
@@ -242,6 +182,18 @@ function ProgramWorkspace() {
   const configEndRef = useRef(null);
   const configGradingRef = useRef(null);
 
+  // The config refs reach the blocks via `ctx`, never the factories, which run
+  // during render (react-hooks/refs); `saveConfig` reads them in its handler.
+  const configRefs = {
+    configNameRef,
+    configDescRef,
+    configWeeksRef,
+    configStatusRef,
+    configStartRef,
+    configEndRef,
+    configGradingRef,
+  };
+
   // The attendance marks already recorded for the open modal.
   useAttendanceMarks({
     id,
@@ -264,24 +216,7 @@ function ProgramWorkspace() {
       const response = await fetch("/api/pm/programs", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id,
-          name:
-            user.role === "super_admin"
-              ? configNameRef.current?.value
-              : program?.name,
-          description: configDescRef.current?.value,
-          duration_weeks:
-            parseInt(configWeeksRef.current?.value) || program?.duration_weeks,
-          status: configStatusRef.current?.value,
-          note_id: program?.note_id,
-          assigned_pm_id: program?.assigned_pm_id,
-          assigned_assistant_id: program?.assigned_assistant_id,
-          materials: program?.materials,
-          start_date: configStartRef.current?.value,
-          end_date: configEndRef.current?.value,
-          grading_mode: configGradingRef.current?.value || "graded",
-        }),
+        body: JSON.stringify(buildProgramConfigPayload({ ...values, ...configRefs })),
       });
       const data = await response.json();
       if (data.success) {
@@ -373,10 +308,8 @@ function ProgramWorkspace() {
     return <ProgramLoading />;
   }
 
-  // Access flags: the assigned PM or a team member (assistant/associate) can
-  // manage the program the same as a program_manager. Derived BEFORE `values`
-  // because `values` lists `canEdit` / `canContribute`; declaring them after
-  // would leave the references in the temporal dead zone and throw on render.
+  // Access flags: derived BEFORE `values`, which lists canEdit/canContribute —
+  // declaring them after would be a temporal-dead-zone throw on render.
   const { isAssignedPm, isTeamMember, canEdit, canContribute } =
     selectProgramAccess({ program, programTeamMembers, user });
 
@@ -394,13 +327,6 @@ function ProgramWorkspace() {
     attendanceRecords,
     canContribute,
     canEdit,
-    configDescRef,
-    configEndRef,
-    configGradingRef,
-    configNameRef,
-    configStartRef,
-    configStatusRef,
-    configWeeksRef,
     confirmTarget,
     editingScoreFor,
     emailInput,
@@ -438,7 +364,6 @@ function ProgramWorkspace() {
     reviewScore,
     reviewsLoading,
     router,
-    saveConfig,
     scoreDraft,
     selectedExistingTeamId,
     selectedParticipants,
@@ -518,15 +443,17 @@ function ProgramWorkspace() {
     user,
   };
 
-  const teamsHandlers = teamActions(ctx);
-  const curriculumHandlers = curriculumActions(ctx);
-  const kpisHandlers = kpiActions(ctx);
-  const reportsHandlers = reportActions(ctx);
-  const reviewsHandlers = reviewActions(ctx);
-  const scoresHandlers = scoreActions(ctx);
-  const attendanceHandlers = attendanceActions(ctx);
-  const facilitatorsHandlers = facilitatorActions(ctx);
-  const shellHandlers = shellActions(ctx);
+  // Factories read `values`, not `ctx` — `ctx` is assembled FROM their results
+  // (so it is in the TDZ here). See program-workspace-wiring.test.js.
+  const teamsHandlers = teamActions(values);
+  const curriculumHandlers = curriculumActions(values);
+  const kpisHandlers = kpiActions(values);
+  const reportsHandlers = reportActions(values);
+  const reviewsHandlers = reviewActions(values);
+  const scoresHandlers = scoreActions(values);
+  const attendanceHandlers = attendanceActions(values);
+  const facilitatorsHandlers = facilitatorActions(values);
+  const shellHandlers = shellActions(values);
 
   const ctx = {
     ...teamsHandlers,
@@ -539,24 +466,16 @@ function ProgramWorkspace() {
     ...facilitatorsHandlers,
     ...shellHandlers,
     ...values,
+    ...configRefs,
+    saveConfig,
   };
 
   // The one handler this page renders with itself (the tab bar).
   const { handleSelectTab } = shellHandlers;
 
-  const pendingSubmissionCount = submissions.filter(
-    (submission) => submission.status === "pending",
-  ).length;
+  const pendingSubmissionCount = countPendingSubmissions(submissions);
 
-  const allTabs = buildProgramTabs(t);
-
-  // Tabs: show all tabs to anyone with edit rights, otherwise filter by roles array
-  const tabs = selectVisibleTabs({
-    allTabs,
-    isAssignedPm,
-    isTeamMember,
-    user,
-  });
+  const tabs = selectWorkspaceTabs({ t, isAssignedPm, isTeamMember, user });
 
   return (
     <ProgramWorkspaceView

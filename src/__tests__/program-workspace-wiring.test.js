@@ -46,19 +46,37 @@ const BLOCKS = ["WorkspaceContent.js", "WorkspaceModals.js"];
 
 const read = (file) => fs.readFileSync(file, "utf8");
 
-/** The keys of the page's `values` object. */
+/** The keys of one page object literal, from its declaration marker to the end. */
+function objectKeys(page, marker) {
+  const block = page.split(marker)[1];
+  if (!block) return [];
+  return block
+    .split("\n}")
+    .join("\n")
+    .split("\n")
+    .map((line) => line.trim().replace(/,$/, ""))
+    .filter((line) => /^[A-Za-z_$][\w$]*$/.test(line));
+}
+
+/**
+ * The names a view block may read that the page hands over through `ctx` but not
+ * through the action factories: the config refs (kept apart because
+ * react-hooks/refs forbids a ref reaching a function during render) and
+ * `saveConfig` (their only reader, a handler that stays on the page).
+ */
+function viewExtras(page) {
+  return [...objectKeys(page, "const configRefs = {"), "saveConfig"];
+}
+
+/**
+ * The names a view block may read: the page's `values` object plus the extras
+ * it slices into `ctx` (`configRefs` and `saveConfig`).
+ */
 function valueKeys() {
   const page = read(PAGE);
-  const block = page.split("const values = {")[1];
-  if (!block) throw new Error("the page no longer builds a `values` object");
-  return new Set(
-    block
-      .split("\n}")
-      .join("\n")
-      .split("\n")
-      .map((line) => line.trim().replace(/,$/, ""))
-      .filter((line) => /^[A-Za-z_$][\w$]*$/.test(line)),
-  );
+  const keys = objectKeys(page, "const values = {");
+  if (keys.length === 0) throw new Error("the page no longer builds a `values` object");
+  return new Set([...keys, ...viewExtras(page)]);
 }
 
 /** The names one action module destructures from `values`. */
