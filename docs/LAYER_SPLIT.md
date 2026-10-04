@@ -4321,3 +4321,22 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
   - `lms-api.courses.test.js` (382): blocks 0-3 — Courses CRUD, Publishing, Sections, Lessons & YouTube.
   - `lms-api.assessments.test.js` (496): blocks 4-6 — Assessments & questions, drag & drop reorder, Authorization.
 - **Verification**: Full suite 317/317 (4823 tests), lint 0 errors, `next build` green.
+
+### Slice 164 — `src/models/tasks.js` (640 → 6 files)
+
+- **Trigger**: Wave-2 size ceiling (600 lines).
+- **Split**: 54 exported functions → barrel + 5 sub-files by subject:
+  - `tasks/reads.js` (177): task lookups and the related sub-task/blocker/resource/comment reads.
+  - `tasks/list.js` (116): the filtered task list (scope + filters).
+  - `tasks/scope.js` (106): project/contact/assignment access facts.
+  - `tasks/writes.js` (217): create, completion/reopen lifecycle, deletes, assignment writes, and the notification/approval/audit inserts.
+  - `tasks/admin.js` (58): the Super Admin task and blocker lists.
+  - Facade `tasks.js` (28): doc header + `export *` from the five modules.
+- **Cross-calls**: None (modules import only `db`).
+- **Test couplings**: None (suites use `jest.mock`/`requireActual`; no source-text pins on this file).
+- **Verification**: import/export surface identical (54 names); the tasks/blockers/admin suites → 898 tests green; full suite 317/317 (4823 tests), lint 0 errors on the touched scope. (`next build` is currently blocked by two unrelated files from other lanes — see the note below.)
+
+> Build note (2026-10-04): `next build` fails on two files outside this slice —
+> `src/app/platform/runs/review/[submissionId]/page.js` (uncommitted, mid-split)
+> and `src/components/admin/integrations/WebhooksTab.js` (committed broken in
+> `2d047f38`). Neither touches the tasks model.
