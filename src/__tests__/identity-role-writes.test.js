@@ -51,7 +51,7 @@ test("mutation-site inventory is frozen (every contacts.role write is known)", (
   // rewritten. I2 converts the contextual ones to membership writes and this
   // list shrinks to the true identity operations (promote/demote).
   const KNOWN_SITES = [
-    "src/models/adminOps.js", // approval → participant (contextual — I2 target)
+    "src/models/adminOps/userManagement.js", // approval → participant (contextual — I2 target)
     "src/models/authorization/engineeringAndAudit.js", // promote/demote super_admin/staff (TRUE identity op — keep)
     "src/models/investorRelations/provisioningAndProfile.js", // investor onboarding (contextual — I2 target)
     "src/models/platform/automation/automationCore.js", // platform approval role set (contextual — I2 target)
@@ -131,7 +131,7 @@ describe("deriveLegacyRole (I2 transitional view)", () => {
 describe("I2 mutation-stop guard presence", () => {
   test("every contextual mutation site consults the stop flag", () => {
     const sites = [
-      "src/models/adminOps.js",
+      "src/models/adminOps/userManagement.js",
       "src/models/investorRelations/provisioningAndProfile.js",
       "src/models/platform/automation/automationCore.js",
     ];

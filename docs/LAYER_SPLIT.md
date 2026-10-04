@@ -4257,3 +4257,15 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
 - **Test couplings updated**:
   - `identity-role-writes.test.js`: KNOWN_SITES entry `"src/models/authorization.js"` → `"src/models/authorization/engineeringAndAudit.js"` (TRUE identity op).
 - **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.
+
+### Slice 158 — `src/models/adminOps.js` (858 → 3 files)
+
+- **Trigger**: `adminOps.js` exceeded 800 lines (858).
+- **Split**: 55 exported functions → barrel + 2 sub-files by functional group:
+  - `adminOps/userManagement.js` (419): analytics, analytics/users, fix-participant, bulk-upload, approve-user, reject-user, pending-users, run-migration — lines 48-462. Contains the contextual role mutation (approve-user → `stopRoleMutationEnabled`).
+  - `adminOps/reportsAndErrors.js` (399): op-reports, errors, audit-log, full-state — lines 463-end.
+  - Facade `adminOps.js` (49): doc header + `export *` from two modules.
+- **Cross-calls**: None (file only imports `db` and `stopRoleMutationEnabled`).
+- **Test couplings updated**:
+  - `identity-role-writes.test.js`: KNOWN_SITES + mutation-stop list `"src/models/adminOps.js"` → `"src/models/adminOps/userManagement.js"`.
+- **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.
