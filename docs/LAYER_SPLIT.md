@@ -4530,3 +4530,18 @@ Tout fichier source (hors tests et config) est désormais **sous 600 lignes** �
 - **Vérification** : `npm test` 318 suites / 4844 tests verts ; `npm run build` vert ; `npm run lint` 0 erreur.
 
 > Note de concurrence (2026-10-04) : un autre couloir a committé `c927901c` en embarquant, par `git add` large, les fichiers non committés de cette vague — le contenu est intact. Seuls les barillets/écrans `pm/programs` (slice 175) et les lots 176–177 ont été committés séparément ici.
+
+### Slice 179 — Les quatre dernières pages sous la cible de 500 (2026-10-04)
+
+| Écran (avant) | Après | Blocs extraits |
+|---|---|---|
+| `app/pm/programs/[id]/page.js` 580 | 499 | `components/pm/programs/` : état initial des formulaires, dérivations (url/tabs/en-attente), corps de la requête de config |
+| `app/participant/ventures/[id]/page.js` 562 | 467 | `components/participant/ventures/` : écran de composition, helpers, fabrique de chargeurs |
+| `app/staff/op-report/page.js` 559 | 492 | `components/staff/op-report/` : brouillon (localStorage), dérivations, écran de chargement |
+| `app/admin/programs/[id]/teams/page.js` 524 | 364 | `components/admin/programs/teams/` : table, modale de suppression, chargement |
+
+**Le deuxième plantage du slice 131, corrigé.** `pm/programs/[id]` appelait ses neuf fabriques d'actions avec `ctx`, alors que `ctx` est assemblé **à partir** de leurs résultats — `ReferenceError: Cannot access 'ctx' before initialization`. Les fabriques reçoivent désormais `values` (elles ne lisent de toute façon que des clés de `values`, ce que pin le test de wiring).
+
+**Et le garde-fou `react-hooks/refs` respecté, sans silence.** Les refs de configuration sont lues par `saveConfig` (dans un handler) et câblées par la vue, jamais par les fabriques qui tournent au rendu. Elles sont donc sorties de `values` dans un objet `configRefs` dédié, et `saveConfig` (seul lecteur de refs) est lui aussi tranché dans `ctx` après `...values`. `program-workspace-wiring.test.js` compte ces extras dans les noms lisibles par les blocs ; aucune règle React Hooks n'est désactivée (garde `no-silenced-hook-warnings` vert).
+
+- **Vérification** : `npx eslint` 0 erreur sur les 13 fichiers ; `program-workspace-wiring` (5), `no-silenced-hook-warnings` (2), `op-report-wiring` (5) verts ; `npm test` 318 suites / 4844 tests ; `npm run build` vert ; `npm run check:lines` → 0 fichier au-dessus de 600, 6 entre 501 et 600 (hors pages).
