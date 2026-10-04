@@ -4396,3 +4396,15 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
 - **Cross-calls**: None (each module imports only `db`).
 - **Test couplings**: None (suites mock `@/lib/db` with SQL-string matching; no source-text pins on this file).
 - **Verification**: import/export surface identical (65 names); the platform/evaluation/scores suites → 855 tests green; lint 0 errors on the touched scope. Full suite 316/317 — the single failure remains the other lane's mid-split review page.
+
+### Slice 169 — `src/services/platform/formRuns/resultEmails.js` (697 → 4 files)
+
+- **Trigger**: a remaining service file over the 600 ceiling.
+- **Split**: 5 exported functions → barrel + 3 sub-files by flow:
+  - `formRuns/resultEmails/decisionEmail.js` (204): the tracked decision email and the shared `logTimeline` entry.
+  - `formRuns/resultEmails/resultDocument.js` (364): the participant-facing result document builder (answers, evaluation, score, composed-report path).
+  - `formRuns/resultEmails/resultEmail.js` (159): the result email and the scheduled dispatcher.
+  - Facade `resultEmails.js` (29): doc header + the three explicit re-exports (the same five names).
+- **Cross-calls**: `resultDocument` and `resultEmail` import `logTimeline` from `decisionEmail`; `resultEmail` imports `buildResultDocument` from `resultDocument`. No cycle.
+- **Test couplings**: None to repoint — the source-pin suites read the `formRuns` surface via `readSurface`, and the folder keeps the `resultEmails` bytes contiguous and before `review`/`submitters`, so the ordering pins stay true.
+- **Verification**: the form-runs result/PDF/schedule and platform suites → 932 tests green; lint 0 errors on the touched scope. Full suite 316/317 — the single failure remains the other lane's mid-split review page.
