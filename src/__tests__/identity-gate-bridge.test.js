@@ -245,10 +245,7 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
       "utf8",
     );
     expect(service).toMatch(/getInvestorProfileIdByUserIdForPipelineList/);
-    const model = fs.readFileSync(
-      path.join(ROOT, "src/models/investorRelations.js"),
-      "utf8",
-    );
+    const model = readSurface("src/models/investorRelations.js");
     expect(model).toMatch(/investorId/);
     expect(model).toMatch(/SELECT DISTINCT venture_id FROM investment_pipeline WHERE investor_id/);
   });

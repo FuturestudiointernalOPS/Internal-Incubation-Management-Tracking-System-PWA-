@@ -4175,3 +4175,17 @@ donc la surface sans qu'aucune ne soit retouchée.
 
 Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
 `npm run build` vert.
+
+### Slice 152 — `src/models/investorRelations.js` (1036 → 4 files)
+
+- **Trigger**: `investorRelations.js` exceeded 800 lines (1036).
+- **Split**: 69 exported functions → barrel + 3 sub-files by cohesive section:
+  - `investorRelations/relationships.js` (291): relationships, meetings, investor meetings (lines 32-320)
+  - `investorRelations/provisioningAndProfile.js` (371): application provisioning, organizations, profile — contains both role-mutation functions `setContactRoleToInvestor` and `upgradeContactRoleToInvestor` (lines 322-689)
+  - `investorRelations/portalAndCampaigns.js` (342): decisions, approval, watchlist, preferences, setup-password, campaigns (lines 691-1030)
+  - Facade `investorRelations.js` (32): doc header + `export *` from three modules.
+- **Cross-calls**: Only two (`provisionInvestorFromApproval → ensureInvestorProfileSchema`, `provisionInvestorFromApproval → upgradeContactRoleToInvestor`), both internal to `provisioningAndProfile.js` — no cross-file imports needed.
+- **Test couplings updated**:
+  - `identity-role-writes.test.js`: KNOWN_SITES entry `"src/models/investorRelations.js"` → `"src/models/investorRelations/provisioningAndProfile.js"`; second list same change; `fs.readFileSync("src/models/investorRelations.js")` → `readSurface("src/models/investorRelations.js")`; added `readSurface` import.
+  - `identity-gate-bridge.test.js`: `fs.readFileSync("src/models/investorRelations.js")` → `readSurface("src/models/investorRelations.js")` (already imported).
+- **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.
