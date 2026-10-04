@@ -4545,3 +4545,74 @@ Tout fichier source (hors tests et config) est désormais **sous 600 lignes** �
 **Et le garde-fou `react-hooks/refs` respecté, sans silence.** Les refs de configuration sont lues par `saveConfig` (dans un handler) et câblées par la vue, jamais par les fabriques qui tournent au rendu. Elles sont donc sorties de `values` dans un objet `configRefs` dédié, et `saveConfig` (seul lecteur de refs) est lui aussi tranché dans `ctx` après `...values`. `program-workspace-wiring.test.js` compte ces extras dans les noms lisibles par les blocs ; aucune règle React Hooks n'est désactivée (garde `no-silenced-hook-warnings` vert).
 
 - **Vérification** : `npx eslint` 0 erreur sur les 13 fichiers ; `program-workspace-wiring` (5), `no-silenced-hook-warnings` (2), `op-report-wiring` (5) verts ; `npm test` 318 suites / 4844 tests ; `npm run build` vert ; `npm run check:lines` → 0 fichier au-dessus de 600, 6 entre 501 et 600 (hors pages).
+
+### Slice 197 — La taille des tests, puis le garde-fou qui les couvre (2026-10-04)
+
+La passe précédente avait traité les **sources**. Les tests, eux, continuaient de
+grossir sans que rien ne les regarde : `npm run check:lines` ignorait
+`**/__tests__/**`. Quatorze suites dépassaient la cible de 500, dont six le
+plafond de 600 — un fichier de test n'est pas moins production que le reste :
+il échoue seulement quand la production échoue.
+
+#### 1. Les six suites au-dessus de 600
+
+| Suite (avant) | Après | Découpage |
+|---|---|---|
+| `authorization-resolver.advanced.test.js` 766 | 193 | `authorizationMocks.js` partagé + `authorization-resolver.lms` / `.migrations` |
+| `permission-matrix-helpers.test.js` 658 | 204 | `permission-matrix-capability-families` / `-columns` / `-person-editor` |
+| `program-assignment-grants.test.js` 635 | 283 | `programAssignmentGrants.js` + `….planning` / `….resilience` |
+| `eligibility-queries-decisions.test.js` 619 | 224 | `eligibilityRouteMocks.js` + `….writes` |
+| `lms-certificates.test.js` 616 | 275 | `lmsCertificateFixtures.js` + `lms-certificates.routes.test.js` (314) |
+| `lms-checkout.postPayment.test.js` 614 | 317 | `lmsCheckoutFixtures.js` + `….amountAndSettings` (174) / `….teamDecisions` (141) |
+
+#### 2. Les huit suites restantes entre 500 et 600
+
+| Suite (avant) | Après | Ce qui est parti |
+|---|---|---|
+| `run-report-file.test.js` 598 | 284 | `runReportFileHarness.js` + `run-report-file.compose.test.js` (235) : composition du rapport et câblage des écrans |
+| `investor-portal.test.js` 551 | 357 | `investor-portal.account.test.js` (271) : compte et connexion |
+| `startup-profile.test.js` 548 | 333 | `ventures/startup-profile.access.test.js` (253) : droits d'accès |
+| `tasks-api.test.js` 536 | 277 | `tasksApiHarness.js` + `tasks-api.safety.test.js` (127) : garde-fous d'écriture |
+| `lms-assessment.test.js` 528 | 348 | `lmsAssessmentFixtures.js` + `lms-assessment.routes.test.js` (172) |
+| `authorization-resolver.modules.test.js` 504 | 411 | rien de coupé : le montage passe sur `authorizationMocks.js` partagé |
+| `projects-collaboration-api.test.js` 503 | 236 | `projectsCollaborationHarness.js` + `…-invitations.test.js` (173) |
+| `lms-checkout.payment.test.js` 522 | 412 | rien de coupé : fixtures partagées avec `postPayment` |
+
+**Aucun test perdu, aucun test rebaptisé** : chaque suite conserve exactement ses
+cas, seul le montage était déplacé.
+
+#### 3. Le piège Jest que ces découpages ont payé deux fois
+
+- **La fabrique qui se mocke elle-même doit être lazy.** Un `jest.mock()` dont
+  la fabrique touche un module déjà mocké capture le registre trop tôt ;
+  `helpers/runReportFileHarness.js` expose donc `dbMock()` / `deepseekMock()`,
+  appelés au moment du `jest.mock`, et le haras lit l'état qu'il possède.
+- **Un état partagé ne se réassigne pas, il se vide sur place.** Les suites
+  déstructurent les tableaux du haras une fois pour toutes en tête de fichier ;
+  un `storedFiles = []` dans le `beforeEach` les laisserait écrire sur l'ancien
+  tableau. Les trois magasins (`storedReports`, `insertedReports`, `storedFiles`)
+  se vident donc par `.length = 0`, et une suite qui veut amorcer une ligne
+  passe par `setStoredReports()`.
+
+#### 4. Le garde-fou couvre maintenant les tests
+
+`scripts/check-line-limits.mjs` ne saute plus `src/__tests__/**` : 2 645 fichiers
+suivis au lieu de 2 293, **mêmes plafonds** (600 dur, 500 cible). Même chose pour
+`src/__tests__/server/line-limits.test.js`, qui parcourt désormais les tests et
+formule ses assertions sans distinguer la source du test. La liste de dette
+`scripts/line-limit-debt.json` reste **vide** : aucun test n'a eu besoin d'être
+excusé.
+
+- **Vérification** : `npm test` **338 suites / 6 801 tests** verts ; `npx eslint`
+  0 erreur et 0 warning sur les 14 suites découpées, leurs haras et le script ;
+  `node scripts/check-line-limits.mjs` et sa variante `--block` → 0 fichier
+  au-dessus de 600 **et** 0 au-dessus de 500, sources et tests confondus.
+
+#### 5. La décision de langage, écrite quelque part
+
+La question « JavaScript ou TypeScript ? » est tranchée, et écrite dans
+`CONTRIBUTING.md` : **le langage reste JavaScript**, une migration serait un
+programme à part entière, et le JSDoc est attendu là où un type rend le code plus
+clair. `CONTRIBUTING.md` documente aussi désormais le budget de lignes des
+tests, le découpage par préoccupation et les deux pièges Jest ci-dessus, et
+`npm run check:lines:block` rejoint la définition de fini.

@@ -1,14 +1,17 @@
 /**
  * Line-limit guardrail.
  *
- * The size pass brought every non-test source file under the 600-line hard
- * ceiling, so this suite keeps it that way: a file that crosses 600 without a
- * debt entry fails, and a debt entry that no longer exceeds it fails too — an
+ * The size pass brought every file under the 600-line hard ceiling — source and
+ * test alike — so this suite keeps it that way: a file that crosses 600 without
+ * a debt entry fails, and a debt entry that no longer exceeds it fails too — an
  * allow-list that nobody prunes is an allow-list that stops guarding.
  *
- * Scope matches `scripts/check-line-limits.mjs`: `src/**` only, test files and
- * build config excluded. The soft target (500) is reported, never enforced:
- * `npm run check:lines` prints the same list for the next pass.
+ * Test files are held to the SAME limits as source: a suite that outgrows the
+ * budget is split by concern and shares its fixtures through
+ * `src/__tests__/helpers/`. Scope matches `scripts/check-line-limits.mjs`:
+ * `src/**` only, migrations and build config excluded. The soft target (500) is
+ * reported, never enforced: `npm run check:lines` prints the same list for the
+ * next pass.
  *
  * To grandfather a file deliberately, run `npm run check:lines:update` — it
  * writes the current over-600 set to `scripts/line-limit-debt.json`.
@@ -24,15 +27,15 @@ const DEBT_FILE = path.join(ROOT, "scripts", "line-limit-debt.json");
 const HARD_LIMIT = 600;
 const SOFT_LIMIT = 500;
 
-const SKIP_DIRS = new Set(["__tests__", "node_modules", "migrations", ".next"]);
+const SKIP_DIRS = new Set(["node_modules", "migrations", ".next"]);
 
-/** Every source file under `src/`, excluding tests and build config. */
-function sourceFiles(dir) {
+/** Every tracked file under `src/` — source and tests, minus build config. */
+function trackedFiles(dir) {
   const out = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (!SKIP_DIRS.has(entry.name)) out.push(...sourceFiles(full));
+      if (!SKIP_DIRS.has(entry.name)) out.push(...trackedFiles(full));
     } else if (/\.(js|jsx|ts|tsx)$/.test(entry.name)) {
       if (!entry.name.endsWith(".config.js") && !entry.name.endsWith(".config.mjs")) {
         out.push(full);
@@ -45,7 +48,7 @@ function sourceFiles(dir) {
 const relative = (file) => path.relative(ROOT, file).split(path.sep).join("/");
 const countLines = (file) => fs.readFileSync(file, "utf8").split("\n").length;
 
-const files = sourceFiles(SRC).map((file) => ({
+const files = trackedFiles(SRC).map((file) => ({
   file: relative(file),
   lines: countLines(file),
 }));
@@ -56,7 +59,7 @@ const debt = (() => {
 })();
 
 describe("line-limit guardrail", () => {
-  test(`no source file exceeds ${HARD_LIMIT} lines (outside the debt list)`, () => {
+  test(`no file exceeds ${HARD_LIMIT} lines (outside the debt list)`, () => {
     const allowed = new Set(debt);
     const offenders = files
       .filter((entry) => entry.lines > HARD_LIMIT && !allowed.has(entry.file))

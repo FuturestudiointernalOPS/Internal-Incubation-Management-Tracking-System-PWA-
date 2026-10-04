@@ -12,7 +12,9 @@
 - Wave 3 shrinks the soft band. It does not change any behaviour, any SQL, any
   rendered output, any route or any translation key.
 
-`npm run check:lines` ignores test files, migrations and config.
+`npm run check:lines` ignored test files at the time of this wave; since the
+test size pass they are held to the very same limits (see the final slice of
+[`LAYER_SPLIT.md`](LAYER_SPLIT.md)). It still ignores migrations and config.
 
 ## Result
 

@@ -2,9 +2,13 @@
 /**
  * Line Limit Guardrail
  *
- * Enforces file size limits:
+ * Enforces file size limits, source AND test files alike:
  * - Hard ceiling: 600 lines (error)
  * - Soft target: 500 lines (warning)
+ *
+ * Test files are held to the same limits: a suite that outgrows the budget is
+ * split by concern and shares its fixtures through `src/__tests__/helpers/`,
+ * exactly like a source file.
  *
  * Usage:
  *   node scripts/check-line-limits.mjs           # warning mode (default)
@@ -16,7 +20,6 @@ import { readFileSync, writeFileSync, existsSync } from "fs";
 import { globSync } from "glob";
 import { resolve } from "path";
 
-const ROOT = resolve(process.cwd(), "src");
 const DEBT_FILE = resolve(process.cwd(), "scripts/line-limit-debt.json");
 const HARD_LIMIT = 600;
 const SOFT_LIMIT = 500;
@@ -24,12 +27,11 @@ const SOFT_LIMIT = 500;
 const EXTENSIONS = ["js", "jsx", "ts", "tsx"];
 const IGNORE_PATTERNS = [
   "**/*.db",
-  "**/__tests__/**", // test files have different limits
   "**/migrations/**",
   "**/*.config.js",
 ];
 
-function getSourceFiles() {
+function getTrackedFiles() {
   const files = [];
   for (const ext of EXTENSIONS) {
     const matches = globSync(`src/**/*.${ext}`, { ignore: IGNORE_PATTERNS });
@@ -59,7 +61,7 @@ function main() {
   const blockMode = args.includes("--block");
   const updateMode = args.includes("--update");
 
-  const files = getSourceFiles();
+  const files = getTrackedFiles();
   const debtList = loadDebtList();
   const currentOverHard = [];
   const currentOverSoft = [];
@@ -68,7 +70,7 @@ function main() {
 
   console.log(`\n📏 Line Limit Guardrail (${blockMode ? "BLOCKING" : "WARNING"} mode)`);
   console.log(`   Hard limit: ${HARD_LIMIT} lines | Soft limit: ${SOFT_LIMIT} lines`);
-  console.log(`   Scanning ${files.length} source files...\n`);
+  console.log(`   Scanning ${files.length} files (source + tests)...\n`);
 
   for (const file of files) {
     const lines = countLines(file);
