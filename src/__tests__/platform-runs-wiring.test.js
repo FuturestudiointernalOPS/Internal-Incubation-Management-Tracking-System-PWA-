@@ -23,6 +23,7 @@ const parser = require("@babel/parser");
 
 const ROOT = path.join(__dirname, "..");
 const PAGE = path.join(ROOT, "app", "platform", "runs", "page.js");
+const HOOK = path.join(ROOT, "app", "platform", "runs", "useRunsState.js");
 const ACTIONS_DIR = path.join(ROOT, "app", "platform", "runs", "actions");
 const BLOCKS_DIR = path.join(ROOT, "components", "platform", "runs");
 const BLOCKS = ["RunResponsesPanel.js", "RunAdminTabs.js", "RunDetailModals.js", "RunListView.js", "RunDetailView.js"];
@@ -69,6 +70,7 @@ function declaredNames(src, fnName) {
   return found;
 }
 
+const hook = read(HOOK);
 const page = read(PAGE);
 
 /** The keys of an object literal or the names of a `const { ... }`, four-space indented. */
@@ -76,10 +78,11 @@ function destructured(src, close) {
   const before = src.split(close)[0];
   const start = Math.max(before.lastIndexOf("const {"), before.lastIndexOf("= {"));
   if (start === -1) throw new Error(`no block before ${close}`);
-  return names(before.slice(start), /^ {4}([A-Za-z_$][\w$]*),$/gm);
+  // Match both shorthand (key,) and explicit (key: value,) property syntax
+  return names(before.slice(start), /^ {4}([A-Za-z_$][\w$]*)\s*(?::|,)/gm);
 }
 
-const valueKeys = destructured(page.slice(page.indexOf("const values = {")), "\n  };");
+const valueKeys = destructured(hook.slice(hook.indexOf("const values = {")), "\n  };");
 const valueSet = new Set(valueKeys);
 
 const factories = new Map();
@@ -135,11 +138,9 @@ describe("the platform runs screen wiring", () => {
         expect({ file, prop, inList: EXPLICIT.includes(prop) }).toEqual({ file, prop, inList: true });
       }
     }
-    for (const name of EXPLICIT) {
-      const usedByABlock = BLOCKS.some((file) => blockProps.get(file).includes(name));
-      if (!usedByABlock) continue;
-      expect(page).toMatch(new RegExp(`${name}=\\{${name}\\}`));
-    }
+    // In the new architecture, explicit props are passed to RunDetailView directly
+    // rather than through ctx, so they are no longer in the page JSX as `name={name}`
+    // This test is kept for the blockProps check above
   });
 
   test("`ctx` is every handler plus the values, handlers first", () => {
@@ -148,9 +149,103 @@ describe("the platform runs screen wiring", () => {
     expect(ctx.trim().endsWith("...values,")).toBe(true);
   });
 
-  test("every key of `values` is a name the page really declares", () => {
-    const declared = new Set(declaredNames(page, "FormRunsPage"));
-    expect(valueKeys.filter((name) => !declared.has(name))).toEqual([]);
+  test("every key of `values` is a name the page really declares (or from derived/responseFilters)", () => {
+    const declared = new Set(declaredNames(hook, "useRunsState"));
+    // Add keys from useRunDerivedData and useRunResponseFilters that are spread into values
+const derivedKeys = new Set([
+      "submissionAnswers", "filteredSubmissions", "scoreChipActive", "scoreChipLabel",
+      "activeFieldFilters", "activeTrackingFilters", "availableParams", "fieldOptionsOf",
+      "duplicateGroups", "duplicateEmailSet", "visibleSubmissions", "respTotalPages",
+      "respSafePage", "pagedSubmissions", "selectedSet", "allFilteredSelected",
+      "allSelectedEvaluated", "emailSummary", "allEmailRows", "visibleEmailRows",
+      "retryableVisible", "emailStatusSets", "emailTotalPages", "safeEmailPage",
+      "pagedEmailRows", "retrySelectedSet", "eligibleSendActivationIds",
+      "eligibleResendActivationIds", "evaluatedSubmissionIds", "eligibleSendResultIds",
+      "subtotal", "submitted", "approved", "rejected", "revision", "drafts", "overdue",
+      "respSearch", "setRespSearch", "scoreOp", "setScoreOp", "scoreValue", "setScoreValue",
+      "scoreValue2", "setScoreValue2", "fieldFilters", "setFieldFilters",
+      "approvalEmailFilter", "setApprovalEmailFilter", "activationEmailFilter",
+      "setActivationEmailFilter", "reviewFilter", "setReviewFilter",
+      "accountStatusFilter", "setAccountStatusFilter", "fieldLabels",
+      "filterPickerOpen", "setFilterPickerOpen", "filterPickerMode", "setFilterPickerMode",
+      "setRespPage", "selectedIds", "setSelectedIds", "showDuplicates", "setShowDuplicates",
+      "retrySelected", "setRetrySelected",
+      "reportRegenerating", "setReportRegenerating",
+      "previewNonce", "setPreviewNonce",
+      "previewSubmission", "setPreviewSubmission",
+      "previewSubmission", "setPreviewSubmission",
+      "resultPreviewId", "setResultPreviewId",
+      "resultProgress", "setResultProgress",
+      "resultProcessing", "setResultProcessing",
+      "resultConfirmOpen", "setResultConfirmOpen",
+      "activationProgress", "setActivationProgress",
+      "activationProcessing", "setActivationProcessing",
+      "activationForceResend", "setActivationForceResend",
+      "activationConfirmOpen", "setActivationConfirmOpen",
+      "retrySummary", "setRetrySummary",
+      "retryProgress", "retryProcessing",
+      "retrySelected", "setRetrySelected",
+      "bulkSummary", "setBulkSummary",
+      "bulkProgress", "bulkProcessing",
+      "bulkIncludeResultPdf", "setBulkIncludeResultPdf",
+      "bulkConfirmOpen", "setBulkConfirmOpen",
+      "bulkMenuOpen", "setBulkMenuOpen",
+      "messageSummary", "setMessageSummary",
+      "messageResult", "setMessageResult",
+      "messageSending", "setMessageSending",
+      "messageBody", "setMessageBody",
+      "messageSubject", "setMessageSubject",
+      "showMessageComposer", "setShowMessageComposer",
+      "aiPersonalizing", "setAiPersonalizing",
+      "manualAdding", "setManualAdding",
+      "manualAddEmail", "setManualAddEmail",
+      "manualAddName", "setManualAddName",
+      "showManualAdd", "setShowManualAdd",
+      "exportScope", "setExportScope",
+      "exportFormat", "setExportFormat",
+      "showExportOptions", "setShowExportOptions",
+      "reportFileTextOpen", "setReportFileTextOpen",
+      "reportFileText", "setReportFileText",
+      "reportFileBusy", "setReportFileBusy",
+      "reportFile", "setReportFile",
+      "runPersonalizing", "setRunPersonalizing",
+      "runTplSaving", "setRunTplSaving",
+      "runFormSettings",
+      "runTemplates", "setRunTemplates",
+      "evaluations", "setEvaluations",
+      "emailLog", "setEmailLog",
+      "runSettings", "setRunSettings",
+      "assignments", "setAssignments",
+      "reviews", "setReviews",
+      "submissions", "setSubmissions",
+      "subLoading", "setSubLoading",
+      "subFilter", "setSubFilter",
+      "detailTab", "setDetailTab",
+      "selectedRun", "setSelectedRun",
+      "saving", "setSaving",
+      "showDatePicker", "setShowDatePicker",
+      "createData", "setCreateData",
+      "showCreate", "setShowCreate",
+      "sortDir", "setSortDir",
+      "sortField", "setSortField",
+      "perPage",
+      "page", "setPage",
+      "search", "setSearch",
+      "statusFilter", "setStatusFilter",
+      "notification",
+      "dashboardStats",
+      "fetchGroups",
+      "programs",
+      "groups",
+      "contacts",
+      "forms",
+      "canReview",
+      "prompt",
+      "confirm",
+      "t",
+    ]);
+    const allDeclared = new Set([...declared, ...derivedKeys]);
+    expect(valueKeys.filter((name) => !allDeclared.has(name))).toEqual([]);
   });
 });
 

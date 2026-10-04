@@ -11,7 +11,6 @@
   "src/app/investor/diligence/page.js",
   "src/app/participant/ventures/[id]/page.js",
   "src/app/platform/collections/page.js",
-  "src/app/platform/runs/page.js",
   "src/app/platform/runs/review/[submissionId]/page.js",
   "src/app/platform/runs/submit/[runId]/page.js",
   "src/app/pm/programs/[id]/page.js",
