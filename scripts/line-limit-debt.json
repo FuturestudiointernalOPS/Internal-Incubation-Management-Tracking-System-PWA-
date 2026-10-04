@@ -25,7 +25,6 @@
   "src/components/admin/ventures/VentureDetailView.js",
   "src/components/admin/ventures/VentureFoundersView.js",
   "src/components/dashboard/ProgramDetail.js",
-  "src/components/messaging/MessagingChat.js",
   "src/components/permissions/permission-center/EligibilityView.js",
   "src/components/permissions/permission-center/person-access/PersonAccessView.js",
   "src/components/pm/program-workspace/CurriculumTab.js",
