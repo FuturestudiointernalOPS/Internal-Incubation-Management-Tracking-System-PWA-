@@ -24,7 +24,6 @@
   "src/components/dashboard/ProgramDetail.js",
   "src/components/permissions/permission-center/EligibilityView.js",
   "src/components/permissions/permission-center/person-access/PersonAccessView.js",
-  "src/components/pm/program-workspace/SessionModal.js",
   "src/components/tasks/manager/TaskRow.js",
   "src/components/ventures/VentureDashboard.js",
   "src/models/authorization/backfill/moduleBackfills.js",
