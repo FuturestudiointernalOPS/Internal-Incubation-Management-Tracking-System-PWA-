@@ -30,7 +30,7 @@ function collectRouteUsages() {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
-      else if (entry.name === "route.js") files.push(full);
+      else if (entry.name === "route.js" || entry.name === "route.handlers.js") files.push(full);
     }
   })(API_ROOT);
   for (const file of files) {

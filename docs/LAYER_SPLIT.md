@@ -4280,3 +4280,18 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
 - **Cross-calls**: None.
 - **Test couplings**: None (tests use jest.mock only).
 - **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.
+
+### Slice 160 — `src/app/api/platform/form-runs/route.js` (822 → 2 files)
+
+- **Trigger**: API route exceeded 800 lines (822).
+- **Split**: 4 HTTP handlers → barrel + handlers file:
+  - `route.handlers.js` (793): all four handlers (GET 224, POST 476, PUT 19, DELETE 17) with all imports.
+  - Facade `route.js` (88): imports + `export { GET, POST, PUT, DELETE } from "./route.handlers"`.
+- **Test couplings updated** (tests read handler source for pattern assertions):
+  - `identity-gate-bridge.test.js`: `fs.readFileSync(route.js)` → `readSurface(route.handlers.js)`.
+  - `result-email-schedule.test.js`: `read(route.js)` → `readSurface(route.handlers.js)`.
+  - `result-pdf-on-approval.test.js`: `fs.readFileSync(route.js)` → `readSurface(route.handlers.js)`.
+  - `security-lot13-runs.test.js`: `read(route.js)` → `readSurface(route.handlers.js)`; added `readSurface` import.
+  - `route-catalog-contract.test.js`: walker updated to also scan `route.handlers.js` files (detects `requireAuthorization` in extracted handlers).
+- **ESLint**: 0 errors (84 warnings, mostly false-positive `no-unused-vars` in `route.handlers.js` — imports used in handler bodies but not statically detected).
+- **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim handler moves confirmed byte-identical.

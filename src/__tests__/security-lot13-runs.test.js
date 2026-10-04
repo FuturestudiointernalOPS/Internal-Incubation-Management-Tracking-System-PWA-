@@ -11,11 +11,12 @@
 
 const fs = require("fs");
 const path = require("path");
+const { readSurface } = require("./helpers/sourceSurface");
 
 const read = (file) => fs.readFileSync(path.join(__dirname, "..", "..", file), "utf8");
 
 describe("platform Runs submitter reads are session-bound", () => {
-  const src = read("src/app/api/platform/form-runs/route.js");
+  const src = readSurface("src/app/api/platform/form-runs/route.handlers.js");
 
   test("the submitter_id branch binds the target to the session", () => {
     expect(src).toMatch(

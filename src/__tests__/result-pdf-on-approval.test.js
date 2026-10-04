@@ -23,9 +23,8 @@ const path = require("path");
 const { readSurface } = require("./helpers/sourceSurface");
 
 const ROOT = path.resolve(__dirname, "..", "..");
-const ROUTE = "src/app/api/platform/form-runs/route.js";
 const SERVICE = "src/services/platform/formRuns.js";
-const src = fs.readFileSync(path.join(ROOT, ROUTE), "utf8");
+const src = readSurface("src/app/api/platform/form-runs/route.handlers.js");
 // The service is split across `formRuns/`; read the whole surface so the
 // order/reuse pins cover the same bytes wherever the code lives.
 const serviceSrc = readSurface(SERVICE);

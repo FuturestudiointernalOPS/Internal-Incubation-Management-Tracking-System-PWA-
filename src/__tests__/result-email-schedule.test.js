@@ -26,7 +26,7 @@ const { readResultDelayMinutes } = require("@/lib/constants");
 const ROOT = path.resolve(__dirname, "..", "..");
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
-const ROUTE_SRC = read("src/app/api/platform/form-runs/route.js");
+const ROUTE_SRC = readSurface("src/app/api/platform/form-runs/route.handlers.js");
 // The run-email service is split across `formRuns/`; read the whole surface.
 const SERVICE_SRC = readSurface("src/services/platform/formRuns.js");
 const MODEL_SRC = readSurface("src/models/formRuns.js");

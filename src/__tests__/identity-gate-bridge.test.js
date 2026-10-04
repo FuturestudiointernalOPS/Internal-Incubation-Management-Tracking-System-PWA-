@@ -278,7 +278,7 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     // form-runs: the two consequential actions (review + result emails) are now
     // governed by the `runs.edit` capability — the resolver replaces the inline
     // management role check, and the legacy list must be gone for good.
-    const formRunsSource = fs.readFileSync(path.join(ROOT, "src/app/api/platform/form-runs/route.js"), "utf8");
+    const formRunsSource = readSurface("src/app/api/platform/form-runs/route.handlers.js");
     expect(
       (formRunsSource.match(/requireAuthorization\("runs", "edit"\)/g) || []).length,
     ).toBeGreaterThanOrEqual(2);
