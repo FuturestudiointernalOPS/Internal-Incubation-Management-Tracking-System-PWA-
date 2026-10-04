@@ -4340,3 +4340,19 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
 > `src/app/platform/runs/review/[submissionId]/page.js` (uncommitted, mid-split)
 > and `src/components/admin/integrations/WebhooksTab.js` (committed broken in
 > `2d047f38`). Neither touches the tasks model.
+
+### Slice 165 — `src/models/workspace.js` (748 → 8 files)
+
+- **Trigger**: the largest remaining file after the >800 wave (748).
+- **Split**: 56 exported functions → barrel + 7 sub-files by subject:
+  - `workspace/hub.js` (125): post-login memberships, roles and program scopes.
+  - `workspace/calendar.js` (119): the calendar event sources + session CRUD.
+  - `workspace/notifications.js` (170): the notification inbox + the overdue and due-reminder engines.
+  - `workspace/profile.js` (59): profile reads/writes + the contact identity guard.
+  - `workspace/programs.js` (92): progress metrics, document requirements, work categories.
+  - `workspace/teamTasks.js` (67): the team task board.
+  - `workspace/ops.js` (67): activity log, run export, pending campaign dispatch.
+  - Facade `workspace.js` (44): doc header + `export *` + the Venture-session compatibility re-export.
+- **Cross-calls**: the facade keeps the one re-export from `services/workspace/calendar` (unchanged).
+- **Test couplings**: None (suites use `jest.mock`; no source-text pins on this file).
+- **Verification**: import/export surface identical (56 names); the 11 workspace/notification/team suites → 885 tests green; lint 0 errors on the touched scope. Full suite 316/317 — the single failure is `platform-ai-evaluate-once.test.js`, which reads the platform review page currently mid-split by another lane (same blocker as slice 164).
