@@ -4370,3 +4370,16 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
 - **Cross-calls**: internal only (`store`/`lists`/`payments` import `helpers`/`schema`).
 - **Test couplings**: None (suites use `jest.mock`; no source-text pins on this file).
 - **Verification**: public surface checked programmatically (41 names present, internals absent); the LMS checkout/registrations/payment suites → 850 tests green; lint 0 errors on the touched scope. Full suite 316/317 — the single failure remains the other lane's mid-split review page (same blocker as slices 164–165).
+
+### Slice 167 — `src/models/authorization/backfill/moduleBackfills.js` (736 → 5 files)
+
+- **Trigger**: the next largest remaining file (736).
+- **Split**: 10 backfills → barrel + 4 sub-files by phase/domain:
+  - `backfill/moduleBackfills/contentBackfills.js` (262): knowledge, reports, announcements, forms.
+  - `backfill/moduleBackfills/workBackfills.js` (251): runs, projects, tasks.
+  - `backfill/moduleBackfills/programBackfills.js` (162): programs, ventures.
+  - `backfill/moduleBackfills/investorBackfills.js` (106): the investor portal.
+  - Facade `moduleBackfills.js` (29): doc header + `export *` from the four modules.
+- **Cross-calls**: None (each module imports `db` and `ensurePermissionsSchema` only).
+- **Test couplings**: None (the parent `backfill.js` barrel re-exports unchanged; suites exercise the functions, not the file text).
+- **Verification**: public surface checked programmatically (exactly the ten backfills); the authorization/phase/db-budget suites → 172 + 888 tests green; lint 0 errors on the touched scope. Full suite 316/317 — the single failure remains the other lane's mid-split review page.
