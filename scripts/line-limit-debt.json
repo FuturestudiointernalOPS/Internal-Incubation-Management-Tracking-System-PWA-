@@ -32,7 +32,6 @@
   "src/models/authorization/backfill/moduleBackfills.js",
   "src/models/curriculum/sessionsAndSelfHealing.js",
   "src/models/lms/registrations.js",
-  "src/models/participantPortal.js",
   "src/models/platform/automation/automationCore.js",
   "src/models/platformAi.js",
   "src/models/programs/core.js",
