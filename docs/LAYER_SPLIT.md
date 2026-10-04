@@ -4245,3 +4245,15 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
   - `identity-role-writes.test.js`: `fs.readFileSync("src/models/formRuns.js")` → `readSurface("src/models/formRuns.js")`.
   - `result-email-schedule.test.js`: `read("src/models/formRuns.js")` → `readSurface("src/models/formRuns.js")`.
 - **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.
+
+### Slice 157 — `src/models/authorization.js` (885 → 3 files)
+
+- **Trigger**: `authorization.js` exceeded 800 lines (885).
+- **Split**: 85 exported functions → barrel + 2 sub-files by functional area:
+  - `authorization/membershipAndProfiles.js` (420): org-membership, access-profiles CRUD, assign, role-defaults — lines 19-436
+  - `authorization/engineeringAndAudit.js` (449): engineering/permissions (includes `runSafeQuery` helper), eligibility, audit — lines 437-end. Contains the TRUE identity role mutations (promote/demote super_admin/staff).
+  - Facade `authorization.js` (21): doc header + `export *` from two modules.
+- **Cross-calls**: `runSafeQuery` called 10 times, all within engineering/permissions section — internal to File B. No cross-file imports needed.
+- **Test couplings updated**:
+  - `identity-role-writes.test.js`: KNOWN_SITES entry `"src/models/authorization.js"` → `"src/models/authorization/engineeringAndAudit.js"` (TRUE identity op).
+- **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.

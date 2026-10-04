@@ -52,7 +52,7 @@ test("mutation-site inventory is frozen (every contacts.role write is known)", (
   // list shrinks to the true identity operations (promote/demote).
   const KNOWN_SITES = [
     "src/models/adminOps.js", // approval → participant (contextual — I2 target)
-    "src/models/authorization.js", // promote/demote super_admin/staff (TRUE identity op — keep)
+    "src/models/authorization/engineeringAndAudit.js", // promote/demote super_admin/staff (TRUE identity op — keep)
     "src/models/investorRelations/provisioningAndProfile.js", // investor onboarding (contextual — I2 target)
     "src/models/platform/automation/automationCore.js", // platform approval role set (contextual — I2 target)
   ];
