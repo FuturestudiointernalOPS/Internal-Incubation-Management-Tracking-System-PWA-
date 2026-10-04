@@ -1,114 +1,23 @@
 /**
- * Authorization Foundation (Phase 0) — unit tests for the pure resolution
- * logic: merge semantics (V2-equivalent), eligibility evaluation, and the
- * authorize() decision (allow / deny / restriction / missing / Super Admin).
+ * Authorization Foundation (Phase 0) — the per-module gating as each phase
+ * landed it: projects, tasks, engineering, programs, ventures, investor and
+ * messaging, plus buildPermissionExplanation.
  *
  * Pure logic only — the DB layer is mocked, no database access.
+ *
+ * Mocks and context factories come from ./helpers/authorizationMocks.
  */
 
-jest.mock("@/lib/db", () => ({
-  __esModule: true,
-  default: { execute: jest.fn(async () => ({ rows: [] })) },
-  initDb: jest.fn(async () => {}),
-}));
+const mockAuthz = require("./helpers/authorizationMocks");
 
-jest.mock("@/lib/auth", () => {
-  const PERMISSION_MODULES = {
-    projects: { capabilities: ["view", "create", "edit", "delete", "archive"] },
-    programs: { capabilities: ["view", "create", "edit", "delete", "publish"] },
-    users: {
-      capabilities: ["view", "create", "edit", "suspend", "delete", "assign_roles"],
-    },
-    reports: { capabilities: ["view", "create", "export", "delete"] },
-    messaging: { capabilities: ["view", "send", "delete"] },
-    internal_comms: { capabilities: ["view", "create_announcements", "moderate"] },
-    contacts: { capabilities: ["view", "create", "edit", "delete"] },
-    permissions: {
-      capabilities: [
-        "view_matrix",
-        "grant",
-        "revoke",
-        "assign_capabilities",
-        "assign_groups",
-        "assign_responsibilities",
-        "promote_super_admin",
-        "remove_super_admin",
-        "configure_eligibility",
-      ],
-    },
-    engineering: {
-      capabilities: ["view", "manage_tasks", "manage_errors"],
-    },
-    finance: { capabilities: ["view", "create", "edit", "delete", "export"] },
-    settings: { capabilities: ["view", "edit"] },
-    org_membership: { capabilities: ["view", "manage"] },
-    facilitator: {
-      capabilities: [
-        "participants.view",
-        "participants.manage",
-        "attendance.view",
-        "attendance.record",
-        "assignments.view",
-        "assignments.review",
-        "assignments.grade",
-        "sessions.conduct",
-        "sessions.record",
-        "progress.view",
-        "groups.view",
-        "groups.manage",
-        "reviews.submit",
-      ],
-    },
-    lms: { capabilities: ["view", "create", "edit", "delete"] },
-  };
-  return {
-    PERMISSION_MODULES,
-    ACCESS_LEVELS: { NONE: 0, VIEW: 1, CREATE: 2, EDIT: 3, DELETE: 4, FULL: 5 },
-    getSession: jest.fn(async () => null),
-    ensurePermissionsSchema: jest.fn(async () => {}),
-  };
-});
+jest.mock("@/lib/db", () => mockAuthz.db);
+jest.mock("@/lib/auth", () => mockAuthz.auth);
+jest.mock("next/server", () => mockAuthz.nextServer);
 
-jest.mock("next/server", () => ({
-  NextResponse: {
-    json: (body, init = {}) => ({ body, ...init }),
-  },
-}));
-
-const {
-  mergeEffectiveCapabilities,
-  authorize,
-} = require("@/services/authorization/context");
-const {
-  evaluateEligibility,
-} = require("@/services/authorization/eligibility");
-const { requireAuthorization } = require("@/models/authorization/index");
+const { authorize } = require("@/services/authorization/context");
+const { staffCtx } = require("./helpers/authorizationMocks");
 
 // ─── mergeEffectiveCapabilities: V2 semantics ───────────────────────────────
-
-
-const saCtx = (overrides = {}) => ({
-  cid: "USR-SA",
-  role: "super_admin",
-  isSuperAdmin: true,
-  eligibility: null,
-  effective: { finance: { view: 5, create: 5 } },
-  grants: {},
-  restrictions: {},
-  ...overrides,
-});
-
-const staffCtx = (overrides = {}) => ({
-  cid: "USR-STAFF",
-  role: "staff",
-  isSuperAdmin: false,
-  eligibility: { finance: true, crm: false },
-  effective: { finance: { view: 1, create: 2 }, contacts: { view: 3 } },
-  grants: {},
-  restrictions: {},
-  ...overrides,
-});
-
 
 describe("projects module (Phase 6)", () => {
   test("MODULE_TO_FEATURE maps projects → operations", () => {
@@ -499,6 +408,4 @@ describe("buildPermissionExplanation (who has access + why)", () => {
     expect(buildPermissionExplanation(null)).toBeNull();
   });
 });
-
-// ─── requireAuthorization route helper ──────────────────────────────────────
 
