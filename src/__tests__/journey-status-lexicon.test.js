@@ -18,6 +18,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { readSurface } = require("./helpers/sourceSurface");
 
 const {
   STATUS_WORDS,
@@ -192,7 +193,10 @@ describe("one tone map — the same colour for the same state everywhere", () =>
 
 describe("every surface reads the one source", () => {
   test("the founder journey tab delegates and keeps no local milestone map", () => {
-    const src = read(FOUNDER);
+    // readSurface, not read: the deliverables block moved into
+    // `JourneyPlaybookTabs/` for size, and the pinned vocabulary must stay
+    // covered there too.
+    const src = readSurface(FOUNDER);
     expect(src).toContain('from "@/lib/ventureStatuses"');
     expect(src).toContain("milestoneStatusWord");
     expect(src).toContain("deliverableStatusWord");
