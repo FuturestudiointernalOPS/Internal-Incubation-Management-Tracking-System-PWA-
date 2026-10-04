@@ -4189,3 +4189,16 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
   - `identity-role-writes.test.js`: KNOWN_SITES entry `"src/models/investorRelations.js"` → `"src/models/investorRelations/provisioningAndProfile.js"`; second list same change; `fs.readFileSync("src/models/investorRelations.js")` → `readSurface("src/models/investorRelations.js")`; added `readSurface` import.
   - `identity-gate-bridge.test.js`: `fs.readFileSync("src/models/investorRelations.js")` → `readSurface("src/models/investorRelations.js")` (already imported).
 - **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.
+
+### Slice 153 — `src/models/investor.js` (1002 → 4 files)
+
+- **Trigger**: `investor.js` exceeded 800 lines (1002).
+- **Split**: 87 exported functions → barrel + 3 sub-files by API route group:
+  - `investor/diligenceAndPipeline.js` (562): diligence (26), documents (8), pipeline (19) — lines 35-593
+  - `investor/dashboardsAndKpis.js` (317): dashboard (9), executive-dashboard (1), admin-overview (4), evaluation (4), venture-kpis (3), kpis (2) — lines 594-907
+  - `investor/venturesAndUpdates.js` (99): ventures search (2), updates (2) — lines 908-1030
+  - Facade `investor.js` (39): doc header + `export *` from three modules.
+- **Cross-calls**: None.
+- **Test coupling updated**:
+  - `identity-gate-bridge.test.js`: `fs.readFileSync("src/models/investor.js")` → `readSurface("src/models/investor.js")` (already imported).
+- **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.

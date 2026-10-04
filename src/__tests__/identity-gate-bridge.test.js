@@ -229,7 +229,7 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(service).toMatch(/MANAGEMENT_ROLES = \["super_admin", "staff", "program_manager"\]/);
     expect(service).toMatch(/investorId = profileResult\.rows\[0\]\.id/);
     // Model: venture reads are own-scoped when an investorId is bound.
-    const model = fs.readFileSync(path.join(ROOT, "src/models/investor.js"), "utf8");
+    const model = readSurface("src/models/investor.js");
     expect(model).toMatch(/ventureId && investorId/);
     expect(model).toMatch(/AND ip\.investor_id = \?/);
   });
