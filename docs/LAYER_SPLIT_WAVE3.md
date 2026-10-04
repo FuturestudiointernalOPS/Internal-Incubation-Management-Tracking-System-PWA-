@@ -126,6 +126,31 @@ and then genuinely split the same way as the rest of this wave:
   in the review page is gone, so the previous build blocker is cleared.
 - **Commits** — one commit per file/slice (see `git log` on branch `A`).
 
+## Compatibility re-exports — removed
+
+The `compat-reexports.test.js` guardrail tracked two surviving shims; both are
+now gone, and `scripts/compat-reexport-debt.json` is `[]`:
+
+- **`src/models/workspace.js`** — the named `getCalendarVentureSessions`
+  re-export to `@/services/workspace/calendar` was dropped; its one service
+  importer and the calendar suite now read the service directly.
+- **`src/lib/auth.js`** — the last facade (a pure pass-through to
+  `@/server/auth`, `@/server/authz`, `@/models/authorization` and
+  `@/services/authorization/accessProfiles`) is deleted. Its ~237 static
+  imports, ~120 `require`/dynamic-import sites and ~114 test mocks were
+  repointed to the symbols' real homes — a mechanical codemod for the bulk, the
+  ~20 irregular mock factories and the two boundary suites by hand. The two
+  architecture tests that pinned the facade were updated: they now assert the
+  symbols live in their real layer and that the facade file is gone.
+
+### Verification
+
+- **Guardrail** — `compat-reexports.test.js` green with an empty debt list.
+- **ESLint** — `npx eslint src --quiet`: **0 errors** across the ~400 changed
+  files.
+- **Behaviour** — `npm test`: **338/338 suites, 6799/6799 tests** green.
+- **Build** — `next build`: compiled successfully.
+
 ## Needs a human eye before promotion
 
 The plan flags the most shared surfaces for a before/after visual pass. Three
