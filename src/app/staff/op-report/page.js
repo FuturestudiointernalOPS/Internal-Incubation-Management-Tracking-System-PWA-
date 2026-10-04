@@ -14,6 +14,20 @@ import { getCurrentWeek } from "@/components/staff/op-report/dates";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useApi, useApiMulti } from "@/lib/hooks/useApi";
 import OpReportView from "@/components/staff/op-report/OpReportView";
+import OpReportLoading from "@/components/staff/op-report/OpReportLoading";
+import {
+  NEW_TASK_FORM,
+  buildReportUrl,
+  buildTaskEndpoints,
+  mergeTasks,
+  resolveWeekInfo,
+} from "@/components/staff/op-report/opReportDerivations";
+import {
+  draftKey,
+  readDraft,
+  removeDraft,
+  writeDraft,
+} from "@/components/staff/op-report/draftStore";
 import { EMPTY_LIST, EMPTY_REPORT, INITIAL_FORM, REPORT_TABS, TASK_STATUSES, hasDraftContent, pickAssignments, pickList, pickReport, pickStudioStaff, reportToForm } from "./readers";
 import { useOpReportNav } from "./useOpReportNav";
 import { toastActions } from "./actions/toast";
@@ -65,13 +79,10 @@ function StaffOpReport() {
 
   const weekParam = parseInt(searchParams.get("week") || "", 10);
   const yearParam = parseInt(searchParams.get("year") || "", 10);
-  const weekInfo = useMemo(() => {
-    if (isNaN(weekParam) || weekParam < 1 || weekParam > 53) return thisWeek;
-    return {
-      week: weekParam,
-      year: !isNaN(yearParam) && yearParam >= 2000 ? yearParam : thisWeek.year,
-    };
-  }, [weekParam, yearParam, thisWeek]);
+  const weekInfo = useMemo(
+    () => resolveWeekInfo(weekParam, yearParam, thisWeek),
+    [weekParam, yearParam, thisWeek],
+  );
 
 
   const { goTo, setReportType, setWeekInfo } = useOpReportNav({
@@ -93,9 +104,7 @@ function StaffOpReport() {
   // a change of week or of type is what re-reads, and so the form below has an
   // address to belong to. No address means "not asked yet" and issues nothing.
   const userId = userCid || user?.id || null;
-  const reportUrl = userId
-    ? `/api/op-reports?user_id=${userId}&type=${reportType}&week=${weekInfo.week}&year=${weekInfo.year}`
-    : null;
+  const reportUrl = buildReportUrl(userId, reportType, weekInfo);
   const { data: reportRead, refresh: refreshReport } = useApi(reportUrl, {
     defaultValue: EMPTY_REPORT,
     transform: pickReport,
@@ -114,37 +123,15 @@ function StaffOpReport() {
   // The task list is one read per status plus the tasks assigned TO this person,
   // issued together; the merge below is what the loader did by hand.
   const taskEndpoints = useMemo(
-    () =>
-      userId
-        ? [
-            ...TASK_STATUSES.map((status) => ({
-              key: status,
-              url: `/api/tasks?user_id=${userId}&status=${status}`,
-              transform: pickList("tasks"),
-            })),
-            {
-              key: "assigned",
-              url: `/api/tasks?assigned_to=${userId}`,
-              transform: pickList("tasks"),
-            },
-          ]
-        : [],
+    () => buildTaskEndpoints(userId, TASK_STATUSES, pickList),
     [userId],
   );
   const { data: taskAnswers, refresh: refreshTasks } =
     useApiMulti(taskEndpoints);
-  const tasks = useMemo(() => {
-    const merged = new Map();
-    for (const status of TASK_STATUSES) {
-      for (const task of taskAnswers[status] || []) {
-        if (!merged.has(task.id)) merged.set(task.id, task);
-      }
-    }
-    for (const task of taskAnswers.assigned || []) {
-      if (!merged.has(task.id)) merged.set(task.id, task);
-    }
-    return Array.from(merged.values());
-  }, [taskAnswers]);
+  const tasks = useMemo(
+    () => mergeTasks(taskAnswers, TASK_STATUSES),
+    [taskAnswers],
+  );
 
   // The task list feeds the dashboard's calendar; the loader signalled that on
   // every load, and that signal is the only thing left in an effect - it writes
@@ -169,19 +156,7 @@ function StaffOpReport() {
   const [isHistorical, setIsHistorical] = useState(false);
   const [expandedWeek, setExpandedWeek] = useState(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
-  const [newTaskForm, setNewTaskForm] = useState({
-    name: "",
-    project_id: "",
-    category: "",
-    start_date: "",
-    start_time: "",
-    due_date: "",
-    due_time: "",
-    collaborator: "",
-    collaborator_note: "",
-    project_search: "",
-    show_dropdown: false,
-  });
+  const [newTaskForm, setNewTaskForm] = useState(NEW_TASK_FORM);
 
   // Form state. The report the read returned is the BASE, and the person's typing
   // is recorded WITH THE ADDRESS IT WAS TYPED FOR - so changing week or type shows
@@ -252,10 +227,10 @@ function StaffOpReport() {
   const [now] = useState(() => Date.now());
 
   // Build a localStorage key for the current user + current week
-  const getDraftKey = useCallback(() => {
-    if (!userCid) return null;
-    return `standup_draft_${userCid}_${weekInfo.week}_${weekInfo.year}`;
-  }, [userCid, weekInfo.week, weekInfo.year]);
+  const getDraftKey = useCallback(
+    () => draftKey(userCid, weekInfo.week, weekInfo.year),
+    [userCid, weekInfo.week, weekInfo.year],
+  );
 
   // Save draft to localStorage after 2s of no changes
   useEffect(() => {
@@ -265,21 +240,16 @@ function StaffOpReport() {
 
     if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
     draftTimerRef.current = setTimeout(() => {
-      try {
-        if (hasDraftContent(form, taskRows)) {
-          const draft = {
-            form,
-            taskRows,
-            reportType,
-            showTaskForm,
-            savedAt: Date.now(),
-          };
-          localStorage.setItem(key, JSON.stringify(draft));
-        } else {
-          localStorage.removeItem(key);
-        }
-      } catch {
-        // localStorage full or unavailable — silently ignore
+      if (hasDraftContent(form, taskRows)) {
+        writeDraft(key, {
+          form,
+          taskRows,
+          reportType,
+          showTaskForm,
+          savedAt: Date.now(),
+        });
+      } else {
+        removeDraft(key);
       }
     }, 2000);
 
@@ -301,64 +271,33 @@ function StaffOpReport() {
   const checkDraft = useCallback(() => {
     const key = getDraftKey();
     if (!key) return;
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (hasDraftContent(parsed.form, parsed.taskRows)) {
-          setDraftAvailable(true);
-          return;
-        }
-      }
-    } catch {
-      // ignore
-    }
-    setDraftAvailable(false);
+    const draft = readDraft(key);
+    setDraftAvailable(
+      Boolean(draft && hasDraftContent(draft.form, draft.taskRows)),
+    );
   }, [getDraftKey]);
 
   // Restore draft content
   const restoreDraft = useCallback(() => {
     const key = getDraftKey();
     if (!key) return;
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const draft = JSON.parse(raw);
-        if (draft.form) setForm(draft.form);
-        if (draft.taskRows) setTaskRows(draft.taskRows);
-        if (draft.reportType) setReportType(draft.reportType);
-        if (draft.showTaskForm !== undefined)
-          setShowTaskForm(draft.showTaskForm);
-      }
-    } catch {
-      // ignore
-    }
+    const draft = readDraft(key);
+    if (draft?.form) setForm(draft.form);
+    if (draft?.taskRows) setTaskRows(draft.taskRows);
+    if (draft?.reportType) setReportType(draft.reportType);
+    if (draft?.showTaskForm !== undefined) setShowTaskForm(draft.showTaskForm);
     setDraftAvailable(false);
   }, [getDraftKey, setReportType, setForm]);
 
   // Discard draft
   const discardDraft = useCallback(() => {
-    const key = getDraftKey();
-    if (key) {
-      try {
-        localStorage.removeItem(key);
-      } catch {
-        /* ignore */
-      }
-    }
+    removeDraft(getDraftKey());
     setDraftAvailable(false);
   }, [getDraftKey]);
 
   // Clear draft from localStorage (called on successful submit)
   const clearDraft = useCallback(() => {
-    const key = getDraftKey();
-    if (key) {
-      try {
-        localStorage.removeItem(key);
-      } catch {
-        /* ignore */
-      }
-    }
+    removeDraft(getDraftKey());
     setDraftAvailable(false);
   }, [getDraftKey]);
 
@@ -546,13 +485,7 @@ function StaffOpReport() {
 
 export default function StaffOpReportPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
-        </div>
-      }
-    >
+    <Suspense fallback={<OpReportLoading />}>
       <StaffOpReport />
     </Suspense>
   );
