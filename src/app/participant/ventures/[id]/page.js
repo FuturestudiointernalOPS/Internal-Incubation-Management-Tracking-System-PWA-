@@ -1,20 +1,23 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useRouter, useParams } from "next/navigation";
-import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
+import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useDialogs } from "@/components/ui/DialogProvider";
-import { VentureWorkspace } from "@/components/ventures/workspace/VentureContext";
-import VentureWorkspaceView from "@/components/participant/ventures/VentureWorkspaceView";
+import VentureWorkspaceScreen from "@/components/participant/ventures/VentureWorkspaceScreen";
 import {
   pickVenture, ventureToForm, pickMembers, pickInvitations, pickDashboard,
   pickProgress, pickCalendar, pickJourney, EMPTY_ROADMAP, pickBm,
   pickInterviews, pickValidations, pickAssessments, pickMilestones,
   pickDocuments, pickInvestmentReadiness, pickOptionLists,
 } from "@/components/participant/ventures/ventureScreenModel";
+import {
+  ventureToPayload, mergePermissionRoles, buildDocumentQuery,
+  inputStyle, cardStyle, notifyMsg,
+} from "@/components/participant/ventures/ventureScreenHelpers";
+import { createVentureLoaders } from "@/components/participant/ventures/ventureScreenLoaders";
 
 export default function VentureDetail() {
   const [saving, setSaving] = useState(false);
@@ -208,46 +211,15 @@ export default function VentureDetail() {
       : null,
     { defaultValue: [], transform: pickMilestones },
   );
-  async function fetchActionPlans(bypassCache = false) {
-    const url = `/api/ventures/${params.id}/action-plans`;
-    const apply = (payload) => { if (payload.success) setActionPlans(payload.action_plans); };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const response = await fetch(url); const data = await response.json(); if (data.success) cacheSet(url, data); apply(data);
-    } catch{}
-  }
-  async function fetchTasks(bypassCache = false) {
-    const url = `/api/ventures/${params.id}/tasks`;
-    const apply = (payload) => { if (payload.success) setTasks(payload.tasks || []); };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const response = await fetch(url); const data = await response.json(); if (data.success) cacheSet(url, data); apply(data);
-    } catch{}
-  }
-  async function fetchStandups(bypassCache = false) {
-    const url = `/api/ventures/${params.id}/standups`;
-    const apply = (payload) => { if (payload.success) { setStandups(payload.standups || []); setCurrentWeekStandup(payload.current_week_submitted !== false); setCurrentWeekNum(payload.current_week); setCurrentWeekYear(payload.current_year); } };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const response = await fetch(url); const data = await response.json(); if (data.success) cacheSet(url, data); apply(data);
-    } catch{}
-  }
-  async function fetchRetros(bypassCache = false) {
-    const url = `/api/ventures/${params.id}/retros`;
-    const apply = (payload) => { if (payload.success) { setRetros(payload.retros || []); setCurrentWeekRetro(payload.current_week_submitted !== false); setCurrentWeekNum(payload.current_week); setCurrentWeekYear(payload.current_year); } };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const response = await fetch(url); const data = await response.json(); if (data.success) cacheSet(url, data); apply(data);
-    } catch{}
-  }
-  async function fetchBlockers(bypassCache = false) {
-    const url = `/api/ventures/${params.id}/blockers`;
-    const apply = (payload) => { if (payload.success) setBlockers(payload.blockers || []); };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const response = await fetch(url); const data = await response.json(); if (data.success) cacheSet(url, data); apply(data);
-    } catch{}
-  }
+  const {
+    fetchActionPlans, fetchTasks, fetchStandups, fetchRetros,
+    fetchBlockers, fetchAdvisors, fetchCoaching, fetchPlaybook,
+  } = createVentureLoaders({
+    params,
+    setActionPlans, setTasks, setStandups, setRetros, setBlockers,
+    setAdvisors, setCoachingSessions, setPlaybookEntries,
+    setCurrentWeekStandup, setCurrentWeekNum, setCurrentWeekYear, setCurrentWeekRetro,
+  });
   // (progressData and calendarEvents are read above, with the section they
   // belong to.)
   async function handleTaskStatusChange(taskId, newStatus) {
@@ -260,32 +232,13 @@ export default function VentureDetail() {
   // The document list is ADDRESSED on the two filters, so writing in the search
   // box or choosing a category re-asks by itself: the tab no longer has to call
   // this to reload, which is why its debounce and its key-up reload are gone.
-  const documentParams = new URLSearchParams();
-  if (documentSearch) documentParams.set("search", documentSearch);
-  if (documentCategory) documentParams.set("category", documentCategory);
-  const documentQuery = documentParams.toString();
+  const documentQuery = buildDocumentQuery(documentSearch, documentCategory);
   const { data: documents, refresh: fetchDocuments } = useApi(
     onJourney && journeySub === "documents"
       ? `/api/ventures/${params.id}/documents${documentQuery ? `?${documentQuery}` : ""}`
       : null,
     { defaultValue: [], transform: pickDocuments },
   );
-  async function fetchAdvisors(bypassCache = false) {
-    const url = `/api/ventures/${params.id}/advisors`;
-    const apply = (payload) => { if (payload.success) setAdvisors(payload.advisors || []); };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const response = await fetch(url); const data = await response.json(); if (data.success) cacheSet(url, data); apply(data);
-    } catch{}
-  }
-  async function fetchCoaching(bypassCache = false) {
-    const url = `/api/ventures/${params.id}/coaching`;
-    const apply = (payload) => { if (payload.success) setCoachingSessions(payload.sessions || payload.coaching_sessions || []); };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const response = await fetch(url); const data = await response.json(); if (data.success) cacheSet(url, data); apply(data);
-    } catch{}
-  }
   async function handleResolveBlocker(blockerId) {
     await fetch(`/api/ventures/${params.id}/blockers`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ blocker_id: blockerId, action: "resolve" }) });
     fetchBlockers(true);
@@ -329,14 +282,7 @@ export default function VentureDetail() {
       const response = await fetch(`/api/ventures/${params.id}/documents/${docId}/permissions`);
       const data = await response.json();
       if (data.success) {
-        // Ensure all roles are present
-        const existing = data.permissions || [];
-        const roles = ['founder','team','advisor','administrator','investor'];
-        const merged = roles.map(role => {
-          const found = existing.find(permission => permission.role_scope === role);
-          return found || { role_scope: role, access_level: 'view' };
-        });
-        setPermissions(merged);
+        setPermissions(mergePermissionRoles(data.permissions || []));
       }
     } catch{}
     setPermissionsDoc({id: docId}); setShowPermissions(true);
@@ -344,14 +290,6 @@ export default function VentureDetail() {
   async function handleSavePermission(docId, role_scope, access_level) {
     await fetch(`/api/ventures/${params.id}/documents/${docId}/permissions`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ role_scope, access_level }) });
     handlePermissions(docId);
-  }
-  async function fetchPlaybook(bypassCache = false) {
-    const url = `/api/ventures/${params.id}/playbook`;
-    const apply = (payload) => { if (payload.success) setPlaybookEntries(payload.playbook || []); };
-    try {
-      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
-      const response = await fetch(url); const data = await response.json(); if (data.success) cacheSet(url, data); apply(data);
-    } catch{}
   }
   const { data: investmentReadiness, refresh: fetchInvestmentReadiness } = useApi(
     ready && activeTab === "investment"
@@ -371,18 +309,7 @@ export default function VentureDetail() {
     event.preventDefault();
     setSaving(true);
     try {
-      const payload = {
-        id: params.id,
-        name: form.name, description: form.description || null,
-        mission: form.mission || null, vision: form.vision || null,
-        industry: form.industry || null, sector: form.sector || null,
-        business_stage: form.business_stage, website: form.website || null,
-        country: form.country || null, country_code: form.country_code || null, registration_status: form.registration_status || null,
-        north_star: form.north_star || null,
-        social_media: { twitter: form.twitter || "", linkedin: form.linkedin || "", instagram: form.instagram || "", facebook: form.facebook || "" },
-        status: form.status, visibility: form.visibility, language: form.language,
-        branding: { color: form.brandColor || "#f60" },
-      };
+      const payload = ventureToPayload(params.id, form);
       const response = await fetch("/api/ventures", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -478,11 +405,6 @@ export default function VentureDetail() {
     }
   }
 
-  const notifyMsg = (message, type = "info") => window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type, message: String(message || ""), duration: 4000 } }));
-
-  const inputStyle = { backgroundColor: "rgb(15 23 42)", borderColor: "rgb(255 255 255 / 0.15)", color: "var(--text-primary)" };
-  const cardStyle = { backgroundColor: "rgb(255 255 255 / 0.05)", borderColor: "rgb(255 255 255 / 0.1)" };
-
   // Workspace context — everything the extracted tab components may consume
   // (Phase 2). Provided under the same identifiers the tabs destructure.
   const ws = {
@@ -528,35 +450,18 @@ export default function VentureDetail() {
     fetchJourney, fetchPlaybook, fetchInvestmentReadiness,
   };
 
-  if (loading) return (
-    <>
-      <div className="flex justify-center py-20"><Loader2 className="animate-spin" style={{ color: "var(--text-secondary)" }} size={32} /></div>
-    </>
-  );
-
-  if (!venture) return (
-    <>
-      <div className="p-6 text-center" style={{ color: "var(--text-secondary)" }}>{t("venture.loadError")}</div>
-    </>
-  );
-
   return (
-    <VentureWorkspace.Provider value={ws}>
-      {/* Edge spacing belongs to the SHELL (DashboardLayout's main already pads
-          every page); this page used to add its own p-6 on top, which doubled the
-          gap to the edges. The width cap matches the stand-alone Venture
-          dashboard so the workspace uses the screen instead of hugging a narrow
-          column in the middle. */}
-      <VentureWorkspaceView
-        venture={venture}
-        brandColor={form.brandColor}
-        activeTab={activeTab}
-        journeySub={journeySub}
-        onSection={openSection}
-        onJourneySub={setJourneySub}
-        onBack={() => router.push("/participant/ventures")}
-        t={t}
-      />
-    </VentureWorkspace.Provider>
+    <VentureWorkspaceScreen
+      loading={loading}
+      venture={venture}
+      brandColor={form.brandColor}
+      activeTab={activeTab}
+      journeySub={journeySub}
+      onSection={openSection}
+      onJourneySub={setJourneySub}
+      onBack={() => router.push("/participant/ventures")}
+      workspace={ws}
+      t={t}
+    />
   );
 }
