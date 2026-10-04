@@ -32,7 +32,7 @@ import {
   getQuickAccessTasks,
   getKpiProgressRows,
 } from "@/models/dashboard";
-import { getCalendarVentureSessions } from "@/models/workspace";
+import { getCalendarVentureSessions } from "@/services/workspace/calendar";
 import { buildOverviewCalendar } from "./calendar";
 import { summarizeTaskStats, summarizeBlockers } from "./attention";
 import { buildQuickAccessProjects } from "./projects";

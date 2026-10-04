@@ -31,14 +31,3 @@ export * from "./workspace/profile";
 export * from "./workspace/programs";
 export * from "./workspace/teamTasks";
 export * from "./workspace/ops";
-
-/**
- * Compatibility shim — moved to the service layer.
- *
- * `getCalendarVentureSessions` now lives in `@/services/workspace/calendar`
- * (the derivation of the Venture scope) with its three statements in
- * `@/models/workspaceCalendarStore`. Re-exported here so existing importers
- * (the dashboard route, the calendar suite) keep working — see
- * docs/LAYER_SPLIT.md.
- */
-export { getCalendarVentureSessions } from "@/services/workspace/calendar";
