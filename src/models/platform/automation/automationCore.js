@@ -1,10 +1,19 @@
-import {
-  audit,
-  notifyUser,
-} from "@/models/platform/integrations";
-import { resolveDefaultRole } from "@/models/platform/roles";
-import { resolveAutomationFlag } from "@/lib/platform/automationSettings";
-import { stopRoleMutationEnabled } from "@/lib/identity";
+/**
+ * PLATFORM AUTOMATION ENGINE — barrel.
+ *
+ * Event-driven automation layer. When Platform events occur
+ * (submission received, review completed, deadline approaching),
+ * the engine runs configured automation rules.
+ *
+ * Rules can be defined declaratively and are executed asynchronously
+ * to avoid blocking the main request flow.
+ *
+ * Rules were split for size into `automationCore/` (one module per concern).
+ * This file keeps the exported surface (`PLATFORM_EVENTS`, `AUTOMATION_RULES`)
+ * and the approval rule that owns the identity/role mutation, and assembles
+ * every rule module into the same ordered list.
+ */
+
 import {
   resolveSubmissionEmail,
   resolvePersonName,
@@ -12,6 +21,9 @@ import {
   sendTrackedEmail,
   sendConfirmationEmail,
 } from "@/lib/email";
+import { resolveDefaultRole } from "@/models/platform/roles";
+import { resolveAutomationFlag } from "@/lib/platform/automationSettings";
+import { stopRoleMutationEnabled } from "@/lib/identity";
 import {
   getDecisionEmailSubmissionById,
   getFieldLabelsByRunId,
@@ -19,140 +31,24 @@ import {
   getRunTemplateSettingsForDecisionById,
 } from "@/models/formRuns";
 import { hashToken } from "@/lib/token-hashing";
-import { syncCrmContact, writeCrmTimeline } from "./crmHelpers";
-import { sendAcknowledgementForSubmission } from "./submissionConfirmation";
+import { writeCrmTimeline } from "./crmHelpers";
+import { PLATFORM_EVENTS } from "./automationCore/events";
+import { submissionRules } from "./automationCore/submissionRules";
+import { reviewRules } from "./automationCore/reviewRules";
+import { runRules } from "./automationCore/runRules";
+import { assignmentRules } from "./automationCore/assignmentRules";
+
+export { PLATFORM_EVENTS };
 
 // ─── Module-level DDL caches (avoid running ALTER/CREATE on every request) ───
 let contactsLanguageColumnEnsured = false;
-
-// ─── EVENT DEFINITIONS ─────────────────────────────────────────────
-
-export const PLATFORM_EVENTS = {
-  RUN_CREATED: "run.created",
-  RUN_LAUNCHED: "run.launched",
-  RUN_CLOSED: "run.closed",
-  SUBMISSION_RECEIVED: "submission.received",
-  SUBMISSION_DRAFT_SAVED: "submission.draft_saved",
-  REVIEW_COMPLETED: "review.completed",
-  ASSIGNMENT_ADDED: "assignment.added",
-  DEADLINE_APPROACHING: "deadline.approaching",
-};
 
 
 // ─── AUTOMATION RULES ──────────────────────────────────────────────
 
 const RULES = [
-  // ── Submission received ──
-  {
-    event: PLATFORM_EVENTS.SUBMISSION_RECEIVED,
-    description: "Log audit + notify submitter",
-    condition: (ctx) => ctx.submission?.status === "submitted",
-    action: async (ctx) => {
-      const { submission, run } = ctx;
-
-      // A PAID Execution sends NO email on submission. The submission only
-      // CAPTURES a registration: the money is not confirmed yet, so an
-      // acknowledgement would announce a course the person has not paid for.
-      // The receipt and the access link go out from the payment confirmation
-      // (the checkout webhook) — and only then. An unpaid registration sends
-      // nothing at all. A free Execution (no course) is untouched.
-      const sellsCourse = Boolean(run?.lms_course_id);
-
-      // The confirmation message is a decision, so the RUN owns it and the form
-      // supplies the default (run -> form -> on). Absent means ON, so nothing
-      // changes for a form or run that has never configured this.
-      const shouldAcknowledge = resolveAutomationFlag(
-        ctx.form?.settings,
-        ctx.run?.settings,
-        "on_submit.send_acknowledgement",
-      );
-
-      await audit({
-        entity_type: "submission",
-        entity_id: submission.id,
-        user_id: submission.submitter_id,
-        user_name: submission.submitter_name,
-        action: "submitted",
-        details: `Submission received for run "${run?.name || run?.id}"`,
-        meta: { run_id: submission.run_id, form_id: run?.form_id },
-      });
-
-      // The confirmation goes through the same tracked path as every other
-      // workflow email (run → form → default template, shared transport, logged
-      // under "acknowledgement") so a designed template actually reaches the
-      // applicant and a failed send is visible and retryable.
-      if (shouldAcknowledge && !sellsCourse && submission?.id) {
-        try {
-          const ack = await sendAcknowledgementForSubmission({ submission_id: submission.id });
-          if (ack.status === "failed") {
-            console.error("[Automation] Confirmation email failed:", ack.error);
-          }
-        } catch (error) {
-          console.error("[Automation] Confirmation email failed:", error.message);
-        }
-      }
-
-      if (run?.owner_id) {
-        await notifyUser({
-          userId: run.owner_id,
-          title: "New Submission Received",
-          body: `${submission.submitter_name || submission.submitter_id} submitted to "${run.name}"`,
-          actionUrl: `/platform/runs?id=${run.id}`,
-          type: "submission",
-        });
-      }
-    },
-  },
-
-  // ── CRM: Sync submission to contacts + timeline (always — system responsibility) ──
-  {
-    event: PLATFORM_EVENTS.SUBMISSION_RECEIVED,
-    description: "Create/update CRM contact and write timeline event",
-    condition: (ctx) => ctx.submission?.status === "submitted",
-    action: async (ctx) => {
-      const cid = await syncCrmContact(ctx.submission);
-      if (cid) {
-        const runName = ctx.run?.name || "form";
-        await writeCrmTimeline(cid, "form_submitted",
-          `Submitted "${runName}"`, "forms",
-          ctx.submission.id, ctx.submission.submitter_id,
-          { run_id: ctx.submission.run_id });
-      }
-    },
-  },
-
-  // ── Review completed ──
-  {
-    event: PLATFORM_EVENTS.REVIEW_COMPLETED,
-    description: "Log audit + notify submitter of decision",
-    condition: (ctx) => !!ctx.review?.decision,
-    action: async (ctx) => {
-      const { review, submission, run, session } = ctx;
-
-      await audit({
-        entity_type: "review",
-        entity_id: review.id || submission.id,
-        user_id: session?.cid,
-        user_name: review.reviewer_name,
-        action: review.decision,
-        details: `Review ${review.decision} for submission #${submission.id} in "${run?.name || run?.id}"`,
-        meta: { run_id: submission.run_id, comment: review.comment?.substring(0, 100) },
-      });
-
-      const decisionLabel =
-        review.decision === "approved" ? "approved" :
-        review.decision === "rejected" ? "not accepted" :
-        review.decision === "revision_requested" ? "returned for revision" :
-        review.decision;
-      await notifyUser({
-        userId: submission.submitter_id,
-        title: `Submission ${decisionLabel}`,
-        body: `Your submission for "${run?.name || run?.id}" was ${decisionLabel} by ${review.reviewer_name || "a reviewer"}.`,
-        actionUrl: `/platform/runs/submit/${run?.id}`,
-        type: "review",
-      });
-    },
-  },
+  ...submissionRules,
+  ...reviewRules,
 
   // ── CRM: Write review decision to timeline + auto-enroll ──
   {
@@ -654,90 +550,8 @@ const RULES = [
     },
   },
 
-  // ── Run launched ──
-  {
-    event: PLATFORM_EVENTS.RUN_LAUNCHED,
-    description: "Log audit when a run is launched",
-    action: async (ctx) => {
-      const { run, session } = ctx;
-      await audit({
-        entity_type: "form_run",
-        entity_id: run.id,
-        user_id: session?.cid,
-        user_name: null,
-        action: "launched",
-        details: `Form Run "${run.name}" launched`,
-        meta: { form_id: run.form_id },
-      });
-    },
-  },
-
-  // ── Run created ──
-  {
-    event: PLATFORM_EVENTS.RUN_CREATED,
-    description: "Log audit when a run is created",
-    action: async (ctx) => {
-      const { run, session } = ctx;
-      await audit({
-        entity_type: "form_run",
-        entity_id: run.id,
-        user_id: session?.cid,
-        user_name: null,
-        action: "created",
-        details: `Form Run "${run.name}" created`,
-        meta: { form_id: run.form_id },
-      });
-    },
-  },
-
-  // ── Assignment added ──
-  {
-    event: PLATFORM_EVENTS.ASSIGNMENT_ADDED,
-    description: "Notify user when they are assigned to a run",
-    action: async (ctx) => {
-      const { assignment, run } = ctx;
-      if (assignment?.target_type === "user" && assignment?.target_id) {
-        await notifyUser({
-          userId: assignment.target_id,
-          title: "New Form Assigned",
-          body: `You have been assigned to "${run?.name || "a form run"}". Please complete your submission.`,
-          actionUrl: `/platform/runs/submit/${run?.id}`,
-          type: "assignment",
-        });
-      }
-    },
-  },
-
-  // ── Run launched → sync deadlines to calendar ──
-  {
-    event: PLATFORM_EVENTS.RUN_LAUNCHED,
-    description: "Sync run deadlines to external calendar (if configured)",
-    action: async (ctx) => {
-      const { run } = ctx;
-      try {
-        const { syncRunDeadlines } = await import("@/models/integrations/calendar/sync");
-        await syncRunDeadlines(run.id);
-      } catch (error) {
-        console.error("[Automation] Calendar sync failed:", error.message);
-      }
-    },
-  },
-
-  // ── Submission received → sync to Notion ──
-  {
-    event: PLATFORM_EVENTS.SUBMISSION_RECEIVED,
-    description: "Sync submission to Notion database (if configured)",
-    condition: (ctx) => ctx.submission?.status === "submitted",
-    action: async (ctx) => {
-      const { submission } = ctx;
-      try {
-        const { syncSubmission } = await import("@/models/integrations/notion/sync");
-        await syncSubmission(submission.id);
-      } catch (error) {
-        console.error("[Automation] Notion sync failed:", error.message);
-      }
-    },
-  },
+  ...runRules,
+  ...assignmentRules,
 ];
 
 
