@@ -95,6 +95,13 @@ function createCheckoutFixtures({ mockFake, submitPOST, webhookPOST }) {
     );
 
 
+  /** The capture cookie a submission response sets (if any), as a Cookie header. */
+  function captureCookie(res) {
+    const header = res.headers.get("set-cookie") || "";
+    const match = /impactos_checkout=([^;]+)/.exec(header);
+    return match ? `impactos_checkout=${match[1]}` : null;
+  }
+
   const webhookRequest = (body, headers = {}) =>
     webhookPOST(
       new Request("http://localhost/api/webhooks/kkiapay", {
@@ -144,6 +151,7 @@ function createCheckoutFixtures({ mockFake, submitPOST, webhookPOST }) {
     seedRun,
     FORM_DATA,
     submitRequest,
+    captureCookie,
     webhookRequest,
     verifiedResponse,
     successNotification,
