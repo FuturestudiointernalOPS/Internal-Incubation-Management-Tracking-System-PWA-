@@ -4269,3 +4269,14 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
 - **Test couplings updated**:
   - `identity-role-writes.test.js`: KNOWN_SITES + mutation-stop list `"src/models/adminOps.js"` → `"src/models/adminOps/userManagement.js"`.
 - **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.
+
+### Slice 159 — `src/models/programs.js` (824 → 3 files)
+
+- **Trigger**: `programs.js` exceeded 800 lines (824).
+- **Split**: 55 exported functions → barrel + 2 sub-files:
+  - `programs/core.js` (611): first two major sections (program CRUD + PM program queries) — lines 23-630.
+  - `programs/extended.js` (197): remaining sections (templates, assignments, facilitators, types) — lines 631-end.
+  - Facade `programs.js` (25): doc header + `export *` from two modules.
+- **Cross-calls**: None.
+- **Test couplings**: None (tests use jest.mock only).
+- **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.
