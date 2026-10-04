@@ -24,7 +24,10 @@ const { readSurface } = require("./helpers/sourceSurface");
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const SERVICE = "src/services/platform/formRuns.js";
-const src = readSurface("src/app/api/platform/form-runs/route.handlers.js");
+// The route handlers are now split; read both review and bulk_review handlers
+const reviewSrc = readSurface("src/app/api/platform/form-runs/handlers/post/review.js");
+const bulkReviewSrc = readSurface("src/app/api/platform/form-runs/handlers/post/bulk_review.js");
+const src = reviewSrc + "\n" + bulkReviewSrc;
 // The service is split across `formRuns/`; read the whole surface so the
 // order/reuse pins cover the same bytes wherever the code lives.
 const serviceSrc = readSurface(SERVICE);
@@ -77,8 +80,8 @@ describe("AI result PDF on approval — server invariants", () => {
   test("both review entry points forward the flag", () => {
     const forwards = (src.match(/includeResultPdf: include_result_pdf === true/g) || []).length;
     expect(forwards).toBe(2);
-    expect(src).toMatch(/const \{ submission_id, decision, comment, internal_note, dimension_overrides, force, include_result_pdf \} = body;/);
-    expect(src).toMatch(/const \{ run_id, submission_ids, decision, comment, include_result_pdf \} = body;/);
+    expect(src).toMatch(/const \{ submission_id, decision, comment, internal_note, dimension_overrides, force, include_result_pdf \} = await req\.json\(\);/);
+    expect(src).toMatch(/const \{ run_id, submission_ids, decision, comment, include_result_pdf \} = await req\.json\(\);/);
   });
 
   test("the outcome is reported back to the caller", () => {

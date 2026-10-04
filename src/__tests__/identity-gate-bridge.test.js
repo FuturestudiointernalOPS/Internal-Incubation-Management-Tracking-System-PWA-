@@ -276,11 +276,11 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     );
     expect(evaluateSubmissionSource).toMatch(/body\.action === "progress" \? "view" : "review"/);
     // form-runs: the two consequential actions (review + result emails) are now
-    // governed by the `runs.edit` capability — the resolver replaces the inline
+    // governed by catalog capabilities — the resolver replaces the inline
     // management role check, and the legacy list must be gone for good.
-    const formRunsSource = readSurface("src/app/api/platform/form-runs/route.handlers.js");
+    const formRunsSource = readSurface("src/app/api/platform/form-runs/handlers/post/review.js") + "\n" + readSurface("src/app/api/platform/form-runs/handlers/post/send_result_emails.js");
     expect(
-      (formRunsSource.match(/requireAuthorization\("runs", "edit"\)/g) || []).length,
+      (formRunsSource.match(/requireAuthorization\("runs", "(edit|review)"\)/g) || []).length,
     ).toBeGreaterThanOrEqual(2);
     expect(formRunsSource).not.toMatch(/\["super_admin", "admin", "program_manager"\]\.includes/);
     expect(formRunsSource).not.toMatch(/requireAuth\(\[\s*"super_admin", "admin", "program_manager", "teacher"/);

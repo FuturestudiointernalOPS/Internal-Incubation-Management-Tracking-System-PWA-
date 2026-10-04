@@ -26,7 +26,7 @@ const { readResultDelayMinutes } = require("@/lib/constants");
 const ROOT = path.resolve(__dirname, "..", "..");
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
-const ROUTE_SRC = readSurface("src/app/api/platform/form-runs/route.handlers.js");
+const ROUTE_SRC = readSurface("src/app/api/platform/form-runs/handlers/get.js") + "\n" + readSurface("src/app/api/platform/form-runs/handlers/post/dispatch_scheduled_result_emails.js");
 // The run-email service is split across `formRuns/`; read the whole surface.
 const SERVICE_SRC = readSurface("src/services/platform/formRuns.js");
 const MODEL_SRC = readSurface("src/models/formRuns.js");
@@ -119,20 +119,25 @@ describe("the dispatcher — one sender, time-based, idempotent by construction"
     expect(query).toBeGreaterThan(ensure);
   });
 
+  const ROUTE_SRC = readSurface("src/app/api/platform/form-runs/route.js");
+  const DISPATCH_SRC = readSurface("src/app/api/platform/form-runs/handlers/post/dispatch_scheduled_result_emails.js");
+
   test("a scheduled caller is accepted, otherwise a capability is required", () => {
-    expect(ROUTE_SRC).toMatch(/action === "dispatch_scheduled_result_emails"/);
-    expect(ROUTE_SRC).toMatch(/req\.headers\.get\("x-cron-secret"\)/);
-    expect(ROUTE_SRC).toMatch(/process\.env\.CRON_SECRET/);
-    expect(ROUTE_SRC).toMatch(/requireAuthorization\("runs", "edit"\)/);
+    expect(ROUTE_SRC).toMatch(/dispatch_scheduled_result_emails/);
+    expect(DISPATCH_SRC).toMatch(/req\.headers\.get\("x-cron-secret"\)/);
+    expect(DISPATCH_SRC).toMatch(/process\.env\.CRON_SECRET/);
+    expect(DISPATCH_SRC).toMatch(/requireAuthorization\("runs", "edit"\)/);
   });
 
   test("a timer is a convenience, not the only way a result leaves", () => {
-    // Opening a run sweeps: the read asks for it (route), and the approval flow
+    // Opening a run sweeps: the read asks for it (GET handler), and the approval flow
     // asks for it too (service) — the service is HTTP-free, so the controller
     // injects `scheduleResultSweep` rather than letting the service import it.
-    expect(ROUTE_SRC).toMatch(/scheduleResultSweep\(id\);/);
+    const GET_SRC = readSurface("src/app/api/platform/form-runs/handlers/get.js");
+    const REVIEW_SRC = readSurface("src/app/api/platform/form-runs/handlers/post/review.js");
+    expect(GET_SRC).toMatch(/scheduleResultSweep\(id\);/);
     expect(SERVICE_SRC).toMatch(/scheduleResultSweep\(submissionRunResult\.rows\[0\]\.run_id\);/);
-    expect(ROUTE_SRC).toMatch(/scheduleResultSweep,\n\s*\}\);/);
+    expect(REVIEW_SRC).toMatch(/scheduleResultSweep,\n\s*\}\);/);
   });
 });
 

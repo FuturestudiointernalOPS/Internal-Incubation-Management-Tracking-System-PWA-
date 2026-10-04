@@ -16,15 +16,17 @@ const path = require("node:path");
 const ROOT = path.join(__dirname, "..");
 const PARENT = path.join(ROOT, "app", "platform", "forms", "page.js");
 const VIEW = path.join(ROOT, "components", "platform", "forms", "PlatformFormsView.js");
+const HOOK = path.join(ROOT, "components", "platform", "forms", "hooks", "useFormBuilder.js");
 
 const read = (file) => fs.readFileSync(file, "utf8");
 
 describe("the platform-forms screen wiring", () => {
   const parent = read(PARENT);
   const view = read(VIEW);
+  const hook = read(HOOK);
 
   const ctxKeys = new Set(
-    [...parent.split("const ctx = {")[1].split("};")[0].matchAll(/^ {4}([A-Za-z_$][\w$]*),$/gm)].map(
+    [...hook.split("const ctx = {")[1].split("};")[0].matchAll(/^ {4}([A-Za-z_$][\w$]*),$/gm)].map(
       (m) => m[1],
     ),
   );
