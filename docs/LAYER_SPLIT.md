@@ -4305,3 +4305,19 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
   - `authorization-resolver.advanced.test.js` (767): blocks 16-25 — requireAuthorization, LMS, final eligibility policy, retired roles, configure_eligibility, runAuthzMigration, validateEligibilityChanges, org_membership, restrictionsToJson, migration batch. Injected `saCtx`/`staffCtx` helpers.
 - **Test count**: 112 tests total, all pass.
 - **Verification**: Full suite 315/315 (4823 tests), lint 0 errors, `next build` green.
+
+### Slice 162 — `src/__tests__/lms-checkout.test.js` (943 → 2 files)
+
+- **Trigger**: Test file exceeded 800 lines (943).
+- **Split**: 7 describe blocks → 2 files with shared header (mocks + setup):
+  - `lms-checkout.payment.test.js` (523): blocks 0-2 — paid Execution, capturing the person, payment notification.
+  - `lms-checkout.postPayment.test.js` (615): blocks 3-6 — the payer, amount unit, per-course settings, the team.
+- **Verification**: Full suite 317/317 (4823 tests), lint 0 errors, `next build` green.
+
+### Slice 163 — `src/__tests__/lms-api.test.js` (803 → 2 files)
+
+- **Trigger**: Test file exceeded 800 lines (803).
+- **Split**: 7 describe blocks → 2 files with shared header (mocks + setup):
+  - `lms-api.courses.test.js` (382): blocks 0-3 — Courses CRUD, Publishing, Sections, Lessons & YouTube.
+  - `lms-api.assessments.test.js` (496): blocks 4-6 — Assessments & questions, drag & drop reorder, Authorization.
+- **Verification**: Full suite 317/317 (4823 tests), lint 0 errors, `next build` green.
