@@ -4408,3 +4408,13 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
 - **Cross-calls**: `resultDocument` and `resultEmail` import `logTimeline` from `decisionEmail`; `resultEmail` imports `buildResultDocument` from `resultDocument`. No cycle.
 - **Test couplings**: None to repoint — the source-pin suites read the `formRuns` surface via `readSurface`, and the folder keeps the `resultEmails` bytes contiguous and before `review`/`submitters`, so the ordering pins stay true.
 - **Verification**: the form-runs result/PDF/schedule and platform suites → 932 tests green; lint 0 errors on the touched scope. Full suite 316/317 — the single failure remains the other lane's mid-split review page.
+
+### Slice 170 — `src/components/admin/op-reports/ReportDetailModal.js` (706 → 2 files)
+
+- **Trigger**: a remaining view/component file over the 600 ceiling.
+- **Split**: the week's task table → `op-reports/ReportTasksTable.js`. `ReportDetailModal.js` 706 → 442; the new table component is 296.
+  - The table's `renderStatusBadge` and `formatDate` helpers had no other caller, so they move WITH the table (the component calls `useI18n` itself).
+  - The modal keeps the reads (`useApi`), the PDF export handler, the info bar, the blockers/carry-over/action-log sections, the print footer and the close button.
+  - The block is rendered in place (`<ReportTasksTable … />`), so no DOM node is added — the rendered structure is unchanged.
+- **Test couplings**: None (no suite reads this file; the modal has no dedicated test).
+- **Verification**: lint 0 errors on both files; `npm test` 316/317 (the single failure remains the other lane's mid-split review page). The build could not be run green — an unrelated lane's files currently break `next build`.
