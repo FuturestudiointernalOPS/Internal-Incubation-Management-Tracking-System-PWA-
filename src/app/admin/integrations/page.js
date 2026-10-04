@@ -102,7 +102,6 @@ export default function IntegrationsPage() {
               onSelectWebhook={state.setSelectedWebhook}
               onLoadLogs={state.loadWebhookLogs}
               onCloseLogs={() => state.setSelectedWebhook(null)}
-              onDeleteWebhook={state.handleDeleteWebhook}
               t={t}
             />
           )}

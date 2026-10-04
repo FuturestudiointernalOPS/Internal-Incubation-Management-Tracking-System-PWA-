@@ -1,7 +1,7 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n";
-import { Plug } from "lucide-react";
+import { Plug, Plus, Trash2 } from "lucide-react";
 import { formatDate } from "@/components/admin/dashboard-page/constants";
 
 const PROVIDER_ICONS = {

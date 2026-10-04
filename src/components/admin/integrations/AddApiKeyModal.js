@@ -1,7 +1,7 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n";
-import { X, Plus, Copy, Trash2, AlertCircle } from "lucide-react";
+import { X, Plus, Copy, Trash2, AlertCircle, Zap } from "lucide-react";
 
 const API_SCOPES = [
   "ventures:read", "ventures:write",

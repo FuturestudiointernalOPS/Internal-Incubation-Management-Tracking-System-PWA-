@@ -8,14 +8,12 @@ import {
   useMemo,
   Suspense,
 } from "react";
-import { CheckCircle2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { getCurrentWeek } from "@/components/staff/op-report/dates";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useApi, useApiMulti } from "@/lib/hooks/useApi";
-import ReportHeader from "@/components/staff/op-report/ReportHeader";
-import ReportTypeToggle from "@/components/staff/op-report/ReportTypeToggle";
+import OpReportView from "@/components/staff/op-report/OpReportView";
 import { EMPTY_LIST, EMPTY_REPORT, INITIAL_FORM, REPORT_TABS, TASK_STATUSES, hasDraftContent, pickAssignments, pickList, pickReport, pickStudioStaff, reportToForm } from "./readers";
 import { useOpReportNav } from "./useOpReportNav";
 import { toastActions } from "./actions/toast";
@@ -30,8 +28,6 @@ import { summaryActions } from "./actions/summary";
 import { newTaskActions } from "./actions/newTask";
 import { confirmActions } from "./actions/confirm";
 import { weekActions } from "./actions/week";
-import ReportContent from "@/components/staff/op-report/ReportContent";
-import OpReportModals from "@/components/staff/op-report/OpReportModals";
 
 
 /**
@@ -83,9 +79,6 @@ function StaffOpReport() {
     router,
     weekInfo,
   });
-
-
-
 
   // Arriving without a query string, the address is filled in once so that a
   // refresh or a shared link describes the same view. This navigates and writes no
@@ -409,82 +402,7 @@ function StaffOpReport() {
   const summaryLoading =
     summaryTasksLoading || summaryBlockersLoading || summaryProjectsLoading;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   // ─── TASK ROW MANAGEMENT ───
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   // ─── THE SCREEN'S OTHER HALF ───
   // Every state value and every read stays here; the writes live in ./actions
@@ -613,47 +531,16 @@ function StaffOpReport() {
   };
 
   return (
-    <>
-      <div className="space-y-8 pb-20 text-left">
-        {/* Toast */}
-        {toast && (
-          <div
-            className={`fixed bottom-6 right-6 z-[500] px-6 py-3 rounded-lg text-sm font-bold uppercase tracking-widest border shadow-2xl ${
-              toast.type === "error"
-                ? "bg-rose-50 text-rose-700 border-rose-200"
-                : "bg-emerald-50 text-emerald-700 border-emerald-200"
-            }`}
-          >
-            {toast.msg}
-          </div>
-        )}
-
-        {/* HEADER */}
-        <ReportHeader
-          onNavigateWeek={navigateWeek}
-          reportType={reportType}
-          weekInfo={weekInfo}
-        />
-
-        {/* REPORT TYPE TOGGLE */}
-        <ReportTypeToggle
-          onSelectType={setReportType}
-          reportType={reportType}
-        />
-
-        {existingReport?.status === "submitted" && (
-          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-            <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
-              {t("staff.opReport.alreadySubmitted")}
-            </p>
-          </div>
-        )}
-
-        <ReportContent ctx={ctx} />
-      </div>
-      <OpReportModals ctx={ctx} />
-    </>
+    <OpReportView
+      toast={toast}
+      t={t}
+      existingReport={existingReport}
+      reportType={reportType}
+      weekInfo={weekInfo}
+      onSelectType={setReportType}
+      onNavigateWeek={navigateWeek}
+      ctx={ctx}
+    />
   );
 }
 

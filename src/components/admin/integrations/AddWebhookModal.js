@@ -1,7 +1,7 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n";
-import { X, Plus, Zap, Webhook, Key } from "lucide-react";
+import { X, Plus, Zap, Webhook, Key, Trash2 } from "lucide-react";
 
 const WEBHOOK_EVENT_OPTIONS = [
   "startup.created",
