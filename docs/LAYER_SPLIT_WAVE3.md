@@ -18,13 +18,17 @@
 
 | Band | Before | After |
 |---|---|---|
-| Files over 500 (soft) | 40 | **1** (`src/lib/db.js`, see below) |
+| Files over 500 (soft) | 40 | **0** from this wave |
 | Files over 600 (hard) | — | untouched by this wave |
 
-`src/lib/db.js` (568 → still 568) is the **only** leftover and is deliberately
-**deferred**: the plan marks the two infrastructure files over 500 as optional
-(no hard breach, and the Postgres pool engine is the riskiest file to move).
+All 40 files in the band are now under 500, including the two infrastructure
+ones: `src/lib/masterNavigation.js` (592 → 36, config/builders modules) and
+`src/lib/db.js` (568 → 470, instrumentation moved to `lib/db/metrics.js`).
 No request left the data layer and no compatibility re-export was added.
+
+> The guardrail still lists a handful of files in the 500–600 band while the
+> parallel size lane splits the last `>600` files (their own slices); none of
+> them belong to this wave.
 
 ## Slices
 
@@ -50,6 +54,7 @@ Helpers / infrastructure / hooks / actions:
 | File (before) | After | What moved |
 |---|---:|---|
 | `src/lib/masterNavigation.js` (592) | 36 | `masterNavigation/{nodes,access,builders}.js` (pure config + builders) |
+| `src/lib/db.js` (568) | 470 | `lib/db/metrics.js` (thresholds, counters, slow-query reporter, `getDbMetrics`); `getPoolStats` stays with the pool and passes `waiting` in — `@/lib/db` surface unchanged |
 | `src/components/permissions/matrixHelpers.js` (558) | 26 | `matrixHelpers/{featureRows,capabilities,toggles,state,origins,coverage}.js` |
 | `src/app/admin/communications/contacts/useContactsState.js` (590) | 294 | `useContactsMutations.js` (fetch flows), hook return shape unchanged |
 | `src/app/platform/runs/useRunsState.js` (531) | 475 | `useRunsUiState.js` (screen state), names re-destructured |
@@ -85,21 +90,39 @@ state, reads, actions and navigation; values and callbacks pass down as props
 | `src/app/admin/pending-users/page.js` (552) | 222 | `components/admin/pending-users/PendingUsersView.js` |
 | `src/app/team/[id]/page.js` (589) | 446 | `components/team/team-workspace/TeamWorkspaceView.js` |
 
+## Repair — `src/app/platform/runs/review/[submissionId]/page.js`
+
+The working tree carried a broken, uncommitted stub of this screen (duplicate
+`EMPTY_LIST`, an invalid empty JSX attribute, hard-coded values) plus six stub
+section components rendering placeholder text. Neither had ever been committed.
+The screen is restored from its last known-good committed version (747 lines)
+and then genuinely split the same way as the rest of this wave:
+
+- The page keeps **all logic** — the four reads, state, the AI-evaluate POST, the
+  review POST, the dimension-override bookkeeping — and shrinks to **357 lines**.
+- Display moves into real components under `components/platform/runs/review/`:
+  `ReviewHeader` (47), `ApplicantSection` (60), `ApplicationSection` (65),
+  `AIEvaluationSection` (276), `DecisionSection` (73), `HistorySection` (43) — JSX
+  moved verbatim, values/callbacks passed down, no wrapper component added.
+- Because the logic stays in the page, `platform-ai-evaluate-once.test.js` (the
+  "a page load cannot run the model" guard) passes **unchanged**.
+
 ## Verification
 
-- **Guardrail** — `npm run check:lines`: the soft band dropped from 40 to 1
-  (`src/lib/db.js`). No new hard violation.
+- **Guardrail** — `npm run check:lines`: every file in the 500–600 band, `db.js`
+  included, is now clear. No new hard violation.
 - **ESLint** — `npx eslint` on every touched file and new folder: **0 errors**.
-- **Behaviour** — `npm test`: **316/317 suites, 4840/4841 tests**. The single
-  failure, `platform-ai-evaluate-once.test.js`, reads the parallel lane's
-  mid-split `src/app/platform/runs/review/[submissionId]/page.js` (not touched
-  by this wave) — the same blocker the main journal records for slices 164–170.
-- **Build** — `next build` cannot run green for the same reason: that in-flight
-  file currently has a syntax error. No file from this wave is implicated.
+  The repo-wide lint still reports 8 errors, all in the parallel lane's
+  `admin/integrations/*` files — none touched here.
+- **Behaviour** — `npm test`: **317/317 suites, 4841/4841 tests** (the review-page
+  repair removed the previously single failing suite).
 - **SQL / surface** — model splits were diffed against `git show HEAD`: every
   statement byte-identical and every export name identical. View splits preserve
-  the exact set of id="t"/class names/routes per the slicing agents' diffs.
-- **Commits** — one commit per source file (see `git log` on branch `A`).
+  the exact set of class names / i18n keys / routes per the slicing agents' diffs.
+- **Build** — `next build` was not run here (a shared, global build would race the
+  parallel lane's in-flight edits); the pre-existing `db.js`-adjacent syntax error
+  in the review page is gone, so the previous build blocker is cleared.
+- **Commits** — one commit per file/slice (see `git log` on branch `A`).
 
 ## Needs a human eye before promotion
 
