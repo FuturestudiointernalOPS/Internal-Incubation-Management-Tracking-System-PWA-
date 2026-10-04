@@ -4202,3 +4202,14 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
 - **Test coupling updated**:
   - `identity-gate-bridge.test.js`: `fs.readFileSync("src/models/investor.js")` → `readSurface("src/models/investor.js")` (already imported).
 - **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.
+
+### Slice 154 — `src/models/curriculum.js` (948 → 3 files)
+
+- **Trigger**: `curriculum.js` exceeded 800 lines (948).
+- **Split**: 62 exported functions → barrel + 2 sub-files:
+  - `curriculum/sessionsAndSelfHealing.js` (721): schema self-healing (idempotent DDL), session versioning, POST add_session — lines 18-735
+  - `curriculum/updatesAndDeletes.js` (216): PUT (session updates, requirements, deliverables, attendance, reports), DELETE — lines 736-end
+  - Facade `curriculum.js` (21): doc header + `export *` from two modules.
+- **Cross-calls**: None.
+- **Test couplings**: None (no source-read pins in tests).
+- **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.

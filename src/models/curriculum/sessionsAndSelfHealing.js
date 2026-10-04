@@ -1,0 +1,720 @@
+import db from "@/lib/db";
+
+// ── Schema self-healing (idempotent DDL guards) ──────────────────────────────
+
+/** Session versioning — `version` column on v2_sessions. */
+export async function addSessionVersionColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_sessions ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1",
+    args: [],
+  });
+}
+
+/** Session versioning — `timezone` column on v2_sessions. */
+export async function addSessionTimezoneColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_sessions ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'UTC'",
+    args: [],
+  });
+}
+
+/** Session versioning — snapshot table for pre-update session rows. */
+export async function createSessionVersionsTable() {
+  return db.execute({
+    sql: `CREATE TABLE IF NOT EXISTS v2_session_versions (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        session_id UUID NOT NULL,
+        version INTEGER NOT NULL,
+        snapshot JSONB NOT NULL,
+        changed_by TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+    args: [],
+  });
+}
+
+/** Requirements — optional PM-provided resource-link `resource_url` column. */
+export async function addRequirementResourceUrlColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_document_requirements ADD COLUMN IF NOT EXISTS resource_url TEXT",
+    args: [],
+  });
+}
+
+/** Requirements — optional PM-provided resource-link `resource_label` column. */
+export async function addRequirementResourceLabelColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_document_requirements ADD COLUMN IF NOT EXISTS resource_label TEXT",
+    args: [],
+  });
+}
+
+/** Requirements — `assignee_type` column (attendance/system requirements). */
+export async function addRequirementAssigneeTypeColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_document_requirements ADD COLUMN IF NOT EXISTS assignee_type TEXT",
+    args: [],
+  });
+}
+
+/** Requirements — `assignee_id` column (attendance/system requirements). */
+export async function addRequirementAssigneeIdColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_document_requirements ADD COLUMN IF NOT EXISTS assignee_id TEXT",
+    args: [],
+  });
+}
+
+/** Weekly reports — `attachment_type` column (URL link or PDF upload). */
+export async function addWeeklyReportAttachmentTypeColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS attachment_type TEXT",
+    args: [],
+  });
+}
+
+/** Weekly reports — `attachment_url` column (URL link or PDF upload). */
+export async function addWeeklyReportAttachmentUrlColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS attachment_url TEXT",
+    args: [],
+  });
+}
+
+/** Weekly reports — `week_status` column (weekly overview). */
+export async function addWeeklyReportWeekStatusColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS week_status VARCHAR(50) DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `week_rating` column (weekly overview). */
+export async function addWeeklyReportWeekRatingColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS week_rating VARCHAR(50) DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `main_topic` column (weekly overview). */
+export async function addWeeklyReportMainTopicColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS main_topic TEXT DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `assignment_given` column (KPI-linked assignment). */
+export async function addWeeklyReportAssignmentGivenColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS assignment_given BOOLEAN DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `assignment_kpi_ids` column (linked KPI ids, JSON text). */
+export async function addWeeklyReportAssignmentKpiIdsColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS assignment_kpi_ids TEXT DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `assignment_objective` column (KPI-linked assignment). */
+export async function addWeeklyReportAssignmentObjectiveColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS assignment_objective TEXT DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `assignment_outcome` column (KPI-linked assignment). */
+export async function addWeeklyReportAssignmentOutcomeColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS assignment_outcome TEXT DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `attendance_level` column (participation). */
+export async function addWeeklyReportAttendanceLevelColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS attendance_level VARCHAR(50) DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `participation_level` column (participation). */
+export async function addWeeklyReportParticipationLevelColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS participation_level VARCHAR(50) DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `participants_need_attention` column (participation). */
+export async function addWeeklyReportParticipantsNeedAttentionColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS participants_need_attention BOOLEAN DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `participants_attention_notes` column (participation). */
+export async function addWeeklyReportParticipantsAttentionNotesColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS participants_attention_notes TEXT DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `standout_participants` column (participation). */
+export async function addWeeklyReportStandoutParticipantsColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS standout_participants BOOLEAN DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `standout_notes` column (participation). */
+export async function addWeeklyReportStandoutNotesColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS standout_notes TEXT DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `delivery_quality` column (delivery feedback). */
+export async function addWeeklyReportDeliveryQualityColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS delivery_quality VARCHAR(50) DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `participant_understanding` column (delivery feedback). */
+export async function addWeeklyReportParticipantUnderstandingColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS participant_understanding VARCHAR(50) DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `delivery_challenges` column (delivery feedback). */
+export async function addWeeklyReportDeliveryChallengesColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS delivery_challenges BOOLEAN DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `delivery_challenge_note` column (delivery feedback). */
+export async function addWeeklyReportDeliveryChallengeNoteColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS delivery_challenge_note TEXT DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `had_issues` column (issues & support). */
+export async function addWeeklyReportHadIssuesColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS had_issues BOOLEAN DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `issue_types` column (issues & support, TEXT[]). */
+export async function addWeeklyReportIssueTypesColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS issue_types TEXT[] DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `requires_admin_attention` column (issues & support). */
+export async function addWeeklyReportRequiresAdminAttentionColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS requires_admin_attention BOOLEAN DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `additional_issue_note` column (issues & support). */
+export async function addWeeklyReportAdditionalIssueNoteColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS additional_issue_note TEXT DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `program_on_track` column (next week). */
+export async function addWeeklyReportProgramOnTrackColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS program_on_track BOOLEAN DEFAULT NULL",
+    args: [],
+  });
+}
+
+/** Weekly reports — `planned_adjustments` column (next week). */
+export async function addWeeklyReportPlannedAdjustmentsColumn() {
+  return db.execute({
+    sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS planned_adjustments TEXT DEFAULT NULL",
+    args: [],
+  });
+}
+
+/**
+ * Weekly reports — unique key behind `ON CONFLICT (program_id, week_number,
+ * teacher_id)`. The base schema declares it inline; environments created
+ * before that declaration need the index for the report upsert to work.
+ */
+export async function ensureWeeklyReportConflictKeyIndex() {
+  return db.execute({
+    sql: "CREATE UNIQUE INDEX IF NOT EXISTS idx_v2_weekly_reports_week_key ON v2_weekly_reports (program_id, week_number, teacher_id)",
+    args: [],
+  });
+}
+
+/**
+ * Ensure the structured weekly-report columns written by `upsertWeeklyReport`
+ * exist. Production drifted: the INSERT targets 31 columns while only the
+ * attachment pair was self-healed, so saving a PM report failed with 42601
+ * ("INSERT has more expressions than target columns"). Idempotent and
+ * additive — each statement keeps its own try/catch so one failure cannot
+ * block the save.
+ */
+export async function ensureWeeklyReportSchema() {
+  const statements = [
+    addWeeklyReportWeekStatusColumn,
+    addWeeklyReportWeekRatingColumn,
+    addWeeklyReportMainTopicColumn,
+    addWeeklyReportAssignmentGivenColumn,
+    addWeeklyReportAssignmentKpiIdsColumn,
+    addWeeklyReportAssignmentObjectiveColumn,
+    addWeeklyReportAssignmentOutcomeColumn,
+    addWeeklyReportAttendanceLevelColumn,
+    addWeeklyReportParticipationLevelColumn,
+    addWeeklyReportParticipantsNeedAttentionColumn,
+    addWeeklyReportParticipantsAttentionNotesColumn,
+    addWeeklyReportStandoutParticipantsColumn,
+    addWeeklyReportStandoutNotesColumn,
+    addWeeklyReportDeliveryQualityColumn,
+    addWeeklyReportParticipantUnderstandingColumn,
+    addWeeklyReportDeliveryChallengesColumn,
+    addWeeklyReportDeliveryChallengeNoteColumn,
+    addWeeklyReportHadIssuesColumn,
+    addWeeklyReportIssueTypesColumn,
+    addWeeklyReportRequiresAdminAttentionColumn,
+    addWeeklyReportAdditionalIssueNoteColumn,
+    addWeeklyReportProgramOnTrackColumn,
+    addWeeklyReportPlannedAdjustmentsColumn,
+    ensureWeeklyReportConflictKeyIndex,
+  ];
+  for (const statement of statements) {
+    try {
+      await statement();
+    } catch (_) {}
+  }
+}
+
+// ── Session versioning ───────────────────────────────────────────────────────
+
+/** Full current v2_sessions row — snapshot source before an update. */
+export async function getSessionRowById(sessionId) {
+  return db.execute({
+    sql: "SELECT * FROM v2_sessions WHERE id = ?",
+    args: [sessionId],
+  });
+}
+
+/** Record one pre-update snapshot into the version history. */
+export async function insertSessionVersion(sessionId, version, snapshot, changedBy) {
+  return db.execute({
+    sql: "INSERT INTO v2_session_versions (session_id, version, snapshot, changed_by) VALUES (?, ?, ?::jsonb, ?)",
+    args: [sessionId, version, snapshot, changedBy],
+  });
+}
+
+/** Advance the session's live `version` counter after a snapshot. */
+export async function setSessionVersion(version, sessionId) {
+  return db.execute({
+    sql: "UPDATE v2_sessions SET version = ? WHERE id = ?",
+    args: [version, sessionId],
+  });
+}
+
+// ── POST: add_session ────────────────────────────────────────────────────────
+
+/** Overlapping-session guard for a proposed session time slot. */
+export async function findSessionScheduleConflict(
+  programId,
+  scheduledDate,
+  endTime,
+  startTime,
+) {
+  return db.execute({
+    sql: `SELECT id, title FROM v2_sessions
+                WHERE program_id = ?
+                  AND type = 'session'
+                  AND scheduled_date = ?
+                  AND start_time < ?
+                  AND end_time > ?
+                LIMIT 1`,
+    args: [programId, scheduledDate, endTime, startTime],
+  });
+}
+
+/** Create a curriculum session (type 'session', default weight 1). */
+export async function createSession(
+  programId,
+  title,
+  description,
+  weekNumber,
+  type,
+  status,
+  weight,
+  scheduledDate,
+  endDate,
+  startTime,
+  endTime,
+  assignmentType,
+  taskType,
+  handlerId,
+  handlerName,
+  kpiIds,
+  notes,
+  extraMaterials,
+  timezone,
+) {
+  return db.execute({
+    sql: "INSERT INTO v2_sessions (program_id, title, description, week_number, type, status, weight, scheduled_date, end_date, start_time, end_time, assignment_type, task_type, handler_id, handler_name, kpi_ids, notes, extra_materials, timezone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+    args: [
+      programId,
+      title,
+      description,
+      weekNumber,
+      type,
+      status,
+      weight,
+      scheduledDate,
+      endDate,
+      startTime,
+      endTime,
+      assignmentType,
+      taskType,
+      handlerId,
+      handlerName,
+      kpiIds,
+      notes,
+      extraMaterials,
+      timezone,
+    ],
+  });
+}
+
+/** System-generated Attendance requirement attached to every new session. */
+export async function createAttendanceRequirement(
+  programId,
+  title,
+  description,
+  sessionId,
+  allowedFormat,
+  weight,
+  kpiIds,
+  dueDate,
+  assigneeType,
+) {
+  return db.execute({
+    sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight, kpi_ids, due_date, assignee_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    args: [
+      programId,
+      title,
+      description,
+      sessionId,
+      allowedFormat,
+      weight,
+      kpiIds,
+      dueDate,
+      assigneeType,
+    ],
+  });
+}
+
+/** Deliverable requirement defined inline during session creation. */
+export async function addSessionRequirement(
+  programId,
+  title,
+  description,
+  sessionId,
+  allowedFormat,
+  weight,
+  kpiIds,
+  dueDate,
+  assigneeType,
+  assigneeId,
+  resourceUrl,
+  resourceLabel,
+) {
+  return db.execute({
+    sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight, kpi_ids, due_date, assignee_type, assignee_id, resource_url, resource_label) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    args: [
+      programId,
+      title,
+      description,
+      sessionId,
+      allowedFormat,
+      weight,
+      kpiIds,
+      dueDate,
+      assigneeType,
+      assigneeId,
+      resourceUrl,
+      resourceLabel,
+    ],
+  });
+}
+
+/** Deliverable requirement added on its own (RETURNING id). */
+export async function createRequirement(
+  programId,
+  title,
+  description,
+  sessionId,
+  allowedFormat,
+  weight,
+  kpiIds,
+  dueDate,
+  assigneeType,
+  assigneeId,
+  resourceUrl,
+  resourceLabel,
+) {
+  return db.execute({
+    sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight, kpi_ids, due_date, assignee_type, assignee_id, resource_url, resource_label) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+    args: [
+      programId,
+      title,
+      description,
+      sessionId,
+      allowedFormat,
+      weight,
+      kpiIds,
+      dueDate,
+      assigneeType,
+      assigneeId,
+      resourceUrl,
+      resourceLabel,
+    ],
+  });
+}
+
+/** Active (non-facilitator) participant count used by send_reminder. */
+export async function countActiveParticipantsForProgram(programId) {
+  return db.execute({
+    sql: `SELECT COUNT(*) as cnt
+                FROM participant_programs pp
+                JOIN contacts c ON pp.participant_id = c.cid
+                WHERE CAST(pp.program_id AS TEXT) = ?
+                  AND c.deleted = 0
+                  AND c.deleted_at IS NULL
+                  AND c.archived_at IS NULL
+                  AND LOWER(COALESCE(c.status, '')) = 'active'
+                  AND NOT EXISTS (
+                    SELECT 1 FROM v2_program_staff ps
+                    WHERE CAST(ps.program_id AS TEXT) = CAST(pp.program_id AS TEXT)
+                      AND ps.role = 'facilitator'
+                      AND (ps.staff_id = c.cid OR LOWER(TRIM(ps.staff_id)) = LOWER(TRIM(c.email)))
+                  )`,
+    args: [programId],
+  });
+}
+
+/** Flip a session's status (e.g. 'not started' → 'in progress'). */
+export async function updateSessionStatus(status, id) {
+  return db.execute({
+    sql: "UPDATE v2_sessions SET status = ? WHERE id = ?",
+    args: [status, id],
+  });
+}
+
+/** Flip a requirement's is_completed flag (accepts the same 1/0 value). */
+export async function setDeliverableCompletion(isCompleted, id) {
+  return db.execute({
+    sql: "UPDATE v2_document_requirements SET is_completed = ? WHERE id = ?",
+    args: [isCompleted, id],
+  });
+}
+
+/** Assign a team to a session. */
+export async function setSessionTeam(teamId, id) {
+  return db.execute({
+    sql: "UPDATE v2_sessions SET team_id = ? WHERE id = ?",
+    args: [teamId, id],
+  });
+}
+
+/** Current extra_materials JSON of a session (anchor_material read). */
+export async function getSessionExtraMaterials(sessionId) {
+  return db.execute({
+    sql: "SELECT extra_materials FROM v2_sessions WHERE id = ?",
+    args: [sessionId],
+  });
+}
+
+/** Persist the re-serialized extra_materials JSON (anchor_material write). */
+export async function updateSessionExtraMaterials(extraMaterials, sessionId) {
+  return db.execute({
+    sql: "UPDATE v2_sessions SET extra_materials = ? WHERE id = ?",
+    args: [extraMaterials, sessionId],
+  });
+}
+
+/**
+ * List weekly reports, newest first, optionally narrowed to one program and/or
+ * one week. The row shape is the stored `v2_weekly_reports` row (the
+ * `teacher_id` / `teacher_name` columns are storage and keep their names).
+ */
+export async function listWeeklyReports(programId, weekNumber) {
+  let sql = "SELECT * FROM v2_weekly_reports WHERE 1=1";
+  const args = [];
+
+  if (programId) {
+    sql += " AND program_id = ?";
+    args.push(programId);
+  }
+  if (weekNumber) {
+    sql += " AND week_number = ?";
+    args.push(parseInt(weekNumber));
+  }
+
+  sql += " ORDER BY created_at DESC";
+
+  return db.execute({ sql, args });
+}
+
+/** Upsert a weekly PM report keyed on (program_id, week_number, teacher_id). */
+export async function upsertWeeklyReport(
+  programId,
+  weekNumber,
+  teacherId,
+  teacherName,
+  progressNotes,
+  receptionScore,
+  weekStatus,
+  weekRating,
+  mainTopic,
+  assignmentGiven,
+  assignmentKpiIds,
+  assignmentObjective,
+  assignmentOutcome,
+  attendanceLevel,
+  participationLevel,
+  participantsNeedAttention,
+  participantsAttentionNotes,
+  standoutParticipants,
+  standoutNotes,
+  deliveryQuality,
+  participantUnderstanding,
+  deliveryChallenges,
+  deliveryChallengeNote,
+  hadIssues,
+  issueTypes,
+  requiresAdminAttention,
+  additionalIssueNote,
+  programOnTrack,
+  plannedAdjustments,
+  attachmentType,
+  attachmentUrl,
+) {
+  return db.execute({
+    sql: `INSERT INTO v2_weekly_reports
+                  (program_id, week_number, teacher_id, teacher_name, progress_notes, reception_score,
+                   week_status, week_rating, main_topic,
+                   assignment_given, assignment_kpi_ids, assignment_objective, assignment_outcome,
+                   attendance_level, participation_level,
+                   participants_need_attention, participants_attention_notes,
+                   standout_participants, standout_notes,
+                   delivery_quality, participant_understanding,
+                   delivery_challenges, delivery_challenge_note,
+                   had_issues, issue_types, requires_admin_attention, additional_issue_note,
+                   program_on_track, planned_adjustments,
+                   attachment_type, attachment_url)
+                  VALUES (?, ?, ?, ?, ?, ?,
+                   ?, ?, ?,
+                   ?, ?, ?, ?,
+                   ?, ?,
+                   ?, ?,
+                   ?, ?,
+                   ?, ?,
+                   ?, ?,
+                   ?, ?,
+                   ?, ?, ?, ?,
+                   ?, ?)
+                  ON CONFLICT (program_id, week_number, teacher_id)
+                  DO UPDATE SET
+                    teacher_name = EXCLUDED.teacher_name,
+                    progress_notes = EXCLUDED.progress_notes,
+                    reception_score = EXCLUDED.reception_score,
+                    week_status = EXCLUDED.week_status,
+                    week_rating = EXCLUDED.week_rating,
+                    main_topic = EXCLUDED.main_topic,
+                    assignment_given = EXCLUDED.assignment_given,
+                    assignment_kpi_ids = EXCLUDED.assignment_kpi_ids,
+                    assignment_objective = EXCLUDED.assignment_objective,
+                    assignment_outcome = EXCLUDED.assignment_outcome,
+                    attendance_level = EXCLUDED.attendance_level,
+                    participation_level = EXCLUDED.participation_level,
+                    participants_need_attention = EXCLUDED.participants_need_attention,
+                    participants_attention_notes = EXCLUDED.participants_attention_notes,
+                    standout_participants = EXCLUDED.standout_participants,
+                    standout_notes = EXCLUDED.standout_notes,
+                    delivery_quality = EXCLUDED.delivery_quality,
+                    participant_understanding = EXCLUDED.participant_understanding,
+                    delivery_challenges = EXCLUDED.delivery_challenges,
+                    delivery_challenge_note = EXCLUDED.delivery_challenge_note,
+                    had_issues = EXCLUDED.had_issues,
+                    issue_types = EXCLUDED.issue_types,
+                    requires_admin_attention = EXCLUDED.requires_admin_attention,
+                    additional_issue_note = EXCLUDED.additional_issue_note,
+                    program_on_track = EXCLUDED.program_on_track,
+                    planned_adjustments = EXCLUDED.planned_adjustments,
+                    attachment_type = EXCLUDED.attachment_type,
+                    attachment_url = EXCLUDED.attachment_url`,
+    args: [
+      programId,
+      weekNumber,
+      teacherId,
+      teacherName,
+      progressNotes,
+      receptionScore,
+      weekStatus,
+      weekRating,
+      mainTopic,
+      assignmentGiven,
+      assignmentKpiIds,
+      assignmentObjective,
+      assignmentOutcome,
+      attendanceLevel,
+      participationLevel,
+      participantsNeedAttention,
+      participantsAttentionNotes,
+      standoutParticipants,
+      standoutNotes,
+      deliveryQuality,
+      participantUnderstanding,
+      deliveryChallenges,
+      deliveryChallengeNote,
+      hadIssues,
+      issueTypes,
+      requiresAdminAttention,
+      additionalIssueNote,
+      programOnTrack,
+      plannedAdjustments,
+      attachmentType,
+      attachmentUrl,
+    ],
+  });
+}
+
