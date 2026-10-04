@@ -4356,3 +4356,17 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
 - **Cross-calls**: the facade keeps the one re-export from `services/workspace/calendar` (unchanged).
 - **Test couplings**: None (suites use `jest.mock`; no source-text pins on this file).
 - **Verification**: import/export surface identical (56 names); the 11 workspace/notification/team suites → 885 tests green; lint 0 errors on the touched scope. Full suite 316/317 — the single failure is `platform-ai-evaluate-once.test.js`, which reads the platform review page currently mid-split by another lane (same blocker as slice 164).
+
+### Slice 166 — `src/models/lms/registrations.js` (746 → 6 files)
+
+- **Trigger**: the next largest remaining file (746).
+- **Split**: 41 exported names → barrel + 5 sub-files:
+  - `lms/registrations/helpers.js` (98): the pure value helpers (currency, amount units, email normalisation, reference generation) and the shared row projection (`REGISTRATION_SELECT`, `parseRegistration` stay INTERNAL).
+  - `lms/registrations/schema.js` (124): the self-healing checkout schema (once per process).
+  - `lms/registrations/store.js` (248): the core reads, the create and the state writes (paid/failed/cancelled/refunded, access, email, payment hint, resume tokens).
+  - `lms/registrations/payments.js` (98): the payment-event journal.
+  - `lms/registrations/lists.js` (208): the team-view lists, counters, review queue and reconciliation sweeps.
+  - Facade `registrations.js` (46): the doc header + `export *` from the four public modules and an EXPLICIT helper re-export (so `parseRegistration`/`REGISTRATION_SELECT` never leak).
+- **Cross-calls**: internal only (`store`/`lists`/`payments` import `helpers`/`schema`).
+- **Test couplings**: None (suites use `jest.mock`; no source-text pins on this file).
+- **Verification**: public surface checked programmatically (41 names present, internals absent); the LMS checkout/registrations/payment suites → 850 tests green; lint 0 errors on the touched scope. Full suite 316/317 — the single failure remains the other lane's mid-split review page (same blocker as slices 164–165).
