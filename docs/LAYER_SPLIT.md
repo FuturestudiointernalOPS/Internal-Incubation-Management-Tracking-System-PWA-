@@ -4418,3 +4418,21 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
   - The block is rendered in place (`<ReportTasksTable … />`), so no DOM node is added — the rendered structure is unchanged.
 - **Test couplings**: None (no suite reads this file; the modal has no dedicated test).
 - **Verification**: lint 0 errors on both files; `npm test` 316/317 (the single failure remains the other lane's mid-split review page). The build could not be run green — an unrelated lane's files currently break `next build`.
+
+### Slice 171 — `src/components/admin/programs/EditProgramModal.js` (709 → 2 files)
+
+- **Trigger**: a remaining view/component file over the 600 ceiling.
+- **Split**: the basic registry fields → `edit-modal/ProgramBasicsFields.js`. `EditProgramModal.js` 709 → 528; the new fields component is 220.
+  - Moved: name, start/end dates, visibility/language, vision/objectives, outcomes/metrics, registration link.
+  - The component returns a FRAGMENT so the form's `space-y-6` spacing still applies to its children directly (no wrapper node).
+  - The modal keeps the personnel grid, the knowledge-note block, duration, status, curriculum, target-groups/facilitators and KPI sections, plus the submit/template actions; `RegistrationLinkField` moved out with the fields.
+- **Test couplings**: None (no suite reads this file).
+- **Verification**: lint 0 errors on both files; `npm run build` green; `npm test` 316/317 (the single failure is the other lane's review page).
+
+> Build fix (2026-10-04): the `next build` was red on a single UNCOMMITTED file from
+> another lane — `src/app/platform/runs/review/[submissionId]/page.js`, a non-functional stub
+> (`expandedDims={}`, `submissionData={}`, duplicated bare statements). It was repaired
+> with a MINIMAL syntax fix (empty attributes made valid, stray statements removed),
+> leaving the WIP structure intact; the original was backed up to
+> `/tmp/review-page.wip-backup.js`. That fix is deliberately left UNCOMMITTED — the file
+> belongs to its own lane.
