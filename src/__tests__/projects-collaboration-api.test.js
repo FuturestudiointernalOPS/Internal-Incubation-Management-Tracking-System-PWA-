@@ -2,155 +2,34 @@
  * Characterisation tests for the project collaboration routes:
  *   src/app/api/projects/{members,assignments,discuss}/route.js
  *   src/app/api/projects/invitations/route.js
- *   src/app/api/projects/invitations/respond/route.js
  *
  * It pins the behaviour (statuses, bodies, which statements run), not the
  * implementation, so it stays valid when the use cases move to the service
  * layer. The db layer is mocked with SQL-substring matching; as long as the
  * queries stay byte-identical the assertions keep passing.
+ *
+ * The answer to an invitation lives in
+ * projects-collaboration-invitations.test.js; the wiring lives in
+ * ./helpers/projectsCollaborationHarness.
  */
 
-const executedQueries = [];
+const mockProj = require("./helpers/projectsCollaborationHarness");
 
-// Mutable inputs the mocked statements read per test.
-const mockState = { invitation: null, invitationRows: [] };
-
-jest.mock("@/lib/db", () => ({
-  __esModule: true,
-  default: {
-    execute: jest.fn(async ({ sql, args }) => {
-      executedQueries.push({ sql, args });
-
-      // --- collaboration reads -------------------------------------------
-      if (sql.includes("SELECT pm.*, c.name")) {
-        return { rows: [{ user_cid: "u1", role: "lead", name: "One" }] };
-      }
-      if (sql.includes("SELECT name FROM v2_projects")) {
-        return { rows: [{ name: "Website" }] };
-      }
-      if (sql.includes("SELECT v2_messages.id")) {
-        return { rows: [{ id: 9, sender_id: "sender", body: "hi" }] };
-      }
-      if (sql.includes("SELECT user_cid FROM project_members")) {
-        return {
-          rows: [{ user_cid: "owner" }, { user_cid: "m1" }, { user_cid: "sender" }],
-        };
-      }
-      if (sql.includes("SELECT owner_id, name FROM v2_projects")) {
-        return { rows: [{ owner_id: "owner", name: "Website" }] };
-      }
-      if (sql.includes("SELECT cid, name FROM contacts")) {
-        return { rows: [{ cid: "mention1", name: "Mention One" }] };
-      }
-      if (sql.includes("SELECT pi.*, p.name as project_name")) {
-        return { rows: mockState.invitationRows };
-      }
-      if (sql.includes("FROM project_invitations WHERE id = ?")) {
-        return { rows: mockState.invitation ? [mockState.invitation] : [] };
-      }
-      if (sql.includes("SELECT cid FROM contacts WHERE name = ?")) {
-        return { rows: [{ cid: "inviter-cid" }] };
-      }
-
-      // --- assignments reads ---------------------------------------------
-      if (sql.includes("WHERE owner_id = ? AND status != 'Archived'")) {
-        return { rows: [{ id: "1", name: "Owned", status: "Active" }] };
-      }
-      if (sql.includes("pm.role as member_role")) {
-        return {
-          rows: [
-            { id: "1", name: "Owned", status: "Active", member_role: "member" },
-            { id: "2", name: "Collab", status: "Active", member_role: "member" },
-          ],
-        };
-      }
-      if (sql.includes("WHERE status != 'Archived' AND status != 'Completed'")) {
-        return {
-          rows: [
-            { id: "1", name: "Owned", status: "Active" },
-            { id: "2", name: "Collab", status: "Active" },
-            { id: "3", name: "Other", status: "Active" },
-          ],
-        };
-      }
-
-      // --- writes ---------------------------------------------------------
-      if (sql.includes("WHERE project_id = ? AND invitee_id = ?")) {
-        return { rows: [], rowsAffected: 1 };
-      }
-      if (sql.includes("INSERT INTO project_invitations")) {
-        return { rows: [{ id: 5 }], lastInsertRowid: 5 };
-      }
-      if (sql.includes("INSERT INTO v2_messages")) {
-        return { rows: [{ id: 9, created_at: "2026-01-01T00:00:00Z" }] };
-      }
-      if (sql.includes("INSERT INTO project_members (project_id, user_cid, role, assigned_at)")) {
-        return { rows: [], rowsAffected: 1 };
-      }
-      if (sql.includes("UPDATE project_invitations SET status = 'accepted'")) {
-        return { rows: [], rowsAffected: 1 };
-      }
-      if (sql.includes("UPDATE project_invitations SET status = 'declined'")) {
-        return { rows: [], rowsAffected: 1 };
-      }
-      if (sql.includes("DELETE FROM project_members")) {
-        return { rows: [], rowsAffected: 1 };
-      }
-      if (sql.includes("INSERT INTO v2_notifications")) {
-        return { rows: [], rowsAffected: 1 };
-      }
-      return { rows: [], rowsAffected: 1 };
-    }),
-  },
-  initDb: jest.fn(async () => true),
-}));
-
-const mockSession = {
-  cid: "user-1",
-  name: "Staff One",
-  role: "staff",
-  email: "staff@example.io",
-};
-
-jest.mock("@/lib/auth", () => ({
-  requireAuth: jest.fn(async () => null),
-  getSession: jest.fn(async () => mockSession),
-  requireProjectAccess: jest.fn(async () => null),
-}));
-
-jest.mock("@/models/authorization/index", () => ({
-  requireAuthorization: jest.fn(async () => null),
-}));
+jest.mock("@/lib/db", () => mockProj.dbMock());
+jest.mock("@/lib/auth", () => mockProj.authMock());
+jest.mock("@/models/authorization/index", () => mockProj.authorizationMock());
 
 const { requireProjectAccess } = require("@/lib/auth");
-const { requireAuthorization } = require("@/models/authorization/index");
 
 const members = require("@/app/api/projects/members/route");
 const assignments = require("@/app/api/projects/assignments/route");
 const discuss = require("@/app/api/projects/discuss/route");
 const invitations = require("@/app/api/projects/invitations/route");
-const respond = require("@/app/api/projects/invitations/respond/route");
 
-const readJson = (res) => res.json();
-const req = (url, { method = "GET", body } = {}) =>
-  new Request(`http://localhost${url}`, {
-    method,
-    headers: { "Content-Type": "application/json" },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
-
-const count = (substring) =>
-  executedQueries.filter((query) => query.sql.includes(substring)).length;
+const { readJson, req, count, executedQueries, mockState, mockSession, reset } = mockProj;
 
 beforeEach(() => {
-  executedQueries.length = 0;
-  mockState.invitation = null;
-  mockState.invitationRows = [];
-  mockSession.cid = "user-1";
-  mockSession.name = "Staff One";
-  mockSession.role = "staff";
-  requireProjectAccess.mockResolvedValue(null);
-  requireAuthorization.mockResolvedValue(null);
+  reset();
 });
 
 describe("GET /api/projects/members", () => {
@@ -353,151 +232,5 @@ describe("GET /api/projects/invitations", () => {
       req("/api/projects/invitations?invitee_id=someone-else"),
     );
     expect(res.status).toBe(403);
-  });
-});
-
-describe("POST /api/projects/invitations/respond", () => {
-  test("requires invitation_id and action", async () => {
-    const res = await respond.POST(
-      req("/api/projects/invitations/respond", { method: "POST", body: {} }),
-    );
-    expect(res.status).toBe(400);
-  });
-
-  test("an unknown invitation is a 404", async () => {
-    const res = await respond.POST(
-      req("/api/projects/invitations/respond", {
-        method: "POST",
-        body: { invitation_id: 1, action: "accept" },
-      }),
-    );
-    expect(res.status).toBe(404);
-  });
-
-  test("an invitation that is no longer pending is a 400", async () => {
-    mockState.invitation = { id: 1, status: "accepted", invitee_id: "user-1" };
-    const res = await respond.POST(
-      req("/api/projects/invitations/respond", {
-        method: "POST",
-        body: { invitation_id: 1, action: "accept" },
-      }),
-    );
-    expect(res.status).toBe(400);
-  });
-
-  test("only the inviter (or Super Admin) may cancel", async () => {
-    mockState.invitation = {
-      id: 1,
-      status: "pending",
-      inviter_id: "Someone Else",
-      invitee_id: "user-1",
-    };
-    const res = await respond.POST(
-      req("/api/projects/invitations/respond", {
-        method: "POST",
-        body: { invitation_id: 1, action: "cancel" },
-      }),
-    );
-    expect(res.status).toBe(403);
-  });
-
-  test("the inviter can cancel", async () => {
-    mockState.invitation = {
-      id: 1,
-      status: "pending",
-      inviter_id: "Someone Else",
-      invitee_id: "other",
-    };
-    mockSession.cid = "inviter-cid";
-    const res = await respond.POST(
-      req("/api/projects/invitations/respond", {
-        method: "POST",
-        body: { invitation_id: 1, action: "cancel" },
-      }),
-    );
-    const data = await readJson(res);
-    expect(res.status).toBe(200);
-    expect(data).toEqual({ success: true, action: "cancelled" });
-  });
-
-  test("only the invitee can accept or decline", async () => {
-    mockState.invitation = {
-      id: 1,
-      status: "pending",
-      inviter_id: "Someone Else",
-      invitee_id: "not-me",
-    };
-    const res = await respond.POST(
-      req("/api/projects/invitations/respond", {
-        method: "POST",
-        body: { invitation_id: 1, action: "decline" },
-      }),
-    );
-    expect(res.status).toBe(403);
-  });
-
-  test("the invitee declines", async () => {
-    mockState.invitation = {
-      id: 1,
-      status: "pending",
-      inviter_id: "Someone Else",
-      invitee_id: "user-1",
-    };
-    const res = await respond.POST(
-      req("/api/projects/invitations/respond", {
-        method: "POST",
-        body: { invitation_id: 1, action: "decline" },
-      }),
-    );
-    const data = await readJson(res);
-    expect(res.status).toBe(200);
-    expect(data).toEqual({ success: true, action: "declined" });
-    expect(count("SET status = 'declined'")).toBe(1);
-  });
-
-  test("the invitee accepts: joins the project, marks it, notifies the inviter", async () => {
-    mockState.invitation = {
-      id: 1,
-      status: "pending",
-      inviter_id: "Someone Else",
-      invitee_id: "user-1",
-      project_id: "1",
-      role: "member",
-    };
-    const res = await respond.POST(
-      req("/api/projects/invitations/respond", {
-        method: "POST",
-        body: { invitation_id: 1, action: "accept" },
-      }),
-    );
-    const data = await readJson(res);
-    expect(res.status).toBe(200);
-    expect(data).toEqual({ success: true, action: "accepted" });
-
-    const memberInsert = executedQueries.find((query) =>
-      query.sql.includes("INSERT INTO project_members (project_id, user_cid, role, assigned_at)"),
-    );
-    expect(memberInsert.args).toEqual(["1", "user-1", "member", "member"]);
-    expect(count("SET status = 'accepted'")).toBe(1);
-    const notif = executedQueries.find((query) =>
-      query.sql.includes("INSERT INTO v2_notifications"),
-    );
-    expect(notif.args[0]).toBe("inviter-cid");
-  });
-
-  test("an unknown action is a 400", async () => {
-    mockState.invitation = {
-      id: 1,
-      status: "pending",
-      inviter_id: "Someone Else",
-      invitee_id: "user-1",
-    };
-    const res = await respond.POST(
-      req("/api/projects/invitations/respond", {
-        method: "POST",
-        body: { invitation_id: 1, action: "explode" },
-      }),
-    );
-    expect(res.status).toBe(400);
   });
 });
