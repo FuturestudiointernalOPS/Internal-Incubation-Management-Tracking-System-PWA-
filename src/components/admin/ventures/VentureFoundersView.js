@@ -3,23 +3,19 @@
 import {
   ArrowLeft,
   User,
-  Mail,
-  Phone,
   Crown,
   Loader2,
   CheckCircle2,
   AlertCircle,
   AlertTriangle,
-  X,
-  Trash2,
-  Ban,
-  RefreshCw,
-  ChevronRight,
   Search,
-  Send,
   UserPlus,
-  MoreVertical,
 } from "lucide-react";
+
+import FounderCard from "./venture-founders/FounderCard";
+import InviteModal from "./venture-founders/InviteModal";
+import TransferModal from "./venture-founders/TransferModal";
+import ConfirmDialog from "./venture-founders/ConfirmDialog";
 
 const VENTURE_ROLES = [
   "founder",
@@ -219,410 +215,69 @@ export default function VentureFoundersView({ ctx }) {
           </div>
         ) : (
           <div className="space-y-2">
-            {filteredFounders.map((founder) => {
-              const isOwner = !!founder.is_owner;
-              const isSuspended = !!founder.suspended_at;
-              const isMenuOpen = openMenuId === founder.id;
-              const roleColor = getRoleColor(founder.role);
-
-              return (
-                <div
-                  key={founder.id}
-                  className={`p-5 rounded-2xl border transition-all ${
-                    isSuspended
-                      ? "bg-rose-500/5 border-rose-500/20 opacity-60"
-                      : isOwner
-                        ? "bg-amber-500/5 border-amber-500/20"
-                        : "bg-tertiary border-[var(--border-primary)] hover:border-brand-orange/30"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-base font-black shrink-0 ${
-                        isOwner
-                          ? "bg-amber-500/20 text-amber-400 border-2 border-amber-500/30"
-                          : isSuspended
-                            ? "bg-rose-500/10 text-rose-500 border-2 border-rose-500/20"
-                            : "bg-primary border-2 border-[var(--border-primary)] text-[var(--text-primary)]"
-                      }`}>
-                        {founder.name?.charAt(0) || founder.email?.charAt(0) || "?"}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-bold text-[var(--text-primary)] truncate">
-                            {founder.name || founder.email}
-                          </p>
-                          {isOwner && (
-                            <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 flex items-center gap-1">
-                              <Crown className="w-2.5 h-2.5" /> {t("vadmin.founders.owner")}
-                            </span>
-                          )}
-                          {isSuspended && (
-                            <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400">
-                              {t("vadmin.founders.suspended")}
-                            </span>
-                          )}
-                          {founder.status === "pending" && (
-                            <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400">
-                              {t("vadmin.founders.pending")}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${roleColor}`}>
-                            {founder.role_label || founder.role}
-                          </span>
-                          <span className="flex items-center gap-1 text-[10px] text-[var(--text-secondary)]">
-                            <Mail className="w-3 h-3" /> {founder.email}
-                          </span>
-                          {founder.phone && (
-                            <span className="flex items-center gap-1 text-[10px] text-[var(--text-secondary)]">
-                              <Phone className="w-3 h-3" /> {founder.phone}
-                            </span>
-                          )}
-                        </div>
-                        {founder.invitation_expired && founder.status === "pending" && (
-                          <p className="text-[10px] text-rose-400 mt-1">{t("vadmin.founders.invitationExpired")}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Actions Menu */}
-                    <div className="relative shrink-0">
-                      <button
-                        onClick={() => setOpenMenuId(isMenuOpen ? null : founder.id)}
-                        className="p-2 hover:bg-white/5 rounded-lg transition-all"
-                      >
-                        <MoreVertical className="w-4 h-4 text-slate-500" />
-                      </button>
-
-                      {isMenuOpen && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
-                          <div className="absolute right-0 top-10 z-20 w-52 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-2xl shadow-2xl overflow-hidden">
-                            <div className="p-2 space-y-0.5">
-                              {/* Role selector */}
-                              <div className="px-3 py-2">
-                                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">{t("vadmin.founders.changeRole")}</p>
-                                <select
-                                  value={founder.role}
-                                  onChange={(event) => {
-                                    if (event.target.value !== founder.role) {
-                                      setConfirmAction({
-                                        title: t("vadmin.founders.updateRole"),
-                                        message: t("vadmin.founders.updateRoleMessage", {
-                                          name: founder.name,
-                                          current: founder.role,
-                                          new: event.target.value,
-                                        }),
-                                        confirmLabel: t("vadmin.founders.updateRole"),
-                                        onConfirm: () => handleRoleUpdate(founder.id, event.target.value),
-                                      });
-                                    }
-                                  }}
-                                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold text-[var(--text-primary)] outline-none"
-                                >
-                                  {VENTURE_ROLES.map((ventureRole) => (
-                                    <option key={ventureRole} value={ventureRole}>{ventureRole.replace(/_/g, " ")}</option>
-                                  ))}
-                                </select>
-                              </div>
-
-                              <div className="border-t border-[var(--border-primary)] mx-3" />
-
-                              {!isOwner && (
-                                <button
-                                  onClick={() => {
-                                    setConfirmAction({
-                                      title: t("vadmin.founders.transferOwnership"),
-                                      message: t("vadmin.founders.transferConfirmMessage", { name: founder.name }),
-                                      confirmLabel: t("vadmin.founders.transfer"),
-                                      onConfirm: async () => {
-                                        setTransferTarget(String(founder.id));
-                                        setOpenMenuId(null);
-                                        setShowTransferModal(false);
-                                        // Direct transfer
-                                        setTransferring(true);
-                                        try {
-                                          const response = await fetch(`/api/ventures/${id}/founders/transfer-ownership`, {
-                                            method: "POST",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({ new_owner_id: founder.id }),
-                                          });
-                                          const data = await response.json();
-                                          if (data.success) {
-                                            notify(t("vadmin.founders.ownershipTransferred"));
-                                            setConfirmAction(null);
-                                            reload();
-                                          } else {
-                                            notify(t((data.error || t("vadmin.founders.transferFailed")) || "") || (data.error || t("vadmin.founders.transferFailed")), "error");
-                                            setConfirmAction(null);
-                                          }
-                                        } catch { notify(t("vadmin.founders.networkError"), "error"); setConfirmAction(null); }
-                                        setTransferring(false);
-                                      },
-                                    });
-                                  }}
-                                  className="w-full text-left px-3 py-2 text-[10px] font-bold text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all flex items-center gap-2"
-                                >
-                                  <Crown className="w-3 h-3" /> {t("vadmin.founders.transferOwnership")}
-                                </button>
-                              )}
-
-                              {isSuspended ? (
-                                <button
-                                  onClick={() => handleReactivate(founder.id)}
-                                  className="w-full text-left px-3 py-2 text-[10px] font-bold text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all flex items-center gap-2"
-                                >
-                                  <RefreshCw className="w-3 h-3" /> {t("vadmin.founders.reactivate")}
-                                </button>
-                              ) : (
-                                !isOwner && (
-                                  <button
-                                    onClick={() => handleSuspend(founder.id)}
-                                    className="w-full text-left px-3 py-2 text-[10px] font-bold text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all flex items-center gap-2"
-                                  >
-                                    <Ban className="w-3 h-3" /> {t("vadmin.founders.suspend")}
-                                  </button>
-                                )
-                              )}
-
-                              {!isOwner && (
-                                <>
-                                  <div className="border-t border-[var(--border-primary)] mx-3" />
-                                  <button
-                                    onClick={() => {
-                                      setConfirmAction({
-                                        title: t("vadmin.founders.removeFounder"),
-                                        message: t("vadmin.founders.removeConfirmMessage", {
-                                          name: founder.name,
-                                          company: venture.company_name,
-                                        }),
-                                        confirmLabel: t("vadmin.founders.remove"),
-                                        variant: "danger",
-                                        onConfirm: () => handleRemove(founder.id),
-                                      });
-                                      setOpenMenuId(null);
-                                    }}
-                                    className="w-full text-left px-3 py-2 text-[10px] font-bold text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all flex items-center gap-2"
-                                  >
-                                    <Trash2 className="w-3 h-3" /> {t("vadmin.founders.remove")}
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {filteredFounders.map((founder) => (
+              <FounderCard
+                key={founder.id}
+                founder={founder}
+                openMenuId={openMenuId}
+                setOpenMenuId={setOpenMenuId}
+                getRoleColor={getRoleColor}
+                handleReactivate={handleReactivate}
+                handleSuspend={handleSuspend}
+                handleRemove={handleRemove}
+                handleRoleUpdate={handleRoleUpdate}
+                setConfirmAction={setConfirmAction}
+                setTransferTarget={setTransferTarget}
+                setShowTransferModal={setShowTransferModal}
+                setTransferring={setTransferring}
+                notify={notify}
+                t={t}
+                id={id}
+                venture={venture}
+                reload={reload}
+                ventureRoles={VENTURE_ROLES}
+              />
+            ))}
           </div>
         )}
       </div>
 
       {/* ── Invite Modal ── */}
       {showInviteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-brand-orange/10 flex items-center justify-center">
-                  <UserPlus className="w-5 h-5 text-[var(--brand-orange)]" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.founders.inviteMember")}</h2>
-                  <p className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.founders.inviteModalSubtitle")}</p>
-                </div>
-              </div>
-              <button onClick={() => setShowInviteModal(false)} className="p-2 hover:bg-white/5 rounded-lg">
-                <X className="w-4 h-4 text-slate-500" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">{t("vadmin.founders.emailLabel")}</label>
-                <input
-                  type="email"
-                  value={inviteForm.email}
-                  onChange={(event) => setInviteForm((previous) => ({ ...previous, email: event.target.value }))}
-                  placeholder={t("vadmin.founders.emailPlaceholder")}
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">{t("vadmin.founders.nameLabel")}</label>
-                <input
-                  type="text"
-                  value={inviteForm.name}
-                  onChange={(event) => setInviteForm((previous) => ({ ...previous, name: event.target.value }))}
-                  placeholder={t("vadmin.founders.namePlaceholder")}
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">{t("vadmin.founders.roleLabel")}</label>
-                <select
-                  value={inviteForm.role}
-                  onChange={(event) => setInviteForm((previous) => ({ ...previous, role: event.target.value }))}
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-                >
-                  {VENTURE_ROLES.map((ventureRole) => (
-                    <option key={ventureRole} value={ventureRole}>{ventureRole.replace(/_/g, " ").replace(/\b\w/g, (character) => character.toUpperCase())}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowInviteModal(false)}
-                className="flex-1 py-3 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
-              >
-                {t("vadmin.founders.cancel")}
-              </button>
-              <button
-                onClick={handleInvite}
-                disabled={inviting}
-                className="flex-1 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
-              >
-                {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                {inviting ? t("vadmin.founders.sending") : t("vadmin.founders.sendInvitation")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <InviteModal
+          setShowInviteModal={setShowInviteModal}
+          inviteForm={inviteForm}
+          setInviteForm={setInviteForm}
+          inviting={inviting}
+          handleInvite={handleInvite}
+          t={t}
+          ventureRoles={VENTURE_ROLES}
+        />
       )}
 
       {/* ── Transfer Ownership Modal ── */}
       {showTransferModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                  <Crown className="w-5 h-5 text-amber-400" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.founders.transferOwnership")}</h2>
-                  <p className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.founders.selectNewOwner")}</p>
-                </div>
-              </div>
-              <button onClick={() => setShowTransferModal(false)} className="p-2 hover:bg-white/5 rounded-lg">
-                <X className="w-4 h-4 text-slate-500" />
-              </button>
-            </div>
-
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {founders
-                .filter((founder) => !founder.is_owner && !founder.suspended_at && founder.status === "accepted")
-                .map((founder) => (
-                  <button
-                    key={founder.id}
-                    onClick={() => {
-                      setConfirmAction({
-                        title: t("vadmin.founders.transferOwnership"),
-                        message: t("vadmin.founders.transferConfirmDetailed", { name: founder.name, email: founder.email }),
-                        confirmLabel: t("vadmin.founders.transferOwnership"),
-                        onConfirm: async () => {
-                          setTransferTarget(String(founder.id));
-                          setShowTransferModal(false);
-                          setTransferring(true);
-                          try {
-                            const response = await fetch(`/api/ventures/${id}/founders/transfer-ownership`, {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ new_owner_id: founder.id }),
-                            });
-                            const data = await response.json();
-                            if (data.success) {
-                              notify(t("vadmin.founders.ownershipTransferredTo", { name: founder.name }));
-                              setConfirmAction(null);
-                              reload();
-                            } else {
-                              notify(t((data.error || t("vadmin.founders.transferFailed")) || "") || (data.error || t("vadmin.founders.transferFailed")), "error");
-                              setConfirmAction(null);
-                            }
-                          } catch { notify(t("vadmin.founders.networkError"), "error"); setConfirmAction(null); }
-                          setTransferring(false);
-                        },
-                      });
-                    }}
-                    className="w-full text-left p-4 rounded-xl bg-primary border border-[var(--border-primary)] hover:border-amber-500/30 transition-all flex items-center gap-4"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-sm font-black text-amber-400">
-                      {founder.name?.charAt(0) || founder.email?.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-[var(--text-primary)]">{founder.name || founder.email}</p>
-                      <p className="text-[10px] text-[var(--text-secondary)]">{founder.email} · {founder.role}</p>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-500 ml-auto" />
-                  </button>
-                ))}
-              {founders.filter((founder) => !founder.is_owner && !founder.suspended_at && founder.status === "accepted").length === 0 && (
-                <p className="text-sm text-[var(--text-secondary)] text-center py-8">
-                  {t("vadmin.founders.noEligibleFounders")}
-                </p>
-              )}
-            </div>
-
-            <button
-              onClick={() => setShowTransferModal(false)}
-              className="w-full py-3 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
-            >
-              {t("vadmin.founders.cancel")}
-            </button>
-          </div>
-        </div>
+        <TransferModal
+          setShowTransferModal={setShowTransferModal}
+          founders={founders}
+          setConfirmAction={setConfirmAction}
+          setTransferTarget={setTransferTarget}
+          setTransferring={setTransferring}
+          notify={notify}
+          t={t}
+          id={id}
+          reload={reload}
+        />
       )}
 
       {/* ── Confirmation Dialog ── */}
       {confirmAction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 space-y-6">
-            <div className="text-center">
-              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 ${
-                confirmAction.variant === "danger" ? "bg-rose-500/10" : "bg-amber-500/10"
-              }`}>
-                {confirmAction.variant === "danger" ? (
-                  <AlertTriangle className="w-8 h-8 text-rose-400" />
-                ) : (
-                  <AlertCircle className="w-8 h-8 text-amber-400" />
-                )}
-              </div>
-              <h2 className="text-lg font-black text-[var(--text-primary)]">{confirmAction.title}</h2>
-              <p className="text-sm text-[var(--text-secondary)] mt-2">{confirmAction.message}</p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmAction(null)}
-                className="flex-1 py-3 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
-              >
-                {t("vadmin.founders.cancel")}
-              </button>
-              <button
-                onClick={() => {
-                  if (confirmAction.onConfirm) confirmAction.onConfirm();
-                }}
-                disabled={transferring}
-                className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30 flex items-center justify-center gap-2 ${
-                  confirmAction.variant === "danger"
-                    ? "bg-rose-600 text-white"
-                    : "bg-[var(--brand-orange)] text-black"
-                }`}
-              >
-                {transferring ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {transferring ? t("vadmin.founders.processing") : confirmAction.confirmLabel}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          confirmAction={confirmAction}
+          setConfirmAction={setConfirmAction}
+          transferring={transferring}
+          t={t}
+        />
       )}
     </>
   );

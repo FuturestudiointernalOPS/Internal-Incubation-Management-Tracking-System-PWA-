@@ -19,7 +19,12 @@ import { useCallback, useEffect, useState } from "react";
 import { defer } from "@/components/permissions/effectUtils";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
-import { Info, Loader2, Shield } from "lucide-react";
+import { Loader2, Shield } from "lucide-react";
+import EligibilityIdentityPicker from "@/components/permissions/permission-center/eligibility-view/EligibilityIdentityPicker";
+import EligibilityImpactModal from "@/components/permissions/permission-center/eligibility-view/EligibilityImpactModal";
+import EligibilityMatrix from "@/components/permissions/permission-center/eligibility-view/EligibilityMatrix";
+import EligibilityNotices from "@/components/permissions/permission-center/eligibility-view/EligibilityNotices";
+import EligibilityViewToggle from "@/components/permissions/permission-center/eligibility-view/EligibilityViewToggle";
 
 // The rows below are persisted in `feature_eligibility`, and the SAME resolver
 // enforces every API route that guards an eligibility write. Read authority is
@@ -247,190 +252,37 @@ export default function EligibilityView() {
   return (
     <div className="space-y-4">
       {/* View toggle: identity editor vs roles × features matrix */}
-      <div className="flex gap-1 bg-secondary rounded-xl p-1 border border-[var(--border-primary)] w-fit">
-        <button
-          onClick={() => setViewMode("identity")}
-          className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${viewMode === "identity" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-        >
-          {t("engineering.permissions.eligibilityIdentityView")}
-        </button>
-        <button
-          onClick={() => setViewMode("matrix")}
-          className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${viewMode === "matrix" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-        >
-          {t("engineering.permissions.eligibilityMatrixView")}
-        </button>
-      </div>
+      <EligibilityViewToggle
+        t={t}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+      />
 
       {/* Matrix view: roles × features — click a cell to edit that identity */}
       {viewMode === "matrix" && data && (
-        <div className="ios-card !p-0 border-[var(--border-primary)] overflow-hidden">
-          <div className="p-3 bg-secondary border-b border-[var(--border-primary)]">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]">
-              {t("engineering.permissions.eligibilityMatrixTitle")}
-            </p>
-            <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
-              {t("engineering.permissions.eligibilityMatrixHint")}
-            </p>
-          </div>
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-[var(--border-primary)]">
-                  <th className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] sticky left-0 bg-secondary">
-                    {t("engineering.permissions.eligibilityIdentity")}
-                  </th>
-                  {(data.features || []).map((featureKey) => (
-                    <th
-                      key={featureKey}
-                      className="px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] whitespace-nowrap"
-                    >
-                      {featureKey}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {matrixRoles.map((role) => (
-                  <tr
-                    key={role}
-                    className="border-b border-[var(--border-primary)] last:border-0"
-                  >
-                    <td className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)] sticky left-0 bg-secondary">
-                      {role}
-                      {isDatabaseRole(role) && (
-                        <span className="ml-1 text-[8px] font-black uppercase tracking-widest text-teal-400">
-                          {t("engineering.permissions.databaseRoleTag")}
-                        </span>
-                      )}
-                    </td>
-                    {(data.features || []).map((featureKey) => {
-                      const state = stateFor(role, featureKey);
-                      return (
-                        <td key={featureKey} className="px-2 py-1.5 text-center">
-                          <button
-                            onClick={() => {
-                              setIdentityType("role");
-                              setIdentityValue(role);
-                              setViewMode("identity");
-                            }}
-                            title={state.title}
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${state.className}`}
-                          >
-                            {state.label}
-                          </button>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Small screens: one card per identity, one chip per feature — the
-              same tap opens the same identity editor. */}
-          <div className="md:hidden divide-y divide-divider/50">
-            {matrixRoles.map((role) => (
-              <div key={role} className="p-3 space-y-2">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]">
-                  {role}
-                  {isDatabaseRole(role) && (
-                    <span className="ml-1 text-[8px] font-black uppercase tracking-widest text-teal-400">
-                      {t("engineering.permissions.databaseRoleTag")}
-                    </span>
-                  )}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {(data.features || []).map((featureKey) => {
-                    const state = stateFor(role, featureKey);
-                    return (
-                      <button
-                        key={featureKey}
-                        onClick={() => {
-                          setIdentityType("role");
-                          setIdentityValue(role);
-                          setViewMode("identity");
-                        }}
-                        title={state.title}
-                        className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border border-transparent text-left ${state.className}`}
-                      >
-                        <span className="block text-[9px] tracking-widest opacity-70">
-                          {featureKey}
-                        </span>
-                        <span>{state.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <EligibilityMatrix
+          t={t}
+          data={data}
+          matrixRoles={matrixRoles}
+          isDatabaseRole={isDatabaseRole}
+          stateFor={stateFor}
+          setIdentityType={setIdentityType}
+          setIdentityValue={setIdentityValue}
+          setViewMode={setViewMode}
+        />
       )}
 
-      <div className="flex items-start gap-2 p-3 rounded-xl bg-brand-orange/5 border border-brand-orange/20">
-        <Info className="w-3.5 h-3.5 text-[var(--brand-orange)] shrink-0 mt-0.5" />
-        <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-          {t("engineering.permissions.eligibilityHint")}
-        </p>
-      </div>
-
-      <p className="text-[10px] font-bold text-[var(--text-secondary)] opacity-80">
-        {t("engineering.permissions.identityGroupsNote")}
-      </p>
-
-      {!canConfigure && (
-        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
-          <p className="text-[10px] font-bold text-amber-400">
-            {t("engineering.permissions.eligibilityReadOnly")}
-          </p>
-        </div>
-      )}
+      <EligibilityNotices t={t} canConfigure={canConfigure} />
 
       {/* Identity selector */}
-      <div className="flex flex-wrap items-end gap-3">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1.5">
-            {t("engineering.permissions.eligibilityIdentityType")}
-          </p>
-          <div className="flex gap-1 bg-secondary rounded-xl p-1 border border-[var(--border-primary)] w-fit">
-            {["role", "group"].map((type) => (
-              <button
-                key={type}
-                onClick={() => {
-                  setIdentityType(type);
-                  setIdentityValue("");
-                }}
-                className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${identityType === type ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-              >
-                {type === "role"
-                  ? t("engineering.permissions.eligibilityRole")
-                  : t("engineering.permissions.eligibilityGroup")}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="flex-1 min-w-[200px]">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1.5">
-            {t("engineering.permissions.eligibilityIdentity")}
-          </p>
-          <select
-            value={identityValue}
-            onChange={(event) => setIdentityValue(event.target.value)}
-            className="w-full px-3 py-2.5 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]"
-          >
-            <option value="">
-              {t("engineering.permissions.eligibilitySelectIdentity")}
-            </option>
-            {identities.map((id) => (
-              <option key={id} value={id}>
-                {id}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <EligibilityIdentityPicker
+        t={t}
+        identityType={identityType}
+        setIdentityType={setIdentityType}
+        setIdentityValue={setIdentityValue}
+        identityValue={identityValue}
+        identities={identities}
+      />
 
       {selected ? (
         <>
@@ -540,85 +392,13 @@ export default function EligibilityView() {
       {/* C2 — confirmation before an eligibility downgrade strands capabilities
           that role-default templates still grant. Nothing was deleted. */}
       {pendingImpacts && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0"
-            style={{ background: "rgba(0,0,0,0.7)" }}
-            onClick={() => setPendingImpacts(null)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl max-h-[80vh] overflow-y-auto"
-            style={{
-              background: "var(--surface-1)",
-              border: "1px solid var(--border-primary)",
-            }}
-          >
-            <h4
-              className="text-sm font-black uppercase tracking-tight"
-              style={{ color: "var(--text-primary)" }}
-            >
-              {t("engineering.permissions.eligibilityImpactTitle")}
-            </h4>
-            <p
-              className="text-[10px] font-bold mt-2"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              {t("engineering.permissions.eligibilityImpactHint")}
-            </p>
-            <div className="space-y-3 mt-4">
-              {pendingImpacts.map((impact) => (
-                <div
-                  key={`${impact.role}:${impact.feature}`}
-                  className="rounded-lg border p-3 space-y-1.5"
-                  style={{ borderColor: "var(--border-primary)" }}
-                >
-                  <p className="text-[10px] font-black uppercase tracking-wider text-[var(--text-primary)]">
-                    {t("engineering.permissions.eligibilityImpactIdentity", {
-                      role: impact.role,
-                      feature: impact.feature,
-                    })}
-                  </p>
-                  {impact.templates.map((tpl) => (
-                    <div
-                      key={tpl.id}
-                      className="flex items-start justify-between gap-3"
-                    >
-                      <span
-                        className="text-[10px] font-bold"
-                        style={{ color: "var(--text-primary)" }}
-                      >
-                        {tpl.name}
-                      </span>
-                      <span
-                        className="text-[10px] font-mono text-right break-words"
-                        style={{ color: "var(--text-secondary)" }}
-                      >
-                        {tpl.capabilities.join(", ")}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-end gap-2 mt-5">
-              <button
-                onClick={() => setPendingImpacts(null)}
-                className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
-              >
-                {t("engineering.permissions.cancel")}
-              </button>
-              <button
-                onClick={() => save(true)}
-                disabled={saving}
-                className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-40"
-              >
-                {t("engineering.permissions.eligibilityImpactConfirm")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <EligibilityImpactModal
+          t={t}
+          pendingImpacts={pendingImpacts}
+          setPendingImpacts={setPendingImpacts}
+          save={save}
+          saving={saving}
+        />
       )}
     </div>
   );
