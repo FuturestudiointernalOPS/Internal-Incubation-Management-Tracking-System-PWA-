@@ -14,7 +14,7 @@ import ReportsTab from "@/components/pm/program-workspace/ReportsTab";
 import SubmissionsTab from "@/components/pm/program-workspace/SubmissionsTab";
 import { FacilitatorsPanel } from "@/components/pm/FacilitatorsPanel";
 
-export default function WorkspaceContent(ctx) {
+export default function WorkspaceContent({ ctx }) {
   const {
     activeTab,
     assignedStaff,

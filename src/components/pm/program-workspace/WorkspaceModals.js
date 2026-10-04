@@ -18,7 +18,7 @@ import PmReportModal from "@/components/pm/program-workspace/PmReportModal";
 import TeamDetailsModal from "@/components/pm/program-workspace/TeamDetailsModal";
 import ConfirmActionDialog from "@/components/pm/program-workspace/ConfirmActionDialog";
 
-export default function WorkspaceModals(ctx) {
+export default function WorkspaceModals({ ctx }) {
   const {
     activePDF,
     setActivePDF,

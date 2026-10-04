@@ -7,26 +7,21 @@ import React, {
   Suspense,
 } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import {
-  Users,
-  Activity,
-  CheckCircle2,
-  FileText,
-  MessageCircle,
-  Shield,
-  LayoutDashboard,
-  BarChart3,
-  UserPlus,
-} from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { getLocalToday } from "@/lib/constants";
 import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import ProgramLoading from "@/components/pm/program-workspace/ProgramLoading";
-import ProgramHeader from "@/components/pm/program-workspace/ProgramHeader";
-import ProgramTabs from "@/components/pm/program-workspace/ProgramTabs";
-import WorkspaceContent from "@/components/pm/program-workspace/WorkspaceContent";
-import WorkspaceModals from "@/components/pm/program-workspace/WorkspaceModals";
+import ProgramWorkspaceView from "@/components/pm/programs/ProgramWorkspaceView";
+import ProgramSuspenseFallback from "@/components/pm/programs/ProgramSuspenseFallback";
+import { buildProgramTabs } from "@/components/pm/programs/programTabs";
+import {
+  selectOversightCandidates,
+  selectProgramAccess,
+  selectProgramTeamMembers,
+  selectVisibleTabs,
+} from "@/components/pm/programs/programWorkspaceSelectors";
+import { pickRegForm, pickReviews } from "@/components/pm/programs/programWorkspaceShapes";
 import useAttendanceMarks from "@/app/pm/programs/[id]/useAttendanceMarks";
 import { teamActions } from "@/app/pm/programs/[id]/actions/teams";
 import { curriculumActions } from "@/app/pm/programs/[id]/actions/curriculum";
@@ -48,27 +43,6 @@ export const dynamic = "force-dynamic";
  * `src/components/pm/program-workspace/` (the body in `WorkspaceContent`, the
  * overlays in `WorkspaceModals`) — each receives the values below as props.
  */
-
-// Shapes the assigned registration-form read: the active Form Run becomes the
-// public link shown in the header, or null when there is none to show.
-// Module scope on purpose - the read keys on the address, never on this.
-function pickRegForm(payload) {
-  const run = (payload?.success ? payload.runs || [] : []).find(
-    (entry) => entry.status === "active" && entry.public_slug,
-  );
-  return run
-    ? {
-        link: `${window.location.origin}/s/${run.public_slug}`,
-        name: run.form_name || run.name || "Form",
-      }
-    : null;
-}
-
-// Shapes the facilitator-reviews read: the list, or empty when the server
-// refused - the screen shows its empty state for that, as its first load did.
-function pickReviews(payload) {
-  return payload?.success ? payload.reviews || [] : [];
-}
 
 function ProgramWorkspace() {
   const { id } = useParams();
@@ -131,48 +105,17 @@ function ProgramWorkspace() {
 
   // Compute program team members from Super Admin's approved list (assigned_assistant_id)
   const assignedAssistantId = program?.assigned_assistant_id;
-  const programTeamMembers = React.useMemo(() => {
-    if (!assignedAssistantId) return [];
-    try {
-      const rawAssistantIds = assignedAssistantId;
-      let approvedIds = [];
-      // Handle both JSON array string and single CID string
-      if (typeof rawAssistantIds === "string") {
-        if (rawAssistantIds.startsWith("[")) {
-          approvedIds = JSON.parse(rawAssistantIds);
-        } else {
-          approvedIds = [rawAssistantIds];
-        }
-      } else if (Array.isArray(rawAssistantIds)) {
-        approvedIds = rawAssistantIds;
-      }
-      if (!Array.isArray(approvedIds)) return [];
-      const allAvailable = [...staffList, ...assignedStaff];
-      const unique = Array.from(
-        new Map(allAvailable.map((member) => [member.cid, member])).values(),
-      );
-      return unique.filter(
-        (member) =>
-          approvedIds.includes(member.cid) && member.role !== "investor",
-      );
-    } catch {
-      return [];
-    }
-  }, [assignedAssistantId, staffList, assignedStaff]);
+  const programTeamMembers = React.useMemo(
+    () => selectProgramTeamMembers(assignedAssistantId, staffList, assignedStaff),
+    [assignedAssistantId, staffList, assignedStaff],
+  );
 
   // Oversight candidates = assigned program staff (staff/assistant)
   // + program facilitators. Deduped by cid so the same person appears once.
-  const oversightCandidates = React.useMemo(() => {
-    const merged = [...assignedStaff, ...facilitators];
-    return Array.from(
-      new Map(
-        merged.map((member) => [
-          member.cid ?? member.email ?? member.id,
-          member,
-        ]),
-      ).values(),
-    );
-  }, [assignedStaff, facilitators]);
+  const oversightCandidates = React.useMemo(
+    () => selectOversightCandidates(assignedStaff, facilitators),
+    [assignedStaff, facilitators],
+  );
 
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [teamAssignmentMode, setTeamAssignmentMode] = useState("new"); // 'new' or 'existing'
@@ -430,6 +373,13 @@ function ProgramWorkspace() {
     return <ProgramLoading />;
   }
 
+  // Access flags: the assigned PM or a team member (assistant/associate) can
+  // manage the program the same as a program_manager. Derived BEFORE `values`
+  // because `values` lists `canEdit` / `canContribute`; declaring them after
+  // would leave the references in the temporal dead zone and throw on render.
+  const { isAssignedPm, isTeamMember, canEdit, canContribute } =
+    selectProgramAccess({ program, programTeamMembers, user });
+
   // Every write of this screen, grouped by concern. The factories read what they
   // need from `values`; the two view blocks below read `ctx`, which is those
   // values plus the handlers — so each block's dependencies are listed once, in
@@ -598,120 +548,32 @@ function ProgramWorkspace() {
     (submission) => submission.status === "pending",
   ).length;
 
-  const allTabs = [
-    {
-      id: "overview",
-      name: t("pmMisc.workspace.tabOverview"),
-      icon: LayoutDashboard,
-    },
-    {
-      id: "config",
-      name: t("pmMisc.workspace.tabConfiguration"),
-      icon: Shield,
-      roles: ["super_admin", "program_manager"],
-    },
-    {
-      id: "curriculum",
-      name: t("pmMisc.workspace.tabCurriculum"),
-      icon: FileText,
-    },
-    {
-      id: "attendance",
-      name: t("pmMisc.workspace.tabAttendance"),
-      icon: CheckCircle2,
-    },
-    {
-      id: "reports",
-      name: t("pmMisc.workspace.tabReports"),
-      icon: BarChart3,
-      roles: ["super_admin", "program_manager", "staff"],
-    },
-    {
-      id: "reviews",
-      name: t("pmMisc.workspace.tabReviews"),
-      icon: MessageCircle,
-      roles: ["super_admin", "program_manager", "staff"],
-    },
-    {
-      id: "participants",
-      name: t("pmMisc.workspace.tabParticipants"),
-      icon: Users,
-    },
-    {
-      id: "submissions",
-      name: t("pmMisc.workspace.tabSubmissions"),
-      icon: Activity,
-    },
-    {
-      id: "facilitators",
-      name: t("pmMisc.workspace.tabFacilitators"),
-      icon: UserPlus,
-      roles: ["super_admin", "program_manager", "staff"],
-    },
-  ];
-
-  const isAssignedPm =
-    user.role === "super_admin" ||
-    (!!program?.assigned_pm_id &&
-      (user.cid === program.assigned_pm_id ||
-        user.id === program.assigned_pm_id));
-
-  // Assistants / associates listed in assigned_assistant_id are "team members"
-  const isTeamMember = programTeamMembers.some(
-    (member) => member.cid === (user.cid || user.id),
-  );
-
-  // A staff member who is the program's assigned PM, OR a team member
-  // (assistant/associate), can manage the program the same as a program_manager.
-  const canEdit =
-    user.role === "super_admin" ||
-    user.role === "program_manager" ||
-    isAssignedPm ||
-    isTeamMember;
-
-  const canContribute = canEdit;
+  const allTabs = buildProgramTabs(t);
 
   // Tabs: show all tabs to anyone with edit rights, otherwise filter by roles array
-  const tabs = allTabs.filter(
-    (tab) =>
-      !tab.roles ||
-      tab.roles.includes(user.role) ||
-      isAssignedPm ||
-      isTeamMember,
-  );
+  const tabs = selectVisibleTabs({
+    allTabs,
+    isAssignedPm,
+    isTeamMember,
+    user,
+  });
 
   return (
-    <>
-      <div className="space-y-8 animate-in">
-        {/* HEADER SECTION */}
-        <ProgramHeader program={program} />
-
-        {/* TAB NAVIGATION */}
-        <ProgramTabs
-          activeTab={activeTab}
-          onSelectTab={handleSelectTab}
-          pendingSubmissionCount={pendingSubmissionCount}
-          submissionsSeen={submissionsSeen}
-          tabs={tabs}
-        />
-
-        <WorkspaceContent ctx={ctx} />
-
-        <WorkspaceModals ctx={ctx} />
-      </div>
-    </>
+    <ProgramWorkspaceView
+      activeTab={activeTab}
+      ctx={ctx}
+      onSelectTab={handleSelectTab}
+      pendingSubmissionCount={pendingSubmissionCount}
+      program={program}
+      submissionsSeen={submissionsSeen}
+      tabs={tabs}
+    />
   );
 }
 
 export default function ProgramWorkspacePage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-primary flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
-        </div>
-      }
-    >
+    <Suspense fallback={<ProgramSuspenseFallback />}>
       <ProgramWorkspace />
     </Suspense>
   );
