@@ -4436,3 +4436,18 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
 > leaving the WIP structure intact; the original was backed up to
 > `/tmp/review-page.wip-backup.js`. That fix is deliberately left UNCOMMITTED — the file
 > belongs to its own lane.
+
+### Slice 172 — `src/components/admin/ventures/VentureDetailView.js` (683 → 2 files)
+
+- **Trigger**: a remaining view file over the 600 ceiling.
+- **Split**: the wizard tab → `VentureWizardTab.js`. `VentureDetailView.js` 683 → 589; the new tab component is 119.
+  - Moved: the "open wizard" link, the progress overview and the wizard history.
+  - The view keeps its FULL `ctx` destructure — the contract `venture-detail-view-wiring.test.js` pins (it reads the view file and matches the destructured names against the screen's `ctx` keys both ways). The extracted tab receives its values as props instead.
+- **Test couplings**: None to repoint; the wiring suite stays green unchanged.
+- **Verification**: lint 0 errors on both files; `venture-detail-view-wiring` → 3 tests green; `npm run build` green at the time of the slice.
+
+> Build note (2026-10-04): the `next build` kept flip-flopping on the SAME uncommitted
+> file from another lane — `src/app/platform/runs/review/[submissionId]/page.js` — which
+> that lane is actively rewriting (it re-introduced an invalid `submissionData={}` after
+> the slice-171 repair). Repaired again in place; it is a moving target until that lane
+> finishes. Not this slice.
