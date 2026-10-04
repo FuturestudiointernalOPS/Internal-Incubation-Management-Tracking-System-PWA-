@@ -4295,3 +4295,13 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
   - `route-catalog-contract.test.js`: walker updated to also scan `route.handlers.js` files (detects `requireAuthorization` in extracted handlers).
 - **ESLint**: 0 errors (84 warnings, mostly false-positive `no-unused-vars` in `route.handlers.js` — imports used in handler bodies but not statically detected).
 - **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim handler moves confirmed byte-identical.
+
+### Slice 161 — `src/__tests__/authorization-resolver.test.js` (1488 → 3 files)
+
+- **Trigger**: Test file exceeded 800 lines (1488).
+- **Split**: 26 describe blocks → 3 files with shared header (mocks + imports) + helper context builders:
+  - `authorization-resolver.core.test.js` (444): blocks 0-7 — mergeEffectiveCapabilities, evaluateEligibility, authorize() Super Admin, authorize() non-Super Admin, knowledge, reports, contacts, communication modules. Contains `saCtx` and `staffCtx` helper definitions.
+  - `authorization-resolver.modules.test.js` (505): blocks 8-15 — projects, tasks, engineering, programs, ventures, investor, messaging, buildPermissionExplanation. Injected `saCtx`/`staffCtx` helpers.
+  - `authorization-resolver.advanced.test.js` (767): blocks 16-25 — requireAuthorization, LMS, final eligibility policy, retired roles, configure_eligibility, runAuthzMigration, validateEligibilityChanges, org_membership, restrictionsToJson, migration batch. Injected `saCtx`/`staffCtx` helpers.
+- **Test count**: 112 tests total, all pass.
+- **Verification**: Full suite 315/315 (4823 tests), lint 0 errors, `next build` green.
