@@ -2,187 +2,26 @@
  * Integration tests for the Tasks API — date validation and
  * subtask ⇄ parent completion cascade (bugs #7 and #8).
  *
- * Runs the real route handlers with a mocked DB layer.
+ * Runs the real route handlers with a mocked DB layer. The status-safety guards
+ * are in tasks-api.safety.test.js; the wiring lives in
+ * ./helpers/tasksApiHarness.
  */
 
-const dbState = {
-  tasks: [],
-  blockers: [],
-  nextId: 500,
-};
+const mockTasks = require("./helpers/tasksApiHarness");
 
-jest.mock("@/lib/db", () => {
-  return {
-    __esModule: true,
-    default: {
-      execute: jest.fn(async ({ sql, args }) => {
-        const state = global.__dbState;
-        if (!state) return { rows: [] };
-        // getTaskById: SELECT * FROM tasks WHERE id = ?
-        if (sql.includes("SELECT * FROM tasks WHERE id = ?")) {
-          const id = Number(args[0]);
-          return { rows: state.tasks.filter((task) => task.id === id) };
-        }
-        // Sibling incomplete count: SELECT COUNT(*) AS total ... WHERE parent_task_id = ?
-        if (sql.includes("COUNT(*) AS total") && sql.includes("parent_task_id = ?")) {
-          const parentTaskId = Number(args[0]);
-          const total = state.tasks.filter(
-            (task) =>
-              task.parent_task_id === parentTaskId &&
-              !["completed", "archived"].includes(task.status),
-          ).length;
-          return { rows: [{ total }] };
-        }
-        // Active blockers on a task
-        if (
-          sql.includes("SELECT id FROM blockers WHERE task_id = ?") &&
-          sql.includes("status = 'active'")
-        ) {
-          const taskId = Number(args[0]);
-          return {
-            rows: state.blockers.filter(
-              (blocker) => blocker.task_id === taskId && blocker.status === "active",
-            ),
-          };
-        }
-        // Parent auto-complete: UPDATE tasks SET status = 'completed' ... WHERE id = ?
-        if (
-          sql.trim().startsWith("UPDATE tasks SET status = 'completed'") &&
-          sql.includes("WHERE id = ?")
-        ) {
-          const id = Number(args[args.length - 1]);
-          const task = state.tasks.find((candidate) => candidate.id === id);
-          if (task && task.status !== "archived" && task.status !== "completed") {
-            task.status = "completed";
-            return { rowsAffected: 1 };
-          }
-          return { rowsAffected: 0 };
-        }
-        // Cascade-complete subtasks: UPDATE tasks SET status = 'completed' ... WHERE parent_task_id = ?
-        if (
-          sql.trim().startsWith("UPDATE tasks SET status = 'completed'") &&
-          sql.includes("WHERE parent_task_id = ?")
-        ) {
-          const parentTaskId = Number(args[0]);
-          state.tasks
-            .filter(
-              (task) =>
-                task.parent_task_id === parentTaskId &&
-                task.status !== "completed" &&
-                task.status !== "archived",
-            )
-            .forEach((task) => {
-              task.status = "completed";
-            });
-          return { rowsAffected: 1 };
-        }
-        // Parent reopen: UPDATE tasks SET status = 'in_progress' ... WHERE id = ?
-        if (
-          sql.trim().startsWith("UPDATE tasks SET status = 'in_progress'") &&
-          sql.includes("WHERE id = ?")
-        ) {
-          const id = Number(args[args.length - 1]);
-          const task = state.tasks.find((candidate) => candidate.id === id);
-          if (task && task.status === "completed") {
-            task.status = "in_progress";
-            return { rowsAffected: 1 };
-          }
-          return { rowsAffected: 0 };
-        }
-        // Generic UPDATE with parameterized status
-        if (sql.trim().startsWith("UPDATE tasks SET")) {
-          const id = Number(args[args.length - 1]);
-          const task = state.tasks.find((candidate) => candidate.id === id);
-          if (task && sql.includes("status = ?")) {
-            const statusIdx = sql.indexOf("status = ?");
-            const paramCount = sql.slice(0, statusIdx).split("?").length - 1;
-            task.status = args[paramCount];
-            if (sql.includes("completed_at = CURRENT_TIMESTAMP")) {
-              task.completed_at = new Date().toISOString();
-            }
-            if (sql.includes("completed_at = NULL")) {
-              task.completed_at = null;
-            }
-          }
-          return { rowsAffected: 1 };
-        }
-        // INSERT ... RETURNING id
-        if (sql.includes("RETURNING id")) {
-          return { rows: [{ id: state.nextId++ }] };
-        }
-        return { rows: [] };
-      }),
-    },
-    initDb: jest.fn().mockResolvedValue(true),
-  };
-});
-
-jest.mock("@/lib/auth", () => ({
-  requireAuth: jest.fn().mockResolvedValue(null),
-  getSession: jest.fn().mockResolvedValue({
-    cid: "staff-1",
-    name: "Staff One",
-    role: "staff",
-  }),
-}));
-
-jest.mock("@/services/tasks/auditLog", () => ({
-  logAuditEvent: jest.fn().mockResolvedValue(true),
-  isTaskLocked: jest.fn().mockResolvedValue(false),
-}));
-
-jest.mock("@/models/taskAudit", () => ({
-  logTaskEvent: jest.fn().mockResolvedValue(true),
-  ACTION_TYPES: {
-    TASK_CREATED: "task_created",
-    TASK_COMPLETED: "task_completed",
-    TASK_CARRIED_OVER: "task_carried_over",
-    TASK_UPDATED: "task_updated",
-    TASK_ASSIGNED: "task_assigned",
-    TASK_REASSIGNED: "task_reassigned",
-  },
-}));
-
-jest.mock("@/models/standupUpsert", () => ({
-  standupUpsert: jest.fn().mockResolvedValue({ standupId: 1, action: "created" }),
-  rebuildStandupTasks: jest.fn().mockResolvedValue({ action: "skipped" }),
-}));
-
-jest.mock("@/models/tasks", () => ({
-  ...jest.requireActual("@/models/tasks"),
-  getTaskById: jest.fn(async (id) => {
-    const task = global.__dbState.tasks.find((candidate) => candidate.id === Number(id));
-    return task || null;
-  }),
-  getTaskTitleById: jest.fn(async (id) => {
-    const task = global.__dbState.tasks.find((candidate) => candidate.id === Number(id));
-    return task ? task.title : null;
-  }),
-  getTaskEndDateById: jest.fn(async (id) => {
-    const task = global.__dbState.tasks.find((candidate) => candidate.id === Number(id));
-    return task ? task.end_date || null : null;
-  }),
-  taskExists: jest.fn(async (id) =>
-    global.__dbState.tasks.some((candidate) => candidate.id === Number(id)),
-  ),
-}));
+jest.mock("@/lib/db", () => mockTasks.dbMock());
+jest.mock("@/lib/auth", () => mockTasks.authMock());
+jest.mock("@/services/tasks/auditLog", () => mockTasks.auditLogMock());
+jest.mock("@/models/taskAudit", () => mockTasks.taskAuditMock());
+jest.mock("@/models/standupUpsert", () => mockTasks.standupUpsertMock());
+jest.mock("@/models/tasks", () => mockTasks.tasksModelMock());
 
 const { POST, PUT } = require("@/app/api/tasks/route");
 
-const jsonReq = (body, method = "POST") =>
-  new Request("http://localhost/api/tasks", {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-
-const readJson = async (res) => res.json();
+const { dbState, jsonReq, readJson, reset } = mockTasks;
 
 beforeEach(() => {
-  dbState.tasks.length = 0;
-  dbState.blockers.length = 0;
-  dbState.nextId = 500;
-  global.__dbState = dbState;
+  reset();
 });
 
 describe("POST /api/tasks — date validation", () => {
@@ -434,103 +273,5 @@ describe("PUT /api/tasks — subtask ⇄ parent completion cascade", () => {
     await PUT(jsonReq({ id: 2, status: "completed", user_id: "staff-1" }, "PUT"));
     await PUT(jsonReq({ id: 3, status: "completed", user_id: "staff-1" }, "PUT"));
     expect(dbState.tasks.find((task) => task.id === 1).status).toBe("in_progress");
-  });
-});
-
-describe("PUT /api/tasks — carry-over status safety (Phase 1)", () => {
-  beforeEach(() => {
-    dbState.tasks.push({
-      id: 1,
-      user_id: "staff-1",
-      user_name: "Staff One",
-      title: "Already completed",
-      status: "completed",
-      completed_at: "2026-08-20T07:50:00.000Z",
-      parent_task_id: null,
-      created_week: 33,
-      created_year: 2026,
-    });
-  });
-
-  test("refuses completed → carried_over (a finished task must stay finished)", async () => {
-    const res = await PUT(
-      jsonReq({ id: 1, status: "carried_over", user_id: "staff-1" }, "PUT"),
-    );
-    expect(res.status).toBe(409);
-    const data = await readJson(res);
-    expect(data.success).toBe(false);
-    expect(data.error.toLowerCase()).toContain("completed");
-    // State untouched
-    const task = dbState.tasks.find((candidate) => candidate.id === 1);
-    expect(task.status).toBe("completed");
-    expect(task.completed_at).toBe("2026-08-20T07:50:00.000Z");
-  });
-
-  test("reopening a completed task clears its completion timestamp", async () => {
-    const res = await PUT(
-      jsonReq({ id: 1, status: "in_progress", user_id: "staff-1" }, "PUT"),
-    );
-    expect(res.status).toBe(200);
-    const task = dbState.tasks.find((candidate) => candidate.id === 1);
-    expect(task.status).toBe("in_progress");
-    expect(task.completed_at).toBeNull();
-  });
-
-  test("still allows an open task to be marked carried_over", async () => {
-    const open = dbState.tasks[0];
-    open.status = "in_progress";
-    open.completed_at = null;
-    const res = await PUT(
-      jsonReq({ id: 1, status: "carried_over", user_id: "staff-1" }, "PUT"),
-    );
-    expect(res.status).toBe(200);
-    expect(dbState.tasks.find((task) => task.id === 1).status).toBe("carried_over");
-  });
-});
-
-describe("PUT /api/tasks — reassigning into a project the actor does not belong to", () => {
-  test("resets the status, naming that column once", async () => {
-    dbState.tasks.push({
-      id: 1,
-      user_id: "staff-1",
-      user_name: "Staff One",
-      title: "Draft brief",
-      status: "todo",
-      project_id: 7,
-      parent_task_id: null,
-    });
-    const db = require("@/lib/db").default;
-    db.execute.mockClear();
-
-    const res = await PUT(
-      jsonReq(
-        {
-          id: 1,
-          user_id: "staff-1",
-          user_name: "Staff One",
-          status: "in_progress",
-          project_id: 42,
-        },
-        "PUT",
-      ),
-    );
-    expect(res.status).toBe(200);
-
-    const update = db.execute.mock.calls
-      .map(([call]) => call)
-      .find((call) => String(call.sql).startsWith("UPDATE tasks SET") && String(call.sql).includes("project_id = ?"));
-    expect(update).toBeTruthy();
-
-    const sql = String(update.sql);
-    const columns = sql
-      .slice(sql.indexOf("SET ") + 4, sql.indexOf(" WHERE id = ?"))
-      .split(", ")
-      .map((entry) => entry.split(" = ")[0]);
-
-    // Postgres refuses a SET list that names one column twice, so the caller's
-    // status and this reset could not both be written: the save was lost.
-    expect(columns.filter((column, index) => columns.indexOf(column) !== index)).toEqual([]);
-    expect(sql).toContain("status = 'pending_project_approval'");
-    expect(sql).not.toContain("status = ?");
   });
 });
