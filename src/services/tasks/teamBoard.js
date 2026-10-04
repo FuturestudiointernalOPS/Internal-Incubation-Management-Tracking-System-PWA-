@@ -26,7 +26,8 @@
  * the "groups" wave wired to this surface).
  */
 
-import { getSession, hasProgramManagementAccess } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
+import { hasProgramManagementAccess } from "@/server/authz/capabilities";
 import { getTeamById } from "@/models/teams";
 import {
   getTeamTasks,

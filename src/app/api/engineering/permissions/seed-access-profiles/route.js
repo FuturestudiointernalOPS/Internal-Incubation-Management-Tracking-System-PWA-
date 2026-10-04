@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { seedDefaultAccessProfiles } from "@/lib/auth";
+import { seedDefaultAccessProfiles } from "@/models/authorization/bootstrap";
 import { requireAuthorization } from "@/models/authorization/index";
 import { requireSameOrigin } from "@/lib/requestOrigin";
 

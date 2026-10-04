@@ -22,7 +22,7 @@
  * response envelope.
  */
 
-import { isSupervisorOf } from "@/lib/auth";
+import { isSupervisorOf } from "@/models/authorization/accessQueries";
 import { getTaskTitleById } from "@/models/tasks";
 import {
   createBlocker,

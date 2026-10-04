@@ -31,13 +31,21 @@ jest.mock("@/lib/db", () => ({
 
 const mockSession = { cid: "U-FAC", role: "facilitator" };
 const mockGetFacilitatorTeamScope = jest.fn(async () => ({ scope: "all", teamIds: [] }));
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn(async () => null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => mockSession),
+}));
+jest.mock("@/server/authz/guards", () => ({
   requireAssignmentAccess: jest.fn(async () => null),
+}));
+jest.mock("@/server/authz/capabilities", () => ({
   hasProgramManagementAccess: jest.fn((role) =>
     ["super_admin", "program_manager"].includes(role),
   ),
+}));
+jest.mock("@/models/authorization/accessQueries", () => ({
   getFacilitatorTeamScope: (...args) => mockGetFacilitatorTeamScope(...args),
 }));
 

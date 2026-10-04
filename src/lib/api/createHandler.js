@@ -1,5 +1,6 @@
 import { initDb } from "@/lib/db";
-import { requireAuth, getSession } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
+import { getSession } from "@/server/auth/session";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { setRequestContext, withRequestContext } from "@/lib/request-context";

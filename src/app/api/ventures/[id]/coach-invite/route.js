@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import { resolvePlanAccess, allowsPlanAction } from "@/services/ventures/operatingPlans";
 import { resolveVentureCode } from "@/services/ventures/operatingPlans";
 import { VENTURE_SCOPE_TYPES } from "@/services/ventures/permissions";

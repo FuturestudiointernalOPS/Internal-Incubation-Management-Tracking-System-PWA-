@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
+import { createSession } from "@/server/auth/session";
+import { setSessionCookieOnResponse } from "@/server/auth/cookies";
 import { resolveEffectiveRole } from "@/models/platform/roles";
 import {
   getEffectiveGroupsForUser,

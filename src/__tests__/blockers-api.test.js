@@ -42,9 +42,13 @@ jest.mock("@/lib/db", () => ({
 
 const mockSession = { cid: "user-1", name: "Staff One", role: "staff" };
 const mockIsSupervisorOf = jest.fn(async () => false);
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn(async () => null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => mockSession),
+}));
+jest.mock("@/models/authorization/accessQueries", () => ({
   isSupervisorOf: (...args) => mockIsSupervisorOf(...args),
 }));
 

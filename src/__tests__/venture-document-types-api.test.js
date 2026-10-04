@@ -18,9 +18,12 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   __esModule: true,
   requireAuth: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/server/auth/session", () => ({
+  __esModule: true,
   getSession: jest.fn(),
 }));
 
@@ -45,7 +48,7 @@ jest.mock("@/models/ventureDocumentTypesStore", () => ({
   listVentureDocumentTypes: jest.fn().mockResolvedValue([]),
 }));
 
-const { getSession } = require("@/lib/auth");
+const { getSession } = require("@/server/auth/session");
 const { requireVentureAccess } = require("@/lib/ventureAuth");
 const model = {
   ...require("@/services/ventures/ventureDocumentTypes"),

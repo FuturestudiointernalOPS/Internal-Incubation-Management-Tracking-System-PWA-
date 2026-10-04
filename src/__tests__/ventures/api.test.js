@@ -67,7 +67,7 @@ jest.mock("@/lib/ventureAuth", () => ({
   isStaffActorForVenture: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({
     cid: "sa-001",
     name: "Super Admin",

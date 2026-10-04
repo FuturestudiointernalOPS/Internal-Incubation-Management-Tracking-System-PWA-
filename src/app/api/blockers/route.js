@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
 import {
   createBlockerForTask,
   deleteBlockerRecord,
@@ -32,7 +32,7 @@ export async function GET(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -72,7 +72,7 @@ export async function POST(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     const body = await req.json();
 
@@ -98,7 +98,7 @@ export async function PUT(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -130,7 +130,7 @@ export async function DELETE(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(

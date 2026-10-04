@@ -14,7 +14,8 @@
 const mockTasks = require("./helpers/tasksApiHarness");
 
 jest.mock("@/lib/db", () => mockTasks.dbMock());
-jest.mock("@/lib/auth", () => mockTasks.authMock());
+jest.mock("@/server/auth/guards", () => ({ requireAuth: mockTasks.authMock().requireAuth }));
+jest.mock("@/server/auth/session", () => ({ getSession: mockTasks.authMock().getSession }));
 jest.mock("@/services/tasks/auditLog", () => mockTasks.auditLogMock());
 jest.mock("@/models/taskAudit", () => mockTasks.taskAuditMock());
 jest.mock("@/models/standupUpsert", () => mockTasks.standupUpsertMock());

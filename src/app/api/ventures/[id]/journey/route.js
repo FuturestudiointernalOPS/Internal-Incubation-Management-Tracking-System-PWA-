@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { resolvePlanAccess, allowsPlanAction } from "@/services/ventures/operatingPlans";
 import { roleIsPrivileged } from "@/lib/ventureAuth";

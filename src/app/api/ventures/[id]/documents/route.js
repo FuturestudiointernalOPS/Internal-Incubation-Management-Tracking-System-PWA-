@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { notifyVentureFounders } from "@/services/ventures/activity";
 import { listDocuments, getDocument, uploadDocument, updateDocument, deleteDocument, createShareLink, revokeShare, getAccessLogs, getDocumentShares } from "@/services/ventures/documents";

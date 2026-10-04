@@ -7,7 +7,7 @@ import {
 } from "@/models/investor";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
 import { isInvestorManagement } from "@/models/authorization/investorScope";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 
 export async function GET(req) {
   try {

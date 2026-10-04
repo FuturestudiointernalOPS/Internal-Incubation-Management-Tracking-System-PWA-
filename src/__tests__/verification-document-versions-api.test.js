@@ -17,9 +17,12 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   __esModule: true,
   requireAuth: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/server/auth/session", () => ({
+  __esModule: true,
   getSession: jest.fn(),
 }));
 
@@ -39,7 +42,7 @@ jest.mock("@/services/ventures/verification", () => ({
   canSubmitVerification: jest.fn(),
 }));
 
-const { getSession } = require("@/lib/auth");
+const { getSession } = require("@/server/auth/session");
 const { hasActiveVentureAssignment } = require("@/lib/ventureAuth");
 const { signEvidencePath } = require("@/lib/ventureEvidence");
 const { listVerificationDocumentVersions, addVerificationDocumentVersion, canSubmitVerification } = require("@/services/ventures/verification");

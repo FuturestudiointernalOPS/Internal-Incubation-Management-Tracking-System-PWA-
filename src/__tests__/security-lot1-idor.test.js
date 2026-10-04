@@ -58,10 +58,12 @@ describe("PATCH/DELETE /api/ventures/[id]/tasks — cross-venture ids are refuse
     initDb: jest.fn().mockResolvedValue(true),
   }));
 
-  jest.mock("@/lib/auth", () => ({
-    requireAuth: jest.fn().mockResolvedValue(null),
-    getSession: jest.fn().mockResolvedValue({ cid: "c1", name: "Actor", role: "super_admin" }),
-  }));
+  jest.mock("@/server/auth/guards", () => ({
+  requireAuth: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/server/auth/session", () => ({
+  getSession: jest.fn().mockResolvedValue({ cid: "c1", name: "Actor", role: "super_admin" }),
+}));
 
   jest.mock("@/lib/ventureScopedAccess", () => ({
     requireVentureScopedAccess: jest.fn().mockResolvedValue({

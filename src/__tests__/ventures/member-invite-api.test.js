@@ -16,8 +16,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(),
 }));
 
@@ -52,7 +54,7 @@ jest.mock("@/models/workspace", () => ({
 }));
 
 const db = require("@/lib/db").default;
-const { getSession } = require("@/lib/auth");
+const { getSession } = require("@/server/auth/session");
 const { sendVentureMemberInvitationEmail } = require("@/lib/email");
 const {
   createVentureMemberInvitation,

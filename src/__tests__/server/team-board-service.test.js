@@ -18,9 +18,13 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => ({ cid: "USR_STAFF", role: "staff", email: "s@x.test" })),
+}));
+jest.mock("@/server/authz/capabilities", () => ({
   hasProgramManagementAccess: jest.fn(() => false),
+}));
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn(async () => null),
 }));
 
@@ -36,7 +40,8 @@ jest.mock("@/models/workspace", () => ({
   deleteTeamTask: jest.fn(async () => ({})),
 }));
 
-const { getSession, hasProgramManagementAccess } = require("@/lib/auth");
+const { getSession } = require("@/server/auth/session");
+const { hasProgramManagementAccess } = require("@/server/authz/capabilities");
 const teamsModel = require("@/models/teams");
 const workspaceModel = require("@/models/workspace");
 const {

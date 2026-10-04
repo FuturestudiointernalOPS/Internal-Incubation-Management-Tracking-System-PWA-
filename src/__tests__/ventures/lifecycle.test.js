@@ -6,7 +6,7 @@
  * (and their guarantees) are unchanged.
  */
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue(null),
 }));
 

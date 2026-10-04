@@ -32,7 +32,7 @@ import {
   insertAttendanceMark,
   listAttendance,
 } from "@/models/facilitation";
-import { getFacilitatorTeamScope } from "@/lib/auth";
+import { getFacilitatorTeamScope } from "@/models/authorization/accessQueries";
 import { getLocalToday } from "@/lib/constants";
 
 /**

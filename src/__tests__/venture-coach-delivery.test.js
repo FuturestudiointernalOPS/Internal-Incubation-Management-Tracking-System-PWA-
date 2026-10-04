@@ -106,12 +106,14 @@ jest.mock("@/lib/email", () => ({
   sendLoginEmail: jest.fn().mockResolvedValue({ success: true }),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(),
 }));
 
-const mockAuth = require("@/lib/auth");
+const mockAuth = require("@/server/auth/session");
 
 const { resolveCoachContact, inviteCoachByEmail } = require("@/services/ventures/coach");
 const { notifyVentureCoach, notifyVentureLeadManagers } = require("@/services/ventures/notify");

@@ -18,9 +18,13 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(),
+}));
+jest.mock("@/server/authz/guards", () => ({
   assertNoParticipantFacilitatorConflict: jest.fn().mockResolvedValue(null),
 }));
 
@@ -42,7 +46,7 @@ jest.mock("@/models/contacts/programMembership", () => ({
   deleteContactPrograms: jest.fn().mockResolvedValue(true),
 }));
 
-const { getSession } = require("@/lib/auth");
+const { getSession } = require("@/server/auth/session");
 const { createAnnouncement } = require("@/models/communications");
 const {
   updateContactFields,

@@ -77,7 +77,12 @@ const { __state: mockState } = require("@/lib/db");
 // its own stateful table for the engine tests.
 mockState.executeImpl = (arg) => mockRouteDb.execute(arg);
 
-jest.mock("@/lib/auth", () => ({ requireAuth: jest.fn().mockResolvedValue(null), getSession: jest.fn() }));
+jest.mock("@/server/auth/guards", () => ({
+  requireAuth: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/server/auth/session", () => ({
+  getSession: jest.fn(),
+}));
 
 jest.mock("@/lib/ventureAuth", () => ({
   requireVentureAccess: jest.fn().mockResolvedValue({ session: { cid: "u1", role: "super_admin" } }),

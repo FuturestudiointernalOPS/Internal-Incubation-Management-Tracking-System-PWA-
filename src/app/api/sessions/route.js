@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { getSession, requireAssignmentAccess, hasProgramManagementAccess } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
+import { requireAssignmentAccess } from "@/server/authz/guards";
+import { hasProgramManagementAccess } from "@/server/authz/capabilities";
 import { createSession, listSessions } from "@/models/workspace";
 
 export const POST = createHandler({ roles: ["staff", "super_admin", "program_manager", "facilitator"] }, async (req) => {

@@ -54,9 +54,13 @@ jest.mock("@/services/tasks/auditLog", () => ({ logAuditEvent: mockLogAuditEvent
 
 const mockSession = { cid: "user-1", user_cid: "user-1", name: "PM One", role: "program_manager" };
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn(async () => null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => mockSession),
+}));
+jest.mock("@/server/authz/guards", () => ({
   assertNoParticipantFacilitatorConflict: jest.fn(async () => null),
 }));
 

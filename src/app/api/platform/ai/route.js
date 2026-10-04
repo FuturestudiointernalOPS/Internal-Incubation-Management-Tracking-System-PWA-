@@ -12,7 +12,7 @@ import { DEFAULT_MODEL as DEEPSEEK_MODEL } from "@/lib/deepseek";
  */
 export async function POST(req) {
   try {
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
 
@@ -59,7 +59,7 @@ export async function POST(req) {
 
 export async function GET(req) {
   try {
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
 

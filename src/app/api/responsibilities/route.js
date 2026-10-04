@@ -1,11 +1,8 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import {
-  requireAuth,
-  getUserResponsibilities,
-  getAllResponsibilities,
-  seedDefaultResponsibilities,
-} from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
+import { getUserResponsibilities, getAllResponsibilities } from "@/services/authorization/accessProfiles";
+import { seedDefaultResponsibilities } from "@/models/authorization/bootstrap";
 import { requireAuthorization } from "@/models/authorization/index";
 import { normalizeAllowedRoles } from "@/lib/featureAccess";
 import {

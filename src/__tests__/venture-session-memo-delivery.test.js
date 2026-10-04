@@ -31,8 +31,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({ cid: "sa-1", name: "Super", role: "super_admin" }),
+}));
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
 }));
 

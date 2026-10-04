@@ -68,8 +68,10 @@ jest.mock("@/lib/db", () => ({
 
 const mockSession = { cid: "user-1", name: "Staff One", role: "staff" };
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn(async () => null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => mockSession),
 }));
 
@@ -77,7 +79,7 @@ jest.mock("@/models/contactGroups", () => ({
   validateTaskAssignment: jest.fn(async () => ({ allowed: true })),
 }));
 
-const { requireAuth } = require("@/lib/auth");
+const { requireAuth } = require("@/server/auth/guards");
 const { validateTaskAssignment } = require("@/models/contactGroups");
 
 const approve = require("@/app/api/tasks/approve/route");

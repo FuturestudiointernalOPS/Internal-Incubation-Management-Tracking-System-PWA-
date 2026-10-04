@@ -13,7 +13,7 @@
  */
 
 import { v4 as uuidv4 } from "uuid";
-import { assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import { assertNoParticipantFacilitatorConflict } from "@/server/authz/guards";
 import {
   addParticipantProgramMembership,
   assignFamilyToProgram,

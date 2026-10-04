@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import { getAuthorizationContext, requireAuthorization } from "@/models/authorization/index";
 import { isWithinScope, resolveVentureScopeId } from "@/services/authorization/scope";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
@@ -109,7 +109,7 @@ export const PATCH = createHandler(async (req, { params }) => {
     // Archived Ventures are immutable historical records — no mutations for
     // anyone (including staff) until the Venture is resumed (Phase 3).
     try {
-      const { getSession } = await import("@/lib/auth");
+      const { getSession } = await import("@/server/auth/session");
       const { requireOperationalVentureAccess } = await import("@/lib/ventureAuth");
       const session = await getSession();
       const gate = await requireOperationalVentureAccess({ ventureId: id, session, mutate: true });

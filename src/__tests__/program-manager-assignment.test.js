@@ -16,7 +16,7 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => ({ cid: "USR_ACTOR", role: "staff" })),
 }));
 
@@ -270,7 +270,7 @@ describe("the repair path has two ways in", () => {
   });
 
   test("Super Admin skips the scope check entirely", async () => {
-    const { getSession } = require("@/lib/auth");
+    const { getSession } = require("@/server/auth/session");
     getSession.mockResolvedValue({ cid: "USR_SA", role: "super_admin" });
     getProgramManager.mockResolvedValue({
       rows: [{ id: "P1", name: "Cohort 1", assigned_pm_id: null }],

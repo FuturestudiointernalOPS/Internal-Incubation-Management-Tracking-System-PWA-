@@ -15,9 +15,13 @@ const fs = require("fs");
 const path = require("path");
 
 let mockSession = { cid: "C1", name: "Actor", role: "staff", email: "a@b.c" };
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => mockSession),
+}));
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn(),
+}));
+jest.mock("@/models/authorization/accessQueries", () => ({
   logPermissionAudit: jest.fn().mockResolvedValue(true),
 }));
 

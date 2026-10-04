@@ -6,7 +6,7 @@ import { dispatchScheduledResultEmails } from "@/services/platform/formRuns";
 export async function POST(req) {
   try {
     await initDb();
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
 
     const providedSecret = req.headers.get("x-cron-secret");

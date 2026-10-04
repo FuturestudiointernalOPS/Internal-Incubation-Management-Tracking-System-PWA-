@@ -10,7 +10,7 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => {}),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn(async () => null),
 }));
 

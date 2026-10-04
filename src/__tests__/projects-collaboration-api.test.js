@@ -16,10 +16,12 @@
 const mockProj = require("./helpers/projectsCollaborationHarness");
 
 jest.mock("@/lib/db", () => mockProj.dbMock());
-jest.mock("@/lib/auth", () => mockProj.authMock());
+jest.mock("@/server/auth/guards", () => ({ requireAuth: mockProj.authMock().requireAuth }));
+jest.mock("@/server/auth/session", () => ({ getSession: mockProj.authMock().getSession }));
+jest.mock("@/server/authz/guards", () => ({ requireProjectAccess: mockProj.authMock().requireProjectAccess }));
 jest.mock("@/models/authorization/index", () => mockProj.authorizationMock());
 
-const { requireProjectAccess } = require("@/lib/auth");
+const { requireProjectAccess } = require("@/server/authz/guards");
 
 const members = require("@/app/api/projects/members/route");
 const assignments = require("@/app/api/projects/assignments/route");

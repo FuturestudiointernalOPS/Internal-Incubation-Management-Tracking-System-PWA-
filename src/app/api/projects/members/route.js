@@ -1,6 +1,8 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession, requireProjectAccess } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
+import { getSession } from "@/server/auth/session";
+import { requireProjectAccess } from "@/server/authz/guards";
 import { requireAuthorization } from "@/models/authorization/index";
 import {
   listProjectMembers,

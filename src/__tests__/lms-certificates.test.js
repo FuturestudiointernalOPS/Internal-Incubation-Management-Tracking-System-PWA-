@@ -22,8 +22,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => {}),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => ({ cid: "U-LEARNER", name: "Jane Learner", role: "participant" })),
+}));
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn(async () => null),
 }));
 
@@ -31,9 +33,9 @@ jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
-const { requireAuth } = require("@/lib/auth");
+const { requireAuth } = require("@/server/auth/guards");
 const { requireAuthorization } = require("@/models/authorization/index");
-const { getSession } = require("@/lib/auth");
+const { getSession } = require("@/server/auth/session");
 const { issueCertificate } = require("@/models/lms/certificates");
 const {
   completeLesson,

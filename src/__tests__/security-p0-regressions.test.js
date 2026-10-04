@@ -21,10 +21,16 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(),
+}));
+jest.mock("@/server/authz/capabilities", () => ({
   hasProgramManagementAccess: jest.fn().mockReturnValue(true),
+}));
+jest.mock("@/server/authz/guards", () => ({
   assertNoParticipantFacilitatorConflict: jest.fn().mockResolvedValue(null),
 }));
 
@@ -83,7 +89,8 @@ jest.mock("@/models/contacts/families", () => ({
   // families route,
 }));
 
-const { getSession, requireAuth } = require("@/lib/auth");
+const { getSession } = require("@/server/auth/session");
+const { requireAuth } = require("@/server/auth/guards");
 const { requireAuthorization } = require("@/models/authorization/index");
 const {
   upsertContact,

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import { createHandler } from "@/lib/api/createHandler";
 import { logVentureActivity } from "@/services/ventures/activity";
 import { listFounders, inviteFounder, canManageFounders, VENTURE_ROLES } from "@/services/ventures/founders";

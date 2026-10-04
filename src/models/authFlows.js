@@ -24,7 +24,7 @@
  * Model-layer rules (see docs/MVC_REFACTOR.md):
  *  - No HTTP / Next.js imports here — only the db engine.
  *  - One function per query, named after the data it returns.
- *  - Session mechanics (`createSession`/`getSession` from `@/lib/auth`),
+ *  - Session mechanics (`createSession`/`getSession` from `@/server/auth`),
  *    bcrypt hashing, emails and audit logging stay in the controllers.
  */
 

@@ -1,7 +1,8 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
-import { requireAuth, getSession } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
+import { getSession } from "@/server/auth/session";
 import { readNotificationInbox, publishInboxNotification, applyInboxNotificationAction } from "@/services/communications/inboxNotifications";
 
 /**

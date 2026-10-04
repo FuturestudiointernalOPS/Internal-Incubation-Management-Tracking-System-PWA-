@@ -12,7 +12,8 @@ import {
   getParticipantProgramSubmissions,
 } from "@/models/programMembership";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
+import { getSession } from "@/server/auth/session";
 import { getParticipantProgramIds } from "@/models/participant-membership";
 
 export const dynamic = "force-dynamic";

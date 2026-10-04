@@ -65,7 +65,7 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => ({ cid: "USR_1", name: "PM One" })),
 }));
 

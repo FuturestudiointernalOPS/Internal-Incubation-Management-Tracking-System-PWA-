@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { seedDefaultRoleCapabilities } from "@/lib/auth";
+import { seedDefaultRoleCapabilities } from "@/models/authorization/bootstrap";
 import { requireAuthorization } from "@/models/authorization/index";
 import { requireSameOrigin } from "@/lib/requestOrigin";
 

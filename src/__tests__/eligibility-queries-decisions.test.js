@@ -24,7 +24,21 @@ jest.mock("@/lib/db", () => mockElig.dbMock());
 jest.mock("@/services/authorization/context", () => mockElig.authorizationContextMock());
 jest.mock("@/server/authz/responses", () => mockElig.responsesMock());
 jest.mock("@/services/authorization/eligibilityAdmin", () => mockElig.eligibilityAdminMock());
-jest.mock("@/lib/auth", () => mockElig.authMock());
+jest.mock("@/server/auth/session", () => ({ getSession: mockElig.authMock().getSession }));
+jest.mock("@/models/authorization/accessQueries", () => {
+  const m = mockElig.authMock();
+  return { logPermissionAudit: m.logPermissionAudit, getUserGroups: m.getUserGroups };
+});
+jest.mock("@/models/authorization/bootstrap", () => {
+  const m = mockElig.authMock();
+  return {
+    ensurePermissionsSchema: m.ensurePermissionsSchema,
+    seedDefaultRoleCapabilities: m.seedDefaultRoleCapabilities,
+    ensureResponsibilitiesSchema: m.ensureResponsibilitiesSchema,
+    seedDefaultResponsibilities: m.seedDefaultResponsibilities,
+  };
+});
+jest.mock("@/services/authorization/accessProfiles", () => ({ getUserEffectiveProfile: mockElig.authMock().getUserEffectiveProfile }));
 jest.mock("@/models/authorization", () => mockElig.authorizationModelMock());
 
 const { authorize: authorizeContextModule } = require("@/services/authorization/context");
@@ -43,7 +57,7 @@ const {
   listEligibilityRoleIdentities,
   listRoleAccessProfileDefaults,
 } = require("@/models/authorization");
-const { getSession } = require("@/lib/auth");
+const { getSession } = require("@/server/auth/session");
 const route = require("@/app/api/engineering/permissions/eligibility/route");
 
 const { mockState, resetState, realEligibility } = require("./helpers/eligibilityRouteMocks");

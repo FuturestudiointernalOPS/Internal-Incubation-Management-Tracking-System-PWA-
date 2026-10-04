@@ -8,7 +8,8 @@
  * See docs/LAYER_SPLIT.md.
  */
 
-import { getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
+import { getFacilitatorTeamScope } from "@/models/authorization/accessQueries";
+import { hasProgramManagementAccess } from "@/server/authz/capabilities";
 
 /** Bind a team-entity session to its own team; others keep the chosen teamId. */
 export function bindSubmissionTeamScope({ session, teamId }) {

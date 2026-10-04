@@ -21,15 +21,27 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn(async () => null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => ({ cid: "USR_ACTOR", role: "staff", email: "s@x.test", name: "Actor" })),
+}));
+jest.mock("@/server/authz/capabilities", () => ({
   hasProgramManagementAccess: jest.fn(() => false),
+}));
+jest.mock("@/server/authz/guards", () => ({
   requireAssignmentAccess: jest.fn(async () => null),
+}));
+jest.mock("@/models/authorization/accessQueries", () => ({
   logPermissionAudit: jest.fn(async () => true),
+}));
+jest.mock("@/services/authorization/accessProfiles", () => ({
   assignResponsibility: jest.fn(async () => ({ success: true })),
   removeResponsibility: jest.fn(async () => ({ success: true })),
   getAllResponsibilities: jest.fn(async () => []),
+}));
+jest.mock("@/models/authorization/bootstrap", () => ({
   seedDefaultResponsibilities: jest.fn(async () => true),
 }));
 
@@ -127,7 +139,7 @@ const { getAuthorizationContext } = require("@/models/authorization/index");
 const curriculumModel = require("@/models/curriculum");
 const programWorkspace = require("@/models/programWorkspace");
 const authorizationModel = require("@/models/authorization");
-const { assignResponsibility } = require("@/lib/auth");
+const { assignResponsibility } = require("@/services/authorization/accessProfiles");
 
 const reports = require("@/app/api/pm/reports/route");
 const exp = require("@/app/api/pm/export/route");

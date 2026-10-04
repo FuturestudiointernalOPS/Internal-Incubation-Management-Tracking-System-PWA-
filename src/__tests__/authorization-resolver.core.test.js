@@ -12,7 +12,7 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => {}),
 }));
 
-jest.mock("@/lib/auth", () => {
+jest.mock("@/server/authz/capabilities", () => {
   const PERMISSION_MODULES = {
     projects: { capabilities: ["view", "create", "edit", "delete", "archive"] },
     programs: { capabilities: ["view", "create", "edit", "delete", "publish"] },
@@ -64,10 +64,10 @@ jest.mock("@/lib/auth", () => {
   return {
     PERMISSION_MODULES,
     ACCESS_LEVELS: { NONE: 0, VIEW: 1, CREATE: 2, EDIT: 3, DELETE: 4, FULL: 5 },
-    getSession: jest.fn(async () => null),
-    ensurePermissionsSchema: jest.fn(async () => {}),
   };
 });
+jest.mock("@/server/auth/session", () => ({ getSession: jest.fn(async () => null) }));
+jest.mock("@/models/authorization/bootstrap", () => ({ ensurePermissionsSchema: jest.fn(async () => {}) }));
 
 jest.mock("next/server", () => ({
   NextResponse: {

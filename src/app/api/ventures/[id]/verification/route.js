@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import { signEvidencePath } from "@/lib/ventureEvidence";
 import { computeVentureDocumentReadiness } from "@/models/ventureReadiness";
 import { isActiveVentureMember } from "@/models/ventureWorkspace";

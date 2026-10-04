@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { getSession, logPermissionAudit } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
+import { logPermissionAudit } from "@/models/authorization/accessQueries";
 import { requireAuthorization, invalidateAuthorizationContext } from "@/models/authorization/index";
 import {
   getContactForAssignment,

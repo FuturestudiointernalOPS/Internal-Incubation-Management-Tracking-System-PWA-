@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import { getAuthorizationContext, requireAuthorization } from "@/models/authorization/index";
 import { isWithinScope, resolveVentureScopeId } from "@/services/authorization/scope";
 import { updateVenture } from "@/services/ventures/record";
@@ -173,7 +173,7 @@ export const PUT = createHandler(async (req) => {
     // Timeline event
     if (result.updated) {
       try {
-        const { getSession } = await import("@/lib/auth");
+        const { getSession } = await import("@/server/auth/session");
         const session = await getSession();
         if (session?.cid) {
           const updatedFields = Object.keys(updates).filter(field => field !== "social_media" && field !== "branding");

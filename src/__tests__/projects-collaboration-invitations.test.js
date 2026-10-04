@@ -14,7 +14,9 @@
 const mockProj = require("./helpers/projectsCollaborationHarness");
 
 jest.mock("@/lib/db", () => mockProj.dbMock());
-jest.mock("@/lib/auth", () => mockProj.authMock());
+jest.mock("@/server/auth/guards", () => ({ requireAuth: mockProj.authMock().requireAuth }));
+jest.mock("@/server/auth/session", () => ({ getSession: mockProj.authMock().getSession }));
+jest.mock("@/server/authz/guards", () => ({ requireProjectAccess: mockProj.authMock().requireProjectAccess }));
 jest.mock("@/models/authorization/index", () => mockProj.authorizationMock());
 
 

@@ -1,12 +1,10 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import {
-  requireAuth,
-  getSession,
-  requireProgramFacilitator,
-  hasProgramManagementAccess,
-  isAssignedPmForProgram,
-} from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
+import { getSession } from "@/server/auth/session";
+import { requireProgramFacilitator } from "@/server/authz/guards";
+import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { isAssignedPmForProgram } from "@/models/authorization/accessQueries";
 import { buildProgramFullState } from "@/services/programs/fullState";
 
 export const dynamic = "force-dynamic";

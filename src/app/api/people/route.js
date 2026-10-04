@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { initDb } from "@/lib/db";
 import { hashPassword } from "@/server/auth/password";
-import { requireAuth, getSession } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
+import { getSession } from "@/server/auth/session";
 import { requireAuthorization } from "@/models/authorization/index";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import {

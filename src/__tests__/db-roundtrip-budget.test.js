@@ -34,13 +34,13 @@ jest.mock("@/models/authorization/index", () => ({
   authorize: jest.fn(() => true),
 }));
 
-jest.mock("@/lib/auth", () => {
-  const actual = jest.requireActual("@/lib/auth");
-  return {
-    ...actual,
-    requireAuth: jest.fn(async () => null),
-    getSession: jest.fn(async () => ({ cid: "USER_TEST", role: "super_admin" })),
-  };
+jest.mock("@/server/auth/guards", () => {
+  const actual = jest.requireActual("@/server/auth/guards");
+  return { ...actual, requireAuth: jest.fn(async () => null) };
+});
+jest.mock("@/server/auth/session", () => {
+  const actual = jest.requireActual("@/server/auth/session");
+  return { ...actual, getSession: jest.fn(async () => ({ cid: "USER_TEST", role: "super_admin" })) };
 });
 
 beforeEach(() => {
@@ -91,8 +91,8 @@ describe("responsibilities — round-trip budget", () => {
   });
 
   test("the catalogue seed itself is two statements, not twenty-four", async () => {
-    const { seedDefaultResponsibilities } = fresh("@/lib/auth");
-    await fresh("@/lib/auth").ensureResponsibilitiesSchema();
+    const { seedDefaultResponsibilities } = fresh("@/models/authorization/bootstrap");
+    await fresh("@/models/authorization/bootstrap").ensureResponsibilitiesSchema();
     executed.length = 0;
 
     await seedDefaultResponsibilities();
@@ -101,7 +101,7 @@ describe("responsibilities — round-trip budget", () => {
   });
 
   test("a repeated catalogue seed costs nothing further", async () => {
-    const { seedDefaultResponsibilities } = fresh("@/lib/auth");
+    const { seedDefaultResponsibilities } = fresh("@/models/authorization/bootstrap");
     await seedDefaultResponsibilities();
     executed.length = 0;
 
@@ -154,7 +154,7 @@ describe("responsibilities — round-trip budget", () => {
 
 describe("runtime schema maintenance — once per process", () => {
   test("repeating the responsibilities schema check issues no further statements", async () => {
-    const { ensureResponsibilitiesSchema } = fresh("@/lib/auth");
+    const { ensureResponsibilitiesSchema } = fresh("@/models/authorization/bootstrap");
     executed.length = 0;
 
     await ensureResponsibilitiesSchema();

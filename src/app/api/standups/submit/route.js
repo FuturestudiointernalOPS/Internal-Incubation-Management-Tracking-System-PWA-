@@ -25,7 +25,7 @@ export async function POST(req) {
     await initDb();
     const capError = await requireAuthorization("reports", "create");
     if (capError) return capError;
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import { listPortfolioReports, listPortfolioMissingClosingReports } from "@/services/ventures/reports";
 
 export const dynamic = "force-dynamic";

@@ -50,15 +50,21 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({ cid: "SA-1", name: "Super Admin" }),
+}));
+jest.mock("@/models/authorization/accessQueries", () => ({
   logPermissionAudit: jest.fn().mockResolvedValue(true),
-  ensurePermissionsSchema: jest.fn().mockResolvedValue(true),
   getUserGroups: jest.fn().mockResolvedValue([]),
-  getUserEffectiveProfile: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/models/authorization/bootstrap", () => ({
+  ensurePermissionsSchema: jest.fn().mockResolvedValue(true),
   seedDefaultRoleCapabilities: jest.fn().mockResolvedValue(true),
   ensureResponsibilitiesSchema: jest.fn().mockResolvedValue(true),
   seedDefaultResponsibilities: jest.fn().mockResolvedValue(true),
+}));
+jest.mock("@/services/authorization/accessProfiles", () => ({
+  getUserEffectiveProfile: jest.fn().mockResolvedValue(null),
 }));
 
 let mockAuthzDecision = null; // null = granted (route proceeds)
@@ -104,7 +110,7 @@ const { requireAuthorization, invalidateAllAuthorizationContexts, getAuthorizati
 // service, which reads assertTemplateCapsEligible straight from the
 // eligibilityAdmin service — so the stub must intercept that module too.
 const { assertTemplateCapsEligible } = require("@/services/authorization/eligibilityAdmin");
-const { logPermissionAudit } = require("@/lib/auth");
+const { logPermissionAudit } = require("@/models/authorization/accessQueries");
 const eligibilityRoute = require("@/app/api/engineering/permissions/eligibility/route");
 const roleDefaultsRoute = require("@/app/api/access-profiles/role-defaults/route");
 const permissionsRoute = require("@/app/api/engineering/permissions/route");

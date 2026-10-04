@@ -1,6 +1,8 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
+import { getSession } from "@/server/auth/session";
+import { assertNoParticipantFacilitatorConflict } from "@/server/authz/guards";
 import { requireAuthorization } from "@/models/authorization/index";
 import {
   normalizeGroupName,

@@ -24,7 +24,7 @@ import {
   propagateSubmissionToTeamMembers,
   updateSubmissionReview,
 } from "@/models/forms";
-import { getFacilitatorTeamScope } from "@/lib/auth";
+import { getFacilitatorTeamScope } from "@/models/authorization/accessQueries";
 
 /**
  * Whether the session's facilitator assignment covers this submission. A

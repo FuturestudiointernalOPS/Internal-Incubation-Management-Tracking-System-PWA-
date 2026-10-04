@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
 import {
   ensureSubmissionParticipantProgramIndex,
   ensureSubmissionDeliverableIndex,
@@ -14,7 +14,7 @@ import {
 export const dynamic = "force-dynamic";
 
 async function getSessionCid() {
-  const { getSession } = await import("@/lib/auth");
+  const { getSession } = await import("@/server/auth/session");
   const session = await getSession();
   return session?.cid || null;
 }

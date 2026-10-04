@@ -47,12 +47,18 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => mockState.session),
+}));
+jest.mock("@/models/authorization/accessQueries", () => ({
   logPermissionAudit: jest.fn().mockResolvedValue(true),
+}));
+jest.mock("@/services/authorization/accessProfiles", () => ({
   assignResponsibility: jest.fn(async () => mockState.assignResult),
   removeResponsibility: jest.fn(async () => mockState.removeResult),
   getAllResponsibilities: jest.fn(async () => mockState.allResponsibilities || []),
+}));
+jest.mock("@/models/authorization/bootstrap", () => ({
   seedDefaultResponsibilities: jest.fn().mockResolvedValue(true),
 }));
 
@@ -88,7 +94,8 @@ const {
   grantResponsibilityBaseAccess,
   revokeResponsibilityBaseAccess,
 } = require("@/models/responsibilities");
-const { assignResponsibility, removeResponsibility, logPermissionAudit } = require("@/lib/auth");
+const { assignResponsibility, removeResponsibility } = require("@/services/authorization/accessProfiles");
+const { logPermissionAudit } = require("@/models/authorization/accessQueries");
 const route = require("@/app/api/responsibilities/assign/route");
 
 const putReq = (body) =>
@@ -336,7 +343,7 @@ describe("GET /api/responsibilities/assign — self-healing list", () => {
   });
 
   test("the defaults are seeded on every read (self-heal) — BEFORE the guard", async () => {
-    const { seedDefaultResponsibilities } = require("@/lib/auth");
+    const { seedDefaultResponsibilities } = require("@/models/authorization/bootstrap");
     const res = await route.GET(new Request("http://localhost/api/responsibilities/assign"));
     expect(res.status).toBe(400);
     // Even a request that fails validation has already re-seeded: the tab must

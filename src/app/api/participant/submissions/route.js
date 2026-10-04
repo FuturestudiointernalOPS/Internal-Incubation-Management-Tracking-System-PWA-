@@ -11,7 +11,7 @@ import {
 } from "@/services/participant";
 
 async function requireSession() {
-  const { getSession } = await import("@/lib/auth");
+  const { getSession } = await import("@/server/auth/session");
   return getSession();
 }
 

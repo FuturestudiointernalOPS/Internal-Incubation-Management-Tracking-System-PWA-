@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { getSession, requireAuth, requireAssignmentAccess } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
+import { requireAuth } from "@/server/auth/guards";
+import { requireAssignmentAccess } from "@/server/authz/guards";
 import { requireAuthorization } from "@/models/authorization/index";
 import { requireProgramScope } from "@/lib/programScopedAccess";
 import {

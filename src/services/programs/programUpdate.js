@@ -12,7 +12,7 @@
  */
 
 import { logAuditEvent } from "@/services/tasks/auditLog";
-import { assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import { assertNoParticipantFacilitatorConflict } from "@/server/authz/guards";
 import {
   addParticipantToProgram,
   getContactsByFamilyGroupName,

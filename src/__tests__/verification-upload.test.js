@@ -26,9 +26,12 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   __esModule: true,
   requireAuth: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/server/auth/session", () => ({
+  __esModule: true,
   getSession: jest.fn(),
 }));
 
@@ -58,7 +61,7 @@ jest.mock("@/services/ventures/verification", () => ({
   canManageVerification: jest.fn(),
 }));
 
-const { getSession } = require("@/lib/auth");
+const { getSession } = require("@/server/auth/session");
 const { requireVentureAccess } = require("@/lib/ventureAuth");
 const { uploadDeliverableEvidence } = require("@/lib/storage");
 const { signEvidencePath } = require("@/lib/ventureEvidence");

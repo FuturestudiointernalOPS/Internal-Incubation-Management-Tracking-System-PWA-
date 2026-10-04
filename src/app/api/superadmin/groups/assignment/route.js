@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import { assertNoParticipantFacilitatorConflict } from "@/server/authz/guards";
 import {
   getV2ProgramById,
   updateContactsProgramAssignment,

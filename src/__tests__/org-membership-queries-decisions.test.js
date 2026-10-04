@@ -46,8 +46,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({ cid: "SA-1", name: "Super Admin" }),
+}));
+jest.mock("@/models/authorization/accessQueries", () => ({
   logPermissionAudit: jest.fn().mockResolvedValue(true),
 }));
 
@@ -369,7 +371,7 @@ describe("PUT — lifecycle chain", () => {
     const res = await route.PUT(putReq({ user_cid: "U1", group_name: "G", action: "joined" }));
     expect(res.status).toBe(200);
     expect(invalidateAllAuthorizationContexts).toHaveBeenCalled();
-    const { logPermissionAudit } = require("@/lib/auth");
+    const { logPermissionAudit } = require("@/models/authorization/accessQueries");
     expect(logPermissionAudit).toHaveBeenCalledWith(
       expect.objectContaining({ action: "membership_changed", targetCid: "U1" }),
     );
@@ -377,13 +379,13 @@ describe("PUT — lifecycle chain", () => {
 
   test("a refused action writes no audit entry", async () => {
     mockState.membership = null;
-    const { logPermissionAudit } = require("@/lib/auth");
+    const { logPermissionAudit } = require("@/models/authorization/accessQueries");
     await route.PUT(putReq({ user_cid: "U1", group_name: "G", action: "ended" }));
     expect(logPermissionAudit).not.toHaveBeenCalled();
   });
 
   test("an actor without cid falls back to id, then to null", async () => {
-    const { getSession } = require("@/lib/auth");
+    const { getSession } = require("@/server/auth/session");
     mockState.membership = null;
 
     getSession.mockResolvedValueOnce({ id: "ID-1", name: "By Id" });

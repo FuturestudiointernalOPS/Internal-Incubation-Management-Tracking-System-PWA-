@@ -59,8 +59,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({ cid: "sa-1", name: "Super", role: "super_admin" }),
+}));
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
 }));
 
@@ -70,7 +72,7 @@ const readJson = async (res) => res.json();
 
 beforeEach(() => {
   executed.length = 0;
-  require("@/lib/auth").getSession.mockResolvedValue({ cid: "sa-1", name: "Super", role: "super_admin" });
+  require("@/server/auth/session").getSession.mockResolvedValue({ cid: "sa-1", name: "Super", role: "super_admin" });
 });
 
 describe("GET /api/journey-reports — the portfolio", () => {
@@ -118,25 +120,25 @@ describe("GET /api/journey-reports — the portfolio", () => {
 
 describe("it crosses Venture boundaries, so a Venture assignment is not enough", () => {
   test("staff are refused and nothing is read", async () => {
-    require("@/lib/auth").getSession.mockResolvedValueOnce({ cid: "staff-1", role: "staff" });
+    require("@/server/auth/session").getSession.mockResolvedValueOnce({ cid: "staff-1", role: "staff" });
     const res = await GET(req());
     expect(res.status).toBe(403);
     expect(executed).toHaveLength(0);
   });
 
   test("a program manager is refused too", async () => {
-    require("@/lib/auth").getSession.mockResolvedValueOnce({ cid: "pm-1", role: "program_manager" });
+    require("@/server/auth/session").getSession.mockResolvedValueOnce({ cid: "pm-1", role: "program_manager" });
     expect((await GET(req())).status).toBe(403);
   });
 
   test("an unauthenticated request reads nothing", async () => {
-    require("@/lib/auth").getSession.mockResolvedValueOnce(null);
+    require("@/server/auth/session").getSession.mockResolvedValueOnce(null);
     expect((await GET(req())).status).toBe(404);
     expect(executed).toHaveLength(0);
   });
 
   test("the retired developer role is refused (no longer a global role)", async () => {
-    require("@/lib/auth").getSession.mockResolvedValueOnce({ cid: "dev-1", role: "developer" });
+    require("@/server/auth/session").getSession.mockResolvedValueOnce({ cid: "dev-1", role: "developer" });
     expect((await GET(req())).status).toBe(403);
   });
 });

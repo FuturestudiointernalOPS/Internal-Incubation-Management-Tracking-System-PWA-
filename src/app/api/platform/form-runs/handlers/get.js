@@ -45,7 +45,7 @@ export async function GET(req) {
 
     // ─── SINGLE SUBMISSION WITH RUN CONTEXT ───
     if (submissionId) {
-      const { getSession } = await import("@/lib/auth");
+      const { getSession } = await import("@/server/auth/session");
       const session = await getSession();
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
 
@@ -73,7 +73,7 @@ export async function GET(req) {
 
     // ─── MY SUBMISSIONS (any authenticated user) ───
     if (mySubmissions === "true") {
-      const { getSession } = await import("@/lib/auth");
+      const { getSession } = await import("@/server/auth/session");
       const session = await getSession();
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
       const submissionsResult = await getMySubmissionsBySubmitterId(session.cid);
@@ -84,7 +84,7 @@ export async function GET(req) {
     if (id && searchParams.get("participant") === "true") {
       const run = await getParticipantRunById(id);
       if (run.rows.length === 0) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-      const { getSession } = await import("@/lib/auth");
+      const { getSession } = await import("@/server/auth/session");
       const session = await getSession();
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
       const mySubmissionResult = await getParticipantSubmissionByRunAndSubmitter(id, session.cid);
@@ -199,7 +199,7 @@ export async function GET(req) {
 
     // Submissions for a specific user
     if (submitterId) {
-      const { getSession } = await import("@/lib/auth");
+      const { getSession } = await import("@/server/auth/session");
       const session = await getSession();
       if (!session)
         return NextResponse.json(

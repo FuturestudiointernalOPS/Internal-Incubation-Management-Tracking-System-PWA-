@@ -9,7 +9,7 @@ import { scheduleResultSweep } from "../scheduleResultSweep";
 export async function POST(req) {
   try {
     await initDb();
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     // Same separation as the single review: an admission decision is never a

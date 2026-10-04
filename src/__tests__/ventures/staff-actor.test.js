@@ -13,7 +13,9 @@
  * driven by the module mock rather than an injected double.
  */
 
-jest.mock("@/lib/auth", () => ({ getSession: jest.fn() }));
+jest.mock("@/server/auth/session", () => ({
+  getSession: jest.fn(),
+}));
 
 jest.mock("@/lib/db", () => {
   const state = { calls: [], assigned: false };

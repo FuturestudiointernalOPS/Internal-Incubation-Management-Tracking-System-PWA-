@@ -19,7 +19,7 @@
  * the assignment guard (which answers HTTP) and the envelope.
  */
 
-import { hasProgramManagementAccess } from "@/lib/auth";
+import { hasProgramManagementAccess } from "@/server/authz/capabilities";
 import {
   createFacilitatorReview,
   decideFacilitatorReview,
