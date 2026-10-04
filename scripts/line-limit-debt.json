@@ -1,11 +1,1 @@
-[
-  "src/app/pm/programs/[id]/page.js",
-  "src/components/admin/ventures/VentureFoundersView.js",
-  "src/components/permissions/permission-center/EligibilityView.js",
-  "src/components/tasks/manager/TaskRow.js",
-  "src/components/ventures/VentureDashboard.js",
-  "src/models/curriculum/sessionsAndSelfHealing.js",
-  "src/models/platform/automation/automationCore.js",
-  "src/models/programs/core.js",
-  "src/models/ventureWorkspace/journeyAndReports.js"
-]
+[]
