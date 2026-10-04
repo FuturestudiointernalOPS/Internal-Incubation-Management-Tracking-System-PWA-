@@ -4231,3 +4231,17 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
   - `identity-role-writes.test.js`: KNOWN_SITES + mutation-stop list `"src/models/platform/automation.js"` → `"src/models/platform/automation/automationCore.js"` (role mutation lives in AUTOMATION RULES).
   - `investor-application-intake.test.js`: `read(AUTOMATION)` → `readSurface("src/models/platform/automation.js")`.
 - **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.
+
+### Slice 156 — `src/models/formRuns.js` (918 → 4 files)
+
+- **Trigger**: `formRuns.js` exceeded 800 lines (918).
+- **Split**: 116 exported functions → barrel + 3 sub-files by HTTP method group:
+  - `formRuns/readsAndHelpers.js` (512): shared helpers, GET list, paginated list, decision-email helpers, review workflow — lines 15-523
+  - `formRuns/writesPost.js` (356): POST (create run, submit, etc.) — lines 524-876
+  - `formRuns/writesPutDelete.js` (45): PUT, DELETE — lines 877-end
+  - Facade `formRuns.js` (18): doc header + `export *` from three modules.
+- **Cross-calls**: None (file only imports `db`).
+- **Test couplings updated**:
+  - `identity-role-writes.test.js`: `fs.readFileSync("src/models/formRuns.js")` → `readSurface("src/models/formRuns.js")`.
+  - `result-email-schedule.test.js`: `read("src/models/formRuns.js")` → `readSurface("src/models/formRuns.js")`.
+- **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.

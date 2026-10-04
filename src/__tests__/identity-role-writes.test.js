@@ -78,7 +78,7 @@ test("identity creation defaults: new platform contacts start as member (baselin
   expect(identity).toMatch(/role\s*=\s*["']member["']/);
   // Form approvals create contacts as member/approved (context arrives later
   // as a membership row, not as the person's global role).
-  const formRuns = fs.readFileSync("src/models/formRuns.js", "utf8");
+  const formRuns = readSurface("src/models/formRuns.js");
   expect(formRuns).toMatch(/'member'/);
 });
 

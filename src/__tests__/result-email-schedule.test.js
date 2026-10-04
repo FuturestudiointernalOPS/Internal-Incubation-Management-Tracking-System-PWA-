@@ -29,7 +29,7 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 const ROUTE_SRC = read("src/app/api/platform/form-runs/route.js");
 // The run-email service is split across `formRuns/`; read the whole surface.
 const SERVICE_SRC = readSurface("src/services/platform/formRuns.js");
-const MODEL_SRC = read("src/models/formRuns.js");
+const MODEL_SRC = readSurface("src/models/formRuns.js");
 // V2: the run-level template editors (RunTemplateEditor + the templates tab)
 // live in components/platform/runs/. Both screens are split across their own
 // component folders, so read each page's whole surface — a pin that still read
