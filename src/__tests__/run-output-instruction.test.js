@@ -33,7 +33,8 @@ const read = (rel) => {
     return readSurface("src/services/platform/formRuns.js") + "\n" + text;
   }
   if (rel === "src/services/platform/formRuns.js") return readSurface(rel);
-  return text;
+  // resultPdf is split across `resultPdf/` too, so read its whole surface.
+  return readSurface(rel);
 };
 
 const FORM_RUNS_SERVICE = "src/services/platform/formRuns.js";
