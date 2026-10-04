@@ -33,7 +33,7 @@ export default function ConfirmDialog({
             <>
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-3 bg-red-500/10 rounded-xl"><Key size={24} className="text-red-400" /></div>
-                <div><h3 className="text-lg font-black tracking-tight">Revoke API Key</h3><p className="text-sm text-[var(--text-secondary)]">Are you sure you want to revoke the API key "{action.name}"? This will immediately invalidate the key and cannot be undone.</p></div>
+                <div><h3 className="text-lg font-black tracking-tight">Revoke API Key</h3><p className="text-sm text-[var(--text-secondary)]">Are you sure you want to revoke the API key &quot;{action.name}&quot;? This will immediately invalidate the key and cannot be undone.</p></div>
               </div>
               <div className="flex gap-3">
                 <button onClick={onClose} className="flex-1 px-4 py-2.5 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-sm hover:bg-[var(--surface-2)]">Cancel</button>
@@ -45,7 +45,7 @@ export default function ConfirmDialog({
             <>
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-3 bg-red-500/10 rounded-xl"><AlertCircle size={24} className="text-red-400" /></div>
-                <div><h3 className="text-lg font-black tracking-tight">Delete Webhook</h3><p className="text-sm text-[var(--text-secondary)]">Are you sure you want to delete the webhook "{action.name}"? This will permanently remove the webhook and its delivery logs.</p></div>
+                <div><h3 className="text-lg font-black tracking-tight">Delete Webhook</h3><p className="text-sm text-[var(--text-secondary)]">Are you sure you want to delete the webhook &quot;{action.name}&quot;? This will permanently remove the webhook and its delivery logs.</p></div>
               </div>
               <div className="flex gap-3">
                 <button onClick={onClose} className="flex-1 px-4 py-2.5 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-sm hover:bg-[var(--surface-2)]">Cancel</button>

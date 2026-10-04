@@ -1,7 +1,7 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n";
-import { Key, X, Copy, Trash2, AlertCircle } from "lucide-react";
+import { Key, X, Copy, Trash2, AlertCircle, Plus } from "lucide-react";
 import { formatDate } from "@/components/admin/dashboard-page/constants";
 
 export default function ApiKeysTab({
