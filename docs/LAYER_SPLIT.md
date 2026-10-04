@@ -4213,3 +4213,21 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
 - **Cross-calls**: None.
 - **Test couplings**: None (no source-read pins in tests).
 - **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.
+
+### Slice 155 — `src/models/platform/automation.js` (939 → 5 files)
+
+- **Trigger**: `platform/automation.js` exceeded 800 lines (939).
+- **Split**: 8 exports → barrel + 4 sub-files by functional layer:
+  - `platform/automation/crmHelpers.js` (61): CRM integration helpers `syncCrmContact`, `writeCrmTimeline` — lines 50-105
+  - `platform/automation/submissionConfirmation.js` (101): `sendAcknowledgementForSubmission` — lines 106-182
+  - `platform/automation/automationCore.js` (745): DDL caches, EVENT DEFINITIONS (`PLATFORM_EVENTS`), AUTOMATION RULES (`RULES` → exported as `AUTOMATION_RULES`) — lines 34-49 + 183-883
+  - `platform/automation/engine.js` (60): `fireEvent`, `onSubmission`, `onReview`, `onRunCreated`, `onRunLaunched`, `onAssignmentAdded` — lines 884-939
+  - Facade `platform/automation.js` (22): doc header + `export *` from four modules.
+- **Cross-calls** (all resolved by imports):
+  - AUTOMATION RULES → CRM helpers (`syncCrmContact`, `writeCrmTimeline`)
+  - AUTOMATION RULES → submission confirmation (`sendAcknowledgementForSubmission`)
+  - ENGINE → automationCore (`AUTOMATION_RULES`, `PLATFORM_EVENTS`)
+- **Test couplings updated**:
+  - `identity-role-writes.test.js`: KNOWN_SITES + mutation-stop list `"src/models/platform/automation.js"` → `"src/models/platform/automation/automationCore.js"` (role mutation lives in AUTOMATION RULES).
+  - `investor-application-intake.test.js`: `read(AUTOMATION)` → `readSurface("src/models/platform/automation.js")`.
+- **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.

@@ -54,7 +54,7 @@ test("mutation-site inventory is frozen (every contacts.role write is known)", (
     "src/models/adminOps.js", // approval → participant (contextual — I2 target)
     "src/models/authorization.js", // promote/demote super_admin/staff (TRUE identity op — keep)
     "src/models/investorRelations/provisioningAndProfile.js", // investor onboarding (contextual — I2 target)
-    "src/models/platform/automation.js", // platform approval role set (contextual — I2 target)
+    "src/models/platform/automation/automationCore.js", // platform approval role set (contextual — I2 target)
   ];
   // authFlows.js used to be here: accepting a legacy V2 invite overwrote the
   // contact's role with no guard. Both the routes and the model helpers behind
@@ -133,7 +133,7 @@ describe("I2 mutation-stop guard presence", () => {
     const sites = [
       "src/models/adminOps.js",
       "src/models/investorRelations/provisioningAndProfile.js",
-      "src/models/platform/automation.js",
+      "src/models/platform/automation/automationCore.js",
     ];
     for (const file of sites) {
       const src = fs.readFileSync(file, "utf8");
