@@ -4451,3 +4451,82 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
 > that lane is actively rewriting (it re-introduced an invalid `submissionData={}` after
 > the slice-171 repair). Repaired again in place; it is a moving target until that lane
 > finishes. Not this slice.
+
+### Slice 173 — Les quatre vues admin restées en attente (2026-10-04)
+
+- **Déclencheur** : quatre paires composant/page terminées mais non committées lors d'une vague précédente.
+- **Découpage** : `ProgramDetailView.js` 669 → 580 + `program-detail-view/WeekReports.js` (98) ; `UserAccessView.js` 662 → 588 + `user-access-view/SearchPanel.js` (112) ; `admin/programs/[id]/teams/page.js` 676 → 524 + `components/admin/programs/teams/TeamFormModal.js` (197) ; `admin/reports/responses/page.js` 678 → 286 + `components/admin/reports/responses/ReportDetailModal.js` (419).
+- **Contrats épinglés** : blocs `ctx` inchangés ; les suites `program-detail-view-wiring`, `access-view-wiring`, `person-access-wiring`, `venture-detail-view-wiring` restent vertes (12 tests).
+- **Vérification** : `npx eslint` 0 erreur sur les 8 fichiers.
+
+### Slice 174 — La vague des pages, lot 1 : six écrans sous le plafond (2026-10-04)
+
+Le rendu est déplacé **verbatim** vers `src/components/<zone>/<écran>/` ; les pages ne gardent que état, hooks, lectures et handlers, passés en props. Aucun nœud DOM enveloppe n'est ajouté (fragment quand plusieurs racines).
+
+| Écran (avant) | Après | Blocs extraits |
+|---|---|---|
+| `app/admin/security/page.js` 607 | 317 | `components/admin/security/` : header, onglets, overview, sessions, events, dialogue, constantes |
+| `app/pm/submissions/page.js` 612 | 345 | `components/pm/submissions/` : liste (+ `StatusBadge`), modale de revue |
+| `app/admin/blockers/page.js` 615 | 154 | `components/admin/blockers/` : header, stats, filtres, table, modale, sévérités |
+| `app/platform/collections/page.js` 672 | 309 | `components/platform/collections/` : header, barre, arbre, grille, formulaire, archivage |
+| `app/platform/runs/submit/[runId]/page.js` 653 | 272 | `components/platform/runs/submit/` : champs, sections, avis, entête, pied, scènes |
+| `app/s/[runId]/page.js` 650 | 485 | `lib/publicRunClient.js` (helpers Kkiapay) + `components/platform/s/` : vue, paiement, succès |
+
+- **Contrats épinglés** : `security-login-history` lit l'onglet historique resté **dans** la page (littéraux `loginActionLabel(`/`loginFailureLabel(`) ; les suites plateforme lisent la surface concaténée (`readSurface`) et suivent les composants dans le dossier `runs/`.
+- **Vérification** : `npx eslint` 0 erreur ; suites ciblées vertes ; `npm test` 317/4841, `npm run build` vert.
+
+### Slice 175 — La vague des pages, lot 2 : six écrans + deux bugs corrigés (2026-10-04)
+
+| Écran (avant) | Après | Blocs extraits |
+|---|---|---|
+| `app/investor/diligence/page.js` 630 | 345 | `components/investor/diligence/` : entête, onglets, requests, founders, risks, notes, progression |
+| `app/admin/ventures/[id]/tasks/page.js` 723 | 403 | `components/admin/ventures/tasks/` : entête, archive, kanban, liste, drawer, modale, constantes |
+| `app/admin/ventures/[id]/verification/page.js` 649 | 325 | `components/admin/ventures/verification/` : entête, jauge, progression, historique, commentaires, modale, scènes |
+| `app/staff/op-report/page.js` 672 | 559 | `components/staff/op-report/OpReportView.js` (chrome + `ReportContent`/`OpReportModals`) |
+| `app/pm/programs/[id]/page.js` 718 | 580 | `components/pm/programs/` : vue compose, onglets, sélecteurs, formes, fallback |
+| `app/participant/ventures/[id]/page.js` 711 | 562 | `components/participant/ventures/` : vue, modèle d'écran |
+
+**Deux bugs latents du slice 131, corrigés dans `pm/programs/[id]`.** Le découpage a révélé que l'écran levait au rendu :
+1. `values` listait `canEdit` / `canContribute` alors que leur `const` était déclaré **plus bas** dans la fonction — zone morte temporelle (`ReferenceError` à l'évaluation). La dérivation `selectProgramAccess` remonte désormais **avant** `values`.
+2. `WorkspaceContent` / `WorkspaceModals` étaient appelés `<… ctx={ctx} />` mais déstructuraient leur paramètre de props directement, si bien que tous les onglets recevaient `undefined`. Leurs signatures prennent `{ ctx }`, comme les sections `PmReport*` et le reste du dépôt.
+
+- **Contrats épinglés** : `program-workspace-wiring` (5) vert après correction ; `op-report-wiring` (5), `venture-founders-view-wiring` (3), `verification-upload` (8), `ui3-responsive`/`ui4-contexts` (15) verts.
+- **Vérification** : `npx eslint` 0 erreur ; `npm test` 317/4841, `npm run build` vert.
+
+### Slice 176 — Les quatre composants restants (2026-10-04)
+
+| Fichier (avant) | Après | Dossier |
+|---|---|---|
+| `components/tasks/manager/TaskRow.js` 634 | 150 | `tasks/manager/task-row/` (5) |
+| `components/admin/ventures/VentureFoundersView.js` 629 | 284 | `admin/ventures/venture-founders/` (4) |
+| `components/permissions/permission-center/EligibilityView.js` 625 | 405 | `permission-center/eligibility-view/` (5) |
+| `components/ventures/VentureDashboard.js` 602 | 231 | `ventures/venture-dashboard/` (6) |
+
+- **Contrats épinglés** : `VentureFoundersView` garde son bloc `const { … } = ctx;` (la suite de wiring lit le fichier directement) ; `EligibilityView` garde `matrixRoles` / `contextRoleTag` en place et déplace la table **avec** sa jumelle carte pour rester à parité `hidden md:block` / `md:hidden` (`ui3-responsive`).
+- **Vérification** : `npx eslint` 0 erreur ; suites ciblées vertes ; `npm test` 317/4841.
+
+### Slice 177 — La queue des modèles (2026-10-04)
+
+Quatre modèles encore au-dessus du plafond deviennent des barillets de **même surface**, le SQL copié **à l'identique** dans des modules cohésifs. Aucun importateur ne change de chemin.
+
+| Modèle (avant) | Barillet | Modules |
+|---|---|---|
+| `models/ventureWorkspace/journeyAndReports.js` 637 | 20 | `journeyAndReports/` (7) : ventures/progress, tâches/soumissions, notes, plans, modèles de parcours, calendrier, rapports |
+| `models/programs/core.js` 610 | 33 | `core/` (8) : quickPrograms, familyAssignment, programList, programMetrics, programCreation, programManager, programUpdate, programDelete |
+| `models/platform/automation/automationCore.js` 744 | 558 | `automationCore/` (5) : events, submissionRules, reviewRules, runRules, assignmentRules |
+| `models/curriculum/sessionsAndSelfHealing.js` 720 | 30 | `sessionsAndSelfHealing/` (6) : sessionSchema, weeklyReportSchema, sessionVersioning, sessionCreation, sessionStateAndMaterials, weeklyReports |
+
+- **Contrats épinglés** : la grande règle d'approbation (mutation `contacts.role` et son garde `stopRoleMutationEnabled`) **reste dans `automationCore.js`** — `identity-role-writes.test.js` pin le chemin du barillet et y lit le garde. `readSurface` concatène le barillet + son dossier homonyme (récursif), donc les octets épinglés restent contigus.
+- **Vérification** : chaque module comparé byte-à-byte à sa plage d'origine (hachages identiques) ; nombre d'exports identique avant/après ; `npx eslint` 0 erreur ; suites ciblées vertes.
+
+### Slice 178 — Le garde-fou de taille devient automatique (2026-10-04)
+
+Tout fichier source (hors tests et config) est désormais **sous 600 lignes** — la liste de dette `scripts/line-limit-debt.json` est **vide**.
+
+- `scripts/check-line-limits.mjs` existait déjà (`npm run check:lines`, `:block`, `:update`) mais n'était branché sur rien.
+- Nouveau `src/__tests__/server/line-limits.test.js` : **échoue** si un fichier dépasse 600 hors liste de dette, **échoue** si la liste porte une entrée devenue conforme (anti-pourriture), et **affiche** les fichiers entre 500 et 600 pour la prochaine passe. Il tourne avec `npm test`.
+- 10 fichiers entre 501 et 600 restent à traiter dans une passe ultérieure (voir la sortie du test).
+
+- **Vérification** : `npm test` 318 suites / 4844 tests verts ; `npm run build` vert ; `npm run lint` 0 erreur.
+
+> Note de concurrence (2026-10-04) : un autre couloir a committé `c927901c` en embarquant, par `git add` large, les fichiers non committés de cette vague — le contenu est intact. Seuls les barillets/écrans `pm/programs` (slice 175) et les lots 176–177 ont été committés séparément ici.
