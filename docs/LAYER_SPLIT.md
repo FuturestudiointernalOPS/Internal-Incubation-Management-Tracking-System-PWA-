@@ -4383,3 +4383,16 @@ Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
 - **Cross-calls**: None (each module imports `db` and `ensurePermissionsSchema` only).
 - **Test couplings**: None (the parent `backfill.js` barrel re-exports unchanged; suites exercise the functions, not the file text).
 - **Verification**: public surface checked programmatically (exactly the ten backfills); the authorization/phase/db-budget suites → 172 + 888 tests green; lint 0 errors on the touched scope. Full suite 316/317 — the single failure remains the other lane's mid-split review page.
+
+### Slice 168 — `src/models/platformAi.js` (669 → 5 files)
+
+- **Trigger**: a remaining file over the 600 ceiling.
+- **Split**: 65 exported functions → barrel + 4 sub-files by route/concern:
+  - `platformAi/evaluation.js` (247): the batch evaluation engine (claims, failures, progress, auto-approval reads/writes, duplicate guard, batch scope).
+  - `platformAi/scores.js` (92): the run-scoped scoreboard.
+  - `platformAi/generation.js` (133): AI form generation, the analysis log and the framework config.
+  - `platformAi/founderAssessment.js` (213): the Founder Fit Score form seed.
+  - Facade `platformAi.js` (32): doc header + `export *` from the four modules.
+- **Cross-calls**: None (each module imports only `db`).
+- **Test couplings**: None (suites mock `@/lib/db` with SQL-string matching; no source-text pins on this file).
+- **Verification**: import/export surface identical (65 names); the platform/evaluation/scores suites → 855 tests green; lint 0 errors on the touched scope. Full suite 316/317 — the single failure remains the other lane's mid-split review page.
