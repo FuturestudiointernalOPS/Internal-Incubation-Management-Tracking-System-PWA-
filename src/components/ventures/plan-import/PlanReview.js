@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Play, Save, UserX } from "lucide-react";
+import { UserX } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import PlanReviewHeader from "./PlanReviewHeader";
@@ -9,6 +9,7 @@ import PlanProposalEditor from "./PlanProposalEditor";
 import ExternalOwnerResolver from "./ExternalOwnerResolver";
 import PlanReviewNotes from "./PlanReviewNotes";
 import PlanCorrectionPanel from "./PlanCorrectionPanel";
+import PlanReviewActions from "./PlanReviewActions";
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const isEmpty = (value) => !String(value ?? "").trim();
@@ -466,29 +467,7 @@ export default function PlanReview({ ventureId, draft, onSaved }) {
         inputClass={inputClass}
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[10px] text-slate-500">{t("venture.planImport.nextStep")}</p>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={apply}
-            disabled={applying || saving}
-            className="px-4 py-2 rounded-xl border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 text-[9px] font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50"
-          >
-            {applying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
-            {t(applying ? "venture.planImport.applying" : "venture.planImport.apply")}
-          </button>
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving || applying}
-            className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            {t("venture.planImport.saveReview")}
-          </button>
-        </div>
-      </div>
+      <PlanReviewActions applying={applying} saving={saving} onApply={apply} onSave={save} />
 
       {/* One shared suggestion list: every owner field searches through it. */}
       <datalist id="plan-import-owner-options">
