@@ -559,10 +559,10 @@ héritées n'ont pas été supprimées.
 | B — Règle profil ↔ rôle | Fait | | 2026-10-05 | 22 tests (`profile-role-rule-phase-b`) ; lint 0 erreur ; build OK |
 | C — Registre d'affectation | Fait | | 2026-10-05 | 29 tests (`profile-assignments-phase-c`) ; lint 0 erreur |
 | D — Éligibilité par profil | Fait | | 2026-10-05 | 16 tests (`profile-eligibility-phase-d`, `profile-eligibility-resolver-phase-d`) ; lint 0 erreur ; build OK |
-| E — Attribution automatique | À faire | | | |
-| F — Droit résiduel de consultation | À faire | | | |
+| E — Attribution automatique | Fait (couples existants) | | 2026-10-05 | 15 + 8 tests (`profile-assignment-automatic-phase-e`, `program-facilitator-reconcile-phase-e`) ; fiches automatiques écrites/clôturées par la réconciliation + rapport de balayage ; écritures d'affectation programme (facilitateur) branchées ; nouveaux couples gelés par D5 ; lint 0 erreur |
+| F — Droit résiduel de consultation | Fait | | 2026-10-05 | 12 tests (`profile-history-phase-f`) ; lint 0 erreur |
 | G — Explication, audit, opérations | À faire | | | |
-| H — Nettoyage du rôle global | À faire | | | |
+| H — Nettoyage du rôle global | Fait (blocage strict + alignement des rôles) | | 2026-10-05 | 16 tests (`legacy-role-cleanup-phase-h`) ; `PROFILE_ROLE_ENFORCEMENT = "block"` ; relevé + alignement `contacts.role` (API + script) ; lint 0 erreur. Retrait destructif du vocabulaire différé (dépend du remplissage profils — D4/D5) |
 
 ---
 

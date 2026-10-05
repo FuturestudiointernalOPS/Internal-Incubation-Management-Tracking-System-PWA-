@@ -59,9 +59,11 @@ capability rather than lowering it. Locked by
 |---|---|---|
 | Identity vs contextual responsibility | IMPLEMENTED | `docs/IDENTITY_*.md`; role is no longer mutated by venture/program membership |
 | Profile catalogue (roadmap A) | IMPLEMENTED | `profiles` table + `models/authorization/profile-catalog.js` + `services/authorization/profileCatalog.js`; admin at Permission Center → Rules → Profiles. Catalogue of seven profiles with their context and allowed baseline roles |
-| Profile ↔ role rule (roadmap B) | IMPLEMENTED (warning) | `evaluateProfileRoleFit` + `PROFILE_ROLE_ENFORCEMENT` ("warn", → "block" in H). The automatic reconcile (`contextGrantReconcile.js`) and the manual responsibility assignment (`responsibilityAssignment.js`) REPORT the écart; nothing is blocked yet (§13) |
+| Profile ↔ role rule (roadmap B → H) | IMPLEMENTED (enforced) | `evaluateProfileRoleFit` + `PROFILE_ROLE_ENFORCEMENT` ("block" since Phase H). The automatic reconcile (`contextGrantReconcile.js`) and the manual responsibility assignment (`responsibilityAssignment.js`) refuse the écart before any write. Phase B reported it ("warn"); Phase H flipped the one constant |
 | Assignment registry (roadmap C) | IMPLEMENTED | `profile_assignments` table + `models/authorization/profileAssignmentsStore.js` + `services/authorization/profileAssignments.js`; `GET/POST/PATCH /api/engineering/permissions/profile-assignments`; UI: "Profiles held" section of the Person Access screen. Describes periods (context, source, dates); decides no access |
 | Eligibility by profile (roadmap D) | IMPLEMENTED | A third ceiling identity kind (`identity_type = 'profile'`). The resolver reads `listActiveProfileKeys(cid)` and folds the profile rows into the single eligibility query (OR with role/group; an explicit deny still wins). The context cache key is `cid\|role\|active-profiles`, and every assignment write invalidates the person's context. UI: the identity editor and the matrix gain a Profile kind |
+| Automatic attribution (roadmap E) | IMPLEMENTED | `services/authorization/contextGrantAssignments.js` writes the `profile_assignments` card beside the grants (open / re-date / close, `source = 'automatic'`, never manual); `SUPPORTED_CONTEXT_ROLES` stays the three approved pairs |
+| Residual read / consultation (roadmap F) | IMPLEMENTED | `services/authorization/contextGrantHistory.js` derives a `<module>.view` ceiling (level 1, context-bounded) from ENDED automatic cards, in its own namespace (`history:<role>`, stamp `hist:<context>:<role>`, provenance `mode = 'historical'`, no expiry). Scope policies `venture_managed_history` / `program_managed_history` added |
 | Eligibility / ceiling | IMPLEMENTED | `models/authorization/eligibility.js`, `eligibility-defaults.js`, admin at `.../permissions/eligibility` |
 | Reusable permission sets | IMPLEMENTED (as **Access Profiles / templates**) | `access_profiles` + `access_profile_capabilities`; UI: Permission Center → Profiles |
 | Role → profile defaults | IMPLEMENTED | `role_access_profile_defaults` |
@@ -95,12 +97,13 @@ baseline role on `contacts.role` (super_admin / staff / member). Phase A made it
 a catalogue; Phase B turned "this profile is open only to these baseline roles"
 into an OBSERVABLE rule.
 
-In Phase B the rule **warns only**: `PROFILE_ROLE_ENFORCEMENT` defaults to
-`"warn"`, so a person holding a profile from a non-listed role is reported as an
-écart on both attribution paths (the automatic context reconcile and the manual
-responsibility assignment) and loses no access. Phase H flips the same constant
-to `"block"` once the legacy profile values on `contacts.role` are cleaned up.
-Everything is additive and reversible.
+In Phase B the rule **warned only**: `PROFILE_ROLE_ENFORCEMENT` defaulted to
+`"warn"`, so a person holding a profile from a non-listed role was reported as
+an écart on both attribution paths and lost no access. **Phase H** flips the
+same constant to `"block"` **and** cleans up the legacy `contacts.role` values
+that made the warning necessary: the enforcement is now effective, and the
+baseline-role alignment (below) is what keeps it loss-free. Everything is
+additive and reversible.
 
 **Phase C** adds the unified assignment registry: one table answers "which
 profiles did this person hold, over which periods, in which context, and from
@@ -117,6 +120,65 @@ same single eligibility read, the context cache keys on them, and every
 assignment write invalidates the person's context so the change takes effect at
 once. `ELIGIBLE ≠ GRANTED` still holds at the profile level — the profile is a
 ceiling, never a grant.
+
+**Phase E** gives the registry its AUTOMATIC half. The context→profile reconcile
+(the same pass that applies the Founder / Facilitator / Program Manager
+grants) now writes the matching `profile_assignments` row beside the grants: a
+relationship opens a card (`source = 'automatic'`, `source_ref` = the venture or
+program code that justifies it), ending it CLOSES the card (`status = 'ended'`,
+`ended_at` stamped) and never deletes it, and a reactivation opens a NEW period.
+Only `source = 'automatic'` rows are matched, so a card written by hand from the
+Person Access screen is never touched. The reconcile report carries what was
+opened / re-dated / closed, and the context cache is invalidated when a card
+changes. The registry still DESCRIBES: the grants decide access, the cards
+record the profile's period. Program-side immediacy is wired too: adding,
+editing or removing a program-staff (facilitator) assignment re-derives that
+person's program access at once — the manager side and the venture-invitation
+(founder) side already did. What is deliberately NOT enabled yet is adding NEW
+context/profile couples to the sweep — `SUPPORTED_CONTEXT_ROLES` stays the three
+approved pairs. The justifying relations are now defined (a venture team member
+is a removable `venture_members` row; a learner is anyone with access to an LMS
+course; a venture manager is the lead manager of a venture), but two of them
+still lack a profile mapping in the approved catalogue (`venture:team_member`,
+`lms:learner`) and the list/order of couples to activate (product decision D5)
+is still open; that is why the pinned registry test is untouched.
+
+**Phase H** closes the loop. The global `contacts.role` is cleaned up: a read
+(`surveyLegacyRoles`) splits the role values actually in use into the three
+BASELINE identities (super_admin / staff / member) and the LEGACY values — a
+catalogue profile (`founder`, `participant`, `program_manager`…) or a retired
+label (`mentor`, `team`) — and reports the accounts behind each, plus a `safe`
+gate. The alignment (`alignLegacyRoles`, `scripts/align-legacy-roles.mjs`, the
+`/api/engineering/permissions/legacy-role-cleanup` endpoint) rewrites ONLY the
+role column, guarded by the exact legacy value: a member-open profile
+(`founder`, `participant`, `facilitator`) becomes baseline `member`, a staff-only
+profile (`program_manager`, `venture_manager`) becomes baseline `staff` so the
+profile stays open to the person — nothing is ever deleted, and the
+relationships and profile cards that carry the context are untouched. With every
+account a baseline identity, `PROFILE_ROLE_ENFORCEMENT` is set to `"block"`.
+
+The one part of the roadmap's Phase H deliberately **not** done here is the
+destructive vocabulary retirement (removing the contextual values from
+`FEATURE_ELIGIBILITY_DEFAULTS` / `RESPONSIBILITY_FEATURE_ROLES` / the navigation
+masks). Those values still carry eligibility for people whose profiles are not
+backfilled, so removing them now would cost access — a violation of the roadmap's
+"zéro perdant" rule. It waits on the blocked product decisions about the
+context/profile couples (D4/D5) and the profile-eligibility migration, exactly as
+the roadmap's own safety gate requires.
+
+**Phase F** gives the ended relationship its RESIDUAL READ. Once a managed
+relationship closes (Phase E closed the card), the person keeps a READ-ONLY
+consultation of the context they managed — a `<module>.view` ceiling at level 1,
+bounded to that context, and nothing else. It is derived only from
+`source = 'automatic'` ENDED cards, lives in its OWN provenance namespace
+(`history:<role>`, grant stamp `hist:<context>:<role>`, provenance
+`mode = 'historical'`), and carries NO expiry: it exists BECAUSE the period
+ended. Active and history never touch each other (distinct role_key AND stamp),
+so the active reconcile cannot see the residue and reopening the relationship
+withdraws it. The scope catalogue gains `venture_managed_history` and
+`program_managed_history`, both implemented and fail-closed. Still open
+(product): the residual's duration (currently permanent until withdrawn) and an
+explicit administrator revocation surface.
 
 ---
 
