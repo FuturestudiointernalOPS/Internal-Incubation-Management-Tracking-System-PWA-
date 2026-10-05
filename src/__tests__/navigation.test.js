@@ -180,19 +180,11 @@ const FIXTURE = {
 
   member: [{ id: "dashboard", href: "/participant", subItems: null }],
 
-  participant: [
-    { id: "dashboard", href: "/participant", subItems: null },
-    { id: "learning", href: "/participant/learning", subItems: null },
-    { id: "programs", href: "/participant/dashboard", subItems: null },
-    { id: "certificates", href: "/participant/certificates", subItems: null },
-  ],
+  // Phase H — participant / founder have no role mask any more: their surfaces
+  // are relationship-driven, so the mask projects to the member baseline.
+  participant: [{ id: "dashboard", href: "/participant", subItems: null }],
 
-  founder: [
-    { id: "dashboard", href: "/participant", subItems: null },
-    { id: "programs", href: "/participant/dashboard", subItems: null },
-    { id: "ventures", href: "/participant/ventures", subItems: null },
-    { id: "timeline", href: "/participant/profile#timeline", subItems: null },
-  ],
+  founder: [{ id: "dashboard", href: "/participant", subItems: null }],
 
   team: [
     { id: "dashboard", href: "/team", subItems: null },
@@ -299,8 +291,8 @@ describe("Master navigation — role projections", () => {
 
     // Same master node consumed by multiple roles (no per-role copies):
     // "messages" is a communication child for super_admin/pm and top-level
-    // for staff/developer; "programs" is a section for super_admin and a
-    // leaf for staff/participant/founder; "forms" is shared too.
+    // for staff; "programs" is a section for super_admin and a leaf for staff;
+    // "forms" is shared too.
     const findIn = (items, id) => {
       for (const item of items || []) {
         if (item.id === id) return item;
@@ -315,8 +307,6 @@ describe("Master navigation — role projections", () => {
       ["program_manager", "messages"],
       ["super_admin", "programs"],
       ["staff", "programs"],
-      ["participant", "programs"],
-      ["founder", "programs"],
       ["super_admin", "forms"],
       ["crm", "forms"],
     ];
