@@ -561,7 +561,7 @@ héritées n'ont pas été supprimées.
 | D — Éligibilité par profil | Fait | | 2026-10-05 | 16 tests (`profile-eligibility-phase-d`, `profile-eligibility-resolver-phase-d`) ; lint 0 erreur ; build OK |
 | E — Attribution automatique | Fait | | 2026-10-05 | 32 tests (`profile-assignment-automatic-phase-e`, `program-facilitator-reconcile-phase-e`, `context-couples-phase-e`) ; fiches automatiques écrites/clôturées + rapport de balayage ; écritures programme (facilitateur) branchées ; D5 = tout sauf `venture:team_member` → 6 couples, profils/accès « Learner » (lms.view) et « Venture Manager » (ventures.view+edit) créés et mappés (migration additive) ; lint 0 erreur ; 348 suites vertes |
 | F — Droit résiduel de consultation | Fait | | 2026-10-05 | 12 tests (`profile-history-phase-f`) ; lint 0 erreur |
-| G — Explication, audit, opérations | À faire | | | |
+| G — Explication, audit, opérations | Fait | | 2026-10-05 | 4 tests (`permission-explanation-phase-g`) + audit automatique couvert (`profile-assignment-automatic-phase-e`) ; explication enrichie (profils contextuels + périodes d'affectation) ; attribution/retrait automatiques journalisés (acteur système) + actions d'affectation au filtre History ; rapport opérations avec fiches de profil ; écran par personne déjà complet (phase C) ; lint 0 erreur ; 349 suites vertes |
 | H — Nettoyage du rôle global | Fait (blocage strict + alignement des rôles) | | 2026-10-05 | 16 tests (`legacy-role-cleanup-phase-h`) ; `PROFILE_ROLE_ENFORCEMENT = "block"` ; relevé + alignement `contacts.role` (API + script) ; lint 0 erreur. Retrait destructif du vocabulaire différé (dépend du remplissage profils — D4/D5) |
 
 ---

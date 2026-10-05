@@ -186,6 +186,19 @@ withdraws it. The scope catalogue gains `venture_managed_history` and
 (product): the residual's duration (currently permanent until withdrawn) and an
 explicit administrator revocation surface.
 
+**Phase G** makes the model LEGIBLE and AUDITABLE from the permission center.
+The explanation ("why does this person have access") now carries the CONTEXTUAL
+identity beside the raw capability sources: the active profiles and the access
+template, plus every assignment PERIOD that produced them (context, source,
+dates, state), read by the permission read and rendered in the existing
+explanation panel. Automatic attribution and withdrawal are written to the
+permission audit log too (actor = the system), and the assignment actions join
+the History screen's action vocabulary; the manual attribution/closure and the
+profile-rule edit were already logged. The Operations screen now reports how
+many profile cards the re-derive opened/closed, and its "who would lose access"
+rows carry the profile and its card. Nothing here decides access — it reports
+what the earlier phases did.
+
 ---
 
 ## 3. Conflicts: old and new coexisting (Phase 3)
