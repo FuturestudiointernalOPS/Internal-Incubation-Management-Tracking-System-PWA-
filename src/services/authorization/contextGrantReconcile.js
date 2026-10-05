@@ -50,6 +50,8 @@ import {
   profileKeyForContextRole,
   profileRoleGateDecision,
 } from "./profileCatalog";
+import { syncContextGrantsAssignments } from "./contextGrantAssignments";
+import { syncContextGrantsHistory } from "./contextGrantHistory";
 
 export async function syncContextGrantsForUser(
   cid,
@@ -86,11 +88,9 @@ export async function syncContextGrantsForUser(
     // justifying relationship does, so the check runs beside `sourceIds`. In the
     // DEFAULT "warn" mode it is REPORTED and changes nothing; only "block"
     // (Phase H) refuses, before any write, so nothing is applied or revoked.
+    const profileKey = profileKeyForContextRole(context, roleKey);
     const profileRoleGap = sourceIds.length
-      ? await buildProfileRoleGap({
-          profileKey: profileKeyForContextRole(context, roleKey),
-          cid,
-        })
+      ? await buildProfileRoleGap({ profileKey, cid })
       : null;
     const profileGate = profileRoleGateDecision(profileRoleGap);
     if (profileGate.blocked) {
@@ -154,8 +154,38 @@ export async function syncContextGrantsForUser(
       }
     }
 
+    // 7. Phase E — the assignment REGISTRY row. The grant above decides ACCESS;
+    //    this records that the person HOLDS the profile, per relationship and
+    //    per period. Opening a relationship opens the row, ending it closes the
+    //    row (never deletes it), and every write is attributable to
+    //    `source = 'automatic'`, so a manual Person Access card is never touched.
+    const assignmentReport = await syncContextGrantsAssignments(cid, {
+      contextType: context,
+      profileKey,
+      sourceIds,
+      endsAt: managesExpiry ? expiresAt : null,
+    });
+
+    const assignmentsChanged =
+      assignmentReport.opened.length +
+        assignmentReport.refreshed.length +
+        assignmentReport.closed.length >
+      0;
+
+    // 8. Phase F — the RESIDUAL READ. The active grants above are withdrawn when
+    //    the relationship ends; this records what the person may still CONSULT:
+    //    a `<module>.view` ceiling bounded to the context of the ended cards.
+    //    Automatic ended cards only, its own provenance namespace, no expiry.
+    const historyReport = await syncContextGrantsHistory(cid, {
+      context,
+      roleKey,
+      profileKey,
+    });
+    const historyChanged =
+      historyReport.applied.length + historyReport.revoked.length > 0;
+
     const changed = plan.toApply.length > 0 || plan.toRevoke.length > 0;
-    if (changed) await invalidateUserContext(cid);
+    if (changed || assignmentsChanged || historyChanged) await invalidateUserContext(cid);
 
     return {
       success: true,
@@ -175,6 +205,33 @@ export async function syncContextGrantsForUser(
       // The Phase B écart (or null when the role fits) — reported, never acted
       // on, in "warn" mode.
       profileRoleGap: profileGate.gap,
+      // Phase E — the assignment cards this pass opened / re-dated / closed,
+      // tagged with the couple they belong to, for the sweep's report.
+      profileAssignments: {
+        opened: assignmentReport.opened.map((contextId) => ({
+          contextId,
+          profileKey,
+          context,
+        })),
+        refreshed: assignmentReport.refreshed.map((contextId) => ({
+          contextId,
+          profileKey,
+          context,
+        })),
+        closed: assignmentReport.closed.map((contextId) => ({
+          contextId,
+          profileKey,
+          context,
+        })),
+        skipped: assignmentReport.skipped,
+      },
+      // Phase F — the residual READ opened / withdrawn this pass (a former
+      // manager's consultation).
+      profileHistory: {
+        applied: historyReport.applied,
+        revoked: historyReport.revoked,
+        contextIds: historyReport.contextIds,
+      },
     };
   } catch (error) {
     console.warn(`[Authz] syncContextGrantsForUser(${cid}) failed:`, error.message);

@@ -110,7 +110,7 @@ const SEEDED_PM_PROFILE_NAME = "Program Manager";
  * previous hand-rolled loop also only covered the `programs` module, which
  * would have silently dropped every other module of the portfolio template).
  */
-async function ensureProfile(template) {
+export async function ensureProfile(template) {
   await db.execute({
     sql: `INSERT INTO access_profiles (name, description, is_active)
           VALUES (?, ?, 1)

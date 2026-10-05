@@ -104,6 +104,40 @@ export function listAssignmentsForContextAndProfile(
   });
 }
 
+/**
+ * The ACTIVE AUTOMATIC rows of one (person, profile, context) — the read the
+ * Phase E reconcile diffs against the relationship ids it just resolved, to
+ * decide which periods to open, re-date or close.
+ */
+export function listActiveAutomaticAssignments({ contactCid, profileKey, contextType }) {
+  return db.execute({
+    sql: `SELECT id, context_id, source_ref, ends_at
+          FROM profile_assignments
+          WHERE contact_cid = ?
+            AND profile_key = ?
+            AND context_type = ?
+            AND source = 'automatic'
+            AND status = 'active'
+          ORDER BY started_at DESC, id DESC`,
+    args: [String(contactCid), String(profileKey), String(contextType)],
+  });
+}
+
+/**
+ * Re-date / re-point an ACTIVE automatic row (a program whose end date moved).
+ * The `IS DISTINCT FROM` guard makes the statement a no-op when the period
+ * already carries the right values, so a replayed reconcile changes nothing.
+ */
+export function refreshAutomaticAssignmentPeriod({ id, sourceRef, endsAt }) {
+  return db.execute({
+    sql: `UPDATE profile_assignments
+          SET source_ref = ?, ends_at = ?
+          WHERE id = ? AND status = 'active'
+            AND (source_ref IS DISTINCT FROM ? OR ends_at IS DISTINCT FROM ?)`,
+    args: [sourceRef, endsAt, Number(id), sourceRef, endsAt],
+  });
+}
+
 /** The ACTIVE row of one exact (person, profile, context), or an empty set. */
 export function findActiveAssignment({
   contactCid,
@@ -190,5 +224,41 @@ export function closeProfileAssignment({ id, status = "ended", endedAt = null })
           SET status = ?, ended_at = COALESCE(?, NOW())
           WHERE id = ? AND status = 'active'`,
     args: [String(status), endedAt, Number(id)],
+  });
+}
+
+/**
+ * The ENDED AUTOMATIC rows of one (person, profile, context) — the read Phase F
+ * consumes to derive the residual read-only consultation. Automatic only: a card
+ * written by hand is never turned into (or taken away as) a residual read.
+ */
+export function listEndedAutomaticAssignments({ contactCid, profileKey, contextType }) {
+  return db.execute({
+    sql: `SELECT context_id, started_at, ends_at, ended_at
+          FROM profile_assignments
+          WHERE contact_cid = ?
+            AND profile_key = ?
+            AND context_type = ?
+            AND source = 'automatic'
+            AND status = 'ended'
+          ORDER BY ended_at DESC, id DESC`,
+    args: [String(contactCid), String(profileKey), String(contextType)],
+  });
+}
+
+/**
+ * Everyone with an ENDED automatic row for one (profile, context) — the extra
+ * population the sweep includes, so a residual read is applied (or withdrawn)
+ * even for people who no longer hold the relationship (Phase F).
+ */
+export function listEndedAssignmentContacts(contextType, profileKey) {
+  return db.execute({
+    sql: `SELECT DISTINCT contact_cid AS cid
+          FROM profile_assignments
+          WHERE context_type = ?
+            AND profile_key = ?
+            AND source = 'automatic'
+            AND status = 'ended'`,
+    args: [String(contextType), String(profileKey)],
   });
 }

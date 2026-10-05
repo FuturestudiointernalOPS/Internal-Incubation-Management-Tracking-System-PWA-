@@ -17,8 +17,25 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/server/auth/session";
 import { buildFullFacilitatorPermissions } from "@/lib/facilitator-permissions";
+import { reconcileFacilitatorAccessForUser } from "@/services/authorization/contextGrantProgramAccess";
 
 const ROLE = { roles: ['super_admin'] };
+
+/**
+ * Phase E, step 6 — apply a facilitator relationship change immediately,
+ * instead of waiting for the next connect or the scheduled sweep. Best-effort:
+ * the stored assignment is the source of truth.
+ */
+async function applyFacilitatorAccess(staffRef) {
+  if (!staffRef) return;
+  try {
+    const cidRes = await getContactCidForProgramRoleMirror(staffRef);
+    const contactCid = cidRes.rows[0]?.cid;
+    if (contactCid) {
+      await reconcileFacilitatorAccessForUser(contactCid, { email: staffRef });
+    }
+  } catch (_) {}
+}
 
 async function logFacilitatorTimeline(staffId, programId, eventType, description, extra = {}) {
   try {
@@ -75,6 +92,10 @@ export const POST = createHandler(ROLE, async (req) => {
   if (String(role || "").toLowerCase() === "facilitator") {
     await logFacilitatorTimeline(staff_id, program_id, "facilitator_assigned", "Assigned as facilitator to program", { role });
   }
+
+  // Phase E — the assignment applies immediately.
+  await applyFacilitatorAccess(staff_id);
+
   return NextResponse.json({ success: true, id: assignmentResult.rows[0]?.id ?? assignmentResult.lastInsertRowid });
 });
 
@@ -130,6 +151,9 @@ export const PUT = createHandler(ROLE, async (req) => {
         );
       }
     }
+
+    // Phase E — re-derive the facilitator's access after the edit.
+    await applyFacilitatorAccess(assignment.staff_id);
   }
   return NextResponse.json({ success: true });
 });
@@ -149,6 +173,9 @@ export const DELETE = createHandler(ROLE, async (req) => {
       }
     } catch (_) {}
     await logFacilitatorTimeline(row.rows[0].staff_id, row.rows[0].program_id, "facilitator_removed", "Removed from program (assignment only — CRM record untouched)");
+
+    // Phase E — withdrawing the relationship withdraws its access immediately.
+    await applyFacilitatorAccess(row.rows[0].staff_id);
   }
   return NextResponse.json({ success: true });
 });

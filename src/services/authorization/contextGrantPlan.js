@@ -28,6 +28,13 @@ export const SUPPORTED_CONTEXT_ROLES = [
   { context: "venture", roleKey: "founder" },
   { context: "program", roleKey: "facilitator" },
   { context: "program", roleKey: "program_manager" },
+  // Phase E — the newly activated couples (roadmap §7, decision D5: all but
+  // venture:team_member). Each has a capability template and a Context Roles
+  // registry mapping (see contextProfilesBackfill.js), so turning it on here is
+  // what starts reconciling its grants. Additive and reversible.
+  { context: "investor", roleKey: "investor" },
+  { context: "lms", roleKey: "learner" },
+  { context: "venture", roleKey: "venture_manager" },
 ];
 
 /** ISO date (YYYY-MM-DD) from a Date or a timestamp string; null when absent. */
@@ -45,6 +52,25 @@ function isoDate(value) {
 /** granted_by stamp for grants this module owns — the only rows it may remove. */
 export function contextGrantSentinel(context, roleKey) {
   return `ctx:${context}:${roleKey}`;
+}
+
+// ── Phase F — the residual read-only consultation ────────────────────────────
+//
+// When a relationship ends, the ACTIVE grants are withdrawn but the person keeps
+// a READ-ONLY view of what they managed. That residual lives in its own
+// namespace — a distinct provenance role_key and grant stamp — so the active
+// reconcile can never see it, claim it, or remove it (and vice versa).
+
+export const HISTORY_ROLE_PREFIX = "history:";
+
+/** The provenance role_key that carries the residual read for a couple. */
+export function historicalRoleKey(roleKey) {
+  return `${HISTORY_ROLE_PREFIX}${roleKey}`;
+}
+
+/** granted_by stamp for the residual READ rows — the only rows F may remove. */
+export function historicalGrantSentinel(context, roleKey) {
+  return `hist:${context}:${roleKey}`;
 }
 
 /**

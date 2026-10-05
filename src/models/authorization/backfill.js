@@ -22,6 +22,7 @@ import {
   ensurePortfolioProgramManagerProfile,
   backfillFacilitatorTickLists,
 } from "./programAssignmentBackfill";
+import { ensurePhaseEContextProfiles } from "./contextProfilesBackfill";
 // The feature-key alignment RULE lives in the service layer (audit A1, finding
 // #8); its statements live in `./featureKeyAlignmentStore`. Importing it here is
 // a deliberate model→service edge, like `programAssignmentBackfill`.
@@ -156,6 +157,14 @@ export function ensureCapabilityBackfills() {
           runAuthzMigration(
             "facilitator-tick-list-backfill-v1",
             backfillFacilitatorTickLists,
+          ),
+          // Phase E: create the Learner / Venture Manager templates and map the
+          // registry rows the new couples resolve to (learner was seeded with a
+          // NULL mapping; venture_manager had no row). Additive, admin-respecting,
+          // self-contained, so it can run beside the others.
+          runAuthzMigration(
+            "phase-e-context-profiles-v1",
+            ensurePhaseEContextProfiles,
           ),
         ]);
         reportFailedMigrations(results);

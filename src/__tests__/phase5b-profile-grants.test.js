@@ -18,6 +18,8 @@ const mockProfileIds = {
   Mentor: 7,
   Founder: 8,
   "Venture Member": 9,
+  Learner: 10,
+  "Venture Manager": 11,
 };
 const mockCapabilityInserts = [];
 
@@ -68,20 +70,23 @@ describe("Phase 5b — ventures capability grants", () => {
     expect(viewHolders).toContain(mockProfileIds["Founder"]);
   });
 
-  test("ventures.edit reaches only the scoped writers (SA, Staff, PM, Founder)", async () => {
+  test("ventures.edit reaches only the scoped writers (SA, Staff, PM, Founder, Venture Manager)", async () => {
     await seedDefaultAccessProfiles();
     const editHolders = mockCapabilityInserts
       .filter((grant) => grant.module === "ventures" && grant.capability === "edit")
       .map((grant) => grant.profileId)
       .sort((left, right) => left - right);
     // Phase 5c: writes are scoped (venture_own) on every venture route, so the
-    // writers below can only ever edit the ventures they belong to.
+    // writers below can only ever edit the ventures they belong to. The Venture
+    // Manager (Phase E) joins them: a lead manager edits the venture they lead,
+    // and venture_own confines that to their own staff assignment.
     expect(editHolders).toEqual(
       [
         mockProfileIds["Super Admin Default"],
         mockProfileIds["Staff Default"],
         mockProfileIds["Program Manager"],
         mockProfileIds["Founder"],
+        mockProfileIds["Venture Manager"],
       ].sort((left, right) => left - right),
     );
   });

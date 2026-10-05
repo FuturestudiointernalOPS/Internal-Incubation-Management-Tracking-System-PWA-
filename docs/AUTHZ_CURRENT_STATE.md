@@ -134,14 +134,20 @@ changes. The registry still DESCRIBES: the grants decide access, the cards
 record the profile's period. Program-side immediacy is wired too: adding,
 editing or removing a program-staff (facilitator) assignment re-derives that
 person's program access at once — the manager side and the venture-invitation
-(founder) side already did. What is deliberately NOT enabled yet is adding NEW
-context/profile couples to the sweep — `SUPPORTED_CONTEXT_ROLES` stays the three
-approved pairs. The justifying relations are now defined (a venture team member
-is a removable `venture_members` row; a learner is anyone with access to an LMS
-course; a venture manager is the lead manager of a venture), but two of them
-still lack a profile mapping in the approved catalogue (`venture:team_member`,
-`lms:learner`) and the list/order of couples to activate (product decision D5)
-is still open; that is why the pinned registry test is untouched.
+(founder) side already did.
+
+Product decision D5 then extended the sweep to three more couples,
+`SUPPORTED_CONTEXT_ROLES` now carrying six: **investor** (an investor profile),
+**learner** (any active course enrollment — "as soon as you have access to a
+course you are a learner") and **venture_manager** (the LEAD MANAGER of a
+venture, from an active delegated staff assignment). Two of them needed a
+capability template and a registry mapping that did not exist; a one-time,
+additive, admin-respecting migration creates the **Learner** (`lms.view`) and
+**Venture Manager** (`ventures.view` + `ventures.edit`) templates and points the
+registry rows at them only while unmapped. `venture:team_member` stays OFF on
+purpose — its function has no profile in the approved catalogue, so there is
+nothing to record or grant. Scope does the confining: `learning_own` for a
+learner, `venture_own` for a manager.
 
 **Phase H** closes the loop. The global `contacts.role` is cleaned up: a read
 (`surveyLegacyRoles`) splits the role values actually in use into the three

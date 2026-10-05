@@ -188,6 +188,22 @@ export async function seedDefaultAccessProfiles() {
           ventures: { view: 1 },
         },
       },
+      // Phase E — the templates the newly activated couples resolve to. The
+      // canonical creation runs in the one-time migration
+      // (contextProfilesBackfill.js); these entries keep the admin seed in sync
+      // for a database seeded from this endpoint.
+      Learner: {
+        description: "Course learner — read access to the courses they are enrolled in",
+        capabilities: {
+          lms: { view: 1 },
+        },
+      },
+      "Venture Manager": {
+        description: "Venture lead manager — manage the venture they lead",
+        capabilities: {
+          ventures: { view: 1, edit: 3 },
+        },
+      },
     };
 
     // ── Create/update profiles and capabilities ──

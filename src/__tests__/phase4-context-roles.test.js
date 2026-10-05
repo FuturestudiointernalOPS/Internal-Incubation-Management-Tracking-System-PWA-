@@ -105,6 +105,9 @@ const SEEDED_PROFILE_NAMES = [
   "Venture Member",
   // Assignment-derived program management (Context Roles → program:program_manager).
   "Assigned Program Manager",
+  // Phase E context/profile couples.
+  "Learner",
+  "Venture Manager",
 ];
 
 const putReq = (body) =>

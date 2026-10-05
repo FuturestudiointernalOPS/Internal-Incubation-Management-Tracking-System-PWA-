@@ -80,9 +80,16 @@ export const CONTEXT_ROLE_SEED = [
   {
     context: "lms",
     role_key: "learner",
-    profile_name: null,
+    profile_name: "Learner",
     notes:
-      "Learning access is enrollment-derived (lms_enrollments) today; a learner profile mapping is pending review.",
+      "Enrollment-derived: anyone with access to a course is a learner. Phase E maps it to the 'Learner' template (lms.view), scoped by learning_own.",
+  },
+  {
+    context: "venture",
+    role_key: "venture_manager",
+    profile_name: "Venture Manager",
+    notes:
+      "Phase E: the LEAD MANAGER of a venture (venture_staff_assignments.responsibility_code = 'lead_manager'). The 'Venture Manager' template carries ventures.view + ventures.edit, scoped by venture_own.",
   },
   {
     context: "investor",
@@ -280,6 +287,7 @@ const CONTEXT_ROLE_HOLDER_QUERIES = {
         WHERE member_type = 'team_member' AND removed_at IS NULL`,
   "lms:learner": `COUNT(DISTINCT user_cid)::int FROM lms_enrollments WHERE status <> 'suspended'`,
   "investor:investor": `COUNT(*)::int FROM investor_profiles`,
+  "venture:venture_manager": `COUNT(DISTINCT staff_contact_id)::int FROM venture_staff_assignments WHERE responsibility_code = 'lead_manager' AND status = 'active'`,
 };
 
 /**

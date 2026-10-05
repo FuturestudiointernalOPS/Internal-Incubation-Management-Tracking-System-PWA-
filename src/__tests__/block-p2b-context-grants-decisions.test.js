@@ -62,6 +62,9 @@ jest.mock("@/models/authorization/contextGrantsStore", () => ({
   listActiveFounderVentures: jest.fn(async () => []),
   getProfileCapabilityRows: jest.fn(async () => ({ rows: mockState.profileCaps })),
   listFounderRelationshipCids: jest.fn(async () => ({ rows: [] })),
+  listInvestorRelationshipCids: jest.fn(async () => ({ rows: [] })),
+  listLearnerRelationshipCids: jest.fn(async () => ({ rows: [] })),
+  listVentureManagerCids: jest.fn(async () => ({ rows: [] })),
   listContextAppliedGrantCids: jest.fn(async () => ({ rows: [] })),
   getUserCapabilityRows: jest.fn(async () => ({ rows: [] })),
   getContextAppliedGrantRows: jest.fn(async () => ({ rows: [] })),
@@ -101,14 +104,18 @@ function store() {
 }
 
 describe("SUPPORTED_CONTEXT_ROLES — the registry of what this mechanism may grant", () => {
-  it("is exactly the three supported pairs, and team is deliberately absent", () => {
+  it("is the six activated pairs, and team is deliberately absent", () => {
     const { SUPPORTED_CONTEXT_ROLES } = loadFresh();
-    // `team` and venture-side consolidation are out of scope on purpose. Adding
-    // a pair here would silently start reconciling grants for it.
+    // `team` stays out of scope on purpose (product decision D5). The three
+    // Phase E couples below were turned on together; adding a pair here starts
+    // reconciling grants for it, so the list is the single activation switch.
     expect(SUPPORTED_CONTEXT_ROLES).toEqual([
       { context: "venture", roleKey: "founder" },
       { context: "program", roleKey: "facilitator" },
       { context: "program", roleKey: "program_manager" },
+      { context: "investor", roleKey: "investor" },
+      { context: "lms", roleKey: "learner" },
+      { context: "venture", roleKey: "venture_manager" },
     ]);
   });
 
@@ -126,12 +133,15 @@ describe("SUPPORTED_CONTEXT_ROLES — the registry of what this mechanism may gr
 
     expect(result.contexts).toHaveLength(SUPPORTED_CONTEXT_ROLES.length);
     // Each pair runs its own population query: the founder-relationship read
-    // once, the
-    // program read twice (facilitator + program_manager), and the provenance
-    // read once per pair so ended relationships still get a pass.
+    // once, the program read twice (facilitator + program_manager), the three
+    // Phase E couples once each, and the provenance read once per pair so ended
+    // relationships still get a pass.
     expect(s.listFounderRelationshipCids).toHaveBeenCalledTimes(1);
     expect(assignments.listProgramAssignmentContacts).toHaveBeenCalledTimes(2);
-    expect(s.listContextAppliedGrantCids).toHaveBeenCalledTimes(3);
+    expect(s.listInvestorRelationshipCids).toHaveBeenCalledTimes(1);
+    expect(s.listLearnerRelationshipCids).toHaveBeenCalledTimes(1);
+    expect(s.listVentureManagerCids).toHaveBeenCalledTimes(1);
+    expect(s.listContextAppliedGrantCids).toHaveBeenCalledTimes(6);
   });
 });
 
@@ -361,7 +371,7 @@ describe("syncAllContextGrantsEverywhere — the sweep's aggregation arithmetic"
 
     const result = await syncAllContextGrantsEverywhere();
     expect(result.success).toBe(true);
-    expect(result.contexts).toHaveLength(3);
+    expect(result.contexts).toHaveLength(6);
     expect(result.evaluated).toBeGreaterThanOrEqual(0);
     expect(result.changes).toBe(result.applied.length + result.revoked.length);
   });

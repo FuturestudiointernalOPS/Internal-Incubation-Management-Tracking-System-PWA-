@@ -18,6 +18,7 @@ import {
 } from "@/models/programMembership";
 import { isAssignedPmForProgram } from "@/models/authorization/accessQueries";
 import { buildFullFacilitatorPermissions } from "@/lib/facilitator-permissions";
+import { reconcileFacilitatorAccessForUser } from "@/services/authorization/contextGrantProgramAccess";
 
 export class ProgramStaffError extends Error {
   constructor(message, status = 400, errorCode = "") {
@@ -50,6 +51,24 @@ async function logFacilitatorTimeline(staffId, programId, eventType, description
       session?.cid || "system",
       JSON.stringify(extra),
     );
+  } catch (_) {}
+}
+
+/**
+ * Phase E, step 6 — apply the facilitator relationship change immediately.
+ * Resolves the staff reference (a cid or, in legacy rows, an address) to the
+ * contact, then lets the reconcile re-derive their program access. Best-effort:
+ * the stored assignment is the source of truth and the scheduled sweep re-derives
+ * from it, so a failure here must never fail the write.
+ */
+async function applyFacilitatorAccess(staffRef) {
+  if (!staffRef) return;
+  try {
+    const cidRes = await getV2ContactCidForProgramRoleMirror(staffRef);
+    const contactCid = cidRes.rows[0]?.cid;
+    if (contactCid) {
+      await reconcileFacilitatorAccessForUser(contactCid, { email: staffRef });
+    }
   } catch (_) {}
 }
 
@@ -118,6 +137,9 @@ export async function upsertProgramStaffAssignment(payload, session) {
       staff_id,
     );
   } catch (_) {}
+
+  // Phase E — the facilitator relationship change applies immediately.
+  await applyFacilitatorAccess(staff_id);
 
   return res.rows[0]?.id ?? res.lastInsertRowid;
 }
@@ -192,7 +214,12 @@ export async function updateProgramStaffAssignment(payload, session) {
       }
     } catch (_) {}
   }
-  
+
+  // Phase E — re-derive the facilitator's access after the role/permission edit.
+  if (row.rows[0]) {
+    await applyFacilitatorAccess(row.rows[0].staff_id);
+  }
+
   return { success: true };
 }
 
@@ -215,7 +242,10 @@ export async function removeProgramStaffAssignment(id, session) {
         await endV2MirroredProgramContactRole(contactCid, String(row.rows[0].program_id));
       }
     } catch (_) {}
+
+    // Phase E — withdrawing the relationship withdraws its access immediately.
+    await applyFacilitatorAccess(row.rows[0].staff_id);
   }
-  
+
   return { success: true };
 }
