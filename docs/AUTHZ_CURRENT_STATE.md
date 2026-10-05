@@ -174,15 +174,15 @@ insert-only as `identity_type = 'profile'` rows by a one-time migration
 (`eligibility-profile-defaults-v1`). Coverage follows the profile the person
 HOLDS, so it is preserved; and because the migration only ADDS rows, an existing
 database KEEPS its legacy role rows — nothing is deleted, so nobody loses access.
-`mentor` and `team` stay in the role list (they are not catalogue profiles). The
-`participant` and `founder` navigation masks are REMOVED (their surfaces are
-relationship-driven, so the masks were dead — a legacy value with no mask now
-falls back to its baseline surface through the projection builders). The masks
-for `program_manager`, `facilitator` and `investor` are still reachable by the
-shell, so they are RETAINED as a transitional surface — removing them would
-strip the sidebar of any account not yet aligned (visibility only; the server
-gate stays authoritative). That removal follows the alignment proof, exactly like
-the role alignment itself.
+`mentor` and `team` stay in the role list (they are not catalogue profiles). No
+CONTEXTUAL profile has a navigation mask any more: `participant`, `founder`,
+`program_manager`, `facilitator` and `investor` are gone from the mask table, and
+a legacy value with no mask now resolves to its BASELINE surface through the
+projection builders (staff for a staff-only profile, member otherwise), so an
+account not yet aligned still gets a working sidebar — visibility only, the
+server gate stays authoritative. `investor` also joins the relationship-driven
+personal surfaces, so its space keeps rendering from the relationship, exactly
+like an aligned investor (a baseline member).
 
 **Phase F** gives the ended relationship its RESIDUAL READ. Once a managed
 relationship closes (Phase E closed the card), the person keeps a READ-ONLY
