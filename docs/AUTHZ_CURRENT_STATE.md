@@ -175,10 +175,12 @@ insert-only as `identity_type = 'profile'` rows by a one-time migration
 HOLDS, so it is preserved; and because the migration only ADDS rows, an existing
 database KEEPS its legacy role rows — nothing is deleted, so nobody loses access.
 `mentor` and `team` stay in the role list (they are not catalogue profiles). The
-navigation masks for `participant` and `founder` are already dead (their surfaces
-are relationship-driven); the masks for `program_manager`, `facilitator` and
-`investor` are RETAINED as a transitional surface, because removing them would
-strip the sidebar of any account not yet aligned (visibility only — the server
+`participant` and `founder` navigation masks are REMOVED (their surfaces are
+relationship-driven, so the masks were dead — a legacy value with no mask now
+falls back to its baseline surface through the projection builders). The masks
+for `program_manager`, `facilitator` and `investor` are still reachable by the
+shell, so they are RETAINED as a transitional surface — removing them would
+strip the sidebar of any account not yet aligned (visibility only; the server
 gate stays authoritative). That removal follows the alignment proof, exactly like
 the role alignment itself.
 
