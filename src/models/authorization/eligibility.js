@@ -21,9 +21,12 @@
  */
 
 import db from "@/lib/db";
-import { FEATURE_ELIGIBILITY_DEFAULTS } from "./eligibility-defaults";
+import {
+  FEATURE_ELIGIBILITY_DEFAULTS,
+  FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
+} from "./eligibility-defaults";
 
-export { FEATURE_ELIGIBILITY_DEFAULTS };
+export { FEATURE_ELIGIBILITY_DEFAULTS, FEATURE_ELIGIBILITY_PROFILE_DEFAULTS };
 export { FEATURE_ORDER } from "./eligibility-defaults";
 
 // Capability module → feature key. Features ARE the dashboard sections; the
@@ -101,26 +104,34 @@ export function ensureEligibilitySchema() {
 }
 
 /**
- * Insert seed rows for one feature. Idempotent: existing rows (including
+ * Insert seed rows of ONE identity kind. Idempotent: existing rows (including
  * admin edits and explicit empty lists) are never touched.
  */
-async function seedFeatureRows(featureKey, roles) {
+async function seedIdentityRows(featureKey, identityType, values) {
   try {
     await ensureEligibilitySchema();
-    for (const role of roles || []) {
+    for (const value of values || []) {
       await db.execute({
         sql: `INSERT INTO feature_eligibility
                 (feature_key, identity_type, identity_value, eligible)
-              VALUES (?, 'role', ?, 1)
+              VALUES (?, ?, ?, 1)
               ON CONFLICT (feature_key, identity_type, identity_value)
               DO NOTHING`,
-        args: [featureKey, role],
+        args: [featureKey, identityType, value],
       });
     }
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
   }
+}
+
+/**
+ * Insert seed rows for one feature's ROLE identities. Idempotent: existing rows
+ * (including admin edits and explicit empty lists) are never touched.
+ */
+async function seedFeatureRows(featureKey, roles) {
+  return seedIdentityRows(featureKey, "role", roles);
 }
 
 /**
@@ -132,6 +143,24 @@ export async function seedDefaultEligibility() {
     FEATURE_ELIGIBILITY_DEFAULTS,
   )) {
     const result = await seedFeatureRows(featureKey, roles);
+    if (!result.success) return result;
+  }
+  return { success: true };
+}
+
+/**
+ * Phase H — seed the PROFILE ceilings. The contextual values that used to sit
+ * in `FEATURE_ELIGIBILITY_DEFAULTS` are written as `identity_type = 'profile'`
+ * rows, so the coverage follows the profile the person HOLDS instead of a role
+ * the account no longer carries. Insert-only, own marker: an administrator's
+ * decision is never overwritten, and existing databases keep their legacy role
+ * rows untouched (nothing is deleted, so nobody loses access).
+ */
+export async function seedProfileEligibilityDefaults() {
+  for (const [featureKey, profiles] of Object.entries(
+    FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
+  )) {
+    const result = await seedIdentityRows(featureKey, "profile", profiles);
     if (!result.success) return result;
   }
   return { success: true };
@@ -189,9 +218,9 @@ export async function seedVenturesFounderEligibility() {
  * a fresh database gets.
  */
 export const TEMPLATE_CEILING_ROWS = {
-  communication: ["participant", "mentor", "investor"],
-  operations: ["participant", "mentor", "investor"],
-  programs: ["mentor", "investor"],
+  communication: ["mentor"],
+  operations: ["mentor"],
+  programs: ["mentor"],
 };
 
 export async function seedTemplateCeilingEligibility() {
@@ -216,7 +245,7 @@ export async function seedTemplateCeilingEligibility() {
  * an explicit deny — is never overwritten. MIRRORS FEATURE_ELIGIBILITY_DEFAULTS.programs.
  */
 export const PROGRAM_ASSIGNMENT_ROWS = {
-  programs: ["facilitator", "member"],
+  programs: ["member"],
 };
 
 export async function seedProgramAssignmentEligibility() {

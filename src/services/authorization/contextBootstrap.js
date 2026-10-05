@@ -34,6 +34,7 @@ import {
   seedVenturesFounderEligibility,
   seedTemplateCeilingEligibility,
   seedProgramAssignmentEligibility,
+  seedProfileEligibilityDefaults,
 } from "@/models/authorization/eligibility";
 
 let eligibilitySeeded = false;
@@ -87,6 +88,14 @@ function ensureEligibilitySeeded() {
         await runAuthzMigration(
           "eligibility-programs-assignment-v1",
           seedProgramAssignmentEligibility,
+        );
+        // Phase H — the PROFILE ceilings. The contextual values that used to be
+        // seeded as role rows are written as `identity_type = 'profile'` rows,
+        // insert-only, so an existing database gains the profile coverage and
+        // KEEPS its legacy role rows (nothing is deleted, nobody loses access).
+        await runAuthzMigration(
+          "eligibility-profile-defaults-v1",
+          seedProfileEligibilityDefaults,
         );
       })()
         // A one-time seed is DATA work, and the authorization gate awaits this
