@@ -342,6 +342,8 @@
       "eligibilityIdentity": "Identité",
       "eligibilityRole": "Rôle",
       "eligibilityGroup": "Groupe",
+      "eligibilityProfile": "Profil",
+      "eligibilityProfileTag": "profil",
       "eligibilitySelectIdentity": "-- Sélectionner une identité --",
       "eligibilityFeature": "Fonctionnalité",
       "eligibilityEligible": "Éligible",

@@ -2,13 +2,21 @@
 
 /**
  * IDENTITY PICKER — the filter bar above the editor, extracted from
- * `EligibilityView.js`: the role/group type switch and the identity dropdown.
+ * `EligibilityView.js`: the role/group/profile type switch and the identity
+ * dropdown.
  *
  * Purely presentational: the view keeps `identityType`, `identityValue` and
  * their setters, and hands the resolved identity list over.
  *
  * Split out verbatim, behaviour identical.
  */
+
+/** One switch button per identity kind, labelled through i18n. */
+const IDENTITY_TYPE_LABEL_KEYS = {
+  role: "engineering.permissions.eligibilityRole",
+  group: "engineering.permissions.eligibilityGroup",
+  profile: "engineering.permissions.eligibilityProfile",
+};
 
 export default function EligibilityIdentityPicker({
   t,
@@ -25,7 +33,7 @@ export default function EligibilityIdentityPicker({
           {t("engineering.permissions.eligibilityIdentityType")}
         </p>
         <div className="flex gap-1 bg-secondary rounded-xl p-1 border border-[var(--border-primary)] w-fit">
-          {["role", "group"].map((type) => (
+          {["role", "group", "profile"].map((type) => (
             <button
               key={type}
               onClick={() => {
@@ -34,9 +42,7 @@ export default function EligibilityIdentityPicker({
               }}
               className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${identityType === type ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
             >
-              {type === "role"
-                ? t("engineering.permissions.eligibilityRole")
-                : t("engineering.permissions.eligibilityGroup")}
+              {t(IDENTITY_TYPE_LABEL_KEYS[type])}
             </button>
           ))}
         </div>

@@ -112,7 +112,10 @@ export default function EligibilityView() {
   const identities =
     identityType === "role"
       ? [...new Set([...(data?.roles || []), ...extraRoles])]
-      : data?.groups || [];
+      : identityType === "group"
+        ? data?.groups || []
+        : // Phase D — the profile keys a ceiling can be written against.
+          data?.profiles || [];
   const canConfigure = !!data?.canConfigure;
   const selected = identityValue || null;
 
@@ -213,37 +216,40 @@ export default function EligibilityView() {
   const contextRoles = new Set(data?.identityGroups?.contextRoles || []);
   // Baseline identities first, then the roles this database carries that the
   // curated list omits. Both are rows of the matrix: an enforced ceiling must
-  // never be invisible to the administrator who has to configure it.
+  // never be invisible to the administrator who has to configure it. Phase D
+  // adds the profile rows the same way.
   const matrixRoles = [
     ...(data?.roles || []).filter((role) => !contextRoles.has(role)),
     ...(data?.extraRoles || []).filter((role) => !contextRoles.has(role)),
   ];
+  const matrixProfiles = data?.profiles || [];
   const isDatabaseRole = (role) => (data?.extraRoles || []).includes(role);
 
   // One lookup for both presentations (table on md+, cards below) so the two
-  // can never disagree about what a cell shows.
-  const stateFor = (role, feature) => {
+  // can never disagree about what a cell shows. `kind` is the identity_type
+  // (role / group / profile); `identity` is its value.
+  const stateFor = (kind, identity, feature) => {
     const row = (data?.rows || []).find(
       (row) =>
-        row.identity_type === "role" &&
-        row.identity_value === role &&
+        row.identity_type === kind &&
+        row.identity_value === identity &&
         row.feature_key === feature,
     );
-    const value = row ? Number(row.eligible) : null;
+    const eligible = row ? Number(row.eligible) : null;
     return {
-      value,
-      label: value === 1 ? "E" : value === 0 ? "D" : "—",
-      title: `${role} → ${feature}: ${
-        value === 1
+      value: eligible,
+      label: eligible === 1 ? "E" : eligible === 0 ? "D" : "—",
+      title: `${identity} → ${feature}: ${
+        eligible === 1
           ? t("engineering.permissions.eligibilityEligible")
-          : value === 0
+          : eligible === 0
             ? t("engineering.permissions.eligibilityNotEligible")
             : t("engineering.permissions.eligibilityUnset")
       }`,
       className:
-        value === 1
+        eligible === 1
           ? "bg-emerald-500/15 text-emerald-400"
-          : value === 0
+          : eligible === 0
             ? "bg-red-500/15 text-red-400"
             : "bg-primary text-[var(--text-secondary)] opacity-50",
     };
@@ -264,6 +270,7 @@ export default function EligibilityView() {
           t={t}
           data={data}
           matrixRoles={matrixRoles}
+          matrixProfiles={matrixProfiles}
           isDatabaseRole={isDatabaseRole}
           stateFor={stateFor}
           setIdentityType={setIdentityType}
@@ -291,7 +298,9 @@ export default function EligibilityView() {
               <p className="text-[10px] font-black uppercase tracking-wider text-[var(--text-primary)]">
                 {identityType === "role"
                   ? t("engineering.permissions.eligibilityRole")
-                  : t("engineering.permissions.eligibilityGroup")}
+                  : identityType === "group"
+                    ? t("engineering.permissions.eligibilityGroup")
+                    : t("engineering.permissions.eligibilityProfile")}
                 : {selected}
                 {identityType === "role" && contextRoles.has(selected) && (
                   <span className="ml-2 text-[8px] font-black uppercase tracking-widest text-teal-400">
