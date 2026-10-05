@@ -30,12 +30,9 @@ export function useIntegrationsState() {
 
   const [confirmAction, setConfirmAction] = useState(null);
 
-  const { data, loading, error, refresh } = useApiMulti([
-    { key: "integrations", url: "/api/integrations", transform: (p) => p?.success ? p.integrations || [] : [] },
-    { key: "providers", url: "/api/integrations?type=providers", transform: (p) => p?.success ? p.providers || [] : [] },
-    { key: "keys", url: "/api/api-keys", transform: (p) => p?.success ? p.keys || [] : [] },
-    { key: "webhooks", url: "/api/webhooks", transform: (p) => p?.success ? p.webhooks || [] : [] },
-  ]);
+  // The module-scope list above is a stable identity, so the read is keyed on the
+  // addresses and a fresh array can never re-issue it.
+  const { data, loading, error, refresh } = useApiMulti(INTEGRATION_ENDPOINTS);
 
   const integrations = data.integrations ?? [];
   const providers = data.providers ?? [];

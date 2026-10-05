@@ -347,8 +347,29 @@ export function useApiMulti(endpoints, options = {}) {
   const [error, setError] = useState(null);
   const fetchIdRef = useRef(0);
 
+  // The endpoints are WHAT is read; their array identity is not something the
+  // read may key on. Callers write them inline - a fresh array literal, and
+  // inline transforms that are a new function every render - and while that
+  // identity keyed the read, every render re-created `fetchAll`, re-ran the
+  // effect and set data again: React reports that as "Maximum update depth
+  // exceeded". The newest list is mirrored in a ref (transforms included, so
+  // they stay current), and the read is keyed on the ADDRESSES instead - the
+  // same correction `useApi` already carries for its `transform` / `fetchOptions`
+  // / `defaultValue`.
+  const endpointsRef = useRef(endpoints);
+  useEffect(() => {
+    endpointsRef.current = endpoints;
+  });
+
+  const endpointSignature = Array.isArray(endpoints)
+    ? endpoints
+        .map((endpoint) => `${endpoint?.key ?? ""}::${endpoint?.url ?? ""}`)
+        .join("|")
+    : "";
+
   const fetchAll = useCallback(async (bypassCache = false) => {
-    if (!endpoints || endpoints.length === 0) {
+    const currentEndpoints = endpointsRef.current;
+    if (!endpointSignature || !currentEndpoints || currentEndpoints.length === 0) {
       setLoading(false);
       return;
     }
@@ -359,13 +380,13 @@ export function useApiMulti(endpoints, options = {}) {
     // Render immediately when every endpoint is already cached.
     const allCached =
       !bypassCache &&
-      endpoints.every(({ url }) => !url || cacheGet(url) !== null);
+      currentEndpoints.every(({ url }) => !url || cacheGet(url) !== null);
     if (allCached) setLoading(false);
     else setLoading(true);
 
     try {
       const results = await Promise.all(
-        endpoints.map(async ({ key, url, transform }) => {
+        currentEndpoints.map(async ({ key, url, transform }) => {
           if (!url) return { key, value: null };
           const cached = bypassCache ? null : cacheGet(url);
           if (cached !== null) {
@@ -394,7 +415,7 @@ export function useApiMulti(endpoints, options = {}) {
         setLoading(false);
       }
     }
-  }, [endpoints]);
+  }, [endpointSignature]);
 
   // Same contract as `useApi`: the caller's `deps` are spread here on purpose.
   useEffect(() => {

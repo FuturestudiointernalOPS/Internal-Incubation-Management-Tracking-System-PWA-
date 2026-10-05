@@ -17,7 +17,7 @@
  */
 
 import { renderHook, waitFor } from "@testing-library/react";
-import { useApi, fetchJsonEnvelope, fetchJsonShared } from "@/lib/hooks/useApi";
+import { useApi, useApiMulti, fetchJsonEnvelope, fetchJsonShared } from "@/lib/hooks/useApi";
 
 function jsonResponse(body, status = 200) {
   return Promise.resolve({
@@ -314,5 +314,63 @@ describe("request options", () => {
     ]);
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useApiMulti — the endpoints are read, not a render dependency", () => {
+  // The endpoints array is what a caller naturally writes inline, together with
+  // inline transforms. While that array's identity keyed the read, every render
+  // re-created the read, re-ran the effect and set data again — React reports it
+  // as "Maximum update depth exceeded". These pin the two halves of the fix: a
+  // fresh array over the SAME addresses must not re-read, and a changed address
+  // must.
+  it("reads once when the endpoints array is written inline", async () => {
+    global.fetch.mockImplementation(() =>
+      jsonResponse({ success: true, things: [1] }),
+    );
+
+    const { result, rerender } = renderHook(
+      ({ _run }) =>
+        useApiMulti([
+          {
+            key: "things",
+            url: "/api/multi-inline",
+            transform: (payload) =>
+              payload?.success ? payload.things || [] : [],
+          },
+        ]),
+      { initialProps: { _run: 1 } },
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // A fresh array (and a fresh inline transform) over the same address.
+    rerender({ _run: 2 });
+    rerender({ _run: 3 });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(result.current.data.things).toEqual([1]);
+  });
+
+  it("reads again when an endpoint's address changes", async () => {
+    global.fetch.mockImplementation(() =>
+      jsonResponse({ success: true, things: [1] }),
+    );
+
+    const { result, rerender } = renderHook(
+      ({ run }) =>
+        useApiMulti([{ key: "things", url: `/api/multi-change?run=${run}` }]),
+      { initialProps: { run: 1 } },
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const before = global.fetch.mock.calls.length;
+
+    rerender({ run: 2 });
+
+    await waitFor(() =>
+      expect(global.fetch.mock.calls.length).toBeGreaterThan(before),
+    );
   });
 });
