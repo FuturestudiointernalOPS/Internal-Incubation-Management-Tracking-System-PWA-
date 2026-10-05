@@ -74,8 +74,10 @@ function shellRole(userRole, role) {
 
 // Roles whose shell is a PERSONAL surface (a person, not a staff function).
 // Their sidebar is relationship-driven and their learning door is derived from
-// an actual course enrollment, never from the role string.
-const PERSONAL_ROLES = ["member", "founder", "participant", "team"];
+// an actual course enrollment, never from the role string. `investor` joins them
+// now that its role mask is gone (Phase H) — the branch already renders the
+// investor space from the relationship.
+const PERSONAL_ROLES = ["member", "founder", "participant", "team", "investor"];
 
 /** Whether the connected person actually holds at least one course enrollment. */
 const pickLmsEnrollment = (payload) => (payload && payload.success ? !!payload.enrolled : false);
