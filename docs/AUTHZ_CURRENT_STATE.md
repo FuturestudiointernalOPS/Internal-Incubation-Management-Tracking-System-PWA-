@@ -60,6 +60,7 @@ capability rather than lowering it. Locked by
 | Identity vs contextual responsibility | IMPLEMENTED | `docs/IDENTITY_*.md`; role is no longer mutated by venture/program membership |
 | Profile catalogue (roadmap A) | IMPLEMENTED | `profiles` table + `models/authorization/profile-catalog.js` + `services/authorization/profileCatalog.js`; admin at Permission Center → Rules → Profiles. Catalogue of seven profiles with their context and allowed baseline roles |
 | Profile ↔ role rule (roadmap B) | IMPLEMENTED (warning) | `evaluateProfileRoleFit` + `PROFILE_ROLE_ENFORCEMENT` ("warn", → "block" in H). The automatic reconcile (`contextGrantReconcile.js`) and the manual responsibility assignment (`responsibilityAssignment.js`) REPORT the écart; nothing is blocked yet (§13) |
+| Assignment registry (roadmap C) | IMPLEMENTED | `profile_assignments` table + `models/authorization/profileAssignmentsStore.js` + `services/authorization/profileAssignments.js`; `GET/POST/PATCH /api/engineering/permissions/profile-assignments`; UI: "Profiles held" section of the Person Access screen. Describes periods (context, source, dates); decides no access |
 | Eligibility / ceiling | IMPLEMENTED | `models/authorization/eligibility.js`, `eligibility-defaults.js`, admin at `.../permissions/eligibility` |
 | Reusable permission sets | IMPLEMENTED (as **Access Profiles / templates**) | `access_profiles` + `access_profile_capabilities`; UI: Permission Center → Profiles |
 | Role → profile defaults | IMPLEMENTED | `role_access_profile_defaults` |
@@ -99,6 +100,14 @@ In Phase B the rule **warns only**: `PROFILE_ROLE_ENFORCEMENT` defaults to
 responsibility assignment) and loses no access. Phase H flips the same constant
 to `"block"` once the legacy profile values on `contacts.role` are cleaned up.
 Everything is additive and reversible.
+
+**Phase C** adds the unified assignment registry: one table answers "which
+profiles did this person hold, over which periods, in which context, and from
+what source". It is written manually (the Person Access screen) today and
+read by the later phases — Phase D consumes the active keys for eligibility,
+Phase E writes the automatic rows. The registry DESCRIBES; it decides no access,
+so editing it changes nobody's rights on its own. A reactivation after a close is
+a NEW record: an existing period is never rewritten.
 
 ---
 
