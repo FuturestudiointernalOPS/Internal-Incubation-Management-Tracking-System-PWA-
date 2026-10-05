@@ -23,20 +23,23 @@
 export const PROFILE_CONTEXTS = ["program", "venture", "lms", "investor"];
 
 /**
- * The profile ↔ role rule's enforcement switch (Phase B of
+ * The profile ↔ role rule's enforcement switch (Phases B and H of
  * docs/ROADMAP_ROLES_PROFILES_ACCESS.md).
  *
- *   "warn"  (default) — holding a profile from a baseline role its
+ *   "warn"  (Phase B) — holding a profile from a baseline role its
  *           `allowed_roles` does not list is REPORTED as an écart, never
- *           blocked: the history still carries legacy profile values on
- *           `contacts.role`, and Phase B must cost nobody their access.
- *   "block" (Phase H) — the same discrepancy refuses the attribution, once the
- *           legacy role values have been cleaned up.
+ *           blocked: while the history still carried legacy profile values on
+ *           `contacts.role`, blocking would have cost people their access.
+ *   "block" (Phase H, current) — the same discrepancy REFUSES the attribution.
+ *           The legacy role values have been aligned onto the baseline
+ *           (scripts/align-legacy-roles.mjs, the survey at
+ *           /api/engineering/permissions/legacy-role-cleanup), so every person
+ *           is a baseline identity and the profile rule can be strict.
  *
  * Read by both control points (the automatic context reconcile and the manual
- * responsibility assignment). Phase H flips this one constant.
+ * responsibility assignment). Phase H flipped this one constant.
  */
-export const PROFILE_ROLE_ENFORCEMENT = "warn";
+export const PROFILE_ROLE_ENFORCEMENT = "block";
 
 /**
  * Baseline roles a profile may be restricted to. `super_admin` is a valid value
@@ -110,4 +113,26 @@ export function isValidProfileKey(key) {
 /** True when the value is one of the profile contexts. */
 export function isValidProfileContext(context) {
   return PROFILE_CONTEXTS.includes(String(context || ""));
+}
+
+/**
+ * The BASELINE identity a legacy `contacts.role` value carrying this profile
+ * must be aligned onto (Phase H), so the profile stays OPEN to the person.
+ *
+ * A staff-only profile (program_manager, venture_manager) aligns to `staff`;
+ * every other profile is open to the member baseline (or to both) and aligns to
+ * `member`. An UNKNOWN value is not a profile: the caller falls back to the
+ * member default. This is the inverse of `allowed_roles`, kept beside the
+ * catalogue so the two can never disagree.
+ *
+ * @param {string} key
+ * @returns {"super_admin"|"staff"|"member"|null}
+ */
+export function baselineRoleForProfile(key) {
+  const definition = getProfileDefinition(key);
+  if (!definition) return null;
+  const allowed = definition.allowedRoles || [];
+  if (allowed.includes("member")) return "member";
+  if (allowed.includes("staff")) return "staff";
+  return "member";
 }

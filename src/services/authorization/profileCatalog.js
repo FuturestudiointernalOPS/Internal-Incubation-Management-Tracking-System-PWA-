@@ -14,9 +14,9 @@
  *     nobody"), never confused with "not configured".
  *   - is_active toggles the whole profile without deleting it.
  *   - `evaluateProfileRoleFit` is the DECISION of the profile ↔ role rule; it
- *     blocks nothing on its own. `PROFILE_ROLE_ENFORCEMENT` ("warn" until Phase
- *     H) is read through `profileRoleGateDecision`, which the automatic context
- *     reconcile and the manual responsibility assignment both call.
+ *     blocks nothing on its own. `PROFILE_ROLE_ENFORCEMENT` ("block" since
+ *     Phase H) is read through `profileRoleGateDecision`, which the automatic
+ *     context reconcile and the manual responsibility assignment both call.
  */
 
 import {
@@ -124,8 +124,8 @@ function profileAllowedRoles(profile) {
  *
  * A profile is open only to the baseline roles its `allowed_roles` lists. This
  * is the DECISION only — nothing here blocks anything: the two control points
- * report the écart (Phase B) and refuse it (Phase H) according to
- * `PROFILE_ROLE_ENFORCEMENT`.
+ * report or refuse the écart according to `PROFILE_ROLE_ENFORCEMENT` ("block"
+ * since Phase H).
  *
  * `profile` may be a catalogue definition (`allowedRoles`) or a stored row
  * (`allowed_roles`, `is_active`). Super Admin bypasses the restriction

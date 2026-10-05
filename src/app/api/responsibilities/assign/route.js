@@ -65,11 +65,11 @@ export async function PUT(req) {
     const responsibilityKey = responsibilityResult.rows[0]?.key || null;
 
     if (action === "assign") {
-      // Phase B — profile ↔ role écart (warning by default). A responsibility
-      // whose KEY names a profile attributes that profile manually; when the
-      // assignee's baseline role is not one the profile is open to, the écart is
-      // REPORTED below and refused only under "block" (Phase H). Default "warn"
-      // never changes this route's outcome.
+      // Phase B/H — profile ↔ role écart. A responsibility whose KEY names a
+      // profile attributes that profile manually; when the assignee's baseline
+      // role is not one the profile is open to, the écart is refused. Since
+      // Phase H (`PROFILE_ROLE_ENFORCEMENT = "block"`) the refusal is effective;
+      // the earlier "warn" phase only reported it below.
       const profileRoleGap = await buildResponsibilityProfileGap({
         userCid: user_cid,
         responsibilityKey,
