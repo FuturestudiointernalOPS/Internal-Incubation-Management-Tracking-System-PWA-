@@ -5,6 +5,7 @@ import RiskConfirmDialog from "@/components/permissions/RiskConfirmDialog";
 import AccessExplanationPanel from "@/components/permissions/permission-center/AccessExplanationPanel";
 import CapabilityWhyModal from "@/components/permissions/permission-center/CapabilityWhyModal";
 import PersonFeatureSection from "@/components/permissions/permission-center/person-access/PersonFeatureSection";
+import ProfileAssignmentsSection from "@/components/permissions/permission-center/person-access/ProfileAssignmentsSection";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { RefreshCw, Shield } from "lucide-react";
 
@@ -298,6 +299,10 @@ return (
                     )}
                   </div>
                 )}
+
+                {/* Profiles held — the Phase C assignment registry: every period
+                    this person held a profile, with its context and source. */}
+                {selectedUser && <ProfileAssignmentsSection cid={selectedUser.cid} />}
 
                 {/* Legend */}
                 <div className="flex items-center gap-4 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
