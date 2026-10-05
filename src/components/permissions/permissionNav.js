@@ -61,7 +61,7 @@ export const PERMISSION_NAV = [
     tabs: [
       { key: "ceilings", labelKey: "engineering.permissions.tabEligibilityCeilings" },
       { key: "warnings", labelKey: "engineering.permissions.tabResponsibilityAccess" },
-      { key: "personas", labelKey: "engineering.permissions.tabPersonas" },
+      { key: "profiles", labelKey: "engineering.permissions.tabProfiles" },
     ],
   },
   {

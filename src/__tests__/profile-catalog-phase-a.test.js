@@ -1,5 +1,5 @@
 /**
- * PHASE A — Persona catalogue (docs/ROADMAP_ROLES_PERSONAS_ACCESS.md).
+ * PHASE A — Profile catalogue (docs/ROADMAP_ROLES_PROFILES_ACCESS.md).
  *
  * Three surfaces, none of which the others can see:
  *   1. the PURE catalogue + the service validation (no database, no HTTP);
@@ -35,17 +35,18 @@ jest.mock("@/models/authorization/index", () => ({
 }));
 
 const {
-  PERSONA_CATALOG,
-  PERSONA_KEYS,
-  PERSONA_CONTEXTS,
-  PERSONA_BASELINE_ROLES,
-  getPersonaDefinition,
-  isValidPersonaKey,
-} = require("@/models/authorization/persona-catalog");
+  PROFILE_CATALOG,
+  PROFILE_KEYS,
+  PROFILE_CONTEXTS,
+  PROFILE_BASELINE_ROLES,
+  getProfileDefinition,
+  isValidProfileKey,
+} = require("@/models/authorization/profile-catalog");
 const {
+  PROFILE_ROLE_ENFORCEMENT,
   normalizeAllowedRoles,
-  validatePersonaUpdate,
-} = require("@/services/authorization/personaCatalog");
+  validateProfileUpdate,
+} = require("@/services/authorization/profileCatalog");
 
 const EXPECTED_KEYS = [
   "participant",
@@ -78,45 +79,45 @@ afterEach(() => {
 
 // ── 1. Pure catalogue + service ──────────────────────────────────────────────
 
-describe("persona catalogue — the agreed seven", () => {
-  test("lists exactly the seven personas of the product brief", () => {
-    expect(PERSONA_KEYS).toEqual(EXPECTED_KEYS);
-    expect(PERSONA_CATALOG).toHaveLength(7);
+describe("profile catalogue — the agreed seven", () => {
+  test("lists exactly the seven profiles of the product brief", () => {
+    expect(PROFILE_KEYS).toEqual(EXPECTED_KEYS);
+    expect(PROFILE_CATALOG).toHaveLength(7);
   });
 
-  test("every persona has a known context and a valid, non-empty role list", () => {
-    for (const persona of PERSONA_CATALOG) {
-      expect(PERSONA_CONTEXTS).toContain(persona.context);
-      expect(persona.allowedRoles.length).toBeGreaterThan(0);
-      for (const role of persona.allowedRoles) {
-        expect(PERSONA_BASELINE_ROLES).toContain(role);
+  test("every profile has a known context and a valid, non-empty role list", () => {
+    for (const profile of PROFILE_CATALOG) {
+      expect(PROFILE_CONTEXTS).toContain(profile.context);
+      expect(profile.allowedRoles.length).toBeGreaterThan(0);
+      for (const role of profile.allowedRoles) {
+        expect(PROFILE_BASELINE_ROLES).toContain(role);
       }
     }
   });
 
-  test("every persona carries an i18n label key", () => {
-    for (const persona of PERSONA_CATALOG) {
-      expect(persona.labelKey.startsWith("engineering.permissions.")).toBe(true);
+  test("every profile carries an i18n label key", () => {
+    for (const profile of PROFILE_CATALOG) {
+      expect(profile.labelKey.startsWith("engineering.permissions.")).toBe(true);
     }
   });
 
-  test("the program/venture managers are staff-restricted; the member personas are member-restricted", () => {
-    expect(getPersonaDefinition("program_manager").allowedRoles).toEqual(["staff"]);
-    expect(getPersonaDefinition("venture_manager").allowedRoles).toEqual(["staff"]);
-    expect(getPersonaDefinition("participant").allowedRoles).toEqual(["member"]);
-    expect(getPersonaDefinition("founder").allowedRoles).toEqual(["member"]);
+  test("the program/venture managers are staff-restricted; the member profiles are member-restricted", () => {
+    expect(getProfileDefinition("program_manager").allowedRoles).toEqual(["staff"]);
+    expect(getProfileDefinition("venture_manager").allowedRoles).toEqual(["staff"]);
+    expect(getProfileDefinition("participant").allowedRoles).toEqual(["member"]);
+    expect(getProfileDefinition("founder").allowedRoles).toEqual(["member"]);
   });
 
   test("unknown keys are refused", () => {
-    expect(getPersonaDefinition("ghost")).toBeNull();
-    expect(isValidPersonaKey("ghost")).toBe(false);
-    expect(isValidPersonaKey("founder")).toBe(true);
+    expect(getProfileDefinition("ghost")).toBeNull();
+    expect(isValidProfileKey("ghost")).toBe(false);
+    expect(isValidProfileKey("founder")).toBe(true);
   });
 });
 
-describe("validatePersonaUpdate", () => {
+describe("validateProfileUpdate", () => {
   test("accepts a known key with known roles", () => {
-    const result = validatePersonaUpdate({
+    const result = validateProfileUpdate({
       key: "founder",
       allowed_roles: ["member", "staff"],
       is_active: true,
@@ -125,26 +126,26 @@ describe("validatePersonaUpdate", () => {
     expect(result.normalized.allowed_roles).toEqual(["member", "staff"]);
   });
 
-  test("refuses an unknown persona", () => {
-    const result = validatePersonaUpdate({ key: "ghost", allowed_roles: [] });
+  test("refuses an unknown profile", () => {
+    const result = validateProfileUpdate({ key: "ghost", allowed_roles: [] });
     expect(result.valid).toBe(false);
-    expect(result.errors.join(" ")).toContain("unknown persona");
+    expect(result.errors.join(" ")).toContain("unknown profile");
   });
 
   test("refuses an unknown role", () => {
-    const result = validatePersonaUpdate({ key: "founder", allowed_roles: ["wizard"] });
+    const result = validateProfileUpdate({ key: "founder", allowed_roles: ["wizard"] });
     expect(result.valid).toBe(false);
     expect(result.errors.join(" ")).toContain("unknown roles");
   });
 
   test("[] is a real state — explicitly nobody, not 'not configured'", () => {
-    const result = validatePersonaUpdate({ key: "founder", allowed_roles: [] });
+    const result = validateProfileUpdate({ key: "founder", allowed_roles: [] });
     expect(result.valid).toBe(true);
     expect(result.normalized.allowed_roles).toEqual([]);
   });
 
   test("de-duplicates roles and defaults is_active to true", () => {
-    const result = validatePersonaUpdate({
+    const result = validateProfileUpdate({
       key: "founder",
       allowed_roles: ["member", "member"],
     });
@@ -153,7 +154,7 @@ describe("validatePersonaUpdate", () => {
   });
 
   test("keeps an explicit false", () => {
-    const result = validatePersonaUpdate({ key: "founder", allowed_roles: [], is_active: false });
+    const result = validateProfileUpdate({ key: "founder", allowed_roles: [], is_active: false });
     expect(result.normalized.is_active).toBe(false);
   });
 });
@@ -169,39 +170,39 @@ describe("normalizeAllowedRoles", () => {
 
 // ── 2. Store ─────────────────────────────────────────────────────────────────
 
-describe("personas store", () => {
+describe("profiles store", () => {
   const loadStore = () => {
     jest.resetModules();
-    return require("@/models/authorization/personasStore");
+    return require("@/models/authorization/profilesStore");
   };
 
   test("creates its table once per process, idempotently", async () => {
-    const { ensurePersonasSchema } = loadStore();
-    await ensurePersonasSchema();
-    await ensurePersonasSchema();
-    const ddl = callsMatching(/CREATE TABLE IF NOT EXISTS personas/i);
+    const { ensureProfilesSchema } = loadStore();
+    await ensureProfilesSchema();
+    await ensureProfilesSchema();
+    const ddl = callsMatching(/CREATE TABLE IF NOT EXISTS profiles/i);
     expect(ddl).toHaveLength(1);
   });
 
   test("seeds the whole catalogue with ON CONFLICT DO NOTHING", async () => {
-    const { seedPersonas } = loadStore();
-    await seedPersonas();
-    const inserts = callsMatching(/INSERT INTO personas/i);
-    expect(inserts).toHaveLength(PERSONA_CATALOG.length);
+    const { seedProfiles } = loadStore();
+    await seedProfiles();
+    const inserts = callsMatching(/INSERT INTO profiles/i);
+    expect(inserts).toHaveLength(PROFILE_CATALOG.length);
     expect(inserts.every((call) => /ON CONFLICT \(key\) DO NOTHING/i.test(sqlOf(call)))).toBe(true);
     const keys = inserts.map((call) => call[0].args[0]);
     expect(keys).toEqual(EXPECTED_KEYS);
   });
 
-  test("updatePersona writes allowed_roles, is_active and notes — never key/context", async () => {
-    const { updatePersona } = loadStore();
-    await updatePersona({
+  test("updateProfile writes allowed_roles, is_active and notes — never key/context", async () => {
+    const { updateProfile } = loadStore();
+    await updateProfile({
       key: "founder",
       allowedRoles: ["member"],
       isActive: false,
       notes: "note",
     });
-    const update = callsMatching(/UPDATE personas/i)[0];
+    const update = callsMatching(/UPDATE profiles/i)[0];
     const setClause = sqlOf(update).split(/WHERE/i)[0];
     expect(setClause).toContain("allowed_roles = ?");
     // key/context are identity columns — never in the SET clause.
@@ -213,10 +214,10 @@ describe("personas store", () => {
 
 // ── 3. Route contract ────────────────────────────────────────────────────────
 
-describe("GET/PUT /api/engineering/permissions/personas", () => {
+describe("GET/PUT /api/engineering/permissions/profiles", () => {
   const loadRoute = () => {
     jest.resetModules();
-    return require("@/app/api/engineering/permissions/personas/route");
+    return require("@/app/api/engineering/permissions/profiles/route");
   };
 
   test("GET is gated on permissions.view_matrix and returns the catalogue", async () => {
@@ -224,7 +225,7 @@ describe("GET/PUT /api/engineering/permissions/personas", () => {
     const { requireAuthorization } = require("@/models/authorization/index");
     mockExecute.mockImplementation(async (arg) => {
       const sql = typeof arg === "string" ? arg : String(arg?.sql || "");
-      if (/SELECT[\s\S]*FROM personas/i.test(sql)) {
+      if (/SELECT[\s\S]*FROM profiles/i.test(sql)) {
         return {
           rows: [
             {
@@ -245,11 +246,13 @@ describe("GET/PUT /api/engineering/permissions/personas", () => {
 
     expect(requireAuthorization).toHaveBeenCalledWith("permissions", "view_matrix");
     expect(body.success).toBe(true);
-    expect(body.contexts).toEqual(PERSONA_CONTEXTS);
-    expect(body.personas[0]).toMatchObject({
+    expect(body.contexts).toEqual(PROFILE_CONTEXTS);
+    // Phase B — the GET reports the profile ↔ role rule's current mode.
+    expect(body.role_enforcement).toBe(PROFILE_ROLE_ENFORCEMENT);
+    expect(body.profiles[0]).toMatchObject({
       key: "founder",
       context: "venture",
-      label_key: "engineering.permissions.personaFounder",
+      label_key: "engineering.permissions.profileFounder",
       allowed_roles: ["member"],
       is_active: 1,
     });
@@ -273,14 +276,14 @@ describe("GET/PUT /api/engineering/permissions/personas", () => {
 
     expect(requireAuthorization).toHaveBeenCalledWith("permissions", "configure_eligibility");
     expect(body.success).toBe(true);
-    expect(body.persona.allowed_roles).toEqual(["member", "staff"]);
-    expect(callsMatching(/UPDATE personas/i)).toHaveLength(1);
+    expect(body.profile.allowed_roles).toEqual(["member", "staff"]);
+    expect(callsMatching(/UPDATE profiles/i)).toHaveLength(1);
     expect(logPermissionAudit).toHaveBeenCalledWith(
-      expect.objectContaining({ action: "persona_updated", targetName: "founder" }),
+      expect.objectContaining({ action: "profile_updated", targetName: "founder" }),
     );
   });
 
-  test("PUT refuses an unknown persona before touching the database", async () => {
+  test("PUT refuses an unknown profile before touching the database", async () => {
     const route = loadRoute();
     const res = await route.PUT({
       json: async () => ({ key: "ghost", allowed_roles: ["member"] }),
@@ -288,6 +291,6 @@ describe("GET/PUT /api/engineering/permissions/personas", () => {
     const body = await res.json();
     expect(res.status).toBe(400);
     expect(body.success).toBe(false);
-    expect(callsMatching(/UPDATE personas/i)).toHaveLength(0);
+    expect(callsMatching(/UPDATE profiles/i)).toHaveLength(0);
   });
 });

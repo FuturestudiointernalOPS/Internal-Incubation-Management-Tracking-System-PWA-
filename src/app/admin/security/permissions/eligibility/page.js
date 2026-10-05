@@ -6,7 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import PermissionShell, { useSubTab } from "@/components/permissions/PermissionShell";
 import PermissionManager from "@/components/permissions/PermissionCenter";
 import CatalogView from "@/components/permissions/CatalogView";
-import PersonasView from "@/components/permissions/PersonasView";
+import ProfilesView from "@/components/permissions/ProfilesView";
 
 /**
  * PHASE UI-5 — Rules.
@@ -17,7 +17,7 @@ import PersonasView from "@/components/permissions/PersonasView";
  *              closed: a missing row denies). The vault, not the daily screen.
  *   warnings → the responsibility role allowlists behind the in-app "role
  *              incompatibility" warnings.
- *   personas → the persona catalogue (Phase A): which baseline roles may hold
+ *   profiles → the profile catalogue (Phase A): which baseline roles may hold
  *              each contextual function. The vocabulary the later phases
  *              enforce; editing it changes no access on its own.
  *
@@ -42,8 +42,8 @@ export default function PermissionRulesPage() {
         {t("engineering.permissions.questionRules")}
       </p>
 
-      {subTab === "personas" ? (
-        <PersonasView />
+      {subTab === "profiles" ? (
+        <ProfilesView />
       ) : (
         <>
           <PermissionManager key={subTab} initialTab={tab} />

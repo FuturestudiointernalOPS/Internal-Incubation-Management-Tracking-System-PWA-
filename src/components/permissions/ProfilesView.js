@@ -6,12 +6,12 @@ import { useI18n } from "@/lib/i18n";
 import { defer } from "./effectUtils";
 
 /**
- * PHASE A — Persona catalogue (Permission Center → Rules → Personas).
+ * PHASE A — Profile catalogue (Permission Center → Rules → Profiles).
  *
- * The persona is the contextual function someone occupies (Participant of a
+ * The profile is the contextual function someone occupies (Participant of a
  * program, Founder of a venture, Facilitator…), distinct from the baseline role
  * on their account (Super Admin / Staff / Member). This screen edits, per
- * persona, which BASELINE ROLES may hold it, whether it is active, and a note.
+ * profile, which BASELINE ROLES may hold it, whether it is active, and a note.
  *
  * The initial rows come from the catalogue; an edit is audited (with an optional
  * reason) and never overwritten by a later reseed. Nothing here changes anyone's
@@ -23,7 +23,7 @@ const BASELINE_ROLES = ["super_admin", "staff", "member"];
 
 const rowKey = (row) => row.key;
 
-export default function PersonasView() {
+export default function ProfilesView() {
   const { t } = useI18n();
   const [data, setData] = useState(null);
   const [drafts, setDrafts] = useState({});
@@ -36,7 +36,7 @@ export default function PersonasView() {
   const apply = useCallback((json) => {
     setData(json);
     const next = {};
-    for (const row of json.personas || []) {
+    for (const row of json.profiles || []) {
       next[rowKey(row)] = {
         allowed_roles: Array.isArray(row.allowed_roles) ? [...row.allowed_roles] : [],
         is_active: Number(row.is_active) === 1 || row.is_active === true,
@@ -50,12 +50,12 @@ export default function PersonasView() {
     // No synchronous state write here: the mount effect calls this loader, and
     // react-hooks/set-state-in-effect forbids sync updates in effects.
     try {
-      const res = await fetch("/api/engineering/permissions/personas");
+      const res = await fetch("/api/engineering/permissions/profiles");
       const json = await res.json();
       if (json.success) apply(json);
-      else setErr(json.error || t("engineering.permissions.personasLoadFailed"));
+      else setErr(json.error || t("engineering.permissions.profilesLoadFailed"));
     } catch {
-      setErr(t("engineering.permissions.personasLoadFailed"));
+      setErr(t("engineering.permissions.profilesLoadFailed"));
     } finally {
       setLoading(false);
     }
@@ -108,7 +108,7 @@ export default function PersonasView() {
     setErr("");
     setMsg("");
     try {
-      const res = await fetch("/api/engineering/permissions/personas", {
+      const res = await fetch("/api/engineering/permissions/profiles", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -121,10 +121,10 @@ export default function PersonasView() {
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "save failed");
-      setMsg(t("engineering.permissions.personasSaved"));
+      setMsg(t("engineering.permissions.profilesSaved"));
       await load();
     } catch (error) {
-      setErr(error.message || t("engineering.permissions.personasSaveFailed"));
+      setErr(error.message || t("engineering.permissions.profilesSaveFailed"));
     } finally {
       setBusyKey("");
     }
@@ -138,19 +138,19 @@ export default function PersonasView() {
     );
   }
 
-  const personas = data?.personas || [];
-  const personaLabel = (row) =>
+  const profiles = data?.profiles || [];
+  const profileLabel = (row) =>
     row.label_key ? t(row.label_key) : String(row.key).replace(/_/g, " ");
 
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-[var(--border-primary)] bg-secondary/40 p-4 space-y-1.5">
         <p className="text-xs font-bold text-[var(--text-primary)] leading-relaxed">
-          {t("engineering.permissions.personasHint")}
+          {t("engineering.permissions.profilesHint")}
         </p>
         <p className="inline-flex items-center gap-2 px-2 py-1 rounded-md bg-primary border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
           <UserCog className="w-3 h-3 text-[var(--brand-orange)]" />
-          {t("engineering.permissions.personasStatusPill")}
+          {t("engineering.permissions.profilesStatusPill")}
         </p>
       </div>
 
@@ -170,32 +170,32 @@ export default function PersonasView() {
           <thead>
             <tr className="border-b border-[var(--border-primary)]">
               <th className="p-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                {t("engineering.permissions.personasKey")}
+                {t("engineering.permissions.profilesKey")}
               </th>
               <th className="p-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
                 {t("engineering.permissions.contextRolesContext")}
               </th>
               <th className="p-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                {t("engineering.permissions.personasAllowedRoles")}
+                {t("engineering.permissions.profilesAllowedRoles")}
               </th>
               <th className="p-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] text-center">
-                {t("engineering.permissions.personasActive")}
+                {t("engineering.permissions.profilesActive")}
               </th>
               <th className="p-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                {t("engineering.permissions.personasNotes")}
+                {t("engineering.permissions.profilesNotes")}
               </th>
               <th className="p-3" />
             </tr>
           </thead>
           <tbody>
-            {personas.map((row) => {
+            {profiles.map((row) => {
               const key = rowKey(row);
               const draft = drafts[key] || {};
               const dirty = isDirty(row);
               return (
                 <tr key={key} className="border-b border-divider/50 align-top">
                   <td className="p-3 text-xs font-bold text-[var(--text-primary)]">
-                    {personaLabel(row)}
+                    {profileLabel(row)}
                   </td>
                   <td className="p-3">
                     <span className="inline-block px-2 py-1 rounded-md bg-primary border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
@@ -215,7 +215,7 @@ export default function PersonasView() {
                             onChange={() => toggleRole(row, role)}
                             className="accent-[var(--brand-orange)]"
                           />
-                          {t(`engineering.permissions.personasRoles.${role}`)}
+                          {t(`engineering.permissions.profilesRoles.${role}`)}
                         </label>
                       ))}
                     </div>
@@ -242,8 +242,8 @@ export default function PersonasView() {
                       className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
                     >
                       {busyKey === key
-                        ? t("engineering.permissions.personasSaving")
-                        : t("engineering.permissions.personasSave")}
+                        ? t("engineering.permissions.profilesSaving")
+                        : t("engineering.permissions.profilesSave")}
                     </button>
                   </td>
                 </tr>
@@ -255,7 +255,7 @@ export default function PersonasView() {
 
       {/* Small screens: the same fields as cards (no control is hidden) */}
       <div className="md:hidden space-y-3">
-        {personas.map((row) => {
+        {profiles.map((row) => {
           const key = rowKey(row);
           const draft = drafts[key] || {};
           const dirty = isDirty(row);
@@ -266,7 +266,7 @@ export default function PersonasView() {
             >
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-bold text-[var(--text-primary)]">
-                  {personaLabel(row)}
+                  {profileLabel(row)}
                 </span>
                 <span className="inline-block px-2 py-1 rounded-md bg-primary border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
                   {t(`engineering.permissions.contextRolesContexts.${row.context}`)}
@@ -275,7 +275,7 @@ export default function PersonasView() {
 
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                  {t("engineering.permissions.personasAllowedRoles")}
+                  {t("engineering.permissions.profilesAllowedRoles")}
                 </span>
                 <div className="flex flex-wrap gap-3">
                   {BASELINE_ROLES.map((role) => (
@@ -289,7 +289,7 @@ export default function PersonasView() {
                         onChange={() => toggleRole(row, role)}
                         className="accent-[var(--brand-orange)]"
                       />
-                      {t(`engineering.permissions.personasRoles.${role}`)}
+                      {t(`engineering.permissions.profilesRoles.${role}`)}
                     </label>
                   ))}
                 </div>
@@ -303,13 +303,13 @@ export default function PersonasView() {
                   className="accent-[var(--brand-orange)]"
                 />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                  {t("engineering.permissions.personasActive")}
+                  {t("engineering.permissions.profilesActive")}
                 </span>
               </label>
 
               <label className="flex flex-col gap-1">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                  {t("engineering.permissions.personasNotes")}
+                  {t("engineering.permissions.profilesNotes")}
                 </span>
                 <input
                   value={draft.notes || ""}
@@ -324,8 +324,8 @@ export default function PersonasView() {
                 className="w-full px-3 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
               >
                 {busyKey === key
-                  ? t("engineering.permissions.personasSaving")
-                  : t("engineering.permissions.personasSave")}
+                  ? t("engineering.permissions.profilesSaving")
+                  : t("engineering.permissions.profilesSave")}
               </button>
             </div>
           );
@@ -335,7 +335,7 @@ export default function PersonasView() {
       <input
         value={reason}
         onChange={(event) => setReason(event.target.value)}
-        placeholder={t("engineering.permissions.personasReasonPlaceholder")}
+        placeholder={t("engineering.permissions.profilesReasonPlaceholder")}
         className="w-full max-w-xl rounded-lg border border-[var(--border-primary)] bg-surface-1 px-3 py-2 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] placeholder:opacity-60 focus:outline-none focus:border-[var(--brand-orange)]"
       />
     </div>

@@ -16,7 +16,7 @@
 import { runAuthzMigration } from "./migrations";
 import { ensureMembershipBootstrap } from "./membership";
 import { backfillContextRoleProfileMappings } from "./contextRoleProfiles";
-import { seedPersonas } from "./personasStore";
+import { seedProfiles } from "./profilesStore";
 import {
   ensureAssignedProgramManagerProfile,
   ensurePortfolioProgramManagerProfile,
@@ -118,10 +118,10 @@ export function ensureCapabilityBackfills() {
           // become active, no-expiry memberships (zero behavior change at
           // cutover; see membership.js).
           runAuthzMigration("membership-bootstrap-v1", ensureMembershipBootstrap),
-          // Phase A (ROADMAP_ROLES_PERSONAS_ACCESS): seed the persona catalogue
+          // Phase A (ROADMAP_ROLES_PROFILES_ACCESS): seed the profile catalogue
           // once per database. Insert-only, so an administrator's edit of
           // allowed_roles / is_active / notes is never overwritten.
-          runAuthzMigration("personas-catalog-v1", seedPersonas),
+          runAuthzMigration("profiles-catalog-v1", seedProfiles),
           // Phase 6: registry rows seeded before their mapped profile existed
           // carry profile_id NULL (the Founder profile post-dates the
           // venture:founder seed). Fill NULLs only — admin mappings win.

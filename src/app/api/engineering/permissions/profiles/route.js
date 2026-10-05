@@ -5,24 +5,25 @@ import { logPermissionAudit } from "@/models/authorization/accessQueries";
 import { requireAuthorization } from "@/models/authorization/index";
 import { requireSameOrigin } from "@/lib/requestOrigin";
 import {
-  PERSONA_CONTEXTS,
-  getPersonaDefinition,
-} from "@/models/authorization/persona-catalog";
+  PROFILE_CONTEXTS,
+  PROFILE_ROLE_ENFORCEMENT,
+  getProfileDefinition,
+} from "@/models/authorization/profile-catalog";
 import {
-  ensurePersonasSchema,
-  seedPersonas,
-  listPersonas,
-  updatePersona,
-} from "@/models/authorization/personasStore";
+  ensureProfilesSchema,
+  seedProfiles,
+  listProfiles,
+  updateProfile,
+} from "@/models/authorization/profilesStore";
 import {
   normalizeAllowedRoles,
-  validatePersonaUpdate,
-} from "@/services/authorization/personaCatalog";
+  validateProfileUpdate,
+} from "@/services/authorization/profileCatalog";
 
 export const dynamic = "force-dynamic";
 
 /**
- * PERSONA CATALOGUE API (Phase A).
+ * PROFILE CATALOGUE API (Phase A).
  *
  *   GET  requires permissions.view_matrix
  *        → the catalogue rows (context, allowed baseline roles, active, notes).
@@ -31,9 +32,9 @@ export const dynamic = "force-dynamic";
  *
  *   PUT  requires permissions.configure_eligibility
  *        body: { key, allowed_roles, is_active?, notes?, reason? }
- *        → edit one persona (allowed_roles / is_active / notes) + audit entry.
+ *        → edit one profile (allowed_roles / is_active / notes) + audit entry.
  *
- * The catalogue is DATA about who may hold which persona. Phase A stores it;
+ * The catalogue is DATA about who may hold which profile. Phase A stores it;
  * the enforcement (automatic attribution, eligibility ceiling) arrives in the
  * later roadmap phases. Nothing here changes anyone's effective access.
  */
@@ -46,18 +47,18 @@ export async function GET(req) {
     const capError = await requireAuthorization("permissions", "view_matrix");
     if (capError) return capError;
 
-    await ensurePersonasSchema();
+    await ensureProfilesSchema();
     try {
-      await seedPersonas();
+      await seedProfiles();
     } catch (error) {
       // The catalogue is still readable even when a reseed fails; the rows the
       // database already holds are what the screen shows.
-      console.warn("[Personas] seed failed:", error.message);
+      console.warn("[Profiles] seed failed:", error.message);
     }
 
-    const result = await listPersonas();
-    const personas = result.rows.map((row) => {
-      const definition = getPersonaDefinition(row.key) || {};
+    const result = await listProfiles();
+    const profiles = result.rows.map((row) => {
+      const definition = getProfileDefinition(row.key) || {};
       return {
         key: row.key,
         context: row.context,
@@ -70,11 +71,14 @@ export async function GET(req) {
 
     return NextResponse.json({
       success: true,
-      contexts: PERSONA_CONTEXTS,
-      personas,
+      contexts: PROFILE_CONTEXTS,
+      // Phase B — the profile ↔ role rule's current mode. "warn" reports an
+      // écart without blocking; "block" (Phase H) refuses it.
+      role_enforcement: PROFILE_ROLE_ENFORCEMENT,
+      profiles,
     });
   } catch (error) {
-    console.error("[Personas] GET error:", error);
+    console.error("[Profiles] GET error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 },
@@ -92,7 +96,7 @@ export async function PUT(req) {
     const body = await req.json();
     const { key, allowed_roles, is_active, notes, reason } = body;
 
-    const check = validatePersonaUpdate({ key, allowed_roles, is_active });
+    const check = validateProfileUpdate({ key, allowed_roles, is_active });
     if (!check.valid) {
       return NextResponse.json(
         { success: false, error: check.errors.join("; ") },
@@ -102,14 +106,14 @@ export async function PUT(req) {
 
     const notesText = typeof notes === "string" ? notes.slice(0, 500) : "";
 
-    await ensurePersonasSchema();
+    await ensureProfilesSchema();
     try {
-      await seedPersonas();
+      await seedProfiles();
     } catch (error) {
-      console.warn("[Personas] seed failed before write:", error.message);
+      console.warn("[Profiles] seed failed before write:", error.message);
     }
 
-    await updatePersona({
+    await updateProfile({
       key: check.normalized.key,
       allowedRoles: check.normalized.allowed_roles,
       isActive: check.normalized.is_active,
@@ -125,15 +129,16 @@ export async function PUT(req) {
       actorName: session?.name,
       targetCid: "system",
       targetName: check.normalized.key,
-      action: "persona_updated",
-      details: `Persona ${check.normalized.key} → roles [${
+      action: "profile_updated",
+      details: `Profile ${check.normalized.key} → roles [${
         check.normalized.allowed_roles.join(", ") || "none"
       }]${check.normalized.is_active ? "" : " (inactive)"}${reasonNote}`,
     });
 
     return NextResponse.json({
       success: true,
-      persona: {
+      role_enforcement: PROFILE_ROLE_ENFORCEMENT,
+      profile: {
         key: check.normalized.key,
         allowed_roles: check.normalized.allowed_roles,
         is_active: check.normalized.is_active ? 1 : 0,
@@ -141,7 +146,7 @@ export async function PUT(req) {
       },
     });
   } catch (error) {
-    console.error("[Personas] PUT error:", error);
+    console.error("[Profiles] PUT error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 },

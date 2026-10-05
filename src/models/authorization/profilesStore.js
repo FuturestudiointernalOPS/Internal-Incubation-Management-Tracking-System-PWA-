@@ -1,29 +1,29 @@
 /**
- * Authorization — personas store (REPOSITORY layer).
+ * Authorization — profiles store (REPOSITORY layer).
  *
- * Phase A of docs/ROADMAP_ROLES_PERSONAS_ACCESS.md. Every statement the persona
+ * Phase A of docs/ROADMAP_ROLES_PROFILES_ACCESS.md. Every statement the profile
  * catalogue runs: the self-healing schema, the insert-only seed, the read, and
  * the single-row edit. The validation and the decisions live in
- * `@/services/authorization/personaCatalog`.
+ * `@/services/authorization/profileCatalog`.
  *
  * Layer rules (see docs/LAYER_SPLIT.md): no HTTP, one function per statement,
  * no decisions.
  */
 
 import db from "@/lib/db";
-import { PERSONA_CATALOG } from "./persona-catalog";
+import { PROFILE_CATALOG } from "./profile-catalog";
 
-let personasSchemaPromise = null;
+let profilesSchemaPromise = null;
 
 /**
  * Idempotent runtime self-healing for the catalogue table (same pattern as
  * ensureContextRoleProfilesSchema / ensureEligibilitySchema — no migration
  * required, fail-soft on error so the next call retries).
  */
-export function ensurePersonasSchema() {
-  if (!personasSchemaPromise) {
-    personasSchemaPromise = (async () => {
-      await db.execute(`CREATE TABLE IF NOT EXISTS personas (
+export function ensureProfilesSchema() {
+  if (!profilesSchemaPromise) {
+    profilesSchemaPromise = (async () => {
+      await db.execute(`CREATE TABLE IF NOT EXISTS profiles (
         id SERIAL PRIMARY KEY,
         key TEXT NOT NULL UNIQUE,
         context TEXT NOT NULL,
@@ -34,65 +34,65 @@ export function ensurePersonasSchema() {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       )`);
       await db.execute(
-        `CREATE INDEX IF NOT EXISTS idx_personas_context ON personas(context)`,
+        `CREATE INDEX IF NOT EXISTS idx_profiles_context ON profiles(context)`,
       );
       return true;
     })().catch((error) => {
-      console.warn("[Authz] ensurePersonasSchema failed:", error.message);
-      personasSchemaPromise = null; // allow retry on the next call
+      console.warn("[Authz] ensureProfilesSchema failed:", error.message);
+      profilesSchemaPromise = null; // allow retry on the next call
       return false;
     });
   }
-  return personasSchemaPromise;
+  return profilesSchemaPromise;
 }
 
 /**
  * Seed the catalogue rows. Idempotent: ON CONFLICT DO NOTHING means an
  * administrator's edit (allowed_roles / is_active / notes) is never overwritten,
- * and a later reseed only adds personas this build introduces.
+ * and a later reseed only adds profiles this build introduces.
  *
  * Deliberately THROWS on failure: the one-time migration records itself only
  * when the work resolves, so a failed seed must propagate to be retried on the
  * next boot. The read path wraps this call and tolerates a failure.
  */
-export async function seedPersonas() {
-  await ensurePersonasSchema();
-  for (const persona of PERSONA_CATALOG) {
+export async function seedProfiles() {
+  await ensureProfilesSchema();
+  for (const profile of PROFILE_CATALOG) {
     await db.execute({
-      sql: `INSERT INTO personas (key, context, allowed_roles, is_active)
+      sql: `INSERT INTO profiles (key, context, allowed_roles, is_active)
             VALUES (?, ?, ?, 1)
             ON CONFLICT (key) DO NOTHING`,
-      args: [persona.key, persona.context, JSON.stringify(persona.allowedRoles)],
+      args: [profile.key, profile.context, JSON.stringify(profile.allowedRoles)],
     });
   }
   return { success: true };
 }
 
 /** Every catalogue row, in context then key order. */
-export function listPersonas() {
+export function listProfiles() {
   return db.execute(
     `SELECT key, context, allowed_roles, is_active, notes, updated_at
-     FROM personas
+     FROM profiles
      ORDER BY context, key`,
   );
 }
 
 /** One catalogue row by key (or an empty result set). */
-export function getPersonaRow(key) {
+export function getProfileRow(key) {
   return db.execute({
     sql: `SELECT key, context, allowed_roles, is_active, notes, updated_at
-          FROM personas WHERE key = ?`,
+          FROM profiles WHERE key = ?`,
     args: [String(key)],
   });
 }
 
 /**
- * Persist an administrator's edit of one persona. `context` and `key` are
+ * Persist an administrator's edit of one profile. `context` and `key` are
  * identity columns and are never changed here.
  */
-export function updatePersona({ key, allowedRoles, isActive, notes }) {
+export function updateProfile({ key, allowedRoles, isActive, notes }) {
   return db.execute({
-    sql: `UPDATE personas
+    sql: `UPDATE profiles
           SET allowed_roles = ?, is_active = ?, notes = ?, updated_at = NOW()
           WHERE key = ?`,
     args: [JSON.stringify(allowedRoles || []), isActive ? 1 : 0, notes || "", String(key)],

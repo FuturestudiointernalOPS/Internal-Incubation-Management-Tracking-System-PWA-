@@ -1,7 +1,7 @@
-# Feuille de route — Rôles, personas, éligibilité, permissions et affectations
+# Feuille de route — Rôles, profils, éligibilité, permissions et affectations
 
 > Statut : proposée — exécutable, additive et réversible.
-> Portée : faire du **persona** un objet de premier ordre, l'intégrer à
+> Portée : faire du **profil** un objet de premier ordre, l'intégrer à
 > l'éligibilité, unifier l'**affectation** (dates, source, contexte, historique)
 > et distinguer l'accès actif de l'accès de consultation résiduel.
 >
@@ -22,7 +22,7 @@
    « qui perdrait l'accès » qui doit être vide.
 3. **Réversible.** Chaque phase est annulable sans opération de données inverse.
 4. **Une source de vérité par concept.** Le rôle = identité de base
-   (`contacts.role`) ; le persona = fonction contextuelle ; les tables métier
+   (`contacts.role`) ; le profil = fonction contextuelle ; les tables métier
    restent la source du contexte. Le registre d'affectation *décrit*, il ne
    décide pas seul de l'accès.
 5. **Prudence par défaut.** L'éligibilité et la portée continuent de refuser en
@@ -36,25 +36,25 @@
 
 | Phase | Objectif | Dépend de | Livrable principal |
 |---|---|---|---|
-| **A** | Catalogue des personas | — | Table `personas`, catalogue pur, API + écran Personas |
-| **B** | Règle persona ↔ rôle (avertissement) | A | Décision pure + signalement dans les rapports |
-| **C** | Registre d'affectation unifié | A | Table `persona_assignments`, écriture/lecture, écran par personne |
-| **D** | Éligibilité par persona | C | `identity_type = 'persona'` reconnu par l'éligibilité |
-| **E** | Attribution automatique généralisée | C, D | Couples (contexte, persona) branchés sur les processus métier |
+| **A** | Catalogue des profils | — | Table `profiles`, catalogue pur, API + écran Profils |
+| **B** | Règle profil ↔ rôle (avertissement) | A | Décision pure + signalement dans les rapports |
+| **C** | Registre d'affectation unifié | A | Table `profile_assignments`, écriture/lecture, écran par personne |
+| **D** | Éligibilité par profil | C | `identity_type = 'profile'` reconnu par l'éligibilité |
+| **E** | Attribution automatique généralisée | C, D | Couples (contexte, profil) branchés sur les processus métier |
 | **F** | Droit résiduel de consultation | C, E | Accès `*.view` post-expiration, borné au contexte |
 | **G** | Explication, audit, opérations | A–F | Explication « pourquoi », journal d'audit, opérations |
 | **H** | Nettoyage du rôle global + blocage strict | B, C, E | `contacts.role` = identité de base seule |
 
 > **Ordre révisé par rapport au plan initial.** Le registre d'affectation (C)
-> passe **avant** l'éligibilité par persona (D), car D a besoin de connaître les
-> personas *actives* d'une personne, information que C fournit. L'éligibilité
+> passe **avant** l'éligibilité par profil (D), car D a besoin de connaître les
+> profils *actives* d'une personne, information que C fournit. L'éligibilité
 > étendue (ex-C) devient donc D.
 
 ```mermaid
 graph TD
-    A[A. Catalogue des personas] --> B[B. Règle persona ↔ rôle]
+    A[A. Catalogue des profiles] --> B[B. Règle profile ↔ rôle]
     A --> C[C. Registre d'affectation]
-    C --> D[D. Éligibilité par persona]
+    C --> D[D. Éligibilité par profile]
     C --> E[E. Attribution automatique]
     D --> E
     E --> F[F. Droit résiduel de consultation]
@@ -81,24 +81,24 @@ Aucune phase n'est « terminée » sans ces quatre preuves :
 
 ---
 
-## 3. Phase A — Catalogue des personas
+## 3. Phase A — Catalogue des profils
 
-**But.** Le persona devient un objet nommé, administrable, avec son contexte et
+**But.** Le profil devient un objet nommé, administrable, avec son contexte et
 ses rôles autorisés.
 
-**Livrable.** Table `personas`, catalogue pur, service, API d'administration et
-écran « Personas ».
+**Livrable.** Table `profiles`, catalogue pur, service, API d'administration et
+écran « Profils ».
 
 **Prérequis.** Aucun.
 
 **Étapes.**
 
-1. Schéma — nouveau `src/models/authorization/personasStore.js` avec
-   `ensurePersonasSchema()` (auto-réparation idempotente, même patron que
+1. Schéma — nouveau `src/models/authorization/profilesStore.js` avec
+   `ensureProfilesSchema()` (auto-réparation idempotente, même patron que
    `ensureContextRoleProfilesSchema`) :
 
    ```sql
-   CREATE TABLE IF NOT EXISTS personas (
+   CREATE TABLE IF NOT EXISTS profiles (
      id SERIAL PRIMARY KEY,
      key TEXT NOT NULL UNIQUE,
      context TEXT NOT NULL,
@@ -108,12 +108,12 @@ ses rôles autorisés.
      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
    );
-   CREATE INDEX IF NOT EXISTS idx_personas_context ON personas(context);
+   CREATE INDEX IF NOT EXISTS idx_profiles_context ON profiles(context);
    ```
 
-2. Catalogue pur — nouveau `src/models/authorization/persona-catalog.js`
+2. Catalogue pur — nouveau `src/models/authorization/profile-catalog.js`
    (sans import de base, partageable avec les composants d'écran, comme
-   `eligibility-defaults.js`). Sept personas :
+   `eligibility-defaults.js`). Sept profils :
 
    | key | context | allowed_roles |
    |---|---|---|
@@ -125,31 +125,31 @@ ses rôles autorisés.
    | `program_manager` | `program` | `[staff]` |
    | `venture_manager` | `venture` | `[staff]` |
 
-   `PERSONA_CONTEXTS` réutilise les valeurs de `CONTEXT_ROLE_CONTEXTS`
-   (`program`, `venture`, `lms`, `investor`). Exporter `PERSONA_CATALOG`,
-   `PERSONA_CONTEXTS`, `PERSONA_KEYS`, `PERSONA_BASELINE_ROLES`.
+   `PROFILE_CONTEXTS` réutilise les valeurs de `CONTEXT_ROLE_CONTEXTS`
+   (`program`, `venture`, `lms`, `investor`). Exporter `PROFILE_CATALOG`,
+   `PROFILE_CONTEXTS`, `PROFILE_KEYS`, `PROFILE_BASELINE_ROLES`.
 
-   **Libellés = clés i18n, jamais du texte stocké.** Chaque persona porte une
-   `labelKey` (`engineering.permissions.persona<Nom>`) résolue par `t()` en
+   **Libellés = clés i18n, jamais du texte stocké.** Chaque profil porte une
+   `labelKey` (`engineering.permissions.profile<Nom>`) résolue par `t()` en
    anglais et en français, comme le catalogue des capacités. C'est pourquoi la
    table n'a PAS de colonne `label` : un libellé stocké ne pourrait pas être
    traduit.
 
-3. Remplissage initial — `seedPersonaCatalog()` avec
+3. Remplissage initial — `seedProfiles()` avec
    `INSERT ... ON CONFLICT (key) DO NOTHING`. Enregistré une seule fois par base
-   via `runAuthzMigration("personas-catalog-v1", seedPersonaCatalog)` dans
+   via `runAuthzMigration("profiles-catalog-v1", seedProfileCatalog)` dans
    `src/models/authorization/backfill.js`.
 
-4. Service — `src/services/authorization/personaCatalog.js` : validation
-   (`isValidPersonaKey`, `isValidPersonaContext`, `allowed_roles ⊆
+4. Service — `src/services/authorization/profileCatalog.js` : validation
+   (`isValidProfileKey`, `isValidProfileContext`, `allowed_roles ⊆
    BASELINE_IDENTITIES`), lecture de liste, upsert.
 
-5. Contrôleur — `src/app/api/engineering/permissions/personas/route.js`
+5. Contrôleur — `src/app/api/engineering/permissions/profiles/route.js`
    (GET liste, PUT upsert), gardé par la capacité existante
    `permissions.configure_eligibility` (`src/server/authz/responses.js`).
 
-6. Vue — `src/components/permissions/PersonasView.js`, affichée comme TROISIÈME
-   sous-onglet de la porte « Rules » (`eligibility/page.js` → `sub=personas`).
+6. Vue — `src/components/permissions/ProfilesView.js`, affichée comme TROISIÈME
+   sous-onglet de la porte « Rules » (`eligibility/page.js` → `sub=profiles`).
    La porte « Where it applies » a déjà ses trois sous-onglets et la règle
    « jamais plus de 3 » interdit d'en ajouter un quatrième ; un onglet de plus
    sous « Rules » reste dans la limite, et « qui peut porter quoi » est
@@ -158,10 +158,10 @@ ses rôles autorisés.
 
 **Opérations de données.** Création de table + lignes de catalogue uniquement.
 
-**Tests.** Catalogue pur (sept personas, contextes, rôles autorisés) ;
+**Tests.** Catalogue pur (sept profils, contextes, rôles autorisés) ;
 auto-réparation du schéma ; route GET/PUT ; rejeu sans changement.
 
-**Acceptation.** Sept personas visibles avec contexte et rôles autorisés ;
+**Acceptation.** Sept profils visibles avec contexte et rôles autorisés ;
 l'administration peut modifier `allowed_roles` et `is_active`.
 
 **Retour arrière.** Supprimer la route, la vue et l'entrée de navigation ; la
@@ -169,9 +169,9 @@ table reste inoffensive.
 
 ---
 
-## 4. Phase B — Règle persona ↔ rôle (avertissement)
+## 4. Phase B — Règle profil ↔ rôle (avertissement)
 
-**But.** La restriction « ce persona n'est ouvert qu'à ces rôles de base »
+**But.** La restriction « ce profil n'est ouvert qu'à ces rôles de base »
 devient une règle observable, **sans blocage** tant que l'historique n'est pas
 nettoyé (Phase H).
 
@@ -181,11 +181,11 @@ nettoyé (Phase H).
 
 **Étapes.**
 
-1. Décision pure — dans `src/services/authorization/personaCatalog.js` :
+1. Décision pure — dans `src/services/authorization/profileCatalog.js` :
 
    ```js
-   // { allowed: boolean, reason: 'ok' | 'role-not-allowed' | 'persona-inactive' }
-   export function evaluatePersonaRoleFit(persona, role) { ... }
+   // { allowed: boolean, reason: 'ok' | 'role-not-allowed' | 'profile-inactive' }
+   export function evaluateProfileRoleFit(profile, role) { ... }
    ```
 
 2. Points de contrôle (mode avertissement) : le chemin d'attribution
@@ -194,15 +194,15 @@ nettoyé (Phase H).
    (`src/services/authorization/responsibilityAssignment.js`) consignent un
    écart dans leur rapport ; l'accès n'est pas modifié.
 
-3. Exposer l'écart dans le rapport de l'API d'administration des personas.
+3. Exposer l'écart dans le rapport de l'API d'administration des profils.
 
-4. Préparer l'interrupteur : une constante `PERSONA_ROLE_ENFORCEMENT`
+4. Préparer l'interrupteur : une constante `PROFILE_ROLE_ENFORCEMENT`
    (`"warn"` par défaut, `"block"` après H), lue par les deux points de
    contrôle.
 
 **Opérations de données.** Aucune.
 
-**Tests.** `evaluatePersonaRoleFit` (cas autorisé / refusé / persona inactif) ;
+**Tests.** `evaluateProfileRoleFit` (cas autorisé / refusé / profil inactif) ;
 le rapport contient l'écart ; en mode `warn`, aucune révocation.
 
 **Acceptation.** Attribuer `program_manager` à une personne de rôle `member`
@@ -214,22 +214,22 @@ produit un écart signalé, sans retirer d'accès.
 
 ## 5. Phase C — Registre d'affectation unifié
 
-**But.** Une fiche répond à « quels personas cette personne a-t-elle eus, sur
+**But.** Une fiche répond à « quels profils cette personne a-t-elle eus, sur
 quelles périodes, dans quel contexte, et à quelle source ».
 
-**Livrable.** Table `persona_assignments`, écriture/lecture, écran par personne.
+**Livrable.** Table `profile_assignments`, écriture/lecture, écran par personne.
 
 **Prérequis.** A.
 
 **Étapes.**
 
-1. Schéma — nouveau `src/models/authorization/personaAssignmentsStore.js` :
+1. Schéma — nouveau `src/models/authorization/profileAssignmentsStore.js` :
 
    ```sql
-   CREATE TABLE IF NOT EXISTS persona_assignments (
+   CREATE TABLE IF NOT EXISTS profile_assignments (
      id SERIAL PRIMARY KEY,
      contact_cid TEXT NOT NULL REFERENCES contacts(cid) ON DELETE CASCADE,
-     persona_key TEXT NOT NULL,
+     profile_key TEXT NOT NULL,
      context_type TEXT NOT NULL,
      context_id TEXT,
      started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -242,52 +242,52 @@ quelles périodes, dans quel contexte, et à quelle source ».
      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
      ended_at TIMESTAMPTZ
    );
-   CREATE INDEX IF NOT EXISTS idx_persona_assignments_lookup
-     ON persona_assignments(contact_cid, persona_key, status);
-   CREATE INDEX IF NOT EXISTS idx_persona_assignments_context
-     ON persona_assignments(context_type, context_id) WHERE status = 'active';
+   CREATE INDEX IF NOT EXISTS idx_profile_assignments_lookup
+     ON profile_assignments(contact_cid, profile_key, status);
+   CREATE INDEX IF NOT EXISTS idx_profile_assignments_context
+     ON profile_assignments(context_type, context_id) WHERE status = 'active';
    ```
 
 2. Lecture — dans le même store :
-   - `listPersonaAssignments(cid)` (toutes périodes, plus récentes d'abord) ;
-   - `listActivePersonaKeys(cid)` (actives, non expirées) — **la lecture que D
+   - `listProfileAssignments(cid)` (toutes périodes, plus récentes d'abord) ;
+   - `listActiveProfileKeys(cid)` (actives, non expirées) — **la lecture que D
      consomme** ;
-   - `listAssignmentsForContextAndPersona(contextType, contextId, personaKey)`.
+   - `listAssignmentsForContextAndProfile(contextType, contextId, profileKey)`.
 
-3. Décision — `src/services/authorization/personaAssignments.js` :
+3. Décision — `src/services/authorization/profileAssignments.js` :
    `deriveAssignmentSource(relationship)` (mapping relation → source/context),
    normalisation des dates, règle « une période = une fiche » (une réactivation
    crée une **nouvelle** fiche, ne réécrit jamais l'ancienne).
 
-4. Écriture manuelle — `src/app/api/engineering/permissions/persona-assignments/route.js`
+4. Écriture manuelle — `src/app/api/engineering/permissions/profile-assignments/route.js`
    (GET par personne, POST attribuer, PATCH clôturer). Gardé par
    `permissions.assign_responsibilities` (ou une capacité dédiée à décider).
 
-5. Vue — section « Personas » dans l'écran par personne
+5. Vue — section « Profils » dans l'écran par personne
    (`src/components/permissions/permission-center/`, écran « Person Access ») :
-   liste des personas avec période, contexte et source ; bouton d'attribution
+   liste des profils avec période, contexte et source ; bouton d'attribution
    manuelle.
 
 **Opérations de données.** Création de table. Aucun backfill à ce stade : les
 fiches des relations existantes sont produites en Phase E (attribution
 automatique) et par un remplissage de rattrapage.
 
-**Tests.** `listActivePersonaKeys` exclut les fiches expirées et révoquées ;
+**Tests.** `listActiveProfileKeys` exclut les fiches expirées et révoquées ;
 réactivation = deux fiches distinctes ; dates invalides rejetées.
 
-**Acceptation.** Pour une personne, on lit l'ensemble de ses personas passés et
-présents avec leurs périodes, y compris un même persona deux fois.
+**Acceptation.** Pour une personne, on lit l'ensemble de ses profils passés et
+présents avec leurs périodes, y compris un même profil deux fois.
 
 **Retour arrière.** Ignorer la table ; aucune autre phase n'a encore de
 dépendance dure.
 
 ---
 
-## 6. Phase D — Éligibilité par persona
+## 6. Phase D — Éligibilité par profil
 
-**But.** L'éligibilité accepte un troisième type d'identité : le persona.
+**But.** L'éligibilité accepte un troisième type d'identité : le profil.
 
-**Livrable.** `identity_type = 'persona'` reconnu de bout en bout (configuration
+**Livrable.** `identity_type = 'profile'` reconnu de bout en bout (configuration
 et décision).
 
 **Prérequis.** C.
@@ -295,31 +295,31 @@ et décision).
 **Étapes.**
 
 1. Vocabulaire — `src/services/authorization/eligibilityAdmin.js` :
-   `IDENTITY_TYPES = ["role", "group", "persona"]`. `validateEligibilityChanges`
-   accepte `persona` et valide la clé contre `PERSONA_KEYS`. Les listes
+   `IDENTITY_TYPES = ["role", "group", "profile"]`. `validateEligibilityChanges`
+   accepte `profile` et valide la clé contre `PROFILE_KEYS`. Les listes
    `BASELINE_IDENTITIES` / `CONTEXT_ROLES` restent le vocabulaire produit ; le
-   persona devient une identité distincte, jamais confondue avec un rôle.
+   profil devient une identité distincte, jamais confondue avec un rôle.
 
 2. Lecture — `src/models/authorization/contextReads.js` :
-   `getFeatureEligibilityRows(role, groups, personas)` ajoute les lignes de type
-   `persona` pour les personas fournis. Aucun changement de schéma : la table
+   `getFeatureEligibilityRows(role, groups, profiles)` ajoute les lignes de type
+   `profile` pour les profils fournis. Aucun changement de schéma : la table
    `feature_eligibility` porte déjà `identity_type`/`identity_value`.
 
 3. Résolution — `src/services/authorization/contextResolver.js` :
-   `resolveAuthorizationContext` lit `listActivePersonaKeys(cid)` (Phase C) et le
-   passe à la lecture d'éligibilité. **La clé du cache doit inclure les personas
-   actives**, et toute écriture de `persona_assignments` doit invalider le cache
+   `resolveAuthorizationContext` lit `listActiveProfileKeys(cid)` (Phase C) et le
+   passe à la lecture d'éligibilité. **La clé du cache doit inclure les profils
+   actives**, et toute écriture de `profile_assignments` doit invalider le cache
    (`invalidateAuthorizationContext(cid)`), sinon une éligibilité change sans
    effet visible.
 
-4. Plafond des modèles — `assertTemplateCapsEligible({ role, groups, personas,
+4. Plafond des modèles — `assertTemplateCapsEligible({ role, groups, profiles,
    profileId })` et `assertAssignmentEligible` (`src/services/authorization/
-   profileAssignment.js`) intègrent les personas, pour que
-   `ELIGIBLE ≠ GRANTED` reste vrai au niveau du persona.
+   profileAssignment.js`) intègrent les profils, pour que
+   `ELIGIBLE ≠ GRANTED` reste vrai au niveau du profil.
 
 5. Écran — l'onglet « Rules / Ceilings »
    (`src/app/admin/security/permissions/eligibility/page.js`,
-   `src/components/permissions/FeatureMatrixSection.js`) gagne la ligne persona.
+   `src/components/permissions/FeatureMatrixSection.js`) gagne la ligne profil.
 
 **Opérations de données.** Aucune obligatoire. Optionnel : amender
 `FEATURE_ELIGIBILITY_DEFAULTS` (`src/models/authorization/eligibility-defaults.js`)
@@ -327,14 +327,14 @@ et `RESPONSIBILITY_FEATURE_ROLES` (`src/lib/featureAccess.js`) — les deux doiv
 rester synchrones (test d'alignement existant).
 
 **Tests.** Une section ouverte à `member` seul refuse `member + founder` si la
-ligne persona n'existe pas ; l'ajout de la ligne persona l'autorise. Le cache est
+ligne profil n'existe pas ; l'ajout de la ligne profil l'autorise. Le cache est
 invalidé sur écriture d'affectation.
 
-**Acceptation.** On peut écrire « Membre + persona Fondateur » et distinguer ce
+**Acceptation.** On peut écrire « Membre + profil Fondateur » et distinguer ce
 cas de « Membre » seul, sans régression pour les lignes rôle/groupe existantes.
 
-**Retour arrière.** Retirer le type `persona` du vocabulaire ; les lignes
-persona restent inertes.
+**Retour arrière.** Retirer le type `profile` du vocabulaire ; les lignes
+profil restent inertes.
 
 ---
 
@@ -343,7 +343,7 @@ persona restent inertes.
 **But.** Créer une relation métier crée la fiche d'affectation **et** applique
 les droits ; la retirer retire exactement ce qui a été appliqué.
 
-**Livrable.** Couples (contexte, persona) branchés sur les processus métier,
+**Livrable.** Couples (contexte, profil) branchés sur les processus métier,
 tracés et réversibles.
 
 **Prérequis.** C, D.
@@ -375,7 +375,7 @@ tracés et réversibles.
    seule motif de retrait (un droit manuel n'est jamais touché), **réversible**.
 
 5. Fiche d'affectation — au moment d'appliquer, écrire/actualiser la fiche
-   `persona_assignments` (`source = 'automatic'`, `source_ref` = code de la
+   `profile_assignments` (`source = 'automatic'`, `source_ref` = code de la
    relation) ; au retrait, passer la fiche en `status = 'ended'`,
    `ended_at = NOW()` (jamais de suppression).
 
@@ -420,7 +420,7 @@ sans les droits de gestion. Aujourd'hui l'expiration retire tout.
    DEFAULT 'active'` (`active` | `historical`). Une marque d'origine distincte
    pour l'historique : `hist:<context>:<role>`.
 
-2. Deux notions distinctes : **persona actif** (droits de gestion) et **relation
+2. Deux notions distinctes : **profil actif** (droits de gestion) et **relation
    passée** (droits de consultation). À l'expiration, on retire les droits de
    gestion et on accorde un plafond de lecture (`<module>.view` au niveau 1)
    limité au contexte de l'affectation.
@@ -433,7 +433,7 @@ sans les droits de gestion. Aujourd'hui l'expiration retire tout.
 4. Portée — `src/models/authorization/scope-catalog.js` et
    `src/models/authorization/scopeReads.js` : nouvelles politiques
    `venture_managed_history` et `program_managed_history` (base : fiches
-   `persona_assignments` terminées + `contact_roles` `is_current = false`),
+   `profile_assignments` terminées + `contact_roles` `is_current = false`),
    `implemented: true`. Brancher dans `src/services/authorization/scope.js`.
 
 5. Séparabilité — le balayage doit pouvoir retirer l'historique seul, sans
@@ -468,22 +468,22 @@ modifier ni voir les autres.
 **Étapes.**
 
 1. Explication — `src/services/authorization/contextDecisions.js`,
-   `buildPermissionExplanation` : intégrer personas et affectations (source,
+   `buildPermissionExplanation` : intégrer profils et affectations (source,
    période, contexte) à côté des sources existantes (modèle, groupe, droits
    individuels). Écran : panneau d'explication existant du centre de permissions.
 
 2. Audit — `permission_audit_log` : tracer attribution, retrait, expiration et
-   changement de règle persona (auteur, cible, motif). Écran « History ».
+   changement de règle profil (auteur, cible, motif). Écran « History ».
 
 3. Opérations — `src/components/permissions/OperationsView.js` +
    `src/app/admin/security/permissions/operations/page.js` : ajouter
    « re-dériver les droits depuis les relations » (inclut désormais les fiches
-   personas) et « qui perdrait l'accès » (colonne persona + fiche).
+   profils) et « qui perdrait l'accès » (colonne profil + fiche).
 
 4. Vue des affectations — l'écran par personne affiche période, contexte, source
    et état (actif / terminé / révoqué).
 
-**Tests.** L'explication couvre persona + affectation + rôle ; l'audit contient
+**Tests.** L'explication couvre profil + affectation + rôle ; l'audit contient
 une entrée par écriture ; le rapport « qui perdrait l'accès » reste vide en
 régime normal.
 
@@ -496,11 +496,11 @@ centre de permissions.
 
 ## 10. Phase H — Nettoyage du rôle global + blocage strict
 
-**But.** Le rôle ne porte plus que l'identité de base ; la règle persona ↔ rôle
+**But.** Le rôle ne porte plus que l'identité de base ; la règle profil ↔ rôle
 passe de l'avertissement au blocage.
 
 **Livrable.** `contacts.role ∈ {super_admin, staff, member}` de fait ;
-`PERSONA_ROLE_ENFORCEMENT = "block"`.
+`PROFILE_ROLE_ENFORCEMENT = "block"`.
 
 **Prérequis.** B, C, E.
 
@@ -508,18 +508,18 @@ passe de l'avertissement au blocage.
 
 1. Preuve de zéro dépendance — s'appuyer sur l'inventaire des mutations de rôle
    (`docs/IDENTITY_CONTEXT_MIGRATION.md` §C, `identity-role-writes.test.js`) et
-   sur un relevé des comptes portant encore une valeur de persona héritée.
+   sur un relevé des comptes portant encore une valeur de profil héritée.
 
 2. Lecture seule prolongée, puis alignement vers l'identité de base **seulement
    après preuve**. Aucune suppression d'historique : les relations et les fiches
-   personas portent déjà l'information.
+   profils portent déjà l'information.
 
-3. Blocage strict — passer `PERSONA_ROLE_ENFORCEMENT` à `"block"` : attribuer un
-   persona à un rôle non autorisé est refusé (avertissement de Phase B devenu
+3. Blocage strict — passer `PROFILE_ROLE_ENFORCEMENT` à `"block"` : attribuer un
+   profil à un rôle non autorisé est refusé (avertissement de Phase B devenu
    refus).
 
-4. Nettoyage du vocabulaire — retirer des listes de rôles les valeurs de persona
-   (les personas vivent dans leur catalogue) ; mise à jour de
+4. Nettoyage du vocabulaire — retirer des listes de rôles les valeurs de profil
+   (les profils vivent dans leur catalogue) ; mise à jour de
    `FEATURE_ELIGIBILITY_DEFAULTS`, `RESPONSIBILITY_FEATURE_ROLES`, masques de
    navigation.
 
@@ -530,9 +530,9 @@ hérités, insert-only côté relations, jamais de suppression.
 non-régression reste verte ; refus effectif en mode `block`.
 
 **Acceptation.** Le rôle est une identité de base pour tous ; les personnes
-concernées gardent tout via leurs personas.
+concernées gardent tout via leurs profils.
 
-**Retour arrière.** Repasser `PERSONA_ROLE_ENFORCEMENT` à `"warn"` ; les valeurs
+**Retour arrière.** Repasser `PROFILE_ROLE_ENFORCEMENT` à `"warn"` ; les valeurs
 héritées n'ont pas été supprimées.
 
 ---
@@ -541,7 +541,7 @@ héritées n'ont pas été supprimées.
 
 | # | Décision | Bloque |
 |---|---|---|
-| D1 | La règle persona ↔ rôle : avertissement d'abord, blocage en H ? | B |
+| D1 | La règle profil ↔ rôle : avertissement d'abord, blocage en H ? | B |
 | D2 | `program_manager` réservé au Staff, ou un Membre explicitement désigné ? | A, B |
 | D3 | `facilitator` : rôles autorisés (Staff, Membre, ou les deux) ? | A |
 | D4 | `venture_manager` : relation justificative et contexte ? | E |
@@ -555,10 +555,10 @@ héritées n'ont pas été supprimées.
 
 | Phase | Statut | Responsable | Date | Preuve (rapport / test) |
 |---|---|---|---|---|
-| A — Catalogue des personas | Fait | | 2026-10-05 | 18 tests (`persona-catalog-phase-a`) ; lint 0 erreur |
-| B — Règle persona ↔ rôle | À faire | | | |
+| A — Catalogue des profils | Fait | | 2026-10-05 | 18 tests (`profile-catalog-phase-a`) ; lint 0 erreur |
+| B — Règle profil ↔ rôle | Fait | | 2026-10-05 | 22 tests (`profile-role-rule-phase-b`) ; lint 0 erreur ; build OK |
 | C — Registre d'affectation | À faire | | | |
-| D — Éligibilité par persona | À faire | | | |
+| D — Éligibilité par profil | À faire | | | |
 | E — Attribution automatique | À faire | | | |
 | F — Droit résiduel de consultation | À faire | | | |
 | G — Explication, audit, opérations | À faire | | | |
