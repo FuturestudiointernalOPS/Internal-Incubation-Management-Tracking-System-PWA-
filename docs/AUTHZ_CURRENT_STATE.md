@@ -166,14 +166,21 @@ profile stays open to the person — nothing is ever deleted, and the
 relationships and profile cards that carry the context are untouched. With every
 account a baseline identity, `PROFILE_ROLE_ENFORCEMENT` is set to `"block"`.
 
-The one part of the roadmap's Phase H deliberately **not** done here is the
-destructive vocabulary retirement (removing the contextual values from
-`FEATURE_ELIGIBILITY_DEFAULTS` / `RESPONSIBILITY_FEATURE_ROLES` / the navigation
-masks). Those values still carry eligibility for people whose profiles are not
-backfilled, so removing them now would cost access — a violation of the roadmap's
-"zéro perdant" rule. It waits on the blocked product decisions about the
-context/profile couples (D4/D5) and the profile-eligibility migration, exactly as
-the roadmap's own safety gate requires.
+**Phase H closes the vocabulary too.** The contextual values left the ROLE
+allowlists (`FEATURE_ELIGIBILITY_DEFAULTS` / `RESPONSIBILITY_FEATURE_ROLES`):
+`program_manager`, `participant`, `investor`, `founder` and `facilitator` now
+live in a PROFILE allowlist (`FEATURE_ELIGIBILITY_PROFILE_DEFAULTS`), seeded
+insert-only as `identity_type = 'profile'` rows by a one-time migration
+(`eligibility-profile-defaults-v1`). Coverage follows the profile the person
+HOLDS, so it is preserved; and because the migration only ADDS rows, an existing
+database KEEPS its legacy role rows — nothing is deleted, so nobody loses access.
+`mentor` and `team` stay in the role list (they are not catalogue profiles). The
+navigation masks for `participant` and `founder` are already dead (their surfaces
+are relationship-driven); the masks for `program_manager`, `facilitator` and
+`investor` are RETAINED as a transitional surface, because removing them would
+strip the sidebar of any account not yet aligned (visibility only — the server
+gate stays authoritative). That removal follows the alignment proof, exactly like
+the role alignment itself.
 
 **Phase F** gives the ended relationship its RESIDUAL READ. Once a managed
 relationship closes (Phase E closed the card), the person keeps a READ-ONLY
