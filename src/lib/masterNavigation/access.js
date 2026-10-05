@@ -41,6 +41,13 @@ export const ROLE_ACCESS = {
     icons: {},
   },
 
+  // NOTE (Phase H vocabulary) — `participant` and `founder` no longer have a
+  // mask: their surfaces are relationship-driven (the personal sidebar branch),
+  // so those masks were dead. `program_manager`, `facilitator` and `investor`
+  // are RETAINED as a transitional surface while the role alignment rolls out —
+  // removing them would strip the sidebar of an account not yet aligned. A
+  // legacy profile value with no mask falls back to its BASELINE surface
+  // (projection builders), so it is never left with the neutral fallback.
   program_manager: {
     top: ["dashboard", "programs", "communication", "reports"],
     children: {
@@ -84,27 +91,6 @@ export const ROLE_ACCESS = {
     // program context yet, so it is the participant dashboard's empty state —
     // NOT the /workspaces hub, which made "the workspace show first".
     hrefs: { dashboard: "/participant" },
-    icons: {},
-  },
-
-  participant: {
-    top: ["dashboard", "learning", "programs", "certificates"],
-    children: {},
-    hrefs: {
-      dashboard: "/participant",
-      programs: "/participant/dashboard",
-    },
-    icons: {},
-  },
-
-  founder: {
-    top: ["dashboard", "programs", "ventures", "timeline"],
-    children: {},
-    hrefs: {
-      dashboard: "/participant",
-      programs: "/participant/dashboard",
-      ventures: "/participant/ventures",
-    },
     icons: {},
   },
 
