@@ -223,6 +223,8 @@ describe("syncContextGrantsForUser — program facilitator", () => {
 
   test("the named manager of a program is treated as a program manager", async () => {
     mockState.managedProgramIds = [PROGRAM_ACTIVE];
+    // Phase H — the program_manager profile is open to the staff baseline only.
+    mockState.contactRole = "staff";
     mockState.registry = {
       profile_id: 11,
       profile_name: "Assigned Program Manager",

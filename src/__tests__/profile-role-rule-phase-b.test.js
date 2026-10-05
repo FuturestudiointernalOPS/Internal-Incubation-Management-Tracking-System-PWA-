@@ -6,7 +6,9 @@
  *      profile-inactive), plus the two helpers around it (the couple → profile
  *      mapping and the enforcement gate);
  *   2. the AUTOMATIC control point — `syncContextGrantsForUser` reports the écart
- *      and, by default ("warn"), still applies the grants (no loss of access);
+ *      and, since Phase H flipped `PROFILE_ROLE_ENFORCEMENT` to "block", REFUSES
+ *      it before any write (the earlier "warn" phase reported it and still
+ *      applied the grants);
  *   3. the MANUAL control point — a responsibility whose key names a profile
  *      yields the same écart, and a key that names no profile yields nothing.
  *
@@ -202,8 +204,8 @@ afterEach(() => {
 // ── 1. The pure decision ─────────────────────────────────────────────────────
 
 describe("evaluateProfileRoleFit", () => {
-  test("the DEFAULT switch is warn — Phase B never blocks", () => {
-    expect(PROFILE_ROLE_ENFORCEMENT).toBe("warn");
+  test("the DEFAULT switch is block — Phase H refuses the écart", () => {
+    expect(PROFILE_ROLE_ENFORCEMENT).toBe("block");
   });
 
   test("a role the profile lists is allowed", () => {
@@ -308,7 +310,7 @@ describe("syncContextGrantsForUser — the profile ↔ role écart", () => {
     expect(result.profileRoleGap).toBeNull();
   });
 
-  test("a member holding a staff-only profile reports the écart — and keeps the access", async () => {
+  test("a member holding a staff-only profile is REFUSED before any write", async () => {
     mockState.founderCids.add(CID);
     mockState.contacts[CID] = { role: "member" };
     // The administrator narrowed the profile to staff only.
@@ -316,27 +318,31 @@ describe("syncContextGrantsForUser — the profile ↔ role écart", () => {
 
     const result = await syncContextGrantsForUser(CID, { context: "venture", roleKey: "founder" });
 
-    // REPORTED ...
+    // Phase H — the écart now blocks: the reconcile returns before applying
+    // anything, so the profile is never attributed to a non-listed role.
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("profile-role-not-allowed");
     expect(result.profileRoleGap).toEqual({
       profile: "founder",
       role: "member",
       reason: "role-not-allowed",
     });
-    // ... AND never acted on: in "warn" mode the grants are still applied, so
-    // nobody loses access because of the rule.
-    expect(result.applied.sort()).toEqual(["ventures.edit", "ventures.view"]);
-    expect(result.revoked).toEqual([]);
+    expect(result.applied).toBeUndefined();
+    expect(mockState.userCaps).toEqual([]);
+    expect(mockState.applied).toEqual([]);
   });
 
-  test("an inactive profile reports profile-inactive, still without revoking", async () => {
+  test("an inactive profile is REFUSED with profile-inactive, before any write", async () => {
     mockState.founderCids.add(CID);
     mockState.contacts[CID] = { role: "member" };
     mockState.profileRows = [profileRow("founder", "venture", ["member"], 0)];
 
     const result = await syncContextGrantsForUser(CID, { context: "venture", roleKey: "founder" });
 
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("profile-role-not-allowed");
     expect(result.profileRoleGap.reason).toBe("profile-inactive");
-    expect(result.applied.sort()).toEqual(["ventures.edit", "ventures.view"]);
+    expect(mockState.userCaps).toEqual([]);
   });
 
   test("a Super Admin is never an écart, whatever the profile allows", async () => {

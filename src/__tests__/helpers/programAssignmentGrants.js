@@ -30,6 +30,10 @@ function resetState() {
     userCaps: [],
     applied: [],
     profileCapsQueriedFor: [],
+    // Phase H — the profile ↔ role rule is enforced ("block"): the person's
+    // baseline role must be one the profile is open to. Facilitator is open to
+    // member; the program_manager fixture overrides this to "staff".
+    contactRole: "member",
   });
 }
 
@@ -39,6 +43,11 @@ async function mockExecute(query) {
 
   // Schema self-healing
   if (/^\s*(CREATE TABLE|CREATE INDEX)/i.test(sqlText)) return { rows: [] };
+
+  // Baseline role (Phase H — the profile ↔ role rule reads it).
+  if (sqlText.includes("SELECT role, access_profile_id FROM contacts")) {
+    return { rows: [{ role: mockState.contactRole, access_profile_id: null }] };
+  }
 
   // Registry mapping (program manager)
   if (sqlText.includes("FROM context_role_profiles")) {

@@ -24,6 +24,7 @@ const mockState = {
   grantThrows: null,
   revokeThrows: null,
   session: { cid: "SA-1", name: "Super Admin" },
+  contactRole: "staff", // the assignee's baseline (Phase H profile ↔ role rule)
 };
 
 function mockRows(sql) {
@@ -32,6 +33,12 @@ function mockRows(sql) {
     return { rows: mockState.responsibility ? [mockState.responsibility] : [] };
   if (sql.includes("SELECT name FROM contacts WHERE cid = ?"))
     return { rows: mockState.contactName ? [{ name: mockState.contactName }] : [] };
+  // Phase H — the profile ↔ role rule is enforced ("block"). The fixture
+  // responsibility is `program_manager`, a staff-only profile, so the assignee
+  // is a baseline staff member; without this the écart would be refused before
+  // the assign branch runs.
+  if (sql.includes("SELECT role, access_profile_id FROM contacts WHERE cid = ?"))
+    return { rows: [{ role: mockState.contactRole, access_profile_id: null }] };
   return { rows: [], rowsAffected: 1 };
 }
 
@@ -117,6 +124,7 @@ beforeEach(() => {
     grantThrows: null,
     revokeThrows: null,
     session: { cid: "SA-1", name: "Super Admin" },
+    contactRole: "staff",
   });
   jest.clearAllMocks();
 });
