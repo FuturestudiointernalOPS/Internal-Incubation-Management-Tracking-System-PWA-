@@ -135,23 +135,20 @@ const FIXTURE = {
     },
   ],
 
+  // Phase H — program_manager / facilitator / investor have no role mask any
+  // more either: a profile is not a role, so they normalize to their baseline
+  // surface (staff for the staff-only profile, member otherwise).
   program_manager: [
-    { id: "dashboard", href: "/pm", subItems: null },
+    { id: "dashboard", href: "/staff", subItems: null },
+    { id: "weekly_ops", href: "/staff/op-report", subItems: null },
     { id: "programs", href: "/pm/programs", subItems: null },
+    { id: "my_projects", href: "/staff/projects", subItems: null },
     {
       id: "communication",
       href: null,
       subItems: [
-        { id: "groups", href: "/pm/communications/contacts", subItems: null },
-        { id: "messages", href: "/pm/messages", subItems: null },
-      ],
-    },
-    {
-      id: "reports",
-      href: null,
-      subItems: [
-        { id: "internal_reports", href: "/staff/op-report", subItems: null },
-        { id: "my_projects", href: "/staff/projects", subItems: null },
+        { id: "messages", href: "/staff/messages", subItems: null },
+        { id: "forms", href: "/platform", subItems: null },
       ],
     },
   ],
@@ -171,12 +168,7 @@ const FIXTURE = {
     },
   ],
 
-  facilitator: [
-    { id: "dashboard", href: "/facilitator", subItems: null },
-    { id: "my_programs", href: "/facilitator/programs", subItems: null },
-    { id: "reviews", href: "/facilitator/reviews", subItems: null },
-    { id: "profile", href: "/facilitator/profile", subItems: null },
-  ],
+  facilitator: [{ id: "dashboard", href: "/participant", subItems: null }],
 
   member: [{ id: "dashboard", href: "/participant", subItems: null }],
 
@@ -191,12 +183,7 @@ const FIXTURE = {
     { id: "programs", href: "/team", subItems: null },
   ],
 
-  investor: [
-    { id: "dashboard", href: "/investor/dashboard", subItems: null },
-    { id: "portfolio", href: "/investor/portfolio", subItems: null },
-    { id: "activity", href: "/investor/history", subItems: null },
-    { id: "profile", href: "/investor/profile", subItems: null },
-  ],
+  investor: [{ id: "dashboard", href: "/participant", subItems: null }],
 
   finance: [
     { id: "dashboard", href: "/finance", subItems: null },
