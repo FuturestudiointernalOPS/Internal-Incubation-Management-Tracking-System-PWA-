@@ -38,14 +38,13 @@ export const PERMISSION_BASE = "/admin/security/permissions";
 export const PERMISSION_NAV = [
   {
     // Slot 1 — the daily job. Task-first: this is what an admin came to do.
+    // ONE screen, no sub-tabs: the door IS the person-access screen (pick a
+    // person, see everything they can do, change it). The former "Person
+    // access" / "Job shortcuts" sub-tabs were retired — the read-only job
+    // report duplicated what the person screen already shows per person.
     key: "people",
     href: `${PERMISSION_BASE}/people`,
     labelKey: "engineering.permissions.navPeople",
-    defaultSub: "access",
-    tabs: [
-      { key: "access", labelKey: "engineering.permissions.tabIndividualAccess" },
-      { key: "jobs", labelKey: "engineering.permissions.tabJobShortcuts" },
-    ],
   },
   {
     // Two sub-tabs: the access-profile editor (the door's original screen) and
@@ -95,15 +94,6 @@ export const PERMISSION_NAV = [
     labelKey: "engineering.permissions.navHistory",
   },
 ];
-
-/**
- * Sub-tab values that existed before Individual Access was merged into one
- * screen. The route redirects them to `access` so old bookmarks keep working.
- */
-export const PERMISSION_PEOPLE_SUB_ALIASES = {
-  search: "access",
-  matrix: "access",
-};
 
 export function navByKey(key) {
   return PERMISSION_NAV.find((navItem) => navItem.key === key) || null;

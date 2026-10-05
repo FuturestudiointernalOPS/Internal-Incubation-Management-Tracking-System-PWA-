@@ -1,46 +1,30 @@
 "use client";
 
-import React, { useEffect } from "react";
-import PermissionShell, { useSubTab } from "@/components/permissions/PermissionShell";
-import PermissionManager from "@/components/permissions/PermissionCenter";
+import React from "react";
+import PermissionShell from "@/components/permissions/PermissionShell";
 import IndividualAccessScreen from "@/components/permissions/IndividualAccessScreen";
-import { defer } from "@/components/permissions/effectUtils";
-import { PERMISSION_PEOPLE_SUB_ALIASES } from "@/components/permissions/permissionNav";
 import { useI18n } from "@/lib/i18n";
 
 /**
- * PHASE UI-1/UI-2b/UI-3e — Individual Access.
+ * Person access — ONE screen under one door.
  *
- *   access → ONE screen: the person picker plus the selected person's panels —
- *            what they hold and why (read) directly above how to change it
- *            (write). Merged in Phase 3 from the former "Manage access" and
- *            "User Matrix" sub-tabs, which had a search each.
- *   jobs   → responsibility assignments ("job shortcuts") with the role
- *            eligibility warning; assigning grants base view access and is
- *            never revoked on unassign.
+ * Pick a person, see everything they can do and why (read), and change it
+ * (write). The former "Person access" / "Job shortcuts" sub-tabs were retired:
+ * with the read-only job report gone, the sub-tab bar had nothing left to
+ * switch between, so the door renders the person-access screen directly.
  *
- * Pre-merge deep links (`?sub=search`, `?sub=matrix`) are canonicalised to
- * `access` so old bookmarks land on the merged screen instead of a blank one.
+ * Pre-merge deep links (?sub=search, ?sub=matrix, ?sub=jobs) simply land here;
+ * the `?sub=` value is ignored, and `?cid=` still preselects a person.
  */
 export default function PermissionPeoplePage() {
   const { t } = useI18n();
-  const [subTab, setSubTab] = useSubTab("access");
-  const canonicalSubTab = PERMISSION_PEOPLE_SUB_ALIASES[subTab] || subTab;
-
-  useEffect(() => {
-    if (canonicalSubTab !== subTab) defer(() => setSubTab(canonicalSubTab));
-  }, [canonicalSubTab, subTab, setSubTab]);
 
   return (
-    <PermissionShell active="people" sub={canonicalSubTab} onSubChange={setSubTab}>
+    <PermissionShell active="people">
       <p className="mb-4 text-xs font-medium text-[var(--text-secondary)]">
         {t("engineering.permissions.questionPeople")}
       </p>
-      {canonicalSubTab === "jobs" ? (
-        <PermissionManager initialTab="responsibilities" />
-      ) : (
-        <IndividualAccessScreen />
-      )}
+      <IndividualAccessScreen />
     </PermissionShell>
   );
 }

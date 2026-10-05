@@ -109,7 +109,7 @@ describe("UI-5 — navigation model", () => {
     expect(src).not.toContain("PermissionShell");
     for (const target of [
       "eligibility?sub=ceilings", // the catalog now lives under Rules
-      "people?sub=jobs",
+      "/people", // responsibilities → the single person-access door
       "eligibility?sub=warnings",
       "context-scope?sub=memberships",
     ]) {

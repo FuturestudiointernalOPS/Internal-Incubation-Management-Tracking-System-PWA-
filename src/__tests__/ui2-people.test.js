@@ -88,13 +88,13 @@ describe("UI-2b — screen wiring", () => {
   const view = "src/components/permissions/PeopleView.js";
   const matrix = "src/components/permissions/people-view/PeopleMatrix.js";
 
-  test("the people route renders ONE merged Individual Access screen", () => {
+  test("the people route renders ONE screen, with no sub-tabs", () => {
     const src = read(route);
     expect(src).toContain("IndividualAccessScreen");
-    // Job shortcuts stay their own screen under the same door.
-    expect(src).toContain('initialTab="responsibilities"');
-    // Pre-merge sub-tabs (?sub=search, ?sub=matrix) still resolve.
-    expect(src).toContain("PERMISSION_PEOPLE_SUB_ALIASES");
+    // The former "Person access" / "Job shortcuts" sub-tabs were retired: the
+    // door has no sub-tab switch and no read-only job-shortcut report.
+    expect(src).not.toContain('initialTab="responsibilities"');
+    expect(src).not.toContain("PERMISSION_PEOPLE_SUB_ALIASES");
   });
 
   test("the merged screen feeds the same person to both lenses", () => {
@@ -105,6 +105,10 @@ describe("UI-2b — screen wiring", () => {
     // One selection, two panels: read (person=) and write (cid=).
     expect(src).toContain("person={person}");
     expect(src).toContain("cid={person.cid}");
+    // Profiles held render at the TOP of the person screen, once (moved out of
+    // the editor, where it used to sit after the capability legend).
+    expect(src).toContain("ProfileAssignmentsSection");
+    expect(readPermissionCenterSurface()).not.toContain("<ProfileAssignmentsSection");
     // One picker in the whole flow: the editor no longer fetches a user list.
     // The whole surface, because a second user list anywhere in the center would
     // break that claim just as much as one in the shim.
@@ -158,6 +162,7 @@ describe("UI-2b — screen wiring", () => {
     const keys = [
       "engineering.permissions.peopleHint",
       "engineering.permissions.peopleSelectPrompt",
+      "engineering.permissions.personReadTitle",
       "engineering.permissions.accessEditorTitle",
       "engineering.permissions.tabIndividualAccess",
       "engineering.permissions.peopleScopeTitle",

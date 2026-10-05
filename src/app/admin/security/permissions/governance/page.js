@@ -12,7 +12,7 @@ import { PERMISSION_BASE } from "@/components/permissions/permissionNav";
  * forwards to the question it now belongs to.
  *
  *   catalog          → Access Profiles    (Profiles → Catalog)
- *   responsibilities → Individual Access  (People  → Job shortcuts)
+ *   responsibilities → Person access      (People, the single door)
  *   access           → Eligibility        (Eligibility → Responsibility access)
  *   governance       → Context & Scope    (Context & Scope → Memberships)
  *
@@ -20,7 +20,7 @@ import { PERMISSION_BASE } from "@/components/permissions/permissionNav";
  */
 const TARGET_BY_SUB = {
   catalog: `${PERMISSION_BASE}/eligibility?sub=ceilings`,
-  responsibilities: `${PERMISSION_BASE}/people?sub=jobs`,
+  responsibilities: `${PERMISSION_BASE}/people`,
   access: `${PERMISSION_BASE}/eligibility?sub=warnings`,
   governance: `${PERMISSION_BASE}/context-scope?sub=memberships`,
   eligibility: `${PERMISSION_BASE}/eligibility?sub=ceilings`,
