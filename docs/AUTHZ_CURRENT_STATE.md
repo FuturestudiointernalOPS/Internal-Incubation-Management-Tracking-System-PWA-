@@ -62,7 +62,7 @@ capability rather than lowering it. Locked by
 | Profile ↔ role rule (roadmap B → H) | IMPLEMENTED (enforced) | `evaluateProfileRoleFit` + `PROFILE_ROLE_ENFORCEMENT` ("block" since Phase H). The automatic reconcile (`contextGrantReconcile.js`) and the manual responsibility assignment (`responsibilityAssignment.js`) refuse the écart before any write. Phase B reported it ("warn"); Phase H flipped the one constant |
 | Assignment registry (roadmap C) | IMPLEMENTED | `profile_assignments` table + `models/authorization/profileAssignmentsStore.js` + `services/authorization/profileAssignments.js`; `GET/POST/PATCH /api/engineering/permissions/profile-assignments`; UI: "Profiles held" section of the Person Access screen. Describes periods (context, source, dates); decides no access |
 | Eligibility by profile (roadmap D) | IMPLEMENTED | A third ceiling identity kind (`identity_type = 'profile'`). The resolver reads `listActiveProfileKeys(cid)` and folds the profile rows into the single eligibility query (OR with role/group; an explicit deny still wins). The context cache key is `cid\|role\|active-profiles`, and every assignment write invalidates the person's context. UI: the identity editor and the matrix gain a Profile kind |
-| Automatic attribution (roadmap E) | IMPLEMENTED | `services/authorization/contextGrantAssignments.js` writes the `profile_assignments` card beside the grants (open / re-date / close, `source = 'automatic'`, never manual); `SUPPORTED_CONTEXT_ROLES` stays the three approved pairs |
+| Automatic attribution (roadmap E) | IMPLEMENTED | `services/authorization/contextGrantAssignments.js` writes the `profile_assignments` card beside the grants (open / re-date / close, `source = 'automatic'`, never manual); `SUPPORTED_CONTEXT_ROLES` carries the seven activated pairs (founder, facilitator, program_manager, investor, learner, venture_manager, and the product-requested participant) |
 | Residual read / consultation (roadmap F) | IMPLEMENTED | `services/authorization/contextGrantHistory.js` derives a `<module>.view` ceiling (level 1, context-bounded) from ENDED automatic cards, in its own namespace (`history:<role>`, stamp `hist:<context>:<role>`, provenance `mode = 'historical'`, no expiry). Scope policies `venture_managed_history` / `program_managed_history` added |
 | Eligibility / ceiling | IMPLEMENTED | `models/authorization/eligibility.js`, `eligibility-defaults.js`, admin at `.../permissions/eligibility` |
 | Reusable permission sets | IMPLEMENTED (as **Access Profiles / templates**) | `access_profiles` + `access_profile_capabilities`; UI: Permission Center → Profiles |
@@ -136,18 +136,21 @@ editing or removing a program-staff (facilitator) assignment re-derives that
 person's program access at once — the manager side and the venture-invitation
 (founder) side already did.
 
-Product decision D5 then extended the sweep to three more couples,
-`SUPPORTED_CONTEXT_ROLES` now carrying six: **investor** (an investor profile),
-**learner** (any active course enrollment — "as soon as you have access to a
-course you are a learner") and **venture_manager** (the LEAD MANAGER of a
-venture, from an active delegated staff assignment). Two of them needed a
-capability template and a registry mapping that did not exist; a one-time,
-additive, admin-respecting migration creates the **Learner** (`lms.view`) and
-**Venture Manager** (`ventures.view` + `ventures.edit`) templates and points the
-registry rows at them only while unmapped. `venture:team_member` stays OFF on
-purpose — its function has no profile in the approved catalogue, so there is
-nothing to record or grant. Scope does the confining: `learning_own` for a
-learner, `venture_own` for a manager.
+Product decision D5 then extended the sweep to three more couples
+(`SUPPORTED_CONTEXT_ROLES` carrying six), and a product request added a
+seventh: **investor** (an investor profile), **learner** (any active course
+enrollment — "as soon as you have access to a course you are a learner"),
+**venture_manager** (the LEAD MANAGER of a venture, from an active delegated
+staff assignment) and **participant** (any active `participant_programs`
+enrollment — the enrollment row is the relationship, so the grant and the card
+end when the enrollment does). Two of them needed a capability template and a
+registry mapping that did not exist; a one-time, additive, admin-respecting
+migration creates the **Learner** (`lms.view`) and **Venture Manager**
+(`ventures.view` + `ventures.edit`) templates and points the registry rows at
+them only while unmapped. `venture:team_member` stays OFF on purpose — its
+function has no profile in the approved catalogue, so there is nothing to record
+or grant. Scope does the confining: `learning_own` for a learner, `venture_own`
+for a manager.
 
 **Phase H** closes the loop. The global `contacts.role` is cleaned up: a read
 (`surveyLegacyRoles`) splits the role values actually in use into the three

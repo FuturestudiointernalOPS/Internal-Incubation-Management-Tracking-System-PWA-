@@ -35,6 +35,11 @@ export const SUPPORTED_CONTEXT_ROLES = [
   { context: "investor", roleKey: "investor" },
   { context: "lms", roleKey: "learner" },
   { context: "venture", roleKey: "venture_manager" },
+  // Product request : a program participant is the relationship
+  // `participant_programs` carries. The registry maps the pair to the
+  // Participant template; the enrollment row is the relationship, so the grant
+  // is withdrawn when the enrollment is. Additive and reversible.
+  { context: "program", roleKey: "participant" },
 ];
 
 /** ISO date (YYYY-MM-DD) from a Date or a timestamp string; null when absent. */

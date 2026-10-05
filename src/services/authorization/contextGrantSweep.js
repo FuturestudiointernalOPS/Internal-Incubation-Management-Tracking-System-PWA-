@@ -37,6 +37,7 @@ import {
   listInvestorRelationshipCids,
   listLearnerRelationshipCids,
   listVentureManagerCids,
+  listParticipantRelationshipCids,
 } from "@/models/authorization/contextGrantsStore";
 import { listProgramAssignmentContacts } from "@/models/authorization/programAssignmentReads";
 import { listEndedAssignmentContacts } from "@/models/authorization/profileAssignmentsStore";
@@ -54,6 +55,11 @@ export async function syncAllContextGrants(
     const cids = new Set();
     if (context === "venture" && roleKey === "founder") {
       const relRes = await listFounderRelationshipCids();
+      for (const row of relRes.rows || []) if (row.cid) cids.add(String(row.cid));
+    } else if (context === "program" && roleKey === "participant") {
+      // Participants are enrolled through `participant_programs`, not through a
+      // staff assignment — a program's staff read never returns them.
+      const relRes = await listParticipantRelationshipCids();
       for (const row of relRes.rows || []) if (row.cid) cids.add(String(row.cid));
     } else if (context === "program") {
       // Everyone who currently holds a program assignment (any role — the

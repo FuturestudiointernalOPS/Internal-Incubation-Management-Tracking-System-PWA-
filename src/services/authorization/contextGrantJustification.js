@@ -41,6 +41,7 @@ import {
   listActiveInvestorProfiles,
   listActiveLearnerCourses,
   listActiveVentureManagerVentures,
+  listActiveParticipantPrograms,
 } from "@/models/authorization/contextGrantsStore";
 
 export async function resolveContextDesiredCaps(context, roleKey) {
@@ -167,6 +168,15 @@ export async function resolveContextJustification(cid, { context, roleKey, email
   if (context === "venture" && roleKey === "venture_manager") {
     const ventures = await listActiveVentureManagerVentures(cid);
     const sourceIds = (ventures || []).map((id) => String(id)).filter(Boolean);
+    return await coupleReport(context, roleKey, sourceIds);
+  }
+
+  // {program, participant} — anyone enrolled in a program. The enrollment row is
+  // the relationship, so the grant ends when the enrollment does. The registry
+  // maps the pair to the Participant template.
+  if (context === "program" && roleKey === "participant") {
+    const { rows } = await listActiveParticipantPrograms(cid);
+    const sourceIds = (rows || []).map((row) => String(row.program_id)).filter(Boolean);
     return await coupleReport(context, roleKey, sourceIds);
   }
 

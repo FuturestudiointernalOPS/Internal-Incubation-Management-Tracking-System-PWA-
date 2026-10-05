@@ -155,6 +155,25 @@ export function listVentureManagerCids() {
   });
 }
 
+/** The programs one person is enrolled in (their participant relationship). */
+export function listActiveParticipantPrograms(cid) {
+  if (!cid) return Promise.resolve({ rows: [] });
+  return db.execute({
+    sql: `SELECT DISTINCT CAST(program_id AS TEXT) AS program_id
+          FROM participant_programs
+          WHERE participant_id = ?`,
+    args: [String(cid)],
+  });
+}
+
+/** Everyone enrolled in a program — the participant sweep's population. */
+export function listParticipantRelationshipCids() {
+  return db.execute({
+    sql: `SELECT DISTINCT participant_id AS cid FROM participant_programs
+          WHERE participant_id IS NOT NULL AND TRIM(participant_id) <> ''`,
+  });
+}
+
 /** Everyone this mechanism has ever applied a grant to, for a context/role. */
 export function listContextAppliedGrantCids(context, roleKey) {
   return db.execute({
