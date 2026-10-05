@@ -558,7 +558,7 @@ héritées n'ont pas été supprimées.
 | A — Catalogue des profils | Fait | | 2026-10-05 | 18 tests (`profile-catalog-phase-a`) ; lint 0 erreur |
 | B — Règle profil ↔ rôle | Fait | | 2026-10-05 | 22 tests (`profile-role-rule-phase-b`) ; lint 0 erreur ; build OK |
 | C — Registre d'affectation | Fait | | 2026-10-05 | 29 tests (`profile-assignments-phase-c`) ; lint 0 erreur |
-| D — Éligibilité par profil | À faire | | | |
+| D — Éligibilité par profil | Fait | | 2026-10-05 | 16 tests (`profile-eligibility-phase-d`, `profile-eligibility-resolver-phase-d`) ; lint 0 erreur ; build OK |
 | E — Attribution automatique | À faire | | | |
 | F — Droit résiduel de consultation | À faire | | | |
 | G — Explication, audit, opérations | À faire | | | |

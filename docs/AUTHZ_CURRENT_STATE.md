@@ -61,6 +61,7 @@ capability rather than lowering it. Locked by
 | Profile catalogue (roadmap A) | IMPLEMENTED | `profiles` table + `models/authorization/profile-catalog.js` + `services/authorization/profileCatalog.js`; admin at Permission Center → Rules → Profiles. Catalogue of seven profiles with their context and allowed baseline roles |
 | Profile ↔ role rule (roadmap B) | IMPLEMENTED (warning) | `evaluateProfileRoleFit` + `PROFILE_ROLE_ENFORCEMENT` ("warn", → "block" in H). The automatic reconcile (`contextGrantReconcile.js`) and the manual responsibility assignment (`responsibilityAssignment.js`) REPORT the écart; nothing is blocked yet (§13) |
 | Assignment registry (roadmap C) | IMPLEMENTED | `profile_assignments` table + `models/authorization/profileAssignmentsStore.js` + `services/authorization/profileAssignments.js`; `GET/POST/PATCH /api/engineering/permissions/profile-assignments`; UI: "Profiles held" section of the Person Access screen. Describes periods (context, source, dates); decides no access |
+| Eligibility by profile (roadmap D) | IMPLEMENTED | A third ceiling identity kind (`identity_type = 'profile'`). The resolver reads `listActiveProfileKeys(cid)` and folds the profile rows into the single eligibility query (OR with role/group; an explicit deny still wins). The context cache key is `cid\|role\|active-profiles`, and every assignment write invalidates the person's context. UI: the identity editor and the matrix gain a Profile kind |
 | Eligibility / ceiling | IMPLEMENTED | `models/authorization/eligibility.js`, `eligibility-defaults.js`, admin at `.../permissions/eligibility` |
 | Reusable permission sets | IMPLEMENTED (as **Access Profiles / templates**) | `access_profiles` + `access_profile_capabilities`; UI: Permission Center → Profiles |
 | Role → profile defaults | IMPLEMENTED | `role_access_profile_defaults` |
@@ -108,6 +109,14 @@ read by the later phases — Phase D consumes the active keys for eligibility,
 Phase E writes the automatic rows. The registry DESCRIBES; it decides no access,
 so editing it changes nobody's rights on its own. A reactivation after a close is
 a NEW record: an existing period is never rewritten.
+
+**Phase D** makes the profile an ELIGIBILITY identity: a ceiling can be written
+against a profile, so a rule distinguishes "Member" from "Member with the
+Founder profile". The resolver folds the person's active profile rows into the
+same single eligibility read, the context cache keys on them, and every
+assignment write invalidates the person's context so the change takes effect at
+once. `ELIGIBLE ≠ GRANTED` still holds at the profile level — the profile is a
+ceiling, never a grant.
 
 ---
 
