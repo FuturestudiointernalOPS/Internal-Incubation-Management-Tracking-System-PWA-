@@ -321,6 +321,24 @@ describe("syncContextGrantsForUser — the automatic assignment card", () => {
     });
   });
 
+  test("an automatic open is recorded in the audit log (Phase G)", async () => {
+    const accessQueries = require("@/models/authorization/accessQueries");
+    const spy = jest
+      .spyOn(accessQueries, "logPermissionAudit")
+      .mockResolvedValue(undefined);
+    mockState.founderCids.add(CID);
+
+    await syncContextGrantsForUser(CID);
+
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "profile_assignment_created",
+        targetCid: CID,
+      }),
+    );
+    spy.mockRestore();
+  });
+
   test("is idempotent — replaying opens no second card", async () => {
     mockState.founderCids.add(CID);
     await syncContextGrantsForUser(CID);
