@@ -9,7 +9,6 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import Badge from "./ui/Badge";
 import WhyDrawer from "./ui/WhyDrawer";
 import PersonScopePanel from "./PersonScopePanel";
-import PersonRecentChanges from "./PersonRecentChanges";
 import RiskConfirmDialog from "./RiskConfirmDialog";
 import { riskyChanges } from "./riskGate";
 import { collectContextModules } from "./matrixHelpers";
@@ -39,7 +38,14 @@ import { SCOPE_POLICIES, SCOPE_POLICY_KEYS } from "@/models/authorization/scope-
  * This panel owns the person's reads, the reset when the selection changes and
  * the write path; the presentational blocks live under ./people-view/.
  */
-export default function PeopleView({ person = null, onAccessChanged = null }) {
+export default function PeopleView({
+  person = null,
+  onAccessChanged = null,
+  // A slot the screen renders right under the identity header (the Phase C
+  // profiles registry). Injected rather than imported so this read panel stays
+  // free of writes and of the layer that owns them.
+  profilesSlot = null,
+}) {
   const { t } = useI18n();
   // The screen above owns the selection (PersonPicker); this panel follows it.
   const selected = person;
@@ -321,10 +327,17 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
       )}
       {selected && !loadingCtx && ctx && (
         <>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-black text-[var(--text-primary)]">
+          {/* Identity header — the anchor the whole screen reads from: who this
+              is, their baseline role, groups and super-admin status. */}
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--border-primary)] bg-secondary/20 px-4 py-3">
+            <span className="text-base font-black text-[var(--text-primary)]">
               {selected.name || selected.cid}
             </span>
+            {selected.cid && (
+              <span className="font-mono text-[10px] text-[var(--text-secondary)]">
+                {selected.cid}
+              </span>
+            )}
             <Badge variant="neutral">
               <ShieldCheck className="w-3 h-3" /> {ctx.role}
             </Badge>
@@ -344,6 +357,16 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
               </Badge>
             ))}
           </div>
+
+          {/* Profiles held + attribution — right under who the person is, before
+              the capability breakdown they explain. */}
+          {profilesSlot}
+
+          {/* Section marker: the read lens (mirrors "Change access" below, which
+              is the write lens). */}
+          <h3 className="pt-1 text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+            {t("engineering.permissions.personReadTitle")}
+          </h3>
 
           {/* Contexts and scope share a row from lg up: two short panels,
               half the vertical space. */}
@@ -385,9 +408,6 @@ export default function PeopleView({ person = null, onAccessChanged = null }) {
             onOpenWhy={setWhy}
           />
 
-          {/* The same question as the History door, asked about the person on
-              screen: what has been done to THIS account lately? (./PersonRecentChanges) */}
-          <PersonRecentChanges key={`recent-${selected.cid}`} person={selected} />
         </>
       )}
 

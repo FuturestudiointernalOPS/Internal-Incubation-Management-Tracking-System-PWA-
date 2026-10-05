@@ -159,9 +159,11 @@ export default function PersonFeatureSection({
                                 from, so a chip is never clicked blind
                                 (a direct grant of a level the person
                                 already inherits changes nothing). */}
-                            <p className="mt-1 text-[9px] font-bold text-[var(--text-secondary)] opacity-80">
-                              {t("engineering.permissions.advancedCurrentState")}:{" "}
-                              {originText(modKey, cap)}
+                            <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] font-semibold text-[var(--text-secondary)]">
+                              <span className="rounded-md border border-[var(--border-primary)] bg-secondary/50 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider">
+                                {t("engineering.permissions.advancedCurrentState")}
+                              </span>
+                              <span className="min-w-0">{originText(modKey, cap)}</span>
                             </p>
                           </td>
 

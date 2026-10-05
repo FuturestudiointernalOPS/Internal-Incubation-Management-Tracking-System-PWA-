@@ -27,10 +27,20 @@ export default function PermissionManager({
   initialTab = "search",
   initialProfileId = null,
   cid = null,
+  // Forwarded from the screen above so the profiles bar can open the editor's
+  // access-profile override dialog (see IndividualAccessScreen).
+  overrideOpen = false,
+  onOverrideClose = null,
 }) {
   // The person editor owns its outer wrapper; the other tabs share one.
   if (initialTab === "search") {
-    return <PersonAccessScreen cid={cid} />;
+    return (
+      <PersonAccessScreen
+        cid={cid}
+        overrideOpen={overrideOpen}
+        onOverrideClose={onOverrideClose}
+      />
+    );
   }
 
   return (

@@ -21,7 +21,17 @@ import { useI18n } from "@/lib/i18n";
 import { FEATURE_ORDER } from "@/models/authorization/eligibility-defaults";
 
 
-export default function PersonAccessScreen({ cid = null }) {
+export default function PersonAccessScreen({
+  cid = null,
+  // The access-profile override dialog is opened from the profiles bar (the
+  // screen above owns that signal); this editor still owns the flow itself.
+  // Aliased to local bindings: the wiring contract requires every `ctx` key to
+  // be a name DECLARED in this function body, and destructured params are not.
+  overrideOpen: overrideOpenProp = false,
+  onOverrideClose: onOverrideCloseProp = null,
+}) {
+  const overrideOpen = overrideOpenProp;
+  const onOverrideClose = onOverrideCloseProp;
   const { t, lang } = useI18n();
   const { confirm } = useDialogs();
   const [selectedUser, setSelectedUser] = useState(null);
@@ -38,7 +48,6 @@ export default function PersonAccessScreen({ cid = null }) {
   // CONFIRMED, never blocked — see ./RiskConfirmDialog.
   const [riskGate, setRiskGate] = useState(null);
   const [whyTarget, setWhyTarget] = useState(null); // { module, capability } for the explanation modal
-  const [showAssignForm, setShowAssignForm] = useState(false);
   const [assignProfileId, setAssignProfileId] = useState("");
   const [assignProfiles, setAssignProfiles] = useState([]);
   const [assignMsg, setAssignMsg] = useState("");
@@ -125,7 +134,6 @@ export default function PersonAccessScreen({ cid = null }) {
     setLoadingPerms(true);
     setActionMsg("");
     setActionError("");
-    setShowAssignForm(false); // reset the profile-override card for the new user
     setAssignMsg("");
     setAssignErr("");
     setLoadError("");
@@ -165,7 +173,7 @@ export default function PersonAccessScreen({ cid = null }) {
     defer(() => selectUser({ cid }));
   }, [cid, selectUser]);
 
-  const loadAssignProfiles = async () => {
+  const loadAssignProfiles = useCallback(async () => {
     try {
       const res = await fetch("/api/access-profiles");
       const data = await res.json();
@@ -173,7 +181,7 @@ export default function PersonAccessScreen({ cid = null }) {
     } catch (error) {
       console.error("Failed to load profiles", error);
     }
-  };
+  }, []);
 
   /**
    * Assign or remove the selected user's profile override (empty = remove).
@@ -202,7 +210,6 @@ export default function PersonAccessScreen({ cid = null }) {
       const data = await res.json();
       if (data.success) {
         setAssignMsg(t(data.message || "") || data.message);
-        setShowAssignForm(false);
         setAssignProfileId("");
         selectUser(selectedUser); // refresh the effective profile + matrix
       } else if (res.status === 409 && data.requiresConfirmation) {
@@ -480,9 +487,9 @@ export default function PersonAccessScreen({ cid = null }) {
     setAssignProfileId,
     setExpandedModules,
     setRiskGate,
-    setShowAssignForm,
     setWhyTarget,
-    showAssignForm,
+    onOverrideClose,
+    overrideOpen,
     t,
     userPerms,
     whyTarget,
