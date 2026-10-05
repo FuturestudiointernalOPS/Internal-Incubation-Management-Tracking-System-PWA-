@@ -528,6 +528,7 @@
       "tabScopePolicies": "Scope Policies",
       "tabContextRoles": "Context Roles",
       "tabProfiles": "Profiles",
+      "tabTemplatesEditor": "Access profiles",
       "profilesHint": "A profile is the contextual function someone occupies (Participant of a program, Founder of a venture, Facilitator…), distinct from the baseline role on their account (Super Admin / Staff / Member). This catalogue decides which baseline roles may hold each profile. It is the vocabulary the later phases enforce — editing it changes no one's access by itself.",
       "profilesStatusPill": "Catalogue only — no access changes yet",
       "profilesKey": "Profile",

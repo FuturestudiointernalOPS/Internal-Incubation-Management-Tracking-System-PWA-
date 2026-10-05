@@ -48,10 +48,16 @@ export const PERMISSION_NAV = [
     ],
   },
   {
-    // No sub-tabs on purpose: the door IS the screen.
+    // Two sub-tabs: the access-profile editor (the door's original screen) and
+    // the PROFILE CATALOGUE (the contextual functions someone can hold).
     key: "templates",
     href: `${PERMISSION_BASE}/profiles`,
     labelKey: "engineering.permissions.navTemplates",
+    defaultSub: "editor",
+    tabs: [
+      { key: "editor", labelKey: "engineering.permissions.tabTemplatesEditor" },
+      { key: "profiles", labelKey: "engineering.permissions.tabProfiles" },
+    ],
   },
   {
     key: "rules",
@@ -61,7 +67,6 @@ export const PERMISSION_NAV = [
     tabs: [
       { key: "ceilings", labelKey: "engineering.permissions.tabEligibilityCeilings" },
       { key: "warnings", labelKey: "engineering.permissions.tabResponsibilityAccess" },
-      { key: "profiles", labelKey: "engineering.permissions.tabProfiles" },
     ],
   },
   {

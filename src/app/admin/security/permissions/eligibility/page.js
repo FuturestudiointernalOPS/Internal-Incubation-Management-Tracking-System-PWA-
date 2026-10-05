@@ -6,7 +6,6 @@ import { useI18n } from "@/lib/i18n";
 import PermissionShell, { useSubTab } from "@/components/permissions/PermissionShell";
 import PermissionManager from "@/components/permissions/PermissionCenter";
 import CatalogView from "@/components/permissions/CatalogView";
-import ProfilesView from "@/components/permissions/ProfilesView";
 
 /**
  * PHASE UI-5 — Rules.
@@ -17,9 +16,6 @@ import ProfilesView from "@/components/permissions/ProfilesView";
  *              closed: a missing row denies). The vault, not the daily screen.
  *   warnings → the responsibility role allowlists behind the in-app "role
  *              incompatibility" warnings.
- *   profiles → the profile catalogue (Phase A): which baseline roles may hold
- *              each contextual function. The vocabulary the later phases
- *              enforce; editing it changes no access on its own.
  *
  * The capability registry (formerly the Catalog tab) is not a screen of its
  * own: it is reference material, so it opens underneath the ceiling it
@@ -42,30 +38,24 @@ export default function PermissionRulesPage() {
         {t("engineering.permissions.questionRules")}
       </p>
 
-      {subTab === "profiles" ? (
-        <ProfilesView />
-      ) : (
-        <>
-          <PermissionManager key={subTab} initialTab={tab} />
+      <PermissionManager key={subTab} initialTab={tab} />
 
-          {subTab === "ceilings" && (
-            <div className="mt-6 space-y-3">
-              <button
-                onClick={() => setShowCatalog((open) => !open)}
-                aria-expanded={showCatalog}
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
-              >
-                {showCatalog ? (
-                  <ChevronDown className="w-3.5 h-3.5" />
-                ) : (
-                  <ChevronRight className="w-3.5 h-3.5" />
-                )}
-                {t("engineering.permissions.seeAllFeatures")}
-              </button>
-              {showCatalog && <CatalogView />}
-            </div>
-          )}
-        </>
+      {subTab === "ceilings" && (
+        <div className="mt-6 space-y-3">
+          <button
+            onClick={() => setShowCatalog((open) => !open)}
+            aria-expanded={showCatalog}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
+          >
+            {showCatalog ? (
+              <ChevronDown className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronRight className="w-3.5 h-3.5" />
+            )}
+            {t("engineering.permissions.seeAllFeatures")}
+          </button>
+          {showCatalog && <CatalogView />}
+        </div>
       )}
     </PermissionShell>
   );

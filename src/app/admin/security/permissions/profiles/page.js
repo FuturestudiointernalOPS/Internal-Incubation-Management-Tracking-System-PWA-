@@ -3,18 +3,24 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import PermissionShell from "@/components/permissions/PermissionShell";
+import PermissionShell, { useSubTab } from "@/components/permissions/PermissionShell";
 import PermissionManager from "@/components/permissions/PermissionCenter";
 import EntitlementRollup from "@/components/permissions/EntitlementRollup";
+import ProfilesView from "@/components/permissions/ProfilesView";
 import { defer } from "@/components/permissions/effectUtils";
 import { PERMISSION_BASE } from "@/components/permissions/permissionNav";
 
 /**
- * PHASE UI-5 — Templates (one screen, no sub-tabs).
+ * PHASE UI-5 — Templates.
  *
  * "What does a kind of person get by default?" — the reusable permission
  * packages, what each contains, how many people a change reaches, and the
  * "Default for: staff, member" control (which replaced the Role → Profile tab).
+ *
+ * Sub-tabs:
+ *   editor   → the access-profile editor (the door's original screen)
+ *   profiles → the PROFILE CATALOGUE (the contextual functions someone can
+ *              hold: Participant, Founder, Facilitator…), moved here from Rules
  *
  * Deep link: ?profile=<id> selects a template (unchanged).
  * Retired link: ?sub=catalog forwards to Rules, where the registry now lives.
@@ -28,6 +34,7 @@ export default function PermissionTemplatesPage() {
   const { t } = useI18n();
   const router = useRouter();
   const [profileId, setProfileId] = useState(null);
+  const [subTab, setSubTab] = useSubTab("editor");
 
   useEffect(() => {
     // Deferred (project convention): a mount effect performs no synchronous
@@ -45,8 +52,8 @@ export default function PermissionTemplatesPage() {
   useEffect(() => {
     defer(() => {
       try {
-        const subTab = new URLSearchParams(window.location.search).get("sub");
-        if (subTab === "catalog") {
+        const retiredSub = new URLSearchParams(window.location.search).get("sub");
+        if (retiredSub === "catalog") {
           router.replace(`${PERMISSION_BASE}/eligibility?sub=ceilings`);
         }
       } catch {
@@ -56,14 +63,20 @@ export default function PermissionTemplatesPage() {
   }, [router]);
 
   return (
-    <PermissionShell active="templates">
-      <div className="mb-4 space-y-4">
-        <p className="text-xs font-medium text-[var(--text-secondary)]">
-          {t("engineering.permissions.questionTemplates")}
-        </p>
-        <EntitlementRollup />
-      </div>
-      <PermissionManager initialTab="setup" initialProfileId={profileId} />
+    <PermissionShell active="templates" sub={subTab} onSubChange={setSubTab}>
+      {subTab === "profiles" ? (
+        <ProfilesView />
+      ) : (
+        <>
+          <div className="mb-4 space-y-4">
+            <p className="text-xs font-medium text-[var(--text-secondary)]">
+              {t("engineering.permissions.questionTemplates")}
+            </p>
+            <EntitlementRollup />
+          </div>
+          <PermissionManager initialTab="setup" initialProfileId={profileId} />
+        </>
+      )}
     </PermissionShell>
   );
 }

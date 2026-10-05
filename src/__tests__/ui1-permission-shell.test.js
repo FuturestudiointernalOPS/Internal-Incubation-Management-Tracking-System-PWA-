@@ -119,7 +119,7 @@ describe("UI-5 — navigation model", () => {
 
   test("the retired catalog link forwards out of Templates", () => {
     const src = read("src/app/admin/security/permissions/profiles/page.js");
-    expect(src).toContain('subTab === "catalog"');
+    expect(src).toContain('retiredSub === "catalog"');
     expect(src).toContain("/eligibility?sub=ceilings");
   });
 

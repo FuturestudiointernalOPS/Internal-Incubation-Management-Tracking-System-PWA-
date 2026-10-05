@@ -528,6 +528,7 @@
       "tabScopePolicies": "Politiques de portée",
       "tabContextRoles": "Rôles contextuels",
       "tabProfiles": "Profils",
+      "tabTemplatesEditor": "Profils d'accès",
       "profilesHint": "Un profil est la fonction contextuelle qu'une personne occupe (Participant d'un programme, Fondateur d'une venture, Facilitateur…), distincte du rôle de base de son compte (Super Admin / Personnel / Membre). Ce catalogue décide quels rôles de base peuvent porter chaque profil. C'est le vocabulaire que les phases suivantes appliqueront — le modifier ne change aucun accès à lui seul.",
       "profilesStatusPill": "Catalogue uniquement — aucun accès modifié",
       "profilesKey": "Profil",
