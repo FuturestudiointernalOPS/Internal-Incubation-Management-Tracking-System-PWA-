@@ -205,7 +205,7 @@ describe("assign guards — order before any write", () => {
     expect(sawAssign()).toBe(false);
   });
 
-  test("eligibility receives the user's role AND their groups", async () => {
+  test("eligibility receives the user's role, groups AND active profiles", async () => {
     mockState.contact = { cid: "U-1", name: "Dev", role: "intern", access_profile_id: null };
     mockState.groups = ["crm-team", "ops"];
     mockState.profileCaps = [{ module: "projects", capability: "view", access_level: 1 }];
@@ -214,6 +214,9 @@ describe("assign guards — order before any write", () => {
     expect(assertTemplateCapsEligible).toHaveBeenCalledWith({
       role: "intern",
       groups: ["crm-team", "ops"],
+      // The person holds no profile in this fixture, so the identity kind is
+      // empty — present, never omitted.
+      profiles: [],
       profileId: 5,
     });
   });

@@ -25,6 +25,7 @@
 
 import { assertTemplateCapsEligible } from "@/services/authorization/eligibilityAdmin";
 import { getUserGroupNames } from "@/models/authorization";
+import { listActiveProfileKeys } from "@/models/authorization/profileAssignmentsStore";
 
 /**
  * Separation of duties.
@@ -41,15 +42,25 @@ export function isSelfAssignment(session, userCid) {
 /**
  * Eligibility boundary for an assignment: the profile must not grant
  * capabilities the TARGET person is not eligible for. The person's identity is
- * their role plus their group names.
+ * their role, their group names, and (Phase D) the profiles they hold.
  *
  * @returns {Promise<{valid: boolean, violations: Array}>}
  */
 export async function assertAssignmentEligible(user, userCid, profileId) {
   const groups = (await getUserGroupNames(userCid)).rows.map((row) => row.group_name);
+  let profiles = [];
+  try {
+    profiles = ((await listActiveProfileKeys(userCid)).rows || []).map((row) =>
+      String(row.profile_key),
+    );
+  } catch {
+    // A missing registry table reads as "no profile" — never a failed write.
+    profiles = [];
+  }
   return assertTemplateCapsEligible({
     role: user?.role,
     groups,
+    profiles,
     profileId,
   });
 }

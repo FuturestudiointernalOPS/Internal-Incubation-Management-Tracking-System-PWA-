@@ -24,6 +24,7 @@
 
 import { MODULE_TO_FEATURE, FEATURE_ELIGIBILITY_DEFAULTS } from "@/models/authorization/eligibility";
 import { FEATURE_ORDER } from "@/models/authorization/eligibility-defaults";
+import { PROFILE_KEYS } from "@/models/authorization/profile-catalog";
 import { evaluateEligibility } from "./eligibility";
 import { getFeatureEligibilityRows } from "@/models/authorization/contextReads";
 import {
@@ -48,7 +49,14 @@ export const FEATURE_KEYS = [
   ...CONFIGURABLE_FEATURES.filter((feature) => !FEATURE_ORDER.includes(feature)).sort(),
 ];
 
-export const IDENTITY_TYPES = ["role", "group"];
+/**
+ * The three identity kinds a ceiling may be written against. `profile`
+ * (Phase D) is the contextual function a person HOLDS — distinct from the role
+ * on their account — so a rule can say "Member WITH the Founder profile" and
+ * distinguish it from a plain Member. It is an eligibility identity, never
+ * confused with a role.
+ */
+export const IDENTITY_TYPES = ["role", "group", "profile"];
 
 /**
  * The agreed eligibility-matrix identities — the ONLY identities the
@@ -181,6 +189,10 @@ export function validateEligibilityChanges(changes) {
       errors.push("empty identity_value");
       continue;
     }
+    if (identityType === "profile" && !PROFILE_KEYS.includes(identityValue)) {
+      errors.push(`unknown profile: ${identityValue}`);
+      continue;
+    }
     if (eligible !== 0 && eligible !== 1 && eligible !== null) {
       errors.push(`invalid eligible value for ${featureKey}/${identityType}/${identityValue}: ${eligible}`);
       continue;
@@ -197,10 +209,11 @@ export function validateEligibilityChanges(changes) {
  *
  * @param {string} role  the identity role (or the user's role)
  * @param {string[]} groups  the identity's effective groups (or [] for roles)
+ * @param {string[]} [profiles]  the identity's ACTIVE profile keys (Phase D)
  * @param {number|string} profileId
  * @returns {{valid: boolean, violations: Array<{module, capability, feature}>}}
  */
-export async function assertTemplateCapsEligible({ role, groups = [], profileId }) {
+export async function assertTemplateCapsEligible({ role, groups = [], profiles = [], profileId }) {
   const capsRes = await getProfileCapabilityRows(profileId);
   const caps = {};
   for (const row of capsRes.rows) {
@@ -210,7 +223,7 @@ export async function assertTemplateCapsEligible({ role, groups = [], profileId 
     }
   }
 
-  const eligRes = await getFeatureEligibilityRows(role, groups);
+  const eligRes = await getFeatureEligibilityRows(role, groups, profiles);
   const eligibility = {};
   for (const featureKey of new Set(Object.values(MODULE_TO_FEATURE))) {
     eligibility[featureKey] = evaluateEligibility(eligRes.rows, featureKey);

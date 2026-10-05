@@ -85,6 +85,7 @@ jest.mock("@/lib/requestOrigin", () => ({
 
 jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
+  invalidateAuthorizationContext: jest.fn(),
 }));
 
 const {

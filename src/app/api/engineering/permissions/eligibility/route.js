@@ -33,6 +33,7 @@ import {
   deleteEligibilityRow,
   upsertEligibilityRow,
 } from "@/models/authorization";
+import { PROFILE_KEYS } from "@/models/authorization/profile-catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +116,9 @@ export async function GET() {
       // share the same ceiling table. The UI labels them, never conflates them.
       identityGroups: ELIGIBILITY_IDENTITY_GROUPS,
       groups,
+      // Phase D — the profile keys a ceiling can be written against. The
+      // identity editor and the matrix offer them as a third identity kind.
+      profiles: PROFILE_KEYS,
       rows,
       canConfigure: !!canConfigure,
     });

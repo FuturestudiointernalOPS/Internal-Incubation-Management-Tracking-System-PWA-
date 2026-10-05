@@ -3,6 +3,7 @@ import { initDb } from "@/lib/db";
 import { getSession } from "@/server/auth/session";
 import { logPermissionAudit } from "@/models/authorization/accessQueries";
 import { requireAuthorization } from "@/models/authorization/index";
+import { invalidateAuthorizationContext } from "@/models/authorization/index";
 import { requireSameOrigin } from "@/lib/requestOrigin";
 import { getProfileDefinition } from "@/models/authorization/profile-catalog";
 import {
@@ -149,6 +150,10 @@ export async function POST(req) {
       }${reasonNote}`,
     });
 
+    // Phase D — the assignment changes which eligibility ceilings apply to this
+    // person, so their cached authorization context must go.
+    invalidateAuthorizationContext(check.normalized.contactCid);
+
     return NextResponse.json({
       success: true,
       id: inserted.rows?.[0]?.id ?? null,
@@ -230,6 +235,10 @@ export async function PATCH(req) {
         row.context_id ? `:${row.context_id}` : ""
       }${reasonNote}`,
     });
+
+    // Phase D — closing a period changes the person's active profiles, so drop
+    // their cached context too.
+    invalidateAuthorizationContext(row.contact_cid);
 
     return NextResponse.json({
       success: true,

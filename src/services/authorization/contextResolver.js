@@ -49,6 +49,23 @@ import {
   mergeEffectiveCapabilities,
 } from "./capabilityMerge";
 import { ensureEligibilitySeeded } from "./contextBootstrap";
+import { listActiveProfileKeys } from "@/models/authorization/profileAssignmentsStore";
+
+/**
+ * The person's ACTIVE profile keys, fail-soft. A missing registry table reads
+ * as "no profile" rather than failing every authorization decision — the table
+ * is created by its own screen/route, and until then eligibility behaves as if
+ * no profile row existed.
+ */
+async function safeActiveProfileKeys(cid) {
+  try {
+    const res = await listActiveProfileKeys(cid);
+    return (res?.rows || []).map((row) => String(row.profile_key));
+  } catch (error) {
+    console.warn(`[Authz] active profile keys unavailable for ${cid}:`, error.message);
+    return [];
+  }
+}
 
 /** Full capability matrix a Super Admin has by default (all modules, FULL). */
 function buildSuperAdminMatrix() {
@@ -71,7 +88,7 @@ function buildSuperAdminMatrix() {
  *
  * @param {{cid: string, role?: string, group_name?: string}} user
  */
-export async function resolveAuthorizationContext({ cid, role }) {
+export async function resolveAuthorizationContext({ cid, role, profiles }) {
   if (!cid) throw new Error("resolveAuthorizationContext: cid is required");
   await initDb();
   // Boot-time self-healing (once per process; idempotent). Run in parallel so
@@ -96,6 +113,7 @@ export async function resolveAuthorizationContext({ cid, role }) {
       role,
       isSuperAdmin: true,
       groups: [],
+      profiles: [],
       profile: null,
       eligibility: null,
       eligibilityRows: [],
@@ -108,16 +126,19 @@ export async function resolveAuthorizationContext({ cid, role }) {
   }
 
   // One wave for everything that needs only the identity: the personal grants
-  // and blocks, the contact row (profile override + group_name fallback) and the
-  // effective groups. These four reads are independent of each other — they used
-  // to be two separate waves, which cost every cold resolution an extra round
-  // trip (~130ms) for nothing.
-  const [grantRows, restrictRows, contactRes, groupList] = await Promise.all([
+  // and blocks, the contact row (profile override + group_name fallback), the
+  // effective groups, and the person's ACTIVE profiles (Phase D — the ceilings
+  // keyed on a contextual function). These reads are independent of each other.
+  const [grantRows, restrictRows, contactRes, groupList, activeProfiles] = await Promise.all([
     getUserCapabilityGrants(cid),
     getUserCapabilityRestrictions(cid),
     getContactAccessProfileAndGroup(cid),
     getEffectiveGroupsForUser(cid),
+    // A caller that already read them (the cache layer builds its key from them)
+    // passes them in, so the resolver does not repeat the query.
+    profiles && Array.isArray(profiles) ? Promise.resolve(profiles) : safeActiveProfileKeys(cid),
   ]);
+  const effectiveProfiles = activeProfiles || [];
   const grants = rowsToCaps(grantRows.rows);
   const restrictions = rowsToRestrictions(restrictRows.rows);
 
@@ -155,7 +176,7 @@ export async function resolveAuthorizationContext({ cid, role }) {
   const [capsRes, groupCapsRes, eligRes] = await Promise.all([
     getBaseCapabilityRows({ profileId, role }),
     getGroupCapabilityRows(groups),
-    getFeatureEligibilityRows(role, groups),
+    getFeatureEligibilityRows(role, groups, effectiveProfiles),
   ]);
   const baseCaps = rowsToCaps(capsRes.rows);
   const groupCaps = rowsToCaps(groupCapsRes.rows);
@@ -173,6 +194,7 @@ export async function resolveAuthorizationContext({ cid, role }) {
     role,
     isSuperAdmin: false,
     groups,
+    profiles: effectiveProfiles,
     profile: { profileId, profileName, profileSource },
     eligibility,
     eligibilityRows: eligRes.rows,

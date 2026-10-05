@@ -100,16 +100,32 @@ export function getGroupCapabilityRows(groups) {
 }
 
 /**
- * Eligibility rows for a role and its groups, in one query. The placeholders
- * keep the original `NULL` fallback for a person with no groups.
+ * Eligibility rows for a role, its groups and its active PROFILES, in one query.
+ *
+ * The role/group branch is byte-identical to the statement that existed before
+ * profiles (the endpoint suites match on SQL text); the profile branch is added
+ * only when the person actually holds profiles, so an identity with none pays
+ * exactly the query it always did. Profile rows OR with the others, exactly like
+ * role and group rows (any allow; an explicit deny still wins in the decision).
  */
-export function getFeatureEligibilityRows(role, groups) {
+export function getFeatureEligibilityRows(role, groups, profiles = []) {
   const placeholders = groups.length ? groups.map(() => "?").join(",") : "NULL";
+  if (!profiles || profiles.length === 0) {
+    return db.execute({
+      sql: `SELECT feature_key, identity_type, identity_value, eligible
+            FROM feature_eligibility
+            WHERE (identity_type = 'role' AND identity_value = ?)
+               OR (identity_type = 'group' AND identity_value IN (${placeholders}))`,
+      args: [role, ...groups],
+    });
+  }
+  const profilePlaceholders = profiles.map(() => "?").join(",");
   return db.execute({
     sql: `SELECT feature_key, identity_type, identity_value, eligible
             FROM feature_eligibility
             WHERE (identity_type = 'role' AND identity_value = ?)
-               OR (identity_type = 'group' AND identity_value IN (${placeholders}))`,
-    args: [role, ...groups],
+               OR (identity_type = 'group' AND identity_value IN (${placeholders}))
+               OR (identity_type = 'profile' AND identity_value IN (${profilePlaceholders}))`,
+    args: [role, ...groups, ...profiles],
   });
 }
