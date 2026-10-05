@@ -28,6 +28,7 @@ import {
   getAuthorizationContext,
 } from "@/services/authorization/context";
 import { getUserEffectiveProfile } from "@/services/authorization/accessProfiles";
+import { listProfileAssignments } from "@/models/authorization/profileAssignmentsStore";
 import {
   getContactForEffectivePermissions,
   getCurrentSupervisor,
@@ -182,6 +183,14 @@ export async function buildUserPermissionDetail(userCid) {
   // that produced it) + the raw capability inputs per module.
   const explanation = buildPermissionExplanation(authorizationContext);
 
+  // Phase G — the assignment registry, so the explanation shows the profile
+  // PERIODS that produced the active profiles (context, source, dates), not just
+  // the resulting keys. Best-effort: an un-migrated database has no registry.
+  let profileAssignments = [];
+  try {
+    profileAssignments = (await listProfileAssignments(userCid)).rows || [];
+  } catch (_) {}
+
   const grants = await listUserCapabilitiesForUser(userCid);
   const restrictions = await listUserCapabilityRestrictionsForUser(userCid);
   const effectiveProfile = await getUserEffectiveProfile(userCid, user.role);
@@ -207,7 +216,7 @@ export async function buildUserPermissionDetail(userCid) {
     groups,
     effectiveProfile,
     effectivePermissions: matrix,
-    explanation,
+    explanation: { ...explanation, profileAssignments },
     moduleToFeature: MODULE_TO_FEATURE,
     individualGrants: grants.rows,
     individualRestrictions: restrictions.rows,

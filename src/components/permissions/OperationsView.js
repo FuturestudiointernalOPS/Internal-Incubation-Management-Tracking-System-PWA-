@@ -194,6 +194,17 @@ export default function OperationsView() {
               />
             </div>
 
+            {/* Phase G — the profile-assignment cards this pass opened/closed. */}
+            {report.profileAssignments && (
+              <p className="text-[10px] leading-relaxed text-[var(--text-secondary)]">
+                <span className="font-bold">
+                  {t("engineering.permissions.operationsCards")}:
+                </span>{" "}
+                +{(report.profileAssignments.opened || []).length} / −
+                {(report.profileAssignments.closed || []).length}
+              </p>
+            )}
+
             {contexts.length > 0 ? (
               <div className="space-y-1.5">
                 {contexts.map((context) => (
@@ -322,6 +333,22 @@ export default function OperationsView() {
                       </span>{" "}
                       {(row.applied || []).join(", ") || "—"}
                     </p>
+                    {/* Phase G — profile + card. */}
+                    {(row.cards || []).length > 0 && (
+                      <p className="mt-0.5 text-[10px] leading-relaxed text-[var(--text-secondary)]">
+                        <span className="font-bold">
+                          {t("engineering.permissions.operationsCards")}:
+                        </span>{" "}
+                        {row.cards
+                          .map(
+                            (card) =>
+                              `${card.profileKey}${
+                                card.contextId ? ` · ${card.contextId}` : ""
+                              } (${card.source}/${card.status})`,
+                          )
+                          .join(", ")}
+                      </p>
+                    )}
                     {(row.driftToAdd?.length > 0 || row.driftToRemove?.length > 0) && (
                       <p className="mt-0.5 text-[10px] leading-relaxed text-amber-400">
                         <span className="font-bold">

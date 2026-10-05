@@ -51,6 +51,29 @@ import {
   profileRoleGateDecision,
 } from "./profileCatalog";
 import { syncContextGrantsAssignments } from "./contextGrantAssignments";
+import { logPermissionAudit } from "@/models/authorization/accessQueries";
+
+/**
+ * Phase G — record the automatic attribution / withdrawal in the audit log.
+ * actor = the system, because no person ran it. Best-effort: a log failure must
+ * never take down a reconcile that already wrote the rows. Only ACTUAL opens and
+ * closes are logged (a re-date changes no ownership and stays out of the log).
+ */
+async function logAutomaticAssignmentChanges(cid, context, profileKey, report) {
+  const write = async (action, verb, ids) => {
+    if (!ids || ids.length === 0) return;
+    await logPermissionAudit({
+      actorCid: "system",
+      actorName: "System",
+      targetCid: String(cid),
+      targetName: String(cid),
+      action,
+      details: `Automatic: profile ${profileKey} in ${context} ${verb} [${ids.join(", ")}]`,
+    });
+  };
+  await write("profile_assignment_created", "opened", report.opened);
+  await write("profile_assignment_closed", "closed", report.closed);
+}
 import { syncContextGrantsHistory } from "./contextGrantHistory";
 
 export async function syncContextGrantsForUser(
@@ -165,6 +188,11 @@ export async function syncContextGrantsForUser(
       sourceIds,
       endsAt: managesExpiry ? expiresAt : null,
     });
+
+    // Phase G — an automatic open/close IS a permission change, so it is
+    // recorded (actor = system) beside the manual entries the Person Access
+    // screen already writes.
+    await logAutomaticAssignmentChanges(cid, context, profileKey, assignmentReport);
 
     const assignmentsChanged =
       assignmentReport.opened.length +
