@@ -45,6 +45,11 @@ import {
   resolveContextJustification,
 } from "./contextGrantJustification";
 import { invalidateUserContext } from "./contextGrantCache";
+import {
+  buildProfileRoleGap,
+  profileKeyForContextRole,
+  profileRoleGateDecision,
+} from "./profileCatalog";
 
 export async function syncContextGrantsForUser(
   cid,
@@ -76,6 +81,28 @@ export async function syncContextGrantsForUser(
     const { sourceIds, profile, desired, reason, managesExpiry } = support;
     const expiresAt = managesExpiry ? support.expiresAt : null;
     const resolved = { profile, desired, reason };
+
+    // Phase B — profile ↔ role fit. The couple's profile exists only while the
+    // justifying relationship does, so the check runs beside `sourceIds`. In the
+    // DEFAULT "warn" mode it is REPORTED and changes nothing; only "block"
+    // (Phase H) refuses, before any write, so nothing is applied or revoked.
+    const profileRoleGap = sourceIds.length
+      ? await buildProfileRoleGap({
+          profileKey: profileKeyForContextRole(context, roleKey),
+          cid,
+        })
+      : null;
+    const profileGate = profileRoleGateDecision(profileRoleGap);
+    if (profileGate.blocked) {
+      return {
+        success: false,
+        cid: String(cid),
+        context,
+        roleKey,
+        error: "profile-role-not-allowed",
+        profileRoleGap: profileGate.gap,
+      };
+    }
 
     // 3. What exists today (manual grants + what we applied before)?
     const [existingRes, provenanceRes] = await Promise.all([
@@ -145,6 +172,9 @@ export async function syncContextGrantsForUser(
       applied: plan.toApply.map((item) => `${item.module}.${item.capability}`),
       revoked: plan.toRevoke.map((item) => `${item.module}.${item.capability}`),
       reason: resolved.reason,
+      // The Phase B écart (or null when the role fits) — reported, never acted
+      // on, in "warn" mode.
+      profileRoleGap: profileGate.gap,
     };
   } catch (error) {
     console.warn(`[Authz] syncContextGrantsForUser(${cid}) failed:`, error.message);

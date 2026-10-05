@@ -8,7 +8,7 @@
 > Companion documents (per-phase detail): `PHASE5_SCOPE_ENGINE.md`,
 > `PHASE5B_VENTURE_PILOT.md`, `PHASE5C_STRICT_MODE.md`,
 > `PHASE6_CONTEXT_GRANT_APPLICATION.md`, `PHASE3_LMS_RETIRED_GOVERNANCE.md`,
-> `IDENTITY_*.md`, `ROADMAP_ROLES_PERSONAS_ACCESS.md`, `PRODUCTION_TEST.md`.
+> `IDENTITY_*.md`, `ROADMAP_ROLES_PROFILES_ACCESS.md`, `PRODUCTION_TEST.md`.
 
 ---
 
@@ -58,6 +58,8 @@ capability rather than lowering it. Locked by
 | Concept | Status | Where |
 |---|---|---|
 | Identity vs contextual responsibility | IMPLEMENTED | `docs/IDENTITY_*.md`; role is no longer mutated by venture/program membership |
+| Profile catalogue (roadmap A) | IMPLEMENTED | `profiles` table + `models/authorization/profile-catalog.js` + `services/authorization/profileCatalog.js`; admin at Permission Center → Rules → Profiles. Catalogue of seven profiles with their context and allowed baseline roles |
+| Profile ↔ role rule (roadmap B) | IMPLEMENTED (warning) | `evaluateProfileRoleFit` + `PROFILE_ROLE_ENFORCEMENT` ("warn", → "block" in H). The automatic reconcile (`contextGrantReconcile.js`) and the manual responsibility assignment (`responsibilityAssignment.js`) REPORT the écart; nothing is blocked yet (§13) |
 | Eligibility / ceiling | IMPLEMENTED | `models/authorization/eligibility.js`, `eligibility-defaults.js`, admin at `.../permissions/eligibility` |
 | Reusable permission sets | IMPLEMENTED (as **Access Profiles / templates**) | `access_profiles` + `access_profile_capabilities`; UI: Permission Center → Profiles |
 | Role → profile defaults | IMPLEMENTED | `role_access_profile_defaults` |
@@ -82,6 +84,21 @@ The established direction (`Platform Owner | Internal Staff | Everyone Else`)
 maps onto the existing role values; assigning a contextual responsibility must
 **never** rewrite `contacts.role`. Where a route still keys behaviour on the
 role *label* rather than the relationship, that is treated as a defect (§4).
+
+### Profiles (roadmap `ROADMAP_ROLES_PROFILES_ACCESS.md`)
+
+A **profile** is the contextual function a person occupies (Participant of a
+program, Founder of a venture, Facilitator, Program Manager…), distinct from the
+baseline role on `contacts.role` (super_admin / staff / member). Phase A made it
+a catalogue; Phase B turned "this profile is open only to these baseline roles"
+into an OBSERVABLE rule.
+
+In Phase B the rule **warns only**: `PROFILE_ROLE_ENFORCEMENT` defaults to
+`"warn"`, so a person holding a profile from a non-listed role is reported as an
+écart on both attribution paths (the automatic context reconcile and the manual
+responsibility assignment) and loses no access. Phase H flips the same constant
+to `"block"` once the legacy profile values on `contacts.role` are cleaned up.
+Everything is additive and reversible.
 
 ---
 

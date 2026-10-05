@@ -75,6 +75,20 @@ export async function syncAllContextGrants(
       applied,
       revoked,
       changes: applied.length + revoked.length,
+      // Phase B — the profile ↔ role écarts seen this pass (warning mode:
+      // reported, never acted on).
+      profileRoleGaps: results.flatMap((result) =>
+        result.profileRoleGap
+          ? [
+              {
+                cid: result.cid,
+                context: result.context,
+                roleKey: result.roleKey,
+                ...result.profileRoleGap,
+              },
+            ]
+          : [],
+      ),
       results,
     };
   } catch (error) {
@@ -99,11 +113,13 @@ export async function syncAllContextGrantsEverywhere() {
       applied: contextResult.applied || [],
       revoked: contextResult.revoked || [],
       changes: contextResult.changes ?? 0,
+      profileRoleGaps: contextResult.profileRoleGaps || [],
     })),
     evaluated: contexts.reduce((sum, contextResult) => sum + (contextResult.evaluated ?? 0), 0),
     applied,
     revoked,
     changes: applied.length + revoked.length,
+    profileRoleGaps: contexts.flatMap((contextResult) => contextResult.profileRoleGaps || []),
   };
 }
 

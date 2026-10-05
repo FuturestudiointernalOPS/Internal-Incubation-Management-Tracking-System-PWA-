@@ -17,6 +17,8 @@ import {
   grantBaseAccessForResponsibility,
   revokeBaseAccessForResponsibility,
   formatBaseAccessNote,
+  buildResponsibilityProfileGap,
+  responsibilityProfileGate,
 } from "@/services/authorization/responsibilityAssignment";
 
 /**
@@ -60,8 +62,34 @@ export async function PUT(req) {
     // Get target user name
     const targetResult = await getContactName(user_cid);
     const targetName = targetResult.rows[0]?.name || "Unknown";
+    const responsibilityKey = responsibilityResult.rows[0]?.key || null;
 
     if (action === "assign") {
+      // Phase B — profile ↔ role écart (warning by default). A responsibility
+      // whose KEY names a profile attributes that profile manually; when the
+      // assignee's baseline role is not one the profile is open to, the écart is
+      // REPORTED below and refused only under "block" (Phase H). Default "warn"
+      // never changes this route's outcome.
+      const profileRoleGap = await buildResponsibilityProfileGap({
+        userCid: user_cid,
+        responsibilityKey,
+      });
+      const profileGate = responsibilityProfileGate(profileRoleGap);
+      const profileNote = profileRoleGap
+        ? `. Role notice: profile "${profileRoleGap.profile}" is not open to role "${profileRoleGap.role}"`
+        : "";
+
+      if (profileGate.blocked) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Profile "${profileRoleGap.profile}" is not open to role "${profileRoleGap.role}".`,
+            profile_role_gap: profileRoleGap,
+          },
+          { status: 409 },
+        );
+      }
+
       const result = await assignResponsibility(user_cid, responsibility_id, session?.cid);
       if (!result.success) {
         return NextResponse.json(
@@ -74,7 +102,6 @@ export async function PUT(req) {
       // the base `view` capability so the sidebar area actually loads. Never
       // fails the assignment (best-effort; a failure only leaves the area
       // without module access, like before).
-      const responsibilityKey = responsibilityResult.rows[0]?.key || null;
       const grantedModules = await grantBaseAccessForResponsibility({
         userCid: user_cid,
         responsibilityKey,
@@ -89,12 +116,13 @@ export async function PUT(req) {
         targetCid: user_cid,
         targetName,
         action: "responsibility_assigned",
-        details: `Assigned responsibility: ${respName}${baseAccessNote}`,
+        details: `Assigned responsibility: ${respName}${baseAccessNote}${profileNote}`,
       });
 
       return NextResponse.json({
         success: true,
-        message: `Assigned "${respName}" to ${targetName}${baseAccessNote}`,
+        message: `Assigned "${respName}" to ${targetName}${baseAccessNote}${profileNote}`,
+        ...(profileRoleGap ? { profile_role_gap: profileRoleGap } : {}),
       });
     }
 
@@ -111,7 +139,6 @@ export async function PUT(req) {
       // responsibility created (its ledger), so removing a responsibility no
       // longer leaves its area silently reachable. Best-effort — a failure only
       // leaves the grants in place, as before.
-      const responsibilityKey = responsibilityResult.rows[0]?.key || null;
       const revokedModules = await revokeBaseAccessForResponsibility({
         userCid: user_cid,
         responsibilityKey,
