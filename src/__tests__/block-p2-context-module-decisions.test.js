@@ -249,6 +249,7 @@ describe("bootstrap — eligibility is seeded once per process", () => {
       "eligibility-ventures-founder-v1",
       "eligibility-template-ceiling-v1",
       "eligibility-programs-assignment-v1",
+      "eligibility-profile-defaults-v1",
     ]);
   });
 

@@ -248,6 +248,36 @@ describe("legacy role cleanup store", () => {
 
 // ── 4. Route contract ────────────────────────────────────────────────────────
 
+// ── 5. Vocabulary — profiles are not roles ───────────────────────────────────
+
+describe("eligibility vocabulary — profiles live in their catalogue", () => {
+  const {
+    FEATURE_ELIGIBILITY_DEFAULTS,
+    FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
+  } = require("@/models/authorization/eligibility");
+  const { PROFILE_KEYS } = require("@/models/authorization/profile-catalog");
+
+  test("no catalogue profile remains in the ROLE eligibility defaults", () => {
+    for (const roles of Object.values(FEATURE_ELIGIBILITY_DEFAULTS)) {
+      for (const role of roles) expect(PROFILE_KEYS).not.toContain(role);
+    }
+  });
+
+  test("every PROFILE default is a catalogue profile", () => {
+    for (const profiles of Object.values(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS)) {
+      for (const profile of profiles) expect(PROFILE_KEYS).toContain(profile);
+    }
+  });
+
+  test("the profile ceiling mirrors coverage the role list used to carry", () => {
+    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.lms).toContain("program_manager");
+    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.investors).toContain("investor");
+    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.ventures).toContain("founder");
+    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.programs).toContain("facilitator");
+    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.operations).toContain("participant");
+  });
+});
+
 describe("GET/POST /api/engineering/permissions/legacy-role-cleanup", () => {
   const loadRoute = () => {
     jest.resetModules();
