@@ -92,6 +92,39 @@ describe("the credential", () => {
   });
 });
 
+describe("the sweep is reachable by a clock", () => {
+  test("the middleware lets /api/reminders/sweep through without a session", () => {
+    // A cron job holds no session cookie. If the path is not in the middleware's
+    // allow-list the request is refused at the edge with 401 and the route never
+    // runs — the job looks configured and silently never sends anything. This
+    // was true of the first production deploy: the live endpoint answered 401
+    // "Authentication required." instead of the route's own 503.
+    const source = require("fs").readFileSync(
+      require("path").join(process.cwd(), "src/proxy.js"),
+      "utf8",
+    );
+
+    expect(source).toContain("api/reminders/sweep");
+    // …and it sits in the list that admits the request, not in one that refuses it.
+    const publicBlock = source.slice(source.indexOf("const publicApiPaths"), source.indexOf("const softAuthPaths"));
+    expect(publicBlock).toContain("/api/reminders/sweep");
+  });
+
+  test("the Venture reminder routes themselves still require a session", () => {
+    // Only the sweeper is admitted. Managing rules and addresses is a signed-in
+    // person's job, and that gate stays at the edge as well as in the route.
+    const source = require("fs").readFileSync(
+      require("path").join(process.cwd(), "src/proxy.js"),
+      "utf8",
+    );
+
+    const publicBlock = source.slice(source.indexOf("const publicApiPaths"), source.indexOf("const softAuthPaths"));
+    // Managing rules and addresses stays a signed-in person's job, gated at the
+    // edge as well as in the route — so the VENTURE reminder routes are NOT here.
+    expect(publicBlock).not.toContain("/api/ventures");
+  });
+});
+
 describe("what it sweeps", () => {
   test("with no Venture named, every Venture with rules", async () => {
     process.env.CRON_SECRET = "s3cret";
