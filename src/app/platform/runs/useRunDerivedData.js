@@ -249,12 +249,13 @@ export default function useRunDerivedData({
     const latest = new Map();
     for (const email of emailLog) latest.set(`${email.submission_id}:${email.email_type}`, email);
     const empty = () => ({ sent: 0, delivered: 0, opened: 0, clicked: 0, delayed: 0, complained: 0, failed: 0, bounced: 0, cancelled: 0, skipped: 0, pending: 0 });
-    const stats = { approval: empty(), activation: empty(), acknowledgement: empty() };
+    const stats = { approval: empty(), activation: empty(), acknowledgement: empty(), result: empty() };
     const notDelivered = [];
     for (const email of latest.values()) {
       const bucket =
         email.email_type === "activation" ? stats.activation
         : email.email_type === "acknowledgement" ? stats.acknowledgement
+        : email.email_type === "result" ? stats.result
         : stats.approval;
       const status = email.status;
       if (status === "sent") bucket.sent++;
