@@ -1,5 +1,7 @@
-import { Eye, FileText, History, Loader2, Pencil } from "lucide-react";
+import { ClipboardCheck, Eye, FileText, History, Loader2, Pencil, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
+import AppMenu from "@/components/ui/AppMenu";
 import {
   ACCOUNT_STATUS_STYLES, EMAIL_STATUS_CONFIG, PAYMENT_ACCESS_LABELS,
   PAYMENT_EMAIL_LABELS, PAYMENT_STATUS_STYLES, SUB_STATUS,
@@ -9,6 +11,7 @@ import SubmissionTimeline from "./SubmissionTimeline";
 
 export default function OverviewResponsesTable({ ctx }) {
   const { t } = useI18n();
+  const router = useRouter();
   const { allFilteredSelected, duplicateEmailSet, duplicateGroups, emailLog, evaluatedSubmissionIds, evaluations, handleDeleteSubmission, onEditRespondentEmail, openReview, pagedSubmissions, paymentsBySubmission, perPage, respSafePage, respTotalPages, reviews, selectedSet, selectedSubmission, setPreviewSubmission, setRespPage, setSelectedSubmission, subLoading, toggleSelect, toggleSelectAllFiltered } = ctx;
   return (
     <>
@@ -38,7 +41,7 @@ export default function OverviewResponsesTable({ ctx }) {
                         <th className="px-4 py-3">{t("platformMisc.runs.colActivationEmail")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.colAccountStatus")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.colPayment")}</th>
-                        <th className="px-4 py-3">{t("platformMisc.runs.colActions")}</th>
+                        <th className="px-4 py-3 text-right">{t("platformMisc.runs.colActions")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--border-primary)]">
@@ -236,26 +239,24 @@ export default function OverviewResponsesTable({ ctx }) {
                                 );
                               })()}
                             </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-1">
-                                <button onClick={() => setSelectedSubmission(selectedSubmission?.id === submission.id ? null : submission)} className="px-2 py-1 rounded-lg bg-tertiary text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wide hover:bg-brand-orange/10 hover:text-[var(--brand-orange)] flex items-center gap-1">
-                                  <History className="w-3 h-3" /> {t("platformMisc.runs.history")}
-                                </button>
-                                <a href={`/platform/runs/review/${submission.id}`} className="px-2 py-1 rounded-lg bg-purple-500/10 text-purple-400 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 flex items-center gap-1">
-                                  <Eye className="w-3 h-3" /> {t("platformMisc.runs.full")}
-                                </a>
-                                {submission.status !== "draft" && evaluatedSubmissionIds.has(submission.id) && (
-                                  <button onClick={() => setPreviewSubmission(submission)} className="px-2 py-1 rounded-lg bg-sky-500/10 text-sky-400 text-[10px] font-bold uppercase tracking-wide hover:bg-sky-500/20 flex items-center gap-1">
-                                    <FileText className="w-3 h-3" /> {t("platformMisc.runs.previewResult")}
-                                  </button>
-                                )}
-                                {submission.status === "submitted" && (
-                                  <button onClick={() => openReview(submission)} className="px-2 py-1 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:bg-brand-orange/20">{t("platformMisc.runs.review")}</button>
-                                )}
-                                <button onClick={() => onEditRespondentEmail(submission)} title={t("platformMisc.runs.editEmailTitle")} className="px-2 py-1 rounded-lg bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase tracking-wide hover:bg-amber-500/20 flex items-center gap-1">
-                                  <Pencil className="w-3 h-3" /> {t("platformMisc.runs.editEmail")}
-                                </button>
-                                <button onClick={() => handleDeleteSubmission(submission.id)} className="px-2 py-1 rounded-lg bg-rose-500/10 text-rose-500 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20">{t("platformMisc.runs.delete")}</button>
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex items-center justify-end">
+                                <AppMenu
+                                  label={t("platformMisc.runs.colActions")}
+                                  align="right"
+                                  items={[
+                                    { key: "history", label: t("platformMisc.runs.history"), icon: History, onSelect: () => setSelectedSubmission(selectedSubmission?.id === submission.id ? null : submission) },
+                                    { key: "full", label: t("platformMisc.runs.full"), icon: Eye, onSelect: () => router.push(`/platform/runs/review/${submission.id}`) },
+                                    submission.status !== "draft" && evaluatedSubmissionIds.has(submission.id)
+                                      ? { key: "preview", label: t("platformMisc.runs.previewResult"), icon: FileText, onSelect: () => setPreviewSubmission(submission) }
+                                      : null,
+                                    submission.status === "submitted"
+                                      ? { key: "review", label: t("platformMisc.runs.review"), icon: ClipboardCheck, onSelect: () => openReview(submission) }
+                                      : null,
+                                    { key: "edit-email", label: t("platformMisc.runs.editEmail"), icon: Pencil, onSelect: () => onEditRespondentEmail(submission) },
+                                    { key: "delete", label: t("platformMisc.runs.delete"), icon: Trash2, danger: true, separator: true, onSelect: () => handleDeleteSubmission(submission.id) },
+                                  ].filter(Boolean)}
+                                />
                               </div>
                             </td>
                           </tr>
