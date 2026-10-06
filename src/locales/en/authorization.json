@@ -1,0 +1,61 @@
+{
+  "authorization": {
+    "people": {
+      "title": "People permissions",
+      "description": "See what each person can do, why they have access, and adjust it. Everything is organized by person to avoid mixing different concepts.",
+      "hint": "Pick a person to see their effective access broken down by source (Profile | Group | Grant | Restriction), what the Scope Engine resolves, and make changes below.",
+      "selectPerson": "Select a person",
+      "selectPrompt": "Select a person to see their access.",
+      "identity": {
+        "role": "Role",
+        "superAdmin": "Super Admin bypass",
+        "profile": "Profile",
+        "groups": "Groups"
+      },
+      "sections": {
+        "readAccess": "Effective access (read-only)",
+        "readAccessDescription": "View what this person can actually do and the reasons behind it.",
+        "whatDeterminesAccess": "What determines this access",
+        "whatDeterminesAccessDescription": "Contexts and scope explain why the person is eligible for certain capabilities.",
+        "capabilitiesMatrix": "Capabilities by module",
+        "capabilitiesMatrixDescription": "Effective permissions grouped by module. Expand a row to see sources and reasons."
+      },
+      "contexts": {
+        "title": "Contexts",
+        "description": "The contexts this person belongs to (based on their assignments). These help explain eligibility.",
+        "showDetails": "Show context details",
+        "hideDetails": "Hide context details",
+        "unavailable": "Contexts unavailable",
+        "none": "No contexts found"
+      },
+      "scope": {
+        "title": "Scope (resolved)",
+        "description": "What the Scope Engine currently resolves for this person. This is read-only verification.",
+        "showDetails": "Show scope details",
+        "hideDetails": "Hide scope details"
+      },
+      "matrix": {
+        "showHeldOnly": "Show only held",
+        "showAll": "Show all capabilities",
+        "searchPlaceholder": "Search module or capability...",
+        "effective": "Effective",
+        "sources": "Sources",
+        "why": "Why this access?",
+        "noResults": "No capabilities match your filters.",
+        "actionError": "Could not save this change. Please try again."
+      },
+      "empty": {
+        "noPerson": "Select a person to start.",
+        "noPermissions": "This person has no effective permissions in the visible modules."
+      },
+      "actions": {
+        "grant": "Grant",
+        "revoke": "Revoke",
+        "refresh": "Refresh"
+      },
+      "help": {
+        "effectivePermissions": "Effective permissions = the result after applying profiles, groups, grants, and restrictions. Sources show the reasoning."
+      }
+    }
+  }
+}

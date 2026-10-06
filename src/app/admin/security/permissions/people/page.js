@@ -5,25 +5,19 @@ import PermissionShell from "@/components/permissions/PermissionShell";
 import IndividualAccessScreen from "@/components/permissions/IndividualAccessScreen";
 import { useI18n } from "@/lib/i18n";
 
-/**
- * Person access — ONE screen under one door.
- *
- * Pick a person, see everything they can do and why (read), and change it
- * (write). The former "Person access" / "Job shortcuts" sub-tabs were retired:
- * with the read-only job report gone, the sub-tab bar had nothing left to
- * switch between, so the door renders the person-access screen directly.
- *
- * Pre-merge deep links (?sub=search, ?sub=matrix, ?sub=jobs) simply land here;
- * the `?sub=` value is ignored, and `?cid=` still preselects a person.
- */
 export default function PermissionPeoplePage() {
   const { t } = useI18n();
 
   return (
     <PermissionShell active="people">
-      <p className="mb-4 text-xs font-medium text-[var(--text-secondary)]">
-        {t("engineering.permissions.questionPeople")}
-      </p>
+      <div className="mb-5 space-y-1.5">
+        <h1 className="text-lg font-black tracking-tight text-[var(--text-primary)]">
+          {t("authorization.people.title")}
+        </h1>
+        <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
+          {t("authorization.people.description")}
+        </p>
+      </div>
       <IndividualAccessScreen />
     </PermissionShell>
   );

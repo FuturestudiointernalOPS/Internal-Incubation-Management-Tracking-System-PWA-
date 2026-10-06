@@ -77,9 +77,9 @@ export default function IndividualAccessScreen() {
   }, []);
 
   return (
-    <div className="space-y-4">
-      <p className="text-xs font-medium text-[var(--text-secondary)]">
-        {t("engineering.permissions.peopleHint")}
+    <div className="space-y-5">
+      <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
+        {t("authorization.people.hint")}
       </p>
 
       <PersonPicker selectedCid={person?.cid} onSelect={pick} />
@@ -90,9 +90,6 @@ export default function IndividualAccessScreen() {
             person={person}
             onAccessChanged={onAccessChanged}
             profilesSlot={
-              /* The Phase C registry — identity first, then the profiles that
-                 put the person in a context. Keyed on the cid so a read for the
-                 previous person never flashes. */
               <ProfileAssignmentsSection
                 key={`profiles-${person.cid}`}
                 cid={person.cid}
@@ -107,14 +104,12 @@ export default function IndividualAccessScreen() {
             overrideOpen={overrideOpen}
             onOverrideClose={() => setOverrideOpen(false)}
           />
-          {/* Activity LAST — what has been done to this account lately, without
-              leaving the screen. */}
           <PersonRecentChanges key={`recent-${person.cid}`} person={person} />
         </div>
       ) : (
-        <div className="ios-card !p-6 border-[var(--border-primary)] text-center">
-          <p className="text-xs font-bold text-[var(--text-secondary)]">
-            {t("engineering.permissions.peopleSelectPrompt")}
+        <div className="rounded-2xl border border-[var(--border-primary)] bg-[var(--surface-1)] p-6 text-center shadow-sm">
+          <p className="text-sm font-medium text-[var(--text-secondary)]">
+            {t("authorization.people.selectPrompt")}
           </p>
         </div>
       )}

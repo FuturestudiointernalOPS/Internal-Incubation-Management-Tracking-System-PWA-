@@ -1,0 +1,61 @@
+{
+  "authorization": {
+    "people": {
+      "title": "Autorisations par personne",
+      "description": "Voir ce que chaque personne peut faire, pourquoi elle y a accès et ajuster ses autorisations. L'affichage est regroupé par personne pour plus de clarté.",
+      "hint": "Sélectionnez une personne pour voir ses accès effectifs décomposés par source (Profil | Groupe | Octroi | Restriction), ce que le moteur de portée résout, et modifiez-les ci-dessous.",
+      "selectPerson": "Sélectionner une personne",
+      "selectPrompt": "Sélectionnez une personne pour voir ses accès.",
+      "identity": {
+        "role": "Rôle",
+        "superAdmin": "Bypass Super Admin",
+        "profile": "Profil",
+        "groups": "Groupes"
+      },
+      "sections": {
+        "readAccess": "Accès effectifs (lecture seule)",
+        "readAccessDescription": "Affiche ce que cette personne peut réellement faire et les raisons qui l'expliquent.",
+        "whatDeterminesAccess": "Ce qui détermine ces accès",
+        "whatDeterminesAccessDescription": "Les contextes et la portée expliquent pourquoi cette personne est éligible à certaines capacités.",
+        "capabilitiesMatrix": "Capacités par module",
+        "capabilitiesMatrixDescription": "Autorisations effectives regroupées par module. Dépliez une ligne pour voir les sources et le motif."
+      },
+      "contexts": {
+        "title": "Contextes",
+        "description": "Les contextes auxquels cette personne appartient (selon ses affectations). Ils aident à expliquer son éligibilité.",
+        "showDetails": "Afficher les détails des contextes",
+        "hideDetails": "Masquer les détails des contextes",
+        "unavailable": "Contextes non disponibles",
+        "none": "Aucun contexte trouvé"
+      },
+      "scope": {
+        "title": "Portée (résolue)",
+        "description": "Ce que le moteur de portée résout actuellement pour cette personne. Il s'agit d'une vérification en lecture seule.",
+        "showDetails": "Afficher les détails de la portée",
+        "hideDetails": "Masquer les détails de la portée"
+      },
+      "matrix": {
+        "showHeldOnly": "Afficher uniquement ce qui est détenu",
+        "showAll": "Afficher toutes les capacités",
+        "searchPlaceholder": "Rechercher un module ou une capacité...",
+        "effective": "Effectif",
+        "sources": "Sources",
+        "why": "Pourquoi cet accès ?",
+        "noResults": "Aucune capacité ne correspond à vos filtres.",
+        "actionError": "Impossible d'enregistrer ce changement. Veuillez réessayer."
+      },
+      "empty": {
+        "noPerson": "Sélectionnez une personne pour commencer.",
+        "noPermissions": "Cette personne n'a aucun accès effectif dans les modules visibles."
+      },
+      "actions": {
+        "grant": "Accorder",
+        "revoke": "Révoquer",
+        "refresh": "Actualiser"
+      },
+      "help": {
+        "effectivePermissions": "Les accès effectifs = le résultat après application des profils, groupes, octrois et restrictions. Les sources expliquent ce calcul."
+      }
+    }
+  }
+}
