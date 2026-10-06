@@ -1,0 +1,458 @@
+"use client";
+
+import { Plus, Loader2, FileText } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
+import CurriculumMaterialsSection from "./edit-modal/CurriculumMaterialsSection";
+import TargetGroupsSection from "./edit-modal/TargetGroupsSection";
+import ProgramFacilitatorsSection from "./edit-modal/ProgramFacilitatorsSection";
+import InlineGroupCreation from "./edit-modal/InlineGroupCreation";
+import StrategicKpisSection from "./edit-modal/StrategicKpisSection";
+import ProgramBasicsFields from "./edit-modal/ProgramBasicsFields";
+import PersonnelMultiSelect from "./edit-modal/PersonnelMultiSelect";
+
+/**
+ * EditProgramModal
+ *
+ * Full-screen modal for editing a programme's operational registry.
+ *
+ * Props:
+ * - editingProgram          {object|null}  The program being edited (null = closed)
+ * - setEditingProgram       {fn}           Setter for editingProgram state
+ * - programDateError        {string}       Date validation error message
+ * - setProgramDateError     {fn}           Setter
+ * - validateEditDates       {fn}           (start, end, weeks) => string
+ * - isUpdating              {boolean}      Save in progress
+ * - isUploading             {boolean}      File upload in progress
+ * - isCreatingGroup         {boolean}
+ * - setIsCreatingGroup      {fn}
+ * - newGroup                {object}
+ * - setNewGroup             {fn}
+ * - showCreateNote          {boolean}
+ * - setShowCreateNote       {fn}
+ * - newNoteTitle            {string}
+ * - setNewNoteTitle         {fn}
+ * - creatingNote            {boolean}
+ * - editKpiInput            {object}
+ * - setEditKpiInput         {fn}
+ * - isKpiSubmitting         {boolean}
+ * - facilitatorPool         {Array}
+ * - facilitatorSearch       {string}
+ * - setFacilitatorSearch    {fn}
+ * - facBusy                 {boolean}
+ * - inviteForm              {object}
+ * - setInviteForm           {fn}
+ * - teams                   {Array}
+ * - notes                   {Array}
+ * - setNotes                {fn}
+ * - knowledgeItems          {Array}
+ * - editingKpis             {Array}
+ * - programRegLink          {object|null}
+ * - groupRegLinks           {object}       { [groupId]: url }
+ * - userRole                {string}
+ * - onSubmit                {fn}           handleUpdate (form submit handler)
+ * - onAddKpi                {fn}
+ * - onDeleteKpi             {fn}
+ * - onAddFacilitator        {fn}
+ * - onRemoveFacilitator     {fn}
+ * - onToggleFacOverride     {fn}
+ * - onToggleFacDefault      {fn}
+ * - onCreateFacilitator     {fn}
+ * - onSetLeadFacilitator    {fn}
+ * - onFileUpload            {fn}
+ * - onCreateConceptNote     {fn}
+ * - onCreateGroupInline     {fn}
+ * - onSaveAsTemplate        {fn}
+ */
+export default function EditProgramModal({
+  editingProgram,
+  setEditingProgram,
+  programDateError,
+  setProgramDateError,
+  validateEditDates,
+  isUpdating,
+  isUploading,
+  isCreatingGroup,
+  setIsCreatingGroup,
+  newGroup,
+  setNewGroup,
+  showCreateNote,
+  setShowCreateNote,
+  newNoteTitle,
+  setNewNoteTitle,
+  creatingNote,
+  editKpiInput,
+  setEditKpiInput,
+  isKpiSubmitting,
+  facilitatorPool,
+  facilitatorSearch,
+  setFacilitatorSearch,
+  facBusy,
+  inviteForm,
+  setInviteForm,
+  teams,
+  notes,
+  setNotes,
+  knowledgeItems,
+  editingKpis,
+  programRegLink,
+  groupRegLinks,
+  userRole,
+  onSubmit,
+  onAddKpi,
+  onDeleteKpi,
+  onAddFacilitator,
+  onRemoveFacilitator,
+  onToggleFacOverride,
+  onToggleFacDefault,
+  onCreateFacilitator,
+  onSetLeadFacilitator,
+  onFileUpload,
+  onCreateConceptNote,
+  onCreateGroupInline,
+  onSaveAsTemplate,
+}) {
+  const { t } = useI18n();
+
+  if (!editingProgram) return null;
+
+  const formUrl =
+    programRegLink?.url ||
+    groupRegLinks[editingProgram?.assigned_segments?.[0]] ||
+    null;
+  const formName = programRegLink?.name || null;
+
+  return (
+    <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md overflow-y-auto">
+      <div className="card w-full max-w-xl space-y-8 border-brand-orange/30 animate-in text-left my-auto max-h-[85vh] overflow-y-auto custom-scrollbar">
+        {/* ── Modal header ──────────────────────────────────────────────── */}
+        <div className="flex justify-between items-center sticky top-0 bg-secondary pb-4 z-10 border-b border-[var(--border-primary)]">
+          <div>
+            <h3 className="text-lg font-black text-[var(--text-primary)] tracking-tight">
+              {t("adminMisc.programs.editProgramRegistry")}
+            </h3>
+            <p className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-widest mt-1">
+              {t("adminMisc.programs.operationalId")}: {editingProgram?.id}
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setEditingProgram(null);
+              setIsCreatingGroup(false);
+            }}
+            className="p-2 hover:bg-tertiary rounded-lg text-[var(--text-secondary)] transition-all"
+          >
+            <Plus className="w-5 h-5 rotate-45" />
+          </button>
+        </div>
+
+        {/* ── Form ──────────────────────────────────────────────────────── */}
+        <form onSubmit={onSubmit} className="space-y-6 pt-4">
+          <ProgramBasicsFields
+            editingProgram={editingProgram}
+            setEditingProgram={setEditingProgram}
+            programDateError={programDateError}
+            setProgramDateError={setProgramDateError}
+            validateEditDates={validateEditDates}
+            formUrl={formUrl}
+            formName={formName}
+          />
+
+          {/* Program Manager */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
+              {t?.("admin.selectManager") || "PROGRAM MANAGER"}
+            </label>
+            <select
+              value={editingProgram?.assigned_pm_id || ""}
+              onChange={(e) =>
+                setEditingProgram({
+                  ...editingProgram,
+                  assigned_pm_id: e.target.value,
+                })
+              }
+              className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
+            >
+              <option value="">{t?.("admin.unassigned") || "Unassigned"}</option>
+              {(Array.isArray(teams) ? teams : []).map(
+                (member) =>
+                  member && (
+                    <option
+                      key={member.cid || member.id}
+                      value={member.cid || member.id}
+                    >
+                      {member.name?.toUpperCase()}
+                    </option>
+                  ),
+              )}
+            </select>
+          </div>
+
+          <PersonnelMultiSelect
+            t={t}
+            teams={teams}
+            editingProgram={editingProgram}
+            setEditingProgram={setEditingProgram}
+          />
+
+          {/* Knowledge Base Note */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
+              {t("adminMisc.programs.knowledgeBaseNote")}
+            </label>
+            <div className="flex gap-2">
+              <select
+                value={editingProgram?.note_id || ""}
+                onChange={(e) =>
+                  setEditingProgram({
+                    ...editingProgram,
+                    note_id: e.target.value,
+                  })
+                }
+                className="flex-1 bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
+              >
+                <option value="">
+                  {t("adminMisc.programs.noneAssigned")}
+                </option>
+                {(Array.isArray(knowledgeItems) ? knowledgeItems : []).map(
+                  (item) =>
+                    item && (
+                      <option key={item.id} value={item.id}>
+                        {item.title?.toUpperCase() ||
+                          t("adminMisc.programs.untitledNode")}
+                      </option>
+                    ),
+                )}
+              </select>
+              <button
+                type="button"
+                onClick={() => setShowCreateNote(!showCreateNote)}
+                className="px-3 py-2 rounded-xl border border-dashed border-[var(--brand-orange)] text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wider hover:bg-brand-orange/10 transition-all whitespace-nowrap"
+              >
+                {t("adminMisc.programs.newNote")}
+              </button>
+            </div>
+            {showCreateNote && (
+              <div className="mt-3 p-4 bg-primary border border-[var(--border-primary)] rounded-xl space-y-3 animate-in">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)]">
+                  {t("adminMisc.programs.createNewConceptNote")}
+                </p>
+                <input
+                  type="text"
+                  value={newNoteTitle}
+                  onChange={(e) => setNewNoteTitle(e.target.value)}
+                  placeholder={t(
+                    "adminMisc.programs.conceptNoteTitlePlaceholder",
+                  )}
+                  className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg p-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={onCreateConceptNote}
+                    disabled={creatingNote || !newNoteTitle.trim()}
+                    className="flex-1 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide disabled:opacity-50 transition-all"
+                  >
+                    {creatingNote
+                      ? t("adminMisc.programs.creating")
+                      : t("adminMisc.programs.createAndLink")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateNote(false);
+                      setNewNoteTitle("");
+                    }}
+                    className="py-2 px-4 rounded-lg border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider hover:bg-tertiary transition-all"
+                  >
+                    {t("adminMisc.programs.cancel")}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Duration Weeks */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
+              {t("adminMisc.programs.durationWeeks")}
+            </label>
+            <input
+              type="number"
+              value={editingProgram?.duration_weeks || 4}
+              onChange={(e) => {
+                const weeks = parseInt(e.target.value) || 4;
+                setEditingProgram({
+                  ...editingProgram,
+                  duration_weeks: weeks,
+                });
+                setProgramDateError(
+                  validateEditDates(
+                    editingProgram?.start_date,
+                    editingProgram?.end_date,
+                    weeks,
+                  ),
+                );
+              }}
+              className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+            />
+          </div>
+
+          {/* Status */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
+              {t("admin.programStatus")}
+            </label>
+            <select
+              value={editingProgram?.status || "active"}
+              onChange={(e) =>
+                setEditingProgram({
+                  ...editingProgram,
+                  status: e.target.value,
+                })
+              }
+              className={`w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer ${
+                editingProgram?.status === "active"
+                  ? "text-emerald-500"
+                  : editingProgram?.status === "planned"
+                    ? "text-sky-500"
+                    : editingProgram?.status === "pending"
+                      ? "text-amber-500"
+                      : editingProgram?.status === "completed"
+                        ? "text-purple-500"
+                        : editingProgram?.status === "archived"
+                          ? "text-rose-500"
+                          : "text-[var(--text-primary)]"
+              }`}
+            >
+              <option value="planned" className="text-sky-500">
+                {t("adminMisc.programs.statusPlanned")}
+              </option>
+              <option value="active" className="text-emerald-500">
+                {t("adminMisc.programs.statusInProgress")}
+              </option>
+              <option value="pending" className="text-amber-500">
+                {t("adminMisc.programs.statusPending")}
+              </option>
+              <option value="completed" className="text-purple-500">
+                {t("adminMisc.programs.statusCompleted")}
+              </option>
+              <option value="archived" className="text-rose-500">
+                {t("adminMisc.programs.statusArchived")}
+              </option>
+            </select>
+          </div>
+
+          {/* Curriculum Materials */}
+          <CurriculumMaterialsSection
+            editingProgram={editingProgram}
+            setEditingProgram={setEditingProgram}
+            isUploading={isUploading}
+            onFileUpload={onFileUpload}
+          />
+
+          {/* Target Groups + Facilitators section */}
+          <div className="space-y-3">
+            <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
+              {t?.("admin.targetGroups") || "TARGET STUDENT GROUPS"}
+            </label>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">
+              {t?.("admin.assignProgramToGroups") ||
+                "Assign this program to specific student cohorts or families."}
+            </p>
+            <TargetGroupsSection
+              editingProgram={editingProgram}
+              setEditingProgram={setEditingProgram}
+              notes={notes}
+              setNotes={setNotes}
+              userRole={userRole}
+              isCreatingGroup={isCreatingGroup}
+              setIsCreatingGroup={setIsCreatingGroup}
+              setNewGroup={setNewGroup}
+            />
+
+            {/* ═══ PROGRAM FACILITATORS ═══ */}
+            <ProgramFacilitatorsSection
+              editingProgram={editingProgram}
+              setEditingProgram={setEditingProgram}
+              onToggleFacDefault={onToggleFacDefault}
+              onToggleFacOverride={onToggleFacOverride}
+              onRemoveFacilitator={onRemoveFacilitator}
+              inviteForm={inviteForm}
+              setInviteForm={setInviteForm}
+              facBusy={facBusy}
+              onCreateFacilitator={onCreateFacilitator}
+              facilitatorSearch={facilitatorSearch}
+              setFacilitatorSearch={setFacilitatorSearch}
+              facilitatorPool={facilitatorPool}
+              onAddFacilitator={onAddFacilitator}
+              notes={notes}
+              onSetLeadFacilitator={onSetLeadFacilitator}
+            />
+
+            {/* Inline group creation */}
+            {isCreatingGroup && (
+              <InlineGroupCreation
+                newGroup={newGroup}
+                setNewGroup={setNewGroup}
+                onCreateGroupInline={onCreateGroupInline}
+              />
+            )}
+          </div>
+
+          {/* Description (Concept Note) */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
+              {t("adminMisc.programs.conceptNote")}
+            </label>
+            <textarea
+              rows={3}
+              value={editingProgram?.description || ""}
+              onChange={(e) =>
+                setEditingProgram({
+                  ...editingProgram,
+                  description: e.target.value,
+                })
+              }
+              className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none transition-all"
+            />
+          </div>
+
+          {/* Strategic KPIs */}
+          <StrategicKpisSection
+            editingKpis={editingKpis}
+            onDeleteKpi={onDeleteKpi}
+            editKpiInput={editKpiInput}
+            setEditKpiInput={setEditKpiInput}
+            isKpiSubmitting={isKpiSubmitting}
+            onAddKpi={onAddKpi}
+          />
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={isUpdating}
+            className="btn btn-primary w-full py-5 text-sm font-bold uppercase tracking-wide shadow-xl shadow-orange-500/20"
+          >
+            {isUpdating ? (
+              <div className="flex items-center justify-center gap-3">
+                <Loader2 className="w-5 h-5 animate-spin" />{" "}
+                <span>{t("common.saving")}</span>
+              </div>
+            ) : (
+              t("adminMisc.programs.save")
+            )}
+          </button>
+
+          {/* Save as template */}
+          <button
+            type="button"
+            onClick={onSaveAsTemplate}
+            className="btn btn-secondary w-full py-5 uppercase font-black tracking-[0.2em] mt-3"
+          >
+            <FileText className="w-4 h-4" /> {t("admin.saveAsTemplate")}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}

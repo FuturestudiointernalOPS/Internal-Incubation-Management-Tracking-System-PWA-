@@ -5,7 +5,8 @@
  * column is a single `delay_hours`, so the conversion is a decision. The target
  * audience is synced additively: new identities are inserted as pending and
  * dropped ones are removed only while they are still pending (sent records are
- * kept).
+ * kept). Creating, updating and loading a campaign are composed here too
+ * (createCampaign, updateCampaignDefinition, loadCampaignDetail).
  *
  * Reads and writes go through `@/models/communications`; nothing here runs SQL.
  *
@@ -13,6 +14,12 @@
  */
 
 import {
+  insertCampaign,
+  updateCampaign,
+  deleteCampaignSteps,
+  getCampaignWithCounts,
+  getCampaignSteps,
+  getCampaignContacts,
   insertCampaignSteps,
   insertCampaignContacts,
   getCampaignContactCids,
@@ -58,4 +65,57 @@ export async function syncCampaignAudience(campaignId, cids) {
   if (toRemove.length > 0) {
     await deleteCampaignContacts(campaignId, toRemove);
   }
+}
+
+/** Create a campaign with its step sequence and target contacts; returns its id. */
+export async function createCampaign({ name, formId, steps, cids }) {
+  const result = await insertCampaign(name, formId);
+  const campaignId = result.rows[0].id;
+
+  await addCampaignSteps(campaignId, steps);
+  await addCampaignContacts(campaignId, cids);
+
+  return campaignId;
+}
+
+/**
+ * Update a campaign. Steps are replaced when `steps` is present (even an empty
+ * list clears them); the audience is synced when `cids` is present.
+ */
+export async function updateCampaignDefinition(id, data) {
+  await updateCampaign({ id, name: data.name, formId: data.form_id });
+
+  if (data.steps) {
+    await deleteCampaignSteps(id);
+    await addCampaignSteps(id, data.steps);
+  }
+
+  if (data.cids) {
+    await syncCampaignAudience(id, data.cids);
+  }
+}
+
+/**
+ * Stamp every step with the number of contacts already past "pending". The count
+ * is campaign-wide, so every step carries the same value.
+ */
+export function withDeliveredCounts(steps, contacts) {
+  const nonPendingCount = contacts.filter((contact) => contact.status !== "pending").length;
+  return steps.map((step) => ({ ...step, delivered_count: nonPendingCount }));
+}
+
+/** A campaign with its steps and contacts, or null when it does not exist. */
+export async function loadCampaignDetail(id) {
+  const campaignResult = await getCampaignWithCounts(id);
+  const campaign = campaignResult.rows[0];
+  if (!campaign) return null;
+
+  const stepsResult = await getCampaignSteps(id);
+  const contactsResult = await getCampaignContacts(id);
+
+  return {
+    ...campaign,
+    steps: withDeliveredCounts(stepsResult.rows, contactsResult.rows),
+    contacts: contactsResult.rows,
+  };
 }

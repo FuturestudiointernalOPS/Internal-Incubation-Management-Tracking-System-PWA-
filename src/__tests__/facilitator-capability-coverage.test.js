@@ -45,7 +45,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const { FACILITATOR_CAPABILITY_KEYS } = require("@/lib/facilitator-permissions");
-const { PERMISSION_MODULES } = require("@/lib/auth");
+const { PERMISSION_MODULES } = require("@/server/authz/capabilities");
 const { CAPABILITY_CATALOG } = require("@/models/authorization/capability-catalog");
 
 const ROOT = path.join(__dirname, "..", "..");

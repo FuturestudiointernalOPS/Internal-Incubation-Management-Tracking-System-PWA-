@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { hashPassword } from "@/server/auth/password";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
-import { assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import { assertNoParticipantFacilitatorConflict } from "@/server/authz/guards";
 import {
   resolveInviteToken,
   backfillInviteTokenHashOnValidate,
@@ -13,7 +13,7 @@ import {
   createContactFromInvite,
   markInviteTokenUsed,
   addActiveProgramEnrollment,
-} from "@/models/groups";
+} from "@/models/groups/invitations";
 
 export const dynamic = "force-dynamic";
 

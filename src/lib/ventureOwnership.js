@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import db from "@/lib/db";
+import { getVentureDbIdByCodeOrId } from "@/models/ventureWorkspace/milestonesAndAccess";
 
 /**
  * OBJECT-LEVEL AUTHORIZATION FOR VENTURE RESOURCES
@@ -45,14 +45,13 @@ export function ventureOwned(row, ...ventureIds) {
  * The numeric venture id behind either form of the path parameter (the human
  * code `VNT-…` or the numeric id). Some venture tables key on the code and some
  * on the numeric id, so a scope check compares against both.
+ *
+ * The statement itself belongs to the model layer (`getVentureDbIdByCodeOrId`),
+ * which already carried this exact query; only the fail-soft read posture and
+ * the null fallback are ours.
  */
 export async function resolveVentureDbId(scopeId) {
-  const result = await db
-    .execute({
-      sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?",
-      args: [scopeId, scopeId],
-    })
-    .catch(() => ({ rows: [] }));
+  const result = await getVentureDbIdByCodeOrId(scopeId).catch(() => ({ rows: [] }));
   return result.rows?.[0]?.id ?? null;
 }
 

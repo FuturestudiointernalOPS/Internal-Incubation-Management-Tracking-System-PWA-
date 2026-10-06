@@ -19,6 +19,7 @@ const {
 
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
+const { readPermissionCenterSurface } = require("./helpers/permissionCenterSource");
 
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const resolveKey = (bundle, dotted) =>
@@ -105,12 +106,17 @@ describe("UI-2b — screen wiring", () => {
     expect(src).toContain("person={person}");
     expect(src).toContain("cid={person.cid}");
     // One picker in the whole flow: the editor no longer fetches a user list.
-    const editor = read("src/components/permissions/PermissionCenter.js");
+    // The whole surface, because a second user list anywhere in the center would
+    // break that claim just as much as one in the shim.
+    const editor = readPermissionCenterSurface();
     expect(editor).not.toContain("fetchAllUsers");
   });
 
   test("the individual editor only offers what the person can be granted", () => {
-    const editor = read("src/components/permissions/PermissionCenter.js");
+    // The ceiling is decided in the screen (eligibilityMap) and rendered in the
+    // view it hands its ctx to; read the whole surface, as the guard is about
+    // the editor, not about which file holds a given line.
+    const editor = readPermissionCenterSurface();
     // The individual Advanced block is ceiling-limited like the template's, so
     // it never offers a right the person cannot receive, nor the bucket of
     // parts that have no dashboard section.
@@ -124,7 +130,7 @@ describe("UI-2b — screen wiring", () => {
   });
 
   test("a person's rights are level chips with explicit controls, not a level spreadsheet", () => {
-    const editor = read("src/components/permissions/PermissionCenter.js");
+    const editor = readPermissionCenterSurface();
     expect(editor).toContain("LEVEL_CHIP_ACTIVE");
     expect(editor).toContain('t("engineering.permissions.block")');
     expect(editor).toContain('t("engineering.permissions.restore")');

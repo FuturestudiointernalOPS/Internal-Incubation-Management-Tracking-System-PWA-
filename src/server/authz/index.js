@@ -13,8 +13,8 @@
  *                      (the only place a service decision meets HTTP)
  *
  * The SQL behind all of it lives in @/models/authorization/accessQueries.
- * New code imports from here; @/lib/auth re-exports the same symbols for the
- * importers that predate the split.
+ * New code imports from here; the old `@/lib/auth` facade was removed once every
+ * importer was repointed to this layer.
  */
 
 export * from "./capabilities";

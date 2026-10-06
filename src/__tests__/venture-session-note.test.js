@@ -43,8 +43,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({ cid: "sa-1", name: "Super", role: "super_admin" }),
+}));
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
 }));
 
@@ -64,15 +66,17 @@ jest.mock("@/lib/ventureScopedAccess", () => ({
   }),
 }));
 
-jest.mock("@/lib/ventureCoach", () => ({
+jest.mock("@/services/ventures/coach", () => ({
   resolveCoachContact: jest.fn().mockResolvedValue(null),
 }));
 
-jest.mock("@/lib/ventures", () => ({
+jest.mock("@/services/ventures/deliverables", () => ({
+  getDeliverable: (...args) => mockGetDeliverable(...args),
+}));
+jest.mock("@/services/ventures/sessions", () => ({
   listSessions: jest.fn().mockResolvedValue([]),
   getSession: (...args) => mockGetSession(...args),
   createSession: (...args) => mockCreateSession(...args),
-  getDeliverable: (...args) => mockGetDeliverable(...args),
   updateSession: (...args) => mockUpdateSession(...args),
   cancelSession: jest.fn(),
   rescheduleSession: jest.fn(),

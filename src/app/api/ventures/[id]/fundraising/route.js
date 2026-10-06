@@ -2,11 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
 import { ventureOwned, ventureNotFound, resolveVentureDbId } from "@/lib/ventureOwnership";
-import {
-  listOpportunities, getOpportunity, createOpportunity, updateOpportunity, deleteOpportunity,
-  addOpportunityNote, addOpportunityActivity, getPipelineAnalytics,
-  ACTIVITY_TYPES,
-} from "@/lib/ventures";
+import { listOpportunities, getOpportunity, createOpportunity, updateOpportunity, deleteOpportunity, addOpportunityNote, addOpportunityActivity, getPipelineAnalytics, ACTIVITY_TYPES } from "@/services/ventures/fundraising";
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;

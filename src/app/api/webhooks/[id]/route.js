@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireAuthorization } from "@/models/authorization/index";
-import { deleteWebhook, getWebhookDeliveryLogs } from "@/lib/ventures";
+import { deleteWebhook, getWebhookDeliveryLogs } from "@/services/ventures/integrations";
 
 export const DELETE = createHandler(async (req, { params }) => {
   const capError = await requireAuthorization("settings", "edit");

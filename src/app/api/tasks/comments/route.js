@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import {
   listTaskComments,
   postTaskComment,

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { insertCampaign, listCampaignsWithStats } from "@/models/communications";
-import { addCampaignSteps, addCampaignContacts } from "@/services/communications/campaigns";
+import { listCampaignsWithStats } from "@/models/communications";
+import { createCampaign } from "@/services/communications/campaigns";
 
 // ── CAMPAIGNS RETIRED ──────────────────────────────────────────────────────
 // Campaigns are hidden from the sidebar and their API is disabled (403).
@@ -29,15 +29,8 @@ export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (re
       { status: 400 },
     );
 
-  // Insert Campaign
-  const result = await insertCampaign(name, form_id);
-  const campaign_id = result.rows[0].id;
-
-  // Insert Steps (The Sequence)
-  await addCampaignSteps(campaign_id, steps);
-
-  // Insert Target Contacts
-  await addCampaignContacts(campaign_id, cids);
+  // Insert the campaign, its step sequence and its target contacts
+  const campaign_id = await createCampaign({ name, formId: form_id, steps, cids });
 
   return NextResponse.json({ success: true, campaign_id });
 });

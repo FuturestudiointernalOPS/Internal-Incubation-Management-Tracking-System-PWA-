@@ -1,8 +1,11 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
+import { createSession } from "@/server/auth/session";
+import { setSessionCookieOnResponse } from "@/server/auth/cookies";
 import { resolveEffectiveRole } from "@/models/platform/roles";
-import { getEffectiveGroupsForUser } from "@/lib/authorization/membership";
+import {
+  getEffectiveGroupsForUser,
+} from "@/services/authorization/membership";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import { verifyPassword } from "@/server/auth/password";
 import {

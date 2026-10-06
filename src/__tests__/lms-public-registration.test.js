@@ -20,7 +20,7 @@ jest.mock("@/models/platformConfig", () => ({
   insertParticipantProgramMembership: jest.fn(),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/authz/guards", () => ({
   assertNoParticipantFacilitatorConflict: jest.fn(),
 }));
 
@@ -29,7 +29,7 @@ jest.mock("@/server/auth/password", () => ({
 }));
 
 const platform = require("@/models/platformConfig");
-const { assertNoParticipantFacilitatorConflict } = require("@/lib/auth");
+const { assertNoParticipantFacilitatorConflict } = require("@/server/authz/guards");
 const { hashPassword } = require("@/server/auth/password");
 const {
   registerParticipantViaGroupLink,

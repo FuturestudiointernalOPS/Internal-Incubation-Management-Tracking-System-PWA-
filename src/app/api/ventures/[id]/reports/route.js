@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
-import {
-  getVentureAnalytics,
-  getMilestonesReport,
-  getTasksReport,
-  getTeamProductivity,
-  getExportData,
-} from "@/lib/ventures";
+import { getVentureAnalytics, getMilestonesReport, getTasksReport, getTeamProductivity, getExportData } from "@/services/ventures/analytics";
 
 /**
  * GET /api/ventures/[id]/reports?type=analytics|milestones|tasks|productivity|export&format=csv

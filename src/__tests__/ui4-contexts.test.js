@@ -196,10 +196,16 @@ describe("UI-4c — identities and context roles stay one set split in two", () 
 
 describe("UI-4c — the screens use them", () => {
   test("the context endpoint carries contexts and their availability", () => {
-    const src = read("src/app/api/engineering/permissions/user-context/route.js");
-    expect(src).toContain("getContactContexts");
-    expect(src).toContain("contexts: contextData.contexts");
-    expect(src).toContain("contextsUnavailable: contextData.unavailable");
+    // The projection moved into the service, so the mapping is asserted where
+    // it now lives — and the route is asserted to wire it, so a route that
+    // stopped carrying contexts would still fail here.
+    const route = read("src/app/api/engineering/permissions/user-context/route.js");
+    expect(route).toContain("getContactContexts");
+    expect(route).toContain("projectUserContext");
+
+    const projection = read("src/services/authorization/userContextProjection.js");
+    expect(projection).toContain("contexts: contextData.contexts");
+    expect(projection).toContain("contextsUnavailable: contextData.unavailable");
   });
 
   test("the eligibility feed tells the UI which columns are context roles", () => {
@@ -216,7 +222,9 @@ describe("UI-4c — the screens use them", () => {
   });
 
   test("the eligibility matrix lists baseline identities, not context roles", () => {
-    const center = read("src/components/permissions/PermissionCenter.js");
+    // Pinned to the file that owns the behaviour: EligibilityView was extracted
+    // out of PermissionCenter.js, so reading the shim would pass vacuously.
+    const center = read("src/components/permissions/permission-center/EligibilityView.js");
     // Matrix rows exclude context roles...
     expect(center).toContain("matrixRoles");
     expect(center).toContain("!contextRoles.has(role)");

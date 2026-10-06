@@ -10,8 +10,8 @@
  * HTTPS + event guards and the audit calls — live here; every statement is in
  * `@/models/ventureIntegrationsStore`. Nothing here runs SQL.
  *
- * Re-exported unchanged through `@/lib/ventures` (the module it came from) — see
- * docs/LAYER_SPLIT.md.
+ * This module used to be re-exported through `@/lib/ventures`; that barrel is
+ * gone (CH-4) and importers read this module directly. See docs/LAYER_SPLIT.md.
  */
 
 import crypto from "crypto";

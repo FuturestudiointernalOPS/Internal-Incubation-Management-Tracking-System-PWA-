@@ -15,7 +15,7 @@ import {
 } from "@/models/programMembership";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import { buildFullFacilitatorPermissions } from "@/lib/facilitator-permissions";
 
 const ROLE = { roles: ['super_admin'] };

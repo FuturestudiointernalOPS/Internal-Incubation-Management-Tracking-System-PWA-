@@ -15,7 +15,9 @@ jest.mock("@/lib/deepseek", () => ({
   default: { chat: (...args) => mockChat(...args) },
 }));
 
-jest.mock("@/lib/ventures", () => ({ addDependency: jest.fn(async () => ({ success: true })) }));
+jest.mock("@/services/ventures/timeline", () => ({
+  addDependency: jest.fn(async () => ({ success: true })),
+}));
 
 jest.mock("@/lib/db", () => {
   const state = { executeImpl: async () => ({ rows: [] }), queryImpl: async () => ({ rows: [] }), queries: [] };

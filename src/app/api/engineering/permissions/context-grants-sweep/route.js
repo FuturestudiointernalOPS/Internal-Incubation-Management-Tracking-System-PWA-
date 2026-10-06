@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { syncAllContextGrantsEverywhere } from "@/services/authorization/contextGrants";
+import {
+  resolveSweepAuthorization,
+  secretMatches,
+} from "@/services/authorization/scheduledSweeps";
 
 export const dynamic = "force-dynamic";
 
@@ -39,13 +43,17 @@ export async function POST(req) {
     // query parameter is still accepted for existing schedulers (deprecated).
     const key = req.headers.get("x-cron-secret") || searchParams.get("key");
 
-    if (!SWEEP_SECRET) {
+    const decision = resolveSweepAuthorization({
+      isConfigured: !!SWEEP_SECRET,
+      presentedKey: key,
+    });
+    if (!decision.ok) {
       return NextResponse.json(
-        { success: false, error: "Service not configured." },
-        { status: 503 },
+        { success: false, error: decision.error },
+        { status: decision.status },
       );
     }
-    if (!key || key !== SWEEP_SECRET) {
+    if (!secretMatches(key, SWEEP_SECRET)) {
       return NextResponse.json(
         { success: false, error: "errors.insufficientPermissions" },
         { status: 403 },

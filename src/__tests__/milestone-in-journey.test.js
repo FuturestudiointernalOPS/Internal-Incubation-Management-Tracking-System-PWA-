@@ -22,8 +22,8 @@ jest.mock("@/lib/db", () => {
 });
 
 const { __state: mockState } = require("@/lib/db");
-const { moveStageMilestone, listStageMilestones } = require("@/lib/ventureMilestoneOrder");
-const { canManageMilestones, releaseMilestonesForStage, completeStageIfAllMilestonesDone } = require("@/lib/ventureMilestoneEngine");
+const { moveStageMilestone, listStageMilestones } = require("@/services/ventures/milestoneOrder");
+const { canManageMilestones, releaseMilestonesForStage, completeStageIfAllMilestonesDone } = require("@/services/ventures/milestoneEngine");
 
 /** Install an in-memory venture_milestones table into the db double. */
 function fakeDb(rows) {

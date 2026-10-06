@@ -21,8 +21,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({ cid: "SA-1", name: "Super Admin" }),
+}));
+jest.mock("@/models/authorization/accessQueries", () => ({
   logPermissionAudit: jest.fn().mockResolvedValue(true),
 }));
 
@@ -32,16 +34,15 @@ jest.mock("@/models/authorization/index", () => ({
   invalidateAllAuthorizationContexts: jest.fn(),
 }));
 
-const mockActualMembership = jest.requireActual("@/lib/authorization/membership");
-jest.mock("@/lib/authorization/membership", () => ({
-  ...mockActualMembership,
+jest.mock("@/models/authorization/membership", () => ({
+  ...jest.requireActual("@/models/authorization/membership"),
+  ...jest.requireActual("@/services/authorization/membership"),
   ensureMembershipSchema: jest.fn().mockResolvedValue(true),
   getMembership: jest.fn(),
-  isGroupProtected: jest.fn().mockResolvedValue(true),
 }));
 
 const { requireAuthorization, invalidateAllAuthorizationContexts } = require("@/models/authorization/index");
-const membershipLib = require("@/lib/authorization/membership");
+const membershipLib = require("@/models/authorization/membership");
 const { GET, PUT } = require("@/app/api/org-membership/route");
 
 const jsonReq = (body, url = "http://localhost/api/org-membership") =>

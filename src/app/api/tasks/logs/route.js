@@ -21,7 +21,7 @@ export const GET = createHandler(async (req) => {
     );
   }
 
-  const { getSession } = await import("@/lib/auth");
+  const { getSession } = await import("@/server/auth/session");
   const session = await getSession();
   if (!session) {
     return NextResponse.json(

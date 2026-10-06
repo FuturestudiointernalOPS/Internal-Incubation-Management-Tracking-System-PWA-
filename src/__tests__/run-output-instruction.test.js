@@ -19,8 +19,23 @@
  */
 const fs = require("fs");
 const path = require("path");
+const { readSurface } = require("./helpers/sourceSurface");
 
-const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+const read = (rel) => {
+  const text = fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+  // Slice 1: the review/email/result-document cluster moved from the route to
+  // the service — append it so assertions against either half still match. The
+  // service is itself split across `formRuns/`, so read its whole surface.
+  if (rel === "src/app/api/platform/form-runs/route.js") {
+    // Searched first: a same-named call left in the route (e.g. a standalone
+    // resend action) must never be found before the one inside the moved
+    // service function that an order assertion is pinning.
+    return readSurface("src/services/platform/formRuns.js") + "\n" + text;
+  }
+  if (rel === "src/services/platform/formRuns.js") return readSurface(rel);
+  // resultPdf is split across `resultPdf/` too, so read its whole surface.
+  return readSurface(rel);
+};
 
 const FORM_RUNS_SERVICE = "src/services/platform/formRuns.js";
 const RESULT_PDF = "src/models/platform/resultPdf.js";

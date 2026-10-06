@@ -1,6 +1,8 @@
 import db from "@/lib/db";
 import { DEFAULT_VENTURE_DOCUMENT_TYPES } from "@/lib/ventureDocumentTypeDefaults";
-import { ensureVentureDocumentTypesTable } from "@/models/ventureDocumentTypes";
+import {
+  ensureVentureDocumentTypesTable,
+} from "@/models/ventureDocumentTypesStore";
 
 /**
  * Document-driven Venture readiness — the single source of the Ready / % that

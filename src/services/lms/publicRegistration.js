@@ -12,7 +12,7 @@
 
 import { v4 as uuidv4 } from "uuid";
 import { hashPassword } from "@/server/auth/password";
-import { assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import { assertNoParticipantFacilitatorConflict } from "@/server/authz/guards";
 import {
   findContactCidByEmail,
   findFamilyForGroupInfo,

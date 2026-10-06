@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
 import { requireSameOrigin } from "@/lib/requestOrigin";
 import { seedFounderAssessment } from "@/services/platform/seed";
 

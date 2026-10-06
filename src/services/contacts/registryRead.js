@@ -16,11 +16,13 @@ import { attachInvitationStatus } from "@/models/invitations";
 import {
   getContactByCid,
   getArchivedContacts,
+} from "@/models/contacts/contactStore";
+import {
   getContactsForSuperAdmin,
   getContactsForStaff,
   getParticipantProgramCids,
   getContactRoleAssignmentCids,
-} from "@/models/contacts";
+} from "@/models/contacts/directory";
 
 /**
  * The registry rows this caller may see, or `{ denied: true }` when a

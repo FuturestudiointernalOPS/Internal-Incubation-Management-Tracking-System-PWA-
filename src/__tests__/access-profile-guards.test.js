@@ -6,7 +6,7 @@
  *  - PUT /api/access-profiles/assign refuses (409) to strip capabilities
  *    unless the caller confirms
  *
- * Mocks @/lib/db's `execute` and @/lib/auth, mirroring the mocking approach in
+ * Mocks @/lib/db's `execute` and the auth modules, mirroring the mocking approach in
  * permissions-admin-api.test.js. SQL lives in @/models/authorization (not
  * mocked), so these tests also exercise the real queries.
  */
@@ -94,17 +94,34 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({ cid: "SA-1", name: "Super Admin" }),
+}));
+jest.mock("@/models/authorization/accessQueries", () => ({
   logPermissionAudit: jest.fn().mockResolvedValue(true),
+}));
+jest.mock("@/server/authz/capabilities", () => ({
   PERMISSION_MODULES: {},
 }));
 
-jest.mock("@/models/authorization/index", () => ({
+jest.mock("@/server/authz/responses", () => ({
   requireAuthorization: jest.fn().mockResolvedValue(null),
-  assertTemplateCapsEligible: jest.fn().mockResolvedValue({ valid: true, violations: [] }),
+  requireScopedAccess: jest.fn().mockResolvedValue(null),
+}));
+
+jest.mock("@/services/authorization/context", () => ({
+  ...jest.requireActual("@/services/authorization/context"),
   invalidateAllAuthorizationContexts: jest.fn(),
   invalidateAuthorizationContext: jest.fn(),
+}));
+
+// The assign route's eligibility decision lives in the profileAssignment
+// service, which reads assertTemplateCapsEligible from the eligibilityAdmin
+// service — not from the model barrel. Stub that real source so the
+// capability-loss guard below is what the request actually exercises.
+jest.mock("@/services/authorization/eligibilityAdmin", () => ({
+  ...jest.requireActual("@/services/authorization/eligibilityAdmin"),
+  assertTemplateCapsEligible: jest.fn().mockResolvedValue({ valid: true, violations: [] }),
 }));
 
 const profilesRoute = require("@/app/api/access-profiles/route");

@@ -16,7 +16,7 @@
 
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
 import { seedInvestorApplication } from "@/services/platform/seed";
 
 export async function POST() {

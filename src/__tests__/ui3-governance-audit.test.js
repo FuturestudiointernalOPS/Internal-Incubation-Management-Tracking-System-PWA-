@@ -16,6 +16,7 @@ const { splitAuditReason } = require("@/components/permissions/auditHelpers");
 
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
+const { readPermissionCenterSurface } = require("./helpers/permissionCenterSource");
 
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const resolveKey = (bundle, dotted) =>
@@ -42,18 +43,29 @@ describe("UI-3a — audit reason parsing", () => {
 });
 
 describe("UI-3a — design-system fixes", () => {
-  const center = "src/components/permissions/PermissionCenter.js";
+  // This suite no longer reads the shim at all: the audit detail is pinned on
+  // AuditView.js and the governance stat cards on GovernanceView.js. The
+  // invariant that does span the screen — the hex ban — reads the whole surface.
+  const governance = "src/components/permissions/permission-center/GovernanceView.js";
 
   test("the governance stat cards no longer use hardcoded hex colors", () => {
-    const src = read(center);
+    // Two halves on purpose. The hex ban is an invariant about EVERY surface in
+    // the center — it must not become a guard that only covers the shim. The
+    // `StatCard` usage is a behaviour of the governance screen, so it is asserted
+    // on the file that owns it, which is stricter than before the split.
+    const surface = readPermissionCenterSurface();
     for (const hexColor of ["#10B981", "#F59E0B", "#EF4444", "#94A3B8"]) {
-      expect(src).not.toContain(hexColor);
+      expect(surface).not.toContain(hexColor);
     }
-    expect(src).toContain("StatCard");
+    expect(read(governance)).toContain("StatCard");
   });
 
   test("the audit detail uses the shared drawer and highlights the reason", () => {
-    const src = read(center);
+    // On the file that owns the audit reader, not on the shim: `WhyDrawer` and
+    // `splitAuditReason` are a behaviour of the audit screen, so pinning them
+    // against the shim would have gone vacuous the day the screen was split out
+    // — while still passing. Caught by the vacuous-pin guard, not by this test.
+    const src = read("src/components/permissions/permission-center/AuditView.js");
     expect(src).toContain("WhyDrawer");
     expect(src).toContain("splitAuditReason");
     expect(src).toContain("auditReason");

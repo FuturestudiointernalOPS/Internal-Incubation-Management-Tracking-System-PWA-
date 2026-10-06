@@ -1,15 +1,20 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  ArrowLeft, Plus, Loader2, CheckCircle2, AlertCircle, X,
-  Calendar, User, Pencil, Lock,
-  List, Columns, CopyPlus, Archive, RotateCcw,
-} from "lucide-react";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import { useDialogs } from "@/components/ui/DialogProvider";
-import VenturePersonField from "@/components/ventures/VenturePersonField";
+import { useI18n } from "@/lib/i18n";
+import { STATUS_ORDER } from "@/components/admin/ventures/tasks/taskConstants";
+import VentureTasksHeader from "@/components/admin/ventures/tasks/VentureTasksHeader";
+import VentureTasksArchiveBar from "@/components/admin/ventures/tasks/VentureTasksArchiveBar";
+import VentureTasksArchived from "@/components/admin/ventures/tasks/VentureTasksArchived";
+import VentureTasksKanban from "@/components/admin/ventures/tasks/VentureTasksKanban";
+import VentureTasksListView from "@/components/admin/ventures/tasks/VentureTasksListView";
+import VentureTaskDrawer from "@/components/admin/ventures/tasks/VentureTaskDrawer";
+import VentureTaskModal from "@/components/admin/ventures/tasks/VentureTaskModal";
+import VentureTasksLoading from "@/components/admin/ventures/tasks/VentureTasksLoading";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here
@@ -20,27 +25,12 @@ const EMPTY_TASKS = { list: [], byStatus: {} };
 const pickVenture = (payload) => (payload?.success ? payload.venture || null : null);
 const pickTasks = (payload) =>
   payload?.success ? { list: payload.tasks || [], byStatus: payload.by_status || {} } : EMPTY_TASKS;
-import { useI18n } from "@/lib/i18n";
-
-const STATUS_ORDER = ["backlog", "todo", "in_progress", "review", "done", "blocked", "cancelled"];
-
-const STATUS_CFG = {
-  backlog: { label: "Backlog", color: "bg-slate-500/10 text-slate-400", dot: "bg-slate-400" },
-  todo: { label: "To Do", color: "bg-blue-500/10 text-blue-400", dot: "bg-blue-400" },
-  in_progress: { label: "In Progress", color: "bg-amber-500/10 text-amber-400", dot: "bg-amber-400" },
-  review: { label: "Review", color: "bg-purple-500/10 text-purple-400", dot: "bg-purple-400" },
-  done: { label: "Done", color: "bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400" },
-  blocked: { label: "Blocked", color: "bg-rose-500/10 text-rose-400", dot: "bg-rose-400" },
-  cancelled: { label: "Cancelled", color: "bg-slate-500/5 text-slate-500", dot: "bg-slate-500" },
-};
 
 /** The create/edit form's shape; `blocked_by` holds the ids this task depends on. */
 const EMPTY_TASK_FORM = {
   title: "", description: "", priority: "medium", status: "todo", due_date: "",
   estimated_hours: "", assigned_cid: "", assigned_name: "", labels: [], milestone_id: "", blocked_by: [],
 };
-
-const PRIORITY_CFG = { low: "text-slate-500", medium: "text-blue-400", high: "text-amber-400", critical: "text-rose-400" };
 
 export default function VentureTasksPage() {
   const { id } = useParams();
@@ -296,11 +286,7 @@ export default function VentureTasksPage() {
 
   const displayByStatus = search ? filteredByStatus : byStatus;
 
-  if (loading) return (
-    <>
-      <div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div>
-    </>
-  );
+  if (loading) return <VentureTasksLoading />;
 
   const totalTasks = activeTasks.length;
   const doneTasks = activeTasks.filter((task) => task.status === "done").length;
@@ -314,410 +300,104 @@ export default function VentureTasksPage() {
           </div>
         )}
 
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <button onClick={() => router.push(`/admin/ventures/${id}`)}
-              className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
-              <ArrowLeft className="w-3 h-3" /> Back to Dashboard
-            </button>
-            <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
-              <CheckCircle2 className="w-6 h-6 text-[var(--brand-orange)]" /> Tasks
-            </h1>
-            <p className="text-xs text-slate-500 mt-0.5">{venture?.company_name || ""} · {totalTasks} tasks · {doneTasks} done</p>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* View toggle */}
-            <div className="flex bg-tertiary rounded-xl border border-[var(--border-primary)] p-0.5">
-              <button onClick={() => setView("kanban")} className={`p-2 rounded-lg transition-all ${view === "kanban" ? "bg-brand-orange/10 text-[var(--brand-orange)]" : "text-slate-500 hover:text-[var(--text-primary)]"}`}>
-                <Columns className="w-4 h-4" />
-              </button>
-              <button onClick={() => setView("list")} className={`p-2 rounded-lg transition-all ${view === "list" ? "bg-brand-orange/10 text-[var(--brand-orange)]" : "text-slate-500 hover:text-[var(--text-primary)]"}`}>
-                <List className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="relative">
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks..." className="w-40 bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] placeholder:text-slate-600" />
-            </div>
-            <button onClick={openCreateTask}
-              className="px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2">
-              <Plus className="w-3.5 h-3.5" /> Add Task
-            </button>
-          </div>
-        </div>
+        <VentureTasksHeader
+          router={router}
+          id={id}
+          venture={venture}
+          totalTasks={totalTasks}
+          doneTasks={doneTasks}
+          view={view}
+          setView={setView}
+          search={search}
+          setSearch={setSearch}
+          openCreateTask={openCreateTask}
+        />
 
-        {/* Archive toolbar + inline result */}
-        <div className="flex flex-wrap items-center gap-2">
-          <button onClick={() => { setViewArchived(false); setSearch(""); }}
-            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${!viewArchived ? "bg-brand-orange/15 text-[var(--brand-orange)] border-brand-orange/30" : "bg-tertiary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"}`}>
-            {t("vadmin.tasks.viewActive", { n: activeTasks.length })}
-          </button>
-          <button onClick={() => { setViewArchived(true); setSearch(""); }}
-            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${viewArchived ? "bg-brand-orange/15 text-[var(--brand-orange)] border-brand-orange/30" : "bg-tertiary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"}`}>
-            {t("vadmin.tasks.viewArchived", { n: archivedTasks.length })}
-          </button>
-        </div>
-        {archMsg && (
-          <div className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold ${archMsg.type === "error" ? "bg-rose-500/10 text-rose-400 border border-rose-500/30" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"}`}>
-            {archMsg.type === "error" ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
-            <span>{archMsg.msg}</span>
-            <button onClick={() => setArchMsg(null)} className="ml-auto text-slate-500 hover:text-[var(--text-primary)]"><X className="w-3.5 h-3.5" /></button>
-          </div>
-        )}
+        <VentureTasksArchiveBar
+          t={t}
+          viewArchived={viewArchived}
+          setViewArchived={setViewArchived}
+          setSearch={setSearch}
+          activeTasks={activeTasks}
+          archivedTasks={archivedTasks}
+          archMsg={archMsg}
+          setArchMsg={setArchMsg}
+        />
 
         {/* Archived view: soft-deleted tasks with restore */}
         {viewArchived ? (
-          archivedTasks.length === 0 ? (
-            <div className="text-center py-16">
-              <Archive className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-              <p className="text-sm text-slate-500">{t("vadmin.tasks.emptyArchived")}</p>
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {filteredTasks.map((task) => (
-                <div key={task.id} className="flex items-center gap-4 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                  <Archive className="w-4 h-4 text-slate-600 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-[var(--text-primary)] truncate line-through decoration-slate-600">{task.title}</p>
-                    <p className="text-[8px] text-slate-500 mt-0.5">{task.status} · {task.archived_at ? new Date(task.archived_at).toLocaleDateString() : ""}</p>
-                  </div>
-                  <button onClick={() => restoreOne(task)} disabled={archBusy}
-                    className="px-2.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[8px] font-black uppercase tracking-widest hover:bg-emerald-500/20 disabled:opacity-40 flex items-center gap-1.5">
-                    <RotateCcw className="w-3 h-3" /> {t("vadmin.tasks.restore")}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )
+          <VentureTasksArchived
+            t={t}
+            archivedTasks={archivedTasks}
+            filteredTasks={filteredTasks}
+            archBusy={archBusy}
+            restoreOne={restoreOne}
+          />
         ) : (
         <>
         {/* Kanban Board */}
         {view === "kanban" && (
-          <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: "60vh" }}>
-            {STATUS_ORDER.map((status) => {
-              const statusConfig = STATUS_CFG[status];
-              const items = displayByStatus[status] || [];
-              return (
-                <div key={status} className="flex-shrink-0 w-64"
-                  onDragOver={(event) => handleDragOver(event, status)}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(event) => handleDrop(event, status)}>
-                  <div className={`rounded-2xl border ${dragOver === status ? "border-[var(--brand-orange)] bg-brand-orange/5" : "border-[var(--border-primary)] bg-tertiary"}`}>
-                    <div className="flex items-center justify-between p-3 border-b border-[var(--border-primary)]">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${statusConfig.dot}`} />
-                        <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">{statusConfig.label}</span>
-                      </div>
-                      <span className="text-[8px] font-bold text-slate-500 bg-primary px-1.5 py-0.5 rounded">{items.length}</span>
-                    </div>
-                    <div className="p-2 space-y-2 min-h-[200px]">
-                      {items.length === 0 && (
-                        <div className="flex flex-col items-center justify-center py-8 text-slate-600">
-                          <p className="text-[8px] font-bold">No tasks</p>
-                        </div>
-                      )}
-                      {items.map((task) => (
-                        <div key={task.id} draggable onDragStart={(event) => handleDragStart(event, task.id)}
-                          onClick={() => openTask(task)}
-                          className="p-3 rounded-xl bg-primary border border-[var(--border-primary)] cursor-pointer hover:border-brand-orange/30 transition-all group">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-[10px] font-bold text-[var(--text-primary)] leading-tight">{task.title}</p>
-                            <span className={`text-[7px] font-black shrink-0 ${PRIORITY_CFG[task.priority] || "text-slate-500"}`}>
-                              {task.priority === "critical" ? "!!!" : task.priority === "high" ? "!!" : task.priority === "medium" ? "!" : ""}
-                            </span>
-                          </div>
-                          {task.description && <p className="text-[8px] text-slate-500 mt-1 line-clamp-2">{task.description}</p>}
-                          <div className="flex items-center gap-2 mt-2 text-[7px] text-slate-600">
-                            {task.assigned_name && <span className="flex items-center gap-1"><User className="w-2.5 h-2.5" />{task.assigned_name}</span>}
-                            {task.due_date && <span className="flex items-center gap-1"><Calendar className="w-2.5 h-2.5" />{new Date(task.due_date).toLocaleDateString()}</span>}
-                            <button onClick={(event) => { event.stopPropagation(); archiveOne(task); }} disabled={archBusy}
-                              title={t("vadmin.tasks.archive")}
-                              className="p-1 text-slate-500 hover:text-amber-400 rounded disabled:opacity-40">
-                              {archBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Archive className="w-3 h-3" />}
-                            </button>
-                            <button onClick={(event) => { event.stopPropagation(); duplicateTask(task); }} disabled={dupBusy === task.id}
-                              title={t("vadmin.tasks.duplicate")}
-                              className="ml-auto p-1 text-slate-500 hover:text-sky-300 rounded disabled:opacity-40">
-                              {dupBusy === task.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CopyPlus className="w-3 h-3" />}
-                            </button>
-                          </div>
-                          {(task.checklist || []).length > 0 && (
-                            <div className="mt-2">
-                              <div className="w-full bg-tertiary rounded-full h-1 overflow-hidden">
-                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.round((task.checklist.filter((checklistItem) => checklistItem.done).length / task.checklist.length) * 100)}%` }} />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <VentureTasksKanban
+            t={t}
+            displayByStatus={displayByStatus}
+            dragOver={dragOver}
+            handleDragOver={handleDragOver}
+            handleDragLeave={handleDragLeave}
+            handleDrop={handleDrop}
+            handleDragStart={handleDragStart}
+            openTask={openTask}
+            archiveOne={archiveOne}
+            duplicateTask={duplicateTask}
+            archBusy={archBusy}
+            dupBusy={dupBusy}
+          />
         )}
 
         {/* List View */}
         {view === "list" && (
-          <div className="space-y-1">
-            {filteredTasks.length === 0 ? (
-              <div className="text-center py-16"><CheckCircle2 className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">No tasks found</p></div>
-            ) : (
-              filteredTasks.map((task) => {
-                const statusConfig = STATUS_CFG[task.status];
-                return (
-                  <div key={task.id} onClick={() => openTask(task)}
-                    className="flex items-center gap-4 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-brand-orange/30 transition-all">
-                    <span className={`w-2 h-2 rounded-full ${statusConfig.dot} shrink-0`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-[var(--text-primary)] truncate">{task.title}</p>
-                      <div className="flex items-center gap-3 mt-1 text-[8px] text-slate-500">
-                        <span className={`${PRIORITY_CFG[task.priority]} font-bold uppercase`}>{task.priority}</span>
-                        {task.assigned_name && <span>{task.assigned_name}</span>}
-                        {task.milestone_id && <span>Milestone #{task.milestone_id}</span>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button onClick={(event) => { event.stopPropagation(); archiveOne(task); }} disabled={archBusy}
-                        title={t("vadmin.tasks.archive")}
-                        className="p-1.5 text-slate-500 hover:text-amber-400 rounded-lg disabled:opacity-40">
-                        {archBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Archive className="w-3.5 h-3.5" />}
-                      </button>
-                      <button onClick={(event) => { event.stopPropagation(); duplicateTask(task); }} disabled={dupBusy === task.id}
-                        title={t("vadmin.tasks.duplicate")}
-                        className="p-1.5 text-slate-500 hover:text-sky-300 rounded-lg disabled:opacity-40">
-                        {dupBusy === task.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CopyPlus className="w-3.5 h-3.5" />}
-                      </button>
-                      <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${statusConfig.color}`}>{statusConfig.label}</span>
-                      {task.due_date && <span className="text-[8px] text-slate-500">{new Date(task.due_date).toLocaleDateString()}</span>}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
+          <VentureTasksListView
+            t={t}
+            filteredTasks={filteredTasks}
+            openTask={openTask}
+            archiveOne={archiveOne}
+            duplicateTask={duplicateTask}
+            archBusy={archBusy}
+            dupBusy={dupBusy}
+          />
         )}
         </>
         )}
       </div>
 
-      {/* ── Task Detail Drawer ── */}
-      {showDrawer && selectedTask && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowDrawer(false)} />
-          <div className="relative w-full max-w-lg bg-[var(--bg-tertiary)] border-l border-[var(--border-primary)] overflow-y-auto">
-            <div className="p-6 space-y-6">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1 min-w-0">
-                  <h2 className="text-sm font-black text-[var(--text-primary)] truncate">{selectedTask.title}</h2>
-                  <button onClick={() => openEditTask(selectedTask)} title={t("vadmin.tasks.edit")} className="p-2 hover:bg-white/5 rounded-lg shrink-0"><Pencil className="w-3.5 h-3.5 text-slate-500" /></button>
-                </div>
-                <button onClick={() => setShowDrawer(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
-              </div>
+      <VentureTaskDrawer
+        t={t}
+        id={id}
+        showDrawer={showDrawer}
+        selectedTask={selectedTask}
+        setShowDrawer={setShowDrawer}
+        openEditTask={openEditTask}
+        updateTaskStatus={updateTaskStatus}
+        setSelectedTask={setSelectedTask}
+        comments={comments}
+        showComments={showComments}
+        setShowComments={setShowComments}
+        commentText={commentText}
+        setCommentText={setCommentText}
+        addComment={addComment}
+      />
 
-              {selectedTask.dependency_blocked && (
-                <div className="flex items-start gap-2 rounded-xl px-3 py-2.5 bg-rose-500/10 border border-rose-500/30 text-rose-400">
-                  <Lock className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  <span className="text-[11px] font-bold">{t("vadmin.tasks.dependencyBlocked", { names: (selectedTask.blocked_by_titles || []).join(", ") })}</span>
-                </div>
-              )}
-
-              {/* Status + Priority */}
-              <div className="flex gap-3">
-                <select value={selectedTask.status} onChange={(event) => { updateTaskStatus(selectedTask.id, event.target.value); setSelectedTask((previous) => ({ ...previous, status: event.target.value })); }}
-                  className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[9px] font-bold text-[var(--text-primary)] outline-none flex-1">
-                  {STATUS_ORDER.map((status) => <option key={status} value={status}>{(STATUS_CFG[status]?.label || status)}</option>)}
-                </select>
-                <select value={selectedTask.priority} onChange={(event) => { setSelectedTask((previous) => ({ ...previous, priority: event.target.value })); fetch(`/api/ventures/${id}/tasks?id=${selectedTask.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ priority: event.target.value }) }); }}
-                  className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[9px] font-bold text-[var(--text-primary)] outline-none">
-                  {["low", "medium", "high", "critical"].map((priority) => <option key={priority} value={priority}>{priority.charAt(0).toUpperCase() + priority.slice(1)}</option>)}
-                </select>
-              </div>
-
-              {/* Description */}
-              <div>
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Description</p>
-                <p className="text-xs text-[var(--text-secondary)]">{selectedTask.description || "No description"}</p>
-              </div>
-
-              {/* Details */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-primary rounded-xl">
-                  <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider">Assignee</p>
-                  <p className="text-[10px] font-bold text-[var(--text-primary)] mt-0.5">{selectedTask.assigned_name || "Unassigned"}</p>
-                </div>
-                <div className="p-3 bg-primary rounded-xl">
-                  <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider">Due Date</p>
-                  <p className="text-[10px] font-bold text-[var(--text-primary)] mt-0.5">{selectedTask.due_date ? new Date(selectedTask.due_date).toLocaleDateString() : "No date"}</p>
-                </div>
-                {selectedTask.estimated_hours && (
-                  <div className="p-3 bg-primary rounded-xl">
-                    <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider">Est. Hours</p>
-                    <p className="text-[10px] font-bold text-[var(--text-primary)] mt-0.5">{selectedTask.estimated_hours}h</p>
-                  </div>
-                )}
-                <div className="p-3 bg-primary rounded-xl">
-                  <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider">Labels</p>
-                  <div className="flex gap-1 mt-0.5 flex-wrap">
-                    {(selectedTask.labels || []).length === 0 ? <span className="text-[9px] text-slate-500">—</span> :
-                      selectedTask.labels.map((label, index) => <span key={index} className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-brand-orange/10 text-[var(--brand-orange)]">{label}</span>)
-                    }
-                  </div>
-                </div>
-              </div>
-
-              {/* Checklist */}
-              {(selectedTask.checklist || []).length > 0 && (
-                <div>
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                    Checklist ({selectedTask.checklist.filter((checklistItem) => checklistItem.done).length}/{selectedTask.checklist.length})
-                  </p>
-                  <div className="space-y-1">
-                    {selectedTask.checklist.map((checklistItem, index) => (
-                      <label key={index} className="flex items-center gap-2 p-2 rounded-lg hover:bg-primary cursor-pointer">
-                        <input type="checkbox" checked={checklistItem.done} onChange={async () => {
-                          const updated = [...selectedTask.checklist];
-                          updated[index] = { ...updated[index], done: !updated[index].done };
-                          setSelectedTask((previous) => ({ ...previous, checklist: updated }));
-                          await fetch(`/api/ventures/${id}/tasks?id=${selectedTask.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checklist: updated }) });
-                        }} className="rounded border-slate-600 text-[var(--brand-orange)]" />
-                        <span className={`text-[10px] font-bold ${checklistItem.done ? "text-slate-500 line-through" : "text-[var(--text-primary)]"}`}>{checklistItem.text}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Comments */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Comments ({comments.length})</p>
-                  <button onClick={() => setShowComments(!showComments)} className="text-[8px] font-bold text-[var(--brand-orange)] hover:underline">
-                    {showComments ? "Hide" : "Show"}
-                  </button>
-                </div>
-                {showComments && (
-                  <div className="space-y-3">
-                    {comments.length === 0 && <p className="text-sm text-[var(--text-secondary)]">No comments</p>}
-                    {comments.map((comment) => (
-                      <div key={comment.id} className="p-3 bg-primary rounded-xl border border-[var(--border-primary)]">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[9px] font-bold text-[var(--text-primary)]">{comment.author_name || comment.author_cid}</span>
-                          <span className="text-[10px] text-[var(--text-secondary)]">{new Date(comment.created_at).toLocaleString()}</span>
-                        </div>
-                        <p className="text-[10px] text-[var(--text-secondary)]">{comment.body}</p>
-                      </div>
-                    ))}
-                    <div className="flex gap-2">
-                      <input value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder="Add a comment..."
-                        className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
-                      <button onClick={addComment} disabled={!commentText.trim()}
-                        className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider hover:brightness-110 disabled:opacity-30">Send</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Activity log link */}
-              <div className="text-center pt-4 border-t border-[var(--border-primary)]">
-                <button onClick={() => setShowDrawer(false)} className="text-[8px] font-bold text-slate-500 hover:text-[var(--text-primary)]">Close</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Create/Edit Task Modal ── */}
-      {showTaskModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-black text-[var(--text-primary)]">{editTask ? "Edit Task" : "New Task"}</h2>
-              <button onClick={() => setShowTaskModal(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Title *</label>
-                <input value={tForm.title} onChange={(event) => setTForm((previous) => ({ ...previous, title: event.target.value }))} placeholder="What needs to be done?"
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
-              </div>
-              <div>
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Description</label>
-                <textarea value={tForm.description} onChange={(event) => setTForm((previous) => ({ ...previous, description: event.target.value }))} rows={2}
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Status</label>
-                  <select value={tForm.status} onChange={(event) => setTForm((previous) => ({ ...previous, status: event.target.value }))}
-                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
-                    {STATUS_ORDER.map((status) => <option key={status} value={status}>{STATUS_CFG[status]?.label || status}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Priority</label>
-                  <select value={tForm.priority} onChange={(event) => setTForm((previous) => ({ ...previous, priority: event.target.value }))}
-                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
-                    <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Due Date</label>
-                  <input type="date" value={tForm.due_date} onChange={(event) => setTForm((previous) => ({ ...previous, due_date: event.target.value }))}
-                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
-                </div>
-                <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Est. Hours</label>
-                  <input type="number" value={tForm.estimated_hours} onChange={(event) => setTForm((previous) => ({ ...previous, estimated_hours: event.target.value }))} placeholder="e.g., 4"
-                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
-                </div>
-              </div>
-              <div>
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Assignee</label>
-                {/* ONE field for a platform member OR an external name. The box that
-                    was here wrote whatever you typed — a NAME — straight into
-                    `assigned_cid`, the slot reserved for a person's platform
-                    identity, so nothing downstream could ever match it. */}
-                <VenturePersonField
-                  value={{ cid: tForm.assigned_cid, name: tForm.assigned_name }}
-                  onChange={({ cid, name }) =>
-                    setTForm((previous) => ({ ...previous, assigned_cid: cid || "", assigned_name: name || "" }))
-                  }
-                />
-              </div>
-              <div>
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.tasks.blockedBy")}</label>
-                <p className="text-[10px] text-slate-500 mb-2">{t("vadmin.tasks.blockedByHint")}</p>
-                <div className="max-h-40 overflow-y-auto space-y-1 rounded-xl border border-[var(--border-primary)] bg-primary p-2">
-                  {activeTasks.filter((candidate) => String(candidate.id) !== String(editTask?.id)).length === 0 ? (
-                    <p className="text-[10px] text-slate-500 px-1 py-1">{t("vadmin.tasks.blockedByNone")}</p>
-                  ) : (
-                    activeTasks
-                      .filter((candidate) => String(candidate.id) !== String(editTask?.id))
-                      .map((candidate) => (
-                        <label key={candidate.id} className="flex items-center gap-2 px-1 py-1 rounded-lg hover:bg-tertiary cursor-pointer">
-                          <input type="checkbox" checked={tForm.blocked_by.includes(String(candidate.id))} onChange={() => toggleBlockedBy(candidate.id)}
-                            className="rounded border-slate-600 text-[var(--brand-orange)]" />
-                          <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">{candidate.title}</span>
-                        </label>
-                      ))
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setShowTaskModal(false)} className="flex-1 py-3 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary">Cancel</button>
-              <button onClick={createOrUpdateTask} disabled={saving}
-                className="flex-1 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-30 flex items-center justify-center gap-2">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} {editTask ? "Update" : "Create"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <VentureTaskModal
+        t={t}
+        showTaskModal={showTaskModal}
+        setShowTaskModal={setShowTaskModal}
+        editTask={editTask}
+        tForm={tForm}
+        setTForm={setTForm}
+        createOrUpdateTask={createOrUpdateTask}
+        saving={saving}
+        activeTasks={activeTasks}
+        toggleBlockedBy={toggleBlockedBy}
+      />
     </>
   );
 }

@@ -5,7 +5,7 @@ import {
   getIntegrationProviders,
   getIntegrations,
   createIntegration,
-} from "@/lib/ventures";
+} from "@/services/ventures/integrations";
 
 export const GET = createHandler(async (req) => {
   const capError = await requireAuthorization("settings", "view");

@@ -60,13 +60,7 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-const {
-  getUnmetTaskDependencies,
-  setTaskDependencies,
-  syncTaskBlockState,
-  releaseTasksBlockedBy,
-  listTasksBlockedBy,
-} = require("@/lib/ventures");
+const { getUnmetTaskDependencies, setTaskDependencies, syncTaskBlockState, releaseTasksBlockedBy, listTasksBlockedBy } = require("@/services/ventures/tasks");
 
 beforeEach(() => {
   mockState.edges = [];

@@ -17,6 +17,7 @@
  */
 const fs = require("node:fs");
 const path = require("node:path");
+const { readSurface } = require("./helpers/sourceSurface");
 
 const SRC_DIRS = ["src/models", "src/lib"];
 
@@ -50,10 +51,10 @@ test("mutation-site inventory is frozen (every contacts.role write is known)", (
   // rewritten. I2 converts the contextual ones to membership writes and this
   // list shrinks to the true identity operations (promote/demote).
   const KNOWN_SITES = [
-    "src/models/adminOps.js", // approval → participant (contextual — I2 target)
-    "src/models/authorization.js", // promote/demote super_admin/staff (TRUE identity op — keep)
-    "src/models/investorRelations.js", // investor onboarding (contextual — I2 target)
-    "src/models/platform/automation.js", // platform approval role set (contextual — I2 target)
+    "src/models/adminOps/userManagement.js", // approval → participant (contextual — I2 target)
+    "src/models/authorization/engineeringAndAudit.js", // promote/demote super_admin/staff (TRUE identity op — keep)
+    "src/models/investorRelations/provisioningAndProfile.js", // investor onboarding (contextual — I2 target)
+    "src/models/platform/automation/automationCore.js", // platform approval role set (contextual — I2 target)
   ];
   // authFlows.js used to be here: accepting a legacy V2 invite overwrote the
   // contact's role with no guard. Both the routes and the model helpers behind
@@ -63,7 +64,7 @@ test("mutation-site inventory is frozen (every contacts.role write is known)", (
 });
 
 test("contextual role mutations protect baseline identities (guards present)", () => {
-  const investor = fs.readFileSync("src/models/investorRelations.js", "utf8");
+  const investor = readSurface("src/models/investorRelations.js");
   // Investor write must never clobber super_admin/staff/admin.
   expect(investor).toMatch(
     /UPDATE\s+contacts\s+SET\s+role\s*=\s*'investor'[\s\S]{0,200}?role\s+NOT\s+IN\s*\(\s*'super_admin'\s*,\s*'staff'/,
@@ -77,7 +78,7 @@ test("identity creation defaults: new platform contacts start as member (baselin
   expect(identity).toMatch(/role\s*=\s*["']member["']/);
   // Form approvals create contacts as member/approved (context arrives later
   // as a membership row, not as the person's global role).
-  const formRuns = fs.readFileSync("src/models/formRuns.js", "utf8");
+  const formRuns = readSurface("src/models/formRuns.js");
   expect(formRuns).toMatch(/'member'/);
 });
 
@@ -85,7 +86,7 @@ test("dynamic contact updaters are watched (never fed contextual roles)", () => 
   // updateContactFields builds SET from caller fields — it is a legitimate
   // admin edit surface, but contextual flows must never pass `role` through
   // it. Watch-list only (no failure today):
-  const contacts = fs.readFileSync("src/models/contacts.js", "utf8");
+  const contacts = fs.readFileSync("src/models/contacts/contactStore.js", "utf8");
   expect(contacts).toMatch(/export async function updateContactFields/);
 });
 
@@ -130,9 +131,9 @@ describe("deriveLegacyRole (I2 transitional view)", () => {
 describe("I2 mutation-stop guard presence", () => {
   test("every contextual mutation site consults the stop flag", () => {
     const sites = [
-      "src/models/adminOps.js",
-      "src/models/investorRelations.js",
-      "src/models/platform/automation.js",
+      "src/models/adminOps/userManagement.js",
+      "src/models/investorRelations/provisioningAndProfile.js",
+      "src/models/platform/automation/automationCore.js",
     ];
     for (const file of sites) {
       const src = fs.readFileSync(file, "utf8");

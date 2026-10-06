@@ -1,56 +1,26 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import {
-  listTasks, getTask, getMilestone, createTask, updateTask,
-  listTaskComments, addTaskComment, deleteTaskComment,
-  listTaskAttachments, addTaskAttachment, deleteTaskAttachment,
-  getUnmetTaskDependencies, setTaskDependencies, syncTaskBlockState,
-  releaseTasksBlockedBy, listVentureTaskDependencyEdges,
-} from "@/lib/ventures";
-import { archiveTask } from "@/lib/ventureArchive";
-import { TASK_BOARD_COLUMNS, TASK_REVIEW_GATED_COMPLETION_STATUSES, isTaskComplete, TASK_COMPLETED_STATUSES } from "@/lib/ventureStatuses";
-import { isStaffActorForVenture } from "@/lib/ventureAuth";
-import { canManageMilestones, syncMilestoneFromWork } from "@/lib/ventureMilestoneEngine";
+import { getMilestone } from "@/services/ventures/deliverables";
+import { listTasks, getTask, createTask, updateTask, listTaskComments, addTaskComment, deleteTaskComment, listTaskAttachments, addTaskAttachment, deleteTaskAttachment, setTaskDependencies, syncTaskBlockState, releaseTasksBlockedBy, listVentureTaskDependencyEdges } from "@/services/ventures/tasks";
+import { archiveTask } from "@/services/ventures/archive";
 import { ventureOwned, ventureNotFound } from "@/lib/ventureOwnership";
 import {
   getVentureDbIdForTasks,
-  hasApprovedTaskSubmission,
   insertVentureTaskReview,
 } from "@/models/ventureWorkspace";
-
-/**
- * A task may not move INTO one of these while a dependency it declares is
- * unmet. `backlog`/`todo`/`blocked`/`cancelled` are not progress, so they are
- * always allowed (a task can be parked, and it can be marked blocked by hand).
- */
-const TASK_PROCEED_STATUSES = ["in_progress", "review", ...TASK_COMPLETED_STATUSES];
+import {
+  buildTaskBoard,
+  checkTaskStatusChange,
+  afterTaskUpdate,
+  syncMilestoneForTask,
+} from "@/services/ventures/taskBoard";
 
 async function resolveVentureDbId(ventureId) {
   const ventureResult = await getVentureDbIdForTasks(ventureId);
   return ventureResult.rows?.[0]?.id || null;
 }
 
-/**
- * After a task's STATUS changes, the milestone it sits under follows — through
- * the same sync the deliverable route runs, so the work and the evidence can
- * never give a milestone two different answers.
- *
- * Only a status change calls this: renaming a task, moving its dates or
- * reassigning it is not progress. Completion authority is resolved once, here,
- * because it is the authority — not the tasks — that decides whether finished
- * work may close a milestone.
- */
-async function syncMilestoneForTask(task, { id, dbId, session }) {
-  if (!task?.milestone_id) return { changed: false, status: null };
-  const canComplete = await canManageMilestones({ id, cid: session?.cid, role: session?.role });
-  return syncMilestoneFromWork({
-    dbId,
-    milestoneId: String(task.milestone_id),
-    cid: session?.cid || null,
-    canComplete,
-  });
-}
 
 /**
  * GET /api/ventures/[id]/tasks?milestone_id=X&status=X&assigned_cid=X
@@ -67,52 +37,10 @@ export const GET = createHandler(async (req, { params }) => {
   const searchParams = new URL(req.url).searchParams;
   const tasks = await listTasks(dbId, searchParams.get("milestone_id"), searchParams.get("status"), searchParams.get("assigned_cid"));
 
-  // Archived (soft-deleted) tasks stay in the database (history is kept) but
-  // are hidden from default lists. Row-level filter: environments whose
-  // schema predates the is_archived column keep working (field is undefined).
+  // Columns, archived filter and dependency decoration: services/ventures/taskBoard.
   const includeArchived = searchParams.get("include_archived") === "1";
-  const visibleTasks = tasks.filter((task) => includeArchived || task.is_archived !== true);
-
-  // Group by status for Kanban (column vocabulary from lib/ventureStatuses)
-  const byStatus = {};
-  for (const status of TASK_BOARD_COLUMNS) {
-    byStatus[status] = [];
-  }
-
-  // Dependency edges, applied in one pass: each task carries the ids it is
-  // blocked by, the ids it blocks, and whether a declared dependency is still
-  // unmet. One read for the whole board, never one per task.
   const edges = await listVentureTaskDependencyEdges(dbId);
-  const statusById = new Map(visibleTasks.map((task) => [String(task.id), task.status]));
-  const titleById = new Map(visibleTasks.map((task) => [String(task.id), task.title]));
-  const blockedBy = new Map();
-  const blocks = new Map();
-  const push = (map, key, value) => {
-    const list = map.get(key) || [];
-    list.push(value);
-    map.set(key, list);
-  };
-  for (const edge of edges) {
-    push(blockedBy, edge.target_id, edge.source_id);
-    push(blocks, edge.source_id, edge.target_id);
-  }
-
-  const decorated = visibleTasks.map((task) => {
-    const blockedByIds = blockedBy.get(String(task.id)) || [];
-    const unmetIds = blockedByIds.filter((id) => {
-      const status = statusById.get(id);
-      return status === undefined ? true : !isTaskComplete(status);
-    });
-    const decoratedTask = {
-      ...task,
-      blocked_by_ids: blockedByIds,
-      blocks_ids: blocks.get(String(task.id)) || [],
-      dependency_blocked: unmetIds.length > 0,
-      blocked_by_titles: unmetIds.map((id) => titleById.get(id)).filter(Boolean),
-    };
-    if (byStatus[decoratedTask.status]) byStatus[decoratedTask.status].push(decoratedTask);
-    return decoratedTask;
-  });
+  const { tasks: decorated, byStatus } = buildTaskBoard(tasks, edges, includeArchived);
 
   return NextResponse.json({ success: true, tasks: decorated, by_status: byStatus });
 });
@@ -255,52 +183,19 @@ export const PATCH = createHandler(async (req, { params }) => {
     }
   }
 
-  // HARD dependency gate: a Venture-side actor may not move a task into real
-  // progress while a dependency it declares is unmet. Future Studio staff plan
-  // ahead and are exempt (the same rule as booking a session against a
-  // milestone), so the block bites where it should: on the Venture's own work.
-  if (body.status !== undefined && TASK_PROCEED_STATUSES.includes(body.status)) {
-    const staffActor = await isStaffActorForVenture(id, session);
-    if (!staffActor) {
-      const blockers = await getUnmetTaskDependencies({ ventureId: dbId, taskId: numericTaskId });
-      if (blockers.length > 0) {
-        const names = blockers.map((blocker) => `"${blocker.title || blocker.id}"`).join(", ");
-        return NextResponse.json(
-          {
-            success: false,
-            error: `This task is blocked by ${names}, which is not completed yet.`,
-            blocked_by: blockers.map((blocker) => blocker.title || blocker.id),
-          },
-          { status: 409 },
-        );
-      }
-    }
-  }
-
-  if (body.status && TASK_REVIEW_GATED_COMPLETION_STATUSES.includes(body.status) && existingTask.review_required) {
-    const submissionResult = await hasApprovedTaskSubmission(parseInt(taskId)).catch(() => ({ rows: [] }));
-    if (!(submissionResult.rows || []).length) {
-      return NextResponse.json({ success: false, error: "This task requires an approved submission before it can be completed." }, { status: 403 });
-    }
+  // Dependency gate, then completion authority: services/ventures/taskBoard.
+  const refused = await checkTaskStatusChange({
+    id, dbId, session, existingTask, taskId, numericTaskId, status: body.status,
+  });
+  if (refused) {
+    const { status, ...payload } = refused;
+    return NextResponse.json({ success: false, ...payload }, { status });
   }
   await updateTask(parseInt(taskId), body);
 
-  // A completed task frees the tasks it was holding back, right away.
-  if (body.status !== undefined && isTaskComplete(body.status)) {
-    await releaseTasksBlockedBy({ ventureId: dbId, blockerTaskId: numericTaskId });
-  }
-  // Keep this task's own `blocked` state true to the dependencies just set.
-  if (body.blocked_by !== undefined) {
-    await syncTaskBlockState({ ventureId: dbId, taskId: numericTaskId });
-  }
-
-  // The milestone follows a STATUS change — and nothing else. This is the
-  // "execution half" of the milestone: the work is visible to the outcome it
-  // serves, while closing that outcome stays with the completion authority.
-  let milestone = null;
-  if (body.status !== undefined) {
-    milestone = await syncMilestoneForTask(existingTask, { id, dbId, session });
-  }
+  // Blocked tasks released, block state synced, milestone follows a status
+  // change: services/ventures/taskBoard.
+  const milestone = await afterTaskUpdate({ id, dbId, session, existingTask, numericTaskId, body });
 
   const task = await getTask(parseInt(taskId));
   return NextResponse.json({ success: true, task, milestone });

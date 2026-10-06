@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
 import { buildInvestorDashboard } from "@/services/investor";

@@ -24,8 +24,8 @@
  *     (scope = false) so a bug can never over-grant review authority.
  *
  * Every statement lives in `@/models/ventureScopeStore`; nothing here runs SQL.
- * Re-exported unchanged through the compatibility facade `@/lib/ventureScope` —
- * see docs/LAYER_SPLIT.md.
+ * This module used to be re-exported through the `@/lib/ventureScope` facade;
+ * that facade is gone (CH-4) and importers read this module directly.
  */
 
 import {

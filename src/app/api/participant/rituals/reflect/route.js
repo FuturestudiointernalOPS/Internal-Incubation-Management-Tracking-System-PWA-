@@ -6,7 +6,7 @@ import { recordReflection } from "@/services/participant";
 export const dynamic = "force-dynamic";
 
 export const GET = createHandler(async (req) => {
-  const { getSession } = await import("@/lib/auth");
+  const { getSession } = await import("@/server/auth/session");
   const session = await getSession();
   if (!session)
     return NextResponse.json(
@@ -23,7 +23,7 @@ export const GET = createHandler(async (req) => {
 });
 
 export const POST = createHandler(async (req) => {
-  const { getSession } = await import("@/lib/auth");
+  const { getSession } = await import("@/server/auth/session");
   const session = await getSession();
   if (!session)
     return NextResponse.json(

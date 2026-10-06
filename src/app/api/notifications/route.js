@@ -1,16 +1,9 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
-import { requireAuth, getSession } from "@/lib/auth";
-import { groupNotificationContext } from "@/lib/notificationContext";
-import {
-  createNotification,
-  getRecentNotifications,
-  countUnreadNotifications,
-  getNotificationRecipientById,
-  markNotificationRead,
-  markNotificationsSeen,
-} from "@/models/workspace";
+import { requireAuth } from "@/server/auth/guards";
+import { getSession } from "@/server/auth/session";
+import { readNotificationInbox, publishInboxNotification, applyInboxNotificationAction } from "@/services/communications/inboxNotifications";
 
 /**
  * NOTIFICATIONS API — SIGNAL AGGREGATION
@@ -32,19 +25,8 @@ export async function POST(req) {
       );
     }
 
-    const recipientId = recipient_id || session.cid;
-    if (
-      recipient_id &&
-      String(recipient_id) !== String(session.cid) &&
-      !["super_admin", "staff", "program_manager"].includes(session.role)
-    ) {
-      return NextResponse.json(
-        { success: false, error: "You cannot create notifications for other users." },
-        { status: 403 },
-      );
-    }
-
-    await createNotification(recipientId, title, message, type || "general");
+    const outcome = await publishInboxNotification({ session, recipient_id, title, message, type });
+    if (outcome.denied) return NextResponse.json({ success: false, error: outcome.denied.error }, { status: outcome.denied.status });
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -72,53 +54,7 @@ export async function GET(req) {
     }
 
     const session = await getSession();
-    let recipientId = searchParams.get("recipient_id") || session?.cid || "sa";
-    if (
-      session &&
-      searchParams.get("recipient_id") &&
-      String(searchParams.get("recipient_id")) !== String(session.cid) &&
-      !["super_admin", "staff", "program_manager"].includes(session.role)
-    ) {
-      recipientId = session.cid; // force own inbox, no info leak
-    }
-
-    let rows = [];
-    try {
-      const result = await getRecentNotifications(recipientId);
-      rows = result.rows || [];
-      rows = rows.filter((row) => row.is_read == 0 || row.is_read == null);
-
-      // Opening the inbox marks fetched notifications as SEEN (not read).
-      // Read = the user opened the item (PATCH read). Seen ≠ read is what
-      // makes unread badges feel correct.
-      const ids = (rows || []).map((row) => row.id).filter((notificationId) => notificationId !== undefined && notificationId !== null);
-      if (ids.length > 0) {
-        try {
-          await markNotificationsSeen(ids);
-        } catch (_) {}
-      }
-    } catch (_) {
-      rows = [];
-    }
-
-    // The rows are the panel's list; the COUNT is the badge. They are read
-    // separately because the list is paginated (50) while the badge must show
-    // every unread row, so deriving one from the other under-reported.
-    let unreadCount = 0;
-    try {
-      const counted = await countUnreadNotifications(recipientId);
-      unreadCount = parseInt(counted.rows?.[0]?.c || 0, 10);
-    } catch (_) {
-      unreadCount = rows.length;
-    }
-
-    // Drill-down mode (Vinance 3 Phase 1): ?group_by=context adds the §4
-    // breadcrumb tree (venture → journey → milestone → task/session) as an
-    // ADDITIVE field — the default `notifications` payload is unchanged.
-    const payload = { success: true, notifications: rows, unread_count: unreadCount };
-    if (searchParams.get("group_by") === "context") {
-      payload.grouped = groupNotificationContext(rows);
-    }
+    const payload = await readNotificationInbox({ session, requestedId: searchParams.get("recipient_id"), groupBy: searchParams.get("group_by") });
     return NextResponse.json(payload);
   } catch (error) {
     console.error("GET Notifications Error:", error);
@@ -134,31 +70,9 @@ export async function PATCH(req) {
     const session = await getSession();
     const { id, action } = await req.json();
 
-    if (action === "read") {
-      const recipientResult = await getNotificationRecipientById(parseInt(id));
-      if (!recipientResult.rows || recipientResult.rows.length === 0) {
-        return NextResponse.json(
-          { success: false, error: "Notification not found." },
-          { status: 404 },
-        );
-      }
-      if (
-        String(recipientResult.rows[0].recipient_id) !== String(session.cid) &&
-        !["super_admin", "staff", "program_manager"].includes(session.role)
-      ) {
-        return NextResponse.json(
-          { success: false, error: "You cannot modify this notification." },
-          { status: 403 },
-        );
-      }
-      await markNotificationRead(id);
-      return NextResponse.json({ success: true });
-    }
-
-    return NextResponse.json(
-      { success: false, error: "Invalid action" },
-      { status: 400 },
-    );
+    const outcome = await applyInboxNotificationAction({ session, id, action });
+    if (outcome.denied) return NextResponse.json({ success: false, error: outcome.denied.error }, { status: outcome.denied.status });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("PATCH Notifications Error:", error);
     return NextResponse.json(

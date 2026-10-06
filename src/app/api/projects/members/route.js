@@ -1,13 +1,15 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession, requireProjectAccess } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
+import { getSession } from "@/server/auth/session";
+import { requireProjectAccess } from "@/server/authz/guards";
 import { requireAuthorization } from "@/models/authorization/index";
 import {
   listProjectMembers,
   inviteProjectMember,
   removeProjectMember,
 } from "@/services/projects/collaboration";
-import { seesWholeProjectPortfolio } from "@/services/projects/workspace";
+import { needsProjectObjectCheck } from "@/services/projects/access";
 
 /**
  * PROJECT MEMBERS API — controller layer.
@@ -16,8 +18,9 @@ import { seesWholeProjectPortfolio } from "@/services/projects/workspace";
  * POST   /api/projects/members  { project_id, user_cid, role }
  * DELETE /api/projects/members?project_id=X&user_cid=Y
  *
- * Auth, validation and response shaping only; the invite sequence and the
- * membership changes live in `@/services/projects/collaboration`.
+ * Auth, validation and response shaping only; the invite sequence, the
+ * membership changes and the "may this role change THIS project" rule live in
+ * `@/services/projects`.
  */
 
 export async function GET(req) {
@@ -36,7 +39,7 @@ export async function GET(req) {
     }
 
     const session = await getSession();
-    if (!seesWholeProjectPortfolio(session.role)) {
+    if (needsProjectObjectCheck({ role: session?.role })) {
       const accessError = await requireProjectAccess(projectId);
       if (accessError) return accessError;
     }
@@ -69,7 +72,7 @@ export async function POST(req) {
     // Object-level authorization: `projects.edit` alone is a global capability.
     // A non-staff holder may only invite into a project they own or belong to.
     const session = await getSession();
-    if (!seesWholeProjectPortfolio(session?.role)) {
+    if (needsProjectObjectCheck({ role: session?.role })) {
       const accessError = await requireProjectAccess(project_id);
       if (accessError) return accessError;
     }
@@ -110,7 +113,7 @@ export async function DELETE(req) {
     // Object-level authorization: only a member/owner of the project (or staff)
     // may remove a member — otherwise `projects.edit` removes anyone anywhere.
     const session = await getSession();
-    if (!seesWholeProjectPortfolio(session?.role)) {
+    if (needsProjectObjectCheck({ role: session?.role })) {
       const accessError = await requireProjectAccess(projectId);
       if (accessError) return accessError;
     }

@@ -39,8 +39,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({ cid: "founder-1", role: "founder" }),
 }));
 
@@ -62,9 +64,10 @@ describe("GET /api/notifications — the badge is a COUNT, not the page length",
 
 // ── The shell: it obeys that number, limits the panel, and keeps it fresh ──
 const SHELL = "src/components/layout/DashboardLayout.js";
+const BADGES = "src/components/layout/shell/useDashboardBadges.js";
 
 describe("the bell — a glance, on a live number", () => {
-  const src = read(SHELL);
+  const src = read(SHELL) + read(BADGES) + read("src/components/layout/shell/ShellHeader.js");
 
   test("the badge takes the server's count", () => {
     expect(src).toMatch(/data\.unread_count/);

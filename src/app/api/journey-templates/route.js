@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { initDb } from "@/lib/db";
-import { listJourneyTemplates } from "@/lib/ventureJourneyTemplates";
+import { listJourneyTemplates } from "@/services/ventures/journey";
 
 const READ_ROLES = ["staff", "program_manager", "super_admin"];
 

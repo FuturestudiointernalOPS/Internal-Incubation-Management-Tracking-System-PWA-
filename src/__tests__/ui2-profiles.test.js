@@ -17,6 +17,7 @@ const { deriveProfileBadges } = require("@/components/permissions/profileBadges"
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
 
+const { readPermissionCenterSurface } = require("./helpers/permissionCenterSource");
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const resolveKey = (bundle, dotted) =>
   dotted.split(".").reduce((acc, part) => (acc == null ? undefined : acc[part]), bundle);
@@ -50,7 +51,14 @@ describe("UI-2c — profile badges", () => {
 
 describe("UI-2c — screen contracts", () => {
   const route = "src/app/admin/security/permissions/profiles/page.js";
-  const center = "src/components/permissions/PermissionCenter.js";
+  // Pinned to the file that owns the behaviour: the editor moved out of the
+  // shim, so reading the shim would pass vacuously. It then split in two — the
+  // panel keeps the state, the effects and the loaders, the writes and the
+  // markup moved under `profiles/` — so an assertion about a write reads the
+  // surface (every module, so duplicating it elsewhere still fails) and an
+  // assertion about the panel's own effect reads the panel.
+  const center = "src/components/permissions/permission-center/AccessProfilesView.js";
+  const surface = readPermissionCenterSurface();
 
   test("the route forwards a ?profile= deep link into the editor", () => {
     const src = read(route);
@@ -65,14 +73,14 @@ describe("UI-2c — screen contracts", () => {
   });
 
   test("profile writes carry the review reason (audited server-side)", () => {
-    const src = read(center);
-    expect(src).toMatch(/reason: reason\.trim\(\) \|\| undefined/);
+    // the write lives in the save factory now, not in the panel
+    expect(surface).toMatch(/reason: reason\.trim\(\) \|\| undefined/);
   });
 
   test("the impact preview comes from the real impact endpoint", () => {
-    const src = read(center);
-    expect(src).toContain("/api/engineering/permissions/impact?profile_id=");
-    expect(src).toContain("impactAffects");
+    // the request is the panel's effect; the count it feeds is the detail block's
+    expect(read(center)).toContain("/api/engineering/permissions/impact?profile_id=");
+    expect(surface).toContain("impactAffects");
   });
 
   test("every badge label exists in English and French", () => {

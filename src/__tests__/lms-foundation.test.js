@@ -25,7 +25,7 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-const { PERMISSION_MODULES } = require("@/lib/auth");
+const { PERMISSION_MODULES } = require("@/server/authz/capabilities");
 const LMS = require("@/models/lms");
 
 const MIGRATION_PATH = path.join(

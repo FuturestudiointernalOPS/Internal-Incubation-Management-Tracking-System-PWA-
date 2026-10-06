@@ -26,7 +26,7 @@ const { __state: mockState } = require("@/lib/db");
 const {
   deriveMilestoneStatusFromDeliverables,
   syncMilestoneStatusFromDeliverables,
-} = require("@/lib/ventureMilestoneEngine");
+} = require("@/services/ventures/milestoneEngine");
 
 const MS = "ms-1";
 const DB = "v-1";

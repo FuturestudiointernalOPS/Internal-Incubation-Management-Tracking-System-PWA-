@@ -26,9 +26,12 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   __esModule: true,
   requireAuth: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/server/auth/session", () => ({
+  __esModule: true,
   getSession: jest.fn(),
 }));
 
@@ -47,8 +50,7 @@ jest.mock("@/lib/ventureEvidence", () => ({
   signEvidencePath: jest.fn(),
 }));
 
-jest.mock("@/lib/ventures", () => ({
-  __esModule: true,
+jest.mock("@/services/ventures/verification", () => ({
   getOrCreateVerification: jest.fn(),
   submitVerification: jest.fn(),
   resubmitVerification: jest.fn(),
@@ -59,11 +61,11 @@ jest.mock("@/lib/ventures", () => ({
   canManageVerification: jest.fn(),
 }));
 
-const { getSession } = require("@/lib/auth");
+const { getSession } = require("@/server/auth/session");
 const { requireVentureAccess } = require("@/lib/ventureAuth");
 const { uploadDeliverableEvidence } = require("@/lib/storage");
 const { signEvidencePath } = require("@/lib/ventureEvidence");
-const { getOrCreateVerification } = require("@/lib/ventures");
+const { getOrCreateVerification } = require("@/services/ventures/verification");
 const { POST: uploadVerificationDocument } = require("@/app/api/ventures/[id]/verification/upload/route");
 const { GET: getVerification } = require("@/app/api/ventures/[id]/verification/route");
 

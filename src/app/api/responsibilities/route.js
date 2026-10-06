@@ -1,11 +1,8 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import {
-  requireAuth,
-  getUserResponsibilities,
-  getAllResponsibilities,
-  seedDefaultResponsibilities,
-} from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
+import { getUserResponsibilities, getAllResponsibilities } from "@/services/authorization/accessProfiles";
+import { seedDefaultResponsibilities } from "@/models/authorization/bootstrap";
 import { requireAuthorization } from "@/models/authorization/index";
 import { normalizeAllowedRoles } from "@/lib/featureAccess";
 import {
@@ -18,6 +15,9 @@ import {
   updateResponsibilityKey,
   updateResponsibilityName,
 } from "@/models/responsibilities";
+import {
+  presentResponsibilityFields,
+} from "@/services/authorization/responsibilityCatalog";
 
 /**
  * GET /api/responsibilities
@@ -128,20 +128,16 @@ export async function PUT(req) {
 
     await initDb();
 
-    if (name !== undefined) {
-      await updateResponsibilityName(id, name);
-    }
-    if (key !== undefined) {
-      await updateResponsibilityKey(id, key);
-    }
-    if (description !== undefined) {
-      await updateResponsibilityDescription(id, description);
-    }
-    if (icon !== undefined) {
-      await updateResponsibilityIcon(id, icon);
-    }
-    if (is_active !== undefined) {
-      await updateResponsibilityActive(id, is_active);
+    // Only the fields the body actually carries are written, in the fixed order
+    // (name, key, description, icon, is_active). An absent field is skipped;
+    // an explicit `null` / `false` / `0` is a deliberate value and IS written.
+    const fields = presentResponsibilityFields(body);
+    for (const field of fields) {
+      if (field === "name") await updateResponsibilityName(id, name);
+      else if (field === "key") await updateResponsibilityKey(id, key);
+      else if (field === "description") await updateResponsibilityDescription(id, description);
+      else if (field === "icon") await updateResponsibilityIcon(id, icon);
+      else if (field === "is_active") await updateResponsibilityActive(id, is_active);
     }
 
     return NextResponse.json({

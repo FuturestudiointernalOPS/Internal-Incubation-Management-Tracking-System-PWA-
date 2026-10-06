@@ -14,7 +14,7 @@ import { listCarryoverTasks, carryOverTask } from "@/services/tasks/carryover";
 
 export const GET = createHandler(async (req) => {
   const { searchParams } = new URL(req.url);
-  const { getSession } = await import("@/lib/auth");
+  const { getSession } = await import("@/server/auth/session");
   const session = await getSession();
   if (!session) {
     return NextResponse.json(
@@ -46,7 +46,7 @@ export const POST = createHandler(async (req) => {
   const body = await req.json();
   const { task_id, target_week, target_year } = body;
 
-  const { getSession } = await import("@/lib/auth");
+  const { getSession } = await import("@/server/auth/session");
   const session = await getSession();
   if (!session) {
     return NextResponse.json(

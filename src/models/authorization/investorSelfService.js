@@ -18,7 +18,7 @@ export async function requireInvestorSelfServiceAuthorization(capability) {
 
   // Interim context fallback: member + investor_profiles row = investor context.
   try {
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) return capError;
     const { getInvestorProfileIdByUserId } = await import("@/models/investor");

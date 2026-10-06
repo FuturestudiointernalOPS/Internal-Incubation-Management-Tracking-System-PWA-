@@ -19,6 +19,7 @@
  */
 const fs = require("node:fs");
 const path = require("node:path");
+const { readSurface } = require("./helpers/sourceSurface");
 
 const ROOT = path.join(__dirname, "..", "..");
 
@@ -96,14 +97,20 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     // Own-scope fallback for no-programId reads + self-service identity binding
     // — both now live in the service.
     expect(src).toMatch(/applyOwnSubmissionScope/);
-    const service = fs.readFileSync(
-      path.join(ROOT, "src/services/ventures/submissions.js"),
+    // The service is split into parts; the same assertions read their new home
+    // (the split is a move, the surface is unchanged).
+    const serviceScope = fs.readFileSync(
+      path.join(ROOT, "src/services/ventures/submissions/scope.js"),
       "utf8",
     );
-    expect(service).toMatch(/export function applyOwnSubmissionScope/);
-    expect(service).toMatch(/return session\.cid;/);
-    expect(service).toMatch(/body\.participant_id = session\.cid/);
-    expect(service).toMatch(/body\.team_id = session\.cid/);
+    const serviceCreate = fs.readFileSync(
+      path.join(ROOT, "src/services/ventures/submissions/createSubmission.js"),
+      "utf8",
+    );
+    expect(serviceScope).toMatch(/export function applyOwnSubmissionScope/);
+    expect(serviceScope).toMatch(/return session\.cid;/);
+    expect(serviceCreate).toMatch(/body\.participant_id = session\.cid/);
+    expect(serviceCreate).toMatch(/body\.team_id = session\.cid/);
   });
 
   test("phase 1.1: ventures/[id]/history — bare + unified membership/assignment gate", () => {
@@ -114,7 +121,7 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(src).toMatch(/hasActiveVentureAssignment/);
     // The membership probe moved to the model; the route keeps the gate.
     expect(src).toMatch(/isActiveVentureMember/);
-    const model = fs.readFileSync(path.join(ROOT, "src/models/ventureWorkspace.js"), "utf8");
+    const model = readSurface("src/models/ventureWorkspace.js");
     expect(model).toMatch(/venture_members WHERE venture_id/);
   });
 
@@ -183,10 +190,17 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
   });
 
   test("phase 1.3: participant-programs GET — bare + management/capability/assignment gate", () => {
+    // The handler now delegates to the service; the gate moved with the decision.
+    // The route is asserted to delegate, the gate to run where it now lives.
     const file = "src/app/api/participant-programs/route.js";
-    const src = fs.readFileSync(path.join(ROOT, file), "utf8");
-    expect(bareAuthCount(file)).toBe(1);
-    for (const list of authBlocks(file)) expect(containsContextual(list)).toBe(false);
+    const route = fs.readFileSync(path.join(ROOT, file), "utf8");
+    expect(route).toMatch(/@\/services\/programs\/participantPrograms/);
+
+    const guarded = "src/services/programs/participantPrograms.js";
+    const src = fs.readFileSync(path.join(ROOT, guarded), "utf8");
+    expect(bareAuthCount(guarded)).toBe(1);
+    for (const list of authBlocks(guarded)) expect(containsContextual(list)).toBe(false);
+    expect(src).toMatch(/requireAuthorization\("programs", "view"\)/);
     expect(src).toMatch(/requireAssignmentAccess/);
   });
 
@@ -215,7 +229,7 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(service).toMatch(/MANAGEMENT_ROLES = \["super_admin", "staff", "program_manager"\]/);
     expect(service).toMatch(/investorId = profileResult\.rows\[0\]\.id/);
     // Model: venture reads are own-scoped when an investorId is bound.
-    const model = fs.readFileSync(path.join(ROOT, "src/models/investor.js"), "utf8");
+    const model = readSurface("src/models/investor.js");
     expect(model).toMatch(/ventureId && investorId/);
     expect(model).toMatch(/AND ip\.investor_id = \?/);
   });
@@ -231,10 +245,7 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
       "utf8",
     );
     expect(service).toMatch(/getInvestorProfileIdByUserIdForPipelineList/);
-    const model = fs.readFileSync(
-      path.join(ROOT, "src/models/investorRelations.js"),
-      "utf8",
-    );
+    const model = readSurface("src/models/investorRelations.js");
     expect(model).toMatch(/investorId/);
     expect(model).toMatch(/SELECT DISTINCT venture_id FROM investment_pipeline WHERE investor_id/);
   });
@@ -265,11 +276,11 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     );
     expect(evaluateSubmissionSource).toMatch(/body\.action === "progress" \? "view" : "review"/);
     // form-runs: the two consequential actions (review + result emails) are now
-    // governed by the `runs.edit` capability — the resolver replaces the inline
+    // governed by catalog capabilities — the resolver replaces the inline
     // management role check, and the legacy list must be gone for good.
-    const formRunsSource = fs.readFileSync(path.join(ROOT, "src/app/api/platform/form-runs/route.js"), "utf8");
+    const formRunsSource = readSurface("src/app/api/platform/form-runs/handlers/post/review.js") + "\n" + readSurface("src/app/api/platform/form-runs/handlers/post/send_result_emails.js");
     expect(
-      (formRunsSource.match(/requireAuthorization\("runs", "edit"\)/g) || []).length,
+      (formRunsSource.match(/requireAuthorization\("runs", "(edit|review)"\)/g) || []).length,
     ).toBeGreaterThanOrEqual(2);
     expect(formRunsSource).not.toMatch(/\["super_admin", "admin", "program_manager"\]\.includes/);
     expect(formRunsSource).not.toMatch(/requireAuth\(\[\s*"super_admin", "admin", "program_manager", "teacher"/);
@@ -359,7 +370,14 @@ describe("I5 completed pattern (sessions + followups) stays clean", () => {
     (file) => {
       const src = fs.readFileSync(path.join(ROOT, file), "utf8");
       expect(src).not.toMatch(/requireAuth\(\s*\[/);
-      expect(src).toMatch(/requireAssignmentAccess/);
+      if (file === "src/app/api/followups/route.js") {
+        expect(src).toMatch(/evaluateFollowupParticipantAccess/);
+        expect(src).toMatch(/updateScopedFollowup/);
+        const service = fs.readFileSync(path.join(ROOT, "src/services/communications/followups.js"), "utf8");
+        expect(service).toMatch(/evaluateAssignmentAccess\(\{ resource: "program", contextId: programId \}\)/);
+      } else {
+        expect(src).toMatch(/requireAssignmentAccess/);
+      }
     },
   );
 });

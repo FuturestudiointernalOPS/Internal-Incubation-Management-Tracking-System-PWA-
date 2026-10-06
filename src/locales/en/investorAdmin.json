@@ -25,6 +25,7 @@
       "createDraft": "Create Draft",
       "emptyTitle": "No campaigns yet",
       "emptyHint": "Create your first fundraising campaign",
+      "noMatch": "No campaigns with this status",
       "publish": "Publish",
       "updateRaised": "Update Raised",
       "pause": "Pause",

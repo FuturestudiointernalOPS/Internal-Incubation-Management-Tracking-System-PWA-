@@ -158,6 +158,7 @@ All located in `src/components/ui/`. Import them directly:
 ```jsx
 // Layout
 import AppCard from "@/components/ui/AppCard";
+import AppLinkCard from "@/components/ui/AppLinkCard"; // dashboard card that opens its page — only once it exists
 import AppButton from "@/components/ui/AppButton";
 import AppModal from "@/components/ui/AppModal";
 import AppMenu from "@/components/ui/AppMenu";
@@ -191,6 +192,14 @@ import { Skeleton, TableSkeleton } from "@/components/ui/Skeleton";
 <AppCard padding="lg" hover>
   <h2>Content</h2>
 </AppCard>
+
+// Dashboard card with a gated redirect: a link (+ ↗) when the page is ready,
+// otherwise a short nudge on click and no navigation. Keep the flags in one
+// map per dashboard, e.g. CARD_LINKS in app/admin/investors/dashboard/page.js.
+<AppLinkCard padding="md" isDeveloped redirectTo="/admin/investors?status=approved">
+  <p>{value}</p>
+</AppLinkCard>
+<AppLinkCard padding="md" isDeveloped={false}>…</AppLinkCard>
 
 // Input with icon
 <AppInput
@@ -374,6 +383,7 @@ src/
 │       ├── AppBadge.js
 │       ├── AppButton.js
 │       ├── AppCard.js
+│       ├── AppLinkCard.js       ← Card with a gated redirect (isDeveloped + redirectTo), nudge otherwise
 │       ├── AppEmptyState.js     ← Empty/placeholder state (sm/md/lg)
 │       ├── AppImage.js          ← Image wrapper; plain <img> for arbitrary hosts, next/image for allowed ones
 │       ├── AppInput.js
@@ -414,3 +424,16 @@ src/
 - [ ] Theme toggle uses `useTheme()` hook
 - [ ] Status colors (emerald/rose/amber/indigo) used only for semantic meaning
 - [ ] Chart colors use `var(--chart-*)` tokens
+
+### Blocs internes de la coquille et de la messagerie
+
+`DashboardLayout.js` reste le point d'entrée public de la coquille. Ses blocs
+`SidebarContent` et `ShellHeader`, ainsi que les helpers de navigation, sont dans
+`src/components/layout/shell/`. Les layouts de section continuent d'importer
+`DashboardLayout.js`.
+
+`MessagingChat.js` conserve l'orchestration et les états. Ses blocs internes
+`ConversationList`, `ConversationThread`, `ComposeMessageModal` et
+`NewMessageButton` sont dans `src/components/messaging/chat/` ; ils reçoivent les
+valeurs et actions du parent et n'ajoutent aucun conteneur DOM. Ces blocs restent
+propres à leur surface, tandis que les composants UI génériques restent dans `ui/`.

@@ -31,7 +31,7 @@ jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
-jest.mock("@/models/groups", () => ({
+jest.mock("@/models/groups/invitations", () => ({
   ensureInvitationsTable: jest.fn(async () => {}),
   createInvitation: jest.fn(async () => {}),
   listActiveInvites: jest.fn(async () => ({ rows: [] })),
@@ -57,7 +57,9 @@ jest.mock("@/models/integrations/notion/sync", () => ({
 }));
 
 const { requireAuthorization } = require("@/models/authorization/index");
-const { listActiveInvites } = require("@/models/groups");
+const {
+  listActiveInvites,
+} = require("@/models/groups/invitations");
 const { getEvaluationFrameworkByFormId } = require("@/models/platformAi");
 const { checkCalendarHealth } = require("@/models/integrations/calendar/sync");
 const { checkNotionHealth } = require("@/models/integrations/notion/sync");

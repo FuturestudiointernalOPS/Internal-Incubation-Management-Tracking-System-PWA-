@@ -1,37 +1,25 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { resolvePlanAccess, allowsPlanAction } from "@/services/ventures/operatingPlans";
 import { roleIsPrivileged } from "@/lib/ventureAuth";
-import { canManageMilestones, releaseMilestonesForStage, activateDueStages } from "@/lib/ventureMilestoneEngine";
+import { canManageMilestones, activateDueStages } from "@/services/ventures/milestoneEngine";
 import { evidenceDownloadUrl, isExternalEvidenceLink } from "@/lib/ventureEvidence";
 import { projectJourneyStagesForVenture } from "@/lib/ventureVisibility";
-import { TASK_COMPLETED_STATUSES } from "@/lib/ventureStatuses";
 import {
   ensureJourneyTable,
   resolveVentureInternalId,
   listJourneyStages,
   getJourneyStage,
-  nextJourneyStageOrder,
-  moveJourneyStage,
-  deleteJourneyStage,
 } from "@/services/ventures/journey";
-import { diffFields, recordVentureChange } from "@/models/ventureChangeLog";
+import { updateJourneyStageFields } from "@/models/ventureJourney";
+import { attachJourneyWork } from "@/services/ventures/journeyRead";
 import {
-  listJourneyMilestonesByStage,
-  listJourneyMilestonesByStageLegacy,
-  listJourneyDeliverablesByMilestoneIds,
-  listJourneyTaskStatusesByMilestoneIds,
-  listJourneyTaskStatusesByMilestoneIdsLegacy,
-  getJourneyTemplateName,
-  countJourneyStagesByVenture,
-  insertJourneyStage,
-  updateJourneyStageFields,
-  activateJourneyStage,
-  lockJourneyStage,
-  holdJourneyStageMilestones,
-  resetJourneyStage,
-} from "@/models/ventureJourney";
+  addJourneyStage,
+  recordJourneyStageEdit,
+  runJourneyStageTransition,
+  recordJourneyStageTransition,
+} from "@/services/ventures/journeyStageActions";
 
 export const dynamic = "force-dynamic";
 
@@ -113,107 +101,19 @@ export async function GET(req, { params }) {
       milestoneAuthority = await canManageMilestones({ id, cid: viewer.cid, role: viewer.role });
     }
 
-    // Phase 2 spine: attach the milestones bound to each stage so the Journey
-    // timeline can show stage -> milestone progress. Venture-facing data only
-    // (milestones are visible to members through their own tools). Defensive:
-    // if the additive columns are missing the stage list still renders.
-    const milestonesResult = await listJourneyMilestonesByStage(dbId).catch(() =>
-      listJourneyMilestonesByStageLegacy(dbId).catch(() => ({ rows: [] })),
-    );
-    const milestonesByStage = {};
-    for (const milestone of milestonesResult.rows || []) {
-      const key = String(milestone.journey_stage_id);
-      (milestonesByStage[key] = milestonesByStage[key] || []).push(milestone);
-    }
-
-    // Deliverables attached to each milestone (evidence submitted by the
-    // Venture, reviewed by the Lead Manager / a scoped coach). Guarded so a
-    // database without the table still renders the journey.
-    const boundMilestoneIds = Object.values(milestonesByStage)
-      .flat()
-      .map((milestone) => String(milestone.id));
-    const deliverablesByMilestone = {};
-    // A failure here used to be swallowed as "this Venture has no deliverables",
-    // which is how evidence vanished from EVERY view at once with no explanation
-    // (a stale column, a type mismatch, a transient outage). The read stays
-    // tolerant so the roadmap still renders, but it no longer lies: the failure
-    // is logged and reported, and the surfaces show it instead of an empty list.
-    let deliverablesUnavailable = false;
-    if (boundMilestoneIds.length > 0) {
-      const deliverablesResult = await listJourneyDeliverablesByMilestoneIds(boundMilestoneIds)
-        .catch((error) => {
-          deliverablesUnavailable = true;
-          console.error(`[journey] deliverable evidence read failed for venture ${id}:`, error?.message || error);
-          return { rows: [] };
-        });
-      for (const deliverable of deliverablesResult.rows || []) {
-        const key = String(deliverable.milestone_id);
-        (deliverablesByMilestone[key] = deliverablesByMilestone[key] || []).push(deliverable);
-      }
-      // Private evidence: a storage path is signed per read (1h), while an
-      // external link the author pasted passes through untouched. Only viewers
-      // who already passed this Venture read ever receive a usable URL.
-      await Promise.all(
-        Object.values(deliverablesByMilestone)
-          .flat()
-          .map(async (deliverable) => {
-            if (!deliverable.attachment_url) return;
-            deliverable.evidence_download_url = isExternalEvidenceLink(deliverable.attachment_url)
-              ? deliverable.attachment_url
-              : await evidenceDownloadUrl(deliverable.attachment_url);
-          }),
-      );
-    }
-
-    // Task EXECUTION counts per milestone: the badge says what the outcome is,
-    // this says how much of the work under it is done ("12 / 17 tasks done").
-    // Display only — it never touches `progress`, which stays evidence-driven,
-    // so no dashboard, report or export changes meaning because of this read.
-    const taskCountsByMilestone = {};
-    if (boundMilestoneIds.length > 0) {
-      const tasksResult = await listJourneyTaskStatusesByMilestoneIds(boundMilestoneIds)
-        .catch(() =>
-          listJourneyTaskStatusesByMilestoneIdsLegacy(boundMilestoneIds).catch(() => ({ rows: [] })),
-        );
-      for (const task of tasksResult.rows || []) {
-        const key = String(task.milestone_id);
-        const counts = (taskCountsByMilestone[key] = taskCountsByMilestone[key] || { total: 0, done: 0 });
-        counts.total += 1;
-        if (TASK_COMPLETED_STATUSES.includes(String(task.status || "").trim().toLowerCase())) {
-          counts.done += 1;
-        }
-      }
-    }
-
-    // Template provenance: stages generated from a reusable template carry a
-    // (type, id) stamp — resolve the current template name for the UI banner.
-    const stamped = stages.find((stage) => stage.source_template_id);
-    let templateSource = null;
-    if (stamped && stamped.source_template_id) {
-      const srcType = stamped.source_template_type === "journey" ? "journey" : "plan";
-      const table = srcType === "journey" ? "venture_journey_templates" : "venture_plan_templates";
-      try {
-        const templateResult = await getJourneyTemplateName(table, stamped.source_template_id).catch(() => ({ rows: [] }));
-        const template = templateResult.rows?.[0];
-        if (template) templateSource = { type: srcType, id: stamped.source_template_id, name: template.name || null };
-      } catch (_) {}
-    }
-
-    for (const stage of stages) {
-      const stageMilestones = milestonesByStage[stage.id] || [];
-      stage.milestones = stageMilestones;
-      for (const milestone of stageMilestones) {
-        milestone.deliverables = deliverablesByMilestone[String(milestone.id)] || [];
-        milestone.task_counts = taskCountsByMilestone[String(milestone.id)] || { total: 0, done: 0 };
-      }
-      stage.milestone_counts = {
-        total: stageMilestones.length,
-        completed: stageMilestones.filter((milestone) => milestone.status === "completed").length,
-      };
-      // Provenance is surfaced once at the top level — never per-stage.
-      delete stage.source_template_type;
-      delete stage.source_template_id;
-    }
+    // Milestones, deliverables (signed evidence), task counts and template
+    // provenance are attached by the service: services/ventures/journeyRead.
+    // Private evidence: a storage path is signed per read (1h), while an
+    // external link the author pasted passes through untouched. Only viewers
+    // who already passed this Venture read ever receive a usable URL.
+    const signEvidence = async (deliverable) => {
+      deliverable.evidence_download_url = isExternalEvidenceLink(deliverable.attachment_url)
+        ? deliverable.attachment_url
+        : await evidenceDownloadUrl(deliverable.attachment_url);
+    };
+    const { templateSource, deliverablesUnavailable } = await attachJourneyWork({
+      ventureParam: id, dbId, stages, signEvidence,
+    });
 
     // Guided experience (Vinance 3): a member sees the WHOLE map — every
     // Journey and every Milestone with its real status — and walks only the
@@ -259,27 +159,11 @@ export async function POST(req, { params }) {
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     const body = await req.json();
-    const name = String(body.name || "").trim();
-    if (!name) return NextResponse.json({ success: false, error: "name is required." }, { status: 400 });
-
-    const existing = await countJourneyStagesByVenture(dbId);
-    const count = Number(existing.rows?.[0]?.n || 0);
-    const stageOrder = await nextJourneyStageOrder(dbId);
-    const status = count === 0 ? "active" : "upcoming";
-    const targetDate = body.target_date ? String(body.target_date).slice(0, 10) : null;
-    // Optional: when the Journey starts on its own (NULL = it starts only when
-    // a staff member activates it). No ordering is imposed on it.
-    const startDate = body.start_date ? String(body.start_date).slice(0, 10) : null;
-
-    const insertResult = await insertJourneyStage({
-      ventureId: dbId, name, description: body.description || null, objective: body.objective || null,
-      startDate, targetDate, stageOrder, status,
-    });
-
-    try {
-      const { addVentureHistory } = await import("@/lib/ventures");
-      await addVentureHistory({ venture_id: id, event_type: "JOURNEY_STAGE_ADDED", description: `Journey stage "${name}" added` });
-    } catch (_) {}
+    // Name required, order, initial status, dates, insert and history:
+    // services/ventures/journeyStageActions.
+    const added = await addJourneyStage({ ventureParam: id, dbId, body });
+    if (added.error) return NextResponse.json({ success: false, error: added.error }, { status: added.status });
+    const insertResult = added.insertResult;
 
     // Managers keep their Archived view in sync: archived rows are returned
     // only to callers holding the manage capability (same rule as GET).
@@ -325,24 +209,8 @@ export async function PATCH(req, { params }) {
         startDate !== undefined ? 1 : 0, startDate !== undefined ? startDate : null,
         stageId, dbId,
       ]);
-      // Field-level history of the edit. Non-fatal by contract — the write above
-      // already succeeded and must not be undone by a logging failure.
-      try {
-        const JOURNEY_FIELDS = ["name", "description", "objective", "target_date", "start_date"];
-        const journeyChanges = diffFields(stage, body, JOURNEY_FIELDS);
-        if (journeyChanges.length) {
-          await recordVentureChange({
-            dbId,
-            entityType: "journey",
-            entityId: stageId,
-            entityLabel: stage.name || name || null,
-            action: "updated",
-            actorCid: session?.cid || null,
-            actorName: session?.name || null,
-            changes: journeyChanges,
-          });
-        }
-      } catch (_) {}
+      // Field-level history of the edit (non-fatal): services/ventures/journeyStageActions.
+      await recordJourneyStageEdit({ dbId, stage, stageId, name, body, session });
 
       const canManage = await allowsPlanAction(access, "manage");
       const stages = await listJourneyStages(dbId, { includeArchived: canManage });
@@ -361,80 +229,14 @@ export async function PATCH(req, { params }) {
 
     const stage = stageId ? await getJourneyStage(dbId, stageId) : null;
 
-    if (action === "activate") {
-      if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
-      if (stage.status === "completed") {
-        return NextResponse.json({ success: false, error: "Completed stages are not reactivated directly — reset the stage first." }, { status: 400 });
-      }
-      // Activating is additive: Journeys overlap, so the others are left
-      // alone (locking them here would fight the date-driven sweep, which
-      // re-activates any Journey whose start_date has arrived).
-      await activateJourneyStage(stageId, dbId);
-      // The journey is now active — its milestones are offered (availability
-      // is set by the Journey, never by a milestone's position).
-      await releaseMilestonesForStage({ dbId, stageId });
-    } else if (action === "lock") {
-      if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
-      if (stage.status === "completed") {
-        return NextResponse.json({ success: false, error: "Completed stages cannot be paused — reset the stage first." }, { status: 400 });
-      }
-      await lockJourneyStage(stageId, dbId);
-      // A Journey that is no longer active holds its unreleased work again.
-      // Work already under way is left where it is.
-      await holdJourneyStageMilestones(dbId, stageId);
-    } else if (action === "complete") {
-      // A journey is NEVER closed by hand: it completes automatically once all
-      // of its milestones have been marked completed.
-      return NextResponse.json(
-        { success: false, error: "A journey cannot be closed manually — it completes automatically once all of its milestones are completed." },
-        { status: 400 },
-      );
-    } else if (action === "reset") {
-      if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
-      // Reopening touches THIS Journey only. Journeys overlap, so what the
-      // others are is decided by their own dates (and by staff), never by a
-      // neighbour's state — the old positional re-lock is gone.
-      await resetJourneyStage(stageId, dbId);
-      // Reopened journey is active again — its milestones are offered.
-      await releaseMilestonesForStage({ dbId, stageId });
-    } else if (action === "delete") {
-      if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
-      await deleteJourneyStage({ dbId, stageId });
-    } else if (action === "move") {
-      if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
-      const direction = String(body.direction || "");
-      if (!["up", "down"].includes(direction)) {
-        return NextResponse.json({ success: false, error: "direction (up|down) is required." }, { status: 400 });
-      }
-      const moved = await moveJourneyStage({ dbId, stageId, direction });
-      if (moved.error) return NextResponse.json({ success: false, error: moved.error }, { status: 400 });
-    }
+    // The transition itself (activate / lock / complete / reset / delete / move)
+    // is a service decision; a refusal comes back as { error, status }.
+    const refused = await runJourneyStageTransition({ action, stage, stageId, dbId, body });
+    if (refused) return NextResponse.json({ success: false, error: refused.error }, { status: refused.status });
 
-    // The transition itself is the change. Recorded after the gate above, so a
-    // refused action never leaves a row claiming it happened.
-    try {
-      const ACTION_NAMES = { activate: "activated", lock: "locked", reset: "reopened", delete: "deleted", move: "moved" };
-      const actionName = ACTION_NAMES[action];
-      if (actionName) {
-        const nextStatus =
-          action === "activate" ? "active" : action === "lock" ? "upcoming" : action === "reset" ? "active" : null;
-        const changes =
-          nextStatus && stage?.status && stage.status !== nextStatus
-            ? [{ field: "status", from: stage.status, to: nextStatus }]
-            : [];
-        await recordVentureChange({
-          dbId,
-          entityType: "journey",
-          entityId: stageId,
-          entityLabel: stage?.name || null,
-          action: actionName,
-          actorCid: session?.cid || null,
-          actorName: session?.name || null,
-          changes,
-          metadata: action === "move" ? { direction: String(body.direction || "") } : null,
-        });
-      }
-    } catch (_) {}
+    // The transition itself is the change, recorded after the gate above
+    // (non-fatal): services/ventures/journeyStageActions.
+    await recordJourneyStageTransition({ action, stage, stageId, dbId, body, session });
 
     // Reached only after the manage gate above — safe to include archived rows.
     const stages = await listJourneyStages(dbId, { includeArchived: true });

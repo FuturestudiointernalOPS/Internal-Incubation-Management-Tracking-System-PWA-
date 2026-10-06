@@ -42,8 +42,8 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-const { addDependency } = require("@/lib/ventures");
-const { getUnmetMilestoneDependencies, assertBookableMilestone } = require("@/lib/ventureMilestoneEngine");
+const { addDependency } = require("@/services/ventures/timeline");
+const { getUnmetMilestoneDependencies, assertBookableMilestone } = require("@/services/ventures/milestoneEngine");
 
 beforeEach(() => {
   mockState.edges = [];

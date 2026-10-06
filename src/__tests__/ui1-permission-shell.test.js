@@ -23,6 +23,7 @@ const { summarizeContextRoles } = require("@/components/permissions/overviewHelp
 
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
+const { readPermissionCenterSurface } = require("./helpers/permissionCenterSource");
 
 const ROUTE_ROOT = path.join(process.cwd(), "src/app/admin/security/permissions");
 
@@ -123,7 +124,10 @@ describe("UI-5 — navigation model", () => {
   });
 
   test("there is exactly one navigation: no legacy tab bar survives", () => {
-    const src = read("src/components/permissions/PermissionCenter.js");
+    // The SURFACE, not the shim: this is an invariant about every screen in the
+    // permission center. Pointing it at the shim would leave it vacuously green
+    // the moment a tab bar moved into `permission-center/`.
+    const src = readPermissionCenterSurface();
     expect(src).not.toContain("setActiveTab");
     expect(src).not.toContain("setSetupSection");
   });

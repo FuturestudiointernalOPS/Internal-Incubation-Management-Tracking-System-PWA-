@@ -53,13 +53,16 @@ describe("createHandler resolves the session once and attaches it (IMPL-1)", () 
     default: { execute: jest.fn() },
     initDb: jest.fn(async () => {}),
   }));
-  jest.mock("@/lib/auth", () => ({
-    requireAuth: jest.fn(async () => null),
-    getSession: jest.fn(async () => ({ cid: "C1", role: "staff" })),
-  }));
+  jest.mock("@/server/auth/guards", () => ({
+  requireAuth: jest.fn(async () => null),
+}));
+jest.mock("@/server/auth/session", () => ({
+  getSession: jest.fn(async () => ({ cid: "C1", role: "staff" })),
+}));
 
   const { createHandler } = require("@/lib/api/createHandler");
-  const { requireAuth, getSession } = require("@/lib/auth");
+  const { requireAuth } = require("@/server/auth/guards");
+const { getSession } = require("@/server/auth/session");
 
   test("attaches req.session and hands the same session to the guard", async () => {
     const handler = createHandler(async (req) => ({ seen: req.session?.cid }));

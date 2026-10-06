@@ -9,18 +9,15 @@ import {
   Clock,
   Target,
   Search,
-  Briefcase,
-  User,
   Plus,
-  ChevronDown,
-  ChevronRight,
-  Trash2,
+  Briefcase,
   FolderOpen,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useApiMulti } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import KanbanBoard from "@/components/admin/work/KanbanBoard";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on the list below, so it is built once
@@ -295,53 +292,6 @@ export default function ProjectKanbanBoard() {
   const toggleProject = (id) =>
     setExpandedProjects((previous) => ({ ...previous, [id]: !previous[id] }));
 
-  // ── Render a single task card ──
-  const renderTaskCard = (task) => (
-    <div
-      key={task.id}
-      draggable
-      onDragStart={(event) => handleDragStart(event, task.id)}
-      onDragEnd={handleDragEnd}
-      className={`p-2 rounded-lg border border-[var(--border-primary)] bg-tertiary/50 cursor-grab active:cursor-grabbing hover:border-brand-orange/30 transition-colors ${
-        task.status === "completed" ? "opacity-60" : ""
-      }`}
-    >
-      <div className="flex items-start justify-between gap-1">
-        <span
-          className={`text-[10px] font-bold flex-1 truncate ${
-            task.status === "completed"
-              ? "line-through text-[var(--text-secondary)]"
-              : "text-[var(--text-primary)]"
-          }`}
-        >
-          {task.title}
-        </span>
-        {isSuperAdmin && (
-          <button
-            onClick={() => handleDeleteTask(task.id)}
-            disabled={deletingTaskId === task.id}
-            className="p-0.5 rounded hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors shrink-0"
-            title={t("adminMisc.work.deleteTask")}
-          >
-            {deletingTaskId === task.id ? (
-              <div className="w-2.5 h-2.5 border border-red-400 border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Trash2 className="w-2.5 h-2.5" />
-            )}
-          </button>
-        )}
-      </div>
-      <div className="flex items-center gap-2 mt-1">
-        {task.user_name && (
-          <span className="text-[10px] font-medium text-[var(--text-secondary)] flex items-center gap-0.5">
-            <User className="w-2 h-2" />
-            {task.user_name}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-
   // ── Loading state ──
   if (loading) {
     return (
@@ -399,168 +349,22 @@ export default function ProjectKanbanBoard() {
         </div>
 
         {/* Kanban Board */}
-        <div className="flex gap-4 overflow-x-auto pb-6 min-h-[70vh]">
-          {columns.map((col) => (
-            <div
-              key={col.id}
-              className={`flex-shrink-0 w-80 rounded-xl border flex flex-col transition-colors ${
-                dragOverCol === col.id
-                  ? "border-brand-orange/40 bg-brand-orange/5"
-                  : "border-[var(--border-primary)] bg-tertiary/30"
-              }`}
-              onDragOver={(event) => handleDragOver(event, col.id)}
-              onDragLeave={handleDragLeave}
-              onDrop={(event) => handleDrop(event, col.id)}
-            >
-              {/* Column Header */}
-              <div
-                className={`flex items-center justify-between px-4 py-3 border-b border-[var(--border-primary)] ${col.bg} rounded-t-xl`}
-              >
-                <div className="flex items-center gap-2">
-                  <col.icon className={`w-4 h-4 ${col.color}`} />
-                  <span
-                    className={`text-[10px] font-black uppercase tracking-wider ${col.color}`}
-                  >
-                    {t(`adminMisc.work.column.${col.id}`)}
-                  </span>
-                </div>
-                <span className={`text-[10px] font-black ${col.color}`}>
-                  {col.total}
-                </span>
-              </div>
-
-              {/* Column Body */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                {/* Programs with projects */}
-                {col.programTree.map(({ program, projects: projs }) => {
-                  const isExpanded = expandedPrograms[program.id] !== false;
-                  return (
-                    <div key={program.id} className="space-y-1">
-                      <button
-                        onClick={() => toggleProgram(program.id)}
-                        className="flex items-center gap-1.5 w-full text-left text-[10px] font-bold text-[var(--text-primary)] uppercase tracking-wide hover:text-[var(--brand-orange)] transition-colors py-1"
-                      >
-                        {isExpanded ? (
-                          <ChevronDown className="w-3 h-3 shrink-0" />
-                        ) : (
-                          <ChevronRight className="w-3 h-3 shrink-0" />
-                        )}
-                        <FolderOpen className="w-3 h-3 text-indigo-400" />
-                        {program.name ||
-                          program.title ||
-                          t("adminMisc.work.programFallback", { id: program.id })}
-                      </button>
-
-                      {isExpanded && (
-                        <div className="ml-3 pl-2 border-l-2 border-indigo-500/20 space-y-2">
-                          {Object.values(projs).map(({ project, tasks }) => {
-                            const pExpanded =
-                              expandedProjects[project.id] !== false;
-                            return (
-                              <div key={project.id} className="space-y-1">
-                                <button
-                                  onClick={() => toggleProject(project.id)}
-                                  className="flex items-center gap-1 w-full text-left text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wide hover:text-[var(--text-primary)] transition-colors py-0.5"
-                                >
-                                  {pExpanded ? (
-                                    <ChevronDown className="w-2.5 h-2.5 shrink-0" />
-                                  ) : (
-                                    <ChevronRight className="w-2.5 h-2.5 shrink-0" />
-                                  )}
-                                  <Briefcase className="w-2.5 h-2.5 text-emerald-400" />
-                                  {project.name}{" "}
-                                  <span className="text-[10px] font-medium text-[var(--text-secondary)] normal-case ml-1">
-                                    ({tasks.length})
-                                  </span>
-                                </button>
-                                {pExpanded && (
-                                  <div className="space-y-1.5">
-                                    {tasks.map(renderTaskCard)}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {/* Projects without a program */}
-                {col.noProgTasks.length > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-1.5 py-1">
-                      <div className="flex-1 h-px bg-slate-600/30" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                        {t("adminMisc.work.noProgram")}
-                      </span>
-                      <div className="flex-1 h-px bg-slate-600/30" />
-                    </div>
-                    {col.noProgTasks.reduce((groups, { project, task }) => {
-                      const key = project.id;
-                      if (!groups[key]) groups[key] = { project, tasks: [] };
-                      groups[key].tasks.push(task);
-                      return groups;
-                    }, {}) &&
-                      Object.values(
-                        col.noProgTasks.reduce((groups, { project, task }) => {
-                          const key = project.id;
-                          if (!groups[key])
-                            groups[key] = { project, tasks: [] };
-                          groups[key].tasks.push(task);
-                          return groups;
-                        }, {}),
-                      ).map(({ project, tasks }) => (
-                        <div key={project.id} className="space-y-1">
-                          <button
-                            onClick={() => toggleProject(project.id)}
-                            className="flex items-center gap-1 text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wide hover:text-[var(--text-primary)] transition-colors py-0.5"
-                          >
-                            {expandedProjects[project.id] !== false ? (
-                              <ChevronDown className="w-2.5 h-2.5 shrink-0" />
-                            ) : (
-                              <ChevronRight className="w-2.5 h-2.5 shrink-0" />
-                            )}
-                            <Briefcase className="w-2.5 h-2.5 text-emerald-400" />
-                            {project.name} ({tasks.length})
-                          </button>
-                          {expandedProjects[project.id] !== false && (
-                            <div className="ml-2 pl-2 border-l-2 border-slate-500/20 space-y-1.5">
-                              {tasks.map(renderTaskCard)}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                  </div>
-                )}
-
-                {/* Uncategorized tasks (no project) */}
-                {col.noProjectTasks.length > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-1.5 py-1">
-                      <div className="flex-1 h-px bg-slate-600/30" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                        {t("adminMisc.work.uncategorized")}
-                      </span>
-                      <div className="flex-1 h-px bg-slate-600/30" />
-                    </div>
-                    <div className="space-y-1">
-                      {col.noProjectTasks.map(renderTaskCard)}
-                    </div>
-                  </div>
-                )}
-
-                {/* Empty state */}
-                {col.total === 0 && (
-                  <p className="text-sm text-[var(--text-secondary)] text-center py-8">
-                    {t("adminMisc.work.noItems")}
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+        <KanbanBoard
+          columns={columns}
+          dragOverCol={dragOverCol}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          expandedPrograms={expandedPrograms}
+          expandedProjects={expandedProjects}
+          onToggleProgram={toggleProgram}
+          onToggleProject={toggleProject}
+          isSuperAdmin={isSuperAdmin}
+          deletingTaskId={deletingTaskId}
+          onDeleteTask={handleDeleteTask}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        />
 
         {/* Legend */}
         <div className="flex items-center gap-6 text-[9px] text-[var(--text-secondary)] font-medium">

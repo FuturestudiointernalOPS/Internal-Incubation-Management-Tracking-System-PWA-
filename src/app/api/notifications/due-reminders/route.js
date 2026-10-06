@@ -1,10 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import {
-  getTasksDueInNext24Hours,
-  findRecentDueReminder,
-  createDueReminderNotification,
-} from "@/models/workspace";
+import { notifyDueReminders } from "@/services/communications/notifications";
 
 /**
  * POST /api/notifications/due-reminders?key=SECRET_KEY
@@ -45,37 +41,7 @@ export async function POST(req) {
 
     await initDb();
 
-    // 1. Find tasks due within the next 24 hours
-    const dueTasks = await getTasksDueInNext24Hours();
-
-    const tasks = dueTasks.rows || [];
-    let remindersCreated = 0;
-
-    for (const task of tasks) {
-      // 2. Deduplicate — skip if a due_reminder notification already exists
-      //    for this task within the last 6 hours
-      const existing = await findRecentDueReminder(
-        task.user_id,
-        `%${task.title}%`,
-      );
-
-      if (existing.rows && existing.rows.length > 0) {
-        continue; // Already notified recently
-      }
-
-      // 3. Create the notification
-      const endDateStr = task.end_date
-        ? new Date(task.end_date).toISOString().split("T")[0]
-        : "tomorrow";
-
-      await createDueReminderNotification(
-        task.user_id,
-        "Due Date Reminder",
-        `Task "${task.title}" is due tomorrow (${endDateStr}).`,
-      );
-
-      remindersCreated++;
-    }
+    const { remindersCreated } = await notifyDueReminders();
 
     return NextResponse.json({
       success: true,

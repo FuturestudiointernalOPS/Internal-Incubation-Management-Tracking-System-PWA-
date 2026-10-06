@@ -8,7 +8,7 @@ import { buildParticipantFollowups } from "@/services/participant";
  * shaping decisions live in the participant service.
  */
 export const GET = createHandler(async (_req) => {
-  const { getSession } = await import("@/lib/auth");
+  const { getSession } = await import("@/server/auth/session");
   const session = await getSession();
   if (!session) {
     return NextResponse.json(

@@ -20,8 +20,10 @@ jest.mock("@/lib/db", () => ({
   default: { execute: jest.fn(async () => ({ rows: [] })) },
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   createSession: jest.fn(async () => ({ token: "tok-1", maxAge: 86400 })),
+}));
+jest.mock("@/server/auth/cookies", () => ({
   setSessionCookieOnResponse: jest.fn((response) => {
     response.headers.set("set-cookie", "impactos_session=tok-1; HttpOnly");
     return response;
@@ -32,11 +34,9 @@ jest.mock("@/models/platform/roles", () => ({
   resolveEffectiveRole: jest.fn(() => "staff"),
 }));
 
-jest.mock("@/lib/authorization/membership", () => ({
+jest.mock("@/services/authorization/membership", () => ({
   getEffectiveGroupsForUser: jest.fn(async () => []),
-}));
-
-jest.mock("@/lib/rate-limit", () => ({
+}));jest.mock("@/lib/rate-limit", () => ({
   enforceRateLimit: jest.fn(() => null),
   getClientIp: jest.fn(() => "203.0.113.7"),
 }));
@@ -61,7 +61,8 @@ jest.mock("@/models/authFlows", () => ({
 jest.mock("@/lib/loginAudit", () => ({ auditLoginAttempt: jest.fn(async () => {}) }));
 
 const { POST } = require("@/app/api/auth/login/route");
-const { createSession, setSessionCookieOnResponse } = require("@/lib/auth");
+const { createSession } = require("@/server/auth/session");
+const { setSessionCookieOnResponse } = require("@/server/auth/cookies");
 const { verifyPassword } = require("@/server/auth/password");
 const { enforceRateLimit } = require("@/lib/rate-limit");
 const { auditLoginAttempt } = require("@/lib/loginAudit");

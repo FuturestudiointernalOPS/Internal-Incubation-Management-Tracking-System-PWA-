@@ -10,8 +10,8 @@
  * CRM permission data. (Phase 1 of the Venture permission engine.)
  *
  * Every statement lives in `@/models/venturePermissionStore`; nothing here runs
- * SQL. Re-exported unchanged through the compatibility facade
- * `@/lib/venturePermissions` — see docs/LAYER_SPLIT.md.
+ * SQL. This module used to be re-exported through the `@/lib/venturePermissions` facade;
+ * that facade is gone (CH-4) and importers read this module directly.
  */
 
 import { invalidateVentureAccess } from "@/services/ventures/accessFacts";

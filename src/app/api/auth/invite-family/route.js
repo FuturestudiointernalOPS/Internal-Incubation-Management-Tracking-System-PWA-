@@ -1,6 +1,9 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, assertNoParticipantFacilitatorConflict, getSession, isAssignedPmForProgram } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
+import { assertNoParticipantFacilitatorConflict } from "@/server/authz/guards";
+import { getSession } from "@/server/auth/session";
+import { isAssignedPmForProgram } from "@/models/authorization/accessQueries";
 import { v4 as uuidv4 } from "uuid";
 import { sendInviteEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";

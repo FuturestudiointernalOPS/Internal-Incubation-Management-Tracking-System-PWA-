@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
 import { runPhase1MigrationStatement } from "@/models/platformConfig";
 import fs from "fs";
 import path from "path";

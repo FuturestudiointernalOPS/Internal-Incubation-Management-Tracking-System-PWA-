@@ -8,7 +8,7 @@ import {
   hasVentureWideReach,
   isTaskInScope,
   listTaskScopeContexts,
-} from "@/lib/ventureScope";
+} from "@/services/ventures/scope";
 import { getVentureByCode, selectVentureReviewQueue } from "@/models/ventureWorkspace";
 
 /**

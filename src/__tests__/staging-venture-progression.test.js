@@ -77,7 +77,12 @@ const { __state: mockState } = require("@/lib/db");
 // its own stateful table for the engine tests.
 mockState.executeImpl = (arg) => mockRouteDb.execute(arg);
 
-jest.mock("@/lib/auth", () => ({ requireAuth: jest.fn().mockResolvedValue(null), getSession: jest.fn() }));
+jest.mock("@/server/auth/guards", () => ({
+  requireAuth: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/server/auth/session", () => ({
+  getSession: jest.fn(),
+}));
 
 jest.mock("@/lib/ventureAuth", () => ({
   requireVentureAccess: jest.fn().mockResolvedValue({ session: { cid: "u1", role: "super_admin" } }),
@@ -92,7 +97,7 @@ jest.mock("@/lib/ventureScopedAccess", () => ({
   }),
 }));
 
-jest.mock("@/lib/ventures", () => ({
+jest.mock("@/services/ventures/activity", () => ({
   notifyVentureFounders: jest.fn().mockResolvedValue(true),
   addVentureHistory: jest.fn().mockResolvedValue(true),
 }));
@@ -103,7 +108,7 @@ const {
   completeStageIfAllMilestonesDone,
   deriveMilestoneStatusFromTasks,
   combineMilestoneStatus,
-} = require("@/lib/ventureMilestoneEngine");
+} = require("@/services/ventures/milestoneEngine");
 
 const milestoneCtx = { params: { id: "VNT-3ECFB390" } };
 const readJson = async (res) => res.json();

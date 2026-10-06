@@ -15,11 +15,19 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn(async () => null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => ({ cid: "USR_STAFF", role: "staff", email: "s@x.test" })),
+}));
+jest.mock("@/server/authz/guards", () => ({
   requireAssignmentAccess: jest.fn(async () => null),
+}));
+jest.mock("@/models/authorization/accessQueries", () => ({
   getFacilitatorTeamScope: jest.fn(async () => ({ scope: "all", teamIds: [] })),
+}));
+jest.mock("@/server/authz/capabilities", () => ({
   hasProgramManagementAccess: jest.fn((role) => ["super_admin", "program_manager"].includes(role)),
 }));
 
@@ -71,7 +79,7 @@ jest.mock("@/models/lms/programRequirements", () => ({
 }));
 
 const { isWithinScope } = require("@/services/authorization/scope");
-const { getSession } = require("@/lib/auth");
+const { getSession } = require("@/server/auth/session");
 const formsModel = require("@/models/forms");
 const requirementsModel = require("@/models/lms/programRequirements");
 

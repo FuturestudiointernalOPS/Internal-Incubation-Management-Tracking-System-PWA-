@@ -31,13 +31,14 @@ documented — and its backlog tracked — in [LAYER_SPLIT.md](LAYER_SPLIT.md).
 | `services/**` | `models/**`, `server/auth/**`, `lib/**` (infra) | `lib/db` directly, `app/**`, `components/**` |
 | `server/auth/**` | `lib/**` (infra), `models/**` | `server/authz/**`, `app/**`, `components/**` |
 | `server/authz/**` | `server/auth/**`, `models/**`, `lib/**` | `server/auth/**` is *not* allowed to import it back |
-| `models/**` | `lib/db`, other models, pure helpers | `next/server`, `NextResponse`, `server/**`, UI |
+| `models/**` | `lib/db`, other models, pure helpers | `next/server`, `NextResponse`, `server/**`, `services/**`, UI |
 
 These are enforced by tests, not by convention:
-`src/__tests__/server/auth-boundaries.test.js` and
-`src/__tests__/server/authz-boundaries.test.js` fail if a forbidden import appears,
-if SQL shows up in `server/authz`, or if `bcrypt` is imported outside
-`server/auth/password.js`.
+`src/__tests__/server/auth-boundaries.test.js`,
+`src/__tests__/server/authz-boundaries.test.js`, and
+`src/__tests__/server/services-boundaries.test.js` fail if a forbidden import
+appears, if SQL shows up in `services/**` or `server/authz`, or if `bcrypt` is
+imported outside `server/auth/password.js`.
 
 ## Authentication vs authorization
 
@@ -45,10 +46,23 @@ if SQL shows up in `server/authz`, or if `bcrypt` is imported outside
 |---|---|---|
 | Who is calling? | `server/auth` | session lifecycle, cookie, password hashing, `requireSession`, `requireAuth` |
 | May they do this? | `server/authz` | capabilities, program/project scope, ownership, `requireAssignmentAccess` |
+| What should happen next? | `services/<feature>` | role/status normalization, registry assembly, merge steps, reconcile windows |
 
 `requireAuth(allowedRoles)` is the coarse "is this account the right *kind* of user"
 gate. Anything resource-specific belongs in `server/authz` — a capability, a scope
-or a membership check — and runs after an identity exists.
+or a membership check — and runs after an identity exists. Once those gates pass,
+feature decisions move into `services/**`.
+
+## Contacts migration (corridor 5)
+
+| Concern | Home | Status |
+|---|---|---|
+| Create / update / list / delete decisions | `services/contacts/{createContacts,updateContact,listContacts,deleteContact}.js` | ✅ |
+| Full-state registry assembly | `services/contacts/fullState.js` | ✅ |
+| Merge + search decisions | `services/contacts/{mergeContacts,searchContacts}.js` | ✅ |
+| Contact ↔ program/group sync (decisions + debounce) | `services/contacts/contactGroupSync.js` | ✅ |
+| Contact ↔ program/group sync SQL | `models/contactGroupSyncStore.js` | ✅ |
+| Facade for form-runs | `lib/contact-group-sync.js` → service | ✅ preserved |
 
 ## The rules that matter when moving code
 
@@ -60,12 +74,14 @@ or a membership check — and runs after an identity exists.
    enrolment is never blocked); others fail *closed* (a permission level that
    cannot be read is 0, never a grant). Keep the comment that says which, and why.
 3. **Public surfaces only grow.** A symbol that used to be exported keeps being
-   exported, for one release: that is why `src/lib/auth.js` is a facade that
-   re-exports both halves from their new homes.
+   exported, for one release: that is why `src/lib/auth.js` and
+   `src/lib/contact-group-sync.js` are façades that re-export from their new homes.
 4. **One function per query, named after the outcome.** Models can shape rows
    (snake_case → the shape guards already expect) but never make decisions.
-5. **No new dependency is added to reach a layer.** `server/authz` calls models
-   directly; models never call services.
+5. **No new dependency is added to reach a layer.** `services/**` and
+   `server/authz` call models directly; models never call services.
+6. **Services return `{ status, body }` (or `{ ok, error, data }` for helpers),
+   never `NextResponse`.** Controllers map that to the HTTP response.
 
    *Known exceptions while the layer split is in progress* (tracked in
    [LAYER_SPLIT.md](LAYER_SPLIT.md)): the `resolver`, `scope`,
@@ -136,6 +152,7 @@ function to throw — a behaviour change, so it awaits an explicit decision.
 2. Move the code by line range, not by retyping, so the SQL is byte-identical:
    assert the boundaries before extracting, and diff the SQL statement sets
    afterwards.
-3. Keep `src/lib/auth.js` re-exporting anything moved.
+3. Keep façades (`src/lib/auth.js`, `src/lib/contact-group-sync.js`, …)
+   re-exporting anything moved.
 4. `npm test` (all suites), `npx eslint .` (0 errors), `npm run build`.
 5. Delete the facade entries only once `grep` finds no importer.

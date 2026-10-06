@@ -347,7 +347,7 @@ Du plus rentable / débloquant au plus tard :
    diligence, campagnes, pipeline, relations, évaluation, décisions,
    organisations, liste de suivi, préférences, réunions, tableau de bord,
    agrégateurs et mot de passe. `register` est un 410 sans décision.
-4. 🟰 **LMS & paiement** et **e-mail / intégrations** — routes à décision
+4. ✅ **LMS & paiement** et **e-mail / intégrations** — routes à décision
    migrées : le **règlement partagé** (`settleVerifiedPayment`), la
    **réconciliation** (`checkoutReconcile`), l'**inscription publique**
    (`api/public/register`, `api/public/group-info`) →
@@ -360,12 +360,15 @@ Du plus rentable / débloquant au plus tard :
    (`link-run` vs `reconcile` : un simple aiguillage, le travail est déjà dans les
    services), `api/gmail-v1-test` (diagnostic temporaire « à supprimer »), et
    `api/integrations/**`, `api/public/course-match`, `api/webhooks/route.js`,
-   `api/webhooks/[id]` (délèguent déjà).
+   `api/webhooks/[id]` (délèguent déjà). Les deux gros services du couloir sont
+   découpés en barillets de même surface (`lms/learning/` 601 → 41 l. sur 8
+   modules, `lms/checkout/` 582 → 39 l. sur 7).
 5. **Vues et composants réservés** (V1, V3, V4, V5, V7, V9–V12, V14, V15, V17 et
-   B3, B4, B5, B8, B9, B11, B12, B13) — à intercaler avec les couloirs.
-6. **Tableau de bord & ops admin** (agrégateurs : `api/dashboard/**`,
-   `api/op-reports/**`, `api/activity/**`, `api/kpis/**`) — **en dernier**, une
-   fois les domaines qu'ils agrègent terminés.
+   B3, B4, B5, B8, B9, B11, B12, B13) — à intercaler avec les couloirs. ✅ fait.
+6. ✅ **Tableau de bord & ops admin** (agrégateurs : `api/dashboard/**`,
+   `api/op-reports/**`, `api/activity/**`, `api/kpis/**`) — les agrégateurs sont
+   des contrôleurs fins ; `dashboard/overview.js` est découpé en barillet de
+   même surface (`overview/`, 498 → 21 l.).
 7. **Nettoyage des façades** (`CH-4`) — **très en dernier**, sérialisé.
 
 ### 4.6 Journal du lead
@@ -447,6 +450,70 @@ Du plus rentable / débloquant au plus tard :
 > **V12**, **V11**, **V14**, **V10**, **V9**, **V7**, **V5**, **V4**, **V17**,
 > **V3** et **V1** sont faites ; les composants **B4, B5, B8, B9, B11, B12,
 > B13** et **B3** sont faits.
+
+---
+
+### 4.7 Journal — découpage des six gros services réservés (2026-10-02)
+
+| Slice | État | Détail |
+|---|---|---|
+| Lead — **LMS : `learning` + `checkout`** | ✅ fait | `lms/learning.js` (601 → 41 l.) et `lms/checkout.js` (582 → 39 l.) deviennent des barillets de même surface au-dessus de 8 + 7 modules (`learning/{structure,progress,enrollmentProgress,completion,catalog,lessons,assessments,enrollments}`, `checkout/{runCourse,identity,accessToken,fulfillment,capture,resume,settlement}`). Importateurs et tests inchangés. Les deux tests textuels (`lms-section-resource-learner-files`, `login-next-redirect`) passent par `readSurface`. **Bug attrapé au passage** : `checkout/identity.js` importait `normalizeRegistrationEmail` du mauvais modèle (undefined → 9 tests voyaient `access: "failed"`) ; corrigé, et un contrôle de provenance statique des imports nommés est désormais vert sur tout `src/`. Tests 298 suites / 4754 ✅, lint 0 erreur, build ✅. |
+| Lead — **Portail participant** | ✅ fait | `participant/home.js` (499 → 18 l.) et `participant/progress.js` (416 → 16 l.) découpés ; les règles de déverrouillage / semaine partagées sortent dans `participant/rules.js` (importées par les deux écrans, réexportées pour la surface). `home/{metrics,actions,calendar,build}`, `progress/{program,summary,build}`. Les 12 fonctions déplacées sont byte-identiques. Tests participant + garde-fous de couches ✅. |
+| Lead — **Tableau de bord & ops admin** | ✅ fait | `dashboard/overview.js` (498 → 21 l.) découpé : `overview/{dates,calendar,attention,projects,kpi,build}`. Les blocs en ligne (stats de tâches, stats de blockers, projets quick-access) deviennent `summarizeTaskStats`, `summarizeBlockers`, `buildQuickAccessProjects`, avec le même comportement en cas de lecture en échec. Le `Promise.allSettled` et les 16 lectures parallèles sont inchangés. `api/dashboard`, `api/op-reports`, `api/kpis`, `api/kpi-progress`, `api/activity` et les 18 routes `api/admin/**` ne portent plus de décision. |
+| Lead — **Investisseur : `diligence`** | ✅ fait | `investor/diligence.js` (337 → 35 l.) découpé : `diligence/{json,status,questions,read,workspaceActions,requestActions,followUpActions,dispatch}`. `dispatch.js` garde le binding de périmètre + la table d'actions ; chaque action est une fonction testable. Les 9 fonctions déplacées sont byte-identiques ; `investor-diligence` et `security-lot2-investor-scope` ✅. |
+| Lead — **audit des couloirs réservés** | ✅ fait | 0 route n'appelle une autre route (`from "@/app/api"` → 0). Restent en contrôleurs, volontairement : `admin/run-migration` (runner DDL temporaire), `admin/fix-participant` (réparation ponctuelle) et `admin/tasks` (agrégation de blockers par lot = mise en forme). |
+
+> **`CH-4` est fait** (§ 4.8 ci-dessous) : les façades pures sont dissoutes, les
+> trois surfaces restantes sont volontaires et documentées.
+
+### 4.8 Journal — CH-4, dissolution des façades pures (2026-10-02)
+
+Le chantier CH-4 est terminé. Les façades **pures** (réexport, zéro logique)
+sont supprimées ; les trois restantes sont volontaires et documentées.
+
+| Façade supprimée | Importateurs | Nouveau propriétaire réel |
+|---|---|---|
+| `@/lib/ventures` | 106 | `@/services/ventures/*` (25 modules), symbole par symbole |
+| `@/lib/ventureMilestoneEngine` | 21 | `@/services/ventures/milestoneEngine` |
+| `@/models/contacts` | 19 | `@/models/contacts/*` (7 modules) + `@/services/contacts/contactLookup` |
+| `@/models/groups` | 14 | `@/models/groups/*` (7 modules) + `@/services/contacts/participantSync` |
+| `@/lib/ventureReadiness`, `@/lib/ventureScope`, `@/lib/ventureReports`, `@/lib/ventureAccessFacts`, `@/lib/ventureJourneyTemplates`, `@/lib/ventureJourneyArchive`, `@/lib/ventureArchive`, `@/lib/ventureCoach`, `@/lib/ventureDuplication`, `@/lib/ventureMilestoneOrder` | 1–12 chacun | `@/services/ventures/{readiness,scope,reports,accessFacts,journey,archive,coach,duplication,milestoneOrder}` |
+| `@/lib/authorization/membership` | 9 | `@/models/authorization/membership` + `@/services/authorization/membership` |
+| `@/models/ventureDocumentTypes` | 8 | `@/models/ventureDocumentTypesStore` + `@/services/ventures/ventureDocumentTypes` |
+| `@/models/kpi-progress` | 6 | `@/models/kpiProgressStore` + `@/services/programs/kpiProgress` |
+| `@/lib/authorization/eligibility` | 4 | `@/models/authorization/eligibility` + `@/services/authorization/eligibility` |
+
+**Méthode.** Un dissolveur (`/tmp/opencode/ch4-dissolve.js`) résout, pour chaque
+façade, le module qui possède réellement chaque symbole exporté, puis réécrit
+chaque site d'import : imports nommés, `const { … } = require(…)`,
+`await import(…)`, `require(…)` en espace de noms et **factories `jest.mock`** —
+une factory qui mélangeait deux modules est scindée en une factory par module.
+Trois vérifications automatiques ont.attrapé ce qu'aucun test ne voyait :
+`(a)` un symbole **perdu** au passage (`getIntegrationProviders` avait disparu de
+`api/integrations/route.js` — ESLint l'a signalé, pas Jest), `(b)` un symbole
+routé vers le **mauvais** module (`logAuditEvent` envoyé vers
+`ventures/integrations` au lieu de `ventures/auditSecurity`), `(c)` un chemin
+**encore référencé** (`Could not locate module @/models/contacts`) — le scan de
+provenance des imports nommés est vert sur tout `src/`.
+
+**Mocks à rééquilibrer.** Une factory qui mélangeait modèle + service perdait son
+`...jest.requireActual(...)` en étant scindée : les factories ont été recomposées
+en `...jest.requireActual("<chaque module>")` pour que les fonctions réellement
+mockées restent les vraies. `journey-templates.test.js` a dû apprendre les deux
+formes d'appel du pool (`execute({ sql, args })` et `execute(sql)` utilisé par le
+runner de migration) ; `security-lot7-program-scope.test.js` recombine deux
+modules mockés en un seul espace de noms.
+
+**Ce qui reste, volontairement :**
+
+| Surface | Pourquoi elle reste |
+|---|---|
+| `@/lib/auth` (301 importateurs) | ce n'est **pas** une façade pure : elle implémente encore les six fonctions de résolution des profils d'accès effectifs et le domaine responsabilités, retenues parce qu'elles ont une seconde implémentation parallèle sur les mêmes tables (arbitrage de comportement en attente). |
+| `@/models/authorization/index` (169) | barillet **de même surface** (modules `models/authorization/*` → un point d'entrée), pas une façade inter-couches. |
+| `@/models/communications` | appartient au couloir communications, pas à CH-4. |
+
+Gates : `npm test` **298 suites / 4 754 tests** ✅, `npx eslint .` **0 erreur**
+(16 avertissements préexistants), `npm run build` ✅.
 
 ---
 

@@ -28,8 +28,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(),
+}));
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
 }));
 
@@ -50,7 +52,8 @@ jest.mock("@/models/ventureWorkspace", () => ({
   recordVentureUpdatedTimeline: jest.fn(),
 }));
 
-import { getSession, requireAuth } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
+import { requireAuth } from "@/server/auth/guards";
 
 const request = (query = "") =>
   new Request(`http://localhost:3000/api/ventures${query}`);

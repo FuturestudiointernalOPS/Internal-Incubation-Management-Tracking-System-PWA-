@@ -3,8 +3,10 @@
  *
  * Three invariants must hold as the server layer grows:
  *
- *   1. COMPATIBILITY — `@/lib/auth` stays a facade: the ~250 existing importers
- *      keep finding every symbol it has always exported.
+ *   1. HOMES — every symbol `@/lib/auth` used to forward is implemented in, and
+ *      exported from, its real layer: `@/server/auth` (authentication) or an
+ *      authorization module. The facade was removed once its importers were
+ *      repointed (docs/LAYER_SPLIT.md).
  *   2. SEPARATION — authentication (`@/server/auth`) answers "who are you?";
  *      authorization (capabilities, scopes, ownership, roles catalog) answers
  *      "may you do this?" and must not leak into the authentication layer.
@@ -90,22 +92,23 @@ function relative(file) {
   return path.relative(SRC, file).split(path.sep).join("/");
 }
 
-describe("@/lib/auth stays a compatible facade", () => {
-  const libAuth = require("@/lib/auth");
+describe("the moved symbols are exported by their real homes", () => {
+  const AUTH_HOME = require("@/server/auth");
 
-  it.each(AUTHENTICATION_EXPORTS)("still exposes the authentication symbol %s", (name) => {
-    expect(libAuth[name]).toBeDefined();
+  it.each(AUTHENTICATION_EXPORTS)("the authentication symbol %s is exported by @/server/auth", (name) => {
+    expect(AUTH_HOME[name]).toBeDefined();
   });
 
-  it.each(AUTHORIZATION_EXPORTS)("still exposes the authorization symbol %s", (name) => {
-    expect(libAuth[name]).toBeDefined();
-  });
-
-  it("exposes AUTHENTICATION_EXPORTS only through the server layer", () => {
-    const serverAuth = require("@/server/auth");
-    for (const name of AUTHENTICATION_EXPORTS) {
-      expect(serverAuth[name]).toBeDefined();
-    }
+  it.each(AUTHORIZATION_EXPORTS)("the authorization symbol %s is exported by its layer", (name) => {
+    const homes = [
+      require("@/server/authz/capabilities"),
+      require("@/server/authz/programAccess"),
+      require("@/server/authz/guards"),
+      require("@/models/authorization/accessQueries"),
+      require("@/models/authorization/bootstrap"),
+      require("@/services/authorization/accessProfiles"),
+    ];
+    expect(homes.some((home) => home[name] !== undefined)).toBe(true);
   });
 });
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { getSession, logPermissionAudit } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
+import { logPermissionAudit } from "@/models/authorization/accessQueries";
 import { requireAuthorization } from "@/models/authorization/index";
 import { requireSameOrigin } from "@/lib/requestOrigin";
 import { getAccessProfileMeta, listAccessProfiles } from "@/models/authorization";
@@ -10,7 +11,7 @@ import {
   seedContextRoleProfiles,
   listContextRoleProfiles,
   upsertContextRoleProfile,
-  countContextRoleHolders,
+  countContextRoleHoldersBatch,
   isValidContextRoleContext,
   isValidContextRoleKey,
 } from "@/models/authorization/contextRoleProfiles";
@@ -46,13 +47,17 @@ export async function GET(req) {
     const rolesResult = await listContextRoleProfiles();
     const profilesResult = await listAccessProfiles();
 
-    const roles = [];
-    for (const row of rolesResult.rows) {
-      roles.push({
-        ...row,
-        holders: await countContextRoleHolders(row.context, row.role_key),
-      });
-    }
+    // ONE statement for the whole registry: counting row by row sent a query
+    // per context role (seven for the seeded catalogue) on every screen open.
+    const holderCounts = await countContextRoleHoldersBatch(
+      rolesResult.rows.map((row) => ({ context: row.context, roleKey: row.role_key })),
+    );
+    const roles = rolesResult.rows.map((row) => ({
+      ...row,
+      // A pair the engine does not measure is absent from the map, so the UI
+      // shows "—" rather than a misleading 0.
+      holders: holderCounts[`${row.context}:${row.role_key}`] ?? null,
+    }));
 
     return NextResponse.json({
       success: true,

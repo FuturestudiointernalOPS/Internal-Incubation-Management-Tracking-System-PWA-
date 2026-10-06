@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { initDb } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import { resolvePlanAccess, allowsPlanAction, applyTemplateToVenture } from "@/services/ventures/operatingPlans";
 
 /**
@@ -36,7 +36,7 @@ export const POST = createHandler(
 
     // Audit the application in the Venture's history.
     try {
-      const { addVentureHistory } = await import("@/lib/ventures");
+      const { addVentureHistory } = await import("@/services/ventures/activity");
       await addVentureHistory({ venture_id: access.code, event_type: "OPERATING_PLAN_TEMPLATE_APPLIED", description: `Operating plan template applied` });
     } catch (_) {}
 

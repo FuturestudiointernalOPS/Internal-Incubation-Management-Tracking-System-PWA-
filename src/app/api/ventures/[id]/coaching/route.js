@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import {
   getVentureIdByCodeForCoaching, listCoachingSessions,
@@ -8,7 +8,7 @@ import {
   addCoachingLocationColumn, addCoachingMeetingLinkColumn,
   insertCoachingSession, addCoachingStatusColumn, updateCoachingSessionFields,
 } from "@/models/ventureAssets";
-import { notifyVentureFounders } from "@/lib/ventures";
+import { notifyVentureFounders } from "@/services/ventures/activity";
 
 const ROLES = ["participant","founder","staff","program_manager","super_admin"];
 const ALLOWED = ["participant","founder","staff","program_manager","super_admin"];

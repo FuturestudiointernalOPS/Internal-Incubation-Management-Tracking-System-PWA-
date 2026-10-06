@@ -26,8 +26,8 @@
  *     cannot name its Venture, so it leans on the window.
  *
  * Every statement lives in `@/models/ventureAccessStore`; nothing here runs SQL.
- * Re-exported unchanged through the compatibility facade
- * `@/lib/ventureAccessFacts` — see docs/LAYER_SPLIT.md.
+ * This module used to be re-exported through the `@/lib/ventureAccessFacts` facade;
+ * that facade is gone (CH-4) and importers read this module directly.
  */
 
 import { selectVentureFacts, selectViewerRelationship } from "@/models/ventureAccessStore";

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { requireAuth, getSession } from "@/lib/auth";
-import { logVentureActivity, addVentureHistory } from "@/lib/ventures";
+import { requireAuth } from "@/server/auth/guards";
+import { getSession } from "@/server/auth/session";
+import { logVentureActivity, addVentureHistory } from "@/services/ventures/activity";
 import {
   getLifecycleVentureByUuid,
   getLifecycleVentureId,

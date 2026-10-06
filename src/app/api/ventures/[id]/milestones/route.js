@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { computeInitialMilestoneStatus, completeMilestone, isMilestoneLeadAuthority, canManageMilestones, completeStageIfAllMilestonesDone, activateDueStages } from "@/lib/ventureMilestoneEngine";
+import { computeInitialMilestoneStatus, isMilestoneLeadAuthority, canManageMilestones, activateDueStages } from "@/services/ventures/milestoneEngine";
 import { dateOrNull, cidOrNull, isValidCid, isUnknownColumnError } from "@/lib/ventureInput";
 import { roleIsPrivileged } from "@/lib/ventureAuth";
 import { projectMilestonesForVenture } from "@/lib/ventureVisibility";
-import { notifyVentureFounders } from "@/lib/ventures";
-import { diffFields, recordVentureChange } from "@/models/ventureChangeLog";
 import {
   getVentureDbIdByCodeOrId,
   getVentureByCode,
@@ -14,13 +12,13 @@ import {
   getVentureDbIdForMilestoneList,
   getVentureIdAndCode,
   getVentureMilestoneBeforeUpdate,
-  getVentureMilestoneTitleAndStage,
   insertVentureMilestone,
   listVentureMilestonesByDbId,
   updateVentureMilestoneFields,
   updateVentureMilestoneValueFields,
   ventureJourneyStageExists,
 } from "@/models/ventureWorkspace";
+import { recordMilestoneEdit, settleMilestoneCompletion } from "@/services/ventures/milestoneCompletion";
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
@@ -209,96 +207,13 @@ export const PATCH = createHandler(async (req, { params }) => {
     await updateVentureMilestoneValueFields(valueClauses, [...valueArgs, milestoneId, ventureDbIdForScope]);
   }
 
-  // Field-level history of this save. Non-fatal by contract — the write above
-  // already succeeded and must not be undone by a logging failure.
-  try {
-    const AUDITED_MILESTONE_FIELDS = [
-      "title", "description", "objective", "status", "progress",
-      "target_date", "start_date", "priority", "owner_cid", "owner_name", "journey_stage_id", "display_order",
-    ];
-    const milestoneChanges = diffFields(milestoneBefore, body, AUDITED_MILESTONE_FIELDS);
-    if (milestoneChanges.length) {
-      await recordVentureChange({
-        dbId: ventureDbIdForScope,
-        entityType: "milestone",
-        entityId: milestoneId,
-        entityLabel: milestoneBefore?.title || body.title || null,
-        action: "updated",
-        actorCid: session?.cid || null,
-        actorName: session?.name || null,
-        changes: milestoneChanges,
-      });
-    }
-  } catch (_) {}
-
-  // Completing a milestone settles the Journey's whole availability in one
-  // pass: the milestones whose ONLY remaining blocker was this one become
-  // available right away (a dependency-held one becomes `blocked`), and a due
-  // Journey opens. The Journey outcome is carried out below so the caller can
-  // be TOLD a journey just closed — that is the moment its closing report is
-  // owed.
-  let journeyOutcome = null;
-  if (completing) {
-    const ventureResult = await getVentureDbIdByCodeOrId(id).catch(() => ({ rows: [] }));
-    const ventureDbId = ventureResult.rows?.[0]?.id || null;
-    if (ventureDbId) {
-      await completeMilestone({ dbId: ventureDbId, milestoneId });
-      // Immediate release: work held back only by THIS milestone is offered
-      // now, instead of waiting for the next time the roadmap is read.
-      await activateDueStages({ dbId: ventureDbId });
-      const milestoneResult = await getVentureMilestoneTitleAndStage(milestoneId).catch(() => ({ rows: [] }));
-      const milestone = milestoneResult.rows?.[0];
-      try {
-        await notifyVentureFounders(
-          ventureDbId,
-          "Milestone approved",
-          `The milestone "${milestone?.title || ""}" has been completed and approved.`,
-          { journey_stage_id: milestone?.journey_stage_id || null, milestone_id: milestoneId },
-          { templateKey: "venture.notif.milestoneApproved", params: { milestoneTitle: milestone?.title || "" }, dedupeKey: `milestone-completed:${milestoneId}` },
-        );
-      } catch (_) {}
-      try {
-        const { addVentureHistory } = await import("@/lib/ventures");
-        await addVentureHistory({ venture_id: id, event_type: "MILESTONE_COMPLETED", description: `Milestone "${milestone?.title || milestoneId}" completed` });
-      } catch (_) {}
-
-      // A Journey is never closed by hand: once EVERY milestone in it is
-      // completed it closes automatically. No other Journey is started here —
-      // they activate on their own start dates.
-      const stageOutcome = await completeStageIfAllMilestonesDone({
-        dbId: ventureDbId,
-        stageId: milestone?.journey_stage_id,
-        cid: session.cid,
-      });
-      if (stageOutcome?.completed) {
-        journeyOutcome = {
-          id: milestone?.journey_stage_id ? String(milestone.journey_stage_id) : null,
-          name: stageOutcome.stage_name || null,
-        };
-        try {
-          const { addVentureHistory } = await import("@/lib/ventures");
-          await addVentureHistory({
-            venture_id: id,
-            event_type: "JOURNEY_COMPLETED",
-            description: `Journey "${stageOutcome.stage_name || ""}" completed — all milestones are done`,
-          });
-        } catch (_) {}
-        try {
-          await notifyVentureFounders(
-            ventureDbId,
-            "Journey completed",
-            `All milestones in "${stageOutcome.stage_name || "your journey"}" are completed.`,
-            { journey_stage_id: milestone?.journey_stage_id || null },
-            {
-              templateKey: "venture.notif.journeyCompleted",
-              params: { stageName: stageOutcome.stage_name || "" },
-              dedupeKey: `journey-completed:${milestone?.journey_stage_id}`,
-            },
-          );
-        } catch (_) {}
-      }
-    }
-  }
+  // Field-level history of this save (non-fatal), then — when completing — the
+  // Journey settles (releases, notices, history, automatic journey close):
+  // services/ventures/milestoneCompletion.
+  await recordMilestoneEdit({ dbId: ventureDbIdForScope, milestoneId, milestoneBefore, body, session });
+  const journeyOutcome = completing
+    ? await settleMilestoneCompletion({ ventureParam: id, milestoneId, session })
+    : null;
 
   // `journey_completed` is additive: a caller that ignores it behaves exactly as
   // before, and the manager UI uses it to offer the journey's closing report.

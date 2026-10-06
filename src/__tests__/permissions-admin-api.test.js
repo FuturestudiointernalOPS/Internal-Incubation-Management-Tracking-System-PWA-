@@ -50,20 +50,43 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({ cid: "SA-1", name: "Super Admin" }),
+}));
+jest.mock("@/models/authorization/accessQueries", () => ({
   logPermissionAudit: jest.fn().mockResolvedValue(true),
-  ensurePermissionsSchema: jest.fn().mockResolvedValue(true),
   getUserGroups: jest.fn().mockResolvedValue([]),
-  getUserEffectiveProfile: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/models/authorization/bootstrap", () => ({
+  ensurePermissionsSchema: jest.fn().mockResolvedValue(true),
   seedDefaultRoleCapabilities: jest.fn().mockResolvedValue(true),
   ensureResponsibilitiesSchema: jest.fn().mockResolvedValue(true),
   seedDefaultResponsibilities: jest.fn().mockResolvedValue(true),
 }));
+jest.mock("@/services/authorization/accessProfiles", () => ({
+  getUserEffectiveProfile: jest.fn().mockResolvedValue(null),
+}));
 
 let mockAuthzDecision = null; // null = granted (route proceeds)
+// The eligibility route's canConfigure decision moved into the service, which
+// imports `authorize` from the context MODULE. Both mocks share one fn so the
+// barrel mock and the module mock cannot disagree.
+const mockAuthorize = jest.fn().mockReturnValue(true);
+jest.mock("@/services/authorization/context", () => ({
+  ...jest.requireActual("@/services/authorization/context"),
+  authorize: mockAuthorize,
+}));
+
+jest.mock("@/services/authorization/eligibilityAdmin", () => ({
+  ...jest.requireActual("@/services/authorization/eligibilityAdmin"),
+  assertTemplateCapsEligible: jest.fn().mockResolvedValue({ valid: true, violations: [] }),
+}));
+
 const mockRealEligAdmin = jest.requireActual("@/services/authorization/eligibilityAdmin");
-const mockRealEligibility = jest.requireActual("@/lib/authorization/eligibility");
+const mockRealEligibility = {
+  ...jest.requireActual("@/models/authorization/eligibility"),
+  ...jest.requireActual("@/services/authorization/eligibility"),
+};
 jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn().mockImplementation(async () => mockAuthzDecision),
   invalidateAllAuthorizationContexts: jest.fn(),
@@ -72,7 +95,7 @@ jest.mock("@/models/authorization/index", () => ({
   buildPermissionExplanation: jest.fn().mockReturnValue(null),
   assertTemplateCapsEligible: jest.fn().mockResolvedValue({ valid: true, violations: [] }),
   getAuthorizationContext: jest.fn().mockResolvedValue({ isSuperAdmin: true, eligibility: {} }),
-  authorize: jest.fn().mockReturnValue(true), // used by the eligibility route for the canConfigure flag
+  authorize: mockAuthorize, // used by the eligibility route for the canConfigure flag
   FEATURE_KEYS: mockRealEligAdmin.FEATURE_KEYS,
   IDENTITY_TYPES: mockRealEligAdmin.IDENTITY_TYPES,
   ROLE_CATALOG: mockRealEligAdmin.ROLE_CATALOG,
@@ -81,9 +104,13 @@ jest.mock("@/models/authorization/index", () => ({
   MODULE_TO_FEATURE: mockRealEligibility.MODULE_TO_FEATURE,
 }));
 
-const { requireAuthorization, invalidateAllAuthorizationContexts, assertTemplateCapsEligible, getAuthorizationContext } =
+const { requireAuthorization, invalidateAllAuthorizationContexts, getAuthorizationContext } =
   require("@/models/authorization/index");
-const { logPermissionAudit } = require("@/lib/auth");
+// The role-defaults eligibility boundary now lives in the accessProfileWrites
+// service, which reads assertTemplateCapsEligible straight from the
+// eligibilityAdmin service — so the stub must intercept that module too.
+const { assertTemplateCapsEligible } = require("@/services/authorization/eligibilityAdmin");
+const { logPermissionAudit } = require("@/models/authorization/accessQueries");
 const eligibilityRoute = require("@/app/api/engineering/permissions/eligibility/route");
 const roleDefaultsRoute = require("@/app/api/access-profiles/role-defaults/route");
 const permissionsRoute = require("@/app/api/engineering/permissions/route");

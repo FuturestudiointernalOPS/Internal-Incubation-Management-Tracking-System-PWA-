@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
 import { resolveVentureDbId } from "@/lib/ventureOwnership";
-import {
-  listInvestors, getInvestor, createInvestor,
-  getVentureMatches, generateMatches, updateMatchStatus,
-} from "@/lib/ventures";
+import { listInvestors, getInvestor, createInvestor, getVentureMatches, generateMatches, updateMatchStatus } from "@/services/ventures/investorMatching";
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;

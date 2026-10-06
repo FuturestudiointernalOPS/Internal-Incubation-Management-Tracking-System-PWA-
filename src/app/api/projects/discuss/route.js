@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireProjectAccess } from "@/lib/auth";
+import { requireProjectAccess } from "@/server/authz/guards";
 import { createHandler } from "@/lib/api/createHandler";
 import {
   listProjectDiscussions,

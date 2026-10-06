@@ -30,10 +30,12 @@ const {
   canManageVentureDocumentTypes,
   deleteVentureDocumentType,
   ensureVentureDocumentTypesForVenture,
-  ensureVentureDocumentTypesTable,
   listActiveVentureDocumentTypesOrDefaults,
+} = require("@/services/ventures/ventureDocumentTypes");
+const {
+  ensureVentureDocumentTypesTable,
   listVentureDocumentTypes,
-} = require("@/models/ventureDocumentTypes");
+} = require("@/models/ventureDocumentTypesStore");
 const {
   BUILT_IN_DOCUMENT_TYPE_CODES,
   DEFAULT_VENTURE_DOCUMENT_TYPES,

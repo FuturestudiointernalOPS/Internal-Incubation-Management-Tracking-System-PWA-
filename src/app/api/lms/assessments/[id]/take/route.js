@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { requireAuth, getSession } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
+import { getSession } from "@/server/auth/session";
 import { getAssessmentForTake } from "@/services/lms/learning";
 import { lmsErrorResponse } from "@/models/lms/errors";
 

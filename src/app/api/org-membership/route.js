@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { getSession, logPermissionAudit } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
+import { logPermissionAudit } from "@/models/authorization/accessQueries";
 import {
   requireAuthorization,
   invalidateAllAuthorizationContexts,
@@ -9,10 +10,17 @@ import {
   ensureMembershipSchema,
   normalizeGroupName,
   MEMBERSHIP_ACTIONS,
-  applyMembershipAction,
   getMembership,
-  isGroupProtected,
-} from "@/lib/authorization/membership";
+} from "@/models/authorization/membership";
+import {
+  applyMembershipAction,
+} from "@/services/authorization/membership";
+import {
+  buildMembershipFilter,
+  resolveProtectedGroupFlags,
+  resolveMembershipOperation,
+  parseMembershipExpiry,
+} from "@/services/authorization/membershipQueries";
 import {
   listMemberships,
   listMembershipEvents,
@@ -46,13 +54,6 @@ export const dynamic = "force-dynamic";
  *     never a duplicate person.
  */
 
-function parseExpiresAt(raw) {
-  if (raw === null || raw === undefined || raw === "") return null;
-  const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return null; // invalid → caller decides
-  return date;
-}
-
 export async function GET(req) {
   try {
     await initDb();
@@ -65,42 +66,18 @@ export async function GET(req) {
     const userCid = searchParams.get("user_cid");
     const withHistory = searchParams.get("history") === "1";
 
-    const where = [];
-    const args = [];
-    if (group) {
-      where.push("gm.group_name = ?");
-      args.push(normalizeGroupName(group));
-    }
-    if (userCid) {
-      where.push("gm.user_cid = ?");
-      args.push(userCid);
-    }
-    const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+    const filters = { group, userCid };
+    const { whereSql, args } = buildMembershipFilter(filters);
 
     const memberships = (await listMemberships(whereSql, args)).rows;
 
     let events = [];
     if (withHistory) {
-      const eventWhere = [];
-      const eventArgs = [];
-      if (group) {
-        eventWhere.push("ev.group_name = ?");
-        eventArgs.push(normalizeGroupName(group));
-      }
-      if (userCid) {
-        eventWhere.push("ev.user_cid = ?");
-        eventArgs.push(userCid);
-      }
-      const eventWhereSql = eventWhere.length ? `WHERE ${eventWhere.join(" AND ")}` : "";
-      events = (await listMembershipEvents(eventWhereSql, eventArgs)).rows;
+      const history = buildMembershipFilter(filters, "ev");
+      events = (await listMembershipEvents(history.whereSql, history.args)).rows;
     }
 
-    const protectedGroups = {};
-    for (const membership of memberships) {
-      if (protectedGroups[membership.group_name] === undefined) {
-        protectedGroups[membership.group_name] = await isGroupProtected(membership.group_name);
-      }
-    }
+    const protectedGroups = await resolveProtectedGroupFlags(memberships);
 
     return NextResponse.json({
       success: true,
@@ -146,22 +123,22 @@ export async function PUT(req) {
       );
     }
 
-    const expiresAt = parseExpiresAt(body?.expires_at);
-    if (body?.expires_at !== undefined && body?.expires_at !== null && body?.expires_at !== "" && !expiresAt) {
+    const expiry = parseMembershipExpiry(body?.expires_at);
+    if (expiry.status === "invalid") {
       return NextResponse.json(
         { success: false, error: "errors.invalidMembershipDate" },
         { status: 400 },
       );
     }
+    const expiresAt = expiry.status === "ok" ? expiry.date : null;
 
     const current = await getMembership(userCid, groupName);
-    if (!current) {
-      if (action !== "joined") {
-        return NextResponse.json(
-          { success: false, error: "errors.membershipNotFound" },
-          { status: 404 },
-        );
-      }
+    const operation = resolveMembershipOperation(current, action);
+    if (!operation.ok) {
+      return NextResponse.json(
+        { success: false, error: operation.error },
+        { status: 404 },
+      );
     }
 
     const { row, event } = applyMembershipAction(
@@ -170,7 +147,7 @@ export async function PUT(req) {
       { actor, note, expires_at: expiresAt ? expiresAt.toISOString() : expiresAt },
     );
 
-    if (current) {
+    if (operation.operation === "update") {
       await updateMembershipStatus(
         row.status,
         row.started_at,

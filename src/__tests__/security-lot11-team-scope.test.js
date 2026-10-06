@@ -14,10 +14,16 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn(async () => null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => ({ cid: "USR_STAFF", role: "staff", email: "s@x.test" })),
+}));
+jest.mock("@/server/authz/capabilities", () => ({
   hasProgramManagementAccess: jest.fn(() => false),
+}));
+jest.mock("@/server/authz/guards", () => ({
   requireAssignmentAccess: jest.fn(async () => null),
 }));
 
@@ -42,7 +48,7 @@ jest.mock("@/models/teams", () => ({
   setTeamVentureReady: jest.fn(async () => ({})),
 }));
 
-jest.mock("@/models/groups", () => ({
+jest.mock("@/models/groups/orgTeams", () => ({
   getOrgTeams: jest.fn(async () => ({ rows: [{ id: "TEAM-1", name: "Alpha", password: "FST123", team_username: "alpha_1" }] })),
   getOrgTeamMembers: jest.fn(async () => ({ rows: [] })),
 }));
@@ -56,7 +62,8 @@ jest.mock("@/models/workspace", () => ({
 }));
 
 const { isWithinScope } = require("@/services/authorization/scope");
-const { getSession, hasProgramManagementAccess } = require("@/lib/auth");
+const { getSession } = require("@/server/auth/session");
+const { hasProgramManagementAccess } = require("@/server/authz/capabilities");
 const teamsModel = require("@/models/teams");
 const workspaceModel = require("@/models/workspace");
 
@@ -123,6 +130,22 @@ describe("the team task board is team-scoped", () => {
     expect(res.status).toBe(403);
     expect(workspaceModel.getTeamTaskTeamId).toHaveBeenCalledWith(5);
     expect(workspaceModel.updateTeamTaskFields).not.toHaveBeenCalled();
+  });
+
+  test("creating hands the scoped team through under the body's own field name", async () => {
+    // The body says `team_id`; the service must not have to be handed a renamed
+    // `teamId`, or the insert lands on a null team.
+    const res = await teamTasks.POST(jsonReq("http://localhost/api/team-tasks", "POST", { team_id: "TEAM-1", title: "Do it" }));
+
+    expect(res.status).toBe(200);
+    expect(workspaceModel.createTeamTask).toHaveBeenCalledWith("TEAM-1", "Do it", null, "todo", "medium", null, null);
+  });
+
+  test("creating without a team is refused before any insert", async () => {
+    const res = await teamTasks.POST(jsonReq("http://localhost/api/team-tasks", "POST", { title: "Do it" }));
+
+    expect(res.status).toBe(400);
+    expect(workspaceModel.createTeamTask).not.toHaveBeenCalled();
   });
 });
 

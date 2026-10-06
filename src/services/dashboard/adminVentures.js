@@ -12,7 +12,7 @@
  * the envelope.
  */
 
-import { logVentureActivity } from "@/lib/ventures";
+import { logVentureActivity } from "@/services/ventures/activity";
 import { resolveAppUrl } from "@/lib/appUrl";
 import { createAdminVenture } from "@/models/ventureAdmin";
 import {

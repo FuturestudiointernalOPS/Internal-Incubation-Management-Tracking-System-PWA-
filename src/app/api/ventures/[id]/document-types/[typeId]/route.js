@@ -6,7 +6,7 @@ import {
   deleteVentureDocumentType,
   ensureVentureDocumentTypesForVenture,
   updateVentureDocumentType,
-} from "@/models/ventureDocumentTypes";
+} from "@/services/ventures/ventureDocumentTypes";
 
 /**
  * /api/ventures/[id]/document-types/[typeId] — change or remove ONE document

@@ -17,7 +17,9 @@ import {
   listWeeklyReports,
   upsertWeeklyReport,
 } from "@/models/curriculum";
-import { listKpiNamesForPrograms } from "@/models/kpi-progress";
+import {
+  listKpiNamesForPrograms,
+} from "@/models/kpiProgressStore";
 
 /**
  * Ensure the weekly-report attachment columns exist (URL link or PDF upload).

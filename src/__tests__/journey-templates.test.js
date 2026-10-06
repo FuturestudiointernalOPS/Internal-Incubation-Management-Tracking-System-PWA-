@@ -24,7 +24,11 @@ const SESSION = { cid: "staff-1", name: "Test Staff", role: "super_admin" };
 function makeFakeDb() {
   const flags = { existingStages: false, hasStages: true };
 
-  const execute = jest.fn(async ({ sql, args = [] }) => {
+  // The real pool accepts both call shapes: `execute({ sql, args })` and the
+  // bare `execute(sql)` used by the migration runner (ensureVentureSchema).
+  const execute = jest.fn(async (query, maybeArgs = []) => {
+    const { sql, args } =
+      typeof query === "string" ? { sql: query, args: maybeArgs } : query;
     executed.push({ sql, args });
     if (sql.startsWith("CREATE TABLE IF NOT EXISTS venture_journey_stages")) return { rows: [] };
     if (sql.includes("FROM ventures WHERE id::text")) return { rows: [{ id: VENTURE_DB_ID }] };
@@ -117,8 +121,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue(SESSION),
+}));
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
 }));
 
@@ -131,8 +137,11 @@ jest.mock("@/lib/ventureAuth", () => ({
   requireVentureAccess: jest.fn().mockResolvedValue({ session: SESSION }),
 }));
 
-jest.mock("@/lib/ventures", () => ({
+jest.mock("@/services/ventures/activity", () => ({
   addVentureHistory: jest.fn().mockResolvedValue(true),
+  logVentureActivity: jest.fn().mockResolvedValue(true),
+  createVentureNotification: jest.fn().mockResolvedValue(true),
+  notifyVentureFounders: jest.fn().mockResolvedValue(true),
 }));
 
 const { POST: savePOST } = require("@/app/api/ventures/[id]/journey/save-template/route");
@@ -181,7 +190,7 @@ describe("POST /journey/save-template — save entire journey as template", () =
     const taskInsert = insertsMatching("INSERT INTO venture_journey_template_tasks").find((entry) => entry.args[2] === "Define problem");
     expect(taskInsert.args).toEqual(expect.arrayContaining(["TRUE", "document"]));
 
-    const { addVentureHistory } = require("@/lib/ventures");
+    const { addVentureHistory } = require("@/services/ventures/activity");
     expect(addVentureHistory).toHaveBeenCalledWith(expect.objectContaining({ event_type: "JOURNEY_TEMPLATE_SAVED" }));
   });
 

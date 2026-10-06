@@ -150,9 +150,8 @@ describe("the decision surface survives the move", () => {
   });
 
   it.each(DECISION_EXPORTS)("is still exported by the lib facade (%s)", (name) => {
-    // The model facade (`@/models/authorization/resolver`) was deleted once
-    // nothing imported it (docs/LAYER_SPLIT.md §3); the lib facade now points
-    // straight at the service.
+    // The model-layer resolver facade was deleted once nothing imported it
+    // (docs/LAYER_SPLIT.md §3); the decision surface now lives on the service.
     const facade = require("@/services/authorization/context");
     expect(facade[name]).toBeDefined();
   });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
 import { requireAuthorization } from "@/models/authorization/index";
 import { analyzeSubmissionForRun } from "@/services/platform/analysis";
 

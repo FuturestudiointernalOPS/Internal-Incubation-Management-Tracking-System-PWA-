@@ -11,7 +11,10 @@
  * See docs/LAYER_SPLIT.md.
  */
 
-import { getPendingDuplicateFlags, dismissDuplicateFlag } from "@/models/contacts";
+import {
+  getPendingDuplicateFlags,
+  dismissDuplicateFlag,
+} from "@/models/contacts/duplicates";
 
 const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 500;
