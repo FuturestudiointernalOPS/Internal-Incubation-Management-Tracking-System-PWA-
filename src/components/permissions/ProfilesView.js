@@ -1,21 +1,31 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, UserCog } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useDialogs } from "@/components/ui/DialogProvider";
 import { defer } from "./effectUtils";
+import buildEditableModules from "@/components/permissions/permission-center/shared/buildEditableModules";
+import ProfileCatalogue from "@/components/permissions/profiles-view/ProfileCatalogue";
+import ProfileCreateForm from "@/components/permissions/profiles-view/ProfileCreateForm";
+import ProfileCapabilityEditor from "@/components/permissions/profiles-view/ProfileCapabilityEditor";
 
 /**
- * PHASE A — Profile catalogue (Permission Center → Rules → Profiles).
+ * PHASE A → profiles takeover (docs/PROFILES_TAKEOVER_MIGRATION.md).
  *
- * The profile is the contextual function someone occupies (Participant of a
- * program, Founder of a venture, Facilitator…), distinct from the baseline role
- * on their account (Super Admin / Staff / Member). This screen edits, per
- * profile, which BASELINE ROLES may hold it, whether it is active, and a note.
+ * The SINGLE Templates screen. A profile is the contextual function someone
+ * occupies (Participant, Founder, Facilitator…) AND — since the takeover — the
+ * capability set it grants. This screen:
+ *   • lists the catalogue (label, context, allowed baseline roles, active, notes);
+ *   • creates a profile from a free key + label + context;
+ *   • deletes a profile the server still finds in use (refused, with the reason);
+ *   • edits one profile's capabilities on a level matrix.
  *
- * The initial rows come from the catalogue; an edit is audited (with an optional
- * reason) and never overwritten by a later reseed. Nothing here changes anyone's
- * effective access yet — this is the vocabulary the later phases enforce.
+ * Profiles are DYNAMIC: the catalogue comes from the API, the key is a free
+ * identifier and the capabilities live in the database — nothing is hardcoded.
+ *
+ * Every state value and every write stay here; the three markup islands live in
+ * `profiles-view/` and read this screen through `ctx`.
  */
 
 /** The baseline roles the toggle UI offers (super_admin is a valid value). */
@@ -25,6 +35,8 @@ const rowKey = (row) => row.key;
 
 export default function ProfilesView() {
   const { t } = useI18n();
+  const { confirm } = useDialogs();
+
   const [data, setData] = useState(null);
   const [drafts, setDrafts] = useState({});
   const [reason, setReason] = useState("");
@@ -32,6 +44,18 @@ export default function ProfilesView() {
   const [busyKey, setBusyKey] = useState("");
   const [message, setMsg] = useState("");
   const [err, setErr] = useState("");
+
+  // Creation form.
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newProfile, setNewProfile] = useState({ key: "", label: "", context: "", allowed_roles: [] });
+  const [createBusy, setCreateBusy] = useState(false);
+  const [createErr, setCreateErr] = useState("");
+
+  // Capability editor (one profile at a time).
+  const [selectedKey, setSelectedKey] = useState("");
+  const [draftCaps, setDraftCaps] = useState({});
+  const [savedCaps, setSavedCaps] = useState({});
+  const [capsLoading, setCapsLoading] = useState(false);
 
   const apply = useCallback((json) => {
     setData(json);
@@ -47,8 +71,6 @@ export default function ProfilesView() {
   }, []);
 
   const load = useCallback(async () => {
-    // No synchronous state write here: the mount effect calls this loader, and
-    // react-hooks/set-state-in-effect forbids sync updates in effects.
     try {
       const res = await fetch("/api/engineering/permissions/profiles");
       const json = await res.json();
@@ -64,6 +86,38 @@ export default function ProfilesView() {
   useEffect(() => {
     defer(() => load());
   }, [load]);
+
+  const availableModules = useMemo(() => buildEditableModules(data?.modules || {}), [data]);
+
+  const openProfile = useCallback(async (key) => {
+    if (!key) return;
+    setSelectedKey(key);
+    setCapsLoading(true);
+    setErr("");
+    try {
+      const res = await fetch(`/api/engineering/permissions/profiles?key=${encodeURIComponent(key)}`);
+      const json = await res.json();
+      if (json.success) {
+        const caps = json.profile?.capabilities || {};
+        setSavedCaps(caps);
+        setDraftCaps(JSON.parse(JSON.stringify(caps)));
+      } else {
+        setErr(json.error || t("engineering.permissions.profilesLoadFailed"));
+      }
+    } catch {
+      setErr(t("engineering.permissions.profilesLoadFailed"));
+    } finally {
+      setCapsLoading(false);
+    }
+  }, [t]);
+
+  const closeCaps = () => {
+    setSelectedKey("");
+    setDraftCaps({});
+    setSavedCaps({});
+  };
+
+  // ── Catalogue edits (roles / active / notes) ────────────────────────────────
 
   const toggleRole = (row, role) => {
     setDrafts((prev) => {
@@ -130,6 +184,147 @@ export default function ProfilesView() {
     }
   };
 
+  // ── Capabilities ────────────────────────────────────────────────────────────
+
+  const setLevel = (module, capability, level) => {
+    setDraftCaps((prev) => {
+      const next = { ...prev, [module]: { ...(prev[module] || {}) } };
+      if (level <= 0) delete next[module][capability];
+      else next[module][capability] = level;
+      // View is the base capability (the server normalizes this too, but the
+      // screen must not show a write without its implied read).
+      if (capability !== "view" && level > 0 && !next[module].view) next[module].view = 1;
+      if (Object.keys(next[module]).length === 0) delete next[module];
+      return next;
+    });
+    setMsg("");
+  };
+
+  const saveCaps = async () => {
+    if (!selectedKey) return;
+    const row = (data?.profiles || []).find((p) => p.key === selectedKey);
+    if (!row) return;
+    const draft = drafts[selectedKey];
+    setBusyKey(selectedKey);
+    setErr("");
+    setMsg("");
+    try {
+      const res = await fetch("/api/engineering/permissions/profiles", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: selectedKey,
+          allowed_roles: draft?.allowed_roles ?? row.allowed_roles ?? [],
+          is_active: draft?.is_active ?? (Number(row.is_active) === 1),
+          notes: draft?.notes ?? row.notes ?? "",
+          capabilities: draftCaps,
+          reason: reason.trim() || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        if (json.error === "errors.ineligibleTemplateCaps") {
+          throw new Error(t("engineering.permissions.profilesCapsIneligible", { role: json.role || "" }));
+        }
+        throw new Error(json.error || "save failed");
+      }
+      setMsg(t("engineering.permissions.profilesCapsSaved"));
+      await load();
+      await openProfile(selectedKey);
+    } catch (error) {
+      setErr(error.message || t("engineering.permissions.profilesSaveFailed"));
+    } finally {
+      setBusyKey("");
+    }
+  };
+
+  // ── Create / delete ─────────────────────────────────────────────────────────
+
+  const toggleNewRole = (role) => {
+    setNewProfile((prev) => {
+      const has = prev.allowed_roles.includes(role);
+      return {
+        ...prev,
+        allowed_roles: has
+          ? prev.allowed_roles.filter((item) => item !== role)
+          : [...prev.allowed_roles, role],
+      };
+    });
+  };
+
+  const openCreate = () => {
+    setCreateOpen(true);
+    setCreateErr("");
+    setNewProfile({ key: "", label: "", context: data?.contexts?.[0] || "", allowed_roles: ["member"] });
+  };
+  const closeCreate = () => setCreateOpen(false);
+
+  const submitCreate = async () => {
+    setCreateBusy(true);
+    setCreateErr("");
+    const createdKey = newProfile.key;
+    try {
+      const res = await fetch("/api/engineering/permissions/profiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newProfile),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || t("engineering.permissions.profileCreateFailed"));
+      setMsg(t("engineering.permissions.profileCreated", { label: newProfile.label }));
+      setCreateOpen(false);
+      setNewProfile({ key: "", label: "", context: "", allowed_roles: [] });
+      await load();
+      await openProfile(createdKey);
+    } catch (error) {
+      setCreateErr(error.message || t("engineering.permissions.profileCreateFailed"));
+    } finally {
+      setCreateBusy(false);
+    }
+  };
+
+  const deleteBlockedMessage = (json) => {
+    if (json?.error === "profile_in_use_role_default") {
+      return t("engineering.permissions.profileDeleteBlockedRoleDefault", {
+        roles: (json.roles || []).join(", "),
+      });
+    }
+    if (json?.error === "profile_in_use_assignments") {
+      return t("engineering.permissions.profileDeleteBlockedAssignments", { count: json.assignedCount ?? 0 });
+    }
+    if (json?.error === "profile_in_use_context") {
+      return t("engineering.permissions.profileDeleteBlockedContext", { count: json.contextCount ?? 0 });
+    }
+    return json?.error || t("engineering.permissions.profileDeleteFailed");
+  };
+
+  const removeProfile = async (row) => {
+    const label = row.label || row.key;
+    const accepted = await confirm({
+      title: t("engineering.permissions.profilesDeleteTitle"),
+      message: t("engineering.permissions.profilesDeleteConfirm", { label }),
+      tone: "danger",
+      confirmLabel: t("common.delete"),
+      cancelLabel: t("common.cancel"),
+    });
+    if (!accepted) return;
+    setErr("");
+    setMsg("");
+    try {
+      const res = await fetch(
+        `/api/engineering/permissions/profiles?key=${encodeURIComponent(row.key)}`,
+        { method: "DELETE" },
+      );
+      const json = await res.json();
+      if (!json.success) throw new Error(deleteBlockedMessage(json));
+      setMsg(t("engineering.permissions.profileDeleted", { label }));
+      if (selectedKey === row.key) closeCaps();
+      await load();
+    } catch (error) {
+      setErr(error.message || t("engineering.permissions.profileDeleteFailed"));
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -139,8 +334,40 @@ export default function ProfilesView() {
   }
 
   const profiles = data?.profiles || [];
-  const profileLabel = (row) =>
-    row.label_key ? t(row.label_key) : String(row.key).replace(/_/g, " ");
+  const contexts = data?.contexts || [];
+  const capsDirty = selectedKey && JSON.stringify(draftCaps) !== JSON.stringify(savedCaps);
+
+  const ctx = {
+    t,
+    profiles,
+    contexts,
+    drafts,
+    busyKey,
+    isDirty,
+    profileLabel: (row) => row.label || (row.label_key ? t(row.label_key) : String(row.key).replace(/_/g, " ")),
+    baselineRoles: BASELINE_ROLES,
+    toggleRole,
+    setField,
+    save,
+    removeProfile,
+    openProfile,
+    selectedKey,
+    availableModules,
+    draftCaps,
+    capsLoading,
+    capsDirty,
+    setLevel,
+    saveCaps,
+    closeCaps,
+    createOpen,
+    newProfile,
+    setNewProfile,
+    createBusy,
+    createErr,
+    toggleNewRole,
+    submitCreate,
+    closeCreate,
+  };
 
   return (
     <div className="space-y-4">
@@ -165,172 +392,19 @@ export default function ProfilesView() {
         </p>
       )}
 
-      <div className="hidden md:block overflow-x-auto rounded-xl border border-[var(--border-primary)] bg-secondary/40">
-        <table className="w-full text-left border-collapse min-w-[820px]">
-          <thead>
-            <tr className="border-b border-[var(--border-primary)]">
-              <th className="p-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                {t("engineering.permissions.profilesKey")}
-              </th>
-              <th className="p-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                {t("engineering.permissions.contextRolesContext")}
-              </th>
-              <th className="p-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                {t("engineering.permissions.profilesAllowedRoles")}
-              </th>
-              <th className="p-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] text-center">
-                {t("engineering.permissions.profilesActive")}
-              </th>
-              <th className="p-3 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                {t("engineering.permissions.profilesNotes")}
-              </th>
-              <th className="p-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {profiles.map((row) => {
-              const key = rowKey(row);
-              const draft = drafts[key] || {};
-              const dirty = isDirty(row);
-              return (
-                <tr key={key} className="border-b border-divider/50 align-top">
-                  <td className="p-3 text-xs font-bold text-[var(--text-primary)]">
-                    {profileLabel(row)}
-                  </td>
-                  <td className="p-3">
-                    <span className="inline-block px-2 py-1 rounded-md bg-primary border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t(`engineering.permissions.contextRolesContexts.${row.context}`)}
-                    </span>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex flex-wrap gap-3">
-                      {BASELINE_ROLES.map((role) => (
-                        <label
-                          key={role}
-                          className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--text-primary)]"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={(draft.allowed_roles || []).includes(role)}
-                            onChange={() => toggleRole(row, role)}
-                            className="accent-[var(--brand-orange)]"
-                          />
-                          {t(`engineering.permissions.profilesRoles.${role}`)}
-                        </label>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="p-3 text-center">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(draft.is_active)}
-                      onChange={(event) => setField(row, "is_active", event.target.checked)}
-                      className="accent-[var(--brand-orange)]"
-                    />
-                  </td>
-                  <td className="p-3">
-                    <input
-                      value={draft.notes || ""}
-                      onChange={(event) => setField(row, "notes", event.target.value)}
-                      className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-brand-orange/50 focus-visible:ring-2 focus-visible:ring-brand-orange/40"
-                    />
-                  </td>
-                  <td className="p-3 text-right">
-                    <button
-                      onClick={() => save(row)}
-                      disabled={!dirty || busyKey === key}
-                      className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
-                    >
-                      {busyKey === key
-                        ? t("engineering.permissions.profilesSaving")
-                        : t("engineering.permissions.profilesSave")}
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      {!createOpen && (
+        <button
+          onClick={openCreate}
+          className="self-start px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
+        >
+          {t("engineering.permissions.profilesCreateToggle")}
+        </button>
+      )}
+      <ProfileCreateForm ctx={ctx} />
 
-      {/* Small screens: the same fields as cards (no control is hidden) */}
-      <div className="md:hidden space-y-3">
-        {profiles.map((row) => {
-          const key = rowKey(row);
-          const draft = drafts[key] || {};
-          const dirty = isDirty(row);
-          return (
-            <div
-              key={key}
-              className="rounded-xl border border-[var(--border-primary)] bg-secondary/30 p-3 space-y-2"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-bold text-[var(--text-primary)]">
-                  {profileLabel(row)}
-                </span>
-                <span className="inline-block px-2 py-1 rounded-md bg-primary border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                  {t(`engineering.permissions.contextRolesContexts.${row.context}`)}
-                </span>
-              </div>
+      <ProfileCatalogue ctx={ctx} />
 
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                  {t("engineering.permissions.profilesAllowedRoles")}
-                </span>
-                <div className="flex flex-wrap gap-3">
-                  {BASELINE_ROLES.map((role) => (
-                    <label
-                      key={role}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--text-primary)]"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={(draft.allowed_roles || []).includes(role)}
-                        onChange={() => toggleRole(row, role)}
-                        className="accent-[var(--brand-orange)]"
-                      />
-                      {t(`engineering.permissions.profilesRoles.${role}`)}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={Boolean(draft.is_active)}
-                  onChange={(event) => setField(row, "is_active", event.target.checked)}
-                  className="accent-[var(--brand-orange)]"
-                />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                  {t("engineering.permissions.profilesActive")}
-                </span>
-              </label>
-
-              <label className="flex flex-col gap-1">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                  {t("engineering.permissions.profilesNotes")}
-                </span>
-                <input
-                  value={draft.notes || ""}
-                  onChange={(event) => setField(row, "notes", event.target.value)}
-                  className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-brand-orange/50 focus-visible:ring-2 focus-visible:ring-brand-orange/40"
-                />
-              </label>
-
-              <button
-                onClick={() => save(row)}
-                disabled={!dirty || busyKey === key}
-                className="w-full px-3 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
-              >
-                {busyKey === key
-                  ? t("engineering.permissions.profilesSaving")
-                  : t("engineering.permissions.profilesSave")}
-              </button>
-            </div>
-          );
-        })}
-      </div>
+      <ProfileCapabilityEditor ctx={ctx} />
 
       <input
         value={reason}

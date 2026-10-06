@@ -60,10 +60,13 @@ describe("UI-2c — screen contracts", () => {
   const center = "src/components/permissions/permission-center/AccessProfilesView.js";
   const surface = readPermissionCenterSurface();
 
-  test("the route forwards a ?profile= deep link into the editor", () => {
+  test("the Templates door renders ONE screen: the profile catalogue", () => {
     const src = read(route);
-    expect(src).toContain('get("profile")');
-    expect(src).toContain("initialProfileId");
+    expect(src).toContain("ProfilesView");
+    // The Access-profiles editor sub-tab and the role/group rollup were retired
+    // (profiles takeover) — the profile IS the capability set now.
+    expect(src).not.toContain("PermissionManager");
+    expect(src).not.toContain("EntitlementRollup");
   });
 
   test("the editor preselection never auto-selects without a requested id", () => {

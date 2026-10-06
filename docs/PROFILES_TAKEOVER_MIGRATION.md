@@ -1,6 +1,6 @@
 # Migration — les profils reprennent les access profiles
 
-**Statut :** en cours (tranches 1 à 4 faites ; API capacités + catalogue dynamique)
+**Statut :** en cours (tranches 1 à 5 faites ; écran « Profiles » unique)
 
 **Décisions produit validées :**
 
@@ -77,7 +77,7 @@ Profils → `profile_capabilities` :
 | 2 | Données | Migration one-time `profiles-takeover-v1` (`profileTakeoverBackfill.js`) : crée les profils manquants, copie les capacités, recopie les trois ponts. Anciennes tables intactes. **FAIT** | Faible |
 | 3 | Résolveur | `contextReads` + `baseCapabilities` lisent `profile_capabilities` (priorité), repli sur l'ancien chemin tant qu'il existe. **FAIT** (résolveur ; le garde d'assignation `baseCapabilities.js` reste à basculer) | Moyen |
 | 4 | API | `/api/engineering/permissions/profiles` gère capacités + créer/supprimer ; catalogue dynamique (clés libres, libellés stockés, validation par forme). **FAIT** (`baseCapabilities.js` — le garde d'assignation — reste à basculer en tranche 5) | Moyen |
-| 5 | UI | Écran « Profiles » unique : créer/supprimer un profil, éditer ses capacités. Sous-onglet « Access profiles » et rollup retirés. | Moyen |
+| 5 | UI | Écran « Profiles » unique : créer/supprimer un profil, éditer ses capacités ; sous-onglet « Access profiles » et rollup retirés. **FAIT** (`baseCapabilities.js` — le garde d'assignation — reste à basculer : comportement d'avertissement, pas une décision d'accès) | Moyen |
 | 6 | Nettoyage | Suppression de `access_profiles*`, `role_access_profile_defaults`, des routes, des seeds et des suites de tests devenues obsolètes. | Élevé (en dernier) |
 
 ## 4. Garde-fous

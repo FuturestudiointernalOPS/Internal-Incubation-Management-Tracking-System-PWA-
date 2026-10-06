@@ -47,16 +47,14 @@ export const PERMISSION_NAV = [
     labelKey: "engineering.permissions.navPeople",
   },
   {
-    // Two sub-tabs: the access-profile editor (the door's original screen) and
-    // the PROFILE CATALOGUE (the contextual functions someone can hold).
+    // ONE screen now (profiles takeover, docs/PROFILES_TAKEOVER_MIGRATION.md):
+    // the profile catalogue — create/delete a profile and set its capabilities.
+    // The former "Access profiles" editor sub-tab and the role/group rollup were
+    // retired: a profile IS the capability set, so there is nothing to edit beside
+    // it and nothing to roll up.
     key: "templates",
     href: `${PERMISSION_BASE}/profiles`,
     labelKey: "engineering.permissions.navTemplates",
-    defaultSub: "editor",
-    tabs: [
-      { key: "editor", labelKey: "engineering.permissions.tabTemplatesEditor" },
-      { key: "profiles", labelKey: "engineering.permissions.tabProfiles" },
-    ],
   },
   {
     key: "rules",

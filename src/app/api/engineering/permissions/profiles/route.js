@@ -12,6 +12,7 @@ import {
   PROFILE_ROLE_ENFORCEMENT,
   getProfileDefinition,
 } from "@/models/authorization/profile-catalog";
+import { PERMISSION_MODULES } from "@/server/authz/capabilities";
 import {
   ensureProfilesSchema,
   seedProfiles,
@@ -118,6 +119,8 @@ export async function GET(req) {
         success: true,
         contexts: PROFILE_CONTEXTS,
         role_enforcement: PROFILE_ROLE_ENFORCEMENT,
+        // The editable capability catalog, so the screen can build its matrix.
+        modules: PERMISSION_MODULES,
         profile: shapeProfile(row, getProfileDefinition(row.key) || {}, capabilities),
       });
     }
@@ -136,6 +139,8 @@ export async function GET(req) {
       // Phase B — the profile ↔ role rule's current mode. "warn" reports an
       // écart without blocking; "block" (Phase H) refuses it.
       role_enforcement: PROFILE_ROLE_ENFORCEMENT,
+      // The editable capability catalog, so the screen can build its matrix.
+      modules: PERMISSION_MODULES,
       profiles,
     });
   } catch (error) {
