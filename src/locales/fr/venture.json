@@ -873,6 +873,56 @@
         "deliverable": "Livrable"
       }
     },
+    "reminders": {
+      "title": "Rappels",
+      "send": "Envoyer un rappel",
+      "noPeople": "Personne n'est affecté à cet élément de travail.",
+      "nobodyReachable": "Personne n'a pu être joint — aucune adresse e-mail enregistrée. Ajoutez-en une ci-dessus et renvoyez.",
+      "sentCount": "Envoyé à {count} destinataire(s).",
+      "failedCount": "{count} n'a pas pu être envoyé.",
+      "addEmail": "Ajouter un e-mail",
+      "addEmailTitle": "Adresse e-mail",
+      "addEmailMessage": "Où doivent aller les rappels pour {name} ?",
+      "addEmailHint": "Cela enregistre uniquement une adresse. Aucun compte, aucun membre et aucun accès à la plateforme n'est créé.",
+      "email": "E-mail",
+      "invalidEmail": "Cela ne ressemble pas à une adresse e-mail.",
+      "role": {
+        "owner": "Responsable",
+        "supporting": "Appui"
+      },
+      "reason": {
+        "external_without_email": "Aucun e-mail enregistré",
+        "contact_removed": "Contact supprimé",
+        "invalid_on_file": "L'e-mail enregistré est inutilisable"
+      },
+      "rulesTitle": "Rappels automatiques",
+      "noRules": "Aucun rappel automatique n'est défini. Rien n'est encore envoyé automatiquement.",
+      "addRule": "Ajouter une règle",
+      "addStandard": "Ajouter les règles standard",
+      "confirmDeleteRule": "Retirer cette règle de rappel ? Les rappels déjà envoyés restent dans l'historique.",
+      "ruleLine": "{days} jour(s) avant le {trigger}",
+      "trigger": {
+        "start": "Début",
+        "finish": "Fin"
+      },
+      "kindLabel": "Niveau",
+      "triggerLabel": "Déclencheur",
+      "daysBefore": "Jours avant",
+      "recipients": "Envoyer à",
+      "active": "Active",
+      "paused": "En pause",
+      "thisItem": "Cet élément",
+      "historyTitle": "Historique des rappels",
+      "noHistory": "Rien n'a encore été envoyé.",
+      "colWhen": "Quand",
+      "colWork": "Travail",
+      "colWhy": "Pourquoi",
+      "colTo": "À",
+      "colStatus": "Statut",
+      "modeManual": "Manuel",
+      "statusSent": "Envoyé",
+      "statusFailed": "Échec"
+    },
     "tasksPanel": {
       "openCount": "{count} en cours",
       "allStatuses": "Tous les statuts",

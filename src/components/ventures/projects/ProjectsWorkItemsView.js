@@ -300,7 +300,12 @@ export default function ProjectsWorkItemsView({ ventureId }) {
         <AppTable columns={columns} data={filtered} onRowClick={(item) => setSelected(item)} />
       )}
 
-      <WorkItemDetailModal item={selected} onClose={() => setSelected(null)} />
+      <WorkItemDetailModal
+        item={selected}
+        ventureId={ventureId}
+        onClose={() => setSelected(null)}
+        onChanged={() => refresh()}
+      />
     </div>
   );
 }

@@ -26,6 +26,7 @@ import foundation from "./schema/foundation";
 import operatingModel from "./schema/operatingModel";
 import governance from "./schema/governance";
 import journey from "./schema/journey";
+import reminders from "./schema/reminders";
 
 /**
  * Ensure venture schema is up to date.
@@ -41,6 +42,7 @@ export async function ensureVentureSchema() {
     ...operatingModel,
     ...governance,
     ...journey,
+    ...reminders,
   ];
 
   for (const sql of migrations) {

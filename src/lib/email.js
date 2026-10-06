@@ -53,6 +53,10 @@ export {
 } from "./email/senders/ventures";
 
 export {
+  sendVentureReminderEmail,
+} from "./email/senders/reminders";
+
+export {
   sendDecisionEmail,
   sendConfirmationEmail,
 } from "./email/senders/workflow";
