@@ -8,6 +8,7 @@ import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import { Skeleton } from "@/components/ui/Skeleton";
 import ProjectsWorkItemsView from "@/components/ventures/projects/ProjectsWorkItemsView";
+import VentureRemindersPanel from "@/components/ventures/projects/VentureRemindersPanel";
 
 /**
  * Ventures -> Project Management -> one Venture (Phase 1, read-only).
@@ -54,6 +55,12 @@ export default function ProjectWorkItemsPage() {
       </div>
 
       {ventureId && <ProjectsWorkItemsView ventureId={ventureId} />}
+
+      {ventureId && (
+        <div className="pt-2">
+          <VentureRemindersPanel ventureId={ventureId} />
+        </div>
+      )}
     </div>
   );
 }

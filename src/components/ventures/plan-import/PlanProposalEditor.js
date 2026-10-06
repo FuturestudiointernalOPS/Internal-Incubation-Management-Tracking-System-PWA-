@@ -1,6 +1,6 @@
 "use client";
 
-import { Compass, Flag, Package, Trash2 } from "lucide-react";
+import { AlertTriangle, Compass, Flag, Package, Trash2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
 const PRIORITIES = ["high", "medium", "low"];
@@ -83,11 +83,27 @@ export default function PlanProposalEditor({
           <div className="space-y-2 pl-4">
             {(journey.milestones || []).map((milestone, mi) => (
               <div key={`${milestone.name}-${mi}`} className="rounded-lg border border-divider/60 p-2.5 space-y-2">
-                <div className="flex justify-end">
+                <div className="flex items-start justify-between gap-2">
+                  {/* A milestone the analyst could not group honestly. Said here,
+                      on the milestone itself, so the reviewer sees WHICH one needs
+                      a decision — not only a warning somewhere below. */}
+                  {milestone.requires_review ? (
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
+                        <AlertTriangle className="w-3 h-3" />
+                        {t("venture.planImport.needsReview")}
+                      </p>
+                      {milestone.reason && (
+                        <p className="text-[10px] text-amber-400/80 mt-0.5">{milestone.reason}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="flex-1" />
+                  )}
                   <button
                     type="button"
                     onClick={() => removeMilestone(ji, mi)}
-                    className="text-[9px] font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/10 px-2 py-1 rounded-lg flex items-center gap-1.5"
+                    className="text-[9px] font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/10 px-2 py-1 rounded-lg flex items-center gap-1.5 shrink-0"
                   >
                     <Trash2 className="w-3 h-3" />
                     {t("venture.planImport.removeMilestone")}

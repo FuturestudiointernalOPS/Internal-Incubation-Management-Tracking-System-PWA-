@@ -6,6 +6,7 @@ import AppModal from "@/components/ui/AppModal";
 import { useI18n } from "@/lib/i18n";
 import { statusLabel, statusChipClass } from "@/lib/ventureStatuses";
 import { formatDay } from "./projectFormat";
+import WorkItemReminderBar from "./WorkItemReminderBar";
 
 /**
  * ONE work item, in full.
@@ -40,7 +41,7 @@ function Field({ label, children }) {
   );
 }
 
-export default function WorkItemDetailModal({ item, onClose }) {
+export default function WorkItemDetailModal({ item, ventureId = null, onClose, onChanged }) {
   const { t, lang } = useI18n();
   if (!item) return null;
 
@@ -146,6 +147,12 @@ export default function WorkItemDetailModal({ item, onClose }) {
               ))}
             </ul>
           </Section>
+        )}
+
+        {/* Reminders live with the work, not on a separate screen: the person
+            reading this item is the person who knows it needs chasing. */}
+        {ventureId && (
+          <WorkItemReminderBar ventureId={ventureId} item={item} onChanged={onChanged} />
         )}
       </div>
     </AppModal>

@@ -831,6 +831,7 @@
       "refsDerived": "The tracker has no task id per row, so the analyst numbered the tasks by row order to resolve the dependencies. Check the dependency column before applying.",
       "suggestedDates": "Suggested from the task dates — the tracker did not state it. Change it if it is wrong.",
       "removeMilestone": "Remove",
+      "needsReview": "Needs review — assign the activities",
       "removeMilestoneConfirm": "Remove \"{name}\" and its {n} tasks from this proposal?\nNothing is deleted from the Venture — the milestone is only taken out of this proposal.",
       "supportLabel": "Support",
       "phaseLabel": "Phase",
@@ -871,6 +872,56 @@
         "activity": "Activity",
         "deliverable": "Deliverable"
       }
+    },
+    "reminders": {
+      "title": "Reminders",
+      "send": "Send reminder",
+      "noPeople": "Nobody is assigned to this work item.",
+      "nobodyReachable": "Nobody could be reached — no email address on file. Add one above and send again.",
+      "sentCount": "Sent to {count} recipient(s).",
+      "failedCount": "{count} could not be sent.",
+      "addEmail": "Add email",
+      "addEmailTitle": "Email address",
+      "addEmailMessage": "Where should reminders for {name} go?",
+      "addEmailHint": "This records an address only. It creates no account, no member and no platform access.",
+      "email": "Email",
+      "invalidEmail": "That does not look like an email address.",
+      "role": {
+        "owner": "Owner",
+        "supporting": "Supporting"
+      },
+      "reason": {
+        "external_without_email": "No email on file",
+        "contact_removed": "Contact removed",
+        "invalid_on_file": "Email on file is not usable"
+      },
+      "rulesTitle": "Automatic reminders",
+      "noRules": "No automatic reminders are set. Nothing is sent on a schedule yet.",
+      "addRule": "Add a rule",
+      "addStandard": "Add the standard rules",
+      "confirmDeleteRule": "Remove this reminder rule? Reminders already sent are kept in the history.",
+      "ruleLine": "{days} day(s) before {trigger}",
+      "trigger": {
+        "start": "Start",
+        "finish": "Finish"
+      },
+      "kindLabel": "Level",
+      "triggerLabel": "Trigger",
+      "daysBefore": "Days before",
+      "recipients": "Send to",
+      "active": "Active",
+      "paused": "Paused",
+      "thisItem": "This item",
+      "historyTitle": "Reminder history",
+      "noHistory": "Nothing has been sent yet.",
+      "colWhen": "When",
+      "colWork": "Work",
+      "colWhy": "Why",
+      "colTo": "To",
+      "colStatus": "Status",
+      "modeManual": "Manual",
+      "statusSent": "Sent",
+      "statusFailed": "Failed"
     },
     "tasksPanel": {
       "openCount": "{count} open",
