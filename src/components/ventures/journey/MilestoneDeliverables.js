@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { datePickerFloor, groupDeliverablesByActivity } from "@/components/ventures/journey/journeyShapers";
 import { dateOnly, todayDateInput } from "@/lib/ventureMilestoneDates";
@@ -8,6 +8,7 @@ import { statusChipClass, statusDotClass, statusLabel } from "@/lib/ventureStatu
 import { Loader2, Plus, Save } from "lucide-react";
 import AppMenu from "@/components/ui/AppMenu";
 import VenturePersonField from "@/components/ventures/VenturePersonField";
+import DeliverableDetailDialog from "@/components/ventures/journey/DeliverableDetailDialog";
 
 /**
  * The deliverables of an open milestone: list, status, review, evidence
@@ -47,12 +48,23 @@ export default function MilestoneDeliverables({
   submitDeliverableEvidence,
 }) {
   const { t } = useI18n();
+  // The deliverable whose detail dialog is open (id only, so the dialog reads
+  // the current row from props and a review/approval shows up live).
+  const [detailId, setDetailId] = useState(null);
+  const groups = groupDeliverablesByActivity(deliverableList);
+  const detailGroup =
+    detailId == null
+      ? null
+      : groups.find((group) => group.deliverables.some((item) => item.id === detailId));
+  const detailDeliverable =
+    detailGroup?.deliverables.find((item) => item.id === detailId) || null;
+
   return (
     <div className="mt-2 ml-5 space-y-1.5">
       <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
         {t("venture.manager.deliverables")}
       </p>
-      {groupDeliverablesByActivity(deliverableList).map((group, groupIndex) => (
+      {groups.map((group, groupIndex) => (
         <div key={group.activity?.id ?? `group-${groupIndex}`} className="rounded-lg border border-divider/70 px-2.5 py-2 space-y-2">
           {/* ACTIVITY — the work that produces what follows */}
           <div>
@@ -177,7 +189,14 @@ export default function MilestoneDeliverables({
               <>
               <div className="flex items-center gap-2">
                 <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDotClass(status)}`} />
-                <p className="flex-1 min-w-0 text-[11px] font-bold text-[var(--text-primary)] truncate">{deliverable.title}</p>
+                <button
+                  type="button"
+                  onClick={() => setDetailId(deliverable.id)}
+                  aria-label={`${t("venture.manager.viewDetails")}: ${deliverable.title}`}
+                  className="flex-1 min-w-0 text-left text-[11px] font-bold whitespace-normal break-words text-[var(--text-primary)] hover:text-[var(--brand-orange)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 rounded"
+                >
+                  {deliverable.title}
+                </button>
                 {deliverable.due_date && <span className="hidden sm:inline text-[9px] text-slate-500">{fmtDate(deliverable.due_date)}</span>}
                 {deliverable.attachment_url && (
                   <a href={deliverable.evidence_download_url || deliverable.attachment_url} target="_blank" rel="noreferrer" className="text-[9px] font-bold text-sky-300 hover:underline shrink-0">
@@ -199,6 +218,11 @@ export default function MilestoneDeliverables({
               </div>
               </>
             )}
+                  {!mode && deliverable.description && (
+                    <p className="text-[10px] text-[var(--text-secondary)] mt-1 whitespace-pre-line break-words">
+                      {deliverable.description}
+                    </p>
+                  )}
                   {!mode && deliverable.approval_status === "rejected" && deliverable.rejection_reason && (
                     <p className="text-[9px] text-rose-400 mt-1">
                       {t("venture.manager.changesRequestedReason", { reason: deliverable.rejection_reason })}
@@ -313,6 +337,12 @@ export default function MilestoneDeliverables({
           </button>
         )
       )}
+
+      <DeliverableDetailDialog
+        deliverable={detailDeliverable}
+        activity={detailGroup?.activity || null}
+        onClose={() => setDetailId(null)}
+      />
     </div>
   );
 }
