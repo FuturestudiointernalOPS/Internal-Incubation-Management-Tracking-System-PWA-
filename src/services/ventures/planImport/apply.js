@@ -128,6 +128,7 @@ export async function applyPlanImport({ dbId, importId, proposal, actorCid = nul
             assignedName: task.owner_name || null,
             definitionOfDone: toText(task.definition_of_done) || null,
             supportName: toText(task.support) || null,
+            sourceRef: toText(task.ref) || null,
             displayOrder: taskOrder,
             labels,
           });

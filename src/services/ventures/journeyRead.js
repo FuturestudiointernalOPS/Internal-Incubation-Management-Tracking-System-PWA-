@@ -141,11 +141,14 @@ export async function attachJourneyWork({ ventureParam, dbId, stages, signEviden
         deliverable.activity = task
           ? {
               id: task.id,
+              source_ref: task.source_ref || null,
               title: task.title || null,
               description: task.description || null,
               definition_of_done: task.definition_of_done || null,
+              owner_name: task.assigned_name || null,
               support_name: task.support_name || null,
               start_date: task.start_date || null,
+              due_date: task.due_date || null,
             }
           : null;
       }

@@ -57,7 +57,12 @@ export default function MilestoneDeliverables({
           {/* ACTIVITY — the work that produces what follows */}
           <div>
             <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">{t("venture.manager.activityLabel")}</p>
-            <p className="text-[11px] font-bold text-[var(--text-primary)] mt-0.5">{group.activity?.title || t("venture.manager.notProvided")}</p>
+            <p className="text-[11px] font-bold text-[var(--text-primary)] mt-0.5">
+              {group.activity?.source_ref && (
+                <span className="mr-1.5 px-1 py-0.5 rounded bg-tertiary text-[8px] font-black text-slate-500 align-middle">{group.activity.source_ref}</span>
+              )}
+              {group.activity?.title || t("venture.manager.notProvided")}
+            </p>
             {group.activity?.description && (
               <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{group.activity.description}</p>
             )}
@@ -214,7 +219,7 @@ export default function MilestoneDeliverables({
           <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[10px]">
             <span>
               <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.milestoneOwner")}:</span>{" "}
-              <span className="text-[var(--text-primary)]">{group.deliverables[0]?.assigned_name || "—"}</span>
+              <span className="text-[var(--text-primary)]">{group.activity?.owner_name || group.deliverables[0]?.assigned_name || "—"}</span>
             </span>
             <span>
               <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.supporting")}:</span>{" "}
@@ -223,6 +228,10 @@ export default function MilestoneDeliverables({
             <span>
               <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.startDate")}:</span>{" "}
               <span className="text-[var(--text-primary)]">{group.activity?.start_date ? fmtDate(group.activity.start_date) : "—"}</span>
+            </span>
+            <span>
+              <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.finishDate")}:</span>{" "}
+              <span className="text-[var(--text-primary)]">{(group.activity?.due_date || group.deliverables[0]?.due_date) ? fmtDate(group.activity?.due_date || group.deliverables[0]?.due_date) : "—"}</span>
             </span>
           </div>
         </div>

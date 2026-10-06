@@ -66,6 +66,7 @@ describe("the writers agree with the self-heal", () => {
     // The schema self-heal states them…
     expect(SCHEMA_SOURCE).toContain("ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS definition_of_done ");
     expect(SCHEMA_SOURCE).toContain("ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS support_name ");
+    expect(SCHEMA_SOURCE).toContain("ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS source_ref ");
     expect(SCHEMA_SOURCE).toContain("ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS support_name ");
     expect(SCHEMA_SOURCE).toContain("ALTER TABLE venture_deliverables ADD COLUMN IF NOT EXISTS task_id ");
     // …and the plan import writes them, so the Definition of Done and the
@@ -76,6 +77,7 @@ describe("the writers agree with the self-heal", () => {
     );
     expect(importer).toMatch(/INSERT INTO venture_tasks[\s\S]*?definition_of_done/);
     expect(importer).toMatch(/INSERT INTO venture_tasks[\s\S]*?support_name/);
+    expect(importer).toMatch(/INSERT INTO venture_tasks[\s\S]*?source_ref/);
     expect(importer).toMatch(/INSERT INTO venture_deliverables[\s\S]*?task_id/);
   });
 });

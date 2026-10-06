@@ -33,7 +33,14 @@ export default function FounderMilestoneDeliverables({ milestone, stage, dvDraft
                 <p className="text-[8px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>
                   {t('venture.manager.activityLabel')}
                 </p>
-                <p className="text-xs font-medium mt-0.5">{group.activity?.title || t('venture.manager.notProvided')}</p>
+                <p className="text-xs font-medium mt-0.5">
+                  {group.activity?.source_ref && (
+                    <span className="mr-1.5 px-1 py-0.5 rounded text-[9px] font-black align-middle" style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text-secondary)' }}>
+                      {group.activity.source_ref}
+                    </span>
+                  )}
+                  {group.activity?.title || t('venture.manager.notProvided')}
+                </p>
                 {group.activity?.description && (
                   <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>{group.activity.description}</p>
                 )}
@@ -107,7 +114,7 @@ export default function FounderMilestoneDeliverables({ milestone, stage, dvDraft
               {/* METADATA — people and timing, kept out of the prose */}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[10px]" style={{ color: 'var(--text-secondary)' }}>
                 <span>
-                  <span className="font-bold">{t('venture.manager.milestoneOwner')}:</span> {group.deliverables[0]?.assigned_name || '—'}
+                  <span className="font-bold">{t('venture.manager.milestoneOwner')}:</span> {group.activity?.owner_name || group.deliverables[0]?.assigned_name || '—'}
                 </span>
                 <span>
                   <span className="font-bold">{t('venture.manager.supporting')}:</span> {group.activity?.support_name || '—'}
@@ -115,6 +122,12 @@ export default function FounderMilestoneDeliverables({ milestone, stage, dvDraft
                 <span>
                   <span className="font-bold">{t('venture.manager.startDate')}:</span>{' '}
                   {group.activity?.start_date ? new Date(group.activity.start_date).toLocaleDateString() : '—'}
+                </span>
+                <span>
+                  <span className="font-bold">{t('venture.manager.finishDate')}:</span>{' '}
+                  {(group.activity?.due_date || group.deliverables[0]?.due_date)
+                    ? new Date(group.activity?.due_date || group.deliverables[0]?.due_date).toLocaleDateString()
+                    : '—'}
                 </span>
               </div>
             </div>

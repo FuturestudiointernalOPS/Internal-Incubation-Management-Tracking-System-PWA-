@@ -51,6 +51,10 @@ export default [
 // "Activity → Deliverable" is a relationship rather than a convention.
 "ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS definition_of_done TEXT",
 "ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS support_name TEXT",
+// The tracker's own row reference (e.g. MS-01) stays WITH the task it labelled
+// — a persistent reference the live record keeps, not a value used only while
+// applying an import.
+"ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS source_ref TEXT",
 "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS support_name TEXT",
 "ALTER TABLE venture_deliverables ADD COLUMN IF NOT EXISTS task_id INTEGER REFERENCES venture_tasks(id) ON DELETE SET NULL",
 "CREATE INDEX IF NOT EXISTS idx_vm_journey_stage ON venture_milestones(journey_stage_id) WHERE journey_stage_id IS NOT NULL",

@@ -184,13 +184,16 @@ describe("the tracker's extra columns travel as REAL fields", () => {
 
     const taskInsert = state.queries.find((entry) => /INSERT INTO venture_tasks/.test(entry.sql));
     // args: 0 venture, 1 milestone, 2 title, 3 description, 4 priority, 5 start, 6 due,
-    // 7 owner_cid, 8 owner_name, 9 definition_of_done, 10 support_name, 11 display_order, 12 labels
+    // 7 owner_cid, 8 owner_name, 9 definition_of_done, 10 support_name, 11 source_ref,
+    // 12 display_order, 13 labels
     expect(taskInsert.args[9]).toBe("10 interviews completed");
     expect(taskInsert.args[10]).toBe("David");
+    // The tracker's own reference stays WITH the task.
+    expect(taskInsert.args[11]).toBe("T1");
     // The description is NOT overwritten by the Definition of Done.
     expect(taskInsert.args[3]).toBe(null);
     // Phase stays a label; Support no longer hides inside one.
-    expect(JSON.parse(taskInsert.args[12])).toEqual(["Phase 1"]);
+    expect(JSON.parse(taskInsert.args[13])).toEqual(["Phase 1"]);
     expect(taskInsert.sql).toContain("definition_of_done");
     expect(taskInsert.sql).toContain("support_name");
   });

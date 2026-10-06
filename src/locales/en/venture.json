@@ -465,7 +465,7 @@
       "activityLabel": "Activity",
       "definitionOfDone": "Definition of Done",
       "startDate": "Start",
-      "dueDate": "Due",
+      "finishDate": "Finish",
       "deliverableLabel": "Deliverable",
       "notProvided": "Not provided",
       "addMilestone": "Add Milestone",

@@ -94,6 +94,17 @@ export default function JourneyMilestoneRow({
 }) {
   const { t } = useI18n();
   const deliverableList = milestone.deliverables || [];
+
+  // ONE authoritative Owner (and Support / Start / Finish) for the work: the
+  // activity's. A milestone that carries no owner of its own displays its first
+  // activity's — the same values the deliverable card shows, never a second
+  // copy stored on the milestone. A milestone-level owner stated by the source,
+  // or set by hand, still wins.
+  const primaryActivity = deliverableList.find((deliverable) => deliverable.activity)?.activity || null;
+  const milestoneOwner = milestone.owner_name || primaryActivity?.owner_name || null;
+  const milestoneSupport = milestone.support_name || primaryActivity?.support_name || null;
+  const milestoneStart = milestone.start_date || primaryActivity?.start_date || null;
+  const milestoneFinish = milestone.target_date || primaryActivity?.due_date || null;
   // A milestone may not be dated after what it owes, nor
   // after a milestone that follows it: the picker stops at
   // whichever of the two comes first.
@@ -192,13 +203,13 @@ export default function JourneyMilestoneRow({
         {isOpen && (
           <div className="mt-2 ml-5 grid grid-cols-[92px_1fr] gap-x-3 gap-y-0.5 text-[10px]">
             <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.milestoneOwner")}</span>
-            <span className="text-[var(--text-primary)]">{milestone.owner_name || "—"}</span>
+            <span className="text-[var(--text-primary)]">{milestoneOwner || "—"}</span>
             <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.supporting")}</span>
-            <span className="text-[var(--text-primary)]">{milestone.support_name || "—"}</span>
+            <span className="text-[var(--text-primary)]">{milestoneSupport || "—"}</span>
             <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.startDate")}</span>
-            <span className="text-[var(--text-primary)]">{milestone.start_date ? fmtDate(milestone.start_date) : "—"}</span>
-            <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.dueDate")}</span>
-            <span className="text-[var(--text-primary)]">{milestone.target_date ? fmtDate(milestone.target_date) : "—"}</span>
+            <span className="text-[var(--text-primary)]">{milestoneStart ? fmtDate(milestoneStart) : "—"}</span>
+            <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.finishDate")}</span>
+            <span className="text-[var(--text-primary)]">{milestoneFinish ? fmtDate(milestoneFinish) : "—"}</span>
           </div>
         )}
 
