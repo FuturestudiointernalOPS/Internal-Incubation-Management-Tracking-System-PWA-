@@ -153,8 +153,8 @@ describe("2B — inferred task references are said out loud", () => {
   });
 });
 
-describe("4B — the tracker's extra columns travel with the task", () => {
-  test("Support and Phase become labels, Definition of Done becomes the description", async () => {
+describe("the tracker's extra columns travel as REAL fields", () => {
+  test("Support and Definition of Done keep their own columns; Phase stays a label", async () => {
     const proposal = {
       journeys: [
         {
@@ -184,11 +184,14 @@ describe("4B — the tracker's extra columns travel with the task", () => {
 
     const taskInsert = state.queries.find((entry) => /INSERT INTO venture_tasks/.test(entry.sql));
     // args: 0 venture, 1 milestone, 2 title, 3 description, 4 priority, 5 start, 6 due,
-    // 7 owner_cid, 8 owner_name, 9 display_order, 10 labels
-    expect(JSON.parse(taskInsert.args[10])).toEqual(["Support: David", "Phase 1"]);
-    expect(taskInsert.args[3]).toBe("10 interviews completed");
-    // No schema grew for it.
-    expect(taskInsert.sql).not.toContain("support");
-    expect(taskInsert.sql).not.toContain("definition_of_done");
+    // 7 owner_cid, 8 owner_name, 9 definition_of_done, 10 support_name, 11 display_order, 12 labels
+    expect(taskInsert.args[9]).toBe("10 interviews completed");
+    expect(taskInsert.args[10]).toBe("David");
+    // The description is NOT overwritten by the Definition of Done.
+    expect(taskInsert.args[3]).toBe(null);
+    // Phase stays a label; Support no longer hides inside one.
+    expect(JSON.parse(taskInsert.args[12])).toEqual(["Phase 1"]);
+    expect(taskInsert.sql).toContain("definition_of_done");
+    expect(taskInsert.sql).toContain("support_name");
   });
 });

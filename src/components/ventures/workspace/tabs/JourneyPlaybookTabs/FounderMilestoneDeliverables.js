@@ -34,6 +34,21 @@ export default function FounderMilestoneDeliverables({ milestone, stage, dvDraft
                   </span>
                 </div>
                 {deliverable.description && <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{deliverable.description}</p>}
+                {/* Activity → Deliverable → Definition of Done: the whole chain
+                    visible to the founder, on the same card as the evidence. */}
+                <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>
+                  <span className="font-bold">{t('venture.manager.activityLabel')}:</span>{' '}
+                  {deliverable.activity?.title || t('venture.manager.notProvided')}
+                </p>
+                <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>
+                  <span className="font-bold">{t('venture.manager.definitionOfDone')}:</span>{' '}
+                  {deliverable.activity?.definition_of_done || t('venture.manager.notProvided')}
+                </p>
+                <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>
+                  {t('venture.manager.milestoneOwner')}: {deliverable.assigned_name || t('venture.manager.notProvided')}
+                  {' · '}{t('venture.manager.supporting')}: {deliverable.activity?.support_name || t('venture.manager.notProvided')}
+                  {' · '}{t('venture.manager.startDate')}: {deliverable.activity?.start_date ? new Date(deliverable.activity.start_date).toLocaleDateString() : t('venture.manager.notProvided')}
+                </p>
                 {deliverable.attachment_url && (
                   <a href={deliverable.evidence_download_url || deliverable.attachment_url} target="_blank" rel="noreferrer" className="text-[10px] font-bold" style={{ color: 'var(--brand-orange)' }}>
                     {deliverable.attachment_name || t('venture.manager.viewEvidence')}

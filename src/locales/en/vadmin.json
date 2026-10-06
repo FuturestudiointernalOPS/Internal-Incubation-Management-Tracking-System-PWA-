@@ -897,6 +897,8 @@
       "noDescription": "No description",
       "assignee": "Assignee",
       "unassigned": "Unassigned",
+      "supportLabel": "Support",
+      "definitionOfDone": "Definition of Done",
       "dueDate": "Due Date",
       "noDate": "No date",
       "estHours": "Est. Hours",

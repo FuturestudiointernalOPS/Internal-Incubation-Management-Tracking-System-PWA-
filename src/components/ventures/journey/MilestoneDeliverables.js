@@ -155,6 +155,7 @@ export default function MilestoneDeliverables({
                 </div>
               </div>
             ) : (
+              <>
               <div className="flex items-center gap-2">
                 <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDotClass(status)}`} />
                 <p className="flex-1 min-w-0 text-[11px] font-bold text-[var(--text-primary)] truncate">{deliverable.title}</p>
@@ -177,6 +178,27 @@ export default function MilestoneDeliverables({
                 )}
                 {deliverableBusy === deliverable.id && <Loader2 className="w-3 h-3 animate-spin text-slate-400 shrink-0" />}
               </div>
+              {/* Activity → Deliverable → Definition of Done: the whole chain
+                  on one card, so nobody returns to the spreadsheet to find out
+                  what the work is or when it is done. */}
+              <div className="mt-1.5 space-y-0.5 text-[10px] leading-snug">
+                <p className="text-[var(--text-secondary)]">
+                  <span className="font-black uppercase tracking-widest text-[8px] text-slate-500 mr-1.5">{t("venture.manager.activityLabel")}</span>
+                  {deliverable.activity?.title || t("venture.manager.notProvided")}
+                </p>
+                <p className="text-[var(--text-secondary)]">
+                  <span className="font-black uppercase tracking-widest text-[8px] text-slate-500 mr-1.5">{t("venture.manager.definitionOfDone")}</span>
+                  {deliverable.activity?.definition_of_done || t("venture.manager.notProvided")}
+                </p>
+                <p className="text-slate-500">
+                  {t("venture.manager.milestoneOwner")}: <span className="text-[var(--text-secondary)]">{deliverable.assigned_name || t("venture.manager.notProvided")}</span>
+                  {" · "}
+                  {t("venture.manager.supporting")}: <span className="text-[var(--text-secondary)]">{deliverable.activity?.support_name || t("venture.manager.notProvided")}</span>
+                  {" · "}
+                  {t("venture.manager.startDate")}: <span className="text-[var(--text-secondary)]">{deliverable.activity?.start_date ? fmtDate(deliverable.activity.start_date) : t("venture.manager.notProvided")}</span>
+                </p>
+              </div>
+              </>
             )}
             {!mode && deliverable.approval_status === "rejected" && deliverable.rejection_reason && (
               <p className="text-[9px] text-rose-400 mt-1">

@@ -896,6 +896,8 @@
       "description": "Description",
       "noDescription": "Aucune description",
       "assignee": "Assigné",
+      "supportLabel": "Appui",
+      "definitionOfDone": "Définition de terminé",
       "unassigned": "Non assigné",
       "dueDate": "Date limite",
       "noDate": "Aucune date",

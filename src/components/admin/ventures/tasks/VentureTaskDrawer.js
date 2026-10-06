@@ -58,11 +58,23 @@ export default function VentureTaskDrawer({
               <p className="text-xs text-[var(--text-secondary)]">{selectedTask.description || "No description"}</p>
             </div>
 
+            {/* Definition of Done — the condition that proves the work complete */}
+            {selectedTask.definition_of_done && (
+              <div>
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">{t("vadmin.tasks.definitionOfDone")}</p>
+                <p className="text-xs text-[var(--text-secondary)]">{selectedTask.definition_of_done}</p>
+              </div>
+            )}
+
             {/* Details */}
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 bg-primary rounded-xl">
                 <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider">Assignee</p>
                 <p className="text-[10px] font-bold text-[var(--text-primary)] mt-0.5">{selectedTask.assigned_name || "Unassigned"}</p>
+              </div>
+              <div className="p-3 bg-primary rounded-xl">
+                <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider">{t("vadmin.tasks.supportLabel")}</p>
+                <p className="text-[10px] font-bold text-[var(--text-primary)] mt-0.5">{selectedTask.support_name || "—"}</p>
               </div>
               <div className="p-3 bg-primary rounded-xl">
                 <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider">Due Date</p>

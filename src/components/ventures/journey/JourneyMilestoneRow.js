@@ -198,6 +198,26 @@ export default function JourneyMilestoneRow({
           <p className="mt-1 ml-5 text-[10px] text-slate-500">{fmtDate(milestone.target_date)}</p>
         )}
 
+        {/* WHO owns it and supports it, and when it starts — at a glance, so the
+            owner is never a different screen away. Progress is deliberately not
+            repeated here. */}
+        {isOpen && (
+          <div className="mt-1 ml-5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-slate-500">
+            <span>
+              <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.milestoneOwner")}:</span>{" "}
+              {milestone.owner_name || t("venture.manager.notProvided")}
+            </span>
+            <span>
+              <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.supporting")}:</span>{" "}
+              {milestone.support_name || t("venture.manager.notProvided")}
+            </span>
+            <span>
+              <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.startDate")}:</span>{" "}
+              {milestone.start_date ? fmtDate(milestone.start_date) : t("venture.manager.notProvided")}
+            </span>
+          </div>
+        )}
+
         {/* Review inbox: what the Venture submitted for the tasks in this milestone */}
         {isOpen && (milestoneSubmissions[milestone.id] || []).length > 0 && (
           <MilestoneReviewInbox

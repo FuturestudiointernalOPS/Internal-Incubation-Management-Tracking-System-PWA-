@@ -93,7 +93,7 @@ export async function createTask({ ventureId, milestoneId, title, description, p
  *    and the write paths agree on what "cleared" means.
  */
 export async function updateTask(taskId, updates) {
-  const allowed = ["title", "description", "status", "priority", "start_date", "due_date", "estimated_hours", "actual_hours", "assigned_cid", "assigned_name", "labels", "checklist", "display_order"];
+  const allowed = ["title", "description", "status", "priority", "start_date", "due_date", "estimated_hours", "actual_hours", "assigned_cid", "assigned_name", "definition_of_done", "support_name", "labels", "checklist", "display_order"];
   const DATE_COLUMNS = ["start_date", "due_date"];
   const sets = []; const args = [];
   for (const column of allowed) {
