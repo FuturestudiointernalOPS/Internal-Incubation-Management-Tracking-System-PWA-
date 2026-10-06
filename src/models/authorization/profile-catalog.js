@@ -19,8 +19,11 @@
  * same rule.
  */
 
-/** Contexts a profile belongs to — mirrors CONTEXT_ROLE_CONTEXTS. */
-export const PROFILE_CONTEXTS = ["program", "venture", "lms", "investor"];
+/** Contexts a profile belongs to — mirrors CONTEXT_ROLE_CONTEXTS, plus the two
+ * groups the profiles-takeover conversion introduces: `global` (baseline-role
+ * profiles) and `staff` (staff personas such as Project Owner). Contexts are a
+ * display grouping, not a constraint — a profile's context never decides access. */
+export const PROFILE_CONTEXTS = ["program", "venture", "lms", "investor", "global", "staff"];
 
 /**
  * The profile ↔ role rule's enforcement switch (Phases B and H of

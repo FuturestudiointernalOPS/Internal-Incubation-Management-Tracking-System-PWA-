@@ -61,19 +61,32 @@ export function normalizeAllowedRoles(value) {
 }
 
 /**
+ * A profile key is a free identifier (profiles are DYNAMIC since the takeover):
+ * lowercase, digits and underscores. It is the stable identity of the profile,
+ * so it is validated by SHAPE — the fixed catalogue is no longer the vocabulary.
+ */
+export const PROFILE_KEY_PATTERN = /^[a-z][a-z0-9_]{1,63}$/;
+
+/** True when a value is a well-formed profile key. */
+export function isValidProfileKeyShape(key) {
+  return PROFILE_KEY_PATTERN.test(String(key ?? ""));
+}
+
+/**
  * Validate + normalize one profile edit.
  *
  * @param {{key: string, allowed_roles: unknown, is_active?: unknown}} input
  * @returns {{valid: boolean, errors: string[], normalized: {key, allowed_roles, is_active}}}
- *   `allowed_roles` is de-duplicated; unknown roles and unknown keys are
- *   rejected (the catalogue is the vocabulary, not free text).
+ *   `allowed_roles` is de-duplicated; unknown roles are rejected (the baseline
+ *   roles are the fixed vocabulary), and the key must be well-formed. Existence
+ *   is the ROUTE's check (it owns the database read).
  */
 export function validateProfileUpdate({ key, allowed_roles, is_active } = {}) {
   const errors = [];
   const profileKey = String(key ?? "");
 
-  if (!isValidProfileKey(profileKey)) {
-    errors.push(`unknown profile: ${profileKey}`);
+  if (!isValidProfileKeyShape(profileKey)) {
+    errors.push(`invalid profile key: ${profileKey}`);
   }
 
   const roles = normalizeAllowedRoles(allowed_roles);
@@ -98,6 +111,30 @@ export function validateProfileUpdate({ key, allowed_roles, is_active } = {}) {
       key: profileKey,
       allowed_roles: [...new Set(roles)],
       is_active: is_active === undefined ? true : Boolean(is_active),
+    },
+  };
+}
+
+/**
+ * Validate + normalize the creation of a NEW profile. Same rules as an edit,
+ * plus a required display label and a known context.
+ */
+export function validateProfileCreate({ key, label, context, allowed_roles } = {}) {
+  const base = validateProfileUpdate({ key, allowed_roles });
+  const errors = [...base.errors];
+  const labelText = typeof label === "string" ? label.trim() : "";
+  if (!labelText) errors.push("label is required");
+  if (!PROFILE_CONTEXTS.includes(String(context ?? ""))) {
+    errors.push(`unknown context: ${context}`);
+  }
+  return {
+    valid: errors.length === 0,
+    errors,
+    normalized: {
+      key: base.normalized.key,
+      label: labelText.slice(0, 120),
+      context: String(context ?? ""),
+      allowed_roles: base.normalized.allowed_roles,
     },
   };
 }

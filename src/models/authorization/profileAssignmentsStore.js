@@ -86,6 +86,21 @@ export function listActiveProfileKeys(cid) {
   });
 }
 
+/**
+ * How many people CURRENTLY hold a profile (active, unexpired) — the delete
+ * guard's read, so a profile still carried by someone is never removed under
+ * them.
+ */
+export function countActiveAssignmentsForProfileKey(profileKey) {
+  return db.execute({
+    sql: `SELECT COUNT(DISTINCT contact_cid)::int AS n
+          FROM profile_assignments
+          WHERE profile_key = ? AND status = 'active'
+            AND (ends_at IS NULL OR ends_at > NOW())`,
+    args: [String(profileKey)],
+  });
+}
+
 /** Every row of one (context, profile) pair — the sweep's read (Phase E). */
 export function listAssignmentsForContextAndProfile(
   contextType,

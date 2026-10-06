@@ -32,6 +32,7 @@ jest.mock("@/lib/requestOrigin", () => ({
 
 jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
+  invalidateAllAuthorizationContexts: jest.fn(),
 }));
 
 const {
@@ -126,10 +127,10 @@ describe("validateProfileUpdate", () => {
     expect(result.normalized.allowed_roles).toEqual(["member", "staff"]);
   });
 
-  test("refuses an unknown profile", () => {
-    const result = validateProfileUpdate({ key: "ghost", allowed_roles: [] });
+  test("refuses a malformed profile key (properties are dynamic now)", () => {
+    const result = validateProfileUpdate({ key: "Not A Key!", allowed_roles: [] });
     expect(result.valid).toBe(false);
-    expect(result.errors.join(" ")).toContain("unknown profile");
+    expect(result.errors.join(" ")).toContain("invalid profile key");
   });
 
   test("refuses an unknown role", () => {
@@ -263,6 +264,19 @@ describe("GET/PUT /api/engineering/permissions/profiles", () => {
     const { requireAuthorization } = require("@/models/authorization/index");
     const { logPermissionAudit } = require("@/models/authorization/accessQueries");
 
+    // The route now checks the profile EXISTS before editing it.
+    mockExecute.mockImplementation(async (arg) => {
+      const sql = typeof arg === "string" ? arg : String(arg?.sql || "");
+      if (/FROM profiles WHERE key = \?/i.test(sql)) {
+        return {
+          rows: [
+            { key: "founder", context: "venture", allowed_roles: '["member"]', is_active: 1, notes: "" },
+          ],
+        };
+      }
+      return { rows: [], rowsAffected: 1 };
+    });
+
     const res = await route.PUT({
       json: async () => ({
         key: "founder",
@@ -283,10 +297,10 @@ describe("GET/PUT /api/engineering/permissions/profiles", () => {
     );
   });
 
-  test("PUT refuses an unknown profile before touching the database", async () => {
+  test("PUT refuses a malformed key before touching the database", async () => {
     const route = loadRoute();
     const res = await route.PUT({
-      json: async () => ({ key: "ghost", allowed_roles: ["member"] }),
+      json: async () => ({ key: "Ghost Key", allowed_roles: ["member"] }),
     });
     const body = await res.json();
     expect(res.status).toBe(400);

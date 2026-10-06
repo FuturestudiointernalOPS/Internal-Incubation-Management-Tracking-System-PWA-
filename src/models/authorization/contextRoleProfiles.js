@@ -221,6 +221,17 @@ export async function backfillContextRoleProfileMappings() {
   return { success: true, updated };
 }
 
+/**
+ * How many registry rows map to a profile KEY — the delete guard's read, so a
+ * profile the context registry still points at is not removed underneath it.
+ */
+export function countContextRoleProfilesByKey(profileKey) {
+  return db.execute({
+    sql: "SELECT COUNT(*)::int AS n FROM context_role_profiles WHERE profile_key = ?",
+    args: [String(profileKey)],
+  });
+}
+
 /** Every registry row, with the mapped profile name (LEFT JOIN, never hidden). */
 export async function listContextRoleProfiles() {
   return db.execute({

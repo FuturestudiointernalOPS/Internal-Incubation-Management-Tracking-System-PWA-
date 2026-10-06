@@ -18,7 +18,14 @@ import {
   clearProfileCapabilities,
   upsertProfileCapability,
   listProfileCapabilityCounts as listProfileCapabilityCountsRows,
+  listRolesUsingProfileDefault,
 } from "@/models/authorization/profileCapabilitiesStore";
+import { getRoleEligibilityRows } from "@/models/authorization";
+import { MODULE_TO_FEATURE } from "@/models/authorization/eligibility";
+import { evaluateEligibility } from "./eligibility";
+import { validateCapabilitiesWithinEligibility } from "./eligibilityAdmin";
+
+export { ensureProfileCapabilitiesSchema, listRolesUsingProfileDefault };
 
 /** A profile's capability rows as `{ module: { capability: level } }`. */
 export async function listProfileCapabilities(profileKey) {
@@ -60,4 +67,48 @@ export async function replaceProfileCapabilities(profileKey, capabilities) {
     }
   }
   return normalized;
+}
+
+/**
+ * Remove every capability of one profile — used when the profile is deleted.
+ */
+export async function deleteProfileCapabilities(profileKey) {
+  await ensureProfileCapabilitiesSchema();
+  await clearProfileCapabilities(profileKey);
+}
+
+/** Per-feature eligibility map for a role (fail closed on missing rows). */
+async function eligibilityForRole(role) {
+  const result = await getRoleEligibilityRows(role);
+  const eligibilityMap = {};
+  for (const feature of Object.values(MODULE_TO_FEATURE)) {
+    eligibilityMap[feature] = evaluateEligibility(result.rows, feature);
+  }
+  return eligibilityMap;
+}
+
+/**
+ * The eligibility boundary for a PROFILE's capabilities: when the profile is the
+ * default for role(s), none of those roles may receive a capability whose
+ * feature they are not eligible for (`ELIGIBLE ≠ GRANTED`, fail closed). Mirrors
+ * `assertCapsEligibleForProfile` (the access-profile path). A profile with no
+ * role default is unconstrained.
+ *
+ * @returns {Promise<{valid: boolean, violations: Array, role: string|null}>}
+ */
+export async function assertCapsEligibleForProfileKey(capabilities, profileKey) {
+  const rolesRes = await listRolesUsingProfileDefault(profileKey);
+  const roles = (rolesRes.rows || []).map((row) => row.role_name);
+  if (roles.length === 0) return { valid: true, violations: [], role: null };
+
+  const normalized = normalizeCapabilities(capabilities);
+  for (const role of roles) {
+    const eligibility = await eligibilityForRole(role);
+    const { valid, violations } = validateCapabilitiesWithinEligibility(
+      normalized,
+      eligibility,
+    );
+    if (!valid) return { valid: false, violations, role };
+  }
+  return { valid: true, violations: [], role: null };
 }

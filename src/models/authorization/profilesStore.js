@@ -71,7 +71,7 @@ export async function seedProfiles() {
 /** Every catalogue row, in context then key order. */
 export function listProfiles() {
   return db.execute(
-    `SELECT key, context, allowed_roles, is_active, notes, updated_at
+    `SELECT key, context, label, allowed_roles, is_active, notes, updated_at
      FROM profiles
      ORDER BY context, key`,
   );
@@ -80,8 +80,35 @@ export function listProfiles() {
 /** One catalogue row by key (or an empty result set). */
 export function getProfileRow(key) {
   return db.execute({
-    sql: `SELECT key, context, allowed_roles, is_active, notes, updated_at
+    sql: `SELECT key, context, label, allowed_roles, is_active, notes, updated_at
           FROM profiles WHERE key = ?`,
+    args: [String(key)],
+  });
+}
+
+/**
+ * Create a profile. Insert-only: an existing key is left exactly as it is (the
+ * route checks existence first and answers 409).
+ */
+export function insertProfile({ key, context, allowedRoles, label, notes }) {
+  return db.execute({
+    sql: `INSERT INTO profiles (key, context, allowed_roles, is_active, label, notes)
+          VALUES (?, ?, ?, 1, ?, ?)
+          ON CONFLICT (key) DO NOTHING`,
+    args: [
+      String(key),
+      String(context),
+      JSON.stringify(allowedRoles || []),
+      label || "",
+      notes || "",
+    ],
+  });
+}
+
+/** Delete one profile row (capabilities are cleared by the caller). */
+export function deleteProfile(key) {
+  return db.execute({
+    sql: "DELETE FROM profiles WHERE key = ?",
     args: [String(key)],
   });
 }
