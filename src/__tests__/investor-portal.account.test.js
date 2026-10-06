@@ -234,6 +234,16 @@ describe("dashboard", () => {
     expect(scored.match_reasons).toHaveLength(5);
   });
 
+  it("does not match a venture whose stage merely contains the wished stage", () => {
+    const profile = { industries: [], countries: [], startup_stages: ["Seed"] };
+    const ventures = [{ id: "v1", business_stage: "Pre-Seed", completion_index: 90 }];
+
+    const [scored] = scoreVentures({ profile, ventures });
+
+    expect(scored.match_score).toBe(10); // readiness bonus only — no stage match
+    expect(scored.match_reasons).toEqual(["Readiness: 90%"]);
+  });
+
   it("returns the empty payload for a caller with no profile", async () => {
     investor.getInvestorDashboardProfile.mockResolvedValue({ rows: [] });
 

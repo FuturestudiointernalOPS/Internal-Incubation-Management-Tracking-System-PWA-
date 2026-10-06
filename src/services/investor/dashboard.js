@@ -59,11 +59,14 @@ export function scoreVentures({ profile, ventures }) {
       }
     }
 
-    // Stage match (weight: 20)
+    // Stage match (weight: 20). Stages are a fixed vocabulary (Pre-Seed, Seed,
+    // Series A/B, Growth), so they are compared exactly: a substring test would
+    // let a "Seed" preference match a "Pre-Seed" venture.
     if (stages.length > 0) {
-      const match = stages.some((stage) =>
-        (venture.business_stage || "").toLowerCase().includes(stage.toLowerCase()),
-      );
+      const ventureStage = (venture.business_stage || "").trim().toLowerCase();
+      const match =
+        ventureStage !== "" &&
+        stages.some((stage) => stage.trim().toLowerCase() === ventureStage);
       if (match) {
         score += 20;
         reasons.push(`Stage: ${venture.business_stage}`);
