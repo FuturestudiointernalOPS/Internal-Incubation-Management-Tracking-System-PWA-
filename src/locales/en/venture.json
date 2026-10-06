@@ -831,6 +831,7 @@
       "refsDerived": "The tracker has no task id per row, so the analyst numbered the tasks by row order to resolve the dependencies. Check the dependency column before applying.",
       "suggestedDates": "Suggested from the task dates — the tracker did not state it. Change it if it is wrong.",
       "removeMilestone": "Remove",
+      "needsReview": "Needs review — assign the activities",
       "removeMilestoneConfirm": "Remove \"{name}\" and its {n} tasks from this proposal?\nNothing is deleted from the Venture — the milestone is only taken out of this proposal.",
       "supportLabel": "Support",
       "phaseLabel": "Phase",

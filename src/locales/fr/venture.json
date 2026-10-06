@@ -831,6 +831,7 @@
       "refsDerived": "Le tracker n'a pas d'identifiant de tâche par ligne : l'analyste a numéroté les tâches par ordre de ligne pour résoudre les dépendances. Vérifiez la colonne des dépendances avant d'appliquer.",
       "suggestedDates": "Suggéré à partir des dates des tâches — non indiqué dans le tracker. Modifiez-le s'il est faux.",
       "removeMilestone": "Retirer",
+      "needsReview": "À revoir — affectez les activités",
       "removeMilestoneConfirm": "Retirer « {name} » et ses {n} tâches de cette proposition ?\nRien n'est supprimé de la Venture — le jalon est seulement retiré de cette proposition.",
       "supportLabel": "Appui",
       "phaseLabel": "Phase",

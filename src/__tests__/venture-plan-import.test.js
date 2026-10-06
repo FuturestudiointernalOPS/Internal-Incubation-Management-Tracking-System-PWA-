@@ -202,7 +202,11 @@ describe("a tracker too long for one answer is read in PARTS", () => {
     expect(userMessages.length).toBeGreaterThan(1);
     for (const content of userMessages) {
       expect(content).toMatch(/PART \d+ OF \d+/);
-      expect(content).toMatch(/Do NOT invent rows/);
+      expect(content).toMatch(/Do not invent rows/);
+      // …and that every row it WAS shown is mapped: a part that skips rows it
+      // expects to meet again loses them, because the parts overlap rather than
+      // tile. See docs of PLAN_CHUNK_ROWS.
+      expect(content).toMatch(/Map EVERY activity row shown below/);
     }
   });
 

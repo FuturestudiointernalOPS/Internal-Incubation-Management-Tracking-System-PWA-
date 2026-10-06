@@ -171,6 +171,11 @@ export function normalizeJourneys(rawJourneys = []) {
       description: toText(milestone?.description),
       objective: toText(milestone?.objective),
       priority: toPriority(milestone?.priority),
+      // A milestone the analyst could not group honestly says so, and says why.
+      // Stored rather than dropped: "this needs a human" is a finding the review
+      // screen must be able to show, not a warning that scrolls away.
+      requires_review: milestone?.requires_review === true || milestone?.requires_review === "true" ? true : null,
+      reason: toText(milestone?.reason),
       start_date: toDate(milestone?.start_date),
       target_date: toDate(milestone?.target_date),
       dates_derived: milestone?.dates_derived === true || milestone?.dates_derived === "true" ? true : null,
