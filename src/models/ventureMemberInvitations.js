@@ -22,6 +22,7 @@ import db from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { hashPassword } from "@/server/auth/password";
 import { hashToken } from "@/lib/token-hashing";
+import { stopRoleMutationEnabled } from "@/lib/identity";
 import {
   normalizeEmail,
   resolvePersonIdentity,
@@ -112,6 +113,81 @@ async function applyVentureContextGrants(cid) {
 function defaultRoleFor(memberType, role) {
   if (role) return role;
   return memberType === "founder" ? "founder" : "member";
+}
+
+/**
+ * Roles that gate ANOTHER surface. A founder invitation must never overwrite one
+ * of these: a facilitator who founds a Venture is still a facilitator, and
+ * rewriting the stored role would move their facilitator access (eligibility is
+ * keyed on the role). Those people get founder ACCESS through the venture
+ * context instead — see `applyVentureContextGrants`.
+ */
+const ROLES_NEVER_OVERWRITTEN = [
+  "super_admin",
+  "staff",
+  "admin",
+  "program_manager",
+  "facilitator",
+  "participant",
+  "investor",
+  "mentor",
+  "teacher",
+  "developer",
+  "finance",
+  "crm",
+];
+
+/**
+ * AN INVITED FOUNDER IS A FOUNDER — not a baseline member.
+ *
+ * The stored role is what the product shows and what the default access profile
+ * keys on, so someone who arrives as `member` / `applicant` / with no role is
+ * promoted here. Only the identity is touched, never a privileged role, and a
+ * role is never demoted.
+ */
+async function promoteInvitedFounderIdentity(contactCid) {
+  if (!contactCid) return { promoted: false };
+  // Phase I2 mutation-stop: when role mutation is off, a context join no longer
+  // rewrites the stored identity — the transitional derivation answers for the
+  // legacy role instead (IDENTITY_DERIVE_LEGACY_ROLE).
+  if (stopRoleMutationEnabled()) return { promoted: false, gated: true };
+  const placeholders = ROLES_NEVER_OVERWRITTEN.map(() => "?").join(", ");
+  const result = await safe(
+    `UPDATE contacts SET role = 'founder'
+      WHERE cid = ?
+        AND COALESCE(role, '') NOT IN (${placeholders})
+        AND role IS DISTINCT FROM 'founder'`,
+    [contactCid, ...ROLES_NEVER_OVERWRITTEN],
+  );
+  return { promoted: (result.rowsAffected || 0) > 0 };
+}
+
+/**
+ * A Venture must never be left without a lead. The FIRST founder to accept takes
+ * the lead/owner seat; later founders join as co-founders, and an existing lead
+ * is never demoted — moving the lead is what `changeVentureLead` is for.
+ */
+async function ensureVentureLead(ventureId, contactCid) {
+  if (!ventureId || !contactCid) return { promoted: false };
+  const result = await safe(
+    `UPDATE venture_members
+        SET lead_founder = TRUE, is_owner = TRUE, member_type = 'founder', role = 'founder'
+      WHERE venture_id = ? AND (contact_id = ? OR user_cid = ?) AND removed_at IS NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM venture_members o
+           WHERE o.venture_id = ? AND o.removed_at IS NULL
+             AND (o.lead_founder = TRUE OR o.is_owner = TRUE)
+        )`,
+    [ventureId, contactCid, contactCid, ventureId],
+  );
+  return { promoted: (result.rowsAffected || 0) > 0 };
+}
+
+/** Founder invitations carry the founder identity AND the venture's lead seat. */
+async function applyFounderPromotion({ ventureId, contactCid }) {
+  if (!contactCid) return;
+  await promoteInvitedFounderIdentity(contactCid);
+  await ensureVentureLead(ventureId, contactCid);
 }
 
 /** A person already recorded under this email, if any (display + linking only). */
@@ -358,7 +434,15 @@ export async function completeVentureMemberInvitation({
   const role = defaultRoleFor(invitation.member_type, invitation.role);
 
   if (existing.rows?.length && !existing.rows[0].removed_at) {
-    // Already an active member — accepting again must not duplicate the row.
+    // Already an active member — accepting again must not duplicate the row,
+    // but a founder invitation still has to deliver the founder identity, the
+    // lead seat (when the Venture has none) and the context grants: someone
+    // added as a team member earlier and invited as a founder later was left
+    // without any of them.
+    if (invitation.member_type === "founder") {
+      await applyFounderPromotion({ ventureId: invitation.venture_id, contactCid });
+      await applyVentureContextGrants(contactCid);
+    }
     await markAccepted(invitation.id, contactCid);
     return { ok: true, already_member: true, venture_id: invitation.venture_id, contact_cid: contactCid };
   }
@@ -397,8 +481,12 @@ export async function completeVentureMemberInvitation({
     notes: "member joined via invitation",
   }).catch(() => null);
 
-  // A founder relationship grants the mapped profile's capabilities.
-  if (invitation.member_type === "founder") await applyVentureContextGrants(contactCid);
+  // A founder relationship grants the mapped profile's capabilities, and makes
+  // the person a FOUNDER rather than a baseline member (identity + lead seat).
+  if (invitation.member_type === "founder") {
+    await applyFounderPromotion({ ventureId: invitation.venture_id, contactCid });
+    await applyVentureContextGrants(contactCid);
+  }
 
   await markAccepted(invitation.id, contactCid);
 
