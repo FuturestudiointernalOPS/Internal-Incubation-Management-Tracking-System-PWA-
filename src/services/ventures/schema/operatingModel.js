@@ -44,6 +44,15 @@ export default [
 "ALTER TABLE venture_deliverables ADD COLUMN IF NOT EXISTS assigned_name TEXT",
 "ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS assigned_cid TEXT",
 "ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS assigned_name TEXT",
+// The tracker's extra context is stored as REAL fields, never folded text:
+// the Definition of Done keeps its own column on the task that owes it,
+// Support is a display-only name (multi-name as written — nobody is assigned
+// work by it), and a deliverable points at the task that produces it, so
+// "Activity → Deliverable" is a relationship rather than a convention.
+"ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS definition_of_done TEXT",
+"ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS support_name TEXT",
+"ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS support_name TEXT",
+"ALTER TABLE venture_deliverables ADD COLUMN IF NOT EXISTS task_id INTEGER REFERENCES venture_tasks(id) ON DELETE SET NULL",
 "CREATE INDEX IF NOT EXISTS idx_vm_journey_stage ON venture_milestones(journey_stage_id) WHERE journey_stage_id IS NOT NULL",
 // Task review-required flag + optional required deliverable type (D5).
 "ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS review_required BOOLEAN DEFAULT FALSE",

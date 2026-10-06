@@ -41,6 +41,10 @@ export {
 export {
   buildExistingProgramme,
   interpretPlanSheet,
+  PLAN_ANSWER_TOKENS,
+  PLAN_CHUNK_ROWS,
+  chunkPlanRows,
+  mergePlanParts,
 } from "./planImport/interpret";
 export {
   getOpenPlanImport,
@@ -74,6 +78,10 @@ import {
 import {
   buildExistingProgramme,
   interpretPlanSheet,
+  PLAN_ANSWER_TOKENS,
+  PLAN_CHUNK_ROWS,
+  chunkPlanRows,
+  mergePlanParts,
 } from "./planImport/interpret";
 import {
   getOpenPlanImport,
@@ -94,6 +102,10 @@ export default {
   interpretPlanSheet,
   buildPlanPrompt,
   renderPlanSheets,
+  PLAN_ANSWER_TOKENS,
+  PLAN_CHUNK_ROWS,
+  chunkPlanRows,
+  mergePlanParts,
   buildExistingProgramme,
   normalizeJourneys,
   deriveProposalDates,

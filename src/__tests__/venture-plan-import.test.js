@@ -2,8 +2,17 @@
  * Plan import — the model proposes, the platform validates, nothing is written.
  */
 const mockChat = jest.fn();
+/** What the provider would report for the answer: "length" means CUT OFF. */
+let mockFinishReason = "stop";
 jest.mock("@/lib/deepseek", () => ({
-  deepseekIntelligence: { chat: (...args) => mockChat(...args) },
+  deepseekIntelligence: {
+    chat: (...args) => mockChat(...args),
+    chatDetailed: async (...args) => ({
+      content: await mockChat(...args),
+      finishReason: mockFinishReason,
+      truncated: mockFinishReason === "length",
+    }),
+  },
   default: { chat: (...args) => mockChat(...args) },
 }));
 
@@ -27,7 +36,15 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-const { interpretPlanSheet, buildPlanPrompt, renderPlanSheets } = require("@/services/ventures/planImport");
+const {
+  interpretPlanSheet,
+  buildPlanPrompt,
+  renderPlanSheets,
+  PLAN_ANSWER_TOKENS,
+  PLAN_CHUNK_ROWS,
+  chunkPlanRows,
+  mergePlanParts,
+} = require("@/services/ventures/planImport");
 
 const MODEL_REPLY = {
   journeys: [
@@ -78,7 +95,172 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockContacts.byEmail.clear();
   mockContacts.byName.clear();
+  mockFinishReason = "stop";
   mockChat.mockResolvedValue(JSON.stringify(MODEL_REPLY));
+});
+
+describe("chunkPlanRows — one part when it fits, several when it does not", () => {
+  const rows = (n) => Array.from({ length: n }, (_, i) => [`row ${i}`]);
+
+  test("a sheet that fits stays ONE part", () => {
+    expect(chunkPlanRows(rows(PLAN_CHUNK_ROWS))).toHaveLength(1);
+    expect(chunkPlanRows(rows(5))[0].start).toBe(0);
+  });
+
+  test("a long sheet is cut into parts that carry their place in the sheet", () => {
+    const parts = chunkPlanRows(rows(PLAN_CHUNK_ROWS * 3));
+    expect(parts.length).toBeGreaterThan(1);
+    expect(parts[0].start).toBe(0);
+    // Each later part starts after the first — never at 0, so row labels stay global.
+    for (const part of parts.slice(1)) expect(part.start).toBeGreaterThan(0);
+  });
+
+  test("consecutive parts OVERLAP, so a group split across the cut is still recognisable", () => {
+    const parts = chunkPlanRows(rows(PLAN_CHUNK_ROWS * 2));
+    expect(parts[1].start).toBeLessThan(parts[0].rows.length);
+  });
+
+  test("nothing to read is one empty part, not none", () => {
+    expect(chunkPlanRows([])).toHaveLength(1);
+  });
+});
+
+describe("mergePlanParts — the parts' answers become ONE proposal", () => {
+  const part = (tasks) => ({
+    journeys: [{ name: "Market Readiness", milestones: [{ name: "GTM", tasks }] }],
+  });
+
+  test("the same journey and milestone from two parts are ONE journey and ONE milestone", () => {
+    const merged = mergePlanParts([part([{ ref: "r1", title: "A" }]), part([{ ref: "r9", title: "B" }])]);
+    expect(merged.journeys).toHaveLength(1);
+    expect(merged.journeys[0].milestones).toHaveLength(1);
+    expect(merged.journeys[0].milestones[0].tasks).toHaveLength(2);
+  });
+
+  test("the OVERLAP is dropped: a row seen twice is kept once", () => {
+    const shared = { ref: "r7", title: "Arrange meetings" };
+    const merged = mergePlanParts([part([shared]), part([shared, { ref: "r9", title: "B" }])]);
+    expect(merged.journeys[0].milestones[0].tasks.map((task) => task.ref)).toEqual(["r7", "r9"]);
+  });
+
+  test("with no ref, a task is identified by its title and owner", () => {
+    const merged = mergePlanParts([
+      part([{ title: "Legal filing", owner_name: "Alice" }]),
+      part([{ title: "Legal filing", owner_name: "Alice" }, { title: "Legal filing", owner_name: "David" }]),
+    ]);
+    expect(merged.journeys[0].milestones[0].tasks).toHaveLength(2);
+  });
+
+  test("the FIRST value wins; a later part may only fill a gap", () => {
+    const merged = mergePlanParts([
+      { journeys: [{ name: "J", objective: "first", milestones: [] }] },
+      { journeys: [{ name: "J", objective: "second", target_date: "2026-12-01", milestones: [] }] },
+    ]);
+    expect(merged.journeys[0].objective).toBe("first");
+    expect(merged.journeys[0].target_date).toBe("2026-12-01");
+  });
+
+  test("refs_derived survives if ANY part reported it", () => {
+    expect(mergePlanParts([{ journeys: [] }, { refs_derived: true, journeys: [] }]).refs_derived).toBe(true);
+  });
+});
+
+describe("a tracker too long for one answer is read in PARTS", () => {
+  const longSheet = (count) => ({
+    name: "Tracker",
+    rows: [
+      ["ID", "Activity"],
+      ...Array.from({ length: count }, (_, index) => [`MS01-${index + 1}`, `Task ${index + 1}`]),
+    ],
+  });
+
+  test("a sheet that fits is ONE call, exactly as it always was", async () => {
+    const out = await interpretPlanSheet({
+      sheets: [{ name: "Tracker", rows: [["ID", "Activity"], ["T1", "Do the thing"]] }],
+      sheetName: "Tracker",
+    });
+    expect(out.ok).toBe(true);
+    expect(mockChat).toHaveBeenCalledTimes(1);
+  });
+
+  test("a long sheet is read part by part, and the parts become ONE proposal", async () => {
+    const out = await interpretPlanSheet({ sheets: [longSheet(PLAN_CHUNK_ROWS * 3)], sheetName: "Tracker" });
+    expect(out.ok).toBe(true);
+    expect(mockChat.mock.calls.length).toBeGreaterThan(1);
+    // The mock answers every part identically — the merge must collapse the
+    // repeats into one journey, one milestone and one copy of each task.
+    expect(out.proposal.journeys).toHaveLength(1);
+    expect(out.proposal.journeys[0].milestones).toHaveLength(1);
+    expect(out.proposal.journeys[0].milestones[0].tasks).toHaveLength(2);
+  });
+
+  test("every part is told it is a part, so it does not invent the rest", async () => {
+    await interpretPlanSheet({ sheets: [longSheet(PLAN_CHUNK_ROWS * 3)], sheetName: "Tracker" });
+    const userMessages = mockChat.mock.calls.map(
+      (call) => call[0].find((message) => message.role === "user").content,
+    );
+    expect(userMessages.length).toBeGreaterThan(1);
+    for (const content of userMessages) {
+      expect(content).toMatch(/PART \d+ OF \d+/);
+      expect(content).toMatch(/Do NOT invent rows/);
+    }
+  });
+
+  test("a sheet with NO named plan sheet is still one call — the old path is untouched", async () => {
+    await interpretPlanSheet({ sheets: [longSheet(PLAN_CHUNK_ROWS * 3)] });
+    expect(mockChat).toHaveBeenCalledTimes(1);
+  });
+
+  test("row labels keep their place in the whole sheet across parts", () => {
+    const parts = chunkPlanRows(longSheet(PLAN_CHUNK_ROWS * 3).rows);
+    const second = renderPlanSheets([{ name: "Tracker", rows: parts[1].rows }], "Tracker", parts[1].start);
+    const firstLabel = Number(/r(\d+):/.exec(second)[1]);
+    // The second part's first row is NOT numbered from 1 — it continues after
+    // the rows already shown, so a dependency can name it from anywhere.
+    expect(firstLabel).toBeGreaterThan(1);
+  });
+});
+
+describe("a bad answer says WHICH KIND of bad it is", () => {
+  const sheets = [{ name: "Tracker", rows: [["ID", "Activity"]] }];
+
+  test("an answer CUT OFF at the length ceiling reports truncation, not bad JSON", async () => {
+    // This is the distinction that was thrown away. A truncated reply is
+    // unfinished, not malformed — and it needs a different answer from the
+    // person waiting: split the file, rather than try again.
+    mockFinishReason = "length";
+    // A real cut-off answer: some objects closed, the ones wrapping them not.
+    mockChat.mockResolvedValue(
+      '{"refs_derived":false,"journeys":[{"name":"J","milestones":[{"ref":"MS01","name":"M","tasks":[{"ref":"T1","title":"Conduct market research","deliverables":[]},{"ref":"T2","title":"Identify target partners',
+    );
+    const out = await interpretPlanSheet({ sheets });
+    expect(out.ok).toBe(false);
+    expect(out.error_key).toBe("venture.planImport.answerTruncated");
+    expect(out.error_params).toEqual({ limit: PLAN_ANSWER_TOKENS });
+    expect(out.error).toMatch(/ceiling/);
+  });
+
+  test("an answer that is simply unreadable reports invalid JSON", async () => {
+    mockFinishReason = "stop";
+    mockChat.mockResolvedValue('{"journeys": [{"name": "J",}]}'); // a trailing comma
+    const out = await interpretPlanSheet({ sheets });
+    expect(out.ok).toBe(false);
+    expect(out.error_key).toBe("venture.planImport.answerInvalid");
+  });
+
+  test("an answer with no JSON object at all says so", async () => {
+    mockFinishReason = "stop";
+    mockChat.mockResolvedValue("I could not do that.");
+    const out = await interpretPlanSheet({ sheets });
+    expect(out.ok).toBe(false);
+    expect(out.error_key).toBe("venture.planImport.answerUnusable");
+  });
+
+  test("a good answer carries no error key at all", async () => {
+    const out = await interpretPlanSheet({ sheets });
+    expect(out.ok).toBe(true);
+    expect(out.error_key).toBeUndefined();
+  });
 });
 
 describe("buildPlanPrompt — guardrails sit in the system message", () => {

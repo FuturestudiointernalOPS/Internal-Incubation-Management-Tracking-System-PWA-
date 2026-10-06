@@ -77,3 +77,29 @@ export const pickReportsByStage = (payload) => {
   }
   return grouped;
 };
+
+/**
+ * Group a milestone's deliverables under the ACTIVITY that produces each one —
+ * the task a deliverable points at. The screen then reads as one block per
+ * activity: Activity → its Deliverable(s) → Definition of Done. A deliverable
+ * with no linked task stands alone, so hand-made work still renders.
+ */
+export function groupDeliverablesByActivity(deliverables = []) {
+  const groups = [];
+  const byKey = new Map();
+  for (const deliverable of deliverables || []) {
+    const activityId = deliverable?.activity?.id;
+    const key =
+      activityId !== null && activityId !== undefined
+        ? `activity:${activityId}`
+        : `deliverable:${deliverable?.id}`;
+    let group = byKey.get(key);
+    if (!group) {
+      group = { activity: deliverable?.activity || null, deliverables: [] };
+      byKey.set(key, group);
+      groups.push(group);
+    }
+    group.deliverables.push(deliverable);
+  }
+  return groups;
+}

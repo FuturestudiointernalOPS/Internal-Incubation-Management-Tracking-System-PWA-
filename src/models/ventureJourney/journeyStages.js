@@ -12,8 +12,9 @@ import db from "@/lib/db";
 /** Milestones bound to a Journey stage (rich columns), for the roadmap spine. */
 export async function listJourneyMilestonesByStage(dbId) {
   return db.execute({
-    sql: `SELECT id, title, description, objective, status, progress, target_date,
-                 priority, display_order, created_at, journey_stage_id
+    sql: `SELECT id, title, description, objective, status, progress, start_date,
+                 target_date, priority, display_order, created_at, journey_stage_id,
+                 owner_cid, owner_name, support_name
           FROM venture_milestones
           WHERE venture_id = ? AND journey_stage_id IS NOT NULL
           ORDER BY COALESCE(display_order, 0), created_at ASC`,
@@ -36,10 +37,21 @@ export async function listJourneyMilestonesByStageLegacy(dbId) {
 export async function listJourneyDeliverablesByMilestoneIds(milestoneIds) {
   return db.execute({
     sql: `SELECT id, milestone_id, title, description, deliverable_type, status, approval_status,
-                 due_date, attachment_url, attachment_name, rejection_reason, reviewer_name
+                 due_date, assigned_cid, assigned_name, task_id,
+                 attachment_url, attachment_name, rejection_reason, reviewer_name
           FROM venture_deliverables
           WHERE milestone_id::text = ANY(?)
           ORDER BY created_at ASC`,
+    args: [milestoneIds],
+  });
+}
+
+/** The Activity behind a deliverable: the task it points at (display-only). */
+export async function listJourneyTasksByMilestoneIds(milestoneIds) {
+  return db.execute({
+    sql: `SELECT id, milestone_id, title, description, definition_of_done, support_name, start_date
+          FROM venture_tasks
+          WHERE milestone_id::text = ANY(?) AND COALESCE(is_archived, FALSE) = FALSE`,
     args: [milestoneIds],
   });
 }

@@ -193,7 +193,20 @@ export function milestoneWrites({
       notify(t(DATE_ISSUE_KEYS[issue], { date: fmtDate(bound) }), "error");
       return;
     }
-    const ok = await patchMilestone(milestoneEditId, milestoneEditForm);
+    // Owner travels only when the reviewer actually changed it: the form is
+    // seeded from the roadmap read, and an unrelated edit (a title change) must
+    // never CLEAR an owner the form could not show. A deliberate change — or a
+    // deliberate clear — still passes through.
+    const payload = { ...milestoneEditForm };
+    if (editing) {
+      const sameCid = (payload.owner_cid || "") === (editing.owner_cid || "");
+      const sameName = (payload.owner_name || "") === (editing.owner_name || "");
+      if (sameCid && sameName) {
+        delete payload.owner_cid;
+        delete payload.owner_name;
+      }
+    }
+    const ok = await patchMilestone(milestoneEditId, payload);
     if (ok) {
       notify(t("venture.manager.milestoneUpdated"));
       setMilestoneEditId(null);
