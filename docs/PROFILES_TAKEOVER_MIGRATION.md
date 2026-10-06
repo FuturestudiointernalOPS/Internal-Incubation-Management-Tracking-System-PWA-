@@ -1,6 +1,6 @@
 # Migration — les profils reprennent les access profiles
 
-**Statut :** en cours (tranches 1 à 5 faites ; écran « Profiles » unique)
+**Statut :** tranches 1 à 5 (+ garde d'assignation, + seed direct du catalogue) faites. Reste la tranche 6b : retrait des routes/tables `access_profiles*` et migration de l'override individuel de l'écran People.
 
 **Décisions produit validées :**
 
@@ -75,10 +75,10 @@ Profils → `profile_capabilities` :
 |---|---|---|---|
 | 1 | **Fondation** (ce commit) | Schéma additif : `profile_capabilities`, `role_profile_defaults`, `profiles.label`, `context_role_profiles.profile_key`, `contacts.profile_key`. Store + validation. | Nul (additif) |
 | 2 | Données | Migration one-time `profiles-takeover-v1` (`profileTakeoverBackfill.js`) : crée les profils manquants, copie les capacités, recopie les trois ponts. Anciennes tables intactes. **FAIT** | Faible |
-| 3 | Résolveur | `contextReads` + `baseCapabilities` lisent `profile_capabilities` (priorité), repli sur l'ancien chemin tant qu'il existe. **FAIT** (résolveur ; le garde d'assignation `baseCapabilities.js` reste à basculer) | Moyen |
+| 3 | Résolveur | `contextReads` + `baseCapabilities` lisent `profile_capabilities` (priorité), repli sur l'ancien chemin tant qu'il existe. **FAIT** | Moyen |
 | 4 | API | `/api/engineering/permissions/profiles` gère capacités + créer/supprimer ; catalogue dynamique (clés libres, libellés stockés, validation par forme). **FAIT** (`baseCapabilities.js` — le garde d'assignation — reste à basculer en tranche 5) | Moyen |
 | 5 | UI | Écran « Profiles » unique : créer/supprimer un profil, éditer ses capacités ; sous-onglet « Access profiles » et rollup retirés. **FAIT** (`baseCapabilities.js` — le garde d'assignation — reste à basculer : comportement d'avertissement, pas une décision d'accès) | Moyen |
-| 6 | Nettoyage | Suppression de `access_profiles*`, `role_access_profile_defaults`, des routes, des seeds et des suites de tests devenues obsolètes. | Élevé (en dernier) |
+| 6 | Nettoyage | **6a FAIT** : seed direct du catalogue (indépendant d'`access_profiles`). **6b À FAIRE** : migrer l'override individuel de l'écran People (`contacts.access_profile_id` + `/api/access-profiles/assign`) vers les profils, puis supprimer les routes `/api/access-profiles*`, l'éditeur mort (`AccessProfilesView` + blocs + `EntitlementRollup`) et enfin les tables. | Élevé (en dernier) |
 
 ## 4. Garde-fous
 
