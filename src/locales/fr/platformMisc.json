@@ -758,6 +758,7 @@
       "colActivation": "Activation",
       "colActivationEmail": "Email d'activation",
       "colApprovalEmail": "Email d'approbation",
+      "colResultEmail": "Email de rapport",
       "emailSent": "Envoyé",
       "emailFailed": "Échec",
       "emailBounced": "Rebondi",

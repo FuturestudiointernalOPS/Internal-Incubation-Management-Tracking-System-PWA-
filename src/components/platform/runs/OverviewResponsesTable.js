@@ -9,7 +9,7 @@ import SubmissionTimeline from "./SubmissionTimeline";
 
 export default function OverviewResponsesTable({ ctx }) {
   const { t } = useI18n();
-  const { allFilteredSelected, duplicateEmailSet, duplicateGroups, emailLog, evaluatedSubmissionIds, evaluations, handleDeleteSubmission, onEditRespondentEmail, openReview, pagedSubmissions, paymentsBySubmission, perPage, respSafePage, respTotalPages, reviews, runFormFields, selectedSet, selectedSubmission, setPreviewSubmission, setRespPage, setSelectedSubmission, subLoading, toggleSelect, toggleSelectAllFiltered } = ctx;
+  const { allFilteredSelected, duplicateEmailSet, duplicateGroups, emailLog, evaluatedSubmissionIds, evaluations, handleDeleteSubmission, onEditRespondentEmail, openReview, pagedSubmissions, paymentsBySubmission, perPage, respSafePage, respTotalPages, reviews, selectedSet, selectedSubmission, setPreviewSubmission, setRespPage, setSelectedSubmission, subLoading, toggleSelect, toggleSelectAllFiltered } = ctx;
   return (
     <>
               {/* Submissions table */}
@@ -29,14 +29,10 @@ export default function OverviewResponsesTable({ ctx }) {
                         </th>
                         <th className="px-4 py-3 w-10">{t("platformMisc.runs.colSn")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.colEmail")}</th>
-                        {runFormFields.slice(0, 2).map(field => (
-                          <th key={field.id} className="px-3 py-3 max-w-[120px]" title={field.label}>
-                            <span className="line-clamp-1">{field.label.length > 25 ? field.label.substring(0, 25) + "..." : field.label}</span>
-                          </th>
-                        ))}
                         <th className="px-4 py-3">{t("platformMisc.runs.statusSubmitted")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.colAiScore")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.colApprovalEmail")}</th>
+                        <th className="px-4 py-3">{t("platformMisc.runs.colResultEmail")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.review")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.colStatus")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.colActivationEmail")}</th>
@@ -70,6 +66,11 @@ export default function OverviewResponsesTable({ ctx }) {
                         const approvalEmail = emailLog
                           .filter((emailRow) => emailRow.submission_id === submission.id && emailRow.email_type === "approval")
                           .slice(-1)[0];
+                        // The result/report email — the message that carries the
+                        // personalised report. Its absence means nothing went out.
+                        const resultEmail = emailLog
+                          .filter((emailRow) => emailRow.submission_id === submission.id && emailRow.email_type === "result")
+                          .slice(-1)[0];
                         const accountStatus = submission.account_status || (submission.account_activated
                           ? "active"
                           : submission.account_created
@@ -92,18 +93,7 @@ export default function OverviewResponsesTable({ ctx }) {
                           : overall >= 60 ? "bg-amber-500/10"
                           : "bg-rose-500/10"
                           : "";
-                        
-                        // Helper to get field value from submission data
-                        const fieldValueText = (field) => {
-                          const rawValue = submissionData[field.label] ?? submissionData[String(field.id)] ?? submissionData[field.id];
-                          if (rawValue === undefined || rawValue === null || rawValue === "") return "—";
-                          const text = String(rawValue);
-                          if (text.startsWith("{") && text.includes('"code"')) {
-                            try { const parsedPhone = JSON.parse(text); if (parsedPhone.code && parsedPhone.number) return `${parsedPhone.code} ${parsedPhone.number}`; } catch (_) {}
-                          }
-                          return text.length > 30 ? text.substring(0, 30) + "..." : text;
-                        };
-                        
+
                         return (
                           <tr key={submission.id} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
                             <td className="px-4 py-3 w-10">
@@ -136,9 +126,6 @@ export default function OverviewResponsesTable({ ctx }) {
                                 )}
                               </div>
                             </td>
-                            {runFormFields.slice(0, 2).map(field => (
-                              <td key={field.id} className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] max-w-[150px] truncate" title={fieldValueText(field)}>{fieldValueText(field)}</td>
-                            ))}
                             <td className="px-4 py-3 text-[10px] font-medium text-[var(--text-secondary)]">{submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString() : "—"}</td>
                             <td className="px-4 py-3">
                               {overall != null ? (
@@ -157,6 +144,20 @@ export default function OverviewResponsesTable({ ctx }) {
                                   return (
                                     <span title={approvalEmail.error || t(approvalStatusConfig.label)} className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", approvalStatusConfig.bg, approvalStatusConfig.color)}>
                                       {t(approvalStatusConfig.label)}
+                                    </span>
+                                  );
+                                })()
+                              ) : (
+                                <span title={t("platformMisc.runs.emailNotSentTitle")} className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-500/10 text-slate-400">{t("platformMisc.runs.emailNotSent")}</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {resultEmail ? (
+                                (() => {
+                                  const resultStatusConfig = EMAIL_STATUS_CONFIG[resultEmail.status] || { color: "text-amber-500", bg: "bg-amber-500/10", label: "platformMisc.runs.emailPending" };
+                                  return (
+                                    <span title={resultEmail.error || t(resultStatusConfig.label)} className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", resultStatusConfig.bg, resultStatusConfig.color)}>
+                                      {t(resultStatusConfig.label)}
                                     </span>
                                   );
                                 })()
