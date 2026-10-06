@@ -2,10 +2,16 @@ import db from "@/lib/db";
 
 // ── GET /api/investor/dashboard ─────────────────────────────────────────────
 
-/** dashboard — full investor profile + preference overlap fields. */
+/**
+ * dashboard — full investor profile + the preference fields the recommendation
+ * scorer reads. The ticket range is included on purpose: the scorer weights
+ * ticket-size fit, and without these two columns it always reads undefined and
+ * silently drops that component.
+ */
 export async function getInvestorDashboardProfile(userCid) {
   return db.execute({
-    sql: `SELECT ip.*, ipr.industries, ipr.countries, ipr.startup_stages
+    sql: `SELECT ip.*, ipr.industries, ipr.countries, ipr.startup_stages,
+                   ipr.ticket_size_min, ipr.ticket_size_max
             FROM investor_profiles ip
             LEFT JOIN investor_preferences ipr ON ipr.investor_id = ip.id
             WHERE ip.user_id = ?`,
