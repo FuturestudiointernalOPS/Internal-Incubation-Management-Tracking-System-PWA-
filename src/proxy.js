@@ -29,6 +29,10 @@ import { NextResponse } from "next/server";
  *     payments: the scheduler has no session, and the x-cron-secret shared
  *     secret is the credential — every OTHER /api/lms/* route stays behind a
  *     session)
+ *   - /api/platform/scheduled-result-emails (a scheduler's call that releases
+ *     the result emails whose delay has elapsed: the scheduler has no session,
+ *     and the shared secret is the credential — every OTHER /api/platform/*
+ *     route stays behind a session)
  *   - /api/families (the ?registration_id= lookup is the public join path;
  *      every other branch requires a capability in-route)
  *   - /api/verify/* (public certificate verification)
@@ -71,6 +75,7 @@ const publicApiPaths = [
   "/api/public",
   "/api/webhooks/kkiapay",
   "/api/lms/checkout-reconcile",
+  "/api/platform/scheduled-result-emails",
   "/api/families",
   "/api/verify",
   "/api/venture-member-invites",

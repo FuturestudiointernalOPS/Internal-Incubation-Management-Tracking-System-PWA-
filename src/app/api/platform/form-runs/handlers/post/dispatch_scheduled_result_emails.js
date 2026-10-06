@@ -17,7 +17,7 @@ export async function POST(req) {
       if (authError) return authError;
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const summary = await dispatchScheduledResultEmails({ run_id: body?.run_id ?? null });
     return NextResponse.json({ success: !summary.error, ...summary }, { status: summary.error ? 500 : 200 });
   } catch (error) {
