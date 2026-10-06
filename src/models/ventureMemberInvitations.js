@@ -22,7 +22,6 @@ import db from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { hashPassword } from "@/server/auth/password";
 import { hashToken } from "@/lib/token-hashing";
-import { stopRoleMutationEnabled } from "@/lib/identity";
 import {
   normalizeEmail,
   resolvePersonIdentity,
@@ -122,50 +121,17 @@ function defaultRoleFor(memberType, role) {
  * keyed on the role). Those people get founder ACCESS through the venture
  * context instead — see `applyVentureContextGrants`.
  */
-const ROLES_NEVER_OVERWRITTEN = [
-  "super_admin",
-  "staff",
-  "admin",
-  "program_manager",
-  "facilitator",
-  "participant",
-  "investor",
-  "mentor",
-  "teacher",
-  "developer",
-  "finance",
-  "crm",
-];
-
-/**
- * AN INVITED FOUNDER IS A FOUNDER — not a baseline member.
- *
- * The stored role is what the product shows and what the default access profile
- * keys on, so someone who arrives as `member` / `applicant` / with no role is
- * promoted here. Only the identity is touched, never a privileged role, and a
- * role is never demoted.
- */
-async function promoteInvitedFounderIdentity(contactCid) {
-  if (!contactCid) return { promoted: false };
-  // Phase I2 mutation-stop: when role mutation is off, a context join no longer
-  // rewrites the stored identity — the transitional derivation answers for the
-  // legacy role instead (IDENTITY_DERIVE_LEGACY_ROLE).
-  if (stopRoleMutationEnabled()) return { promoted: false, gated: true };
-  const placeholders = ROLES_NEVER_OVERWRITTEN.map(() => "?").join(", ");
-  const result = await safe(
-    `UPDATE contacts SET role = 'founder'
-      WHERE cid = ?
-        AND COALESCE(role, '') NOT IN (${placeholders})
-        AND role IS DISTINCT FROM 'founder'`,
-    [contactCid, ...ROLES_NEVER_OVERWRITTEN],
-  );
-  return { promoted: (result.rowsAffected || 0) > 0 };
-}
 
 /**
  * A Venture must never be left without a lead. The FIRST founder to accept takes
  * the lead/owner seat; later founders join as co-founders, and an existing lead
  * is never demoted — moving the lead is what `changeVentureLead` is for.
+ *
+ * NOTE on identity: accepting an invitation makes the person a baseline MEMBER.
+ * What they are inside the Venture is the MEMBERSHIP (member_type), never the
+ * stored identity — a founder is a member who holds the founder context of the
+ * Venture they were invited into. The stored role is therefore never rewritten
+ * here; `getContextEligibilityRoles` is what lets that context open doors.
  */
 async function ensureVentureLead(ventureId, contactCid) {
   if (!ventureId || !contactCid) return { promoted: false };
@@ -183,10 +149,9 @@ async function ensureVentureLead(ventureId, contactCid) {
   return { promoted: (result.rowsAffected || 0) > 0 };
 }
 
-/** Founder invitations carry the founder identity AND the venture's lead seat. */
+/** Founder invitations carry the venture lead seat (the identity stays member). */
 async function applyFounderPromotion({ ventureId, contactCid }) {
   if (!contactCid) return;
-  await promoteInvitedFounderIdentity(contactCid);
   await ensureVentureLead(ventureId, contactCid);
 }
 
@@ -408,7 +373,11 @@ export async function completeVentureMemberInvitation({
     contactCid = await resolveOrCreateContactIdentity({
       email: invitation.email,
       name: name || invitation.name,
-      role: invitation.member_type === "founder" ? "founder" : "member",
+      // Accepting an invitation makes the person a baseline MEMBER. What they
+      // are inside the Venture is the membership (member_type, set below) —
+      // a founder is a member holding the founder context of the Venture they
+      // were invited into, never a platform identity of their own.
+      role: "member",
     });
   }
   if (!contactCid) return { ok: false, error: "identity_unresolved" };
@@ -481,8 +450,8 @@ export async function completeVentureMemberInvitation({
     notes: "member joined via invitation",
   }).catch(() => null);
 
-  // A founder relationship grants the mapped profile's capabilities, and makes
-  // the person a FOUNDER rather than a baseline member (identity + lead seat).
+  // A founder relationship grants the mapped profile's capabilities, and gives
+  // the Venture its lead seat. The identity stays `member`.
   if (invitation.member_type === "founder") {
     await applyFounderPromotion({ ventureId: invitation.venture_id, contactCid });
     await applyVentureContextGrants(contactCid);
