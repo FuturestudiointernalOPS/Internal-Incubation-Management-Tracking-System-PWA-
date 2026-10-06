@@ -358,7 +358,11 @@ export function useRunsState() {
     respTotalPages: derived.respTotalPages,
     scoreChipActive: derived.scoreChipActive,
     respSafePage: derived.respSafePage,
-    paymentsBySubmission: derived.paymentsBySubmission,
+    // Handed to the responses table as-is. It is read from the LMS registrations
+    // of the selected Execution (see `paymentsRead`), NOT from `derived` — the
+    // derived-data hook never produced it, so routing it through `derived` left
+    // the table with `undefined` and crashed the row map on the first submission.
+    paymentsBySubmission,
     filteredSubmissions: derived.filteredSubmissions,
     pagedSubmissions: derived.pagedSubmissions,
     evaluatedSubmissionIds: derived.evaluatedSubmissionIds,
