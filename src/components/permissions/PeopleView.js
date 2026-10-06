@@ -1,20 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ShieldCheck, RefreshCw, ChevronDown, ChevronRight, Info } from "lucide-react";
+import { RefreshCw, ChevronDown, ChevronRight } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { defer, settled, createLatestGuard } from "./effectUtils";
 import { Skeleton } from "@/components/ui/Skeleton";
-import Badge from "./ui/Badge";
 import WhyDrawer from "./ui/WhyDrawer";
 import PersonScopePanel from "./PersonScopePanel";
 import RiskConfirmDialog from "./RiskConfirmDialog";
 import { riskyChanges } from "./riskGate";
-import { collectContextModules } from "./matrixHelpers";
+import { collectContextModules, deriveUserCapState } from "./matrixHelpers";
 import PeopleContextsCard from "./people-view/PeopleContextsCard";
 import PeopleMatrix from "./people-view/PeopleMatrix";
+import PersonIdentityHeader from "./people-view/PersonIdentityHeader";
+import AccessSummary from "./people-view/AccessSummary";
 import WhyDrawerBody from "./people-view/WhyDrawerBody";
+import { summarizeAccess } from "./people-view/accessSummary";
 import { SCOPE_POLICIES, SCOPE_POLICY_KEYS } from "@/models/authorization/scope-catalog";
 
 /**
@@ -22,18 +24,17 @@ import { SCOPE_POLICIES, SCOPE_POLICY_KEYS } from "@/models/authorization/scope-
  *
  * Answers "what can this person do, and WHY" for every capability the person
  * is actually in scope of: Profile | Group | Grant | Restriction | Effective
- * (+ reason). Mixed states are preserved. The scope panel shows what the
- * Scope Engine currently RESOLVES for the person (read-only verification —
- * nothing is enforced from here).
+ * (+ reason). The screen reads top to bottom in the order an admin asks:
  *
- * Editing access stays in the Individual Access screen (unchanged); this
- * screen links to it and never invents a verdict the server did not return.
+ *   WHO        the identity header (name, role · profile)
+ *   HOW MUCH   the access summary (live counts, no stored total)
+ *   ON WHAT    contexts and the resolved access scope
+ *   WHAT       the permission matrix, by module
  *
- * UI-7 (ergonomics): the whole width is available (the picker is a dropdown
- * above), each section header states the four rights it carries — View,
- * Create, Edit, Delete — and the list can be narrowed to a capability or to
- * what the person actually holds, so the table answers a question instead of
- * forcing a scroll.
+ * Editing access stays in the Individual Access editor (mounted under this
+ * report); this panel links to it and never invents a verdict the server did
+ * not return. The scope panel shows what the Scope Engine currently RESOLVES
+ * for the person (read-only verification — nothing is enforced from here).
  *
  * This panel owns the person's reads, the reset when the selection changes and
  * the write path; the presentational blocks live under ./people-view/.
@@ -297,6 +298,32 @@ export default function PeopleView({
     }));
   }, [ctx, catalog, moduleToFeature]);
 
+  // Eligibility is the OUTER gate, mirroring authorize(): a feature-mapped
+  // module is allowed only when its feature is explicitly eligible. Super Admin
+  // bypasses eligibility entirely, and infra modules without a feature mapping
+  // are not eligibility-bound.
+  const eligibleFor = useCallback(
+    (module) => {
+      if (ctx?.isSuperAdmin) return true;
+      const feature = moduleToFeature[module];
+      if (!feature) return true;
+      return ctx?.eligibility?.[feature] === true;
+    },
+    [ctx, moduleToFeature],
+  );
+
+  const summary = useMemo(() => {
+    if (!ctx) return null;
+    return summarizeAccess({
+      sources: ctx.sources,
+      modules,
+      eligibleFor,
+      deriveState: (module, capability, eligible) =>
+        deriveUserCapState(ctx.sources, module, capability, eligible),
+      scope,
+    });
+  }, [ctx, modules, eligibleFor, scope]);
+
   const hasContexts = (ctx?.contexts || []).length > 0;
   const hasContextsUnavailable = (ctx?.contextsUnavailable || []).length > 0;
 
@@ -310,18 +337,18 @@ export default function PeopleView({
 
       {err && (
         <div className="space-y-3 rounded-2xl border border-red-500/40 bg-red-500/10 p-4">
-          <p className="text-[10px] font-black uppercase tracking-widest text-red-400">
+          <p className="text-xs font-semibold text-red-400">
             {t("engineering.permissions.peopleReportLoadFailed")}
           </p>
-          <p className="break-words text-[11px] font-medium text-[var(--text-secondary)]">
+          <p className="break-words text-xs font-medium text-[var(--text-secondary)]">
             {err}
           </p>
           <button
             type="button"
             onClick={() => selected && pick(selected)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-primary)] px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-primary)] px-3 py-2 text-xs font-medium text-[var(--text-secondary)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
           >
-            <RefreshCw className="h-3 w-3" />
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
             {t("common.refresh")}
           </button>
         </div>
@@ -329,246 +356,190 @@ export default function PeopleView({
 
       {loadingCtx && (
         <div className="space-y-2">
-          <Skeleton className="h-12 rounded-2xl" />
-          <Skeleton className="h-40 rounded-2xl" />
+          <Skeleton className="h-16 rounded-2xl" />
+          <Skeleton className="h-24 rounded-2xl" />
           <Skeleton className="h-48 rounded-2xl" />
         </div>
       )}
 
       {selected && !loadingCtx && ctx && (
-        <>
-          {/* Identity header */}
+        <div className="space-y-8">
+          <PersonIdentityHeader
+            t={t}
+            person={selected}
+            ctx={ctx}
+            profilesSlot={profilesSlot}
+          />
+
+          <AccessSummary
+            t={t}
+            summary={summary}
+            role={ctx.role}
+            profileName={ctx.profile?.profileName || null}
+          />
+
+          {/* Effective access — the matrix, by module. */}
           <section
-            aria-labelledby="people-identity-title"
-            className="space-y-3 rounded-2xl border border-[var(--border-primary)] bg-[var(--surface-1)] p-4 shadow-sm"
-          >
-            <h2 id="people-identity-title" className="sr-only">
-              {t("authorization.people.selectPerson")}
-            </h2>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-lg font-black leading-tight text-[var(--text-primary)]">
-                {selected.name || selected.cid}
-              </span>
-              {selected.cid && (
-                <span className="font-mono text-[10px] text-[var(--text-secondary)]">
-                  {selected.cid}
-                </span>
-              )}
-              <Badge variant="neutral">
-                <ShieldCheck className="h-3 w-3" /> {ctx.role}
-              </Badge>
-              {ctx.isSuperAdmin && (
-                <Badge variant="pending">
-                  {t("authorization.people.identity.superAdmin")}
-                </Badge>
-              )}
-              {ctx.profile?.profileName && (
-                <Badge variant="neutral">
-                  {ctx.profile.profileName} ({ctx.profile.profileSource})
-                </Badge>
-              )}
-              {(ctx.groups || []).map((group) => (
-                <Badge key={group} variant="neutral">
-                  {group}
-                </Badge>
-              ))}
-            </div>
-
-            {profilesSlot}
-          </section>
-
-          {/* Effective access (read-only) */}
-          <section
-            aria-labelledby="people-read-title"
-            className="space-y-4 rounded-2xl border border-[var(--border-primary)] bg-[var(--surface-1)] p-5 shadow-sm"
-          >
-            <div className="space-y-1.5">
-              <h3
-                id="people-read-title"
-                className="text-xs font-black uppercase tracking-widest text-[var(--brand-orange)]"
-              >
-                {t("authorization.people.sections.readAccess")}
-              </h3>
-              <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-                {t("authorization.people.sections.readAccessDescription")}
-              </p>
-            </div>
-
-            {/* What determines access */}
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <h4 className="text-[11px] font-black uppercase tracking-widest text-[var(--text-primary)]">
-                  {t("authorization.people.sections.whatDeterminesAccess")}
-                </h4>
-                <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-                  {t("authorization.people.sections.whatDeterminesAccessDescription")}
-                </p>
-              </div>
-
-              {/* Contexts */}
-              <div className="space-y-3 rounded-2xl border border-[var(--border-primary)] bg-[var(--surface-2)]/60 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <h5 className="text-sm font-black text-[var(--text-primary)]">
-                      {t("authorization.people.contexts.title")}
-                    </h5>
-                    <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-                      {t("authorization.people.contexts.description")}
-                    </p>
-                  </div>
-                  {(hasContexts || hasContextsUnavailable) && (
-                    <button
-                      type="button"
-                      onClick={() => setShowContextsDetails((prev) => !prev)}
-                      aria-expanded={showContextsDetails}
-                      aria-controls="people-contexts-details"
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-primary)] px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] transition hover:bg-[var(--surface-1)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
-                    >
-                      {showContextsDetails ? (
-                        <>
-                          <ChevronDown className="h-3 w-3" />
-                          {t("authorization.people.contexts.hideDetails")}
-                        </>
-                      ) : (
-                        <>
-                          <ChevronRight className="h-3 w-3" />
-                          {t("authorization.people.contexts.showDetails")}
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-
-                {!hasContexts && !hasContextsUnavailable && (
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    {t("authorization.people.contexts.none")}
-                  </p>
-                )}
-
-                <div
-                  id="people-contexts-details"
-                  hidden={!showContextsDetails}
-                  className="space-y-3"
-                >
-                  <PeopleContextsCard
-                    t={t}
-                    contexts={ctx.contexts || []}
-                    contextsUnavailable={ctx.contextsUnavailable || []}
-                  />
-                </div>
-
-                {!showContextsDetails && (hasContexts || hasContextsUnavailable) && (
-                  <div className="text-xs text-[var(--text-secondary)]">
-                    {hasContexts
-                      ? `${ctx.contexts.length} ${t("authorization.people.contexts.title").toLowerCase()}`
-                      : t("authorization.people.contexts.unavailable")}
-                  </div>
-                )}
-              </div>
-
-              {/* Scope */}
-              <div className="space-y-3 rounded-2xl border border-[var(--border-primary)] bg-[var(--surface-2)]/60 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <h5 className="text-sm font-black text-[var(--text-primary)]">
-                      {t("authorization.people.scope.title")}
-                    </h5>
-                    <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-                      {t("authorization.people.scope.description")}
-                    </p>
-                  </div>
-                  {scope.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setShowScopeDetails((prev) => !prev)}
-                      aria-expanded={showScopeDetails}
-                      aria-controls="people-scope-details"
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-primary)] px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] transition hover:bg-[var(--surface-1)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
-                    >
-                      {showScopeDetails ? (
-                        <>
-                          <ChevronDown className="h-3 w-3" />
-                          {t("authorization.people.scope.hideDetails")}
-                        </>
-                      ) : (
-                        <>
-                          <ChevronRight className="h-3 w-3" />
-                          {t("authorization.people.scope.showDetails")}
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-
-                <div
-                  id="people-scope-details"
-                  hidden={!showScopeDetails}
-                  className="space-y-3"
-                >
-                  <PersonScopePanel
-                    key={`scope-${selected.cid}`}
-                    policies={scope}
-                    contexts={ctx.contexts || []}
-                    checkPolicy={runScopeCheck}
-                    onRefresh={refreshScope}
-                    refreshing={scopeBusy}
-                  />
-                </div>
-
-                {!showScopeDetails && scope.length > 0 && (
-                  <div className="text-xs text-[var(--text-secondary)]">
-                    {scope.filter((s) => (s.count ?? 0) > 0).length > 0
-                      ? `${scope.filter((s) => (s.count ?? 0) > 0).length} ${t("authorization.people.scope.title").toLowerCase()}`
-                      : t("authorization.people.empty.noPermissions")}
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-
-          {/* Capabilities matrix */}
-          <section
+            id="person-section-permissions"
             aria-labelledby="people-matrix-title"
-            className="space-y-4 rounded-2xl border border-[var(--border-primary)] bg-[var(--surface-1)] p-5 shadow-sm"
+            className="scroll-mt-24 space-y-4"
           >
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="space-y-1.5">
-                <h3
-                  id="people-matrix-title"
-                  className="text-xs font-black uppercase tracking-widest text-[var(--brand-orange)]"
-                >
-                  {t("authorization.people.sections.capabilitiesMatrix")}
-                </h3>
-                <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-                  {t("authorization.people.sections.capabilitiesMatrixDescription")}
-                </p>
-              </div>
-              <div className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-primary)] bg-[var(--surface-2)]/60 px-2 py-1 text-[10px] text-[var(--text-secondary)]">
-                <Info className="h-3 w-3" />
-                <span className="leading-tight">
-                  {t("authorization.people.help.effectivePermissions")}
-                </span>
-              </div>
+            <div className="space-y-1">
+              <h2
+                id="people-matrix-title"
+                className="text-base font-semibold text-[var(--text-primary)]"
+              >
+                {t("authorization.people.sections.capabilitiesMatrix")}
+              </h2>
+              <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+                {t("authorization.people.sections.capabilitiesMatrixDescription")}
+              </p>
             </div>
 
             <PeopleMatrix
               t={t}
               ctx={ctx}
               modules={modules}
-              moduleToFeature={moduleToFeature}
+              eligibleFor={eligibleFor}
               busyKey={busyKey}
               actionErr={actionErr}
               onGrant={requestAccess}
               onOpenWhy={setWhy}
             />
           </section>
-        </>
+
+          {/* What determines access — contexts and scope, read-only. */}
+          <section
+            id="person-section-scope"
+            aria-labelledby="people-read-title"
+            className="scroll-mt-24 space-y-5"
+          >
+            <div className="space-y-1">
+              <h2
+                id="people-read-title"
+                className="text-base font-semibold text-[var(--text-primary)]"
+              >
+                {t("authorization.people.sections.readAccess")}
+              </h2>
+              <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+                {t("authorization.people.sections.readAccessDescription")}
+              </p>
+            </div>
+
+            {/* Contexts */}
+            <div className="space-y-3 border-b border-divider/60 pb-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                    {t("authorization.people.contexts.title")}
+                  </h3>
+                  <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+                    {t("authorization.people.contexts.description")}
+                  </p>
+                </div>
+                {(hasContexts || hasContextsUnavailable) && (
+                  <button
+                    type="button"
+                    onClick={() => setShowContextsDetails((prev) => !prev)}
+                    aria-expanded={showContextsDetails}
+                    aria-controls="people-contexts-details"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-primary)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
+                  >
+                    {showContextsDetails ? (
+                      <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+                    ) : (
+                      <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    )}
+                    {showContextsDetails
+                      ? t("authorization.people.contexts.hideDetails")
+                      : t("authorization.people.contexts.showDetails")}
+                  </button>
+                )}
+              </div>
+
+              {!hasContexts && !hasContextsUnavailable && (
+                <p className="text-sm text-[var(--text-secondary)]">
+                  {t("authorization.people.contexts.none")}
+                </p>
+              )}
+
+              <div
+                id="people-contexts-details"
+                hidden={!showContextsDetails}
+                className="space-y-3"
+              >
+                <PeopleContextsCard
+                  t={t}
+                  contexts={ctx.contexts || []}
+                  contextsUnavailable={ctx.contextsUnavailable || []}
+                />
+              </div>
+
+              {!showContextsDetails && (hasContexts || hasContextsUnavailable) && (
+                <p className="text-sm text-[var(--text-secondary)]">
+                  {hasContexts
+                    ? `${ctx.contexts.length} ${t(
+                        "authorization.people.contexts.title",
+                      ).toLowerCase()}`
+                    : t("authorization.people.contexts.unavailable")}
+                </p>
+              )}
+            </div>
+
+            {/* Scope */}
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                    {t("authorization.people.scope.title")}
+                  </h3>
+                  <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+                    {t("authorization.people.scope.description")}
+                  </p>
+                </div>
+                {scope.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowScopeDetails((prev) => !prev)}
+                    aria-expanded={showScopeDetails}
+                    aria-controls="people-scope-details"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-primary)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
+                  >
+                    {showScopeDetails ? (
+                      <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+                    ) : (
+                      <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    )}
+                    {showScopeDetails
+                      ? t("authorization.people.scope.hideDetails")
+                      : t("authorization.people.scope.showDetails")}
+                  </button>
+                )}
+              </div>
+
+              <div
+                id="people-scope-details"
+                hidden={!showScopeDetails}
+                className="space-y-3"
+              >
+                <PersonScopePanel
+                  key={`scope-${selected.cid}`}
+                  policies={scope}
+                  contexts={ctx.contexts || []}
+                  checkPolicy={runScopeCheck}
+                  onRefresh={refreshScope}
+                  refreshing={scopeBusy}
+                />
+              </div>
+            </div>
+          </section>
+        </div>
       )}
 
       {/* Why drawer */}
       {why && (
         <WhyDrawer
-          title={`${why.module}.${why.cap}`}
+          title={t("engineering.permissions.whyDrawerTitle")}
           onClose={() => setWhy(null)}
         >
           <WhyDrawerBody

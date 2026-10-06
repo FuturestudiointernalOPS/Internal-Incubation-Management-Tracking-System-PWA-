@@ -13,12 +13,12 @@
         "groups": "Groupes"
       },
       "sections": {
-        "readAccess": "Accès effectifs (lecture seule)",
-        "readAccessDescription": "Affiche ce que cette personne peut réellement faire et les raisons qui l'expliquent.",
+        "readAccess": "Ce qui détermine ces accès",
+        "readAccessDescription": "Les contextes et la portée expliquent pourquoi cette personne est éligible aux autorisations ci-dessous.",
         "whatDeterminesAccess": "Ce qui détermine ces accès",
         "whatDeterminesAccessDescription": "Les contextes et la portée expliquent pourquoi cette personne est éligible à certaines capacités.",
-        "capabilitiesMatrix": "Capacités par module",
-        "capabilitiesMatrixDescription": "Autorisations effectives regroupées par module. Dépliez une ligne pour voir les sources et le motif."
+        "capabilitiesMatrix": "Autorisations par module",
+        "capabilitiesMatrixDescription": "Autorisations effectives regroupées par module. Chaque module indique les droits détenus ; ouvrez une capacité pour voir ses sources et son motif."
       },
       "contexts": {
         "title": "Contextes",
@@ -29,8 +29,8 @@
         "none": "Aucun contexte trouvé"
       },
       "scope": {
-        "title": "Portée (résolue)",
-        "description": "Ce que le moteur de portée résout actuellement pour cette personne. Il s'agit d'une vérification en lecture seule.",
+        "title": "Portée d'accès",
+        "description": "Sur quels programmes, ventures et cours cette personne peut agir, résolu à partir de ses affectations. Lecture seule.",
         "showDetails": "Afficher les détails de la portée",
         "hideDetails": "Masquer les détails de la portée"
       },

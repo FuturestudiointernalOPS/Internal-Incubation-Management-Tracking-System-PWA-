@@ -13,12 +13,12 @@
         "groups": "Groups"
       },
       "sections": {
-        "readAccess": "Effective access (read-only)",
-        "readAccessDescription": "View what this person can actually do and the reasons behind it.",
+        "readAccess": "What determines access",
+        "readAccessDescription": "Contexts and scope explain why this person is eligible for the permissions below.",
         "whatDeterminesAccess": "What determines this access",
         "whatDeterminesAccessDescription": "Contexts and scope explain why the person is eligible for certain capabilities.",
-        "capabilitiesMatrix": "Capabilities by module",
-        "capabilitiesMatrixDescription": "Effective permissions grouped by module. Expand a row to see sources and reasons."
+        "capabilitiesMatrix": "Permissions by module",
+        "capabilitiesMatrixDescription": "Effective permissions grouped by module. Each module states which rights are held; open a capability to see its sources and reason."
       },
       "contexts": {
         "title": "Contexts",
@@ -29,8 +29,8 @@
         "none": "No contexts found"
       },
       "scope": {
-        "title": "Scope (resolved)",
-        "description": "What the Scope Engine currently resolves for this person. This is read-only verification.",
+        "title": "Access scope",
+        "description": "Which programs, ventures and courses this person can act on, resolved from their assignments. Read-only.",
         "showDetails": "Show scope details",
         "hideDetails": "Hide scope details"
       },

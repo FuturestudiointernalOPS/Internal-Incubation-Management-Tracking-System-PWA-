@@ -11,11 +11,11 @@ export default function PermissionPeoplePage() {
   return (
     <PermissionShell active="people">
       <div className="mb-5 space-y-1.5">
-        <h1 className="text-lg font-black tracking-tight text-[var(--text-primary)]">
-          {t("authorization.people.title")}
+        <h1 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
+          {t("engineering.permissions.accessPageTitle")}
         </h1>
-        <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-          {t("authorization.people.description")}
+        <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+          {t("engineering.permissions.accessPageSubtitle")}
         </p>
       </div>
       <IndividualAccessScreen />
