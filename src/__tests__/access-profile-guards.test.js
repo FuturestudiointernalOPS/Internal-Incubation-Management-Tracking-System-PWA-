@@ -34,6 +34,19 @@ const mockState = {
 function mockRows(sql, args) {
   if (/^\s*(CREATE TABLE|CREATE INDEX)/i.test(sql)) return { rows: [] };
 
+  // profiles takeover — the base profile resolves through the PROFILE KEY first;
+  // the legacy access-profile id rides the SAME UNION query.
+  if (sql.includes("FROM role_profile_defaults rpd") && sql.includes("UNION ALL")) {
+    return { rows: [] };
+  }
+  if (sql.includes("FROM profiles p") && sql.includes("UNION ALL")) {
+    return {
+      rows: mockState.overrideProfile
+        ? [{ legacy_id: mockState.overrideProfile.id, legacy_name: mockState.overrideProfile.name }]
+        : [],
+    };
+  }
+
   if (sql.includes("FROM context_role_profiles")) return { rows: mockState.contextRoles };
 
   // getProfileImpactCounts — people counts

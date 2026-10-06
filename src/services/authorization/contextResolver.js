@@ -87,7 +87,7 @@ function buildSuperAdminMatrix() {
  * The UNION-ed queries return the profile-key row first, so a database that has
  * both is read through the key (the source of truth from tranche 3 on).
  */
-function pickBaseProfile(rows) {
+export function pickBaseProfile(rows) {
   const list = rows || [];
   const keyed = list.find((row) => row.profile_key);
   if (keyed) {

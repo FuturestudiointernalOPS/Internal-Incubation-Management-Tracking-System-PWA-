@@ -45,7 +45,7 @@ async function mockExecute(query) {
   if (/^\s*(CREATE TABLE|CREATE INDEX)/i.test(sqlText)) return { rows: [] };
 
   // Baseline role (Phase H — the profile ↔ role rule reads it).
-  if (sqlText.includes("SELECT role, access_profile_id FROM contacts")) {
+  if (sqlText.includes("SELECT role, access_profile_id, profile_key FROM contacts")) {
     return { rows: [{ role: mockState.contactRole, access_profile_id: null }] };
   }
 
