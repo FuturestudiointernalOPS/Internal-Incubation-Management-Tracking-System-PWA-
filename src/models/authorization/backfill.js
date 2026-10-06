@@ -24,6 +24,7 @@ import {
 } from "./programAssignmentBackfill";
 import { ensurePhaseEContextProfiles } from "./contextProfilesBackfill";
 import { ensureProfileTakeover } from "./profileTakeoverBackfill";
+import { ensureProfileCatalogueSeed } from "./profileCatalogueSeed";
 // The feature-key alignment RULE lives in the service layer (audit A1, finding
 // #8); its statements live in `./featureKeyAlignmentStore`. Importing it here is
 // a deliberate model→service edge, like `programAssignmentBackfill`.
@@ -189,6 +190,11 @@ export function ensureCapabilityBackfills() {
           // contextual rows) and switches nothing — the resolver still reads
           // `access_profiles` until tranche 3.
           runAuthzMigration("profiles-takeover-v1", ensureProfileTakeover),
+          // DIRECT profile seed: so a FRESH database gets the catalogue even with
+          // no `access_profiles` at all. Runs AFTER the takeover, whose rows (an
+          // existing database's, possibly administrator-edited) always win — this
+          // one is insert-only.
+          runAuthzMigration("profile-catalogue-seed-v1", ensureProfileCatalogueSeed),
         ]);
         reportFailedMigrations(alignment);
 
