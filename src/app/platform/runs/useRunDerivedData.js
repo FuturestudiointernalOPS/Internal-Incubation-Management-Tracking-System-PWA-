@@ -388,7 +388,14 @@ export default function useRunDerivedData({
   const rejected = submissions.filter((submission) => submission.status === "rejected").length;
   const revision = submissions.filter((submission) => submission.status === "revision_requested").length;
   const drafts = submissions.filter((submission) => submission.status === "draft").length;
-  const overdue = submissions.filter((submission) => submission.status === "submitted" && selectedRun.closes_at && new Date(submission.submitted_at) > new Date(selectedRun.closes_at)).length;
+  // "Overdue" only exists relative to a deadline. `selectedRun` can be gone
+  // while the previous run's submissions are still in state (closing a run
+  // clears the run before the list it fed), so read the deadline defensively
+  // rather than dereferencing the run.
+  const overdueDeadline = selectedRun?.closes_at ? new Date(selectedRun.closes_at) : null;
+  const overdue = overdueDeadline
+    ? submissions.filter((submission) => submission.status === "submitted" && submission.submitted_at && new Date(submission.submitted_at) > overdueDeadline).length
+    : 0;
 
   return {
     submissionAnswers,
