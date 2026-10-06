@@ -61,6 +61,12 @@ export const MASTER_NAVIGATION = [
     icon: "rocket",
     children: [
       { id: "all_ventures", name: "ALL VENTURES", href: "/admin/ventures" },
+      // The operational view of the same work the Journey screen structures:
+      // every milestone, activity and deliverable, with owner, support and dates.
+      // Named PROJECT MANAGEMENT rather than PROJECTS so it cannot be mistaken
+      // for the platform's separate top-level PROJECTS section (Future Studio's
+      // own internal projects, which is a different table and a different idea).
+      { id: "venture_projects", name: "PROJECT MANAGEMENT", href: "/admin/ventures/projects" },
       { id: "journey_reports", name: "JOURNEY REPORTS", href: "/admin/journey-reports" },
       { id: "document_types", name: "DATA BANK DOCUMENTS", href: "/admin/ventures/document-types" },
     ],
