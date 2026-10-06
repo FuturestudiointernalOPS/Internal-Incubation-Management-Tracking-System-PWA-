@@ -1,7 +1,7 @@
 import { ClipboardCheck, Eye, FileText, History, Loader2, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import AppSplitMenu from "@/components/ui/AppSplitMenu";
 import { useI18n } from "@/lib/i18n";
-import AppMenu from "@/components/ui/AppMenu";
 import {
   ACCOUNT_STATUS_STYLES, EMAIL_STATUS_CONFIG, PAYMENT_ACCESS_LABELS,
   PAYMENT_EMAIL_LABELS, PAYMENT_STATUS_STYLES, SUB_STATUS,
@@ -240,24 +240,21 @@ export default function OverviewResponsesTable({ ctx }) {
                               })()}
                             </td>
                             <td className="px-4 py-3 text-right">
-                              <div className="flex items-center justify-end">
-                                <AppMenu
-                                  label={t("platformMisc.runs.colActions")}
-                                  align="right"
-                                  items={[
-                                    { key: "history", label: t("platformMisc.runs.history"), icon: History, onSelect: () => setSelectedSubmission(selectedSubmission?.id === submission.id ? null : submission) },
-                                    { key: "full", label: t("platformMisc.runs.full"), icon: Eye, onSelect: () => router.push(`/platform/runs/review/${submission.id}`) },
-                                    submission.status !== "draft" && evaluatedSubmissionIds.has(submission.id)
-                                      ? { key: "preview", label: t("platformMisc.runs.previewResult"), icon: FileText, onSelect: () => setPreviewSubmission(submission) }
-                                      : null,
-                                    submission.status === "submitted"
-                                      ? { key: "review", label: t("platformMisc.runs.review"), icon: ClipboardCheck, onSelect: () => openReview(submission) }
-                                      : null,
-                                    { key: "edit-email", label: t("platformMisc.runs.editEmail"), icon: Pencil, onSelect: () => onEditRespondentEmail(submission) },
-                                    { key: "delete", label: t("platformMisc.runs.delete"), icon: Trash2, danger: true, separator: true, onSelect: () => handleDeleteSubmission(submission.id) },
-                                  ].filter(Boolean)}
-                                />
-                              </div>
+                              <AppSplitMenu
+                                label={t("platformMisc.runs.colActions")}
+                                actions={[
+                                  submission.status === "submitted"
+                                    ? { key: "review", label: t("platformMisc.runs.review"), icon: ClipboardCheck, onSelect: () => openReview(submission) }
+                                    : null,
+                                  submission.status !== "draft" && evaluatedSubmissionIds.has(submission.id)
+                                    ? { key: "preview", label: t("platformMisc.runs.previewResult"), icon: FileText, onSelect: () => setPreviewSubmission(submission) }
+                                    : null,
+                                  { key: "history", label: t("platformMisc.runs.history"), icon: History, onSelect: () => setSelectedSubmission(selectedSubmission?.id === submission.id ? null : submission) },
+                                  { key: "full", label: t("platformMisc.runs.full"), icon: Eye, onSelect: () => router.push(`/platform/runs/review/${submission.id}`) },
+                                  { key: "edit-email", label: t("platformMisc.runs.editEmail"), icon: Pencil, onSelect: () => onEditRespondentEmail(submission) },
+                                  { key: "delete", label: t("platformMisc.runs.delete"), icon: Trash2, danger: true, onSelect: () => handleDeleteSubmission(submission.id) },
+                                ].filter(Boolean)}
+                              />
                             </td>
                           </tr>
                         );

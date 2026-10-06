@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { Play, ChevronDown, ChevronUp, RotateCcw, Archive, Trash2 } from "lucide-react";
-import AppMenu from "@/components/ui/AppMenu";
+import AppSplitMenu from "@/components/ui/AppSplitMenu";
 import { useI18n } from "@/lib/i18n";
 import { STATUS_CONFIG } from "./constants";
 import { cn } from "./helpers";
@@ -91,20 +91,17 @@ const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, so
                 <td className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] whitespace-nowrap">{run.closes_at ? new Date(run.closes_at).toLocaleDateString() : "—"}</td>
                 <td className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] whitespace-nowrap">{new Date(run.created_at).toLocaleDateString()}</td>
                 <td className="px-3 py-3 text-right" onClick={(event) => event.stopPropagation()}>
-                  <div className="flex items-center justify-end">
-                    <AppMenu
-                      label={t("platformMisc.runs.colActions")}
-                      align="right"
-                      items={[
-                        run.status === "archived"
-                          ? { key: "restore", label: t("platformMisc.runs.restore"), icon: RotateCcw, onSelect: () => onRestore(run.id) }
-                          : run.status !== "active"
-                            ? { key: "archive", label: t("platformMisc.runs.archive"), icon: Archive, onSelect: () => onArchive(run.id) }
-                            : null,
-                        { key: "delete", label: t("platformMisc.runs.delete"), icon: Trash2, danger: true, separator: run.status !== "active", onSelect: () => onDelete(run.id) },
-                      ].filter(Boolean)}
-                    />
-                  </div>
+                  <AppSplitMenu
+                    label={t("platformMisc.runs.colActions")}
+                    actions={[
+                      run.status === "archived"
+                        ? { key: "restore", label: t("platformMisc.runs.restore"), icon: RotateCcw, onSelect: () => onRestore(run.id) }
+                        : run.status !== "active"
+                          ? { key: "archive", label: t("platformMisc.runs.archive"), icon: Archive, onSelect: () => onArchive(run.id) }
+                          : null,
+                      { key: "delete", label: t("platformMisc.runs.delete"), icon: Trash2, danger: true, onSelect: () => onDelete(run.id) },
+                    ].filter(Boolean)}
+                  />
                 </td>
               </tr>
             );

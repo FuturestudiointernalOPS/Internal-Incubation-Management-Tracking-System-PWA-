@@ -162,6 +162,7 @@ import AppLinkCard from "@/components/ui/AppLinkCard"; // dashboard card that op
 import AppButton from "@/components/ui/AppButton";
 import AppModal from "@/components/ui/AppModal";
 import AppMenu from "@/components/ui/AppMenu";
+import AppSplitMenu from "@/components/ui/AppSplitMenu"; // split action button — the action on show, a chevron for the others
 import AppTabs from "@/components/ui/AppTabs";
 
 // Forms
@@ -389,6 +390,7 @@ src/
 │       ├── AppInput.js
 │       ├── AppModal.js
 │       ├── AppMenu.js           ← Row-action menu (⋯) — grouped items, danger items
+│       ├── AppSplitMenu.js      ← Split action button — the action on show + a chevron for the other actions
 │       ├── AppPagination.js     ← Pagination with page numbers or compact
 │       ├── AppSelect.js
 │       ├── AppStatusBadge.js    ← Status badge using shared STATUS_CONFIG
