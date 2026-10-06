@@ -23,6 +23,7 @@ import {
   backfillFacilitatorTickLists,
 } from "./programAssignmentBackfill";
 import { ensurePhaseEContextProfiles } from "./contextProfilesBackfill";
+import { ensureProfileTakeover } from "./profileTakeoverBackfill";
 // The feature-key alignment RULE lives in the service layer (audit A1, finding
 // #8); its statements live in `./featureKeyAlignmentStore`. Importing it here is
 // a deliberate model→service edge, like `programAssignmentBackfill`.
@@ -182,6 +183,12 @@ export function ensureCapabilityBackfills() {
             "retire-developer-admin-roles-v1",
             ensureRetiredRoleCleanup,
           ),
+          // PROFILES TAKE OVER (tranche 2, docs/PROFILES_TAKEOVER_MIGRATION.md):
+          // move the template DATA onto the `profiles` catalogue. Runs AFTER the
+          // parallel batch (it depends on `seedProfiles` having created the
+          // contextual rows) and switches nothing — the resolver still reads
+          // `access_profiles` until tranche 3.
+          runAuthzMigration("profiles-takeover-v1", ensureProfileTakeover),
         ]);
         reportFailedMigrations(alignment);
 
