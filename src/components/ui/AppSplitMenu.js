@@ -7,14 +7,21 @@ import { ChevronDown } from "lucide-react";
  * AppSplitMenu — a split action button.
  *
  * One segmented control: the left part is the action on show (its icon and
- * label), the chevron on the right opens the OTHER actions. Picking one runs it
- * and it becomes the action on show. The face runs the action directly.
+ * label, in the action's own colour), the chevron on the right opens the OTHER
+ * actions. Picking one runs it and it becomes the action on show. The face runs
+ * the action directly.
  *
- * Actions on condition are simply left out of the list by the caller; an item
- * alone (no others) renders as a plain button with no chevron.
+ * Each action keeps the look it had as a standalone button: pass `className`
+ * (background, text colour, hover) for the face and `iconClassName` for the
+ * icon in the menu, so an action stays recognisable by its colour. Actions on
+ * condition are simply left out by the caller; an item alone (no others)
+ * renders as a plain button with no chevron.
  *
  * actions: [{
- *   key, label, icon, onSelect, disabled?, danger?
+ *   key, label, icon, onSelect,
+ *   className?,       // the face's colours (bg/text/hover)
+ *   iconClassName?,   // the icon's colour in the menu
+ *   disabled?, danger?
  * }]
  */
 export default function AppSplitMenu({
@@ -49,9 +56,11 @@ export default function AppSplitMenu({
   const others = actions.filter((action) => action.key !== active.key);
   const ActiveIcon = active.icon;
 
-  const faceTone = active.danger
-    ? "text-rose-500 hover:bg-rose-500/10"
-    : "text-[var(--text-primary)] hover:bg-[var(--surface-3)]";
+  const faceClass =
+    active.className ??
+    (active.danger
+      ? "text-rose-500 hover:bg-rose-500/10"
+      : "text-[var(--text-primary)] hover:bg-[var(--surface-3)]");
 
   return (
     <div ref={wrapRef} className={`relative inline-flex justify-end ${className}`}>
@@ -60,7 +69,7 @@ export default function AppSplitMenu({
           type="button"
           disabled={active.disabled}
           onClick={() => active.onSelect?.()}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide whitespace-nowrap transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${faceTone}`}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide whitespace-nowrap transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${faceClass}`}
         >
           {ActiveIcon ? <ActiveIcon className="w-3 h-3 shrink-0" /> : null}
           <span>{active.label}</span>
@@ -91,6 +100,8 @@ export default function AppSplitMenu({
         >
           {others.map((item) => {
             const ItemIcon = item.icon;
+            const itemIconClass =
+              item.iconClassName ?? (item.danger ? "text-rose-400" : "text-[var(--text-secondary)]");
             return (
               <button
                 key={item.key}
@@ -109,7 +120,7 @@ export default function AppSplitMenu({
                 }`}
               >
                 {ItemIcon ? (
-                  <ItemIcon className="w-3.5 h-3.5 shrink-0" />
+                  <ItemIcon className={`w-3.5 h-3.5 shrink-0 ${itemIconClass}`} />
                 ) : (
                   <span className="w-3.5 h-3.5 shrink-0" />
                 )}

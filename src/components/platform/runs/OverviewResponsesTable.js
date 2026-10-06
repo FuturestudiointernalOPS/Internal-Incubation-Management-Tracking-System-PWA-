@@ -244,15 +244,15 @@ export default function OverviewResponsesTable({ ctx }) {
                                 label={t("platformMisc.runs.colActions")}
                                 actions={[
                                   submission.status === "submitted"
-                                    ? { key: "review", label: t("platformMisc.runs.review"), icon: ClipboardCheck, onSelect: () => openReview(submission) }
+                                    ? { key: "review", label: t("platformMisc.runs.review"), icon: ClipboardCheck, className: "bg-brand-orange/10 text-[var(--brand-orange)] hover:bg-brand-orange/20", iconClassName: "text-[var(--brand-orange)]", onSelect: () => openReview(submission) }
                                     : null,
                                   submission.status !== "draft" && evaluatedSubmissionIds.has(submission.id)
-                                    ? { key: "preview", label: t("platformMisc.runs.previewResult"), icon: FileText, onSelect: () => setPreviewSubmission(submission) }
+                                    ? { key: "preview", label: t("platformMisc.runs.previewResult"), icon: FileText, className: "bg-sky-500/10 text-sky-400 hover:bg-sky-500/20", iconClassName: "text-sky-400", onSelect: () => setPreviewSubmission(submission) }
                                     : null,
-                                  { key: "history", label: t("platformMisc.runs.history"), icon: History, onSelect: () => setSelectedSubmission(selectedSubmission?.id === submission.id ? null : submission) },
-                                  { key: "full", label: t("platformMisc.runs.full"), icon: Eye, onSelect: () => router.push(`/platform/runs/review/${submission.id}`) },
-                                  { key: "edit-email", label: t("platformMisc.runs.editEmail"), icon: Pencil, onSelect: () => onEditRespondentEmail(submission) },
-                                  { key: "delete", label: t("platformMisc.runs.delete"), icon: Trash2, danger: true, onSelect: () => handleDeleteSubmission(submission.id) },
+                                  { key: "history", label: t("platformMisc.runs.history"), icon: History, className: "text-[var(--text-secondary)] hover:bg-tertiary hover:text-[var(--brand-orange)]", iconClassName: "text-[var(--text-secondary)]", onSelect: () => setSelectedSubmission(selectedSubmission?.id === submission.id ? null : submission) },
+                                  { key: "full", label: t("platformMisc.runs.full"), icon: Eye, className: "bg-purple-500/10 text-purple-400 hover:bg-purple-500/20", iconClassName: "text-purple-400", onSelect: () => router.push(`/platform/runs/review/${submission.id}`) },
+                                  { key: "edit-email", label: t("platformMisc.runs.editEmail"), icon: Pencil, className: "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20", iconClassName: "text-amber-500", onSelect: () => onEditRespondentEmail(submission) },
+                                  { key: "delete", label: t("platformMisc.runs.delete"), icon: Trash2, danger: true, className: "bg-rose-500/10 text-rose-500 hover:bg-rose-500/20", iconClassName: "text-rose-500", onSelect: () => handleDeleteSubmission(submission.id) },
                                 ].filter(Boolean)}
                               />
                             </td>

@@ -95,11 +95,11 @@ const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, so
                     label={t("platformMisc.runs.colActions")}
                     actions={[
                       run.status === "archived"
-                        ? { key: "restore", label: t("platformMisc.runs.restore"), icon: RotateCcw, onSelect: () => onRestore(run.id) }
+                        ? { key: "restore", label: t("platformMisc.runs.restore"), icon: RotateCcw, className: "text-emerald-500 hover:bg-emerald-500/10", iconClassName: "text-emerald-500", onSelect: () => onRestore(run.id) }
                         : run.status !== "active"
-                          ? { key: "archive", label: t("platformMisc.runs.archive"), icon: Archive, onSelect: () => onArchive(run.id) }
+                          ? { key: "archive", label: t("platformMisc.runs.archive"), icon: Archive, className: "text-[var(--text-secondary)] hover:bg-slate-500/10 hover:text-[var(--text-primary)]", iconClassName: "text-[var(--text-secondary)]", onSelect: () => onArchive(run.id) }
                           : null,
-                      { key: "delete", label: t("platformMisc.runs.delete"), icon: Trash2, danger: true, onSelect: () => onDelete(run.id) },
+                      { key: "delete", label: t("platformMisc.runs.delete"), icon: Trash2, danger: true, className: "text-rose-500 hover:bg-rose-500/10", iconClassName: "text-rose-500", onSelect: () => onDelete(run.id) },
                     ].filter(Boolean)}
                   />
                 </td>
