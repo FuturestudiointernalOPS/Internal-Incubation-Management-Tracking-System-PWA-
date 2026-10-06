@@ -465,6 +465,8 @@
       "activityLabel": "Activité",
       "definitionOfDone": "Définition de terminé",
       "startDate": "Début",
+      "dueDate": "Échéance",
+      "deliverableLabel": "Livrable",
       "notProvided": "Non renseigné",
       "addMilestone": "Ajouter un jalon",
       "editMilestone": "Modifier le jalon",

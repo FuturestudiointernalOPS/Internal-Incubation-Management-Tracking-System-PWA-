@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useI18n } from "@/lib/i18n";
-import { datePickerFloor } from "@/components/ventures/journey/journeyShapers";
+import { datePickerFloor, groupDeliverablesByActivity } from "@/components/ventures/journey/journeyShapers";
 import { dateOnly, todayDateInput } from "@/lib/ventureMilestoneDates";
 import { statusChipClass, statusDotClass, statusLabel } from "@/lib/ventureStatuses";
 import { Loader2, Plus, Save } from "lucide-react";
@@ -52,12 +52,26 @@ export default function MilestoneDeliverables({
       <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
         {t("venture.manager.deliverables")}
       </p>
-      {deliverableList.map((deliverable) => {
-        const status = deliverableStatus(deliverable);
-        const mode = deliverableAction?.id === deliverable.id ? deliverableAction.mode : null;
-        return (
-          <div key={deliverable.id} className="rounded-lg border border-divider/70 px-2.5 py-2">
-            {mode === "edit" ? (
+      {groupDeliverablesByActivity(deliverableList).map((group, groupIndex) => (
+        <div key={group.activity?.id ?? `group-${groupIndex}`} className="rounded-lg border border-divider/70 px-2.5 py-2 space-y-2">
+          {/* ACTIVITY — the work that produces what follows */}
+          <div>
+            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">{t("venture.manager.activityLabel")}</p>
+            <p className="text-[11px] font-bold text-[var(--text-primary)] mt-0.5">{group.activity?.title || t("venture.manager.notProvided")}</p>
+            {group.activity?.description && (
+              <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{group.activity.description}</p>
+            )}
+          </div>
+
+          {/* DELIVERABLE(S) — the output, underneath its activity */}
+          <div className="space-y-1">
+            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">{t("venture.manager.deliverableLabel")}</p>
+            {group.deliverables.map((deliverable) => {
+              const status = deliverableStatus(deliverable);
+              const mode = deliverableAction?.id === deliverable.id ? deliverableAction.mode : null;
+              return (
+                <div key={deliverable.id}>
+                  {mode === "edit" ? (
               <form onSubmit={(event) => saveDeliverableEdit(event, deliverable, milestone)} className="space-y-2">
                 <input
                   value={deliverableForm.title}
@@ -178,36 +192,41 @@ export default function MilestoneDeliverables({
                 )}
                 {deliverableBusy === deliverable.id && <Loader2 className="w-3 h-3 animate-spin text-slate-400 shrink-0" />}
               </div>
-              {/* Activity → Deliverable → Definition of Done: the whole chain
-                  on one card, so nobody returns to the spreadsheet to find out
-                  what the work is or when it is done. */}
-              <div className="mt-1.5 space-y-0.5 text-[10px] leading-snug">
-                <p className="text-[var(--text-secondary)]">
-                  <span className="font-black uppercase tracking-widest text-[8px] text-slate-500 mr-1.5">{t("venture.manager.activityLabel")}</span>
-                  {deliverable.activity?.title || t("venture.manager.notProvided")}
-                </p>
-                <p className="text-[var(--text-secondary)]">
-                  <span className="font-black uppercase tracking-widest text-[8px] text-slate-500 mr-1.5">{t("venture.manager.definitionOfDone")}</span>
-                  {deliverable.activity?.definition_of_done || t("venture.manager.notProvided")}
-                </p>
-                <p className="text-slate-500">
-                  {t("venture.manager.milestoneOwner")}: <span className="text-[var(--text-secondary)]">{deliverable.assigned_name || t("venture.manager.notProvided")}</span>
-                  {" · "}
-                  {t("venture.manager.supporting")}: <span className="text-[var(--text-secondary)]">{deliverable.activity?.support_name || t("venture.manager.notProvided")}</span>
-                  {" · "}
-                  {t("venture.manager.startDate")}: <span className="text-[var(--text-secondary)]">{deliverable.activity?.start_date ? fmtDate(deliverable.activity.start_date) : t("venture.manager.notProvided")}</span>
-                </p>
-              </div>
               </>
             )}
-            {!mode && deliverable.approval_status === "rejected" && deliverable.rejection_reason && (
-              <p className="text-[9px] text-rose-400 mt-1">
-                {t("venture.manager.changesRequestedReason", { reason: deliverable.rejection_reason })}
-              </p>
-            )}
+                  {!mode && deliverable.approval_status === "rejected" && deliverable.rejection_reason && (
+                    <p className="text-[9px] text-rose-400 mt-1">
+                      {t("venture.manager.changesRequestedReason", { reason: deliverable.rejection_reason })}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        );
-      })}
+
+          {/* DEFINITION OF DONE — what makes the activity complete */}
+          <div>
+            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">{t("venture.manager.definitionOfDone")}</p>
+            <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{group.activity?.definition_of_done || t("venture.manager.notProvided")}</p>
+          </div>
+
+          {/* METADATA — people and timing, kept out of the prose */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[10px]">
+            <span>
+              <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.milestoneOwner")}:</span>{" "}
+              <span className="text-[var(--text-primary)]">{group.deliverables[0]?.assigned_name || "—"}</span>
+            </span>
+            <span>
+              <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.supporting")}:</span>{" "}
+              <span className="text-[var(--text-primary)]">{group.activity?.support_name || "—"}</span>
+            </span>
+            <span>
+              <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.startDate")}:</span>{" "}
+              <span className="text-[var(--text-primary)]">{group.activity?.start_date ? fmtDate(group.activity.start_date) : "—"}</span>
+            </span>
+          </div>
+        </div>
+      ))}
 
       {milestoneAuthority && (
         deliverableAddFor === milestone.id ? (

@@ -49,7 +49,7 @@ export async function listJourneyDeliverablesByMilestoneIds(milestoneIds) {
 /** The Activity behind a deliverable: the task it points at (display-only). */
 export async function listJourneyTasksByMilestoneIds(milestoneIds) {
   return db.execute({
-    sql: `SELECT id, milestone_id, title, definition_of_done, support_name, start_date
+    sql: `SELECT id, milestone_id, title, description, definition_of_done, support_name, start_date
           FROM venture_tasks
           WHERE milestone_id::text = ANY(?) AND COALESCE(is_archived, FALSE) = FALSE`,
     args: [milestoneIds],

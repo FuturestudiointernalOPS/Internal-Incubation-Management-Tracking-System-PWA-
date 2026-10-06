@@ -93,7 +93,6 @@ export default function JourneyMilestoneRow({
   notesMilestoneId,
 }) {
   const { t } = useI18n();
-  const milestoneProgress = Math.min(100, Math.max(0, Number(milestone.progress) || 0));
   const deliverableList = milestone.deliverables || [];
   // A milestone may not be dated after what it owes, nor
   // after a milestone that follows it: the picker stops at
@@ -172,7 +171,6 @@ export default function JourneyMilestoneRow({
                 <Flag className="w-3 h-3" /> {deliverableList.length}
               </span>
             )}
-            {milestoneProgress > 0 && <span className="shrink-0 text-[10px] font-bold text-[var(--text-secondary)]">{milestoneProgress}%</span>}
             {isOpen ? <ChevronDown className="w-3.5 h-3.5 shrink-0 text-slate-500" /> : <ChevronRight className="w-3.5 h-3.5 shrink-0 text-slate-500" />}
           </button>
           <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0 ${milestoneStatusClass(milestone.status)}`}>
@@ -189,32 +187,18 @@ export default function JourneyMilestoneRow({
           {milestoneBusy === milestone.id && <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400 shrink-0" />}
         </div>
 
-        {isOpen && milestoneProgress > 0 && milestone.status !== "completed" && (
-          <div className="mt-2 ml-5 w-full max-w-xs h-1 rounded-full bg-tertiary overflow-hidden">
-            <div className="h-full bg-sky-400/70 rounded-full" style={{ width: `${milestoneProgress}%` }} />
-          </div>
-        )}
-        {isOpen && milestone.target_date && (
-          <p className="mt-1 ml-5 text-[10px] text-slate-500">{fmtDate(milestone.target_date)}</p>
-        )}
-
-        {/* WHO owns it and supports it, and when it starts — at a glance, so the
-            owner is never a different screen away. Progress is deliberately not
-            repeated here. */}
+        {/* The milestone's metadata, label → value, one row each: people first,
+            then timing. Progress is deliberately absent from this view. */}
         {isOpen && (
-          <div className="mt-1 ml-5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-slate-500">
-            <span>
-              <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.milestoneOwner")}:</span>{" "}
-              {milestone.owner_name || t("venture.manager.notProvided")}
-            </span>
-            <span>
-              <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.supporting")}:</span>{" "}
-              {milestone.support_name || t("venture.manager.notProvided")}
-            </span>
-            <span>
-              <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.startDate")}:</span>{" "}
-              {milestone.start_date ? fmtDate(milestone.start_date) : t("venture.manager.notProvided")}
-            </span>
+          <div className="mt-2 ml-5 grid grid-cols-[92px_1fr] gap-x-3 gap-y-0.5 text-[10px]">
+            <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.milestoneOwner")}</span>
+            <span className="text-[var(--text-primary)]">{milestone.owner_name || "—"}</span>
+            <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.supporting")}</span>
+            <span className="text-[var(--text-primary)]">{milestone.support_name || "—"}</span>
+            <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.startDate")}</span>
+            <span className="text-[var(--text-primary)]">{milestone.start_date ? fmtDate(milestone.start_date) : "—"}</span>
+            <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.dueDate")}</span>
+            <span className="text-[var(--text-primary)]">{milestone.target_date ? fmtDate(milestone.target_date) : "—"}</span>
           </div>
         )}
 

@@ -142,6 +142,7 @@ export async function attachJourneyWork({ ventureParam, dbId, stages, signEviden
           ? {
               id: task.id,
               title: task.title || null,
+              description: task.description || null,
               definition_of_done: task.definition_of_done || null,
               support_name: task.support_name || null,
               start_date: task.start_date || null,
