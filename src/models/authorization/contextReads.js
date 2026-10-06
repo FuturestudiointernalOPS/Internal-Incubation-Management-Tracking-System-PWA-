@@ -45,12 +45,12 @@ export function getUserCapabilityRestrictions(cid) {
 /** The person's profile override and their group fallback. */
 export function getContactAccessProfileAndGroup(cid) {
   return db.execute({
-    sql: "SELECT access_profile_id, group_name FROM contacts WHERE cid = ?",
+    sql: "SELECT access_profile_id, profile_key, group_name FROM contacts WHERE cid = ?",
     args: [cid],
   });
 }
 
-/** An active access profile by id — used to validate a person's override. */
+/** An active access profile by id — the LEGACY override path. */
 export function getActiveAccessProfileById(profileId) {
   return db.execute({
     sql: "SELECT id, name FROM access_profiles WHERE id = ? AND is_active = 1",
@@ -58,7 +58,55 @@ export function getActiveAccessProfileById(profileId) {
   });
 }
 
-/** A role's active default access profile. */
+/**
+ * The BASE profile a person's override names — the PROFILE-KEY path first
+ * (tranche 3, docs/PROFILES_TAKEOVER_MIGRATION.md), the legacy access-profile id
+ * as a fallback for a template the migration could not map.
+ *
+ * ONE statement on purpose: the resolver's wave count is pinned by
+ * `db-sequencing.test.js`, so the two sources are UNION-ed rather than queried
+ * one after the other.
+ *
+ * @returns rows shaped `{ profile_key, label, legacy_id, legacy_name }`
+ */
+export function resolveContactBaseProfile({ profileKey = null, accessProfileId = null }) {
+  return db.execute({
+    sql: `SELECT p.key AS profile_key, p.label AS label,
+                 NULL AS legacy_id, NULL AS legacy_name
+          FROM profiles p
+          WHERE p.key = ? AND p.is_active = 1
+          UNION ALL
+          SELECT NULL AS profile_key, NULL AS label, ap.id AS legacy_id, ap.name AS legacy_name
+          FROM access_profiles ap
+          WHERE ap.id = ? AND ap.is_active = 1`,
+    args: [profileKey, accessProfileId],
+  });
+}
+
+/**
+ * The BASE profile a role defaults to — `role_profile_defaults` (a profile key)
+ * first, the legacy `role_access_profile_defaults` as a fallback. ONE statement
+ * for the same wave-count reason.
+ *
+ * @returns rows shaped `{ profile_key, label, legacy_id, legacy_name }`
+ */
+export function resolveRoleDefaultBaseProfile(role) {
+  return db.execute({
+    sql: `SELECT rpd.profile_key AS profile_key, p.label AS label,
+                 NULL AS legacy_id, NULL AS legacy_name
+          FROM role_profile_defaults rpd
+          JOIN profiles p ON p.key = rpd.profile_key
+          WHERE rpd.role_name = ? AND p.is_active = 1
+          UNION ALL
+          SELECT NULL AS profile_key, NULL AS label, ap.id AS legacy_id, ap.name AS legacy_name
+          FROM role_access_profile_defaults rpd
+          JOIN access_profiles ap ON ap.id = rpd.access_profile_id
+          WHERE rpd.role_name = ? AND ap.is_active = 1`,
+    args: [role, role],
+  });
+}
+
+/** A role's active default access profile (LEGACY path). */
 export function getRoleDefaultAccessProfile(role) {
   return db.execute({
     sql: `SELECT ap.id, ap.name
@@ -72,17 +120,28 @@ export function getRoleDefaultAccessProfile(role) {
 /**
  * The BASE capability rows for a person: the assigned profile's rows when there
  * is one, otherwise the legacy role rows. Exactly one statement runs.
+ *
+ * Tranche 3 — the PROFILE-KEY source (`profile_capabilities`) is preferred when
+ * the resolved profile carries a key; the legacy `access_profile_capabilities`
+ * path is kept for a template the migration could not map.
  */
-export function getBaseCapabilityRows({ profileId, role }) {
-  return profileId
-    ? db.execute({
-        sql: "SELECT module, capability, access_level FROM access_profile_capabilities WHERE profile_id = ?",
-        args: [profileId],
-      })
-    : db.execute({
-        sql: "SELECT module, capability, access_level FROM role_capabilities WHERE role = ?",
-        args: [role],
-      });
+export function getBaseCapabilityRows({ profileId, profileKey, role }) {
+  if (profileKey) {
+    return db.execute({
+      sql: "SELECT module, capability, access_level FROM profile_capabilities WHERE profile_key = ?",
+      args: [profileKey],
+    });
+  }
+  if (profileId) {
+    return db.execute({
+      sql: "SELECT module, capability, access_level FROM access_profile_capabilities WHERE profile_id = ?",
+      args: [profileId],
+    });
+  }
+  return db.execute({
+    sql: "SELECT module, capability, access_level FROM role_capabilities WHERE role = ?",
+    args: [role],
+  });
 }
 
 /**

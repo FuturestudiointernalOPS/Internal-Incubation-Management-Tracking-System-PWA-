@@ -37,8 +37,8 @@ import {
   getUserCapabilityGrants,
   getUserCapabilityRestrictions,
   getContactAccessProfileAndGroup,
-  getActiveAccessProfileById,
-  getRoleDefaultAccessProfile,
+  resolveContactBaseProfile,
+  resolveRoleDefaultBaseProfile,
   getBaseCapabilityRows,
   getGroupCapabilityRows,
   getFeatureEligibilityRows,
@@ -77,6 +77,31 @@ function buildSuperAdminMatrix() {
     }
   }
   return matrix;
+}
+
+/**
+ * Read the single BASE profile a resolution result names — a PROFILE KEY when
+ * the profile-key path answered, else the legacy access profile (id + name).
+ * Returns null when neither answered (a profile-less identity).
+ *
+ * The UNION-ed queries return the profile-key row first, so a database that has
+ * both is read through the key (the source of truth from tranche 3 on).
+ */
+function pickBaseProfile(rows) {
+  const list = rows || [];
+  const keyed = list.find((row) => row.profile_key);
+  if (keyed) {
+    return {
+      profileKey: String(keyed.profile_key),
+      profileId: null,
+      profileName: keyed.label || String(keyed.profile_key),
+    };
+  }
+  const legacy = list.find((row) => row.legacy_id !== null && row.legacy_id !== undefined);
+  if (legacy) {
+    return { profileKey: null, profileId: legacy.legacy_id, profileName: legacy.legacy_name };
+  }
+  return null;
 }
 
 // ─── Context resolution ─────────────────────────────────────────────────────
@@ -147,25 +172,32 @@ export async function resolveAuthorizationContext({ cid, role, profiles }) {
   if (groups.length === 0 && contact.group_name) groups = [contact.group_name];
 
   // 2. Profile resolution (V2 order: user override → role default → legacy).
-  //    Both lookups run in parallel; precedence is applied to the results.
+  //    Tranche 3: the PROFILE-KEY path wins (docs/PROFILES_TAKEOVER_MIGRATION.md);
+  //    the legacy access-profile path is still consulted in the same statement, so
+  //    the wave count is unchanged and a template the migration could not map
+  //    still resolves.
   let profileId = null;
+  let profileKey = null;
   let profileName = null;
   let profileSource = "legacy";
   const [overrideRes, roleDefaultRes] = await Promise.all([
-    contact.access_profile_id
-      ? getActiveAccessProfileById(contact.access_profile_id)
+    contact.access_profile_id || contact.profile_key
+      ? resolveContactBaseProfile({
+          profileKey: contact.profile_key ?? null,
+          accessProfileId: contact.access_profile_id ?? null,
+        })
       : Promise.resolve({ rows: [] }),
     role
-      ? getRoleDefaultAccessProfile(role)
+      ? resolveRoleDefaultBaseProfile(role)
       : Promise.resolve({ rows: [] }),
   ]);
-  if (overrideRes.rows[0]) {
-    profileId = overrideRes.rows[0].id;
-    profileName = overrideRes.rows[0].name;
+  const overridePick = pickBaseProfile(overrideRes.rows);
+  const rolePick = pickBaseProfile(roleDefaultRes.rows);
+  if (overridePick) {
+    ({ profileKey, profileId, profileName } = overridePick);
     profileSource = "user";
-  } else if (roleDefaultRes.rows[0]) {
-    profileId = roleDefaultRes.rows[0].id;
-    profileName = roleDefaultRes.rows[0].name;
+  } else if (rolePick) {
+    ({ profileKey, profileId, profileName } = rolePick);
     profileSource = "role";
   }
 
@@ -174,7 +206,7 @@ export async function resolveAuthorizationContext({ cid, role, profiles }) {
   //    group capabilities and eligibility rows are independent reads — run in
   //    parallel instead of three sequential rounds.
   const [capsRes, groupCapsRes, eligRes] = await Promise.all([
-    getBaseCapabilityRows({ profileId, role }),
+    getBaseCapabilityRows({ profileId, profileKey, role }),
     getGroupCapabilityRows(groups),
     getFeatureEligibilityRows(role, groups, effectiveProfiles),
   ]);
@@ -195,7 +227,7 @@ export async function resolveAuthorizationContext({ cid, role, profiles }) {
     isSuperAdmin: false,
     groups,
     profiles: effectiveProfiles,
-    profile: { profileId, profileName, profileSource },
+    profile: { profileId, profileName, profileSource, profileKey },
     eligibility,
     eligibilityRows: eligRes.rows,
     baseCaps,

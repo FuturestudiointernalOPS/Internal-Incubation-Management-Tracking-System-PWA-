@@ -163,6 +163,15 @@ export async function ensureProfileTakeover() {
     });
     report.profiles += inserted?.rowsAffected ?? 0;
 
+    // A label must exist for the resolver's `profileName` to keep reading the way
+    // it always did (the access-profile name). NULL-only, so an administrator's
+    // rename wins.
+    await db.execute({
+      sql: `UPDATE profiles SET label = ?, updated_at = NOW()
+            WHERE key = ? AND (label IS NULL OR label = '')`,
+      args: [mapping.accessProfile, mapping.key],
+    });
+
     if (mapping.copyCaps === false) continue;
 
     const capsRes = await db.execute({
