@@ -117,6 +117,12 @@ export function useRunsState() {
     return () => clearTimeout(timer);
   }, [runListNotice, runListFailure, runListRefusal, runListError]);
 
+  // Bulk actions hook. It owns the retry SELECTION (`retrySelected`), so it is
+  // created before the derived data, which reads that selection to build the set
+  // the Emails tab uses to render its checkboxes.
+  const openRunRef = useRef(null);
+  const bulkActions = useRunBulkActions({ selectedRun, selectedIds: responseFilters.selectedIds, setSelectedIds: responseFilters.setSelectedIds, openRunRef, notify });
+
   // Derived data
   const derived = useRunDerivedData({
     fieldLabels: responseFilters.fieldLabels,
@@ -146,12 +152,8 @@ export function useRunsState() {
     emailSearch,
     emailTypeFilter,
     emailPage,
-    retrySelected: responseFilters.retrySelected,
+    retrySelected: bulkActions.retrySelected,
   });
-
-  // Bulk actions hook
-  const openRunRef = useRef(null);
-  const bulkActions = useRunBulkActions({ selectedRun, selectedIds: responseFilters.selectedIds, setSelectedIds: responseFilters.setSelectedIds, openRunRef, notify });
 
   const openRun = useCallback(async (run, options = {}) => {
     if (!options.keepTab) {
@@ -325,19 +327,22 @@ export function useRunsState() {
     selectedIds: responseFilters.selectedIds,
     setSelectedIds: responseFilters.setSelectedIds,
     visibleSubmissions: derived.visibleSubmissions,
-    setEmailTypeFilter: derived.setEmailTypeFilter,
-    setEmailSearch: derived.setEmailSearch,
-    setEmailStatusFilter: derived.setEmailStatusFilter,
-    setEmailDateFrom: derived.setEmailDateFrom,
-    setEmailDateTo: derived.setEmailDateTo,
-    setEmailPage: derived.setEmailPage,
+    // The Emails tab's filters and the retry selection are LOCAL state, not
+    // derived data: reading them off `derived` (which never carried them) left
+    // every one of them undefined, so the tab crashed on `retrySelected.length`.
+    setEmailTypeFilter,
+    setEmailSearch,
+    setEmailStatusFilter,
+    setEmailDateFrom,
+    setEmailDateTo,
+    setEmailPage,
     visibleEmailRows: derived.visibleEmailRows,
-    emailTypeFilter: derived.emailTypeFilter,
-    emailSearch: derived.emailSearch,
-    emailStatusFilter: derived.emailStatusFilter,
-    emailDateFrom: derived.emailDateFrom,
-    emailDateTo: derived.emailDateTo,
-    emailPage: derived.emailPage,
+    emailTypeFilter,
+    emailSearch,
+    emailStatusFilter,
+    emailDateFrom,
+    emailDateTo,
+    emailPage,
     retryableVisible: derived.retryableVisible,
     safeEmailPage: derived.safeEmailPage,
     pagedEmailRows: derived.pagedEmailRows,
@@ -358,7 +363,11 @@ export function useRunsState() {
     respTotalPages: derived.respTotalPages,
     scoreChipActive: derived.scoreChipActive,
     respSafePage: derived.respSafePage,
-    paymentsBySubmission: derived.paymentsBySubmission,
+    // Handed to the responses table as-is. It is read from the LMS registrations
+    // of the selected Execution (see `paymentsRead`), NOT from `derived` — the
+    // derived-data hook never produced it, so routing it through `derived` left
+    // the table with `undefined` and crashed the row map on the first submission.
+    paymentsBySubmission,
     filteredSubmissions: derived.filteredSubmissions,
     pagedSubmissions: derived.pagedSubmissions,
     evaluatedSubmissionIds: derived.evaluatedSubmissionIds,
@@ -386,8 +395,8 @@ export function useRunsState() {
     setBulkSummary: bulkActions.setBulkSummary,
     bulkIncludeResultPdf: bulkActions.bulkIncludeResultPdf,
     setBulkIncludeResultPdf: bulkActions.setBulkIncludeResultPdf,
-    retrySelected: responseFilters.retrySelected,
-    setRetrySelected: responseFilters.setRetrySelected,
+    retrySelected: bulkActions.retrySelected,
+    setRetrySelected: bulkActions.setRetrySelected,
     retryProcessing: bulkActions.retryProcessing,
     retryProgress: bulkActions.retryProgress,
     retrySummary: bulkActions.retrySummary,
