@@ -195,7 +195,7 @@ export default function PersonAccessScreen({
    * Assign or remove the selected user's profile override (empty = remove).
    *
    * Assigning a profile REPLACES the person's base capabilities — the resolver
-   * reads access_profile_capabilities INSTEAD OF role_capabilities — so a
+   * reads the profile's capabilities INSTEAD OF role_capabilities — so a
    * thinner (or empty) profile silently removes access. The server answers 409
    * with the exact diff; we show it and only re-send with `confirm` once the
    * admin accepts the loss.

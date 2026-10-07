@@ -159,8 +159,7 @@ export function ensureCapabilityBackfills() {
           // PROFILES TAKE OVER (tranche 2, docs/PROFILES_TAKEOVER_MIGRATION.md):
           // move the template DATA onto the `profiles` catalogue. Runs AFTER the
           // parallel batch (it depends on `seedProfiles` having created the
-          // contextual rows) and switches nothing — the resolver still reads
-          // `access_profiles` until tranche 3.
+          // contextual rows). One-time: already applied on every existing DB.
           runAuthzMigration("profiles-takeover-v1", ensureProfileTakeover),
           // DIRECT profile seed: so a FRESH database gets the catalogue even with
           // no `access_profiles` at all. Runs AFTER the takeover, whose rows (an

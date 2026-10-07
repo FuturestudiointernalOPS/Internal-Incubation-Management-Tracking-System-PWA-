@@ -17,7 +17,7 @@ import { profileKeyForAccessProfileName } from "@/models/authorization/profileTa
 // Backfills:
 //   - staff: investor caps via Staff Default profile + role_capabilities
 //   - investor role: investor caps via the Mentor profile (the investor role's
-//     default profile per role_access_profile_defaults) + role_capabilities
+//     default profile per the role → profile defaults) + role_capabilities
 //   - mentor role inherits the Mentor profile caps but is NOT eligible for
 //     the investor feature → no access change
 //
