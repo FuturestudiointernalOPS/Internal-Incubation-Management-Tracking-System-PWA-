@@ -46,17 +46,10 @@ export const SERVICE_DEFINITIONS = {
   },
   calendar: {
     name: "Calendar Sync",
-    description: "Sync Platform deadlines to Microsoft Graph or Google Calendar",
+    description: "Sync Platform deadlines to the Microsoft calendar (Outlook / Teams)",
     type: "integration",
     optional: true,
     methods: ["sync", "unsync", "syncAll"],
-  },
-  notion: {
-    name: "Notion Sync",
-    description: "Push submissions and runs to Notion databases",
-    type: "integration",
-    optional: true,
-    methods: ["sync", "syncAll"],
   },
 };
 

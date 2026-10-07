@@ -238,14 +238,12 @@ Legacy reference for the route families listed below. It is **not** exhaustive �
 | GET | `/api/groups` | Retrieve groups, optionally filtered by program. |
 | POST | `/api/groups` | Create a new group under a program. |
 
-## /api/integrations
+## /api/platform/integrations/calendar
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/integrations/calendar` | Check calendar integration health. |
-| POST | `/api/integrations/calendar` | Perform calendar sync actions (sync / unsync / sync‑all). |
-| GET | `/api/integrations/notion` | Check Notion integration health and environment config. |
-| POST | `/api/integrations/notion` | Perform a Notion sync action (task / project / all). |
+| GET | `/api/platform/integrations/calendar?action=health` | Check the calendar integration health. |
+| POST | `/api/platform/integrations/calendar` | Perform a calendar sync action (sync / unsync / sync‑all). |
 
 ## /api/internal-comms
 

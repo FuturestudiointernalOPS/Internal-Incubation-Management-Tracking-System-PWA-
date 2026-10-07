@@ -309,7 +309,7 @@ pool size. Both are surfaced on `/api/ready`.
 
 Email (Gmail/Resend) is instrumented as an external boundary: attempt, provider,
 fallback used, duration, success/failure. Other integrations
-(Notion, Google Sheets, Kkiapay, DeepSeek) are **not yet instrumented** — listed
+(Google Sheets, Kkiapay, DeepSeek) are **not yet instrumented** — listed
 in the roadmap.
 
 ### B.40 Health checks
@@ -412,7 +412,7 @@ Checklist:
 3. **`models/investor.js`** (0.8%) and **`models/adminOps.js`** (0%, error triage).
 4. **Revenue/ops routes with no suite** — `intents`, `contacts/*`, `campaigns`,
    `blockers`.
-5. **Instrument remaining external services** — Notion, Google Sheets, Kkiapay,
+5. **Instrument remaining external services** — Google Sheets, Kkiapay,
    DeepSeek (count / latency / errors / timeouts).
 6. **Export metrics** to the platform backend so p95/p99 and alerting thresholds
    in B.41 become live, not derived.

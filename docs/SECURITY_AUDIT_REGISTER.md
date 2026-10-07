@@ -330,7 +330,7 @@ Each lot: `npx eslint .` · `npm test` · `npm run build`, plus a security regre
 
 - **SQL injection** : every query path reviewed uses `?` placeholders through `db.execute`; dynamic fragments are placeholder generators or hard-coded column allow-lists. The only exception is INJ-1 (deliberate raw SQL, super_admin).
 - **CORS** : no `Access-Control-Allow-*` headers anywhere → same-origin default.
-- **SSRF** : no server-side `fetch` of a user-supplied URL (AI/mail/Notion use configured endpoints only).
+- **SSRF** : no server-side `fetch` of a user-supplied URL (AI/mail use configured endpoints only).
 - **Path traversal** : storage keys are built server-side (`src/lib/storageNames.js`).
 - **XSS (rich text)** : `RichTextContent` → `sanitizeRichText` strips every attribute except a validated `http(s)` href.
 - **Session cookie flags** : `HttpOnly`, `Secure` (prod), `SameSite=Lax`, tokens stored hashed (SHA-256).
