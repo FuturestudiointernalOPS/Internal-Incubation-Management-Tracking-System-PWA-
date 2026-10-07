@@ -5,6 +5,12 @@ Phases 4–5 are **not** started.
 **Measured:** production database, 2026-09-24, read-only SELECTs.
 **Audience:** Super Admin / product owner + the engineer who picks up the rest.
 
+> **Superseded.** The whole access-profile layer described here has since been
+> retired: the profiles now carry their own capabilities and the template tables
+> are dropped. See `PROFILES_TAKEOVER_MIGRATION.md`. The scripts this analysis
+> references (`access_profiles.sql`, `sync_permission_config_from_staging.sql`, …)
+> no longer exist.
+
 ---
 
 ## 0. Executive summary

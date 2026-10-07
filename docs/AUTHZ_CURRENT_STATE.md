@@ -1,5 +1,11 @@
 # ImpactOS — Authorization Current State & Consolidation Plan
 
+> **Note.** This map predates the profiles takeover. The access-profile layer it
+> describes (`access_profiles` + `access_profile_capabilities` +
+> `role_access_profile_defaults`, and the `access_profile_id` columns) has since
+> been retired and dropped — see `PROFILES_TAKEOVER_MIGRATION.md`. Scripts this
+> document cites (`sync_permission_config_from_staging.sql`, …) no longer exist.
+
 > Status: audit (Phase 1–3) + correctness pass (Phase 4) committed.
 > This document is the **current-state map** for the permission system. It records
 > what is implemented, what coexists, and what migration remains — so no future
