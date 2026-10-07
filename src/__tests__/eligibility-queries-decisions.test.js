@@ -40,6 +40,7 @@ jest.mock("@/models/authorization/bootstrap", () => {
 });
 jest.mock("@/services/authorization/accessProfiles", () => ({ getUserEffectiveProfile: mockElig.authMock().getUserEffectiveProfile }));
 jest.mock("@/models/authorization", () => mockElig.authorizationModelMock());
+jest.mock("@/models/authorization/profileCapabilitiesStore", () => mockElig.profileCapabilitiesStoreMock());
 
 const { authorize: authorizeContextModule } = require("@/services/authorization/context");
 const { requireAuthorization } = require("@/server/authz/responses");
@@ -55,8 +56,10 @@ const {
 const {
   listFeatureEligibilityRows,
   listEligibilityRoleIdentities,
-  listRoleAccessProfileDefaults,
 } = require("@/models/authorization");
+const {
+  listRoleProfileDefaults,
+} = require("@/models/authorization/profileCapabilitiesStore");
 const { getSession } = require("@/server/auth/session");
 const route = require("@/app/api/engineering/permissions/eligibility/route");
 
@@ -211,7 +214,7 @@ describe("GET — extraRoles: derived from the DATA, never a new allowlist", () 
     // Both sources are read even when the first is empty: the union is the
     // point, so a role granted only by a template still shows up.
     expect(listEligibilityRoleIdentities).toHaveBeenCalledTimes(1);
-    expect(listRoleAccessProfileDefaults).toHaveBeenCalledTimes(1);
+    expect(listRoleProfileDefaults).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -87,7 +87,9 @@ export async function PUT(req) {
 
       // Eligibility is the boundary: a profile assigned to a person must never
       // grant capabilities their identity is not eligible for.
-      const eligibility = await assertAssignmentEligible(user.rows[0], user_cid, profile_key);
+      const eligibility = await assertAssignmentEligible(user.rows[0], user_cid, {
+        profileKey: profile_key,
+      });
       if (!eligibility.valid) {
         return NextResponse.json(
           {

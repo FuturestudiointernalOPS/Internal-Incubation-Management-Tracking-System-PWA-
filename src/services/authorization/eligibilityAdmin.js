@@ -28,7 +28,6 @@ import { PROFILE_KEYS } from "@/models/authorization/profile-catalog";
 import { evaluateEligibility } from "./eligibility";
 import { getFeatureEligibilityRows } from "@/models/authorization/contextReads";
 import {
-  getProfileCapabilityRows,
   getTemplatesGrantingModules,
 } from "@/models/authorization/eligibilityAdminReads";
 import { listProfileCapabilities } from "@/models/authorization/profileCapabilitiesStore";
@@ -209,25 +208,21 @@ export function validateEligibilityChanges(changes) {
  * boundary.
  *
  * The profile is named by its KEY (`profileKey`, the source of truth since the
- * takeover) or, on the legacy path, by its access-profile id (`profileId`).
+ * takeover).
  *
  * @param {string} role  the identity role (or the user's role)
  * @param {string[]} groups  the identity's effective groups (or [] for roles)
  * @param {string[]} [profiles]  the identity's ACTIVE profile keys (Phase D)
- * @param {number|string} [profileId]  legacy access-profile id
- * @param {string} [profileKey]  the profile key (preferred)
+ * @param {string} [profileKey]  the profile key
  * @returns {{valid: boolean, violations: Array<{module, capability, feature}>}}
  */
 export async function assertTemplateCapsEligible({
   role,
   groups = [],
   profiles = [],
-  profileId,
   profileKey,
 }) {
-  const capsRes = profileKey
-    ? await listProfileCapabilities(profileKey)
-    : await getProfileCapabilityRows(profileId);
+  const capsRes = profileKey ? await listProfileCapabilities(profileKey) : { rows: [] };
   const caps = {};
   for (const row of capsRes.rows) {
     caps[row.module] ??= {};

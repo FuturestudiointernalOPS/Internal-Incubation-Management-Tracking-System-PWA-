@@ -133,14 +133,20 @@ function authorizationModelMock() {
     listEligibilityRoleIdentities: jest.fn().mockImplementation(async () => ({
       rows: mockState.eligibilityRoles,
     })),
-    listRoleAccessProfileDefaults: jest.fn().mockImplementation(async () => ({
-      rows: mockState.roleDefaults,
-    })),
     getEligibilityRow: jest.fn().mockImplementation(async () => ({
       rows: mockState.priorRow ? [mockState.priorRow] : [],
     })),
     deleteEligibilityRow: jest.fn().mockResolvedValue({ rowsAffected: 1 }),
     upsertEligibilityRow: jest.fn().mockResolvedValue({ rowsAffected: 1 }),
+  };
+}
+
+// The role→profile defaults now come from the takeover's own store.
+function profileCapabilitiesStoreMock() {
+  return {
+    listRoleProfileDefaults: jest.fn().mockImplementation(async () => ({
+      rows: mockState.roleDefaults,
+    })),
   };
 }
 
@@ -154,4 +160,5 @@ module.exports = {
   eligibilityAdminMock,
   authMock,
   authorizationModelMock,
+  profileCapabilitiesStoreMock,
 };

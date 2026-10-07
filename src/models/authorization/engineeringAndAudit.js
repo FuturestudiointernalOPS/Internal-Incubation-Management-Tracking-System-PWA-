@@ -27,16 +27,16 @@ export function listUserResponsibilitiesForTable() {
               WHERE r.is_active = 1`);
 }
 
-/** GET users=true — active access profiles. */
+/** GET users=true — active profiles (key + label). */
 export function listActiveAccessProfiles() {
-  return runSafeQuery("SELECT id, name, description FROM access_profiles WHERE is_active = 1");
+  return runSafeQuery("SELECT key AS id, label AS name FROM profiles WHERE is_active = 1");
 }
 
-/** GET users=true — role-to-profile defaults (profile id form). */
+/** GET users=true — role-to-profile defaults (profile KEY form). */
 export function listRoleAccessProfileDefaultsForTable() {
-  return runSafeQuery(`SELECT rpd.role_name, ap.id as profile_id, ap.name as profile_name
-              FROM role_access_profile_defaults rpd
-              JOIN access_profiles ap ON ap.id = rpd.access_profile_id`);
+  return runSafeQuery(`SELECT rpd.role_name, rpd.profile_key as profile_id, p.label as profile_name
+              FROM role_profile_defaults rpd
+              JOIN profiles p ON p.key = rpd.profile_key`);
 }
 
 /** GET users=true — a user's individual capability grants. */
@@ -78,23 +78,23 @@ export function listGroupCapabilitiesForGroup(group) {
 /** GET users=true — all contacts for the permission table, by name. */
 export async function listPermissionTableContacts() {
   return db.execute({
-    sql: "SELECT cid, name, email, role, status, access_profile_id, group_name, created_at FROM contacts ORDER BY name ASC",
+    sql: "SELECT cid, name, email, role, status, profile_key, group_name, created_at FROM contacts ORDER BY name ASC",
   });
 }
 
-/** GET modules payload — all profile definitions, by name. */
+/** GET modules payload — all profile definitions, by label. */
 export async function listAccessProfileDefinitions() {
   return db.execute({
-    sql: "SELECT id, name, description, is_active FROM access_profiles ORDER BY name",
+    sql: "SELECT key AS id, label AS name, context, is_active FROM profiles ORDER BY label",
   });
 }
 
 /** GET modules payload — role → profile default mappings. */
 export async function getRoleDefaultProfileMappings() {
   return db.execute({
-    sql: `SELECT rpd.role_name, ap.id as profile_id, ap.name as profile_name
-                FROM role_access_profile_defaults rpd
-                JOIN access_profiles ap ON ap.id = rpd.access_profile_id`,
+    sql: `SELECT rpd.role_name, rpd.profile_key as profile_id, p.label as profile_name
+                FROM role_profile_defaults rpd
+                JOIN profiles p ON p.key = rpd.profile_key`,
   });
 }
 

@@ -99,16 +99,18 @@ export function selectTemplateImpactCandidates(normalized) {
  * shows up several times; it is reported once, carrying its capabilities as
  * `module.capability` strings in the order the probe returned them.
  *
- * @param {Array<{id: number, name: string, module: string, capability: string}>} rows
- * @returns {Array<{id: number, name: string, capabilities: string[]}>}
+ * @param {Array<{profile_key?: string, id?: number, name: string, module: string, capability: string}>} rows
+ * @returns {Array<{id: string|number, name: string, capabilities: string[]}>}
  */
 export function foldImpactedTemplates(rows) {
   const byTemplate = new Map();
   for (const row of rows || []) {
-    if (!byTemplate.has(row.id)) {
-      byTemplate.set(row.id, { id: row.id, name: row.name, capabilities: [] });
+    // The read now names a profile by its KEY; older/mocked rows carry a numeric id.
+    const identity = row.profile_key ?? row.id;
+    if (!byTemplate.has(identity)) {
+      byTemplate.set(identity, { id: identity, name: row.name, capabilities: [] });
     }
-    byTemplate.get(row.id).capabilities.push(`${row.module}.${row.capability}`);
+    byTemplate.get(identity).capabilities.push(`${row.module}.${row.capability}`);
   }
   return [...byTemplate.values()];
 }

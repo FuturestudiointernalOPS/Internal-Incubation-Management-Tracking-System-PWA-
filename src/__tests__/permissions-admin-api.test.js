@@ -27,7 +27,7 @@ jest.mock("@/lib/db", () => ({
       if (String(sql).includes("FROM access_profiles WHERE id")) {
         return { rows: [{ id: 99, name: "Some Profile" }] };
       }
-      if (String(sql).includes("JOIN access_profile_capabilities")) {
+      if (String(sql).includes("JOIN profile_capabilities")) {
         return { rows: mockTemplateImpacts };
       }
       if (String(sql).includes("DELETE FROM role_access_profile_defaults")) {

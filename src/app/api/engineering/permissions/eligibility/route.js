@@ -28,11 +28,11 @@ import {
   listDistinctUserGroupNames,
   listDistinctContactGroupNames,
   listEligibilityRoleIdentities,
-  listRoleAccessProfileDefaults,
   getEligibilityRow,
   deleteEligibilityRow,
   upsertEligibilityRow,
 } from "@/models/authorization";
+import { listRoleProfileDefaults } from "@/models/authorization/profileCapabilitiesStore";
 import { PROFILE_KEYS } from "@/models/authorization/profile-catalog";
 
 export const dynamic = "force-dynamic";
@@ -90,7 +90,7 @@ export async function GET() {
     // already enforce.
     const [eligibilityRolesResult, roleDefaultsResult] = await Promise.all([
       listEligibilityRoleIdentities(),
-      listRoleAccessProfileDefaults(),
+      listRoleProfileDefaults(),
     ]);
     const extraRoles = deriveExtraRoles(
       eligibilityRolesResult.rows,

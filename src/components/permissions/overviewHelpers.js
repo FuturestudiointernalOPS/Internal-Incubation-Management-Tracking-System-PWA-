@@ -6,13 +6,13 @@
 
 /**
  * Coverage summary of the context-role registry.
- * A row is "mapped" when it carries a profile_id; unmapped rows are the
+ * A row is "mapped" when it carries a profile_key; unmapped rows are the
  * VISIBLE gaps (never hidden) that the Overview surfaces.
  */
 export function summarizeContextRoles(roles = []) {
   const list = Array.isArray(roles) ? roles : [];
   const gaps = list.filter(
-    (row) => row.profile_id === null || row.profile_id === undefined,
+    (row) => row.profile_key === null || row.profile_key === undefined,
   );
   return {
     total: list.length,

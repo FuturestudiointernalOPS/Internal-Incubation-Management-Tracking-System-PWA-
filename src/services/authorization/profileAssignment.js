@@ -47,10 +47,8 @@ export function isSelfAssignment(session, userCid) {
  * @returns {Promise<{valid: boolean, violations: Array}>}
  */
 export async function assertAssignmentEligible(user, userCid, target = {}) {
-  // The profile is named by its KEY (profiles takeover) or, on the legacy path,
-  // by its access-profile id.
+  // The profile is named by its KEY (profiles takeover).
   const profileKey = target?.profileKey ?? null;
-  const profileId = target?.profileId ?? null;
   const groups = (await getUserGroupNames(userCid)).rows.map((row) => row.group_name);
   let profiles = [];
   try {
@@ -63,7 +61,6 @@ export async function assertAssignmentEligible(user, userCid, target = {}) {
   }
   const args = { role: user?.role, groups, profiles };
   if (profileKey) args.profileKey = profileKey;
-  else args.profileId = profileId;
   return assertTemplateCapsEligible(args);
 }
 

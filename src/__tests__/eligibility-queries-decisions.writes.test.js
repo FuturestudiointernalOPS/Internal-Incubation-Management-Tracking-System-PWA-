@@ -35,6 +35,7 @@ jest.mock("@/models/authorization/bootstrap", () => {
 });
 jest.mock("@/services/authorization/accessProfiles", () => ({ getUserEffectiveProfile: mockElig.authMock().getUserEffectiveProfile }));
 jest.mock("@/models/authorization", () => mockElig.authorizationModelMock());
+jest.mock("@/models/authorization/profileCapabilitiesStore", () => mockElig.profileCapabilitiesStoreMock());
 
 const {
   requireAuthorization,

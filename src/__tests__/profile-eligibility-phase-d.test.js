@@ -17,7 +17,7 @@ const mockState = {
 
 function mockExecute(query) {
   const sql = typeof query === "string" ? query : query.sql || "";
-  if (sql.includes("FROM access_profile_capabilities")) {
+  if (sql.includes("FROM profile_capabilities")) {
     return { rows: mockState.profileCaps };
   }
   if (sql.includes("FROM feature_eligibility")) return { rows: mockState.eligibility };
@@ -140,7 +140,7 @@ describe("assertTemplateCapsEligible with active profiles", () => {
     mockState.eligibility = profiles.includes("founder")
       ? [{ feature_key: "ventures", identity_type: "profile", identity_value: "founder", eligible: 1 }]
       : [];
-    return assertTemplateCapsEligible({ role: "member", groups: [], profiles, profileId: 7 });
+    return assertTemplateCapsEligible({ role: "member", groups: [], profiles, profileKey: "founder" });
   }
 
   test("a member WITHOUT the profile cannot receive a Founder-only area", async () => {
