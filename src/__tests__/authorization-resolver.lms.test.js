@@ -140,12 +140,12 @@ describe("lms module", () => {
       typeof call[0] === "string" ? { sql: call[0], args: [] } : call[0],
     );
     const profileInserts = calls.filter((call) =>
-      call.sql.includes("INSERT INTO access_profile_capabilities"),
+      call.sql.includes("INSERT INTO profile_capabilities"),
     );
     expect(profileInserts).toHaveLength(1);
-    expect(profileInserts[0].args).toEqual([5, "lms", "view", 1]);
+    expect(profileInserts[0].args).toEqual(["program_manager", "lms", "view", 1]);
     expect(profileInserts[0].sql).toMatch(
-      /ON CONFLICT \(profile_id, module, capability\) DO NOTHING/,
+      /ON CONFLICT \(profile_key, module, capability\) DO NOTHING/,
     );
 
     const roleInserts = calls.filter((call) => call.sql.includes("INSERT INTO role_capabilities"));
