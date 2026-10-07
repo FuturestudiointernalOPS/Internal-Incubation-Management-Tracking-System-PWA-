@@ -89,7 +89,9 @@ const MAINTENANCE_DDL_PATTERNS = [
   /^\s*create\s+(?:unique\s+)?index\s+if\s+not\s+exists\b/i,
   /^\s*alter\s+table\s+[^\s;]+\s+add\s+column\s+if\s+not\s+exists\b/i,
   /^\s*alter\s+table\s+[^\s;]+\s+drop\s+constraint\s+if\s+exists\b/i,
+  /^\s*alter\s+table\s+[^\s;]+\s+drop\s+column\s+if\s+exists\b/i,
   /^\s*alter\s+table\s+[^\s;]+\s+alter\s+column\s+[^\s;]+\s+drop\s+not\s+null\b/i,
+  /^\s*drop\s+table\s+if\s+exists\b/i,
   /^\s*drop\s+index\s+if\s+exists\b/i,
 ];
 
