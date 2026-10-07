@@ -45,7 +45,7 @@ jest.mock("@/models/authorization/contextRoleProfiles", () => ({
         id: 1,
         context,
         role_key: roleKey,
-        profile_id: 7,
+        profile_key: "participant",
         is_active: 1,
         profile_name: `${roleKey} template`,
       },

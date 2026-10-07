@@ -84,7 +84,14 @@ async function mockExecute(query) {
     };
   }
 
-  // Profile capabilities (registry path + assignment profile path)
+  // Profile capabilities — the registry path reads `profile_capabilities` by
+  // KEY (the takeover); the assignment-override path still reads the legacy
+  // `access_profile_capabilities` by id.
+  if (sqlText.includes("FROM profile_capabilities")) {
+    mockState.profileCapsQueriedFor.push(args);
+    return { rows: mockState.profileCaps };
+  }
+
   if (sqlText.includes("FROM access_profile_capabilities")) {
     mockState.profileCapsQueriedFor.push(args);
     return { rows: mockState.profileCaps };

@@ -47,10 +47,10 @@ import {
 export async function resolveContextDesiredCaps(context, roleKey) {
   const mapping = await getContextRoleProfile(context, roleKey);
   const row = mapping?.rows?.[0];
-  if (!row || Number(row.is_active) !== 1 || !row.profile_id) {
+  if (!row || Number(row.is_active) !== 1 || !row.profile_key) {
     return { profile: null, desired: {}, reason: row ? "unmapped" : "no-registry-row" };
   }
-  const capabilitiesResult = await getProfileCapabilityRows(row.profile_id);
+  const capabilitiesResult = await getProfileCapabilityRows(row.profile_key);
   const desired = {};
   for (const capabilityRow of capabilitiesResult.rows || []) {
     desired[`${capabilityRow.module}.${capabilityRow.capability}`] = {

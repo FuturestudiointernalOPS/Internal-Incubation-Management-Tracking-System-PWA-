@@ -35,7 +35,7 @@ jest.mock("@/models/authorization/contextGrantsStore", () => ({
 jest.mock("@/models/authorization/contextRoleProfiles", () => ({
   getContextRoleProfile: jest.fn(async (context, roleKey) => ({
     rows: [
-      { id: 1, context, role_key: roleKey, profile_id: 7, is_active: 1, profile_name: `${roleKey} template` },
+      { id: 1, context, role_key: roleKey, profile_key: "founder", is_active: 1, profile_name: `${roleKey} template` },
     ],
   })),
 }));

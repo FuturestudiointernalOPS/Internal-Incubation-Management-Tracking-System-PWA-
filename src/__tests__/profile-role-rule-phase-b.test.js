@@ -61,7 +61,7 @@ function mockExecute(query) {
           id: 1,
           context: "venture",
           role_key: "founder",
-          profile_id: 7,
+          profile_key: "founder",
           is_active: 1,
           profile_name: "Founder",
         },
@@ -69,7 +69,7 @@ function mockExecute(query) {
     };
   }
 
-  if (sqlText.includes("FROM access_profile_capabilities")) {
+  if (sqlText.includes("FROM profile_capabilities")) {
     return { rows: mockState.profileCaps };
   }
 

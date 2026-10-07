@@ -226,7 +226,7 @@ describe("syncContextGrantsForUser — program facilitator", () => {
     // Phase H — the program_manager profile is open to the staff baseline only.
     mockState.contactRole = "staff";
     mockState.registry = {
-      profile_id: 11,
+      profile_key: "program_manager",
       profile_name: "Assigned Program Manager",
       is_active: 1,
     };

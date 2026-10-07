@@ -80,11 +80,11 @@ export async function listActiveFounderVentures(cid) {
   return (result.rows || []).map((row) => String(row.venture_id)).filter(Boolean);
 }
 
-/** The capability rows one access profile carries (the registry-mapped grant). */
-export async function getProfileCapabilityRows(profileId) {
+/** The capability rows one PROFILE KEY carries (the registry-mapped grant). */
+export async function getProfileCapabilityRows(profileKey) {
   return db.execute({
-    sql: "SELECT module, capability, access_level FROM access_profile_capabilities WHERE profile_id = ?",
-    args: [profileId],
+    sql: "SELECT module, capability, access_level FROM profile_capabilities WHERE profile_key = ?",
+    args: [String(profileKey)],
   });
 }
 

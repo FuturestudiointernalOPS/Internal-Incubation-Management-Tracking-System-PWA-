@@ -23,7 +23,7 @@
 
 const mockState = {
   assignmentRows: [],
-  registry: { profile_id: 7, profile_name: "Founder", is_active: 1 },
+  registry: { profile_key: "founder", profile_name: "Founder", is_active: 1 },
   profileCaps: [],
 };
 
@@ -38,7 +38,7 @@ jest.mock("@/models/authorization/contextRoleProfiles", () => ({
     rows: mockState.registry
       ? [
           {
-            profile_id: mockState.registry.profile_id,
+            profile_key: mockState.registry.profile_key,
             profile_name: mockState.registry.profile_name,
             is_active: mockState.registry.is_active,
           },
@@ -95,7 +95,7 @@ jest.mock("@/services/authorization/context", () => ({
 function loadFresh() {
   jest.resetModules();
   mockState.assignmentRows = [];
-  mockState.registry = { profile_id: 7, profile_name: "Founder", is_active: 1 };
+  mockState.registry = { profile_key: "founder", profile_name: "Founder", is_active: 1 };
   mockState.profileCaps = [];
   return require("@/services/authorization/contextGrants");
 }
@@ -179,14 +179,14 @@ describe("resolveContextDesiredCaps — the registry mapping, read honestly", ()
     // Distinguished from a missing row on purpose: an administrator who
     // disables a mapping expects the effect to apply, and a disabled row is
     // that intent.
-    mockState.registry = { profile_id: 7, profile_name: "Founder", is_active: 0 };
+    mockState.registry = { profile_key: "founder", profile_name: "Founder", is_active: 0 };
     const result = await resolveContextDesiredCaps("venture", "founder");
     expect(result).toEqual({ profile: null, desired: {}, reason: "unmapped" });
   });
 
-  it("treats a row with no profile_id as unmapped, not as a crash", async () => {
+  it("treats a row with no profile key as unmapped, not as a crash", async () => {
     const { resolveContextDesiredCaps } = loadFresh();
-    mockState.registry = { profile_id: null, profile_name: "Ghost", is_active: 1 };
+    mockState.registry = { profile_key: null, profile_name: "Ghost", is_active: 1 };
     const result = await resolveContextDesiredCaps("venture", "founder");
     expect(result).toEqual({ profile: null, desired: {}, reason: "unmapped" });
   });
