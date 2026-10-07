@@ -16,7 +16,6 @@
  */
 "use client";
 
-import AccessProfilesView from "@/components/permissions/permission-center/AccessProfilesView";
 import AuditView from "@/components/permissions/permission-center/AuditView";
 import EligibilityView from "@/components/permissions/permission-center/EligibilityView";
 import PersonAccessScreen from "@/components/permissions/permission-center/PersonAccessScreen";
@@ -25,7 +24,6 @@ import ResponsibilityAccessView from "@/components/permissions/permission-center
 
 export default function PermissionManager({
   initialTab = "search",
-  initialProfileId = null,
   cid = null,
   // Forwarded from the screen above so the profiles bar can open the editor's
   // access-profile override dialog (see IndividualAccessScreen).
@@ -46,7 +44,6 @@ export default function PermissionManager({
   return (
     <div className="space-y-8 pb-20">
       {initialTab === "eligibility" && <EligibilityView />}
-      {initialTab === "setup" && <AccessProfilesView initialProfileId={initialProfileId} />}
       {initialTab === "responsibilities" && <ResponsibilitiesView />}
       {initialTab === "access" && <ResponsibilityAccessView />}
       {initialTab === "audit" && <AuditView />}
