@@ -29,6 +29,9 @@ export default function ProfileCapabilityEditor({ ctx }) {
     setLevel,
     saveCaps,
     closeCaps,
+    baselineRoles,
+    roleDefaults,
+    setRoleDefault,
   } = ctx;
 
   if (!selectedKey) return null;
@@ -63,6 +66,31 @@ export default function ProfileCapabilityEditor({ ctx }) {
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
+      </div>
+
+      {/* "Default for" — which baseline roles receive this profile by default. */}
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border-primary)] px-3 py-2">
+        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+          {t("engineering.permissions.defaultForTitle")}
+        </span>
+        {(baselineRoles || []).map((role) => {
+          const isDefault = roleDefaults?.[role] === selectedKey;
+          return (
+            <button
+              key={role}
+              type="button"
+              disabled={busyKey === `role:${role}`}
+              onClick={() => setRoleDefault(role, isDefault ? null : selectedKey)}
+              className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-colors disabled:opacity-40 ${
+                isDefault
+                  ? "border-brand-orange/40 bg-brand-orange/10 text-[var(--brand-orange)]"
+                  : "border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              {t(`engineering.permissions.profilesRoles.${role}`)}
+            </button>
+          );
+        })}
       </div>
 
       {capsLoading ? (

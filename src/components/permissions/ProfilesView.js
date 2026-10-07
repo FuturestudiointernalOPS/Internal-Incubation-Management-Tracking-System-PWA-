@@ -117,6 +117,38 @@ export default function ProfilesView() {
     setSavedCaps({});
   };
 
+  /**
+   * "Default for" — which baseline roles receive this profile automatically.
+   * A role can only default to ONE profile, so choosing this one for a role
+   * replaces whatever that role pointed at.
+   */
+  const setRoleDefault = async (role, profileKey) => {
+    setErr("");
+    setMsg("");
+    setBusyKey(`role:${role}`);
+    try {
+      const res = await fetch("/api/engineering/permissions/profile-role-defaults", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role_name: role, profile_key: profileKey }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        throw new Error(
+          json.error === "errors.ineligibleTemplateCaps"
+            ? t("engineering.permissions.profilesCapsIneligible", { role })
+            : json.error || t("engineering.permissions.roleDefaultFailed"),
+        );
+      }
+      setMsg(t("engineering.permissions.roleDefaultSaved", { role }));
+      await load();
+    } catch (error) {
+      setErr(error.message || t("engineering.permissions.roleDefaultFailed"));
+    } finally {
+      setBusyKey("");
+    }
+  };
+
   // ── Catalogue edits (roles / active / notes) ────────────────────────────────
 
   const toggleRole = (row, role) => {
@@ -346,6 +378,8 @@ export default function ProfilesView() {
     isDirty,
     profileLabel: (row) => row.label || (row.label_key ? t(row.label_key) : String(row.key).replace(/_/g, " ")),
     baselineRoles: BASELINE_ROLES,
+    roleDefaults: data?.role_defaults || {},
+    setRoleDefault,
     toggleRole,
     setField,
     save,

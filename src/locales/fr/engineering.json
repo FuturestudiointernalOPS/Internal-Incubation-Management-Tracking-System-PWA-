@@ -560,6 +560,8 @@
       "profilesCapsSaved": "Capacités enregistrées.",
       "profilesCapsIneligible": "Une ou plusieurs capacités ne sont pas éligibles pour le rôle {role}.",
       "profilesEditCapabilities": "Capacités",
+      "roleDefaultSaved": "Défaut mis à jour pour {role}.",
+      "roleDefaultFailed": "Impossible de mettre à jour le défaut de rôle.",
       "profilesKey": "Profil",
       "profilesAllowedRoles": "Rôles de base autorisés",
       "profilesActive": "Actif",

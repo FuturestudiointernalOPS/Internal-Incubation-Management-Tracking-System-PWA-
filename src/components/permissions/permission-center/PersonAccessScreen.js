@@ -175,13 +175,21 @@ export default function PersonAccessScreen({
 
   const loadAssignProfiles = useCallback(async () => {
     try {
-      const res = await fetch("/api/access-profiles");
+      const res = await fetch("/api/engineering/permissions/profiles");
       const data = await res.json();
-      if (data.success) setAssignProfiles(data.profiles || []);
+      if (data.success) {
+        setAssignProfiles(
+          (data.profiles || []).map((row) => ({
+            id: row.key,
+            name: row.label || (row.label_key ? t(row.label_key) : row.key),
+            is_active: Number(row.is_active) === 1,
+          })),
+        );
+      }
     } catch (error) {
       console.error("Failed to load profiles", error);
     }
-  }, []);
+  }, [t]);
 
   /**
    * Assign or remove the selected user's profile override (empty = remove).
@@ -192,18 +200,18 @@ export default function PersonAccessScreen({
    * with the exact diff; we show it and only re-send with `confirm` once the
    * admin accepts the loss.
    */
-  const saveProfileOverride = async (profileId, options = {}) => {
+  const saveProfileOverride = async (profileKey, options = {}) => {
     if (!selectedUser) return;
     setAssignBusy(true);
     setAssignMsg("");
     setAssignErr("");
     try {
-      const res = await fetch("/api/access-profiles/assign", {
+      const res = await fetch("/api/engineering/permissions/profile-override", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_cid: selectedUser.cid,
-          profile_id: profileId,
+          profile_key: profileKey || null,
           ...(options.confirm ? { confirm: true } : {}),
         }),
       });
@@ -253,7 +261,7 @@ export default function PersonAccessScreen({
           setAssignErr(t("engineering.permissions.assignCancelled"));
           return;
         }
-        return await saveProfileOverride(profileId, { confirm: true });
+        return await saveProfileOverride(profileKey, { confirm: true });
       } else {
         setAssignErr(t((data.error || t("engineering.permissions.failedToAssign")) || "") || (data.error || t("engineering.permissions.failedToAssign")));
       }

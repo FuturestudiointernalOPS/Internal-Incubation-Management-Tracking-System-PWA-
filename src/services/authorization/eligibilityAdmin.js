@@ -31,6 +31,7 @@ import {
   getProfileCapabilityRows,
   getTemplatesGrantingModules,
 } from "@/models/authorization/eligibilityAdminReads";
+import { listProfileCapabilities } from "@/models/authorization/profileCapabilitiesStore";
 
 const CONFIGURABLE_FEATURES = [
   ...new Set([
@@ -203,18 +204,30 @@ export function validateEligibilityChanges(changes) {
 }
 
 /**
- * Server-side enforcement (Phase 2): a DEFAULT ACCESS TEMPLATE (access
- * profile) can never grant capabilities whose feature the target identity is
- * not eligible for. Eligibility is the boundary.
+ * Server-side enforcement (Phase 2): a profile can never grant capabilities
+ * whose feature the target identity is not eligible for. Eligibility is the
+ * boundary.
+ *
+ * The profile is named by its KEY (`profileKey`, the source of truth since the
+ * takeover) or, on the legacy path, by its access-profile id (`profileId`).
  *
  * @param {string} role  the identity role (or the user's role)
  * @param {string[]} groups  the identity's effective groups (or [] for roles)
  * @param {string[]} [profiles]  the identity's ACTIVE profile keys (Phase D)
- * @param {number|string} profileId
+ * @param {number|string} [profileId]  legacy access-profile id
+ * @param {string} [profileKey]  the profile key (preferred)
  * @returns {{valid: boolean, violations: Array<{module, capability, feature}>}}
  */
-export async function assertTemplateCapsEligible({ role, groups = [], profiles = [], profileId }) {
-  const capsRes = await getProfileCapabilityRows(profileId);
+export async function assertTemplateCapsEligible({
+  role,
+  groups = [],
+  profiles = [],
+  profileId,
+  profileKey,
+}) {
+  const capsRes = profileKey
+    ? await listProfileCapabilities(profileKey)
+    : await getProfileCapabilityRows(profileId);
   const caps = {};
   for (const row of capsRes.rows) {
     caps[row.module] ??= {};

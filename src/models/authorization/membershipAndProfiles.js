@@ -375,6 +375,78 @@ export async function getRoleDefaultAccessProfile(role) {
   });
 }
 
+// ── /api/engineering/permissions/profile-override — per-person overrides ───
+// (profiles takeover, decision A1: the override targets a PROFILE KEY, not a
+// legacy access-profile id. The old /api/access-profiles/assign is retired.)
+
+/** PUT — target contact row (name/role/profile_key) + 404 check. */
+export async function getContactProfileOverrideTarget(userCid) {
+  return db.execute({
+    sql: "SELECT cid, name, role, profile_key FROM contacts WHERE cid = ?",
+    args: [userCid],
+  });
+}
+
+/** PUT — active profile existence check by KEY before assignment. */
+export async function getActiveProfileByKey(profileKey) {
+  return db.execute({
+    sql: "SELECT key, label FROM profiles WHERE key = ? AND is_active = 1",
+    args: [profileKey],
+  });
+}
+
+/** PUT — persist the profile override (by key) on the contact. */
+export async function assignUserProfileKey(profileKey, userCid) {
+  return db.execute({
+    sql: "UPDATE contacts SET profile_key = ?, access_profile_id = NULL WHERE cid = ?",
+    args: [profileKey, userCid],
+  });
+}
+
+/** PUT — remove the profile override (fall back to the role default). */
+export async function clearUserProfileKeyOverride(userCid) {
+  return db.execute({
+    sql: "UPDATE contacts SET profile_key = NULL WHERE cid = ?",
+    args: [userCid],
+  });
+}
+
+/** PUT — role-default profile label that applies after the override is removed. */
+export async function getRoleDefaultProfileLabel(role) {
+  return db.execute({
+    sql: `SELECT p.label FROM role_profile_defaults rpd
+            JOIN profiles p ON p.key = rpd.profile_key
+            WHERE rpd.role_name = ? AND p.is_active = 1`,
+    args: [role],
+  });
+}
+
+/** GET — contact row (with profile_key) for the assignment readback. */
+export async function getContactProfileOverrideState(userCid) {
+  return db.execute({
+    sql: "SELECT cid, name, role, profile_key FROM contacts WHERE cid = ?",
+    args: [userCid],
+  });
+}
+
+/** GET — explicitly assigned profile label/id for the readback. */
+export async function getProfileSummaryByKey(profileKey) {
+  return db.execute({
+    sql: "SELECT key, label FROM profiles WHERE key = ?",
+    args: [profileKey],
+  });
+}
+
+/** GET — role-default profile label for the readback. */
+export async function getRoleDefaultProfileSummary(role) {
+  return db.execute({
+    sql: `SELECT p.key, p.label FROM role_profile_defaults rpd
+            JOIN profiles p ON p.key = rpd.profile_key
+            WHERE rpd.role_name = ?`,
+    args: [role],
+  });
+}
+
 // ── /api/access-profiles/role-defaults — role → profile defaults ───────────
 
 /** PUT — active-profile existence check for a new role default. */

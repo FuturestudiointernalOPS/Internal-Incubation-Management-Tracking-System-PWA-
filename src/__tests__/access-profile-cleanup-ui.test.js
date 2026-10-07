@@ -77,7 +77,7 @@ describe("the capability-loss guard on assignment", () => {
   test("the 409 diff is surfaced and re-sent only with confirm", () => {
     expect(screen).toMatch(/res\.status === 409 && data\.requiresConfirmation/);
     expect(screen).toMatch(/options\.confirm \? \{ confirm: true \}/);
-    expect(screen).toMatch(/return await saveProfileOverride\(profileId, \{ confirm: true \}\)/);
+    expect(screen).toMatch(/return await saveProfileOverride\(profileKey, \{ confirm: true \}\)/);
   });
 
   test("declining the confirmation changes nothing and says so", () => {

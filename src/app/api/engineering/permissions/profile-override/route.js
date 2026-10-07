@@ -2,18 +2,21 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
 import { logPermissionAudit } from "@/models/authorization/accessQueries";
-import { requireAuthorization, invalidateAuthorizationContext } from "@/models/authorization/index";
 import {
-  getContactForAssignment,
-  getActiveAccessProfile,
-  assignUserAccessProfile,
-  clearUserAccessProfileOverride,
-  getRoleDefaultProfileName,
-  getContactAssignmentState,
-  getAccessProfileSummary,
-  getRoleDefaultAccessProfile,
-  getProfileCapabilities,
+  requireAuthorization,
+  invalidateAuthorizationContext,
+} from "@/models/authorization/index";
+import {
+  getContactProfileOverrideTarget,
+  getActiveProfileByKey,
+  assignUserProfileKey,
+  clearUserProfileKeyOverride,
+  getRoleDefaultProfileLabel,
+  getContactProfileOverrideState,
+  getProfileSummaryByKey,
+  getRoleDefaultProfileSummary,
 } from "@/models/authorization";
+import { listProfileCapabilities } from "@/models/authorization/profileCapabilitiesStore";
 import { resolveCurrentBaseCapabilities } from "@/services/authorization/baseCapabilities";
 import {
   isSelfAssignment,
@@ -22,14 +25,24 @@ import {
   resolveRemovalFallback,
 } from "@/services/authorization/profileAssignment";
 
+export const dynamic = "force-dynamic";
+
 /**
- * PUT /api/access-profiles/assign
+ * PER-PERSON PROFILE OVERRIDE (profiles takeover, decision A1).
  *
- * Assign/remove an access profile override for a specific user.
- * Body: { user_cid, profile_id, confirm? } — set profile_id to null to remove
- * the override. `confirm: true` accepts an assignment that removes
- * capabilities (see the capability-loss guard below).
+ * The on-person "replace profile" action, now by PROFILE KEY — the retired
+ * `/api/access-profiles/assign` used a legacy access-profile id.
+ *
+ *   PUT  requires permissions.assign_capabilities
+ *        body: { user_cid, profile_key, confirm? } — profile_key null REMOVES
+ *        the override. `confirm: true` accepts an assignment that removes
+ *        capabilities.
+ *
+ *   GET  requires permissions.view_matrix
+ *        ?user_cid= → the person's override and the role default it would fall
+ *        back to.
  */
+
 export async function PUT(req) {
   try {
     const capError = await requireAuthorization("permissions", "assign_capabilities");
@@ -37,7 +50,7 @@ export async function PUT(req) {
 
     const session = await getSession();
     await initDb();
-    const { user_cid, profile_id, confirm } = await req.json();
+    const { user_cid, profile_key, confirm } = await req.json();
 
     if (!user_cid) {
       return NextResponse.json(
@@ -46,17 +59,16 @@ export async function PUT(req) {
       );
     }
 
-    // Separation of duties: nobody changes their OWN access profile, not even a
-    // Super Admin. Self-granting capabilities is the escalation this refuses.
+    // Separation of duties: nobody changes their OWN profile, not even a Super
+    // Admin. Self-granting capabilities is the escalation this refuses.
     if (isSelfAssignment(session, user_cid)) {
       return NextResponse.json(
-        { success: false, error: "You cannot change your own access profile." },
+        { success: false, error: "You cannot change your own profile." },
         { status: 403 },
       );
     }
 
-    // Verify user exists
-    const user = await getContactForAssignment(user_cid);
+    const user = await getContactProfileOverrideTarget(user_cid);
     if (user.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "User not found" },
@@ -64,22 +76,18 @@ export async function PUT(req) {
       );
     }
 
-    // If profile_id is provided, verify it exists
-    if (profile_id) {
-      const profile = await getActiveAccessProfile(profile_id);
+    if (profile_key) {
+      const profile = await getActiveProfileByKey(profile_key);
       if (profile.rows.length === 0) {
         return NextResponse.json(
-          { success: false, error: "Access profile not found or inactive" },
+          { success: false, error: "Profile not found or inactive" },
           { status: 404 },
         );
       }
 
-      // Phase 2: eligibility is the boundary — a template assigned to a
-      // person must never grant capabilities the person's identity is not
-      // eligible for.
-      const eligibility = await assertAssignmentEligible(user.rows[0], user_cid, {
-        profileId: profile_id,
-      });
+      // Eligibility is the boundary: a profile assigned to a person must never
+      // grant capabilities their identity is not eligible for.
+      const eligibility = await assertAssignmentEligible(user.rows[0], user_cid, profile_key);
       if (!eligibility.valid) {
         return NextResponse.json(
           {
@@ -91,19 +99,16 @@ export async function PUT(req) {
         );
       }
 
-      // Capability-loss guard. Assigning a profile REPLACES the person's base
-      // capabilities: the resolver reads access_profile_capabilities INSTEAD OF
-      // role_capabilities (see authorization/resolver.js). An empty or narrower
-      // profile therefore silently strips access, so make the loss explicit and
-      // require confirm:true before proceeding.
+      // Capability-loss guard: assigning a profile REPLACES the person's base
+      // capabilities, so an empty or narrower profile silently strips access.
       if (confirm !== true) {
         const current = await resolveCurrentBaseCapabilities(user_cid);
-        const newCaps = (await getProfileCapabilities(profile_id)).rows || [];
+        const newCaps = (await listProfileCapabilities(profile_key)).rows || [];
 
         const { loss, refusal } = evaluateCapabilityLoss(
           current,
           newCaps,
-          profile.rows[0].name,
+          profile.rows[0].label || profile_key,
         );
 
         if (refusal) {
@@ -120,7 +125,7 @@ export async function PUT(req) {
         }
       }
 
-      await assignUserAccessProfile(profile_id, user_cid);
+      await assignUserProfileKey(profile_key, user_cid);
 
       await logPermissionAudit({
         actorCid: session?.cid,
@@ -128,23 +133,24 @@ export async function PUT(req) {
         targetCid: user_cid,
         targetName: user.rows[0].name,
         action: "profile_assigned",
-        details: `Assigned access profile: ${profile.rows[0].name}`,
+        details: `Assigned profile: ${profile.rows[0].label || profile_key}`,
       });
       invalidateAuthorizationContext(user_cid);
 
       return NextResponse.json({
         success: true,
-        message: `User assigned to profile "${profile.rows[0].name}"`,
-        profileName: profile.rows[0].name,
+        message: `User assigned to profile "${profile.rows[0].label || profile_key}"`,
+        profileName: profile.rows[0].label || profile_key,
       });
     }
 
-    // Remove override
-    await clearUserAccessProfileOverride(user_cid);
+    // Remove the override.
+    await clearUserProfileKeyOverride(user_cid);
 
-    // Get the role default that will now apply
-    const roleDefault = await getRoleDefaultProfileName(user.rows[0].role);
-    const roleDefaultName = resolveRemovalFallback(roleDefault.rows[0]?.name);
+    const roleDefault = await getRoleDefaultProfileLabel(user.rows[0].role);
+    const roleDefaultName = resolveRemovalFallback(
+      roleDefault.rows[0]?.label || roleDefault.rows[0]?.name,
+    );
 
     await logPermissionAudit({
       actorCid: session?.cid,
@@ -162,7 +168,7 @@ export async function PUT(req) {
       roleDefaultName,
     });
   } catch (error) {
-    console.error("[Assign Profile] error:", error);
+    console.error("[Profile override] error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 },
@@ -170,11 +176,6 @@ export async function PUT(req) {
   }
 }
 
-/**
- * GET /api/access-profiles/assign?user_cid=X
- *
- * Get the current profile assignment for a user.
- */
 export async function GET(req) {
   try {
     const capError = await requireAuthorization("permissions", "view_matrix");
@@ -191,7 +192,7 @@ export async function GET(req) {
       );
     }
 
-    const user = await getContactAssignmentState(userCid);
+    const user = await getContactProfileOverrideState(userCid);
     if (user.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "User not found" },
@@ -201,22 +202,20 @@ export async function GET(req) {
 
     const userRow = user.rows[0];
 
-    // Get explicitly assigned profile
     let assignedProfile = null;
-    if (userRow.access_profile_id) {
-      const profile = await getAccessProfileSummary(userRow.access_profile_id);
+    if (userRow.profile_key) {
+      const profile = await getProfileSummaryByKey(userRow.profile_key);
       if (profile.rows.length > 0) {
-        assignedProfile = { id: profile.rows[0].id, name: profile.rows[0].name };
+        assignedProfile = { key: profile.rows[0].key, name: profile.rows[0].label || profile.rows[0].key };
       }
     }
 
-    // Get role default profile
     let roleDefault = null;
-    const roleDefaultResult = await getRoleDefaultAccessProfile(userRow.role);
+    const roleDefaultResult = await getRoleDefaultProfileSummary(userRow.role);
     if (roleDefaultResult.rows.length > 0) {
       roleDefault = {
-        id: roleDefaultResult.rows[0].id,
-        name: roleDefaultResult.rows[0].name,
+        key: roleDefaultResult.rows[0].key,
+        name: roleDefaultResult.rows[0].label || roleDefaultResult.rows[0].key,
       };
     }
 
@@ -228,7 +227,7 @@ export async function GET(req) {
       effectiveSource: assignedProfile ? "user" : roleDefault ? "role" : "legacy",
     });
   } catch (error) {
-    console.error("[Assign Profile GET] error:", error);
+    console.error("[Profile override GET] error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 },

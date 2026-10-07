@@ -10,6 +10,7 @@ import { requireSameOrigin } from "@/lib/requestOrigin";
 import {
   PROFILE_CONTEXTS,
   PROFILE_ROLE_ENFORCEMENT,
+  PROFILE_BASELINE_ROLES,
   getProfileDefinition,
 } from "@/models/authorization/profile-catalog";
 import { PERMISSION_MODULES } from "@/server/authz/capabilities";
@@ -27,6 +28,7 @@ import {
   countActiveAssignmentsForProfileKey,
 } from "@/models/authorization/profileAssignmentsStore";
 import { countContextRoleProfilesByKey } from "@/models/authorization/contextRoleProfiles";
+import { listRoleProfileDefaults } from "@/models/authorization/profileCapabilitiesStore";
 import {
   normalizeAllowedRoles,
   validateProfileUpdate,
@@ -125,13 +127,19 @@ export async function GET(req) {
       });
     }
 
-    const [result, counts] = await Promise.all([
+    const [result, counts, defaultsRes] = await Promise.all([
       listProfiles(),
       listProfileCapabilityCounts(),
+      listRoleProfileDefaults(),
     ]);
     const profiles = (result.rows || []).map((row) =>
       shapeProfile(row, getProfileDefinition(row.key) || {}, undefined, counts[row.key] ?? 0),
     );
+    // Role → profile defaults, so the screen can show "Default for".
+    const roleDefaults = {};
+    for (const row of defaultsRes.rows || []) {
+      roleDefaults[row.role_name] = row.profile_key;
+    }
 
     return NextResponse.json({
       success: true,
@@ -141,6 +149,8 @@ export async function GET(req) {
       role_enforcement: PROFILE_ROLE_ENFORCEMENT,
       // The editable capability catalog, so the screen can build its matrix.
       modules: PERMISSION_MODULES,
+      baseline_roles: PROFILE_BASELINE_ROLES,
+      role_defaults: roleDefaults,
       profiles,
     });
   } catch (error) {

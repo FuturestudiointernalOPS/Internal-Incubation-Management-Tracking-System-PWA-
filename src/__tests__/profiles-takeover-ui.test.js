@@ -57,6 +57,18 @@ test("the catalogue is dynamic: create and delete go through the API", () => {
   expect(src).toContain('method: "DELETE"');
 });
 
+test("B1 — the screen can set a role's default profile", () => {
+  const src = read(VIEW);
+  expect(src).toContain("/api/engineering/permissions/profile-role-defaults");
+  expect(read(`${PERMS}profiles-view/ProfileCapabilityEditor.js`)).toContain("defaultForTitle");
+});
+
+test("A1 — the on-person override goes through the profile key", () => {
+  const src = read(`${PERMS}permission-center/PersonAccessScreen.js`);
+  expect(src).toContain("/api/engineering/permissions/profile-override");
+  expect(src).toContain("profile_key: profileKey || null");
+});
+
 test("every new string exists in English and French", () => {
   for (const key of [
     "engineering.permissions.profilesCreateToggle",
@@ -76,6 +88,8 @@ test("every new string exists in English and French", () => {
     "engineering.permissions.profilesCapsSave",
     "engineering.permissions.profilesCapsSaved",
     "engineering.permissions.profilesEditCapabilities",
+    "engineering.permissions.roleDefaultSaved",
+    "engineering.permissions.roleDefaultFailed",
     // The two contexts the takeover conversion introduces.
     "engineering.permissions.contextRolesContexts.global",
     "engineering.permissions.contextRolesContexts.staff",

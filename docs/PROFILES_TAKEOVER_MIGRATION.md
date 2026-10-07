@@ -1,6 +1,6 @@
 # Migration — les profils reprennent les access profiles
 
-**Statut :** tranches 1 à 5 (+ garde d'assignation, + seed direct du catalogue) faites. Reste la tranche 6b : retrait des routes/tables `access_profiles*` et migration de l'override individuel de l'écran People.
+**Statut :** tranches 1 à 5, garde d'assignation, seed direct (6a), A1 (override par clé de profil) et B1 (défaut de rôle éditable) faits. Reste la suppression des routes/tables/UI retirées.
 
 **Décisions produit validées :**
 
@@ -78,7 +78,7 @@ Profils → `profile_capabilities` :
 | 3 | Résolveur | `contextReads` + `baseCapabilities` lisent `profile_capabilities` (priorité), repli sur l'ancien chemin tant qu'il existe. **FAIT** | Moyen |
 | 4 | API | `/api/engineering/permissions/profiles` gère capacités + créer/supprimer ; catalogue dynamique (clés libres, libellés stockés, validation par forme). **FAIT** (`baseCapabilities.js` — le garde d'assignation — reste à basculer en tranche 5) | Moyen |
 | 5 | UI | Écran « Profiles » unique : créer/supprimer un profil, éditer ses capacités ; sous-onglet « Access profiles » et rollup retirés. **FAIT** (`baseCapabilities.js` — le garde d'assignation — reste à basculer : comportement d'avertissement, pas une décision d'accès) | Moyen |
-| 6 | Nettoyage | **6a FAIT** : seed direct du catalogue (indépendant d'`access_profiles`). **6b À FAIRE** : migrer l'override individuel de l'écran People (`contacts.access_profile_id` + `/api/access-profiles/assign`) vers les profils, puis supprimer les routes `/api/access-profiles*`, l'éditeur mort (`AccessProfilesView` + blocs + `EntitlementRollup`) et enfin les tables. | Élevé (en dernier) |
+| 6 | Nettoyage | **6a FAIT** : seed direct du catalogue. **A1 FAIT** : l'override individuel de l'écran People passe par la clé de profil (nouvelle route). **B1 FAIT** : « Défaut pour » réintroduit sur l'écran Profiles. **Reste** : supprimer les routes `/api/access-profiles*`, l'éditeur mort (`AccessProfilesView` + blocs + `EntitlementRollup`) et enfin les tables. | Élevé (en dernier) |
 
 ## 4. Garde-fous
 

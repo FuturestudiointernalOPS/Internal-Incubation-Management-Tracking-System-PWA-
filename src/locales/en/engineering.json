@@ -560,6 +560,8 @@
       "profilesCapsSaved": "Capabilities saved.",
       "profilesCapsIneligible": "One or more capabilities are not eligible for the role {role}.",
       "profilesEditCapabilities": "Capabilities",
+      "roleDefaultSaved": "Default updated for {role}.",
+      "roleDefaultFailed": "Could not update the role default.",
       "profilesKey": "Profile",
       "profilesAllowedRoles": "Allowed baseline roles",
       "profilesActive": "Active",
