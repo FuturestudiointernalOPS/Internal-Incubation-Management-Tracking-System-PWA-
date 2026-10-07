@@ -42,6 +42,7 @@ import {
   getBaseCapabilityRows,
   getGroupCapabilityRows,
   getFeatureEligibilityRows,
+  getContextEligibilityRoles,
 } from "@/models/authorization/contextReads";
 import {
   rowsToCaps,
@@ -112,12 +113,19 @@ export async function resolveAuthorizationContext({ cid, role }) {
   // effective groups. These four reads are independent of each other — they used
   // to be two separate waves, which cost every cold resolution an extra round
   // trip (~130ms) for nothing.
-  const [grantRows, restrictRows, contactRes, groupList] = await Promise.all([
+  const [grantRows, restrictRows, contactRes, groupList, contextRoleRows] = await Promise.all([
     getUserCapabilityGrants(cid),
     getUserCapabilityRestrictions(cid),
     getContactAccessProfileAndGroup(cid),
     getEffectiveGroupsForUser(cid),
+    // The context roles this person holds (venture founder, participant,
+    // facilitator…) are eligibility identities too: a founder whose stored role
+    // is `facilitator` must still be eligible for the Venture they founded.
+    getContextEligibilityRoles(cid),
   ]);
+  const contextRoles = (contextRoleRows.rows || [])
+    .map((row) => row.role_key)
+    .filter(Boolean);
   const grants = rowsToCaps(grantRows.rows);
   const restrictions = rowsToRestrictions(restrictRows.rows);
 
@@ -155,7 +163,7 @@ export async function resolveAuthorizationContext({ cid, role }) {
   const [capsRes, groupCapsRes, eligRes] = await Promise.all([
     getBaseCapabilityRows({ profileId, role }),
     getGroupCapabilityRows(groups),
-    getFeatureEligibilityRows(role, groups),
+    getFeatureEligibilityRows(role, groups, contextRoles),
   ]);
   const baseCaps = rowsToCaps(capsRes.rows);
   const groupCaps = rowsToCaps(groupCapsRes.rows);

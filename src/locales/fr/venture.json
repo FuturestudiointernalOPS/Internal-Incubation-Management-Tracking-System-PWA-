@@ -770,6 +770,8 @@
         "low": "Faible"
       },
       "intro": "Téléversez un tracker d'entreprise (.xlsx ou .csv). L'analyste le lit et propose un Parcours, ses jalons, tâches et livrables à valider.",
+      "showUpload": "Téléverser un tracker",
+      "hideUpload": "Masquer le téléversement",
       "file": "Fichier du tracker",
       "fileHint": "Un tracker .xlsx ou .csv, jusqu'à 5 Mo. Le téléversement ne crée rien. Si le classeur contient plusieurs feuilles, celle nommée « Tracker » est lue — sinon, la feuille vous est demandée.",
       "chooseSheet": "Quelle feuille contient le plan ?",

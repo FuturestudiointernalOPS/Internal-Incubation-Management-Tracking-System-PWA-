@@ -29,6 +29,10 @@ import { NextResponse } from "next/server";
  *     payments: the scheduler has no session, and the x-cron-secret shared
  *     secret is the credential — every OTHER /api/lms/* route stays behind a
  *     session)
+ *   - /api/reminders/sweep (the daily reminder job: a clock has no session, and
+ *     the x-cron-secret shared secret is the credential, checked in-route. Every
+ *     OTHER /api/reminders/* and /api/ventures/[id]/reminders route stays behind
+ *     a session — only the sweep is reachable without one)
  *   - /api/platform/scheduled-result-emails (a scheduler's call that releases
  *     the result emails whose delay has elapsed: the scheduler has no session,
  *     and the shared secret is the credential — every OTHER /api/platform/*
@@ -75,6 +79,12 @@ const publicApiPaths = [
   "/api/public",
   "/api/webhooks/kkiapay",
   "/api/lms/checkout-reconcile",
+  // The daily reminder sweep. A clock holds no session cookie, so without this
+  // the request is refused at the edge with 401 and the route never runs — the
+  // job would look "configured" and silently never send anything. The route's
+  // own x-cron-secret gate is the credential; it answers 503 when no secret is
+  // configured rather than degrading into an open send button.
+  "/api/reminders/sweep",
   "/api/platform/scheduled-result-emails",
   "/api/families",
   "/api/verify",

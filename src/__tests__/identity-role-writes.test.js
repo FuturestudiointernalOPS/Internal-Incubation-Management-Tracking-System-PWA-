@@ -56,6 +56,10 @@ test("mutation-site inventory is frozen (every contacts.role write is known)", (
     "src/models/investorRelations/provisioningAndProfile.js", // investor onboarding (contextual — I2 target)
     "src/models/platform/automation/automationCore.js", // platform approval role set (contextual — I2 target)
   ];
+  // ventureMemberInvitations.js is deliberately NOT here: accepting a founder
+  // invitation makes the person a baseline MEMBER and carries the founder role
+  // on the MEMBERSHIP, so the stored identity is never rewritten by a context
+  // join (the model this work moved to).
   // authFlows.js used to be here: accepting a legacy V2 invite overwrote the
   // contact's role with no guard. Both the routes and the model helpers behind
   // them were verified unused and removed, so the site is gone rather than

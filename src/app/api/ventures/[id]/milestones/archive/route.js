@@ -10,9 +10,11 @@ import { listMilestonesForArchive } from "@/models/ventureWorkspace";
  * Body: { ids: [..], action: "archive" | "restore" }
  *
  * Soft delete: milestones (and their tasks) are archived, never removed.
- * Milestones that already have filed work (submissions/reviews/deliverables)
- * are blocked — they are part of the Venture's record. Response reports
- * archived/restored/blocked per id so the UI can show exactly what happened.
+ * Milestones that already have filed work are blocked — they are part of the
+ * Venture's record. Filed work is engagement (submissions, staff reviews,
+ * deliverables that have been worked on); pristine tracker-import deliverable
+ * rows do not block. Response reports archived/restored/blocked per id so the
+ * UI can show exactly what happened.
  */
 export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;

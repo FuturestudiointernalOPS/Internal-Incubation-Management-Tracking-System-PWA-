@@ -100,16 +100,68 @@ export function getGroupCapabilityRows(groups) {
 }
 
 /**
- * Eligibility rows for a role and its groups, in one query. The placeholders
- * keep the original `NULL` fallback for a person with no groups.
+ * Eligibility rows for a role, its groups and the CONTEXT roles it holds, in
+ * one query. The placeholders keep the original `NULL` fallback for a person
+ * with no groups.
+ *
+ * `contextRoles` (venture founder / venture member, program participant,
+ * facilitator…) belong here because the engine enforces a context role as a
+ * ceiling too, and a person carries ONE stored role. Without them, a founder
+ * whose stored role is `facilitator` would only ever be checked as a
+ * facilitator and would be denied the Venture they founded — the bug this
+ * parameter closes.
  */
-export function getFeatureEligibilityRows(role, groups) {
+export function getFeatureEligibilityRows(role, groups, contextRoles = []) {
   const placeholders = groups.length ? groups.map(() => "?").join(",") : "NULL";
+  const identities = [role, ...contextRoles].filter(
+    (identity, index, all) => identity && all.indexOf(identity) === index,
+  );
+  const rolePlaceholders = identities.length ? identities.map(() => "?").join(",") : "NULL";
   return db.execute({
     sql: `SELECT feature_key, identity_type, identity_value, eligible
             FROM feature_eligibility
-            WHERE (identity_type = 'role' AND identity_value = ?)
+            WHERE (identity_type = 'role' AND identity_value IN (${rolePlaceholders}))
                OR (identity_type = 'group' AND identity_value IN (${placeholders}))`,
-    args: [role, ...groups],
+    args: [...identities, ...groups],
   });
+}
+
+/**
+ * The CONTEXT roles this person holds right now — the eligibility identities
+ * that are true of them because of a relationship, not because of their stored
+ * role:
+ *
+ *   venture founder       → 'founder'   (venture_members.member_type)
+ *   other venture member  → 'member'
+ *   program enrollment    → 'participant'
+ *   program assignment    → 'facilitator'
+ *
+ * Best-effort: a context that cannot be read contributes nothing rather than
+ * breaking the whole resolution (the same tolerance the scope reads use).
+ */
+export async function getContextEligibilityRoles(cid) {
+  if (!cid) return { rows: [] };
+  try {
+    return await db.execute({
+      sql: `SELECT DISTINCT role_key FROM (
+              SELECT 'founder' AS role_key FROM venture_members
+               WHERE (contact_id = ? OR user_cid = ?) AND removed_at IS NULL
+                 AND member_type = 'founder'
+              UNION
+              SELECT 'member' AS role_key FROM venture_members
+               WHERE (contact_id = ? OR user_cid = ?) AND removed_at IS NULL
+                 AND (member_type IS NULL OR member_type <> 'founder')
+              UNION
+              SELECT 'participant' AS role_key FROM participant_programs
+               WHERE participant_id = ?
+              UNION
+              SELECT 'facilitator' AS role_key FROM v2_program_staff
+               WHERE role = 'facilitator'
+                 AND (staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(?))
+            ) context_roles`,
+      args: [cid, cid, cid, cid, cid, cid, cid],
+    });
+  } catch (_) {
+    return { rows: [] };
+  }
 }
