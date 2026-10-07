@@ -770,6 +770,8 @@
         "low": "Low"
       },
       "intro": "Upload a business tracker (.xlsx or .csv). The analyst reads it and proposes a Journey, its milestones, tasks and deliverables for review.",
+      "showUpload": "Upload tracker",
+      "hideUpload": "Hide upload",
       "file": "Tracker file",
       "fileHint": "An .xlsx or .csv tracker, up to 5 MB. Uploading it creates nothing. If the workbook has several sheets, the one named \"Tracker\" is read — otherwise you are asked which one it is.",
       "chooseSheet": "Which sheet holds the plan?",

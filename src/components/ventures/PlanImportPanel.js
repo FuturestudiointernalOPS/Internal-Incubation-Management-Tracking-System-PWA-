@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { FileSpreadsheet, Loader2, Trash2 } from "lucide-react";
+import { ChevronUp, FileSpreadsheet, Loader2, Trash2, Upload } from "lucide-react";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { useApi } from "@/lib/hooks/useApi";
 import PlanUpload from "./plan-import/PlanUpload";
@@ -22,10 +23,15 @@ import PlanReview from "./plan-import/PlanReview";
  * The two steps live in `plan-import/`: `PlanUpload` (choose and read a file)
  * and `PlanReview` (correct and apply the proposal). This module only loads the
  * stored draft and switches between them.
+ *
+ * The upload form is an ACTION, not furniture: the panel opens collapsed and
+ * the form appears only when someone clicks to upload. A stored draft, on the
+ * other hand, is active work and stays open.
  */
 export default function PlanImportPanel({ ventureId }) {
   const { t } = useI18n();
   const { confirm } = useDialogs();
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const { data: draft, loading, refresh: refreshDraft } = useApi(
     ventureId ? `/api/ventures/${ventureId}/plan-import` : null,
@@ -42,6 +48,7 @@ export default function PlanImportPanel({ ventureId }) {
         body: JSON.stringify({ id: draft.id, action: "discard" }),
       });
     } finally {
+      setUploadOpen(false);
       refreshDraft();
     }
   };
@@ -58,7 +65,7 @@ export default function PlanImportPanel({ ventureId }) {
             </span>
           )}
         </h3>
-        {draft && (
+        {draft ? (
           <button
             type="button"
             onClick={discard}
@@ -66,6 +73,16 @@ export default function PlanImportPanel({ ventureId }) {
           >
             <Trash2 className="w-3 h-3" />
             {t("venture.planImport.discard")}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setUploadOpen((open) => !open)}
+            aria-expanded={uploadOpen}
+            className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black hover:opacity-90 flex items-center gap-1.5"
+          >
+            {uploadOpen ? <ChevronUp className="w-3 h-3" /> : <Upload className="w-3 h-3" />}
+            {t(uploadOpen ? "venture.planImport.hideUpload" : "venture.planImport.showUpload")}
           </button>
         )}
       </div>
@@ -78,9 +95,16 @@ export default function PlanImportPanel({ ventureId }) {
         // `key` so a replaced draft remounts with its own working copy rather
         // than editing the draft that is no longer there.
         <PlanReview key={draft.id} ventureId={ventureId} draft={draft} onSaved={refreshDraft} />
-      ) : (
-        <PlanUpload ventureId={ventureId} onUploaded={refreshDraft} />
-      )}
+      ) : uploadOpen ? (
+        <PlanUpload
+          ventureId={ventureId}
+          onUploaded={async () => {
+            // The proposal replaces the form: collapse behind it.
+            setUploadOpen(false);
+            await refreshDraft();
+          }}
+        />
+      ) : null}
     </div>
   );
 }
