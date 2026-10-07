@@ -12,7 +12,7 @@
 
 const executed = [];
 
-let mockProfileMetaRows = [];
+let mockProfileRows = [];
 
 jest.mock("@/lib/db", () => ({
   __esModule: true,
@@ -22,10 +22,13 @@ jest.mock("@/lib/db", () => ({
       const args = typeof queryObj === "string" ? [] : queryObj?.args || [];
       executed.push({ sql: String(sql), args });
 
-      if (String(sql).includes("SELECT id FROM access_profiles WHERE name ="))
-        return { rows: [{ id: 7 }] };
-      if (String(sql).includes("FROM access_profiles WHERE id ="))
-        return { rows: mockProfileMetaRows };
+      // The single-row lookup the PUT path validates against.
+      if (String(sql).includes("FROM profiles WHERE key ="))
+        return { rows: mockProfileRows };
+      // The catalogue list the GET path renders as the dropdown.
+      if (String(sql).includes("FROM profiles")) {
+        return { rows: [{ key: "mentor", label: "Mentor", is_active: 1 }] };
+      }
       if (String(sql).includes("FROM context_role_profiles")) {
         return {
           rows: [
@@ -33,16 +36,13 @@ jest.mock("@/lib/db", () => ({
               id: 1,
               context: "venture",
               role_key: "founder",
-              profile_id: null,
+              profile_key: null,
               is_active: 1,
               notes: "",
               profile_name: null,
             },
           ],
         };
-      }
-      if (String(sql).includes("SELECT ap.*")) {
-        return { rows: [{ id: 7, name: "Mentor", is_active: 1 }] };
       }
       // The holder counts are now read as ONE statement that labels each count
       // with its "context:role_key" pair (a UNION ALL when there is more than
@@ -87,28 +87,9 @@ const {
   isValidContextRoleContext,
   isValidContextRoleKey,
 } = require("@/models/authorization/contextRoleProfiles");
-
-/** Profile names created by seedDefaultAccessProfiles() in src/lib/auth.js. */
-const SEEDED_PROFILE_NAMES = [
-  "Super Admin Default",
-  "Staff Default",
-  "Participant Default",
-  "Developer",
-  "Developer Intern",
-  "Program Manager",
-  "Project Owner",
-  "Operations Manager",
-  "Instructor",
-  "Finance Assistant",
-  "Mentor",
-  "Founder",
-  "Venture Member",
-  // Assignment-derived program management (Context Roles → program:program_manager).
-  "Assigned Program Manager",
-  // Phase E context/profile couples.
-  "Learner",
-  "Venture Manager",
-];
+const {
+  profileKeyForAccessProfileName,
+} = require("@/models/authorization/profileTakeoverBackfill");
 
 const putReq = (body) =>
   new Request("http://localhost/api/engineering/permissions/context-roles", {
@@ -120,7 +101,7 @@ const putReq = (body) =>
 beforeEach(() => {
   executed.length = 0;
   mockAuthzDecision = null;
-  mockProfileMetaRows = [{ id: 7, name: "Mentor" }];
+  mockProfileRows = [{ key: "mentor", label: "Mentor" }];
   jest.clearAllMocks();
 });
 
@@ -137,10 +118,12 @@ describe("Phase 4 — seed catalogue integrity", () => {
     expect(seen.size).toBe(CONTEXT_ROLE_SEED.length);
   });
 
-  test("mapped seed profiles exist in the default profile seed (no typos)", () => {
+  test("mapped seed profiles resolve to a profile key (no typos)", () => {
     for (const row of CONTEXT_ROLE_SEED) {
       if (row.profile_name !== null) {
-        expect(SEEDED_PROFILE_NAMES).toContain(row.profile_name);
+        // Every legacy access-profile NAME maps to exactly one profile KEY; an
+        // unmapped name would leave the registry row silently unmapped.
+        expect(profileKeyForAccessProfileName(row.profile_name)).toBeTruthy();
       }
     }
   });
@@ -194,7 +177,7 @@ describe("GET /api/engineering/permissions/context-roles", () => {
     expect(data.roles[0].holders).toBe(4);
     expect(data.profiles.length).toBeGreaterThan(0);
     const all = executed.map((entry) => entry.sql).join("\n");
-    expect(all).toContain("LEFT JOIN access_profiles");
+    expect(all).toContain("LEFT JOIN profiles");
     expect(all).toContain("ON CONFLICT (context, role_key) DO NOTHING");
   });
 
@@ -221,10 +204,10 @@ describe("PUT /api/engineering/permissions/context-roles", () => {
     expect(badKey.status).toBe(400);
   });
 
-  test("rejects a profile id that does not exist → 400", async () => {
-    mockProfileMetaRows = [];
+  test("rejects a profile key that does not exist → 400", async () => {
+    mockProfileRows = [];
     const res = await route.PUT(
-      putReq({ context: "venture", role_key: "founder", profile_id: 999 }),
+      putReq({ context: "venture", role_key: "founder", profile_key: "ghost_profile" }),
     );
     expect(res.status).toBe(400);
     expect(executed.some((entry) => entry.sql.includes("INSERT INTO context_role_profiles"))).toBe(false);
@@ -235,7 +218,7 @@ describe("PUT /api/engineering/permissions/context-roles", () => {
       putReq({
         context: "lms",
         role_key: "learner",
-        profile_id: 7,
+        profile_key: "mentor",
         is_active: true,
         notes: "learner default",
         reason: "product review 2026-09",
@@ -260,19 +243,19 @@ describe("PUT /api/engineering/permissions/context-roles", () => {
     expect(audit.details).toContain("product review 2026-09");
   });
 
-  test("accepts profile_id null (unmapped stays a first-class state)", async () => {
+  test("accepts profile_key null (unmapped stays a first-class state)", async () => {
     const res = await route.PUT(
-      putReq({ context: "venture", role_key: "founder", profile_id: null }),
+      putReq({ context: "venture", role_key: "founder", profile_key: null }),
     );
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.mapping.profile_id).toBeNull();
+    expect(data.mapping.profile_key).toBeNull();
     const audit = logPermissionAudit.mock.calls[0][0];
     expect(audit.details).toContain("no default");
   });
 
   test("a write never invalidates authorization contexts in Phase 4 (registry is inert)", async () => {
-    await route.PUT(putReq({ context: "venture", role_key: "founder", profile_id: 7 }));
+    await route.PUT(putReq({ context: "venture", role_key: "founder", profile_key: "mentor" }));
     expect(invalidateAllAuthorizationContexts).not.toHaveBeenCalled();
   });
 });
@@ -290,11 +273,11 @@ describe("Phase 6 — NULL mapping repair (profile added after the seed)", () =>
     const updates = executed.filter((entry) => entry.sql.includes("UPDATE context_role_profiles"));
     expect(updates.length).toBeGreaterThan(0);
     // The repair is strictly additive: only rows still NULL are eligible.
-    for (const update of updates) expect(update.sql).toContain("profile_id IS NULL");
+    for (const update of updates) expect(update.sql).toContain("profile_key IS NULL");
 
     const founderUpdate = updates.find((update) => update.args[1] === "venture" && update.args[2] === "founder");
     expect(founderUpdate).toBeTruthy();
-    expect(founderUpdate.args[0]).toBe(7); // the profile id resolved by name
+    expect(founderUpdate.args[0]).toBe("founder"); // the profile key resolved by name
     expect(
       result.updated.find((update) => update.context === "venture" && update.role_key === "founder").profile,
     ).toBe("Founder");

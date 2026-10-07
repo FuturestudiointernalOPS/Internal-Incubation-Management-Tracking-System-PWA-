@@ -29,6 +29,7 @@
  */
 
 import db from "@/lib/db";
+import { profileKeyForAccessProfileName } from "./profileTakeoverBackfill";
 
 let contextRoleProfilesSchemaPromise = null;
 
@@ -125,6 +126,7 @@ export function ensureContextRoleProfilesSchema() {
         context TEXT NOT NULL,
         role_key TEXT NOT NULL,
         profile_id INTEGER,
+        profile_key TEXT,
         is_active INTEGER NOT NULL DEFAULT 1,
         notes TEXT DEFAULT '',
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -155,20 +157,15 @@ export async function seedContextRoleProfiles() {
   try {
     await ensureContextRoleProfilesSchema();
     for (const row of CONTEXT_ROLE_SEED) {
-      let profileId = null;
-      if (row.profile_name) {
-        const profile = await db.execute({
-          sql: "SELECT id FROM access_profiles WHERE name = ?",
-          args: [row.profile_name],
-        });
-        profileId = profile.rows[0]?.id ?? null;
-      }
+      const profileKey = row.profile_name
+        ? profileKeyForAccessProfileName(row.profile_name)
+        : null;
       await db.execute({
         sql: `INSERT INTO context_role_profiles
-                (context, role_key, profile_id, is_active, notes)
+                (context, role_key, profile_key, is_active, notes)
               VALUES (?, ?, ?, 1, ?)
               ON CONFLICT (context, role_key) DO NOTHING`,
-        args: [row.context, row.role_key, profileId, row.notes || ""],
+        args: [row.context, row.role_key, profileKey, row.notes || ""],
       });
     }
     return { success: true };
@@ -199,17 +196,13 @@ export async function backfillContextRoleProfileMappings() {
   const updated = [];
   for (const row of CONTEXT_ROLE_SEED) {
     if (!row.profile_name) continue;
-    const profile = await db.execute({
-      sql: "SELECT id FROM access_profiles WHERE name = ?",
-      args: [row.profile_name],
-    });
-    const profileId = profile.rows?.[0]?.id ?? null;
-    if (!profileId) continue;
+    const profileKey = profileKeyForAccessProfileName(row.profile_name);
+    if (!profileKey) continue;
     const res = await db.execute({
       sql: `UPDATE context_role_profiles
-            SET profile_id = ?, updated_at = NOW()
-            WHERE context = ? AND role_key = ? AND profile_id IS NULL`,
-      args: [profileId, row.context, row.role_key],
+            SET profile_key = ?, updated_at = NOW()
+            WHERE context = ? AND role_key = ? AND profile_key IS NULL`,
+      args: [profileKey, row.context, row.role_key],
     });
     updated.push({
       context: row.context,
@@ -235,11 +228,11 @@ export function countContextRoleProfilesByKey(profileKey) {
 /** Every registry row, with the mapped profile name (LEFT JOIN, never hidden). */
 export async function listContextRoleProfiles() {
   return db.execute({
-    sql: `SELECT crp.id, crp.context, crp.role_key, crp.profile_id,
+    sql: `SELECT crp.id, crp.context, crp.role_key, crp.profile_key,
                  crp.is_active, crp.notes, crp.updated_at,
-                 ap.name AS profile_name
+                 p.label AS profile_name
           FROM context_role_profiles crp
-          LEFT JOIN access_profiles ap ON ap.id = crp.profile_id
+          LEFT JOIN profiles p ON p.key = crp.profile_key
           ORDER BY crp.context, crp.role_key`,
   });
 }
@@ -247,11 +240,11 @@ export async function listContextRoleProfiles() {
 /** Single registry row — the resolution helper future phases will consume. */
 export async function getContextRoleProfile(context, roleKey) {
   return db.execute({
-    sql: `SELECT crp.id, crp.context, crp.role_key, crp.profile_id,
+    sql: `SELECT crp.id, crp.context, crp.role_key, crp.profile_key,
                  crp.is_active, crp.notes,
-                 ap.name AS profile_name
+                 p.label AS profile_name
           FROM context_role_profiles crp
-          LEFT JOIN access_profiles ap ON ap.id = crp.profile_id
+          LEFT JOIN profiles p ON p.key = crp.profile_key
           WHERE crp.context = ? AND crp.role_key = ?
           LIMIT 1`,
     args: [context, roleKey],
@@ -262,20 +255,20 @@ export async function getContextRoleProfile(context, roleKey) {
 export async function upsertContextRoleProfile({
   context,
   roleKey,
-  profileId,
+  profileKey,
   isActive,
   notes,
 }) {
   return db.execute({
     sql: `INSERT INTO context_role_profiles
-            (context, role_key, profile_id, is_active, notes)
+            (context, role_key, profile_key, is_active, notes)
           VALUES (?, ?, ?, ?, ?)
           ON CONFLICT (context, role_key) DO UPDATE SET
-            profile_id = EXCLUDED.profile_id,
+            profile_key = EXCLUDED.profile_key,
             is_active = EXCLUDED.is_active,
             notes = EXCLUDED.notes,
             updated_at = NOW()`,
-    args: [context, roleKey, profileId, isActive ? 1 : 0, notes || ""],
+    args: [context, roleKey, profileKey, isActive ? 1 : 0, notes || ""],
   });
 }
 

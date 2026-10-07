@@ -1,6 +1,6 @@
 # Migration — les profils reprennent les access profiles
 
-**Statut :** produit migré (profils porteurs), A1/B1 faits, surfaces `access_profiles` retirées. Reste le retrait des tables physiques, qui dépend du portage des backfills de capacités.
+**Statut :** produit migré (profils porteurs), A1/B1 faits, surfaces `access_profiles` retirées, **registre des contextes porté sur `profile_key`**. Reste le retrait des tables physiques, qui dépend de (a) la colonne d'override des affectations d'équipe de programme, (b) les migrations de boot qui lisent encore les tables, (c) une migration `DROP`.
 
 **Décisions produit validées :**
 
@@ -78,7 +78,7 @@ Profils → `profile_capabilities` :
 | 3 | Résolveur | `contextReads` + `baseCapabilities` lisent `profile_capabilities` (priorité), repli sur l'ancien chemin tant qu'il existe. **FAIT** | Moyen |
 | 4 | API | `/api/engineering/permissions/profiles` gère capacités + créer/supprimer ; catalogue dynamique (clés libres, libellés stockés, validation par forme). **FAIT** (`baseCapabilities.js` — le garde d'assignation — reste à basculer en tranche 5) | Moyen |
 | 5 | UI | Écran « Profiles » unique : créer/supprimer un profil, éditer ses capacités ; sous-onglet « Access profiles » et rollup retirés. **FAIT** (`baseCapabilities.js` — le garde d'assignation — reste à basculer : comportement d'avertissement, pas une décision d'accès) | Moyen |
-| 6 | Nettoyage | Surfaces retirées. **Portage FAIT** : les 10 rattrapages de modules + le rattrapage LMS écrivent désormais `profile_capabilities` par clé. **Reste avant un `DROP TABLE`** : (a) le registre des contextes (jointure vers `access_profiles` + seed par nom) → à joindre sur `profiles` ; (b) la colonne d'override des affectations d'équipe de programme ; (c) les migrations de boot `assigned/portfolio-pm`, `phase-e`, `context-role-mappings`, `facilitator-tick-list`, `profiles-takeover` qui écrivent/lisent encore les tables ; (d) les CREATE du schéma + une migration `DROP`. | Élevé (en dernier) |
+| 6 | Nettoyage | Surfaces retirées. **Portage FAIT** : les 10 rattrapages de modules + le rattrapage LMS écrivent désormais `profile_capabilities` par clé. **Registre des contextes FAIT** : `context_role_profiles` lit/écrit `profile_key` (seed par clé, `listContextRoleProfiles`/`getContextRoleProfile` en JOIN sur `profiles.key`, API + écran `ContextRolesView` par clé), et les migrations de boot redondantes (`assigned-program-manager-profile-v1`, `portfolio-program-manager-profile-v1`, `phase-e-context-profiles-v1`) sont **retirées** — le seed direct du catalogue + le seed du registre les remplacent. **Reste avant un `DROP TABLE`** : (a) la colonne d'override des affectations d'équipe de programme (`v2_program_staff.access_profile_id`) ; (b) les migrations de boot qui lisent encore les tables (`context-role-mappings`, `facilitator-tick-list`, `profiles-takeover`) ; (c) le feature « portfolio split » (`program-portfolio-default` + `programScopeReadiness`) à retirer ; (d) les CREATE du schéma + une migration `DROP`. | Élevé (en dernier) |
 
 ## 4. Garde-fous
 
