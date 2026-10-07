@@ -35,11 +35,6 @@ export function countNotificationsForHealth() {
   return db.execute({ sql: "SELECT COUNT(*) as c FROM venture_notifications" });
 }
 
-/** Count the connected integrations (health probe). */
-export function countConnectedIntegrations() {
-  return db.execute({ sql: "SELECT COUNT(*) as c FROM integration_configs WHERE status='connected'" });
-}
-
 /** Record one health-check result. */
 export function insertHealthCheck(component, status, responseTimeMs, message, detailsJson) {
   return db.execute({
