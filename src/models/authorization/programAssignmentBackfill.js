@@ -200,10 +200,10 @@ export async function backfillFacilitatorTickLists() {
   // backfill exists for, and it must not be blocked by a column that only refines
   // the level lookup (see executeWithOptionalProfileColumn).
   const rowRes = await executeWithOptionalProfileColumn({
-    withColumn: `SELECT id, CAST(program_id AS TEXT) AS program_id, permissions, access_profile_id
+    withColumn: `SELECT id, CAST(program_id AS TEXT) AS program_id, permissions, profile_key
           FROM v2_program_staff
           WHERE LOWER(COALESCE(role, '')) = 'facilitator'`,
-    withoutColumn: `SELECT id, CAST(program_id AS TEXT) AS program_id, permissions, NULL AS access_profile_id
+    withoutColumn: `SELECT id, CAST(program_id AS TEXT) AS program_id, permissions, NULL AS profile_key
           FROM v2_program_staff
           WHERE LOWER(COALESCE(role, '')) = 'facilitator'`,
     args: [],
@@ -214,11 +214,11 @@ export async function backfillFacilitatorTickLists() {
   const programIds = [...new Set(rows.map((row) => String(row.program_id)))].filter(
     Boolean,
   );
-  const profileIds = [
+  const profileKeys = [
     ...new Set(
       rows
-        .map((row) => row.access_profile_id)
-        .filter((id) => id !== null && id !== undefined && id !== ""),
+        .map((row) => row.profile_key)
+        .filter((key) => key !== null && key !== undefined && key !== ""),
     ),
   ];
 
@@ -231,12 +231,12 @@ export async function backfillFacilitatorTickLists() {
           args: programIds,
         })
       : Promise.resolve({ rows: [] }),
-    profileIds.length
+    profileKeys.length
       ? db.execute({
-          sql: `SELECT profile_id, module, capability, access_level
-                FROM access_profile_capabilities
-                WHERE profile_id IN (${profileIds.map(() => "?").join(",")})`,
-          args: profileIds,
+          sql: `SELECT profile_key, module, capability, access_level
+                FROM profile_capabilities
+                WHERE profile_key IN (${profileKeys.map(() => "?").join(",")})`,
+          args: profileKeys,
         })
       : Promise.resolve({ rows: [] }),
   ]);
@@ -245,11 +245,11 @@ export async function backfillFacilitatorTickLists() {
   for (const row of defaultsRes.rows || []) {
     programDefaultById[String(row.id)] = parsePermissions(row.def);
   }
-  const profileCapsById = {};
+  const profileCapsByKey = {};
   for (const row of profileRes.rows || []) {
-    const profileId = String(row.profile_id);
-    profileCapsById[profileId] ??= [];
-    profileCapsById[profileId].push(row);
+    const profileKey = String(row.profile_key);
+    profileCapsByKey[profileKey] ??= [];
+    profileCapsByKey[profileKey].push(row);
   }
 
   let updated = 0;
@@ -262,8 +262,8 @@ export async function backfillFacilitatorTickLists() {
 
     const ctx = {
       profileCaps:
-        row.access_profile_id != null
-          ? profileCapsById[String(row.access_profile_id)] || []
+        row.profile_key != null
+          ? profileCapsByKey[String(row.profile_key)] || []
           : [],
       programDefault: programDefaultById[String(row.program_id)] || {},
     };

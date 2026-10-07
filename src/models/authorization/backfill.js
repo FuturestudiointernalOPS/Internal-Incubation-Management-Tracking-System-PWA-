@@ -22,6 +22,7 @@ import {
 } from "./programAssignmentBackfill";
 import { ensureProfileTakeover } from "./profileTakeoverBackfill";
 import { ensureProfileCatalogueSeed } from "./profileCatalogueSeed";
+import { backfillProgramAssignmentProfileKeys } from "./programAssignmentProfileKey";
 // The feature-key alignment RULE lives in the service layer (audit A1, finding
 // #8); its statements live in `./featureKeyAlignmentStore`. Importing it here is
 // a deliberate model→service edge, like `programAssignmentBackfill`.
@@ -166,6 +167,13 @@ export function ensureCapabilityBackfills() {
           // existing database's, possibly administrator-edited) always win — this
           // one is insert-only.
           runAuthzMigration("profile-catalogue-seed-v1", ensureProfileCatalogueSeed),
+          // The per-assignment profile override moves from an access-profile id
+          // (`v2_program_staff.access_profile_id`) to a profile KEY. Adds the
+          // column and fills it NULL-only from the legacy id, before the drop.
+          runAuthzMigration(
+            "program-assignment-profile-key-v1",
+            backfillProgramAssignmentProfileKeys,
+          ),
         ]);
         reportFailedMigrations(alignment);
 

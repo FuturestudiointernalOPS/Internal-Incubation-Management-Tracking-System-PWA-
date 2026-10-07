@@ -45,23 +45,23 @@ export function isProgramEnded(
   return false;
 }
 
-// ─── Optional column: v2_program_staff.access_profile_id ────────────────────
+// ─── Optional column: v2_program_staff.profile_key ──────────────────────────
 //
-// A per-assignment access-profile override is a REFINEMENT of the tick list
-// (JSON overrides first, then the assignment's profile, then the program
-// default). The column arrives with migration 041, and until it is applied a
-// query that NAMES it fails on the whole statement — which took the assignment
-// derivation down with it, and with it every gated request that waits on the
-// migration batch.
+// A per-assignment profile override is a REFINEMENT of the tick list (JSON
+// overrides first, then the assignment's profile, then the program default). The
+// column is added by the profiles-takeover migration
+// (`programAssignmentProfileKey.js`), and until it exists a query that NAMES it
+// fails on the whole statement — which took the assignment derivation down with
+// it, and with it every gated request that waits on the migration batch.
 //
 // So the read is tolerant: try with the column, and if the column is what is
 // missing, retry once without it and remember that for the process. The feature
-// then works on a database that has not applied 041 (overrides simply inactive),
+// then works on a database that has not applied it (overrides simply inactive),
 // and starts honouring them the moment the column exists — no deploy, no flag.
 let assignmentProfileColumn = null; // null = unknown, true/false = known
 
 /** Is this error "the column I named does not exist"? */
-export function isMissingColumnError(error, column = "access_profile_id") {
+export function isMissingColumnError(error, column = "profile_key") {
   const message = String(error?.message || error || "").toLowerCase();
   if (!message.includes(String(column).toLowerCase())) return false;
   return (
@@ -92,7 +92,7 @@ export async function executeWithOptionalProfileColumn({
     if (assignmentProfileColumn === null && isMissingColumnError(error)) {
       assignmentProfileColumn = false;
       console.warn(
-        "[Authz] v2_program_staff.access_profile_id is absent (migration 041 not applied): " +
+        "[Authz] v2_program_staff.profile_key is absent (profiles-takeover not applied): " +
           "per-assignment profile overrides are inactive until it exists; the tick list is unaffected.",
       );
       return db.execute({ sql: withoutColumn, args });
@@ -121,7 +121,7 @@ export async function listActiveProgramAssignments(cid, { email = null } = {}) {
       withColumn: `SELECT CAST(ps.program_id AS TEXT) AS program_id,
                    LOWER(COALESCE(ps.role, '')) AS role_key,
                    ps.permissions AS permissions,
-                   ps.access_profile_id AS access_profile_id,
+                   ps.profile_key AS profile_key,
                    p.end_date AS end_date,
                    p.status AS status,
                    p.is_archived AS is_archived
@@ -134,7 +134,7 @@ export async function listActiveProgramAssignments(cid, { email = null } = {}) {
       withoutColumn: `SELECT CAST(ps.program_id AS TEXT) AS program_id,
                    LOWER(COALESCE(ps.role, '')) AS role_key,
                    ps.permissions AS permissions,
-                   NULL AS access_profile_id,
+                   NULL AS profile_key,
                    p.end_date AS end_date,
                    p.status AS status,
                    p.is_archived AS is_archived
@@ -149,7 +149,7 @@ export async function listActiveProgramAssignments(cid, { email = null } = {}) {
       sql: `SELECT CAST(p.id AS TEXT) AS program_id,
                    'program_manager' AS role_key,
                    NULL AS permissions,
-                   NULL AS access_profile_id,
+                   NULL AS profile_key,
                    p.end_date AS end_date,
                    p.status AS status,
                    p.is_archived AS is_archived
@@ -180,11 +180,11 @@ export async function listActiveProgramAssignments(cid, { email = null } = {}) {
  */
 export async function loadAssignmentLookups(assignments = []) {
   const programIds = [...new Set(assignments.map((assignment) => String(assignment.program_id)))];
-  const profileIds = [
+  const profileKeys = [
     ...new Set(
       assignments
-        .map((assignment) => assignment.access_profile_id)
-        .filter((id) => id !== null && id !== undefined && id !== ""),
+        .map((assignment) => assignment.profile_key)
+        .filter((key) => key !== null && key !== undefined && key !== ""),
     ),
   ];
 
@@ -197,12 +197,12 @@ export async function loadAssignmentLookups(assignments = []) {
           args: programIds,
         })
       : Promise.resolve({ rows: [] }),
-    profileIds.length
+    profileKeys.length
       ? db.execute({
-          sql: `SELECT profile_id, module, capability, access_level
-                FROM access_profile_capabilities
-                WHERE profile_id IN (${profileIds.map(() => "?").join(",")})`,
-          args: profileIds,
+          sql: `SELECT profile_key, module, capability, access_level
+                FROM profile_capabilities
+                WHERE profile_key IN (${profileKeys.map(() => "?").join(",")})`,
+          args: profileKeys,
         })
       : Promise.resolve({ rows: [] }),
   ]);
@@ -214,17 +214,17 @@ export async function loadAssignmentLookups(assignments = []) {
 
   const profileCapsByProfile = {};
   for (const row of profileRes.rows || []) {
-    const profileId = String(row.profile_id);
-    profileCapsByProfile[profileId] ??= [];
-    profileCapsByProfile[profileId].push(row);
+    const profileKey = String(row.profile_key);
+    profileCapsByProfile[profileKey] ??= [];
+    profileCapsByProfile[profileKey].push(row);
   }
 
   const profileCapsByAssignment = {};
   for (const assignment of assignments) {
-    const profileId = assignment.access_profile_id;
-    if (profileId === null || profileId === undefined || profileId === "") continue;
+    const profileKey = assignment.profile_key;
+    if (profileKey === null || profileKey === undefined || profileKey === "") continue;
     profileCapsByAssignment[String(assignment.program_id)] =
-      profileCapsByProfile[String(profileId)] || [];
+      profileCapsByProfile[String(profileKey)] || [];
   }
 
   return { programDefaultById, profileCapsByAssignment };
