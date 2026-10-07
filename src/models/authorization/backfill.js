@@ -18,11 +18,8 @@ import { ensureMembershipBootstrap } from "./membership";
 import { backfillContextRoleProfileMappings } from "./contextRoleProfiles";
 import { seedProfiles } from "./profilesStore";
 import {
-  ensureAssignedProgramManagerProfile,
-  ensurePortfolioProgramManagerProfile,
   backfillFacilitatorTickLists,
 } from "./programAssignmentBackfill";
-import { ensurePhaseEContextProfiles } from "./contextProfilesBackfill";
 import { ensureProfileTakeover } from "./profileTakeoverBackfill";
 import { ensureProfileCatalogueSeed } from "./profileCatalogueSeed";
 // The feature-key alignment RULE lives in the service layer (audit A1, finding
@@ -134,39 +131,13 @@ export function ensureCapabilityBackfills() {
           ),
           // ASSIGNMENT-DERIVED PROGRAM ACCESS.
           //
-          // (a) Create the narrow "Assigned Program Manager" template and point
-          //     the registry's program:program_manager row at it — only while it
-          //     still points at the seeded profile, so an administrator's own
-          //     choice is never overwritten.
-          // (b) Fill the missing entries of every facilitator assignment's
-          //     tick list at the level today's resolution already produces, so
-          //     turning on per-program enforcement cannot deny a facilitator
-          //     who is already working. Never rewrites an existing entry.
-          runAuthzMigration(
-            "assigned-program-manager-profile-v1",
-            ensureAssignedProgramManagerProfile,
-          ),
-          // (c) Create the PORTFOLIO template — the trimmed replacement for the
-          //     role bundle that mixes programme management with venture
-          //     editing and people creation. ADDITIVE AND INERT: nothing
-          //     resolves to it until an administrator repoints the role default
-          //     from the permission console, after reading the impact report.
-          //     Nothing is repointed at boot, on purpose.
-          runAuthzMigration(
-            "portfolio-program-manager-profile-v1",
-            ensurePortfolioProgramManagerProfile,
-          ),
+          // Fill the missing entries of every facilitator assignment's tick list
+          // at the level today's resolution already produces, so turning on
+          // per-program enforcement cannot deny a facilitator who is already
+          // working. Never rewrites an existing entry.
           runAuthzMigration(
             "facilitator-tick-list-backfill-v1",
             backfillFacilitatorTickLists,
-          ),
-          // Phase E: create the Learner / Venture Manager templates and map the
-          // registry rows the new couples resolve to (learner was seeded with a
-          // NULL mapping; venture_manager had no row). Additive, admin-respecting,
-          // self-contained, so it can run beside the others.
-          runAuthzMigration(
-            "phase-e-context-profiles-v1",
-            ensurePhaseEContextProfiles,
           ),
         ]);
         reportFailedMigrations(results);

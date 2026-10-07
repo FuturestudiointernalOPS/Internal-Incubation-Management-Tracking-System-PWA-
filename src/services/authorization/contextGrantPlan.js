@@ -30,8 +30,9 @@ export const SUPPORTED_CONTEXT_ROLES = [
   { context: "program", roleKey: "program_manager" },
   // Phase E — the newly activated couples (roadmap §7, decision D5: all but
   // venture:team_member). Each has a capability template and a Context Roles
-  // registry mapping (see contextProfilesBackfill.js), so turning it on here is
-  // what starts reconciling its grants. Additive and reversible.
+  // registry mapping (seeded directly by profileCatalogueSeed + the registry
+  // seed), so turning it on here is what starts reconciling its grants.
+  // Additive and reversible.
   { context: "investor", roleKey: "investor" },
   { context: "lms", roleKey: "learner" },
   { context: "venture", roleKey: "venture_manager" },

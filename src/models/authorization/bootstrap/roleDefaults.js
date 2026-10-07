@@ -189,8 +189,8 @@ export async function seedDefaultAccessProfiles() {
         },
       },
       // Phase E — the templates the newly activated couples resolve to. The
-      // canonical creation runs in the one-time migration
-      // (contextProfilesBackfill.js); these entries keep the admin seed in sync
+      // canonical creation is the direct profile catalogue seed
+      // (profileCatalogueSeed.js); these entries keep the admin seed in sync
       // for a database seeded from this endpoint.
       Learner: {
         description: "Course learner — read access to the courses they are enrolled in",
