@@ -260,14 +260,6 @@ export async function getGroupDefaultCapability(groupName, module, capability) {
   });
 }
 
-/** PUT set_access_profile — point the contact at a profile override. */
-export async function setUserAccessProfile(profileId, userCid) {
-  return db.execute({
-    sql: "UPDATE contacts SET access_profile_id = ? WHERE cid = ?",
-    args: [profileId, userCid],
-  });
-}
-
 /** PUT set_role — change the contact's role. */
 export async function setUserRole(role, userCid) {
   return db.execute({
@@ -402,50 +394,5 @@ export async function listPermissionAudits(whereSql, args) {
               LIMIT ? OFFSET ?`,
     args,
   });
-}
-
-/**
- * Phase 3 — impact preview: how many contacts resolve to one access profile.
- * Mirrors the resolver's profile resolution (user override → role default):
- * direct = contacts.access_profile_id = P; roleDefault = profile-less
- * contacts whose stored role maps to P via role_access_profile_defaults.
- *
- * contextBindings counts context_role_profiles rows pointing at P — a MAPPING
- * count, not people, so it is deliberately kept out of `total` (which stays
- * direct + roleDefault). contextRoles carries "<context>:<role_key>" strings
- * for those rows so callers can say exactly which mappings are in the way.
- */
-export async function getProfileImpactCounts(profileId) {
-  const [directRes, roleRes, contextRes] = await Promise.all([
-    db.execute({
-      sql: "SELECT COUNT(*) AS n FROM contacts WHERE access_profile_id = ? AND deleted_at IS NULL AND archived_at IS NULL",
-      args: [profileId],
-    }),
-    db.execute({
-      sql: `SELECT COUNT(*) AS n FROM contacts c
-            WHERE c.access_profile_id IS NULL AND c.deleted_at IS NULL AND c.archived_at IS NULL
-              AND EXISTS (SELECT 1 FROM role_access_profile_defaults rpd
-                          WHERE rpd.access_profile_id = ? AND LOWER(rpd.role_name) = LOWER(c.role))`,
-      args: [profileId],
-    }),
-    db.execute({
-      sql: `SELECT context, role_key FROM context_role_profiles
-            WHERE profile_id = ? ORDER BY context, role_key`,
-      args: [profileId],
-    }),
-  ]);
-  const direct = Number(directRes.rows[0]?.n || 0);
-  const roleDefault = Number(roleRes.rows[0]?.n || 0);
-  const contextRoles = (contextRes.rows || []).map(
-    (row) => `${row.context}:${row.role_key}`,
-  );
-  return {
-    profile_id: profileId,
-    direct,
-    roleDefault,
-    total: direct + roleDefault,
-    contextBindings: contextRoles.length,
-    contextRoles,
-  };
 }
 

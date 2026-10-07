@@ -101,6 +101,24 @@ export const PROFILE_CATALOGUE_SEED = [
   } },
 ];
 
+/**
+ * The baseline role → profile default, as it was seeded before the takeover
+ * (`seedDefaultAccessProfiles`). Insert-only, so an administrator's later choice
+ * wins. `program_manager` resolves to the program-only profile by decision;
+ * `member` to the venture read profile; `participant`/`mentor` to their
+ * contextual profiles.
+ */
+export const ROLE_PROFILE_DEFAULTS_SEED = {
+  super_admin: "super_admin_default",
+  staff: "staff_default",
+  participant: "participant",
+  program_manager: "program_manager",
+  investor: "investor",
+  mentor: "investor",
+  founder: "founder",
+  member: "venture_member",
+};
+
 /** One-time, idempotent, administrator-respecting. */
 export async function ensureProfileCatalogueSeed() {
   await ensureProfileCapabilitiesSchema();
@@ -129,5 +147,19 @@ export async function ensureProfileCatalogueSeed() {
       }
     }
   }
-  return { success: true, profiles, capabilities };
+
+  // The role → profile defaults. Insert-only: an existing default (possibly
+  // administrator-edited from the Profiles screen) is never overwritten.
+  let roleDefaults = 0;
+  for (const [roleName, profileKey] of Object.entries(ROLE_PROFILE_DEFAULTS_SEED)) {
+    const inserted = await db.execute({
+      sql: `INSERT INTO role_profile_defaults (role_name, profile_key)
+            VALUES (?, ?)
+            ON CONFLICT (role_name) DO NOTHING`,
+      args: [roleName, profileKey],
+    });
+    roleDefaults += inserted?.rowsAffected ?? 0;
+  }
+
+  return { success: true, profiles, capabilities, roleDefaults };
 }

@@ -43,7 +43,7 @@ export default function OverviewView({ hideRecent = false }) {
     (async () => {
       const [contextRolesResult, profilesResult, auditResult] = await Promise.allSettled([
         fetch("/api/engineering/permissions/context-roles").then((response) => response.json()),
-        fetch("/api/access-profiles").then((response) => response.json()),
+        fetch("/api/engineering/permissions/profiles").then((response) => response.json()),
         fetch("/api/engineering/permissions/audit?page=1&pageSize=5").then((response) =>
           response.json(),
         ),
@@ -82,8 +82,8 @@ export default function OverviewView({ hideRecent = false }) {
 
   const coverage = summarizeContextRoles(state.contextRoles?.roles || []);
   const profileCount = state.profiles?.profiles?.length ?? null;
-  const roleDefaultCount = state.profiles?.roleDefaults
-    ? Object.keys(state.profiles.roleDefaults).length
+  const roleDefaultCount = state.profiles?.role_defaults
+    ? Object.keys(state.profiles.role_defaults).length
     : null;
   const implementedPolicies = SCOPE_POLICY_KEYS.filter(
     (policyKey) => SCOPE_POLICIES[policyKey]?.implemented,

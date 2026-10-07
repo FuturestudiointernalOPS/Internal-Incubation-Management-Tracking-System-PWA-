@@ -31,8 +31,8 @@ function mockExecute(query) {
 
   // Phase H — the profile ↔ role rule is enforced ("block"): the person is a
   // baseline member, so the founder profile (open to member) fits.
-  if (sqlText.includes("SELECT role, access_profile_id, profile_key FROM contacts")) {
-    return { rows: [{ role: "member", access_profile_id: null }] };
+  if (sqlText.includes("SELECT role, profile_key FROM contacts")) {
+    return { rows: [{ role: "member", profile_key: null }] };
   }
 
   if (sqlText.includes("FROM context_role_profiles")) {

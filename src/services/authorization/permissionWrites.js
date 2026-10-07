@@ -40,7 +40,6 @@ import {
   revokeUserCapability,
   setGroupDefaultCapability,
   setRoleDefaultCapability,
-  setUserAccessProfile,
   setUserRole,
   setUserStatus,
   unrestrictUserCapability,
@@ -217,23 +216,6 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
         previousValue: priorDefault.rows[0] ? String(priorDefault.rows[0].access_level) : "none",
         newValue: String(accessLevel || 0),
         details: `Group: ${payload.group_name}`,
-      });
-      break;
-    }
-
-    case "set_access_profile": {
-      const priorContact = await getContactForAssignment(userCid);
-      const priorProfile = priorContact.rows[0]?.access_profile_id;
-      await setUserAccessProfile(payload.access_profile_id || null, userCid);
-      await logPermissionAudit({
-        actorCid: actor.cid,
-        actorName: actor.name,
-        targetCid: userCid,
-        targetName,
-        action: "access_profile_changed",
-        previousValue: priorProfile ? String(priorProfile) : "none",
-        newValue: payload.access_profile_id ? String(payload.access_profile_id) : "none",
-        details: `Access profile set to ID ${payload.access_profile_id || "none"}`,
       });
       break;
     }

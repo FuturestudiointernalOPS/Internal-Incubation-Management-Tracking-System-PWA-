@@ -45,7 +45,7 @@ export function getUserCapabilityRestrictions(cid) {
 /** The person's profile override and their group fallback. */
 export function getContactAccessProfileAndGroup(cid) {
   return db.execute({
-    sql: "SELECT access_profile_id, profile_key, group_name FROM contacts WHERE cid = ?",
+    sql: "SELECT profile_key, group_name FROM contacts WHERE cid = ?",
     args: [cid],
   });
 }

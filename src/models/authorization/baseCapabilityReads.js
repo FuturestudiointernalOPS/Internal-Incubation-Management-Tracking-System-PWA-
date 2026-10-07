@@ -19,7 +19,7 @@ import db from "@/lib/db";
  */
 export async function getContactBaseState(userCid) {
   return db.execute({
-    sql: "SELECT role, access_profile_id, profile_key FROM contacts WHERE cid = ?",
+    sql: "SELECT role, profile_key FROM contacts WHERE cid = ?",
     args: [userCid],
   });
 }

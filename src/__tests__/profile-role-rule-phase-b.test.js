@@ -49,9 +49,9 @@ function mockExecute(query) {
     return { rows: mockState.profileRows.filter((row) => row.key === key) };
   }
 
-  if (sqlText.includes("SELECT role, access_profile_id, profile_key FROM contacts WHERE cid = ?")) {
+  if (sqlText.includes("SELECT role, profile_key FROM contacts WHERE cid = ?")) {
     const contact = mockState.contacts[String(args[0])];
-    return { rows: contact ? [{ role: contact.role, access_profile_id: null }] : [] };
+    return { rows: contact ? [{ role: contact.role }] : [] };
   }
 
   if (sqlText.includes("FROM context_role_profiles")) {

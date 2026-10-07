@@ -37,8 +37,8 @@ function mockRows(sql) {
   // responsibility is `program_manager`, a staff-only profile, so the assignee
   // is a baseline staff member; without this the écart would be refused before
   // the assign branch runs.
-  if (sql.includes("SELECT role, access_profile_id, profile_key FROM contacts WHERE cid = ?"))
-    return { rows: [{ role: mockState.contactRole, access_profile_id: null }] };
+  if (sql.includes("SELECT role, profile_key FROM contacts WHERE cid = ?"))
+    return { rows: [{ role: mockState.contactRole }] };
   return { rows: [], rowsAffected: 1 };
 }
 

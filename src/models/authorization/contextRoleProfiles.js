@@ -114,9 +114,9 @@ export function isValidContextRoleKey(roleKey) {
  * Idempotent runtime self-healing for the registry table (same pattern as
  * ensureEligibilitySchema — no migration required, fail-soft on error).
  *
- * No FK to access_profiles on purpose: the table must be creatable even when
- * profiles are not seeded yet, and a dangling profile_id degrades to an
- * unmapped row on read. Writes validate profile existence in the controller.
+ * No FK to `profiles` on purpose: the table must be creatable even when profiles
+ * are not seeded yet, and a dangling profile_key degrades to an unmapped row on
+ * read. Writes validate profile existence in the controller.
  */
 export function ensureContextRoleProfilesSchema() {
   if (!contextRoleProfilesSchemaPromise) {

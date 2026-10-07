@@ -89,7 +89,7 @@ export default function UserAccessSummary() {
           fetch(`/api/engineering/permissions?user_cid=${user.cid}`),
           fetch(`/api/user-groups?user_cid=${user.cid}`),
           fetch(`/api/responsibilities?user_cid=${user.cid}`),
-          fetch(`/api/access-profiles/assign?user_cid=${user.cid}`),
+          fetch(`/api/engineering/permissions/profile-override?user_cid=${user.cid}`),
           fetch(`/api/contacts/${user.cid}/roles`),
         ]);
 

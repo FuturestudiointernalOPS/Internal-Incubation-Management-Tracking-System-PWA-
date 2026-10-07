@@ -5,13 +5,9 @@
  * profile-capability foundation: normalization of a capability payload and the
  * clear-then-insert replacement. No SQL here — every statement lives in
  * `@/models/authorization/profileCapabilitiesStore`.
- *
- * Reuses `normalizeCapabilities` from `./accessProfileWrites` on purpose: the
- * "view is implied" rule must be the SAME rule the access-profile editor already
- * enforces, so the two paths cannot drift while both exist.
  */
 
-import { normalizeCapabilities } from "./accessProfileWrites";
+import { PERMISSION_MODULES } from "@/server/authz/capabilities";
 import {
   ensureProfileCapabilitiesSchema,
   listProfileCapabilities as listProfileCapabilitiesRows,
@@ -26,6 +22,39 @@ import { evaluateEligibility } from "./eligibility";
 import { validateCapabilitiesWithinEligibility } from "./eligibilityAdmin";
 
 export { ensureProfileCapabilitiesSchema, listRolesUsingProfileDefault };
+
+/**
+ * Dependency normalization for profile capabilities.
+ *
+ * View is the base capability: in any module that carries a `view` capability,
+ * granting another action (edit / create / delete / …) without view is
+ * impossible — view is auto-granted (level 1). Zero rows are dropped (absence
+ * already means level 0).
+ *
+ * @param {Object} capabilities {module: {capability: level}}
+ * @returns {Object} normalized {module: {capability: level}} — zero rows removed
+ */
+export function normalizeCapabilities(capabilities) {
+  const normalized = {};
+  for (const [module, capMap] of Object.entries(capabilities || {})) {
+    if (!capMap || typeof capMap !== "object") continue;
+    const moduleLevels = {};
+    for (const [capability, level] of Object.entries(capMap)) {
+      const normalizedLevel = Math.max(0, Number(level) || 0);
+      if (normalizedLevel > 0) moduleLevels[capability] = normalizedLevel;
+    }
+    // Zero rows were dropped above, so a cleared `view` is ABSENT (not 0).
+    // Any other active capability in a module that CARRIES view implies it.
+    const supportsView =
+      PERMISSION_MODULES[module]?.capabilities?.includes("view") ?? false;
+    const othersActive = Object.keys(moduleLevels).some(
+      (capability) => capability !== "view" && moduleLevels[capability] > 0,
+    );
+    if (supportsView && othersActive && !moduleLevels.view) moduleLevels.view = 1; // edit/create/delete imply view
+    if (Object.keys(moduleLevels).length > 0) normalized[module] = moduleLevels;
+  }
+  return normalized;
+}
 
 /** A profile's capability rows as `{ module: { capability: level } }`. */
 export async function listProfileCapabilities(profileKey) {

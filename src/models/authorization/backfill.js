@@ -20,9 +20,9 @@ import { seedProfiles } from "./profilesStore";
 import {
   backfillFacilitatorTickLists,
 } from "./programAssignmentBackfill";
-import { ensureProfileTakeover } from "./profileTakeoverBackfill";
 import { ensureProfileCatalogueSeed } from "./profileCatalogueSeed";
 import { backfillProgramAssignmentProfileKeys } from "./programAssignmentProfileKey";
+import { dropAccessProfileTables } from "./profileTakeoverDrop";
 // The feature-key alignment RULE lives in the service layer (audit A1, finding
 // #8); its statements live in `./featureKeyAlignmentStore`. Importing it here is
 // a deliberate model→service edge, like `programAssignmentBackfill`.
@@ -45,7 +45,6 @@ import {
   ensureMessagingPolicyBackfill,
   ensureFinalPolicyBackfill,
   ensureCommunicationFeatureBackfill,
-  ensureRetiredRoleCleanup,
 } from "./backfill/policies";
 
 
@@ -146,35 +145,28 @@ export function ensureCapabilityBackfills() {
         // Feature-key alignment (FEATURES = dashboard sections) runs AFTER the
         // parallel backfills so it never races the rows they touch. It gets the
         // same treatment: a failure is reported, never propagated.
-        //
-        // The retired-role cleanup (developer / admin) runs here too: it removes
-        // the rows earlier seeds may have left for roles the product no longer
-        // has, after every backfill has had its say.
         const alignment = await Promise.allSettled([
           runAuthzMigration("feature-key-alignment-v1", ensureFeatureKeyAlignment),
-          runAuthzMigration(
-            "retire-developer-admin-roles-v1",
-            ensureRetiredRoleCleanup,
-          ),
-          // PROFILES TAKE OVER (tranche 2, docs/PROFILES_TAKEOVER_MIGRATION.md):
-          // move the template DATA onto the `profiles` catalogue. Runs AFTER the
-          // parallel batch (it depends on `seedProfiles` having created the
-          // contextual rows). One-time: already applied on every existing DB.
-          runAuthzMigration("profiles-takeover-v1", ensureProfileTakeover),
-          // DIRECT profile seed: so a FRESH database gets the catalogue even with
-          // no `access_profiles` at all. Runs AFTER the takeover, whose rows (an
-          // existing database's, possibly administrator-edited) always win — this
-          // one is insert-only.
+          // DIRECT profile seed: so a FRESH database gets the catalogue even
+          // with no `access_profiles` at all — the retired layer is gone.
           runAuthzMigration("profile-catalogue-seed-v1", ensureProfileCatalogueSeed),
           // The per-assignment profile override moves from an access-profile id
           // (`v2_program_staff.access_profile_id`) to a profile KEY. Adds the
-          // column and fills it NULL-only from the legacy id, before the drop.
+          // column and fills it NULL-only from the legacy id.
           runAuthzMigration(
             "program-assignment-profile-key-v1",
             backfillProgramAssignmentProfileKeys,
           ),
         ]);
         reportFailedMigrations(alignment);
+
+        // PROFILES TAKE OVER — the FINAL step: drop the retired template layer.
+        // Runs strictly AFTER the batch above, which is the last thing that reads
+        // it (the per-assignment key backfill). Recorded once per database.
+        const drop = await Promise.allSettled([
+          runAuthzMigration("drop-access-profiles-v1", dropAccessProfileTables),
+        ]);
+        reportFailedMigrations(drop);
 
         // Attempted once per process, whatever the outcome. A migration that
         // failed is still not recorded, so it does retry on the next boot — but
@@ -195,5 +187,4 @@ export {
   ensureLmsViewBackfill,
   ensureFinalPolicyBackfill,
   ensureCommunicationFeatureBackfill,
-  ensureRetiredRoleCleanup,
 };

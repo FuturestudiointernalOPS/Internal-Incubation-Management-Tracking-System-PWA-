@@ -22,7 +22,7 @@ function mockRows(sql) {
   if (/^\s*(CREATE TABLE|CREATE INDEX)/i.test(sql)) return { rows: [] };
   if (sql.includes("SELECT cid, name, role, profile_key FROM contacts"))
     return { rows: mockState.contact ? [mockState.contact] : [] };
-  if (sql.includes("SELECT role, access_profile_id, profile_key FROM contacts"))
+  if (sql.includes("SELECT role, profile_key FROM contacts"))
     return { rows: mockState.contact ? [mockState.contact] : [] };
   if (sql.includes("FROM profiles WHERE key = ? AND is_active = 1"))
     return { rows: mockState.profile ? [{ key: mockState.profile.key, label: mockState.profile.label }] : [] };

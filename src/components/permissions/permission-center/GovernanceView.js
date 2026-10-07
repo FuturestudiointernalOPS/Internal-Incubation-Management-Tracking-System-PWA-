@@ -31,7 +31,7 @@ export default function GovernanceView() {
     const urls = [
       "/api/org-membership",
       "/api/engineering/permissions/audit?pageSize=10",
-      "/api/access-profiles",
+      "/api/engineering/permissions/profiles",
     ];
     const apply = (memData, audData, profData) => {
       if (cancelled) return;
@@ -40,7 +40,7 @@ export default function GovernanceView() {
         setProtectedMap(memData.protected || {});
       }
       if (audData.success) setRecent(audData.entries || []);
-      if (profData.success) setRoleDefaults(profData.roleDefaults || {});
+      if (profData.success) setRoleDefaults(profData.role_defaults || {});
     };
     (async () => {
       try {
@@ -88,7 +88,10 @@ export default function GovernanceView() {
     .map(([name]) => name);
   const defaultProfiles = Object.entries(roleDefaults).map(([role, defaultsEntry]) => ({
     role,
-    profileName: defaultsEntry?.profileName || defaultsEntry?.profileId,
+    profileName:
+      typeof defaultsEntry === "string"
+        ? defaultsEntry
+        : defaultsEntry?.profileName || defaultsEntry?.profileId,
   }));
 
   const statCard = (label, value, tone) => (
