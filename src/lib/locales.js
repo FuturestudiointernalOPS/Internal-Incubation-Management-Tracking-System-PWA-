@@ -35,6 +35,7 @@ import enForms from "@/locales/en/forms.json";
 import enCrm from "@/locales/en/crm.json";
 import enVadmin from "@/locales/en/vadmin.json";
 import enEngineering from "@/locales/en/engineering.json";
+import enAuthorization from "@/locales/en/authorization.json";
 import enInvestorAdmin from "@/locales/en/investorAdmin.json";
 import enAdminMisc from "@/locales/en/adminMisc.json";
 import enTeam from "@/locales/en/team.json";
@@ -103,6 +104,7 @@ export const EN = [
   enCrm,
   enVadmin,
   enEngineering,
+  enAuthorization,
   enInvestorAdmin,
   enAdminMisc,
   enTeam,
@@ -153,6 +155,7 @@ const LOADERS = {
       import("@/locales/fr/crm.json"),
       import("@/locales/fr/vadmin.json"),
       import("@/locales/fr/engineering.json"),
+      import("@/locales/fr/authorization.json"),
       import("@/locales/fr/investorAdmin.json"),
       import("@/locales/fr/adminMisc.json"),
       import("@/locales/fr/team.json"),
