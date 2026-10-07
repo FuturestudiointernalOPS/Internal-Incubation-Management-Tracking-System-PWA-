@@ -17,7 +17,7 @@ import {
 } from "@/lib/email";
 import {
   getRunTemplateSettingsForDecisionById,
-  listApprovedSubmissionsAwaitingResultEmail,
+  listSubmissionsAwaitingResultEmail,
 } from "@/models/formRuns";
 
 import { logTimeline } from "./decisionEmail";
@@ -116,9 +116,11 @@ export async function sendResultEmailForSubmission({ submission_id }) {
  *
  * The delay is the RUN's own setting (see resolveResultDelayMinutes): the clock
  * starts at the submission, so a result is "due" once `submitted_at + delay`
- * is in the past. Only approved, evaluated submissions are candidates — the
- * report cannot exist before that, and the query already excludes any
- * submission whose result was sent. Sending goes through
+ * is in the past. The result does NOT wait for an approval — every submitted
+ * form whose run scheduled a result is a candidate once its delay has elapsed,
+ * and the query already excludes any submission whose result was sent. A report
+ * still needs the submission's evaluation to exist; when it does not yet, the
+ * send is refused and retried on the next pass. Sending goes through
  * sendResultEmailForSubmission, so the per-submission sentinel, the
  * duplicate-recipient guard and the delivery log all apply unchanged: running
  * this twice never sends twice.
@@ -132,7 +134,7 @@ export async function dispatchScheduledResultEmails({ run_id = null } = {}) {
     // The candidate query reads platform_email_log; create it first so a fresh
     // database answers with "nothing to send" instead of a missing-table error.
     await ensureEmailLogTable();
-    const candidatesResult = await listApprovedSubmissionsAwaitingResultEmail();
+    const candidatesResult = await listSubmissionsAwaitingResultEmail();
     const now = Date.now();
     for (const candidate of candidatesResult.rows || []) {
       if (run_id != null && String(candidate.run_id) !== String(run_id)) continue;
