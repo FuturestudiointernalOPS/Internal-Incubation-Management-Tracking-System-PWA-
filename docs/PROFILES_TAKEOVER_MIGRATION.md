@@ -1,6 +1,6 @@
 # Migration — les profils reprennent les access profiles
 
-**Statut :** tranches 1 à 5, garde d'assignation, seed direct (6a), A1 (override par clé de profil) et B1 (défaut de rôle éditable) faits. Reste la suppression des routes/tables/UI retirées.
+**Statut :** produit migré (profils porteurs), A1/B1 faits, surfaces `access_profiles` retirées. Reste le retrait des tables physiques, qui dépend du portage des backfills de capacités.
 
 **Décisions produit validées :**
 
@@ -78,7 +78,7 @@ Profils → `profile_capabilities` :
 | 3 | Résolveur | `contextReads` + `baseCapabilities` lisent `profile_capabilities` (priorité), repli sur l'ancien chemin tant qu'il existe. **FAIT** | Moyen |
 | 4 | API | `/api/engineering/permissions/profiles` gère capacités + créer/supprimer ; catalogue dynamique (clés libres, libellés stockés, validation par forme). **FAIT** (`baseCapabilities.js` — le garde d'assignation — reste à basculer en tranche 5) | Moyen |
 | 5 | UI | Écran « Profiles » unique : créer/supprimer un profil, éditer ses capacités ; sous-onglet « Access profiles » et rollup retirés. **FAIT** (`baseCapabilities.js` — le garde d'assignation — reste à basculer : comportement d'avertissement, pas une décision d'accès) | Moyen |
-| 6 | Nettoyage | **6a FAIT** : seed direct du catalogue. **A1 FAIT** : l'override individuel de l'écran People passe par la clé de profil (nouvelle route). **B1 FAIT** : « Défaut pour » réintroduit sur l'écran Profiles. **Reste** : supprimer les routes `/api/access-profiles*`, l'éditeur mort (`AccessProfilesView` + blocs + `EntitlementRollup`) et enfin les tables. | Élevé (en dernier) |
+| 6 | Nettoyage | **6a FAIT** : seed direct du catalogue. **A1 FAIT** : override individuel par clé de profil. **B1 FAIT** : « Défaut pour » réintroduit. **Routes + éditeur + rollup retirés.** **Reste** : retirer les tables `access_profiles*` — bloqué par les backfills de capacités (knowledge, reports, announcements, forms, runs, projects, tasks, programs, ventures, investor) et les migrations de boot qui écrivent encore `access_profile_capabilities`/`access_profiles`, plus `v2_program_staff.access_profile_id`. À porter vers `profile_capabilities` avant un `DROP TABLE`. | Élevé (en dernier) |
 
 ## 4. Garde-fous
 
