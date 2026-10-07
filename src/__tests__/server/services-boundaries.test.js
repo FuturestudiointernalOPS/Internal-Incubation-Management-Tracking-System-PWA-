@@ -68,7 +68,6 @@ describe("repositories stay HTTP-free", () => {
     "models/kpiProgressStore.js",
     "models/contactGroupSyncStore.js",
     "models/ventureDocumentTypesStore.js",
-    "models/authorization/programScopeReadinessReads.js",
     "models/lms/learningStore.js",
     "models/lms/checkoutStore.js",
     "models/workspaceCalendarStore.js",
