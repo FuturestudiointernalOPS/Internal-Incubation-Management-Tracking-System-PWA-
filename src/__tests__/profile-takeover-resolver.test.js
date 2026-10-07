@@ -4,8 +4,8 @@
  *
  * Locks the switch: when a person resolves to a profile KEY (override or role
  * default), the BASE capabilities come from `profile_capabilities` through that
- * key; the legacy access-profile id remains a fallback for a template the
- * migration could not map. The reads are mocked, so the wiring is exercised.
+ * key — the ONLY source, now that the access-profile fallback is gone. The reads
+ * are mocked, so the wiring is exercised.
  */
 
 const mockState = {};
@@ -72,9 +72,8 @@ test("a contact override resolves through its PROFILE KEY", async () => {
 
   expect(mockReads.resolveContactBaseProfile).toHaveBeenCalledWith({
     profileKey: "founder",
-    accessProfileId: 7,
   });
-  expect(mockState.baseArgs).toEqual({ profileId: null, profileKey: "founder", role: "member" });
+  expect(mockState.baseArgs).toEqual({ profileKey: "founder", role: "member" });
   expect(ctx.profile).toMatchObject({
     profileKey: "founder",
     profileName: "Founder",
@@ -89,7 +88,6 @@ test("a role default resolves through its PROFILE KEY", async () => {
   const ctx = await resolveAuthorizationContext({ cid: "C2", role: "staff" });
 
   expect(mockState.baseArgs).toEqual({
-    profileId: null,
     profileKey: "staff_default",
     role: "staff",
   });
@@ -100,26 +98,26 @@ test("a role default resolves through its PROFILE KEY", async () => {
   });
 });
 
-test("a legacy-only override still resolves by access-profile id", async () => {
+test("a legacy-only override no longer resolves (the fallback is gone)", async () => {
+  // The person keeps an old access-profile id but no profile key. The legacy
+  // path is retired, so no override profile is read and the identity falls
+  // through to its role capabilities.
   mockState.contact = { cid: "C3", access_profile_id: 9 };
-  mockState.overrideRows = [{ legacy_id: 9, legacy_name: "Custom Template" }];
 
   const ctx = await resolveAuthorizationContext({ cid: "C3", role: "member" });
 
-  expect(mockState.baseArgs).toEqual({ profileId: 9, profileKey: null, role: "member" });
-  expect(ctx.profile).toMatchObject({
-    profileId: 9,
-    profileName: "Custom Template",
-    profileSource: "user",
-  });
+  expect(mockReads.resolveContactBaseProfile).not.toHaveBeenCalled();
+  expect(mockState.baseArgs).toEqual({ profileKey: null, role: "member" });
+  expect(ctx.profile.profileSource).toBe("legacy");
   expect(ctx.profile.profileKey).toBeNull();
+  expect(ctx.profile.profileName).toBeNull();
 });
 
-test("a profile-less identity falls through to the legacy role capabilities", async () => {
+test("a profile-less identity falls through to the role capabilities", async () => {
   mockState.contact = { cid: "C4" };
 
   const ctx = await resolveAuthorizationContext({ cid: "C4", role: "member" });
 
-  expect(mockState.baseArgs).toEqual({ profileId: null, profileKey: null, role: "member" });
+  expect(mockState.baseArgs).toEqual({ profileKey: null, role: "member" });
   expect(ctx.profile.profileSource).toBe("legacy");
 });

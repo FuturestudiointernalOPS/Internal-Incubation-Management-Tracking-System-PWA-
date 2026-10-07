@@ -12,10 +12,10 @@
  * are not touched by a profile assignment), so the assignment guard can warn
  * *before* a swap replaces that base and strips capabilities.
  *
- * profiles takeover (docs/PROFILES_TAKEOVER_MIGRATION.md): the resolution now
- * goes through the PROFILE KEY first (`profiles` + `profile_capabilities`), with
- * the legacy access-profile id as a fallback — the SAME path the resolver uses,
- * so the guard and the effective access can never disagree. The four statements
+ * profiles takeover (docs/PROFILES_TAKEOVER_MIGRATION.md): the resolution goes
+ * through the PROFILE KEY only (`profiles` + `profile_capabilities`), with the
+ * legacy `role_capabilities` rows as the final step — the SAME path the resolver
+ * uses, so the guard and the effective access can never disagree. The statements
  * live in `@/models/authorization` (`contextReads` / `baseCapabilityReads`).
  *
  * @returns {Promise<{source: "profile"|"role_default"|"legacy", profileName: string|null, caps: Array<{module: string, capability: string, access_level: number}>}>}
@@ -36,10 +36,9 @@ export async function resolveCurrentBaseCapabilities(userCid) {
   const role = contact.role;
 
   const [overrideRes, roleDefaultRes] = await Promise.all([
-    contact.access_profile_id || contact.profile_key
+    contact.profile_key
       ? resolveContactBaseProfile({
           profileKey: contact.profile_key ?? null,
-          accessProfileId: contact.access_profile_id ?? null,
         })
       : Promise.resolve({ rows: [] }),
     role
@@ -48,20 +47,19 @@ export async function resolveCurrentBaseCapabilities(userCid) {
   ]);
 
   let source = "legacy";
-  let profileId = null;
   let profileKey = null;
   let profileName = null;
   const overridePick = pickBaseProfile(overrideRes.rows);
   const rolePick = pickBaseProfile(roleDefaultRes.rows);
   if (overridePick) {
-    ({ profileId, profileKey, profileName } = overridePick);
+    ({ profileKey, profileName } = overridePick);
     source = "profile";
   } else if (rolePick) {
-    ({ profileId, profileKey, profileName } = rolePick);
+    ({ profileKey, profileName } = rolePick);
     source = "role_default";
   }
 
-  const capsRes = await getBaseCapabilityRows({ profileId, profileKey, role });
+  const capsRes = await getBaseCapabilityRows({ profileKey, role });
 
   return {
     source,
