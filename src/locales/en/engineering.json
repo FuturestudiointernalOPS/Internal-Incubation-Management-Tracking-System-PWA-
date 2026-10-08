@@ -905,7 +905,13 @@
       "gateNotHeld": "Not held",
       "gateRestricted": "Restricted",
       "gateNotEvaluated": "Not evaluated here",
-      "gateSuperAdminBypass": "Super Admin bypass"
+      "gateSuperAdminBypass": "Super Admin bypass",
+      "checkerOpen": "Check an access",
+      "healthAlertsTitle": "Health & alerts",
+      "healthSee": "View",
+      "healthAlertGaps": "{count} context link(s) without a profile",
+      "healthAlertScope": "{count} scope policy(ies) still pending — they always refuse",
+      "healthAllClear": "Nothing to fix — every check is green."
     }
   }
 }

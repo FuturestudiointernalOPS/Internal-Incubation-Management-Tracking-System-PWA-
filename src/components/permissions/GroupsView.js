@@ -7,6 +7,7 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { defer } from "./effectUtils";
 import { ACCESS_LEVEL_KEYS, ACCESS_SHORT, LEVEL_CHIP_ACTIVE, LEVEL_CHIP_BASE } from "./levelChips";
 import Badge from "./ui/Badge";
+import NoteBox from "./ui/NoteBox";
 
 /**
  * GROUPS (People → Groups).
@@ -107,14 +108,12 @@ export default function GroupsView() {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-[var(--border-primary)] bg-secondary/40 p-4 space-y-1.5">
-        <p className="text-xs font-bold leading-relaxed text-[var(--text-primary)]">
-          {t("engineering.permissions.groupsIntro")}
-        </p>
-        <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+      <NoteBox>
+        {t("engineering.permissions.groupsIntro")}
+        <span className="mt-1 block text-[var(--text-tertiary)]">
           {t("engineering.permissions.groupsAdditiveNote")}
-        </p>
-      </div>
+        </span>
+      </NoteBox>
 
       {err && <p className="text-xs font-bold text-red-500">{err}</p>}
 

@@ -905,7 +905,13 @@
       "gateNotHeld": "Non détenue",
       "gateRestricted": "Restreinte",
       "gateNotEvaluated": "Non évaluée ici",
-      "gateSuperAdminBypass": "Contournement super administrateur"
+      "gateSuperAdminBypass": "Contournement super administrateur",
+      "checkerOpen": "Vérifier un accès",
+      "healthAlertsTitle": "Santé et alertes",
+      "healthSee": "Voir",
+      "healthAlertGaps": "{count} lien·s contextuel·s sans profil",
+      "healthAlertScope": "{count} politique·s de portée en attente — elles refusent toujours",
+      "healthAllClear": "Rien à corriger — tous les contrôles sont au vert."
     }
   }
 }

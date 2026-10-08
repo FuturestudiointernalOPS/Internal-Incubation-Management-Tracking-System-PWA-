@@ -6,6 +6,7 @@ import PermissionShell, { useSubTab } from "@/components/permissions/PermissionS
 import IndividualAccessScreen from "@/components/permissions/IndividualAccessScreen";
 import GroupsView from "@/components/permissions/GroupsView";
 import AdminsView from "@/components/permissions/AdminsView";
+import AccessChecker from "@/components/permissions/AccessChecker";
 
 /**
  * People — the daily door, with the two people-wide registries beside it.
@@ -33,13 +34,16 @@ export default function PermissionPeoplePage() {
         <AdminsView />
       ) : (
         <>
-          <div className="mb-5 space-y-1.5">
-            <h1 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
-              {t("engineering.permissions.accessPageTitle")}
-            </h1>
-            <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
-              {t("engineering.permissions.accessPageSubtitle")}
-            </p>
+          <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1.5">
+              <h1 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
+                {t("engineering.permissions.accessPageTitle")}
+              </h1>
+              <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+                {t("engineering.permissions.accessPageSubtitle")}
+              </p>
+            </div>
+            <AccessChecker />
           </div>
           <IndividualAccessScreen />
         </>

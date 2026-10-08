@@ -4,6 +4,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Search, ShieldAlert, UserMinus, UserPlus } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useDialogs } from "@/components/ui/DialogProvider";
+import { notify } from "@/lib/notify";
+import NoteBox from "./ui/NoteBox";
 import { defer } from "./effectUtils";
 
 /**
@@ -29,7 +31,6 @@ export default function AdminsView() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [msg, setMsg] = useState("");
   const [busyCid, setBusyCid] = useState("");
   const [query, setQuery] = useState("");
   const [picking, setPicking] = useState(false);
@@ -94,7 +95,6 @@ export default function AdminsView() {
 
       setBusyCid(user.cid);
       setErr("");
-      setMsg("");
       try {
         const response = await fetch(WRITE_URL, {
           method: "PUT",
@@ -105,7 +105,10 @@ export default function AdminsView() {
         if (!response.ok || data?.success === false) {
           throw new Error(data?.error || t("engineering.permissions.adminsFailed"));
         }
-        setMsg(t("engineering.permissions.adminsDone", { name: user.name || user.cid }));
+        notify(
+          "success",
+          t("engineering.permissions.adminsDone", { name: user.name || user.cid }),
+        );
         setPicking(false);
         await load();
       } catch (error) {
@@ -127,15 +130,14 @@ export default function AdminsView() {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-[var(--border-primary)] bg-secondary/40 p-4">
-        <p className="flex items-start gap-2 text-xs font-bold leading-relaxed text-[var(--text-primary)]">
+      <NoteBox tone="warning">
+        <span className="flex items-start gap-2 text-[var(--text-primary)]">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-[var(--brand-orange)]" aria-hidden="true" />
           {t("engineering.permissions.adminsIntro")}
-        </p>
-      </div>
+        </span>
+      </NoteBox>
 
       {err && <p className="text-xs font-bold text-red-500">{err}</p>}
-      {msg && <p className="text-xs font-bold text-emerald-500">{msg}</p>}
 
       <section
         className="overflow-hidden rounded-xl border border-[var(--border-primary)]"

@@ -8,7 +8,6 @@ import PermissionManager from "@/components/permissions/PermissionCenter";
 import CatalogView from "@/components/permissions/CatalogView";
 import ScopePoliciesView from "@/components/permissions/ScopePoliciesView";
 import LiveCheckPanel from "@/components/permissions/LiveCheckPanel";
-import AccessChecker from "@/components/permissions/AccessChecker";
 
 /**
  * Rules — every ceiling in one place, plus the checker that explains them.
@@ -41,10 +40,6 @@ export default function PermissionRulesPage() {
       ) : (
         <>
           <PermissionManager key="ceilings" initialTab="eligibility" />
-
-          <div className="mt-6">
-            <AccessChecker />
-          </div>
 
           <div className="mt-6 space-y-3">
             <button
