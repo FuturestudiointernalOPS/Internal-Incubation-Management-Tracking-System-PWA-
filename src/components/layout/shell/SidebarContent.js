@@ -145,9 +145,9 @@ export const SidebarContent = ({
             onMouseLeave={
               collapsed && !showLabels ? scheduleFlyoutClose : undefined
             }
-            className={`w-full flex items-center justify-between transition-all ${
+            className={`w-full flex items-center transition-all ${show ? "justify-between" : "justify-center"} ${
               isTop
-                ? "px-4 py-3 rounded-xl text-[13px] font-semibold"
+                ? `${show ? "px-4" : "px-0"} py-3 rounded-xl text-[13px] font-semibold`
                 : "px-4 py-2 rounded-lg text-[13px] font-medium"
             } ${
               onPath
@@ -201,9 +201,9 @@ export const SidebarContent = ({
           setMobileMenuOpen(false);
           setFlyout(null);
         }}
-        className={`w-full flex items-center transition-all ${
+        className={`w-full flex items-center transition-all ${show ? "" : "justify-center"} ${
           isTop
-            ? "gap-4 px-4 py-3 rounded-xl text-[13px] font-semibold"
+            ? `${show ? "gap-4 px-4" : "px-0"} py-3 rounded-xl text-[13px] font-semibold`
             : "gap-3 px-4 py-2 rounded-lg text-[13px] font-medium"
         } ${
           isActive

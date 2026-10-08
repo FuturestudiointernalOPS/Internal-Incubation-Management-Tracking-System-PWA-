@@ -7,7 +7,6 @@ import {
   useMemo,
   Suspense,
 } from "react";
-import { CheckCircle2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -18,6 +17,7 @@ import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useApi, useApiMulti } from "@/lib/hooks/useApi";
 import ReportHeader from "@/components/staff/op-report/ReportHeader";
 import ReportTypeToggle from "@/components/staff/op-report/ReportTypeToggle";
+import WeeklyOverview from "@/components/staff/op-report/WeeklyOverview";
 import StandupFormHeader from "@/components/staff/op-report/StandupFormHeader";
 import StandupHistoryTable from "@/components/staff/op-report/StandupHistoryTable";
 import RetroHistoryTable from "@/components/staff/op-report/RetroHistoryTable";
@@ -1533,7 +1533,7 @@ function StaffOpReport() {
 
   return (
     <>
-      <div className="space-y-8 pb-20 text-left">
+      <div className="stf space-y-6 pb-20 text-left">
         {/* Toast */}
         {toast && (
           <div
@@ -1560,14 +1560,13 @@ function StaffOpReport() {
           reportType={reportType}
         />
 
-        {existingReport?.status === "submitted" && (
-          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-            <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
-              {t("staff.opReport.alreadySubmitted")}
-            </p>
-          </div>
-        )}
+        <WeeklyOverview
+          existingReport={existingReport}
+          history={history}
+          now={new Date(now)}
+          reportType={reportType}
+          weekInfo={weekInfo}
+        />
 
         <div className="w-full">
           {/* REPORT FORM */}
