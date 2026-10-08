@@ -161,6 +161,7 @@ import AppCard from "@/components/ui/AppCard";
 import AppLinkCard from "@/components/ui/AppLinkCard"; // dashboard card that opens its page — only once it exists
 import AppButton from "@/components/ui/AppButton";
 import AppModal from "@/components/ui/AppModal";
+import AppDrawer from "@/components/ui/AppDrawer";      // right-side panel: review a change beside the row it talks about
 import AppMenu from "@/components/ui/AppMenu";
 import AppTabs from "@/components/ui/AppTabs";
 
@@ -239,6 +240,16 @@ import { Skeleton, TableSkeleton } from "@/components/ui/Skeleton";
 <AppModal isOpen={showModal} onClose={() => setShowModal(false)} title="Confirm Action" size="md">
   <p>Are you sure?</p>
 </AppModal>
+
+// Drawer (right side — the table it talks about stays visible beside it)
+<AppDrawer
+  isOpen={open}
+  onClose={() => setOpen(false)}
+  title={t("…drawerTitle")}
+  footer={<><AppButton variant="primary" onClick={confirm}>…</AppButton><AppButton onClick={close}>…</AppButton></>}
+>
+  …body…
+</AppDrawer>
 
 // Badge
 <AppBadge variant="success" dot>Active</AppBadge>
@@ -383,6 +394,7 @@ src/
 │       ├── AppBadge.js
 │       ├── AppButton.js
 │       ├── AppCard.js
+│       ├── AppDrawer.js         ← Right-side slide-in panel (review a change beside its row)
 │       ├── AppLinkCard.js       ← Card with a gated redirect (isDeveloped + redirectTo), nudge otherwise
 │       ├── AppEmptyState.js     ← Empty/placeholder state (sm/md/lg)
 │       ├── AppImage.js          ← Image wrapper; plain <img> for arbitrary hosts, next/image for allowed ones
