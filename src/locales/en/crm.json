@@ -524,6 +524,51 @@
         "partners_with": "Partners with",
         "other": "Other"
       }
+    },
+    "leads": {
+      "title": "Leads",
+      "subtitle": "Track potential relationships, partners, and opportunities.",
+      "createLead": "New Lead",
+      "noLeads": "No leads found.",
+      "noLeadsHint": "Create a lead to start tracking a potential relationship.",
+      "titleRequired": "Lead title is required.",
+      "targetRequired": "A lead must be associated with a person or organization.",
+      "notFound": "Lead not found.",
+      "titleLabel": "Lead Title",
+      "titlePlaceholder": "e.g., MTN Strategic Partnership",
+      "statusLabel": "Status",
+      "qualificationLabel": "Qualification",
+      "ownerLabel": "Owner",
+      "detailsLabel": "Lead Details",
+      "relationsLabel": "Relationships",
+      "descriptionLabel": "Description",
+      "types": {
+        "partnership": "Partnership",
+        "investor": "Investor",
+        "program": "Program",
+        "ecosystem": "Ecosystem",
+        "client": "Client",
+        "sponsor": "Sponsor",
+        "mentor": "Mentor",
+        "other": "Other"
+      },
+      "statuses": {
+        "new": "New",
+        "contacted": "Contacted",
+        "engaged": "Engaged",
+        "qualified": "Qualified",
+        "unqualified": "Unqualified",
+        "nurturing": "Nurturing",
+        "converted": "Converted",
+        "lost": "Lost"
+      },
+      "qualifications": {
+        "not_assessed": "Not Assessed",
+        "needs_review": "Needs Review",
+        "qualified": "Qualified",
+        "unqualified": "Unqualified"
+      }
     }
   }
 }
+

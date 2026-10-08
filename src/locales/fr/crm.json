@@ -524,6 +524,51 @@
         "partners_with": "Partenaire de",
         "other": "Autre"
       }
+    },
+    "leads": {
+      "title": "Pistes",
+      "subtitle": "Suivez les relations potentielles, les partenaires et les opportunités.",
+      "createLead": "Nouvelle piste",
+      "noLeads": "Aucune piste trouvée.",
+      "noLeadsHint": "Créez une piste pour commencer à suivre une relation potentielle.",
+      "titleRequired": "Le titre de la piste est requis.",
+      "targetRequired": "Une piste doit être associée à une personne ou une organisation.",
+      "notFound": "Piste introuvable.",
+      "titleLabel": "Titre de la piste",
+      "titlePlaceholder": "ex: Partenariat Stratégique MTN",
+      "statusLabel": "Statut",
+      "qualificationLabel": "Qualification",
+      "ownerLabel": "Propriétaire",
+      "detailsLabel": "Détails de la piste",
+      "relationsLabel": "Relations",
+      "descriptionLabel": "Description",
+      "types": {
+        "partnership": "Partenariat",
+        "investor": "Investisseur",
+        "program": "Programme",
+        "ecosystem": "Écosystème",
+        "client": "Client",
+        "sponsor": "Sponsor",
+        "mentor": "Mentor",
+        "other": "Autre"
+      },
+      "statuses": {
+        "new": "Nouveau",
+        "contacted": "Contacté",
+        "engaged": "Engagé",
+        "qualified": "Qualifié",
+        "unqualified": "Non qualifié",
+        "nurturing": "En développement",
+        "converted": "Converti",
+        "lost": "Perdu"
+      },
+      "qualifications": {
+        "not_assessed": "Non évalué",
+        "needs_review": "Nécessite un examen",
+        "qualified": "Qualifié",
+        "unqualified": "Non qualifié"
+      }
     }
   }
 }
+
