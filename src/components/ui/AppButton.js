@@ -2,8 +2,8 @@
 
 const VARIANTS = {
   primary: {
-    background: "var(--brand-orange)",
-    color: "#000",
+    background: "var(--brand-gradient)",
+    color: "#fff",
     border: "none",
     hover: "brightness(1.1)",
   },

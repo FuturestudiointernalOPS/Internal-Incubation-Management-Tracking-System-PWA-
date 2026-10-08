@@ -15,29 +15,40 @@
         --brand-blue: #0066ff;
 
         /* THEME TOKENS (LIGHT MODE DEFAULT) */
-        --bg-primary: #f3f5f8; /* a step below white so white cards stand out */
+        --brand-navy: #000060; /* the charter blue */
+        --brand-orange-2: #ff8433; /* end of the primary-button gradient */
+        --brand-gradient: linear-gradient(135deg, #ff6600, #ff8433);
+        --bg-primary: #f4f5fc;
         --bg-secondary: #ffffff;
-        --bg-tertiary: #f1f5f9;
+        --bg-tertiary: #eceefb;
         --surface-1: #ffffff;
-        --surface-2: #f8fafc;
-        --surface-3: #f1f5f9;
-        --text-primary: #0f172a;
-        --text-secondary: #475569; /* Slate 600 — WCAG AA 6.2:1 on #F8FAFC */
-        --text-tertiary: #94a3b8; /* Slate 400 — Placeholders, disabled */
-        --border-primary: #e2e8f0;
-        --border-secondary: #f1f5f9;
+        --surface-2: #eceefb;
+        --surface-3: #e0e3f7;
+        --text-primary: #000060;
+        --text-secondary: #5a5a9c;
+        --text-tertiary: #8a8abf; /* Placeholders, disabled */
+        --border-primary: #d6d8f0;
+        --border-secondary: #e6e8f6;
         /* RGB channels of the tokens above, for Tailwind opacity modifiers */
-        --border-primary-rgb: 226 232 240;
+        --border-primary-rgb: 214 216 240;
         --accent: var(--brand-orange);
         --card-shadow:
-            0 1px 2px rgb(15 23 42 / 0.06), 0 1px 3px rgb(15 23 42 / 0.04);
+            0 1px 2px rgb(0 0 96 / 0.06), 0 1px 3px rgb(0 0 96 / 0.04);
+
+        /* STATUS — tints of the charter blue; green and red are the only
+           colours outside the charter. */
+        --status-progress: #8f8fe8;
+        --status-pending: #9a9ad0;
+        --status-postponed: #b9b9ee;
+        --status-done: #2dd4a0;
+        --status-blocked: #ff5470;
 
         /* CHART TOKENS */
         --chart-primary: #ff6600;
-        --chart-success: #10b981;
-        --chart-danger: #ef4444;
-        --chart-warning: #f59e0b;
-        --chart-info: #6366f1;
+        --chart-success: var(--status-done);
+        --chart-danger: var(--status-blocked);
+        --chart-warning: var(--status-pending);
+        --chart-info: var(--status-progress);
 
         --radius-sm: 0.375rem;
         --radius-md: 0.75rem;
@@ -49,26 +60,19 @@
     /* DARK MODE (OPERATIONAL BLUE) */
     :root[data-theme="dark"] {
         /* Page and cards are kept a clear step apart so cards read as layers. */
-        --bg-primary: #060a14;
-        --bg-secondary: #111a2c;
-        --bg-tertiary: #1c2638;
-        --surface-1: #111a2c;
-        --surface-2: #1c2638;
-        --surface-3: #2b3649;
-        --text-primary: #f8fafc;
-        --text-secondary: #94a3b8; /* Slate 400 — 6.4:1 on #111a2c, WCAG AA */
-        --text-tertiary: #64748b; /* Slate 500 — Placeholders, disabled */
-        --border-primary: #334155;
-        --border-secondary: #243044;
-        --border-primary-rgb: 51 65 85;
+        --bg-primary: #00002c;
+        --bg-secondary: #06063f;
+        --bg-tertiary: #0d0d58;
+        --surface-1: #06063f;
+        --surface-2: #0d0d58;
+        --surface-3: #14146e;
+        --text-primary: #ffffff;
+        --text-secondary: #a6a6d8;
+        --text-tertiary: #7c7cb8; /* Placeholders, disabled */
+        --border-primary: #1a1a72;
+        --border-secondary: #12125a;
+        --border-primary-rgb: 26 26 114;
         --card-shadow: none;
-
-        /* CHART TOKENS (Dark-adjusted) */
-        --chart-primary: #ff6600;
-        --chart-success: #34d399;
-        --chart-danger: #f87171;
-        --chart-warning: #fbbf24;
-        --chart-info: #818cf8;
     }
 
     /* Browser Date/Time Picker Consistency (Dark Mode) */
@@ -123,6 +127,21 @@
         color: var(--text-primary);
     }
 
+    /* Dropdown lists: card background, 1px border, 12px corners, 13px text;
+       the border turns orange with a soft halo while focused. */
+    select {
+        background-color: var(--surface-1);
+        border: 1px solid var(--border-primary);
+        border-radius: 12px;
+        font-size: 13px;
+    }
+    select:focus,
+    select:focus-visible {
+        outline: none;
+        border-color: var(--brand-orange);
+        box-shadow: 0 0 0 3px rgb(255 102 0 / 0.18);
+    }
+
     input::placeholder,
     textarea::placeholder {
         color: var(--text-tertiary);
@@ -175,7 +194,7 @@
     }
 
     .btn-primary {
-        background: var(--brand-orange);
+        background: var(--brand-gradient);
         color: white;
     }
     .btn-primary:hover {
