@@ -24,9 +24,11 @@ export default function PermissionPeoplePage() {
 
   return (
     <PermissionShell active="people" sub={sub} onSubChange={setSub}>
-      <p className="mb-4 text-xs font-medium text-[var(--text-secondary)]">
-        {t("engineering.permissions.questionPeople")}
-      </p>
+      {sub !== "people" && (
+        <p className="mb-4 text-xs font-medium text-[var(--text-secondary)]">
+          {t("engineering.permissions.questionPeople")}
+        </p>
+      )}
 
       {sub === "groups" ? (
         <GroupsView />
@@ -36,9 +38,9 @@ export default function PermissionPeoplePage() {
         <>
           <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1.5">
-              <h1 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
+              <h2 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
                 {t("engineering.permissions.accessPageTitle")}
-              </h1>
+              </h2>
               <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
                 {t("engineering.permissions.accessPageSubtitle")}
               </p>

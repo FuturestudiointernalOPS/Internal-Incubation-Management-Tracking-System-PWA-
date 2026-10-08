@@ -62,7 +62,7 @@ export default function PeopleMatrix({
   onOpenWhy,
 }) {
   const [query, setQuery] = useState("");
-  const [onlyGranted, setOnlyGranted] = useState(false);
+  const [onlyGranted, setOnlyGranted] = useState(true);
   const [collapsed, setCollapsed] = useState({});
 
   // Same capability set as the summary band: the catalogue's list, or every

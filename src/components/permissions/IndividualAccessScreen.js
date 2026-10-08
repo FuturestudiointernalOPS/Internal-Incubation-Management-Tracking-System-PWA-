@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { defer } from "./effectUtils";
 import PersonPicker from "./PersonPicker";
@@ -37,7 +36,6 @@ const SECTIONS = [
 
 export default function IndividualAccessScreen() {
   const { t } = useI18n();
-  const router = useRouter();
   const [person, setPerson] = useState(null);
   // Bumped by PeopleView after an in-place grant/revoke. The two panels read
   // the same rows through different endpoints, so without this the matrix below
@@ -86,20 +84,6 @@ export default function IndividualAccessScreen() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
-          {t("authorization.people.hint")}
-        </p>
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-primary)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-          {t("engineering.permissions.accessBack")}
-        </button>
-      </div>
-
       <PersonPicker selectedCid={person?.cid} onSelect={pick} />
 
       {person ? (
@@ -144,7 +128,7 @@ export default function IndividualAccessScreen() {
           <PersonRecentChanges key={`recent-${person.cid}`} person={person} />
         </div>
       ) : (
-        <div className="rounded-2xl border border-[var(--border-primary)] bg-[var(--surface-1)] p-6 text-center shadow-sm">
+        <div className="rounded-[14px] border border-dashed border-[var(--border-primary)] bg-[var(--bg-secondary)] p-10 text-center">
           <p className="text-sm font-medium text-[var(--text-secondary)]">
             {t("authorization.people.selectPrompt")}
           </p>

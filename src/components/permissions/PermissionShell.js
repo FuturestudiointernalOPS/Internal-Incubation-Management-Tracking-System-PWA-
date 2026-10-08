@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Shield } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { PERMISSION_BASE, PERMISSION_NAV, navByKey } from "./permissionNav";
 import { defer } from "./effectUtils";
@@ -60,95 +59,64 @@ export default function PermissionShell({ active, sub, onSubChange, children }) 
 
   return (
     <div className="space-y-6 pb-20">
-      {/* Breadcrumb + header */}
-      <header className="space-y-3">
+      {/* Breadcrumb + header: one trail, one title */}
+      <header>
         <nav
           aria-label={t("engineering.permissions.shellBreadcrumbAria")}
-          className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]"
+          className="mb-3 flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)]"
         >
-          <Link
-            href="/admin/security"
-            className="hover:text-[var(--text-primary)] transition-colors"
-          >
+          <Link href="/admin/security" className="transition-colors hover:text-[var(--text-primary)]">
             {t("engineering.permissions.breadcrumbSecurity")}
           </Link>
           <span className="opacity-50">/</span>
-          <Link
-            href={PERMISSION_BASE}
-            className="hover:text-[var(--text-primary)] transition-colors"
-          >
+          <Link href={PERMISSION_BASE} className="transition-colors hover:text-[var(--text-primary)]">
             {t("engineering.permissions.pageTitle")}
           </Link>
           {active !== "overview" && nav && (
             <>
               <span className="opacity-50">/</span>
-              <span className="text-[var(--brand-orange)]">{t(nav.labelKey)}</span>
+              <span className="font-semibold text-[var(--brand-orange)]">{t(nav.labelKey)}</span>
             </>
           )}
         </nav>
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
-            <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-widest">
-              {t("engineering.permissions.authorization")}
-            </span>
-          </div>
-          <h1 className="text-3xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-            {t("engineering.permissions.pageTitle")}
-          </h1>
-          <p className="text-sm font-medium text-[var(--text-secondary)]">
-            {t("engineering.permissions.pageSubtitle")}
-          </p>
-        </div>
+        <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-[var(--text-primary)]">{t("engineering.permissions.pageTitle")}</h1>
+        <p className="mt-1 text-[13px] text-[var(--text-secondary)]">
+          {t("engineering.permissions.pageSubtitle")}
+        </p>
       </header>
 
       {/* Primary navigation — real routes */}
-      <nav
-        aria-label={t("engineering.permissions.shellNavAria")}
-        className="flex flex-wrap items-center gap-1 border-b border-[var(--border-primary)]"
-      >
+      <nav aria-label={t("engineering.permissions.shellNavAria")} className="flex w-max max-w-full gap-1 overflow-x-auto rounded-[10px] border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-1">
         {PERMISSION_NAV.map((item) => {
           const isActive = item.key === active;
           return (
-            <Link
-              key={item.key}
-              href={item.href}
-              aria-current={isActive ? "page" : undefined}
-              className={`px-4 py-3 text-[11px] font-bold uppercase tracking-widest border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 rounded-sm ${
-                isActive
-                  ? "border-[var(--brand-orange)] text-[var(--brand-orange)]"
-                  : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              }`}
-            >
-              {t(item.labelKey)}
-            </Link>
+          <Link
+            key={item.key}
+            href={item.href}
+            aria-current={isActive ? "page" : undefined}
+            className={`rounded-[7px] px-3.5 py-1.5 text-[13px] font-semibold whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 ${isActive ? "bg-[var(--brand-orange)] text-white" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+          >
+            {t(item.labelKey)}
+          </Link>
           );
         })}
       </nav>
 
       {/* Sub-tabs (URL-reflected, cosmetic navigation) */}
       {tabs.length > 0 && (
-        <div
-          role="tablist"
-          aria-label={t("engineering.permissions.shellSubTabsAria")}
-          className="flex flex-wrap items-center gap-2"
-        >
+        <div role="tablist" aria-label={t("engineering.permissions.shellSubTabsAria")} className="flex flex-wrap gap-6 border-b border-[var(--border-primary)]">
           {tabs.map((tab) => {
             const isActive = tab.key === sub;
             return (
-              <button
-                key={tab.key}
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => onSubChange && onSubChange(tab.key)}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-widest border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 ${
-                  isActive
-                    ? "border-brand-orange/40 bg-brand-orange/10 text-[var(--brand-orange)]"
-                    : "border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                }`}
-              >
-                {t(tab.labelKey)}
-              </button>
+            <button
+              key={tab.key}
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => onSubChange && onSubChange(tab.key)}
+              className={`-mb-px border-b-2 px-0.5 py-2 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 ${isActive ? "border-[var(--brand-orange)] text-[var(--brand-orange)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+            >
+              {t(tab.labelKey)}
+            </button>
             );
           })}
         </div>

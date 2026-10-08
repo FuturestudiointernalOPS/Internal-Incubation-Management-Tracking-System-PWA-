@@ -202,17 +202,12 @@ export default function ProfileAssignmentsSection({ cid, onReplaceProfile = null
   }, [picked, eligibility]);
 
   return (
-    <div className="ios-card !p-5 border-[var(--border-primary)] space-y-4">
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <CalendarClock className="w-4 h-4 text-[var(--brand-orange)]" />
-          <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
-            {t("engineering.permissions.profilePanelTitle")}
-          </h4>
-        </div>
-        <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-          {t("engineering.permissions.profilePanelHint")}
-        </p>
+    <div className="ios-card !p-4 border-[var(--border-primary)] space-y-3">
+      <div className="flex items-center gap-2" title={t("engineering.permissions.profilePanelHint")}>
+        <CalendarClock className="w-4 h-4 text-[var(--brand-orange)]" />
+        <h4 className="text-sm font-semibold text-[var(--text-primary)]">
+          {t("engineering.permissions.profilePanelTitle")}
+        </h4>
       </div>
 
       {/* The bar: three controls, one line. */}

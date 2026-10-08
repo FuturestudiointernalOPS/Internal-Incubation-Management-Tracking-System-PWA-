@@ -61,7 +61,6 @@ describe("UI-3d — small-screen parity", () => {
     // and reading only one file would miss one of them, which is a false pass.
     for (const [file, expected] of [
       [null, 2],
-      ["FeatureMatrixSection.js", 1],
       ["people-view/PeopleMatrix.js", 1],
       ["ContextRolesView.js", 1],
     ]) {

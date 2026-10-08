@@ -23,6 +23,20 @@ export default function EffectiveBadge({ effective, reason }) {
     return <Badge variant="mapped">{t("engineering.permissions.effectiveAllowed")}</Badge>;
   }
   const reasonKey = REASON_KEYS[reason];
+  // A right nobody grants is the ordinary case, not an alarm: keep the red pill
+  // for what needs attention (a restriction, or an ineligible person).
+  if (reason === "no-source") {
+    const label = `${t("engineering.permissions.effectiveDenied")} — ${t(reasonKey)}`;
+    return (
+      <span
+        className="text-sm text-[var(--text-secondary)] opacity-60"
+        title={label}
+        aria-label={label}
+      >
+        —
+      </span>
+    );
+  }
   return (
     <Badge variant="denied">
       {t("engineering.permissions.effectiveDenied")}

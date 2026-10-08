@@ -7,7 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import { Skeleton } from "@/components/ui/Skeleton";
 import StatCard from "./ui/StatCard";
 import SectionCard from "./ui/SectionCard";
-import { PERMISSION_NAV, PERMISSION_BASE } from "./permissionNav";
+import { PERMISSION_BASE } from "./permissionNav";
 import { SCOPE_POLICIES, SCOPE_POLICY_KEYS } from "@/models/authorization/scope-catalog";
 import { summarizeContextRoles } from "./overviewHelpers";
 
@@ -266,20 +266,6 @@ export default function OverviewView({ hideRecent = false }) {
         )}
       </SectionCard>
       )}
-
-      <SectionCard title={t("engineering.permissions.overviewQuickLinks")}>
-        <div className="flex flex-wrap gap-2">
-          {PERMISSION_NAV.filter((navItem) => navItem.key !== "overview").map((item) => (
-            <Link
-              key={item.key}
-              href={item.href}
-              className="px-3 py-2 rounded-lg border border-[var(--border-primary)] text-[11px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-brand-orange/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
-            >
-              {t(item.labelKey)}
-            </Link>
-          ))}
-        </div>
-      </SectionCard>
     </div>
   );
 }

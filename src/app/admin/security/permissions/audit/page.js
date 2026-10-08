@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { ChevronDown } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import PermissionShell from "@/components/permissions/PermissionShell";
 import PermissionManager from "@/components/permissions/PermissionCenter";
@@ -28,7 +29,15 @@ export default function PermissionHistoryPage() {
       </p>
       <div className="space-y-6">
         <OverviewView hideRecent />
-        <GovernanceView hideRecent />
+        <details className="group rounded-[14px] border border-[var(--border-primary)] bg-[var(--bg-secondary)] open:pb-4">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-sm font-semibold text-[var(--text-primary)] [&::-webkit-details-marker]:hidden">
+            {t("engineering.permissions.historyGovernanceToggle")}
+            <ChevronDown className="h-4 w-4 text-[var(--text-secondary)] transition-transform group-open:rotate-180" aria-hidden="true" />
+          </summary>
+          <div className="px-5">
+            <GovernanceView hideRecent />
+          </div>
+        </details>
         <PermissionManager initialTab="audit" />
       </div>
     </PermissionShell>

@@ -427,6 +427,7 @@ export default function PersonAccessView({ ctx }) {
               l'écran personne (IndividualAccessScreen) : pas de doublon ici. */}
 
           {/* Légende : chaque état porte un glyphe ET un mot. */}
+          {(loadingPerms || modulesError || moduleSections.length > 0) && (
           <div className="space-y-3 rounded-xl border border-[var(--border-primary)] bg-secondary/20 p-4">
             <div className="flex flex-wrap items-center gap-2">
               <LegendChip
@@ -454,6 +455,7 @@ export default function PersonAccessView({ ctx }) {
               </p>
             )}
           </div>
+          )}
 
           {/* Tableaux de permissions */}
           {loadingPerms ? (
@@ -484,7 +486,7 @@ export default function PersonAccessView({ ctx }) {
               )}
 
               {!modulesError && moduleSections.length === 0 && (
-                <p className="rounded-xl border border-dashed border-[var(--border-primary)] px-4 py-8 text-center text-xs font-semibold text-[var(--text-secondary)]">
+                <p className="text-xs font-medium text-[var(--text-secondary)]">
                   {t("engineering.permissions.personNoSections")}
                 </p>
               )}

@@ -28,12 +28,7 @@ function SummaryFigure({ label, value, hint }) {
   );
 }
 
-export default function AccessSummary({
-  t,
-  summary,
-  role = null,
-  profileName = null,
-}) {
+export default function AccessSummary({ t, summary }) {
   if (!summary) return null;
   const scopeValue =
     summary.scopeCount > 0
@@ -45,7 +40,7 @@ export default function AccessSummary({
   return (
     <section
       aria-labelledby="access-summary-title"
-      className="rounded-xl border border-[var(--border-primary)] bg-[var(--surface-1)] px-5 py-4"
+      className="rounded-[14px] border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-5 py-4"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2
@@ -61,27 +56,6 @@ export default function AccessSummary({
         >
           <Info className="h-3.5 w-3.5" />
         </span>
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-divider/60 pb-4">
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-[var(--text-secondary)]">
-            {t("engineering.permissions.accessSummaryProfile")}
-          </p>
-          <p className="mt-0.5 truncate text-sm font-semibold text-[var(--text-primary)]">
-            {profileName || t("engineering.permissions.accessSummaryNoProfile")}
-          </p>
-        </div>
-        {role && (
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-[var(--text-secondary)]">
-              {t("engineering.permissions.accessSummaryRole")}
-            </p>
-            <p className="mt-0.5 truncate text-sm font-semibold text-[var(--text-primary)]">
-              {role}
-            </p>
-          </div>
-        )}
       </div>
 
       <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-5">
@@ -107,9 +81,6 @@ export default function AccessSummary({
         />
       </dl>
 
-      <p className="mt-3 text-xs text-[var(--text-secondary)]">
-        {t("engineering.permissions.accessSummaryHint")}
-      </p>
     </section>
   );
 }

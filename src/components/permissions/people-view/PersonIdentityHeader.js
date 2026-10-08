@@ -43,7 +43,7 @@ export default function PersonIdentityHeader({ t, person, ctx, profilesSlot = nu
               <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
               {ctx.role}
             </span>
-            {profileName && (
+            {profileName && profileName !== ctx.role && (
               <>
                 <span aria-hidden="true">·</span>
                 <span>{profileName}</span>

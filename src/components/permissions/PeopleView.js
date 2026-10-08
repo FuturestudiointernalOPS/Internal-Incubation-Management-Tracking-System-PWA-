@@ -14,7 +14,7 @@ import { collectContextModules, deriveUserCapState } from "./matrixHelpers";
 import PeopleContextsCard from "./people-view/PeopleContextsCard";
 import PeopleMatrix from "./people-view/PeopleMatrix";
 import PersonIdentityHeader from "./people-view/PersonIdentityHeader";
-import AccessSummary from "./people-view/AccessSummary";
+import AccessSummary from "./people-view/AccessSummaryBand";
 import WhyDrawerBody from "./people-view/WhyDrawerBody";
 import { summarizeAccess } from "./people-view/accessSummary";
 import { SCOPE_POLICIES, SCOPE_POLICY_KEYS } from "@/models/authorization/scope-catalog";
@@ -371,12 +371,7 @@ export default function PeopleView({
             profilesSlot={profilesSlot}
           />
 
-          <AccessSummary
-            t={t}
-            summary={summary}
-            role={ctx.role}
-            profileName={ctx.profile?.profileName || null}
-          />
+          <AccessSummary t={t} summary={summary} />
 
           {/* Effective access — the matrix, by module. */}
           <section

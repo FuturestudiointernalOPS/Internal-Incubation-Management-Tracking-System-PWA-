@@ -259,6 +259,10 @@ export default function AdvancedCapabilities({
     );
   };
 
+  // Nothing privileged to hand out to this person: say nothing rather than
+  // show a heading over an empty note.
+  if (mode === "individual" && groups.length === 0) return null;
+
   return (
     <section className="space-y-3">
       <div>
