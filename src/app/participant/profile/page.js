@@ -10,8 +10,8 @@ import ProfileView from "@/components/dashboard/ProfileView";
 export default function ParticipantProfilePage() {
   return (
     <>
-      <div className="p-6 max-w-5xl mx-auto">
-        <ProfileView />
+      <div className="p-6 max-w-6xl mx-auto">
+        <ProfileView participant />
       </div>
     </>
   );

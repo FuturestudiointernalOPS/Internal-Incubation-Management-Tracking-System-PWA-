@@ -113,7 +113,7 @@ export default function ShellHeader({
                       : t("navigation.notifications")
                   }
                   aria-expanded={showNotifications}
-                  className="p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  className={pathname?.startsWith("/participant") ? "p-2 rounded-lg border border-[var(--border-primary)] bg-surface-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]" : "p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}
                 >
                   <Bell className="w-4 h-4" aria-hidden="true" />
                   {unreadCount > 0 && (
@@ -156,6 +156,10 @@ export default function ShellHeader({
                                 notification.title.includes("ACCESS")
                               ) {
                                 router.push("/admin/communications/contacts");
+                                setShowNotifications(false);
+                              }
+                              if (notification.type === "announcement" && ["participant", "member", "founder"].includes(user?.role)) {
+                                router.push("/participant#announcements");
                                 setShowNotifications(false);
                               }
                               if (notification.type === "message") {

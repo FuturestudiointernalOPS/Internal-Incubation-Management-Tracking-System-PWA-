@@ -48,7 +48,7 @@ const pickGroup = (payload) =>
 // ─── Main Profile View ─────────────────────────────────
 
 // ─── Main Component ─────────────────────────────────────────────────
-export default function ProfileView() {
+export default function ProfileView({ participant = false }) {
   const { t, switchLang, lang } = useI18n();
 
   // Who is signed in, from the shell's session cache: it costs no request of this
@@ -423,14 +423,14 @@ export default function ProfileView() {
       {/* Header */}
       <div>
         <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
-          {t("adminMisc.profile.title")}
+          {t(participant ? "participant.template.profileTitle" : "adminMisc.profile.title")}
         </h1>
         <p className="text-sm text-[var(--text-secondary)] mt-1">
-          {t("adminMisc.profile.subtitle")}
+          {t(participant ? "participant.template.profileHint" : "adminMisc.profile.subtitle")}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className={`grid grid-cols-1 lg:grid-cols-3 gap-6 ${participant ? "participant-profile-grid" : ""}`}>
         {/* ═══ LEFT COLUMN: Avatar + Quick Info ═══ */}
         <div className="lg:col-span-1 space-y-4">
           {/* Avatar card */}

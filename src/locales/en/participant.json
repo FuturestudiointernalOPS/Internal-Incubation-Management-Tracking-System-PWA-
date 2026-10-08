@@ -128,6 +128,128 @@
         "action": "Action",
         "status": "Status",
         "versionCount": "{count} version",
-        "versionCountPlural": "{count} versions"
+        "versionCountPlural": "{count} versions",
+    "template": {
+      "profileTitle": "My profile",
+      "profileHint": "Your personal information and program activity",
+      "ritualTypeColumn": "Type",
+      "summaryColumn": "Summary",
+      "followupCancelled": "Cancelled",
+      "welcome": "Welcome back, {name}",
+      "newReminder": "New reminder",
+      "mySpace": "MY SPACE",
+      "approvedAssignments": "Approved assignments",
+      "awaitingCorrection": "Submitted — awaiting review",
+      "submit": "Submit",
+      "nothingDue": "Nothing needs your attention here.",
+      "markRead": "Read",
+      "readFailed": "This notification could not be marked as read.",
+      "learningHint": "Current courses and next steps",
+      "allCourses": "All my courses",
+      "courses": "Courses",
+      "lessonCount": "{completed}/{total} lessons",
+      "noCourses": "No enrolled courses yet.",
+      "nextSessions": "Next sessions",
+      "noSessions": "No upcoming sessions.",
+      "rituals": "My rituals",
+      "ritualsHint": "Standups, check-ins and weekly reflections",
+      "openRituals": "Open rituals",
+      "ritualSubmitted": "Submitted",
+      "ritualTodo": "To do",
+      "notAvailable": "Not available",
+      "shortcuts": "Shortcuts",
+      "shortcutsHint": "Your whole journey in one click",
+      "programsHint": "Your programs and their milestones",
+      "program": "Program",
+      "facilitator": "Facilitator",
+      "viewProgress": "View my progress",
+      "assignmentsHint": "Your deliverables, status and facilitator feedback",
+      "toSubmit": "To submit",
+      "submitted": "Submitted",
+      "approved": "Approved",
+      "assignmentTitle": "Assignment",
+      "programColumn": "Program",
+      "dueColumn": "Due date",
+      "statusColumn": "Status",
+      "feedbackColumn": "Feedback / score",
+      "actionsColumn": "Actions",
+      "completedCourses": "Completed courses",
+      "lessonsCompleted": "Lessons completed",
+      "certificates": "Certificates",
+      "coursesInProgress": "Courses in progress",
+      "certificateHint": "Your issued program and course certificates",
+      "certificateTitle": "Certificate",
+      "issuedAt": "Issued on",
+      "calendar": {
+        "statusFilter": "Status",
+        "all": "All scheduled",
+        "tasks": "Tasks",
+        "meetings": "Meetings",
+        "task": "Task",
+        "meeting": "Meeting",
+        "add": "Add",
+        "previous": "Previous",
+        "next": "Next",
+        "more": "+{count} more",
+        "newTask": "New reminder",
+        "newMeeting": "New personal meeting",
+        "title": "Title",
+        "date": "Date",
+        "time": "Start",
+        "end": "End",
+        "place": "Place or link",
+        "localNote": "Personal reminders and meetings remain in this page until you leave or reload it. Program events remain read-only.",
+        "required": "Enter a title, date, start and end time.",
+        "endAfterStart": "End time must be after start time.",
+        "deleteConfirm": "Delete this personal reminder or meeting?",
+        "openDetails": "Open details",
+        "noTime": "Time pending",
+        "statuses": {
+          "pending": "To do",
+          "in_progress": "In progress",
+          "blocked": "Blocked",
+          "completed": "Completed",
+          "carried_over": "Carried over"
+        },
+        "views": {
+          "day": "Day",
+          "week": "Week",
+          "month": "Month"
+        }
+      },
+      "progressLabels": {
+        "program": "Program",
+        "assignments": "Assignments",
+        "attendance": "Attendance",
+        "courses": "Courses"
+      },
+      "ritualTypes": {
+        "standup": "Standup",
+        "checkin": "Check-in",
+        "reflect": "Reflection"
+      },
+      "shortcutsItems": {
+        "assignments": {
+          "title": "Assignments",
+          "description": "Submit deliverables and read feedback"
+        },
+        "progress": {
+          "title": "My progress",
+          "description": "Completion, KPIs and weekly details"
+        },
+        "followups": {
+          "title": "Follow-up meetings",
+          "description": "My individual facilitator meetings"
+        },
+        "certificates": {
+          "title": "My certificates",
+          "description": "Certificates earned"
+        },
+        "messages": {
+          "title": "Messages",
+          "description": "Facilitator and cohort"
+        }
+      }
+    }
       }
 }

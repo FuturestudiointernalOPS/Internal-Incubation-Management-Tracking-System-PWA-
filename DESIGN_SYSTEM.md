@@ -437,3 +437,24 @@ src/
 `NewMessageButton` sont dans `src/components/messaging/chat/` ; ils reçoivent les
 valeurs et actions du parent et n'ajoutent aucun conteneur DOM. Ces blocs restent
 propres à leur surface, tandis que les composants UI génériques restent dans `ui/`.
+
+### Participant HTML reference
+
+The participant portal follows `participant-page.html`: a welcome banner,
+compact metric cards, a command calendar, attention lists, announcements, and
+lettered Learning / Rituals / Shortcuts sections. Its sentence-case typography
+and navy/orange palette are scoped to participant routes by
+`participant.module.css` and `participant-shell.module.css`; other sections keep
+their existing theme. Colors are always expressed through theme variables.
+
+`ParticipantCommandCalendar` in `src/components/ui/` provides month, week and day
+views, search, task-status filtering, task/meeting toggles and personal reminders.
+Only locally created reminders/meetings can be changed or removed. Official
+program events link to existing program or assignment routes. Personal additions
+remain in component memory until leaving or reloading the page, as in the HTML.
+
+`AppStatusBadge` accepts an optional translated `label`; its existing status
+configuration and callers remain compatible.
+
+Participant shell uses the specified navy/orange palette in `participant-shell.module.css`.
+Desktop collapse is persisted with `impactos_participant_sidebar_collapsed` and uses a 76px rail; mobile always renders expanded labels. Participant groups toggle independently, and collapsed group clicks expand the rail. `AppButton` exposes `data-variant` and `AppStatusBadge` exposes `data-status`/`data-status-variant` so scoped themes can style them without changing other sections. Participant selects use card surfaces, 12px corners and orange focus rings.

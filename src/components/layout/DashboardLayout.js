@@ -1,4 +1,6 @@
 "use client";
+
+import participantStyles from "./participant-shell.module.css";
 import ShellHeader from "@/components/layout/shell/ShellHeader";
 
 import { SidebarContent } from "@/components/layout/shell/SidebarContent";
@@ -12,7 +14,7 @@ import {
   setDashboardSession,
   subscribeDashboardSession,
 } from "@/lib/dashboardSession";
-import { Users, LayoutDashboard, Briefcase, Calendar, User, MessageSquare, Bell, TrendingUp, FileText, ShieldCheck, Rocket, Send, Library, BarChart3, ListTodo, ClipboardList, Wrench, CheckSquare, Megaphone, Clock, GraduationCap } from "lucide-react";
+import { Users, LayoutDashboard, Briefcase, Calendar, RefreshCw, User, MessageSquare, Bell, TrendingUp, FileText, ShieldCheck, Rocket, Send, Library, BarChart3, ListTodo, ClipboardList, Wrench, CheckSquare, Megaphone, Clock, GraduationCap } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 
 import GlobalToast from "@/components/ui/GlobalToast";
@@ -123,6 +125,24 @@ function shellRole(userRole, role) {
 // The server snapshot is deliberately absent, so the server's render and the
 // browser's first render agree and the identity arrives on the client's own read.
 const EMPTY_USER = {};
+const COLLAPSE_KEY = "impactos_participant_sidebar_collapsed";
+const collapseListeners = new Set();
+let collapseFallback = false;
+function readParticipantCollapse() {
+  try { return localStorage.getItem(COLLAPSE_KEY) === "true"; } catch { return collapseFallback; }
+}
+function subscribeParticipantCollapse(listener) {
+  collapseListeners.add(listener);
+  window.addEventListener("storage", listener);
+  return () => { collapseListeners.delete(listener); window.removeEventListener("storage", listener); };
+}
+function writeParticipantCollapse(value) {
+  const next = typeof value === "function" ? value(readParticipantCollapse()) : value;
+  collapseFallback = next;
+  try { localStorage.setItem(COLLAPSE_KEY, String(next)); } catch { /* Storage may be unavailable. */ }
+  collapseListeners.forEach(listener => listener());
+}
+const expandedServerSnapshot = () => false;
 
 function getShellUserSnapshot() {
   return getDashboardSessionUser();
@@ -141,7 +161,7 @@ const PERSONAL_ROLES = ["member", "founder", "participant", "team"];
 const pickLmsEnrollment = (payload) => (payload && payload.success ? !!payload.enrolled : false);
 
 function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidth = false }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [legacyCollapsed, setLegacyCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAllNotifications, setShowAllNotifications] = useState(false);
@@ -157,6 +177,10 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
   const { lang, t, switchLang } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
+  const participantSurface = pathname?.startsWith("/participant");
+  const participantCollapsed = useSyncExternalStore(subscribeParticipantCollapse, readParticipantCollapse, expandedServerSnapshot);
+  const collapsed = participantSurface ? participantCollapsed : legacyCollapsed;
+  const setCollapsed = participantSurface ? writeParticipantCollapse : setLegacyCollapsed;
   const [pinnedAnnouncements, setPinnedAnnouncements] = useState([]);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
@@ -768,8 +792,15 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
       }
       if (rel.isProgramParticipant) {
         items.push({ id: "programs", name: "MY PROGRAMS", icon: Briefcase, href: "/participant/dashboard" });
+        if (activeRole !== "team") {
+        items.push({ id: "assignments", name: "ASSIGNMENTS", icon: FileText, href: "/participant/assignments" });
+        items.push({ id: "progress", name: "PROGRESS", icon: TrendingUp, href: "/participant/progress" });
+        items.push({ id: "rituals", name: "RITUALS", icon: RefreshCw, href: "/participant/rituals" });
+        items.push({ id: "followups", name: "FOLLOWUPS", icon: Calendar, href: "/participant/followups" });
+        }
         items.push({ id: "certificates", name: "MY CERTIFICATES", icon: FileText, href: "/participant/certificates" });
       }
+      if (canReadMessages && activeRole !== "team") items.push({ id: "messages", name: "MESSAGES", icon: MessageSquare, href: "/participant/messages" });
       if (rel.isVentureMember) {
         // A founder's venture door sits with their program doors (the founder
         // nav contract reads Dashboard → Programs → Ventures → Timeline),
@@ -866,6 +897,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     pmPrograms,
     hasLmsEnrollments,
     effectiveCaps,
+    canReadMessages,
     ventureAssignCount,
     relationships,
   ]);
@@ -909,13 +941,13 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
         // Opening one section closes the other hand-opened ones, except the
         // sections on the active path — they stay as context.
         for (const key of Object.keys(map)) {
-          if (key !== id && !activePathIds.has(key)) delete map[key];
+          if (!participantSurface && key !== id && !activePathIds.has(key)) delete map[key];
         }
         map[id] = true;
         return { key: activePathKey, map };
       });
     },
-    [activePathKey, activePathIds, openMenus],
+    [activePathKey, activePathIds, openMenus, participantSurface],
   );
 
   const handleLogout = async () => {
@@ -965,9 +997,10 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
 
   return (
     <AppErrorBoundary>
-      <div className="flex h-screen w-full overflow-hidden bg-primary text-[var(--text-primary)]">
+      <div className={`flex h-screen w-full overflow-hidden bg-primary text-[var(--text-primary)] ${pathname?.startsWith("/participant") ? participantStyles.shell : ""}`}>
         <aside
-          style={{ width: collapsed ? 64 : 260 }}
+          style={{ width: collapsed ? (participantSurface ? 76 : 64) : 260 }}
+          data-collapsed={collapsed}
           className="hidden md:flex flex-col h-screen sticky top-0 bg-secondary border-r border-[var(--border-primary)] p-4 overflow-hidden min-h-0 z-[100] transition-[width] duration-150"
         >
           <SidebarContent {...commonProps} />
@@ -979,8 +1012,8 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
               onClick={() => setMobileMenuOpen(false)}
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             />
-            <aside className="absolute inset-y-0 left-0 w-64 flex flex-col overflow-hidden bg-secondary p-6 border-r border-[var(--border-primary)]">
-              <SidebarContent {...commonProps} />
+            <aside data-mobile-sidebar className="absolute inset-y-0 left-0 w-64 flex flex-col overflow-hidden bg-secondary p-6 border-r border-[var(--border-primary)]">
+              <SidebarContent {...commonProps} collapsed={false} mobile />
             </aside>
           </div>
         )}
@@ -1012,7 +1045,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
 
           <main className="flex-1 p-6 lg:p-10 overflow-y-auto bg-primary">
             {/* Pinned Announcements Banner */}
-            {pinnedAnnouncements.length > 0 && (
+            {pinnedAnnouncements.length > 0 && !pathname?.startsWith("/participant") && (
               <div className="mb-6 space-y-2">
                 {pinnedAnnouncements.map((announcement) => (
                   <div

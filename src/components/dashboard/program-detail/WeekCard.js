@@ -97,6 +97,7 @@ export default function WeekCard({ week, isExpanded, onToggle, onSubmit, t }) {
               {week.sessions.map((session) => (
                 <div
                   key={session.id}
+                  id={`session-${session.id}`}
                   className="flex items-center justify-between py-2 px-3 rounded-lg bg-[var(--surface-2)]"
                 >
                   <div>

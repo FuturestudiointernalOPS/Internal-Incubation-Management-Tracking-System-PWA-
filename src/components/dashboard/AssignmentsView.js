@@ -3,8 +3,6 @@
 import React, { useState, useMemo } from "react";
 import { useApi } from "@/lib/hooks/useApi";
 import {
-  FileText,
-  CheckCircle2,
   AlertCircle,
   ExternalLink,
   Send,
@@ -12,6 +10,12 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { formatLocaleDate } from "@/lib/constants";
+import AppTable from "@/components/ui/AppTable";
+import AppCard from "@/components/ui/AppCard";
+import AppInput from "@/components/ui/AppInput";
+import AppButton from "@/components/ui/AppButton";
+import AppStatusBadge from "@/components/ui/AppStatusBadge";
 import { useI18n } from "@/lib/i18n";
 
 function isSafeUrl(url) {
@@ -38,37 +42,11 @@ function programsOf(assignments) {
   return Object.entries(namesById).map(([id, name]) => ({ id, name }));
 }
 
-function StatusBadge({ status }) {
-  const { t } = useI18n();
-  const config = {
-    approved: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-    pending: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-    rejected: "bg-rose-500/10 text-rose-400 border-rose-500/20",
-    revision_requested: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  };
-  const statusLabels = {
-    approved: t("participantMisc.assignments.statusApproved"),
-    pending: t("participantMisc.assignments.statusAwaitingReview"),
-    rejected: t("participantMisc.assignments.statusRejected"),
-    revision_requested: t("participantMisc.assignments.statusRevisionRequested"),
-    draft: t("participantMisc.assignments.statusDraft"),
-  };
-  const classes =
-    config[status?.toLowerCase()] ||
-    "bg-white/5 text-[var(--text-tertiary)] border-white/10";
-  return (
-    <span
-      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${classes}`}
-    >
-      {statusLabels[status?.toLowerCase()] || status || statusLabels.draft}
-    </span>
-  );
-}
-
 export default function AssignmentsView() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [filterProgram, setFilterProgram] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [showSubmitModal, setShowSubmitModal] = useState(null);
   const [submitUrl, setSubmitUrl] = useState("");
   const [submitFile, setSubmitFile] = useState(null);
@@ -174,6 +152,7 @@ export default function AssignmentsView() {
   };
 
   const filtered = assignments.filter((assignment) => {
+    if (![assignment.title, assignment.programName, assignment.submission?.feedback, assignment.submission?.rejectionReason].join(" ").toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
     if (filterStatus === "overdue")
       return !assignment.submission && new Date(assignment.dueDate) < new Date();
     if (filterStatus === "pending") return !assignment.submission;
@@ -189,10 +168,10 @@ export default function AssignmentsView() {
   if (loading) {
     return (
       <div className="space-y-4 animate-pulse">
-        <div className="h-8 w-48 bg-white/10 rounded" />
+        <div className="h-8 w-48 bg-surface-3 rounded" />
         <div className="flex gap-2">
           {[...Array(4)].map((_, index) => (
-            <div key={index} className="h-8 w-24 bg-white/5 rounded" />
+            <div key={index} className="h-8 w-24 bg-surface-2 rounded" />
           ))}
         </div>
         {[...Array(5)].map((_, index) => (
@@ -212,7 +191,7 @@ export default function AssignmentsView() {
         <p className="text-sm text-[var(--text-secondary)]">{error}</p>
         <button
           onClick={refresh}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-wide"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-[var(--text-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wide"
         >
           <RefreshCw className="w-3 h-3" /> {t("participantMisc.assignments.retry")}
         </button>
@@ -229,7 +208,7 @@ export default function AssignmentsView() {
       {/* Header */}
       <div>
         <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
-          {t("participantMisc.assignments.title")}
+          {t("participant.template.shortcutsItems.assignments.title")}
         </h1>
         <p className="text-sm text-[var(--text-secondary)] mt-1">
           {t("participantMisc.assignments.summary", {
@@ -238,6 +217,14 @@ export default function AssignmentsView() {
           })}
         </p>
       </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{[
+        [t("participant.template.toSubmit"), assignments.filter(item => !item.submission || ["rejected", "revision_requested"].includes(item.submission.status)).length],
+        [t("participant.overdue"), assignments.filter(item => !item.submission && item.dueDate && new Date(item.dueDate) < new Date()).length],
+        [t("participant.template.submitted"), assignments.filter(item => item.submission?.status === "pending").length],
+        [t("participant.template.approved"), assignments.filter(item => item.submission?.status === "approved").length],
+      ].map(([label, value]) => <AppCard key={label} padding="sm"><p className="text-xs text-[var(--text-secondary)]">{label}</p><strong className="block mt-3 text-3xl font-bold font-mono text-[var(--text-primary)]">{value}</strong></AppCard>)}</div>
+      <AppInput type="search" label={t("common.search")} value={searchQuery} onChange={event => setSearchQuery(event.target.value)} />
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
@@ -268,137 +255,14 @@ export default function AssignmentsView() {
         </select>
       </div>
 
-      {/* List */}
-      {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16">
-          <FileText className="w-10 h-10 text-[var(--text-tertiary)] mb-3" />
-          <p className="text-sm text-[var(--text-secondary)]">
-            {t("participantMisc.assignments.noMatches")}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map((assignment) => {
-            const isOverdue = !assignment.submission && new Date(assignment.dueDate) < new Date();
-            return (
-              <div
-                key={`${assignment.programId}-${assignment.id}`}
-                className={`flex items-center gap-4 p-4 rounded-xl border transition-all bg-[var(--bg-tertiary)] ${
-                  isOverdue
-                    ? "border-rose-500/20"
-                    : assignment.submission?.status === "approved"
-                      ? "border-emerald-500/20"
-                      : "border-[var(--border-primary)]"
-                }`}
-              >
-                <div
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
-                    isOverdue
-                      ? "bg-rose-500/10"
-                      : assignment.submission?.status === "approved"
-                        ? "bg-emerald-500/10"
-                        : "bg-white/5"
-                  }`}
-                >
-                  {isOverdue ? (
-                    <AlertCircle className="w-5 h-5 text-rose-400" />
-                  ) : assignment.submission?.status === "approved" ? (
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                  ) : (
-                    <FileText className="w-5 h-5 text-[var(--text-tertiary)]" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
-                      {assignment.title}
-                    </p>
-                    {assignment.submission && (
-                      <StatusBadge status={assignment.submission.status} />
-                    )}
-                    {isOverdue && (
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-rose-400">
-                        {t("participantMisc.assignments.overdue")}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
-                    {assignment.programName}{" "}
-                    {assignment.dueDate
-                      ? t("participantMisc.assignments.due", {
-                          date: new Date(assignment.dueDate).toLocaleDateString(),
-                        })
-                      : ""}
-                    {assignment.submission?.score > 0
-                      ? t("participantMisc.assignments.score", {
-                          score: assignment.submission.score,
-                        })
-                      : ""}
-                  </p>
-                  {assignment.description && (
-                    <p className="text-sm text-[var(--text-secondary)] mt-1 line-clamp-2">
-                      {assignment.description}
-                    </p>
-                  )}
-                  {(assignment.submission?.status === "revision_requested" ||
-                    assignment.submission?.status === "rejected") &&
-                    (assignment.submission.feedback || assignment.submission.rejectionReason) && (
-                      <div className="mt-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-blue-400">
-                          {t("participantMisc.assignments.feedbackLabel")}
-                        </p>
-                        <p className="text-sm text-[var(--text-secondary)] mt-0.5">
-                          {assignment.submission.rejectionReason || assignment.submission.feedback}
-                        </p>
-                      </div>
-                    )}
-                  {assignment.resourceUrl && isSafeUrl(assignment.resourceUrl) && (
-                    <a
-                      href={assignment.resourceUrl}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      className="inline-flex items-center gap-1 mt-2 px-3 py-1.5 rounded-lg bg-[var(--bg-primary)] border border-brand-orange/30 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      {assignment.resourceLabel || t("participantMisc.assignments.openResource")}
-                    </a>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {assignment.submission?.fileUrl && (
-                    <a
-                      href={assignment.submission.fileUrl}
-                      target="_blank"
-                      className="p-2 rounded-lg hover:bg-white/5 transition-all" rel="noreferrer"
-                    >
-                      <ExternalLink className="w-4 h-4 text-[var(--text-tertiary)]" />
-                    </a>
-                  )}
-                  {(!assignment.submission ||
-                    assignment.submission?.status === "rejected" ||
-                    assignment.submission?.status === "revision_requested") && (
-                    <button
-                      onClick={() => {
-                        setShowSubmitModal(assignment);
-                        setSubmitUrl("");
-                        setSubmitFile(null);
-                        setFeedback(null);
-                      }}
-                      className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
-                    >
-                      {assignment.submission?.status === "revision_requested"
-                        ? t("participantMisc.assignments.resubmit")
-                        : assignment.submission?.status === "rejected"
-                          ? t("participantMisc.assignments.redo")
-                          : t("participantMisc.assignments.submit")}
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <AppTable data={filtered} emptyMessage={t("participantMisc.assignments.noMatches")} columns={[
+        { key: "title", label: t("participant.template.assignmentTitle"), render: (_, assignment) => <div><b>{assignment.title}</b>{assignment.description && <p className="mt-1 text-xs text-[var(--text-secondary)]">{assignment.description}</p>}{assignment.resourceUrl && isSafeUrl(assignment.resourceUrl) && <a href={assignment.resourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex mt-2 items-center gap-1 text-xs text-[var(--brand-orange)]"><ExternalLink className="w-3 h-3" />{assignment.resourceLabel || t("participantMisc.assignments.openResource")}</a>}</div> },
+        { key: "programName", label: t("participant.template.programColumn") },
+        { key: "dueDate", label: t("participant.template.dueColumn"), render: value => value ? formatLocaleDate(value, { day: "numeric", month: "short" }, lang) : t("participant.template.notAvailable") },
+        { key: "status", label: t("participant.template.statusColumn"), render: (_, assignment) => <AppStatusBadge status={assignment.submission?.status || (assignment.dueDate && new Date(assignment.dueDate) < new Date() ? "blocked" : "pending")} label={t(assignment.submission ? ({approved: "participantMisc.assignments.statusApproved", pending: "participantMisc.assignments.statusAwaitingReview", rejected: "participantMisc.assignments.statusRejected", revision_requested: "participantMisc.assignments.statusRevisionRequested"}[assignment.submission.status] || "participantMisc.assignments.statusDraft") : assignment.dueDate && new Date(assignment.dueDate) < new Date() ? "participantMisc.assignments.overdue" : "participantMisc.assignments.filterPending")} /> },
+        { key: "feedback", label: t("participant.template.feedbackColumn"), render: (_, assignment) => <div className="min-w-40 text-sm">{assignment.submission?.score > 0 && <b className="font-mono">{assignment.submission.score} </b>}{assignment.submission?.rejectionReason || assignment.submission?.feedback || t("participant.template.notAvailable")}</div> },
+        { key: "actions", label: t("participant.template.actionsColumn"), render: (_, assignment) => <div className="flex items-center gap-2">{assignment.submission?.fileUrl && (isSafeUrl(assignment.submission.fileUrl) || /^\/(?!\/)/.test(assignment.submission.fileUrl)) && <a href={assignment.submission.fileUrl} target="_blank" rel="noopener noreferrer" aria-label={t("participantMisc.assignments.openResource")}><ExternalLink className="h-4 w-4" /></a>}{(!assignment.submission || ["rejected", "revision_requested"].includes(assignment.submission.status)) && <AppButton size="sm" onClick={() => { setShowSubmitModal(assignment); setSubmitUrl(""); setSubmitFile(null); setFeedback(null); }}>{t(assignment.submission ? "participantMisc.assignments.resubmit" : "participantMisc.assignments.submit")}</AppButton>}</div> },
+      ]} />
 
       {/* Submit Modal */}
       <AnimatePresence>
@@ -461,7 +325,7 @@ export default function AssignmentsView() {
               <input
                 type="file"
                 onChange={(event) => { setSubmitFile(event.target.files[0] || null); setSubmitUrl(""); }}
-                className="w-full px-4 py-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-secondary)] file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-[var(--brand-orange)] file:text-black hover:file:bg-white transition-all"
+                className="w-full px-4 py-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-secondary)] file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-[var(--brand-orange)] file:text-[var(--text-primary)] hover:file:bg-white transition-all"
               />
               {submitFile && (
                 <p className="text-[10px] font-bold text-emerald-400">
@@ -485,7 +349,7 @@ export default function AssignmentsView() {
               <button
                 onClick={handleSubmit}
                 disabled={(!submitUrl && !submitFile) || submitting}
-                className="w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide disabled:opacity-30 flex items-center justify-center gap-2"
+                className="w-full py-3 bg-[var(--brand-orange)] text-[var(--text-primary)] rounded-xl text-sm font-bold uppercase tracking-wide disabled:opacity-30 flex items-center justify-center gap-2"
               >
                 {submitting ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />

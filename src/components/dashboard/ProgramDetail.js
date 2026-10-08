@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   BookOpen,
@@ -65,6 +66,7 @@ function detailError(failure, t) {
 // ─── Main Component ─────────────────────────────────────────────────
 export default function ProgramDetail({ programId }) {
   const { t } = useI18n();
+  const requestedSession = useSearchParams().get("session");
   const [activeTab, setActiveTab] = useState("curriculum");
   const [submitModal, setSubmitModal] = useState(null); // { deliverableId, weekNumber, deliverable }
   // Only the weeks the person has toggled themselves, recorded over the default.
@@ -96,15 +98,26 @@ export default function ProgramDetail({ programId }) {
   // the person toggles keeps their choice - DERIVED, so a fresh read can no
   // longer close a week they had opened, and opening the current one costs no
   // state write and no extra render.
-  const isWeekOpen = (weekNumber) =>
-    weekOverrides[weekNumber] ??
-    (weekNumber === data?.curriculum?.currentWeek);
-
+  const defaultWeekOpen = (weekNumber) =>
+    weekNumber === data?.curriculum?.currentWeek ||
+    data?.curriculum?.weeks?.some(week =>
+      week.number === weekNumber &&
+      week.sessions?.some(session => String(session.id) === requestedSession),
+    );
+  const isWeekOpen = (weekNumber) => weekOverrides[weekNumber] ?? defaultWeekOpen(weekNumber);
   const toggleWeek = (weekNumber) =>
     setWeekOverrides((prev) => ({
       ...prev,
-      [weekNumber]: !(prev[weekNumber] ?? (weekNumber === data?.curriculum?.currentWeek)),
+      [weekNumber]: !(prev[weekNumber] ?? defaultWeekOpen(weekNumber)),
     }));
+
+  useEffect(() => {
+    if (!requestedSession || !data) return;
+    const frame = requestAnimationFrame(() => {
+      document.getElementById(`session-${requestedSession}`)?.scrollIntoView({ block: "center" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [data, requestedSession]);
 
   // ── Error State ──────────────────────────────────────────────────
   if (error && !loading) {
@@ -241,7 +254,7 @@ export default function ProgramDetail({ programId }) {
 
       {/* ═══ Facilitators ═══ */}
       {program.facilitators?.length > 0 && (
-        <div className="bg-[var(--bg-tertiary)] rounded-xl p-4 border border-[var(--border-primary)]">
+        <div id="facilitators" className="scroll-mt-24 bg-[var(--bg-tertiary)] rounded-xl p-4 border border-[var(--border-primary)]">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">
             {t("participant.facilitators")}
           </p>

@@ -9,11 +9,12 @@ import {
   nextExplicitState,
 } from "@/components/layout/sidebarMenu";
 import { tnav } from "./navigation";
-import { ChevronsLeft, ChevronsRight, User, LogOut, ChevronDown, Globe } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, User, LogOut, ChevronDown, Globe } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 
 export const SidebarContent = ({
+  mobile = false,
   collapsed,
   setCollapsed,
   role,
@@ -30,6 +31,7 @@ export const SidebarContent = ({
   hasCommunicationActivity,
 }) => {
   const { switchLang } = useI18n();
+  const participant = pathname?.startsWith("/participant");
   const profileHref = `/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "facilitator" ? "facilitator" : role === "investor" ? "investor" : "participant"}/profile`;
 
   const [flyout, setFlyout] = useState(null); // { id, top } — collapsed-rail flyout
@@ -116,7 +118,7 @@ export const SidebarContent = ({
 
     if (hasKids) {
       const isOpen = openMenus[item.id] || false;
-      const expanded = resolveSectionExpanded({
+      const expanded = participant ? isOpen : resolveSectionExpanded({
         open: isOpen,
         hovered: isHoverTarget(item, hoverMenu),
         closedByClick: closedByClick === item.id,
@@ -126,15 +128,23 @@ export const SidebarContent = ({
           key={item.id}
           className="space-y-1"
           onMouseLeave={
-            collapsed ? undefined : () => scheduleHoverClose(item.id)
+            participant || collapsed ? undefined : () => scheduleHoverClose(item.id)
           }
         >
           <button
-            onClick={() => toggleSection(item.id)}
+            onClick={() => {
+              if (participant && collapsed) {
+                setCollapsed(false);
+                if (!isOpen) toggleMenu(item.id);
+              } else toggleSection(item.id);
+            }}
+            title={show ? undefined : label(item)}
+            data-nav-active={onPath || undefined}
+            data-nav-depth={depth}
             aria-expanded={expanded}
             aria-label={show ? undefined : label(item)}
             onMouseEnter={
-              collapsed && !showLabels
+              participant ? undefined : collapsed && !showLabels
                 ? (event) => openFlyout(event, item.id)
                 : collapsed
                   ? undefined
@@ -143,7 +153,7 @@ export const SidebarContent = ({
                     }
             }
             onMouseLeave={
-              collapsed && !showLabels ? scheduleFlyoutClose : undefined
+              !participant && collapsed && !showLabels ? scheduleFlyoutClose : undefined
             }
             className={`w-full flex items-center justify-between transition-all ${
               isTop
@@ -183,7 +193,7 @@ export const SidebarContent = ({
             )}
           </button>
           {expanded && show && (
-            <div className={`space-y-1 py-1 ${isTop ? "pl-8" : "pl-6"}`}>
+            <div data-nav-children className={`space-y-1 py-1 ${isTop ? "pl-8" : "pl-6"}`}>
               {childItems.map((childItem) => renderNavItem(childItem, depth + 1, showLabels))}
             </div>
           )}
@@ -196,6 +206,9 @@ export const SidebarContent = ({
       <Link
         key={item.id || item.href}
         href={item.href}
+        title={show ? undefined : label(item)}
+        data-nav-active={isActive || onPath || undefined}
+        data-nav-depth={depth}
         aria-label={show ? undefined : label(item)}
         onClick={() => {
           setMobileMenuOpen(false);
@@ -253,7 +266,7 @@ export const SidebarContent = ({
         )}
         {/* The rail can always be reopened, so the control is present in both
             widths: beside the logo when open, under the mark when collapsed. */}
-        <button
+        {!mobile && <button
           type="button"
           onClick={() => setCollapsed((previousCollapsed) => !previousCollapsed)}
           aria-label={t(
@@ -266,18 +279,19 @@ export const SidebarContent = ({
             collapsed ? "" : "ml-auto"
           }`}
         >
-          {collapsed ? (
+          {participant ? (collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />) : collapsed ? (
             <ChevronsRight className="w-4 h-4" />
           ) : (
             <ChevronsLeft className="w-4 h-4" />
           )}
-        </button>
+        </button>}
       </div>
 
+      {participant && collapsed && <div data-section-rule className="border-t border-[var(--border-primary)] mx-3 mb-4" />}
       {!collapsed && (
         <div className="px-3 mb-4">
           <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.25em] opacity-40">
-            {t("navigation.mainOperations")}
+            {t(["participant", "member", "founder"].includes(role) ? "participant.template.mySpace" : "navigation.mainOperations")}
           </p>
         </div>
       )}
@@ -287,7 +301,7 @@ export const SidebarContent = ({
       </nav>
 
       {/* Collapsed-rail flyout: reach a section's children from the icon rail */}
-      {collapsed && flyout && (() => {
+      {!participant && collapsed && flyout && (() => {
         const parent = (navItems || []).find((navItem) => navItem.id === flyout.id);
         if (!parent) return null;
         const childItems = parent.children || parent.subItems || [];
@@ -307,12 +321,14 @@ export const SidebarContent = ({
       })()}
 
       <div className="mt-auto pt-8 border-t border-[var(--border-secondary)] space-y-3">
+        {participant && collapsed && <div data-section-rule className="border-t border-[var(--border-primary)] mx-3 mb-2" />}
         {!collapsed && (
           <p className="px-3 mb-2 text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.25em] opacity-40">
             {t("navigation.userProtocol")}
           </p>
         )}
         <div className="space-y-1">
+          {["participant", "member", "founder"].includes(role) ? <Link href={profileHref} onClick={() => setMobileMenuOpen(false)} aria-label={t(tnav("profile"))} data-nav-active={pathname === profileHref || undefined} data-nav-depth={0} title={t(tnav("profile"))} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary font-semibold text-[13px]"><User className="w-4 h-4 flex-shrink-0" />{!collapsed && <span>{t(tnav("profile"))}</span>}</Link> : <>
           <button
             onClick={() => toggleMenu("profile")}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-semibold text-[13px] ${pathname?.includes("profile") ? "bg-tertiary text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
@@ -343,8 +359,11 @@ export const SidebarContent = ({
               </Link>
             </div>
           )}
+          </>}
         </div>
         <button
+          aria-label={t("common.language")}
+          title={t("common.language")}
           onClick={() => {
             if (typeof window === "undefined") return;
             const current = localStorage.getItem("impactos_lang") || "en";
@@ -356,6 +375,8 @@ export const SidebarContent = ({
           {!collapsed && <span>FR/EN</span>}
         </button>
         <button
+          aria-label={t(tnav("logout"))}
+          title={t(tnav("logout"))}
           onClick={handleLogout}
           className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-all font-semibold text-[13px]"
         >

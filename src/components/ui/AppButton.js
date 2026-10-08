@@ -54,6 +54,7 @@ export default function AppButton({
   const variantStyle = VARIANTS[variant] || VARIANTS.primary;
   return (
     <button
+      data-variant={variant}
       type={type}
       onClick={onClick}
       disabled={disabled || loading}
