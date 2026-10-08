@@ -216,9 +216,22 @@ describe("who a reminder reaches", () => {
     expect(recipients[0]).toMatchObject({ email: "amina@example.com", source: "on_file" });
   });
 
-  test("a real person's own address WINS over anything typed by hand", async () => {
+  test("an address typed in the reminder bar WINS over the contact record", async () => {
+    // Editing the destination must change who the next send reaches.
     selectContactEmailsByCids.mockResolvedValue({ rows: [{ cid: "USR_A", email: "real@example.com", deleted: 0 }] });
     selectAssigneeEmails.mockResolvedValue({ rows: [{ display_name: "Amina", email: "typed@example.com" }] });
+
+    const recipients = await resolveWorkItemRecipients({
+      ventureId: "VNT-1",
+      item: { ...ITEM, owner: { name: "Amina", cid: "USR_A" } },
+    });
+    expect(recipients[0].email).toBe("typed@example.com");
+    expect(recipients[0].source).toBe("on_file");
+  });
+
+  test("without an address on file, the contact record is still used", async () => {
+    selectContactEmailsByCids.mockResolvedValue({ rows: [{ cid: "USR_A", email: "real@example.com", deleted: 0 }] });
+    selectAssigneeEmails.mockResolvedValue({ rows: [] });
 
     const recipients = await resolveWorkItemRecipients({
       ventureId: "VNT-1",

@@ -104,9 +104,11 @@ export async function sendVentureReminderEmail({
               ${manualLine}
 
               <table cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
-                ${labelRow("Activity", item.activity)}
+                ${labelRow("Code", item.ref, { bold: true })}
+                ${labelRow("Activity", item.activity || title)}
                 ${labelRow("Deliverable", item.deliverable)}
                 ${labelRow("Definition of Done", item.definition_of_done)}
+                ${labelRow("Status", item.status?.raw || item.status?.id || null)}
                 ${labelRow("Owner", item.owner?.name)}
                 ${labelRow("Supporting", item.supporting)}
                 ${labelRow("Start", humanDate(item.start))}

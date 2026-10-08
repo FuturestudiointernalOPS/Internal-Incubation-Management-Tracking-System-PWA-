@@ -5,10 +5,10 @@
  * those NAMES into addresses is the one part that can lose a reminder silently,
  * so the rule is explicit:
  *
- *   - a person WITH a platform account is asked for the address on their contact
- *     record (their own address always wins over anything typed by hand);
- *   - a person who is only a NAME is looked up in the addresses on file for this
- *     Venture — which is the ONLY place an off-platform assignee can come from;
+ *   - the address on file for this Venture (typed in the reminder bar) WINS when
+ *     present — editing it must change who the next send reaches;
+ *   - otherwise a person WITH a platform account is asked for the address on
+ *     their contact record;
  *   - anyone left without an address is still RETURNED, with `reason` saying why.
  *
  * That last point is the whole design. An assignee with no address is not
@@ -81,14 +81,26 @@ export async function resolveWorkItemRecipients({
   );
 
   const resolve = (entry) => {
+    const hasRow = onFileByName.has(entry.name.toLowerCase());
     const typed = normalizeEmail(onFileByName.get(entry.name.toLowerCase()));
+
+    // Manager-set address for this Venture takes precedence so "change email"
+    // in the reminder bar actually changes the next send's recipient.
+    if (typed) return recipient({ ...entry, email: typed, source: "on_file" });
+    if (hasRow) {
+      return recipient({
+        ...entry,
+        email: null,
+        source: null,
+        reason: NO_EMAIL_REASONS.invalid_on_file,
+      });
+    }
 
     if (entry.cid) {
       const contact = contactByCid.get(String(entry.cid));
       const deleted = Boolean(contact?.deleted) && String(contact.deleted) !== "0";
       const own = deleted ? null : normalizeEmail(contact?.email);
       if (own) return recipient({ ...entry, email: own, source: "contact" });
-      if (typed) return recipient({ ...entry, email: typed, source: "on_file" });
       return recipient({
         ...entry,
         email: null,
@@ -97,16 +109,13 @@ export async function resolveWorkItemRecipients({
       });
     }
 
-    if (typed) return recipient({ ...entry, email: typed, source: "on_file" });
     // A name the tracker wrote, with nothing anywhere to write to. Returned ON
     // PURPOSE: this is the row that lets the screen offer "add an email".
     return recipient({
       ...entry,
       email: null,
       source: null,
-      reason: onFileByName.has(entry.name.toLowerCase())
-        ? NO_EMAIL_REASONS.invalid_on_file
-        : NO_EMAIL_REASONS.external_without_email,
+      reason: NO_EMAIL_REASONS.external_without_email,
     });
   };
 
