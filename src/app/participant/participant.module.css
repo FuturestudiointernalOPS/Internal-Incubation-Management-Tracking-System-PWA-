@@ -1,14 +1,7 @@
 .surface { color: var(--text-primary); font-size: 14px; }
 .surface > div { padding: 0; }
 .surface :is(h1, h2, h3, h4) { text-transform: none; letter-spacing: normal; }
-.surface h1 { font-size: clamp(1.5rem, 2.5vw, 1.75rem); line-height: 1.3; }
 .surface :is(p, li) { line-height: 1.6; }
-.surface :global(.participant-welcome) {
-  background: radial-gradient(120% 140% at 0% 100%, var(--participant-hero-start) 0%, var(--participant-hero-middle) 38%, var(--participant-hero-end) 75%);
-}
-.surface :global(.participant-welcome) :is(h1, h2) { color: var(--participant-on-hero); }
-.surface :global(.participant-welcome) p { color: var(--participant-on-hero-secondary); }
-.surface :global(.participant-progress-fill) { background: linear-gradient(90deg, var(--brand-orange), var(--participant-accent-end)); }
 .surface table { min-width: 620px; }
 .surface button { text-transform: none; letter-spacing: normal; }
 .surface :global(.participant-profile-grid) {

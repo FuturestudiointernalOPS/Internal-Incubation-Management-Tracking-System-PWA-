@@ -56,7 +56,7 @@ export default function AppStatusBadge({
   // Pill (default)
   return (
     <span data-status={status} data-status-variant={variant}
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${statusConfig.bg} ${statusConfig.color} ${pulse ? "animate-pulse" : ""} ${className}`}
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold ${statusConfig.bg} ${statusConfig.color} ${pulse ? "animate-pulse" : ""} ${className}`}
     >
       {statusConfig.dot && (
         <span data-status={status} data-status-variant={variant}

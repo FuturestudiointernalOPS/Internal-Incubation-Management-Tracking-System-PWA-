@@ -95,7 +95,7 @@ export default function AppModal({ isOpen, onClose, title, children, size = "md"
         aria-labelledby={title ? titleId : undefined}
         onKeyDown={keepFocusInside}
         tabIndex={-1}
-        className={`modal-panel-in relative w-full ${widthMap[size] || widthMap.md} rounded-2xl p-4 sm:p-6 lg:p-8 shadow-2xl max-h-[90vh] sm:max-h-[85vh] overflow-y-auto overscroll-contain`}
+        className={`modal-panel-in relative w-full ${widthMap[size] || widthMap.md} rounded-[14px] p-4 sm:p-6 lg:p-8 shadow-2xl max-h-[90vh] sm:max-h-[85vh] overflow-y-auto overscroll-contain`}
         style={{ background: "var(--surface-1)", border: "1px solid var(--border-primary)" }}
       >
         {/* Header */}

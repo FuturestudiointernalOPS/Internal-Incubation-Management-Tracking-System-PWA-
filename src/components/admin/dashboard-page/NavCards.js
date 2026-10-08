@@ -11,6 +11,8 @@ import {
   Shield,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import LinkCard from "@/components/ui/LinkCard";
+import StatusCard from "@/components/ui/StatusCard";
 
 /**
  * The rate at which reports raise a blocker, as a single insight card.
@@ -19,27 +21,10 @@ export function BlockerRateCard({ opStats, onOpen }) {
   const { t } = useI18n();
   const total = opStats.standups + opStats.retros;
   const rate = total > 0 ? Math.round((opStats.blockers / total) * 100) : 0;
-  return (
-    <button type="button" className="stf-st r" onClick={onOpen} style={{ textAlign: "left", cursor: "pointer", width: "100%" }}>
-      <AlertTriangle size={18} />
-      <div>
-        <div className="stf-k">{t("admin.blockerRate")}</div>
-        <div className="stf-num">{rate}%</div>
-        <div className="stf-small">{t("admin.ofAllReports")}</div>
-      </div>
-    </button>
-  );
+  return <StatusCard tone="r" icon={AlertTriangle} label={t("admin.blockerRate")} value={`${rate}%`} hint={t("admin.ofAllReports")} onClick={onOpen} />;
 }
 
-const LINK = ({ icon: Icon, tone, label, text, onClick }) => (
-  <button type="button" className={`stf-lk ${tone}`} onClick={onClick}>
-    <div className="t">
-      <Icon size={15} />
-      {label}
-    </div>
-    <p>{text}</p>
-  </button>
-);
+const LINK = ({ icon, tone, label, text, onClick }) => <LinkCard icon={icon} tone={tone} title={label} text={text} onClick={onClick} />;
 
 /** The four navigation cards of section B: work hub, tasks, blockers, projects. */
 export function InternalOpsNavCards({ onNavigate }) {

@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import "./globals.css";
+import "@/components/staff/staff.css"; // the shared interface kit (stf-*), used by every role
 import { I18nProvider } from "@/lib/i18n";
 import { ThemeProvider } from "@/lib/ThemeProvider";
 import NavHistoryTracker from "@/components/NavHistoryTracker";

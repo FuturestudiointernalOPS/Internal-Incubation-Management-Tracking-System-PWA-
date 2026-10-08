@@ -1,5 +1,6 @@
 "use client";
 
+import KpiCard from "@/components/ui/KpiCard";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight, Rocket, ShieldAlert } from "lucide-react";
@@ -50,13 +51,7 @@ export default function VenturesView() {
           [t("staffMisc.front.ventures.kpiAssignments"), assignments.length],
           [t("staffMisc.front.ventures.kpiActive"), active],
         ].map(([label, value]) => (
-          <div key={label} className="stf-card stf-kpi">
-            <div className="stf-k">
-              <span>{label}</span>
-              <Rocket size={15} />
-            </div>
-            <div className="big">{loading ? "…" : value}</div>
-          </div>
+          <KpiCard key={label} label={label} value={value} icon={Rocket} loading={loading} />
         ))}
       </div>
 

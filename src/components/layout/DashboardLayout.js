@@ -1046,7 +1046,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
             setMobileMenuOpen={setMobileMenuOpen}
           />
 
-          <main className="flex-1 p-6 lg:p-10 overflow-y-auto bg-primary">
+          <main className="app-page flex-1 p-6 lg:p-10 overflow-y-auto bg-primary">
             {/* Pinned Announcements Banner */}
             {pinnedAnnouncements.length > 0 && !pathname?.startsWith("/participant") && (
               <div className="mb-6 space-y-2">

@@ -1,5 +1,6 @@
 "use client";
 
+import KpiCard from "@/components/ui/KpiCard";
 import { useMemo, useState } from "react";
 import { Ban, Check, ChevronRight, ListChecks, Plus, Trash2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -162,13 +163,7 @@ export default function TasksView() {
           [t("staffMisc.front.tasks.kpiDone"), kpis.done],
           [t("staffMisc.front.tasks.kpiOverdue"), kpis.overdue],
         ].map(([label, value]) => (
-          <div key={label} className="stf-card stf-kpi">
-            <div className="stf-k">
-              <span>{label}</span>
-              <ListChecks size={15} />
-            </div>
-            <div className="big">{loading ? "…" : value}</div>
-          </div>
+          <KpiCard key={label} label={label} value={value} icon={ListChecks} loading={loading} />
         ))}
       </div>
 

@@ -154,12 +154,22 @@
 }
 
 @layer components {
+    /* One page language for every role (admin, staff, participant…): the shell's
+       content area gives all page titles and section headings the same look. */
+    .app-page h1 {
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        line-height: 1.2;
+        text-transform: none;
+    }
+
     /* DATA-FIRST COMPONENTS (GOOGLE-STYLE SIMPLICITY) */
 
     .card {
-        background: var(--surface-1);
+        background: var(--bg-secondary);
         border: 1px solid var(--border-primary);
-        border-radius: var(--radius-md);
+        border-radius: 14px;
         padding: 1.5rem;
         box-shadow: var(--card-shadow);
     }
@@ -167,8 +177,8 @@
     .ios-card {
         background: var(--surface-1);
         border: 1px solid var(--border-primary);
-        border-radius: 2.5rem;
-        padding: 2rem;
+        border-radius: 14px;
+        padding: 1.5rem;
         transition: all var(--transition-fast);
         box-shadow:
             0 4px 6px -1px rgb(0 0 0 / 0.05),
@@ -185,7 +195,7 @@
         align-items: center;
         justify-content: center;
         padding: 0.5rem 1rem;
-        border-radius: var(--radius-sm);
+        border-radius: 9px;
         font-weight: 600;
         font-size: 0.875rem;
         transition: all var(--transition-fast);
@@ -214,8 +224,8 @@
         width: 100%;
         overflow-x: auto;
         border: 1px solid var(--border-primary);
-        border-radius: var(--radius-md);
-        background: var(--surface-1);
+        border-radius: 14px;
+        background: var(--bg-secondary);
     }
 
     .data-table {
@@ -255,7 +265,7 @@
         align-items: center;
         gap: 0.75rem;
         padding: 0.75rem 1rem;
-        border-radius: var(--radius-sm);
+        border-radius: 9px;
         color: var(--text-secondary);
         font-weight: 500;
         transition: all var(--transition-fast);
