@@ -84,7 +84,7 @@ function CountList({ rows, labelFor }) {
 
 export default function PortfolioOverview() {
   const { t } = useI18n();
-  const { data: portfolio, loading, error } = useApi("/api/admin/ventures/dashboard");
+  const { data, loading, error } = useApi("/api/admin/ventures/dashboard");
 
   if (loading) {
     return (
@@ -93,6 +93,12 @@ export default function PortfolioOverview() {
       </div>
     );
   }
+
+  // The route answers an envelope — `{ success, portfolio }` — so the view has
+  // to reach one level down. Aliasing `data` straight to `portfolio` made this
+  // guard pass on a truthy envelope whose arrays were all undefined, which is
+  // how the first render reached `.map()` on nothing.
+  const portfolio = data?.portfolio;
 
   if (error || !portfolio) {
     return (
