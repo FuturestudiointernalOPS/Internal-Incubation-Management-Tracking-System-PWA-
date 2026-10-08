@@ -19,7 +19,9 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import DashboardHeader from "@/components/admin/dashboard-page/DashboardHeader";
 import StatCard from "@/components/admin/dashboard-page/StatCard";
 import SectionHeader from "@/components/admin/dashboard-page/SectionHeader";
-import CalendarPanel from "@/components/admin/dashboard-page/CalendarPanel";
+import StaffCalendar from "@/components/staff/StaffCalendar";
+import { buildMeetingPayload, buildTaskPayload } from "@/components/staff/calendarModel";
+import { tasksToEvents } from "@/components/admin/dashboard-page/calendarEvents";
 import UpcomingWidget from "@/components/admin/dashboard-page/UpcomingWidget";
 import {
   TasksSummaryWidget,
@@ -46,11 +48,22 @@ import {
   QuickActionsCard,
 } from "@/components/admin/dashboard-page/RisksSection";
 import TaskDetailDrawer from "@/components/admin/dashboard-page/TaskDetailDrawer";
-import {
-  formatDate,
-  formatLabel,
-  getCalendarDays,
-} from "@/components/admin/dashboard-page/constants";
+import { formatLabel } from "@/components/admin/dashboard-page/constants";
+
+async function send(url, method, body) {
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) return { ok: false, error: data.error || data.message || null };
+    return { ok: true };
+  } catch {
+    return { ok: false, error: null };
+  }
+}
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
@@ -75,9 +88,7 @@ export default function AdminDashboard() {
   const { t, lang } = useI18n();
 
   // Dashboard widgets state
-  const now = new Date();
-  const [calYear, setCalYear] = useState(now.getFullYear());
-  const [calMonth, setCalMonth] = useState(now.getMonth());
+  const [now] = useState(() => new Date());
   const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
   const [assignments, setAssignments] = useState([]);
@@ -89,7 +100,6 @@ export default function AdminDashboard() {
   // Pagination and UI state
   const [assignmentsPage, setAssignmentsPage] = useState(1);
   const ASSIGNMENTS_PER_PAGE = 5;
-  const [expandedCalendarDays, setExpandedCalendarDays] = useState({});
 
   const toggleSection = (id) => {
     setExpandedSections((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -267,19 +277,6 @@ export default function AdminDashboard() {
     };
   }, [fetchWidgetData]);
 
-  const handlePrevMonth = () => {
-    if (calMonth === 0) {
-      setCalMonth(11);
-      setCalYear(calYear - 1);
-    } else setCalMonth(calMonth - 1);
-  };
-  const handleNextMonth = () => {
-    if (calMonth === 11) {
-      setCalMonth(0);
-      setCalYear(calYear + 1);
-    } else setCalMonth(calMonth + 1);
-  };
-
   const handleResolveBlocker = async (blockerId) => {
     setResolvingBlocker(blockerId);
     try {
@@ -321,82 +318,48 @@ export default function AdminDashboard() {
     }
   };
 
-  // Calendar computed
-  const calendarDays = getCalendarDays(calYear, calMonth);
-
-  // A task spanning several days is listed on each of them. `calendarSpans`
-  // records where each day sits in that span ("middle" = neither first nor
-  // last), so the grid can draw the in-between days as a quiet bar instead of
-  // repeating the full title every day.
-  const calendarSpans = React.useMemo(() => {
-    const spans = {};
-    const allTasks = [...(tasks || []), ...(assignments || [])];
-    allTasks.forEach((task) => {
-      if (!task.start_date || !task.end_date) return;
-      const start = new Date(task.start_date);
-      const end = new Date(task.end_date);
-      const current = new Date(start);
-      current.setDate(current.getDate() + 1);
-      while (current < end) {
-        const key = formatDate(
-          current.getFullYear(),
-          current.getMonth(),
-          current.getDate(),
-        );
-        spans[`${key}:${task.id}`] = "middle";
-        current.setDate(current.getDate() + 1);
-      }
-    });
-    return spans;
-  }, [tasks, assignments]);
-
+  // The calendar reads the same tasks the widgets below summarise.
   const calendarTasks = React.useMemo(() => {
-    const cal = {};
-    const allTasks = [...(tasks || []), ...(assignments || [])];
-    // Deduplicate by task id
-    const seen = new Set();
-    const unique = allTasks.filter((task) => {
-      if (seen.has(task.id)) return false;
-      seen.add(task.id);
-      return true;
-    });
-    unique.forEach((task) => {
-      if (task.start_date || task.end_date) {
-        const start = task.start_date ? new Date(task.start_date) : null;
-        const end = task.end_date ? new Date(task.end_date) : null;
-        if (start && end) {
-          const current = new Date(start);
-          while (current <= end) {
-            const key = formatDate(
-              current.getFullYear(),
-              current.getMonth(),
-              current.getDate(),
-            );
-            if (!cal[key]) cal[key] = [];
-            cal[key].push(task);
-            current.setDate(current.getDate() + 1);
-          }
-        } else if (start) {
-          const key = formatDate(
-            start.getFullYear(),
-            start.getMonth(),
-            start.getDate(),
-          );
-          if (!cal[key]) cal[key] = [];
-          cal[key].push(task);
-        } else if (end) {
-          const key = formatDate(
-            end.getFullYear(),
-            end.getMonth(),
-            end.getDate(),
-          );
-          if (!cal[key]) cal[key] = [];
-          cal[key].push(task);
-        }
-      }
-    });
-    return cal;
+    const byDay = {};
+    for (const event of tasksToEvents([...(tasks || []), ...(assignments || [])])) {
+      (byDay[event.date] ||= []).push(event.task);
+    }
+    return byDay;
   }, [tasks, assignments]);
+  const calendarEvents = React.useMemo(
+    () => tasksToEvents([...(tasks || []), ...(assignments || [])]),
+    [tasks, assignments],
+  );
+  const onRangeChange = useCallback(() => {}, []);
+
+  const currentUser = () => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "{}");
+    } catch {
+      return {};
+    }
+  };
+  const onSetStatus = async (item, status) => {
+    const result = await send("/api/tasks", "PUT", { id: item.relatedId, status });
+    if (result.ok) fetchWidgetData();
+    return result;
+  };
+  const onCreateTask = async (form) => {
+    const user = currentUser();
+    const result = await send(
+      "/api/tasks",
+      "POST",
+      buildTaskPayload(form, { cid: user.cid || user.id, name: user.name }, new Date()),
+    );
+    if (result.ok) fetchWidgetData();
+    return result;
+  };
+  const onCreateMeeting = async (form) => {
+    const user = currentUser();
+    const result = await send("/api/events", "POST", buildMeetingPayload(form, { cid: user.cid || user.id }));
+    if (result.ok) fetchWidgetData();
+    return result;
+  };
 
   useEffect(() => {
     fetchWidgetData();
@@ -457,51 +420,26 @@ export default function AdminDashboard() {
 
   return (
     <>
-      <div className="space-y-10 pb-20 text-left">
+      <div className="stf text-left" style={{ paddingBottom: 80 }}>
         {/* ──────── GLOBAL HEADER ──────── */}
         <DashboardHeader onNewProgram={() => router.push("/admin/programs/new")} />
 
         {/* ═══════ DASHBOARD WIDGETS ═══════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* ─── LEFT: CALENDAR ─── */}
-          <div className="lg:col-span-2">
-            <CalendarPanel
-              year={calYear}
-              month={calMonth}
-              calendarDays={calendarDays}
-              calendarTasks={calendarTasks}
-              calendarSpans={calendarSpans}
-              expandedDays={expandedCalendarDays}
-              onPrevMonth={handlePrevMonth}
-              onNextMonth={handleNextMonth}
-              onToday={() => {
-                setCalMonth(now.getMonth());
-                setCalYear(now.getFullYear());
-              }}
-              onSelectTask={setSelectedTask}
-              onExpandDay={(dateStr, open) =>
-                setExpandedCalendarDays((prev) => ({ ...prev, [dateStr]: open }))
-              }
-            />
-          </div>
+        <StaffCalendar
+          events={calendarEvents}
+          now={now}
+          loading={loading}
+          onRangeChange={onRangeChange}
+          onOpenTask={(item) => setSelectedTask(item.raw?.task || null)}
+          onSetStatus={onSetStatus}
+          onCreateTask={onCreateTask}
+          onCreateMeeting={onCreateMeeting}
+        />
 
-          {/* ─── RIGHT: SUMMARY WIDGETS ─── */}
-          <div className="space-y-3">
-            <UpcomingWidget
-              calendarTasks={calendarTasks}
-              onSelectTask={setSelectedTask}
-            />
-
-            <TasksSummaryWidget
-              tasks={tasks}
-              onOpen={() => router.push("/admin/tasks")}
-            />
-
-            <BlockersSummaryWidget
-              blockers={activeBlockers}
-              onOpen={() => router.push("/admin/blockers")}
-            />
-          </div>
+        <div className="stf-grid g3">
+          <UpcomingWidget calendarTasks={calendarTasks} onSelectTask={setSelectedTask} />
+          <TasksSummaryWidget tasks={tasks} onOpen={() => router.push("/admin/tasks")} />
+          <BlockersSummaryWidget blockers={activeBlockers} onOpen={() => router.push("/admin/blockers")} />
         </div>
 
         {/* ═══════ ASSIGNED TO ME ═══════ */}
@@ -519,7 +457,7 @@ export default function AdminDashboard() {
         {/* ═══════════════════════════════════════════════ */}
         {/* SECTION A — PROGRAM OPERATIONS                 */}
         {/* ═══════════════════════════════════════════════ */}
-        <div className="space-y-6">
+        <div className="stf-sec">
           <SectionHeader
             number="A"
             title={t("admin.programOperations")}
@@ -535,7 +473,7 @@ export default function AdminDashboard() {
               </button>
             }
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="stf-grid c4">
             <StatCard
               title={t("admin.activePrograms")}
               value={stats.programs}
@@ -598,7 +536,7 @@ export default function AdminDashboard() {
         {/* ═══════════════════════════════════════════════ */}
         {/* SECTION B — INTERNAL OPERATIONS                */}
         {/* ═══════════════════════════════════════════════ */}
-        <div className="space-y-6 pt-6 border-t border-[var(--border-primary)]">
+        <div className="stf-sec">
           <SectionHeader
             number="B"
             title={t("admin.internalOperations")}
@@ -614,7 +552,7 @@ export default function AdminDashboard() {
               </button>
             }
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="stf-grid g3">
             <StatCard
               title={t("admin.mondayStandups")}
               value={opStats.standups}
@@ -656,7 +594,7 @@ export default function AdminDashboard() {
         {/* ═══════════════════════════════════════════════ */}
         {/* SECTION C — TEAM ACCOUNTABILITY                */}
         {/* ═══════════════════════════════════════════════ */}
-        <div className="space-y-6 pt-6 border-t border-[var(--border-primary)]">
+        <div className="stf-sec">
           <SectionHeader
             number="C"
             title={t("admin.teamAccountability")}
@@ -700,7 +638,7 @@ export default function AdminDashboard() {
         {/* ═══════════════════════════════════════════════ */}
         {/* SECTION D — RISKS & BLOCKERS                   */}
         {/* ═══════════════════════════════════════════════ */}
-        <div className="space-y-6 pt-6 border-t border-[var(--border-primary)]">
+        <div className="stf-sec">
           <SectionHeader
             number="D"
             title={t("admin.risksAndBlockers")}
@@ -708,7 +646,7 @@ export default function AdminDashboard() {
             icon={AlertTriangle}
             color="bg-rose-500/10 text-rose-500"
           />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="stf-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
             <LatestBlockersCard
               blockers={activeBlockers}
               resolvingBlocker={resolvingBlocker}
@@ -722,7 +660,7 @@ export default function AdminDashboard() {
         {/* ═══════════════════════════════════════════════ */}
         {/* SECTION E — HISTORICAL INTELLIGENCE            */}
         {/* ═══════════════════════════════════════════════ */}
-        <div className="space-y-6 pt-6 border-t border-[var(--border-primary)]">
+        <div className="stf-sec">
           <SectionHeader
             number="E"
             title={t("admin.historicalIntelligence")}

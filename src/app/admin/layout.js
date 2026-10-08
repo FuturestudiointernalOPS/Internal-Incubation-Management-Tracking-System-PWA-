@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import React, { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import "@/components/staff/staff.css";
 import { getDashboardSessionUser, subscribeDashboardSession } from "@/lib/dashboardSession";
 
 /** The roles this section admits. */
