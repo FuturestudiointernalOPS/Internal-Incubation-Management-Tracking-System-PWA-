@@ -70,8 +70,8 @@
 
 /* ── hero ── */
 .stf-hero { border-radius: 16px; padding: 26px; margin-bottom: 16px; background: radial-gradient(120% 140% at 0% 100%, var(--stf-hero-a) 0%, var(--stf-hero-b) 38%, var(--stf-hero-c) 75%); border: 1px solid var(--border-primary); display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; color: #fff; }
-.stf-hero h2 { margin: 0; font-size: 24px; font-weight: 900; }
-.stf-hero p { margin: 4px 0 0; opacity: 0.8; }
+.stf-hero h2, .stf .stf-hero h2 { color: #fff; margin: 0; font-size: 24px; font-weight: 900; }
+.stf-hero p, .stf .stf-hero p { color: #fff; margin: 4px 0 0; opacity: 0.85; }
 .stf-hero .stf-k { color: color-mix(in srgb, var(--brand-orange) 40%, #fff); }
 
 /* ── tags ── */
