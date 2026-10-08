@@ -1,5 +1,28 @@
 {
   "vadmin": {
+    "portfolio": {
+      "title": "Vue d'ensemble du portefeuille",
+      "subtitle": "Toutes les entreprises, comptées sur l'ensemble du portefeuille.",
+      "totalVentures": "Entreprises",
+      "activeParcours": "Parcours actifs",
+      "activeParcoursHint": "Étapes de parcours en cours — plusieurs peuvent tourner en même temps.",
+      "byPhase": "Entreprises par phase",
+      "bySector": "Entreprises par secteur",
+      "byReadiness": "Entreprises par niveau de préparation",
+      "assessedOf": "{assessed} sur {total} évaluées",
+      "unassessed": "Pas encore évaluée",
+      "emptyReadiness": "Aucune évaluation de préparation enregistrée pour l'instant.",
+      "emptyReadinessHint": "La répartition apparaît dès qu'une entreprise est évaluée.",
+      "noPhase": "Sans phase",
+      "noSector": "Sans secteur",
+      "levels": {
+        "not_ready": "Non prêt",
+        "early_ready": "Premiers pas",
+        "investment_ready": "Prêt à l'investissement",
+        "fundraising_ready": "Prêt à lever des fonds"
+      },
+      "loadFailed": "Impossible de charger le portefeuille."
+    },
     "journeyReports": {
       "title": "Rapports de parcours",
       "subtitle": "Tous les rapports rédigés sur les parcours d'une entreprise — et les parcours terminés sans rapport.",

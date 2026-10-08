@@ -1,5 +1,28 @@
 {
   "vadmin": {
+    "portfolio": {
+      "title": "Portfolio Overview",
+      "subtitle": "Every Venture, counted across the whole portfolio.",
+      "totalVentures": "Ventures",
+      "activeParcours": "Active Parcours",
+      "activeParcoursHint": "Journey stages running right now — several can run at once.",
+      "byPhase": "Ventures by phase",
+      "bySector": "Ventures by sector",
+      "byReadiness": "Ventures by readiness level",
+      "assessedOf": "{assessed} of {total} assessed",
+      "unassessed": "Not assessed yet",
+      "emptyReadiness": "No readiness assessment has been recorded yet.",
+      "emptyReadinessHint": "The distribution appears as soon as a Venture is assessed.",
+      "noPhase": "No phase",
+      "noSector": "No sector",
+      "levels": {
+        "not_ready": "Not Ready",
+        "early_ready": "Early Ready",
+        "investment_ready": "Investment Ready",
+        "fundraising_ready": "Fundraising Ready"
+      },
+      "loadFailed": "The portfolio could not be loaded."
+    },
     "journeyReports": {
       "title": "Journey Reports",
       "subtitle": "Every report written against a Venture's journeys — and the journeys that closed without one.",
