@@ -5,6 +5,8 @@ import {
   countUnreadNotifications,
   getNotificationRecipientById,
   markNotificationRead,
+  markNotificationUnread,
+  getParticipantAnnouncementHistory,
   markNotificationsSeen,
 } from "@/models/workspace";
 /**
@@ -128,7 +130,7 @@ export async function publishInboxNotification({ session, recipient_id, title, m
 }
 
 export async function applyInboxNotificationAction({ session, id, action }) {
-  if (action === "read") {
+  if (action === "read" || action === "unread") {
     const recipientResult = await getNotificationRecipientById(parseInt(id));
     if (!recipientResult.rows || recipientResult.rows.length === 0) {
       return { denied: { error: "Notification not found.", status: 404 } };
@@ -136,9 +138,15 @@ export async function applyInboxNotificationAction({ session, id, action }) {
     if (!canModifyInboxNotification(session, recipientResult.rows[0].recipient_id)) {
       return { denied: { error: "You cannot modify this notification.", status: 403 } };
     }
-    await markNotificationRead(id);
+    if (action === "read") await markNotificationRead(id);
+    else await markNotificationUnread(id);
     return { ok: true };
   }
 
   return { denied: { error: "Invalid action", status: 400 } };
+}
+
+export async function readParticipantAnnouncements(session) {
+  const result = await getParticipantAnnouncementHistory(session.cid);
+  return { success: true, recipientId: session.cid, announcements: result.rows || [] };
 }

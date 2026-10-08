@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { buildMeetingPayload, buildTaskPayload } from "@/components/staff/calendarModel";
-import { tasksToEvents } from "@/components/admin/dashboard-page/calendarEvents";
+import { tasksToEvents, googleEventsToEvents } from "@/components/admin/dashboard-page/calendarEvents";
 
 async function send(url, method, body) {
   try {
@@ -29,10 +29,21 @@ const currentUser = () => {
  * The dashboard calendar: its feed (the tasks the widgets already read) and the
  * three things it can do — change a task's status, add a task, add a meeting.
  * Each one re-reads the widgets afterwards.
+ *
+ * `externalItems`: read-only entries from the user's "Future Studio" Google
+ * Calendar, shown in the calendar only.
  */
-export function useAdminCalendar({ tasks, assignments, fetchWidgetData }) {
+const NO_EXTERNAL_ITEMS = [];
+
+export function useAdminCalendar({ tasks, assignments, fetchWidgetData, externalItems = NO_EXTERNAL_ITEMS }) {
   const [now] = useState(() => new Date());
-  const events = useMemo(() => tasksToEvents([...(tasks || []), ...(assignments || [])]), [tasks, assignments]);
+  const events = useMemo(
+    () => [
+      ...tasksToEvents([...(tasks || []), ...(assignments || [])]),
+      ...googleEventsToEvents(externalItems),
+    ],
+    [tasks, assignments, externalItems],
+  );
   const onRangeChange = useCallback(() => {}, []);
 
   const onSetStatus = useCallback(

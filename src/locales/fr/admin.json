@@ -145,6 +145,31 @@
       "deleteSuccess": "Équipe supprimée avec succès",
       "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cette équipe ? Cette action est irréversible.",
       "backToPrograms": "Retour aux programmes"
+    },
+    "googleCalendar": {
+      "connect": "Intégrer son Google Calendar",
+      "connectHint": "Copie vos tâches Future Studio dans un agenda dédié « Future Studio » de votre compte Google. Vos événements personnels ne sont jamais lus.",
+      "notConfiguredHint": "Google Calendar n'est pas encore configuré sur ce serveur (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_TOKEN_ENCRYPTION_KEY).",
+      "connected": "Google Calendar connecté",
+      "reconnect": "Reconnecter Google Calendar",
+      "revokedHint": "L'accès à Google Calendar a été retiré. Reconnectez-le pour reprendre la synchronisation.",
+      "syncNow": "Synchroniser maintenant",
+      "lastSync": "Dernière synchro",
+      "syncFailed": "La synchronisation Google Calendar a échoué. Réessayez dans un instant.",
+      "disconnect": "Déconnecter",
+      "disconnectConfirm": "Déconnecter Google Calendar ?",
+      "disconnectHint": "L'accès est révoqué et les jetons enregistrés sont supprimés. L'agenda « Future Studio » reste dans votre compte Google ; vous pouvez l'y supprimer.",
+      "legend": "Google Calendar",
+      "outcome": {
+        "connected": "Google Calendar connecté. Vos tâches Future Studio sont maintenant dans l'agenda « Future Studio » de votre compte Google.",
+        "connectedSyncPending": "Google Calendar connecté. La première synchronisation n'a pas abouti ; elle sera relancée automatiquement.",
+        "denied": "Connexion à Google Calendar annulée.",
+        "failed": "La connexion à Google Calendar a échoué. Veuillez réessayer.",
+        "scopeDenied": "L'accès à l'agenda n'a pas été accordé : rien n'a été connecté.",
+        "notConfigured": "Google Calendar n'est pas encore configuré sur ce serveur."
+      },
+      "notConfiguredTitle": "Google Calendar n'est pas encore configuré",
+      "notConfiguredMessage": "Un administrateur doit d'abord ajouter les paramètres OAuth Google dans l'environnement du serveur (voir docs/GOOGLE_CALENDAR_SYNC.md §5). Manquant :"
     }
   }
 }

@@ -15,6 +15,9 @@
   --stf-grid: color-mix(in srgb, var(--text-tertiary) 45%, var(--border-primary));
   --stf-accent-soft: color-mix(in srgb, var(--brand-orange) 14%, var(--bg-secondary));
   --stf-accent-ink: color-mix(in srgb, var(--brand-orange) 78%, var(--text-primary));
+  --stf-google: var(--chart-info);
+  --stf-google-soft: color-mix(in srgb, var(--chart-info) 14%, var(--bg-secondary));
+  --stf-google-ink: color-mix(in srgb, var(--chart-info) 78%, var(--text-primary));
   --stf-hero-a: color-mix(in srgb, var(--brand-orange) 78%, #000);
   --stf-hero-b: color-mix(in srgb, var(--brand-blue) 38%, #1a0a3a);
   --stf-hero-c: color-mix(in srgb, var(--brand-blue) 55%, #000);
@@ -235,6 +238,7 @@
 .stf-cal .x-it.tk:hover { background: var(--surface-3); }
 .stf-cal .x-it.mt { background: var(--stf-accent-soft); color: var(--stf-accent-ink); }
 .stf-cal .x-it.ms { background: color-mix(in srgb, var(--stf-done) 12%, var(--bg-secondary)); }
+.stf-cal .x-it.g { background: var(--stf-google-soft); color: var(--stf-google-ink); }
 .stf-cal .x-it .x-dot { width: 8px; height: 8px; background: var(--c); }
 .stf-cal .x-it .x-i { width: 12px; height: 12px; }
 .stf-cal .x-tt { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; background: none; border: 0; padding: 0; color: inherit; }
@@ -271,6 +275,8 @@
 .stf-cal .x-ab:hover { background: var(--surface-3); }
 .stf-cal .x-ab.mt { background: var(--stf-accent-soft); padding-left: 24px; color: var(--stf-accent-ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand-orange) 35%, transparent); }
 .stf-cal .x-ab.mt:hover { background: var(--stf-accent-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand-orange) 60%, transparent); }
+.stf-cal .x-ab.g { background: var(--stf-google-soft); color: var(--stf-google-ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chart-info) 35%, transparent); }
+.stf-cal .x-ab.g:hover { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chart-info) 60%, transparent); }
 .stf-cal .x-ab.mt > .x-i { position: absolute; left: 8px; top: 7px; width: 12px; height: 12px; }
 .stf-cal .x-ab b { white-space: nowrap; } .stf-cal .x-ab b.blk { display: block; } .stf-cal .x-ab b.mr { margin-right: 8px; } .stf-cal .x-ab b.mr6 { margin-right: 6px; }
 .stf-cal .x-ab .pl { font-weight: 400; opacity: 0.85; }
@@ -290,6 +296,7 @@
   .stf-cal .x-it .x-tt, .stf-cal .x-it .x-i, .stf-cal .x-it .x-dot, .stf-cal .x-it .kbw, .stf-cal .x-more { display: none; }
   .stf-cal .x-it { width: 8px; height: 8px; padding: 0; border-radius: 50%; }
   .stf-cal .x-it.tk { background: var(--c); } .stf-cal .x-it.mt { background: var(--brand-orange); } .stf-cal .x-it.ms { background: var(--stf-done); }
+  .stf-cal .x-it.g { background: var(--stf-google); }
   .stf-cal .x-items { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 4px; padding-top: 2px; }
   .stf-cal .x-cell { min-height: 62px; } .stf-cal .x-mid { margin: 0; width: 6px; height: 6px; }
 }

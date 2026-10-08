@@ -17,7 +17,6 @@ import OpReportModals from "@/components/staff/op-report/OpReportModals";
 
 export default function OpReportView({
   toast,
-  t,
   existingReport,
   history,
   now,
@@ -49,6 +48,7 @@ export default function OpReportView({
           reportType={reportType}
           weekInfo={weekInfo}
         />
+
 
         {/* REPORT TYPE TOGGLE */}
         <ReportTypeToggle
