@@ -45,6 +45,7 @@ import {
   QuickActionsCard,
 } from "@/components/admin/dashboard-page/RisksSection";
 import TaskDetailDrawer from "@/components/admin/dashboard-page/TaskDetailDrawer";
+import GoogleCalendarConnect from "@/components/admin/dashboard-page/GoogleCalendarConnect";
 import {
   formatDate,
   formatLabel,
@@ -54,6 +55,7 @@ import { useAdminDashboardData } from "./hooks/useAdminDashboardData";
 import { useAdminWidgetData } from "./hooks/useAdminWidgetData";
 import { useAdminSections } from "./hooks/useAdminSections";
 import { useAdminActions } from "./hooks/useAdminActions";
+import { useGoogleCalendar } from "./hooks/useGoogleCalendar";
 
 const ASSIGNMENTS_PER_PAGE = 5;
 
@@ -62,7 +64,8 @@ export default function AdminDashboard() {
   const { t, lang } = useI18n();
 
   const dashboardData = useAdminDashboardData({ router, t, lang });
-  const widgetData = useAdminWidgetData({ t, lang });
+  const googleCalendar = useGoogleCalendar({ t });
+  const widgetData = useAdminWidgetData({ t, lang, externalItems: googleCalendar.events });
   const sections = useAdminSections();
   const actions = useAdminActions({ 
     tasks: widgetData.tasks, 
@@ -74,6 +77,15 @@ export default function AdminDashboard() {
   });
 
   const now = new Date();
+
+  // A Google Calendar entry has no task drawer: it opens in Google instead.
+  const selectCalendarItem = (item) => {
+    if (item?.source === "google") {
+      if (item.html_link) window.open(item.html_link, "_blank", "noopener,noreferrer");
+      return;
+    }
+    widgetData.setSelectedTask(item);
+  };
 
   return (
     <>
@@ -95,9 +107,23 @@ export default function AdminDashboard() {
                 widgetData.setCalMonth(now.getMonth());
                 widgetData.setCalYear(now.getFullYear());
               }}
-              onSelectTask={widgetData.setSelectedTask}
+              onSelectTask={selectCalendarItem}
               onExpandDay={(dateStr, open) =>
                 widgetData.setExpandedCalendarDays((prev) => ({ ...prev, [dateStr]: open }))
+              }
+              headerAction={
+                <GoogleCalendarConnect
+                  status={googleCalendar.status}
+                  syncing={googleCalendar.syncing}
+                  onConnect={googleCalendar.connect}
+                  onSync={googleCalendar.syncNow}
+                  onDisconnect={googleCalendar.disconnect}
+                />
+              }
+              extraLegend={
+                googleCalendar.status?.connected
+                  ? [{ key: "google", label: t("admin.googleCalendar.legend"), dot: "bg-sky-400" }]
+                  : []
               }
             />
           </div>
@@ -105,7 +131,7 @@ export default function AdminDashboard() {
           <div className="space-y-3">
             <UpcomingWidget
               calendarTasks={widgetData.calendarTasks}
-              onSelectTask={widgetData.setSelectedTask}
+              onSelectTask={selectCalendarItem}
             />
 
             <TasksSummaryWidget

@@ -124,6 +124,9 @@ export function groupSameTitle(tasks) {
  * finished task reads as finished whatever its priority), then the priority.
  */
 export function calendarTaskTone(task) {
+  // An event added in the user's "Future Studio" Google Calendar.
+  if (task.source === "google")
+    return { chip: "bg-sky-500/15 text-sky-400", bar: "bg-sky-400" };
   if (task.status === "completed")
     return {
       chip: "bg-[var(--surface-2)] text-[var(--text-tertiary)] line-through",

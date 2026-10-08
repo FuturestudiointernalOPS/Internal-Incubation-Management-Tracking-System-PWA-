@@ -22,7 +22,9 @@ import {
  * The month grid: one cell per day, each listing the work due on it — a task
  * spanning several days drawn as a quiet bar on its in-between days — plus the
  * status legend underneath.
- * Extracted verbatim from app/admin/page.js.
+ * Extracted verbatim from app/admin/page.js. Optional `headerAction` (rendered
+ * before the month navigation — the Google Calendar control) and `extraLegend`
+ * ([{ key, label, dot }]) extend it without changing the default rendering.
  */
 export default function CalendarPanel({
   year,
@@ -36,18 +38,21 @@ export default function CalendarPanel({
   onToday,
   onSelectTask,
   onExpandDay,
+  headerAction = null,
+  extraLegend = [],
 }) {
   const { t } = useI18n();
   return (
     <div className="card">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-3">
           <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
           <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
             {t("time.months." + MONTH_KEYS[month])} {year}
           </span>
         </div>
-        <div className="flex gap-1">
+        <div className="flex flex-wrap items-center gap-1">
+          {headerAction}
           <button
             onClick={onPrevMonth}
             className="p-1.5 rounded-lg hover:bg-tertiary transition-all"
@@ -182,6 +187,14 @@ export default function CalendarPanel({
             <div className={`w-2 h-2 rounded-full ${statusConfig.dot}`} />
             <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
               {statusLabel(t, key)}
+            </span>
+          </div>
+        ))}
+        {extraLegend.map((item) => (
+          <div key={item.key} className="flex items-center gap-1.5">
+            <div className={`w-2 h-2 rounded-full ${item.dot}`} />
+            <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+              {item.label}
             </span>
           </div>
         ))}
