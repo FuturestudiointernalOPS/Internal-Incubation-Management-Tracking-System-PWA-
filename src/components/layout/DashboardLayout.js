@@ -142,6 +142,16 @@ function writeParticipantCollapse(value) {
   try { localStorage.setItem(COLLAPSE_KEY, String(next)); } catch { /* Storage may be unavailable. */ }
   collapseListeners.forEach(listener => listener());
 }
+let legacyCollapseFallback = false;
+function readLegacyCollapse() {
+  try { return localStorage.getItem("sidebar-collapsed") === "1"; } catch { return legacyCollapseFallback; }
+}
+function setLegacyCollapsed(value) {
+  const next = typeof value === "function" ? value(readLegacyCollapse()) : value;
+  legacyCollapseFallback = next;
+  try { localStorage.setItem("sidebar-collapsed", next ? "1" : "0"); } catch { /* Storage may be unavailable. */ }
+  collapseListeners.forEach(listener => listener());
+}
 const expandedServerSnapshot = () => false;
 
 function getShellUserSnapshot() {
@@ -161,31 +171,7 @@ const PERSONAL_ROLES = ["member", "founder", "participant", "team"];
 const pickLmsEnrollment = (payload) => (payload && payload.success ? !!payload.enrolled : false);
 
 function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidth = false }) {
-<<<<<<< HEAD
-  const [legacyCollapsed, setLegacyCollapsed] = useState(false);
-=======
-  const [collapsed, setCollapsedState] = useState(false);
-  // The choice survives a reload. It is read after mount (never during render),
-  // so the server and first client paint agree.
-  useEffect(() => {
-    try {
-      if (localStorage.getItem("sidebar-collapsed") === "1") setCollapsedState(true);
-    } catch {
-      /* storage unavailable: the rail simply starts open */
-    }
-  }, []);
-  const setCollapsed = useCallback((next) => {
-    setCollapsedState((previous) => {
-      const value = typeof next === "function" ? next(previous) : next;
-      try {
-        localStorage.setItem("sidebar-collapsed", value ? "1" : "0");
-      } catch {
-        /* storage unavailable: the choice just won't be remembered */
-      }
-      return value;
-    });
-  }, []);
->>>>>>> origin/frontend_b
+  const legacyCollapsed = useSyncExternalStore(subscribeParticipantCollapse, readLegacyCollapse, expandedServerSnapshot);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAllNotifications, setShowAllNotifications] = useState(false);
@@ -959,24 +945,12 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
           map[id] = false;
           return { key: activePathKey, map };
         }
-<<<<<<< HEAD
-        // Opening one section closes the other hand-opened ones, except the
-        // sections on the active path — they stay as context.
-        for (const key of Object.keys(map)) {
-          if (!participantSurface && key !== id && !activePathIds.has(key)) delete map[key];
-        }
-=======
         // Several groups may be open at once.
->>>>>>> origin/frontend_b
         map[id] = true;
         return { key: activePathKey, map };
       });
     },
-<<<<<<< HEAD
-    [activePathKey, activePathIds, openMenus, participantSurface],
-=======
     [activePathKey, openMenus],
->>>>>>> origin/frontend_b
   );
 
   const handleLogout = async () => {
@@ -1028,12 +1002,8 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     <AppErrorBoundary>
       <div className={`flex h-screen w-full overflow-hidden bg-primary text-[var(--text-primary)] ${pathname?.startsWith("/participant") ? participantStyles.shell : ""}`}>
         <aside
-<<<<<<< HEAD
-          style={{ width: collapsed ? (participantSurface ? 76 : 64) : 260 }}
-          data-collapsed={collapsed}
-=======
           style={{ width: collapsed ? 76 : 260 }}
->>>>>>> origin/frontend_b
+          data-collapsed={collapsed}
           className="hidden md:flex flex-col h-screen sticky top-0 bg-secondary border-r border-[var(--border-primary)] p-4 overflow-hidden min-h-0 z-[100] transition-[width] duration-150"
         >
           <SidebarContent {...commonProps} />
@@ -1045,13 +1015,8 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
               onClick={() => setMobileMenuOpen(false)}
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             />
-<<<<<<< HEAD
             <aside data-mobile-sidebar className="absolute inset-y-0 left-0 w-64 flex flex-col overflow-hidden bg-secondary p-6 border-r border-[var(--border-primary)]">
               <SidebarContent {...commonProps} collapsed={false} mobile />
-=======
-            <aside className="absolute inset-y-0 left-0 w-64 flex flex-col overflow-hidden bg-secondary p-6 border-r border-[var(--border-primary)]">
-              <SidebarContent {...commonProps} collapsed={false} />
->>>>>>> origin/frontend_b
             </aside>
           </div>
         )}

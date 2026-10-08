@@ -133,16 +133,6 @@ export const SidebarContent = ({
         >
           <button
             onClick={() => {
-<<<<<<< HEAD
-              if (participant && collapsed) {
-                setCollapsed(false);
-                if (!isOpen) toggleMenu(item.id);
-              } else toggleSection(item.id);
-            }}
-            title={show ? undefined : label(item)}
-            data-nav-active={onPath || undefined}
-            data-nav-depth={depth}
-=======
               if (collapsed && !showLabels) {
                 // From the rail: reopen the sidebar and unfold this group.
                 setFlyout(null);
@@ -152,7 +142,8 @@ export const SidebarContent = ({
               }
               toggleSection(item.id);
             }}
->>>>>>> origin/frontend_b
+            data-nav-active={onPath || undefined}
+            data-nav-depth={depth}
             aria-expanded={expanded}
             aria-label={show ? undefined : label(item)}
             title={show ? undefined : label(item)}
@@ -206,11 +197,7 @@ export const SidebarContent = ({
             )}
           </button>
           {expanded && show && (
-<<<<<<< HEAD
-            <div data-nav-children className={`space-y-1 py-1 ${isTop ? "pl-8" : "pl-6"}`}>
-=======
-            <div className="space-y-1 py-1 ml-[18px] pl-3 border-l border-[var(--border-primary)]">
->>>>>>> origin/frontend_b
+            <div data-nav-children className="space-y-1 py-1 ml-[18px] pl-3 border-l border-[var(--border-primary)]">
               {childItems.map((childItem) => renderNavItem(childItem, depth + 1, showLabels))}
             </div>
           )}
@@ -227,7 +214,6 @@ export const SidebarContent = ({
         data-nav-active={isActive || onPath || undefined}
         data-nav-depth={depth}
         aria-label={show ? undefined : label(item)}
-        title={show ? undefined : label(item)}
         onClick={() => {
           setMobileMenuOpen(false);
           setFlyout(null);
@@ -307,16 +293,10 @@ export const SidebarContent = ({
         </button>}
       </div>
 
-<<<<<<< HEAD
-      {participant && collapsed && <div data-section-rule className="border-t border-[var(--border-primary)] mx-3 mb-4" />}
-      {!collapsed && (
-        <div className="px-3 mb-4">
-=======
       <div className="px-3 mb-4">
         {collapsed ? (
           <div className="h-px w-full bg-[var(--border-primary)]" aria-hidden="true" />
         ) : (
->>>>>>> origin/frontend_b
           <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.25em] opacity-40">
             {t(["participant", "member", "founder"].includes(role) ? "participant.template.mySpace" : "navigation.mainOperations")}
           </p>
