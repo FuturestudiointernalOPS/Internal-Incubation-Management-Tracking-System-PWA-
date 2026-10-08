@@ -19,18 +19,21 @@ const OUTCOME_KEYS = {
 };
 
 /**
- * The super admin's Google Calendar connection, for the dashboard calendar.
+ * A user's Google Calendar connection. Shared by every role.
  *
- * Loads the status; when connected, asks the server for a sync if the last one
- * is stale, then loads the events the user added to the "Future Studio"
- * calendar in Google (already filtered server-side — personal calendars are
- * never read). Announces the outcome of the OAuth round-trip once and cleans
- * `?gcal=` from the URL. Exposes connect / syncNow / disconnect.
+ * Loads the status; when connected and `withEvents`, asks the server for a sync
+ * if the last one is stale, then loads the events the user added to the "Future
+ * Studio" calendar (already filtered server-side — personal calendars are never
+ * read). Announces the outcome of the OAuth round-trip once and cleans `?gcal=`
+ * from the URL. Exposes connect / syncNow / disconnect.
+ *
+ * `withEvents` is off by default: the profile card only needs the connection
+ * state, not the calendar feed.
  */
-export function useGoogleCalendar({ t }) {
+export function useGoogleCalendar({ t, withEvents = false } = {}) {
   const router = useRouter();
   const { confirm, alert } = useDialogs();
-  const [status, setStatus] = useState(null); // null = loading or not allowed
+  const [status, setStatus] = useState(null); // null = loading or not reachable
   const [events, setEvents] = useState([]);
   const [syncing, setSyncing] = useState(false);
   const announced = useRef(false);
@@ -41,7 +44,7 @@ export function useGoogleCalendar({ t }) {
       const data = await res.json();
       if (data.success) setEvents(data.events || []);
     } catch {
-      // The dashboard calendar keeps working without Google entries.
+      // The page keeps working without Google entries.
     }
   }, []);
 
@@ -49,7 +52,7 @@ export function useGoogleCalendar({ t }) {
     try {
       const res = await fetch(BASE);
       if (!res.ok) {
-        setStatus(null); // not a super admin, or the API is unavailable: no button
+        setStatus(null); // not signed in, or the API is unavailable: no control
         return null;
       }
       const data = await res.json();
@@ -67,24 +70,24 @@ export function useGoogleCalendar({ t }) {
       try {
         const res = await fetch(`${BASE}/sync${ifStale ? "?ifStale=1" : ""}`, { method: "POST" });
         const data = await res.json().catch(() => ({}));
-        await Promise.all([loadStatus(), loadEvents()]);
+        await Promise.all([loadStatus(), withEvents ? loadEvents() : Promise.resolve()]);
         return data;
       } finally {
         setSyncing(false);
       }
     },
-    [loadEvents, loadStatus],
+    [loadEvents, loadStatus, withEvents],
   );
 
   useEffect(() => {
     (async () => {
       const current = await loadStatus();
       if (current?.connected) {
-        await loadEvents();
+        if (withEvents) await loadEvents();
         runSync({ ifStale: true });
       }
     })();
-  }, [loadStatus, loadEvents, runSync]);
+  }, [loadStatus, loadEvents, runSync, withEvents]);
 
   // One-time notice after the round-trip through Google.
   useEffect(() => {
@@ -93,7 +96,7 @@ export function useGoogleCalendar({ t }) {
     if (!outcome || announced.current) return;
     announced.current = true;
     const key = OUTCOME_KEYS[outcome] || "failed";
-    router.replace("/admin", { scroll: false });
+    router.replace(window.location.pathname, { scroll: false });
     alert({ message: t(`admin.googleCalendar.outcome.${key}`) });
   }, [router, alert, t]);
 
@@ -108,8 +111,9 @@ export function useGoogleCalendar({ t }) {
       return;
     }
     // Full-page navigation: the server redirects to Google's consent screen.
-    // (an API route, not a page — router.push cannot follow it).
-    window.location.href = new URL(`${BASE}/connect`, window.location.origin).toString();
+    // The current path travels along so the callback returns the person here.
+    const next = encodeURIComponent(window.location.pathname);
+    window.location.href = new URL(`${BASE}/connect?next=${next}`, window.location.origin).toString();
   }, [status, alert, t]);
 
   const syncNow = useCallback(async () => {

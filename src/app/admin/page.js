@@ -51,7 +51,7 @@ import { useAdminWidgetData } from "./hooks/useAdminWidgetData";
 import { useAdminSections } from "./hooks/useAdminSections";
 import { useAdminActions } from "./hooks/useAdminActions";
 import { useAdminCalendar } from "./hooks/useAdminCalendar";
-import { useGoogleCalendar } from "./hooks/useGoogleCalendar";
+import { useGoogleCalendar } from "@/components/integrations/useGoogleCalendar";
 
 const ASSIGNMENTS_PER_PAGE = 5;
 
@@ -60,7 +60,7 @@ export default function AdminDashboard() {
   const { t, lang } = useI18n();
 
   const dashboardData = useAdminDashboardData({ router, t, lang });
-  const googleCalendar = useGoogleCalendar({ t });
+  const googleCalendar = useGoogleCalendar({ t, withEvents: true });
   const widgetData = useAdminWidgetData({ t, lang, externalItems: googleCalendar.events });
   const sections = useAdminSections();
   const actions = useAdminActions({ 
