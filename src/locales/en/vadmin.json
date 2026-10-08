@@ -1,8 +1,8 @@
 {
   "vadmin": {
     "portfolio": {
-      "title": "Portfolio Overview",
-      "subtitle": "Every Venture, counted across the whole portfolio.",
+      "title": "Ventures Status",
+      "subtitle": "Every Venture in the program, counted: phases, sectors and readiness at a glance.",
       "totalVentures": "Ventures",
       "activeParcours": "Active Parcours",
       "activeParcoursHint": "Journey stages running right now — several can run at once.",

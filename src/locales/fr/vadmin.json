@@ -1,8 +1,8 @@
 {
   "vadmin": {
     "portfolio": {
-      "title": "Vue d'ensemble du portefeuille",
-      "subtitle": "Toutes les entreprises, comptées sur l'ensemble du portefeuille.",
+      "title": "État des entreprises",
+      "subtitle": "Toutes les entreprises du programme, comptées — phases, secteurs et préparation d'un seul regard.",
       "totalVentures": "Entreprises",
       "activeParcours": "Parcours actifs",
       "activeParcoursHint": "Étapes de parcours en cours — plusieurs peuvent tourner en même temps.",
