@@ -359,6 +359,7 @@ export default function JourneyManagerPanel({ ventureId }) {
           askArchiveSelected={askArchiveSelected}
           askDeleteSelected={askDeleteSelected}
           bulkBusy={bulkBusy}
+          canDelete={Boolean(access?.delete)}
           selectedStageIds={selectedStageIds}
           setSelectedStageIds={setSelectedStageIds}
           setViewArchived={setViewArchived}
