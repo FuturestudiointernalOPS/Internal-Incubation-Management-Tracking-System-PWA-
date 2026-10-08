@@ -20,6 +20,8 @@ import { NextResponse } from "next/server";
  *   - /register-staff
  *   - /register/* (a group/family registration link)
  *   - /join/* (a public group join link)
+ *   - /open/* (a reminder email's button: the route itself sends a signed-out
+ *     reader to login or registration, and a signed-in one to the Venture)
  *   - /verify/* (public certificate verification)
  *   - /api/contacts (POST - registration)
  *   - /api/public/* (group lookup + registration + public course catalogue)
@@ -57,6 +59,7 @@ const publicPaths = [
   "/register-staff",
   "/register",
   "/join",
+  "/open",
   "/verify",
   "/investor/setup-password",
   "/s",
