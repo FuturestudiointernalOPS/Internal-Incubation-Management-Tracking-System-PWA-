@@ -2702,6 +2702,95 @@ the original file kept as a same-surface barrel: `planImport` (1 178),
 
 `npm test` (3631 tests), `npx eslint` (0 errors) and `npm run build` are green.
 
+Follow-up (the lane's component and service leftovers). `JourneyManagerPanel.js`
+1 761 → 1 399 lines: six presentational parts in
+`src/components/ventures/journey/`. `PlanReview.js` 958 → 503 lines: five parts in
+`src/components/ventures/plan-import/`. `submissions.js` becomes a same-surface
+barrel over `src/services/ventures/submissions/` (five parts), and `schema.js` a
+barrel over `src/services/ventures/schema/` (seven parts concatenated in the
+original order). `identity-gate-bridge.test.js` was repointed at the new submission
+part (same assertions). The parent components keep all state and writes; the moved
+blocks are verbatim (translated keys and class names counted identical before and
+after). `npm test`, `npx eslint` (0 errors) and `npm run build` are green. Log in
+`docs/VENTURES_LANE.md`.
+
+
+### Programs lane — the lifecycle, curriculum and participant services (task C)
+
+The programs lane (Fiche 3). Three big services are split by concern, each keeping
+its public entry point as a same-surface barrel so the routes and their tests are
+untouched:
+
+- `services/programs/workspace.js` (790) → `programList.js` (the list read and its
+  completion index), `programCreate.js` (slug, duplicate/date rules, defaults,
+  audit), `programUpdate.js` (archive shortcut, field update, segment sync),
+  `programDelete.js` (the protected-data guard) and `programV2.js` (the v2 create /
+  directory / whitelisted update), with a `programShared.js` helper. `workspace.js`
+  (22) is now the barrel.
+- `services/programs/curriculum.js` (539) → `curriculumSchema.js` (the self-healing
+  schema steps), `curriculumShared.js` (version snapshot + KPI refresh),
+  `curriculumScope.js` (which record's program authorises the action),
+  `curriculumActions.js` (the POST vocabulary), `curriculumUpdate.js` and
+  `curriculumDelete.js`. `curriculum.js` (26) is the barrel.
+- `services/programs/participant.js` (402 → 189): the pure assembly moves to
+  `participantCurriculum.js` (weeks and lock state), `participantMetrics.js`
+  (completion / attendance / KPI achievement) and `participantResources.js`.
+
+Admin V16: the two remaining monoliths are split too. `NewProgramForm.js`
+1 346 → 491 with ten parts under `src/components/admin/programs/new-form/` (six
+form sections, the asset-loading hook, the network actions, the toast, the
+template selector, constants). `EditProgramModal.js` 1 491 → 709 with eight parts
+under `src/components/admin/programs/edit-modal/`. The moved blocks are verbatim:
+the translated-key multisets and the API-URL surfaces were counted identical
+before and after, and the build is green.
+
+`npm test` is green except `venture-assignment-columns.test.js`, an in-progress
+change of the ventures lane (a concurrent writer), unrelated to this task.
+`npx eslint` 0 errors on the touched scope; `npm run build` green.
+
+### Operations lane — the field assembly, blockers, attendance and reviews (task F)
+
+The internal-operations lane (Fiche 6). The tasks/projects controllers were
+already decision-clean (slices 37–44); this lane finishes the half that was
+left: the PUT field assembly is split, and the blockers / attendance / review
+controllers are lightened.
+
+**The field assembly.** `services/tasks/updateFields.js` (426) becomes a
+same-surface barrel over `services/tasks/updateFields/` — `patch` (the SET
+accumulator), `descriptive` (link/priority, title/description, status, project
+and context), `intent`, `assignment` (the three branches) and `schedule` (the
+drift detection and the date rules). `update.js` and its suites are unchanged.
+
+**Blockers** → `services/tasks/blockers.js` (`listBlockers`,
+`createBlockerForTask`, `updateBlockerRecord`, `deleteBlockerRecord`,
+`listBlockerDiscussions`, `postBlockerDiscussion`): the read scope (own /
+supervised / Super Admin), the create permission and the closed-status guard,
+the resolve ownership with the task revert, the delete ownership and the
+discussion fan-out. `blockers/route.js` 373 → 166; `blockers/discuss/route.js`
+116 → 71.
+
+**Attendance** → the new `services/operations/attendance.js`: the idempotent
+schema steps, the write plan (facilitator team scope, foreign-program batch
+guard, the ±1 day window), the idempotent mark upsert and the read scope
+(facilitator team filter, summary/list). The route keeps `requireAuth`, the
+assignment guard (which answers HTTP), the own-scope binding and the envelope.
+`attendance/route.js` 258 → 213.
+
+**Facilitator reviews** → the new
+`services/operations/facilitatorReviews.js`: the read scope, the submit assembly
+(the 16 values and the respond-to-changes branch) and the PM-decision ownership
+rule. The route keeps the role list, the assignment guard and the envelope.
+`facilitator-reviews/route.js` 256 → 144.
+
+New service domain `services/operations/` (barrel `index.js`), and `blockers`
+is added to the `services/tasks` barrel. The route-level contracts the source-pin
+suites hold (`facilitator-capability-coverage`, `identity-gate-bridge`,
+`authz-scope-enforcement`) are untouched: the guards, their capability keys and
+the own-scope literal stay in the routes. New behaviour nets:
+`blockers-api.test.js` (13), `attendance-api.test.js` (7) and
+`facilitator-reviews-api.test.js` (9).
+
+`npm test`, `npx eslint` (0 errors) and `npm run build` are green.
 
 ---
 
@@ -2742,14 +2831,17 @@ cleanup, not layering:
 | Domain | Service to create | Notes |
 |---|---|---|
 | Finance | `services/finance/*` | ✅ **complete** (slices 10–11) |
-| Programs | `services/programs/*` | ✅ **controller frontier complete** (slices 13, 68–72, 76) — lifecycle, workspace bundle, exports, weekly reports, teams, curriculum |
+| Programs | `services/programs/*` | ✅ **controller frontier complete** (slices 13, 68–72, 76) — lifecycle, workspace bundle, exports, weekly reports, teams, curriculum — and the big services are now split (lifecycle, curriculum, participant); the admin form/editor components are split too (see §2, Programs lane, task C) |
 | Contacts / CRM | `services/contacts/*` | ✅ **controller frontier complete** — sync (slice 14), the decision helpers (slice 22), groups (65), user groups (66), the registry feed (67), alternative emails (73), group members (74, retiring the last Supabase route), directory search (75), duplicate flags (77), timeline (78), merge (79) and the `/api/contacts` registry controller — list read (80), soft-delete (81), registration (82), update (83). |
 | Ventures | `services/ventures/*` | ✅ **models done** — document types (slice 15) + plan import (slice 20); `ventureAssets`/`ventureMemberAccess` checked and fine |
 | Workspace | `services/workspace/*` | ✅ **models done** (slice 19) — the Venture-session calendar source; the rest of `workspace.js` is a repository |
 | Tasks / projects | `services/tasks/*`, `services/projects/*` | ✅ **both domains controller-clean** — projects (slices 37–38), tasks (slices 39–44, including the `tasks/route.js` monolith) |
-| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85), the `form-runs` Run-detail read (93), the `form-runs` email/report-document cluster (95), the import routes (96), the seeds (97), the AI form generation (98), the template personalizer (99), the advisory analysis (100), the evaluation scoreboard (101), the form-runs scoring engine (102), the review workflow (103), the forms/collections controllers (104) and the rest of the `form-runs` POST vocabulary — the respondent write path, the run lifecycle, the email actions, the messaging actions, the link/document/run actions (105–109), the PUT/DELETE verbs (110) and the remaining platform controllers — notifications, integrations, investor-run, evaluation-config, report-file (111) — **`/api/platform/form-runs` is now a thin controller over `services/platform/formRuns.js`**; the checkout settlement is now shared once (`settleVerifiedPayment`) and the reconciliation sweep moved from lib into the service (slice 118) |
+| LMS / platform / integrations | `services/<domain>/*` | ⏳ **started** — LMS learner experience (17), checkout (18), Run report (21) and the registration team actions (84); platform AI evaluation (85), the `form-runs` Run-detail read (93), the `form-runs` email/report-document cluster (95), the import routes (96), the seeds (97), the AI form generation (98), the template personalizer (99), the advisory analysis (100), the evaluation scoreboard (101), the form-runs scoring engine (102), the review workflow (103), the forms/collections controllers (104) and the rest of the `form-runs` POST vocabulary — the respondent write path, the run lifecycle, the email actions, the messaging actions, the link/document/run actions (105–109), the PUT/DELETE verbs (110) and the remaining platform controllers — notifications, integrations, investor-run, evaluation-config, report-file (111) — **`/api/platform/form-runs` is now a thin controller over `services/platform/formRuns.js`**; the checkout settlement is now shared once (`settleVerifiedPayment`) and the reconciliation sweep moved from lib into the service (slice 118) — and the two big services are now split into same-surface barrels (`learning/` eight parts, `checkout/` seven parts, see §7, Lead lane) |
 | Communications | `services/communications/*` | ✅ **controller frontier complete** — message scope (earlier), campaigns (86), internal messages (87), announcements (88), follow-ups and events (89–90) |
 | Submissions | `services/ventures/submissions.js` | ✅ **controller frontier complete** — the submit POST (91), the review PATCH (92), the list GET (93) and the score PUT (94) |
+| Participant | `services/participant/*` | ✅ **domain complete, and now split** — assignments, home, progress, follow-ups, full state, rituals, timeline, submissions; `home.js` (499) and `progress.js` (416) became same-surface barrels over `home/` + `progress/` on a shared `participant/rules.js` (see §7, Lead lane) |
+| Investor | `services/investor/*` | ✅ **domain complete, and now split** — diligence, campaigns, pipeline, relationships, evaluation, decisions, organisations, watchlist, preferences, meetings, dashboards, aggregators, password; `diligence.js` (337) became a same-surface barrel over `diligence/` (see §7, Lead lane) |
+| Dashboard & ops admin | `services/dashboard/*` | ✅ **aggregators complete, and now split** — `overview.js` (498) became a same-surface barrel over `overview/` (dates, calendar, attention, projects, kpi, build) |
 
 #### Remaining mixed model modules (the actual backlog)
 
@@ -2931,6 +3023,89 @@ decision is recorded, new modules stay plain JavaScript.
 
 ---
 
+### Domain 94 — the platform services: the formRuns/import/seed/report split (slice 130, 2026-10-02)
+
+The four oversized platform SERVICE files are now thin barrels at the same path
+over cohesive modules in a sibling folder (the `PermissionCenter.js` +
+`permission-center/` convention). No code crossed a layer: same-layer
+decomposition, public surfaces byte-identical, imports and tests unchanged.
+
+- **`formRuns.js` (2 260) → `formRuns/`**: `detail` (the Run-detail read and
+  `enrichAssignments`), `resultEmails` (`logTimeline`, the decision/result
+  senders and the scheduled dispatcher), `review` (`processReviewInternal`),
+  `lifecycle` (status vocabulary, launch, assignments), `submitters` (the submit /
+  manual-add / email-correction path), `sends` (retry/cancel/bulk/manual/activation
+  sends) and `actions` (slug rotation, submission delete, report re-roll, run
+  create/metadata/archive). Each module declares exactly the imports it uses;
+  `review`/`submitters`/`sends`/`actions` import `resultEmails` directly, never
+  through the barrel, so there is no cycle. Non-exported helpers stay with their
+  only caller.
+- **`report.js` (426) → `report/`**: `prompt` (the guardrails, the identity and
+  prompt helpers and the parser) and `store` (the stored-report reuse and the one
+  `getOrCreateSubmissionReport` entry point). `MODEL`/`nonEmptyString` live once
+  in `prompt`; the barrel re-exports only the original public names, so nothing
+  new leaks.
+- **`import.js` (609) → `import/`**: `preview` (parse + fuzzy match),
+  `execute` (contact resolution + the row loop) and `reviewFlags`.
+- **`seed.js` (535) → `seed/`**: `founderAssessment` and `investorApplication`.
+
+The `readSurface` concatenation is sort-order-sensitive, so the module names
+carrying ordering-pinned calls were chosen to keep the pins true: `review` sorts
+before `sends` (so the `await sendDecisionEmailForSubmission(` call the review
+gate must precede is first found in `review`), and `resultEmails` sorts before
+`submitters` (so the loud run/form-context read is found before the
+respondent-email correction's own).
+
+Verification: `npx eslint src/services/platform` → 0 errors; the 13 platform /
+source-pin suites → 13 suites, 200 tests green (same as before); the DB budgets
+(`db-sequencing-audit`, `db-roundtrip-budget`) → 2 suites, 9 tests green.
+
+---
+
+### Domain 95 — the platform VIEWS and the public/intents controllers (slice 131, 2026-10-02)
+
+The same lane's remaining size debt: the two oversized platform screens and the
+last two deciding controllers.
+
+- **`src/app/platform/runs/page.js` (V2) 2 925 → 2 391.** The inline modals and
+  panels move to module-scope components in `src/components/platform/runs/`:
+  `ReviewModal`, `ManualAddModal`, `MessageComposerModal`, `ExportOptionsModal`,
+  `RunDetailHeader`, `EvalProgressPanel`, `RunTabs`, `DashboardStats`,
+  `RunsToolbar`, `CreateRunModal`, `DatePickerModal`. The page keeps state, data
+  fetching, handlers and orchestration; the rendered markup is unchanged. (The
+  control at column 0 rule matters here: a component created during a render
+  remounts its inputs every keystroke — the editors stay module-scope.)
+- **`src/app/platform/forms/page.js` (V6) 1 979 → 886.** The list, the builder
+  (palette/canvas/field), the config panels, the template editor and the three
+  modals move to `src/components/platform/forms/` (`TemplateEditor`,
+  `TemplatesPanel`, `FormsListView`, `BuilderHeader`, `ScoringPanel`,
+  `WorkflowPanel`, `EvaluationFrameworkPanel`, `FormCanvas`, …).
+- **The `intents` controllers** (`/api/intents`, `/api/intents/[id]`,
+  `/api/intents/[id]/tasks`) → `services/platform/intents.js`. The visibility,
+  ownership, responsible-exists, Contact-Group and progress decisions leave the
+  three routes, which keep `requireAuth`, `initDb`, the parsing and the envelope.
+- **`/api/s/public-submit` (502 → ~140)** →
+  `services/platform/publicSubmit.js` (`submitPublicResponse`). The run-by-slug
+  resolution, the deadline/auto-close, the paid-run consent gate, the IP rate
+  limit, the identity read from the form's own labels, the duplicate idempotency,
+  the submission limit, the draft upgrade, the checkout capture and the
+  post-submission automation/evaluation leave the route. The route keeps the
+  HTTP boundary: the schema self-heal, the payload-size guard, the capture cookie
+  and the injected `after` hook.
+
+The source-pin suites now read a module's whole SURFACE via
+`src/__tests__/helpers/sourceSurface.js` (base file + same-named folder), so a
+pin cannot go vacuously green once the code moves into a sibling file.
+
+Verification: `npx eslint src/services/platform src/app/api/intents
+src/app/api/s/public-submit/route.js src/app/platform/runs/page.js
+src/components/platform/runs src/app/platform/forms/page.js
+src/components/platform/forms` → 0 errors; `lms-checkout`, the platform suites,
+`server/services-boundaries`, `route-catalog-contract` and the two security lots
+→ green.
+
+---
+
 ## 6. How to run the next slice (recipe)
 
 1. Pick one module that mixes decisions with reads.
@@ -2973,3 +3148,1471 @@ sont extraits vers `src/components/layout/shell/` et
 `src/components/messaging/chat/`. Aucun layout de section n'est modifié.
 Le périmètre exact et les responsabilités sont documentés dans
 `src/services/communications/README.md`.
+
+### Communications — le découpage du modèle et le marquage lu (tâche G, 2026-10-02)
+
+`models/communications.js` (812) devient un barillet de même surface au même
+chemin, au-dessus de modules cohésifs dans `models/communications/` : `scope`
+(résolution des destinataires et du périmètre), `messages` (lectures/écritures
+des messages et le marquage lu), `announcements`, `followups`, `campaigns` et
+`events`. Le SQL est déplacé **à l'identique** ; importateurs et tests gardent le
+même chemin `@/models/communications`.
+
+Le marquage lu est corrigé : `updateMessagesReadByIds(messageIds, plan)` remplace
+l'ancienne mise à jour filtrée par les seuls identifiants. Le service résout le
+plan de visibilité de l'appelant (`resolveMessageVisibilityPlan`, le même plan que
+la boîte de réception) et le dépôt ré-applique le prédicat de visibilité, de sorte
+qu'un identifiant que l'appelant ne peut pas lister met à jour zéro ligne. La
+branche « conversation » reste limitée au couple expéditeur/destinataire et le
+refus de participation est inchangé. Épinglé par
+`communications-read-scope.test.js` (3) et `internal-comms-read.test.js` (2).
+
+Conformité coquille/chat : les libellés d'invitation, d'affectation et de thème
+passent par `t()` (`common.projectInvitation`, `common.taskAssignment`,
+`common.invitedToJoin`, `common.assignedTask`, `common.aProject`, `common.aTask`,
+`common.theme.*`, `common.accept`, `common.decline`, `common.user`, `common.menu`)
+dans les deux locales ; les boutons de refus perdent `bg-slate-600`/`text-white`
+au profit de `bg-surface-3`/`--text-primary` ; les deux champs de fichier du chat
+passent de `text-slate-400` à `--text-tertiary`. Le rendu des blocs reste identique.
+
+`npm test` (298 suites, 4 695 tests), `npm run lint` (0 erreur) et
+`npm run build` sont verts.
+
+### Lead — les six gros services découpés (couloirs réservés, 2026-10-02)
+
+Les six plus gros services des couloirs réservés au lead deviennent des
+**barillets de même surface** : le fichier `foo.js` reste à son chemin et
+réexporte le même contenu public, les décisions sont regroupées dans `foo/` par
+concern. Aucun importateur (route, page, test) ne change de chemin.
+
+| Service | Avant | Après | Modules |
+|---|---|---|---|
+| `lms/learning.js` | 601 | 41 | `learning/` : `structure`, `progress`, `enrollmentProgress`, `completion`, `catalog`, `lessons`, `assessments`, `enrollments` |
+| `lms/checkout.js` | 582 | 39 | `checkout/` : `runCourse`, `identity`, `accessToken`, `fulfillment`, `capture`, `resume`, `settlement` |
+| `participant/home.js` | 499 | 18 | `rules.js` (partagé) + `home/` : `metrics`, `actions`, `calendar`, `build` |
+| `participant/progress.js` | 416 | 16 | `progress/` : `program`, `summary`, `build` |
+| `dashboard/overview.js` | 498 | 21 | `overview/` : `dates`, `calendar`, `attention`, `projects`, `kpi`, `build` |
+| `investor/diligence.js` | 337 | 35 | `diligence/` : `json`, `status`, `questions`, `read`, `workspaceActions`, `requestActions`, `followUpActions`, `dispatch` |
+
+**Les règles de décision partagées sont sorties, pas dupliquées.**
+`isUnlockedSession` et `resolveDeliverableWeek` étaient importés par `progress`
+depuis `home` : ils vivent maintenant dans `participant/rules.js`, et les deux
+écrans les lisent. `home.js` et `progress.js` les réexportent, donc la surface
+publique et le barillet `@/services/participant` sont inchangés — les deux vues ne
+peuvent plus diverger sur la semaine courante.
+
+**Vérification.** Chaque fonction déplacée est **byte-identique** à l'originale
+(module normalisé : lignes trimées, commentaires et `export` retirés) — contrôle
+mécanique sur les 20 fonctions de `learning`, les 12 de `participant`, les 9 de
+`diligence` et les helpers de `overview` (plus un diff ligne à ligne des deux
+blocs de statistiques qui étaient en ligne). Le seul réécriture est
+`overview/`: les blocs « stats de tâches », « stats de blockers » et « projets
+quick-access », qui étaient **en ligne** dans `buildDashboardOverview`, deviennent
+`summarizeTaskStats`, `summarizeBlockers` et `buildQuickAccessProjects` ; le
+défaut de lecture (`Promise.allSettled`) retombe sur la même valeur nulle qu'avant
+(`summarizeTaskStats([], todayStr)`), donc un widget en échec ne change rien. Le
+`Promise.allSettled` et chaque test `fulfilled` restent en place à l'identique.
+
+**Le bug que le découpage a révélé.** `checkout/identity.js` importait
+`normalizeRegistrationEmail` depuis `@/models/lms/checkoutStore` au lieu de
+`@/models/lms/registrations` : le symbole était `undefined`, donc
+`findContactForPurchase` levait, `fulfillment` rattrapait, et **9 tests de
+`lms-checkout.test.js` voyaient `access: "failed"`** au lieu de `granted`. ESLint
+ne le voit pas (pas de `no-undef` sur ce motif) et les tests unitaires ne le
+voient pas quand le modèle est simulé. Le contrôle qui l'attrape : la provenance
+statique de chaque import nommé sur `src/**` (« ce module exporte-t-il vraiment
+ce symbole ? », en suivant les barillets et `export *`). Elle est désormais verte
+sur tout `src/` — le seul signal restant est un faux positif hors périmètre
+(`components/permissions/ContextScopeView.js`, `default as GovernanceView`).
+
+**Tests textuels repointés.** `lms-section-resource-learner-files.test.js` et
+`login-next-redirect.test.js` lisaient le contenu de `learning.js` et
+`checkout.js` ligne à ligne ; ils lisent désormais la surface concaténée
+(`readSurface`) via `src/__tests__/helpers/sourceSurface.js`, donc ils épinglent
+toujours le même texte, sur le barillet + ses modules. Mêmes assertions.
+
+**Audit des couloirs réservés.** Plus aucune route n'appelle une autre route
+(`grep 'from "@/app/api'` → 0 dans `src/app/api`), le calendrier et les workspaces
+sont déjà des contrôleurs fins (`services/workspace/calendar.js`), et
+`op-reports`, `kpis`, `kpi-progress`, `activity`, `dashboard` et les 18 routes
+`api/admin/**` ne portent plus de décision. Restent en contrôleurs, volontairement :
+`admin/run-migration` (DDL d'un runner temporaire), `admin/fix-participant`
+(réparation ponctuelle, CID codé en dur) et `admin/tasks` (agrégation de blockers
+par lot — mise en forme pure). `npm test` (298 suites, 4 754 tests),
+`npx eslint .` (0 erreur, 16 avertissements préexistants) et `npm run build` sont
+verts.
+
+---
+
+## Slice 130 — CH-4 : dissolution des façades pures (2026-10-02)
+
+Le domaine 93 avait supprimé les 68 façades à **cible unique** et laissé les
+**cibles multiples**,jugées non réécrivables mécaniquement. Ce slice termine le
+travail : `@/lib/ventures` (106 importateurs), `@/lib/ventureMilestoneEngine`
+(21), `@/models/contacts` (19), `@/models/groups` (14),
+`@/lib/authorization/membership` (9), `@/models/ventureDocumentTypes` (8),
+`@/models/kpi-progress` (6), `@/lib/authorization/eligibility` (4) et les dix
+façades `@/lib/venture*` restantes sont supprimées — **18 fichiers**.
+
+Le codemod ne se contente plus d'une cible : il résout le **propriétaire réel de
+chaque symbole** et réécrit le site d'import en conséquence, quel que soit sa
+forme — `import { … }`, `const { … } = require(…)`, `await import(…)`,
+`require(…)` en espace de noms, et **factory `jest.mock`** (une factory qui
+mélangeait deux modules devient une factory par module). Les commentaires
+d'en-tête qui promettaient « re-exported through the compatibility facade »
+ont été réécrits : ils décrivent un fichier qui n'existe plus.
+
+Trois contrôles ont trouvé ce que les 298 suites ne voyaient pas, et sont
+maintenus dans la routine :
+
+| Contrôle | Ce qu'il attrape | Exemple du slice |
+|---|---|---|
+| provenance des imports nommés | un module importé n'existant plus | `Could not locate module @/models/contacts` |
+| diff de surface (avant/après par fichier) | un symbole **perdu** | `getIntegrationProviders` supprimé de `api/integrations/route.js` (vu par ESLint : `no-undef`, pas par Jest) |
+| table des propriétaires | un symbole pointant vers le **mauvais** module | `logAuditEvent` réécrit vers `ventures/integrations` au lieu de `ventures/auditSecurity` |
+
+Le piège récurrent est le **mock mélangé** : une factory
+`jest.mock("@/models/contacts", () => ({ ...jest.requireActual(…), x: jest.fn() }))`
+répartie mécaniquement perd son spread, et la moitié réellement mockée
+disparaît — les tests repassaient quand même tant que la fonction non mockée
+n'était pas appelée. Les factories ont été recomposées en
+`...jest.requireActual("<module 1>"), ...jest.requireActual("<module 2>")`, et les
+espaces de noms reconstitués (`{ ...orgTeams, ...v2Groups }`). Deux suites ont
+dû apprendre les deux formes d'appel du pool (`execute({ sql, args })` et
+`execute(sql)` du runner de migration).
+
+**Trois surfaces restent, volontairement :** `@/lib/auth` (301 importateurs) n'est
+pas une façade pure — six fonctions y sont encore implémentées, retenues parce
+qu'elles ont une seconde implémentation parallèle sur les mêmes tables ;
+`@/models/authorization/index` et `@/models/lms/index` sont des barillets **de
+même surface** (un point d'entrée sur les modules d'un même dossier), pas des
+facades inter-couches ; `@/models/communications` appartient à un autre couloir.
+
+Gates du slice : `npm test` 298 suites / 4 754 tests, `npx eslint .` 0 erreur
+(16 avertissements préexistants), `npm run build` vert. Le journal destiné aux
+stagiaires est en `docs/REPARTITION_STAGIAIRES.md` § 4.8.
+
+## Slice 131 — PM program workspace : le page d'écran (2026-10-03)
+
+Première tranche d'une série consacrée à la **taille des écrans** (la couche V),
+distincte de la répartition des couches. Cible : `src/app/pm/programs/[id]/page.js`,
+2 450 lignes, qui avait grandi en absorbant le workspace entier (onglets, modales,
+44 gestionnaires, 55 handlers). Découpage **latéral, même couche** : aucune
+requête déplacée, aucun contrat d'API touché, aucun état déplacé hors de la page.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `page.js` | 719 | l'état, les deux lectures, la config, la composition |
+| `actions/` (9 fabriques) | 1 800 | les écritures, une par préoccupation |
+| `useAttendanceMarks.js` | 58 | l'effet de chargement des présences |
+| `WorkspaceContent.js` | 224 | le contenu des onglets |
+| `WorkspaceModals.js` | 389 | les 13 modales |
+
+Le **parent garde tout l'état et toutes les écritures**, comme le contrat l'exige :
+chaque fabrique est sans état et sans SQL, lue dans un objet unique. Deux objets
+sont construits à la main dans la page — `values` (état, setters, lectures) puis
+`ctx` (`values` + tous les handlers, les fabriques déversées **avant** pour qu'un
+nom commun reste un handler) — et les deux blocs de rendu lisent `ctx`, chacun
+listant **ses** dépendances dans sa propre signature (69 et 114 noms). C'est ce
+qui fait tomber les ~230 lignes de simple réacheminement de props : elles sont
+maintenant dans le bloc qui en a besoin, pas dans la page.
+
+Trois pièges réels de ce slice :
+
+| Piège | Symptôme | Résolution |
+|---|---|---|
+| passant des `ref` pendant le render | ESLint `react-hooks/refs` : *cannot access refs during render* | pas de fabrique pour la config ; `saveConfig` reste dans la page, seul `readConfigFields` était à déplacer |
+| objets fusionnés dans le désordre | `const ctx = { ...handlers, ...state }` en TSDZ — les fabriques référencées avant leur déclaration | `values` d'abord, `ctx` ensuite, spreads testés par un ordre explicite |
+| sur-indentation des corps extraits | 4 espaces au lieu de 2 dans les 9 fabriques | l'outillage de découpe dédupliquait `[id]` de sa propre liste de fichiers (`glob` y lit une classe de caractères) : les neuf modules ont été vérifiés **verbatim** contre l'original, puis réalignés |
+
+Les blocs de markup ont eux aussi été comparés **octet pour octet** à l'original
+(`/tmp/opencode/pmws/verify2.cjs`) avant remontage : une découpe « à l'œil » d'un
+extrait de 250 lignes est une réécriture silencieuse.
+
+**Le contrôle qui manque d'habitude** — `src/__tests__/program-workspace-wiring.test.js`
+(3 tests) : rien ne relie les trois côtés au niveau des types, et aucune suite ne
+rend cet écran. Un nom qui n'atteint plus son bloc est donc invisible — la fabrique
+reçoit `undefined`, ou le composant lit un champ absent ; ESLint ne voit rien non
+plus, chaque nom étant déclaré quelque part. La suite épingle le câblage : les
+paramètres de chaque fabrique doivent être des clés de `values`, chaque nom lu par
+un bloc doit être une valeur ou un handler retourné, et l'ordre des spreads de
+`ctx` est vérifié. Mutation testée (retrait d'une clé de `values`) : le suite
+échoue bien, puis passe après restauration.
+
+Gates du slice : `npm test` 299 suites / 4 757 tests, `npm run lint` 0 erreur
+(16 avertissements préexistants), `npm run build` vert. Suite : la page `runs`
+(2 391 lignes).
+
+## Slice 132 — Plateforme runs : le page d'écran (2026-10-03)
+
+Deuxième tranche de la série sur la **taille des écrans**. Cible :
+`src/app/platform/runs/page.js`, 2 391 lignes — l'écran le plus long du dépôt
+après PM. Elle avait déjà été découpée en « rounds » successifs (onze onglets,
+modales et panneaux vivent dans `components/platform/runs/`) : ce qui restait
+donc dans le fichier était la **colonne vertébrale** — l'état, les lectures, les
+effets, 57 gestionnaires et quatre gros blocs de JSX.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `page.js` | 1 432 | l'état, les lectures, les effets, la composition |
+| `actions/` (11 fabriques) | 1 518 | les écritures, une par préoccupation |
+| `RunListView.js` | 114 | tableau de bord, barre d'outils, table, création |
+| `RunResponsesPanel.js` | 180 | filtres, table des réponses, sélection, menu bulk |
+| `RunAdminTabs.js` | 171 | les cinq onglets d'administration |
+| `RunDetailModals.js` | 137 | review, ajout manuel, composeur, export |
+
+54 gestionnaires déplacés, 1 029 lignes de corps vérifiées **verbatim**, et 236
+lignes de markup comparées octet pour octet (`/tmp/opencode/runs/verify_actions.cjs`,
+`verify_views.cjs`). Même contrat que slice 131 : le parent garde l'état et les
+lectures, chaque fabrique est sans état, et `values` puis `ctx` (spreads des
+fabriques d'abord) relient les trois côtés.
+
+Quatre pièges réels, tous diagnostiqués par le build ou par le compilateur :
+
+| Piège | Symptôme | Résolution |
+|---|---|---|
+| `values` de 249 noms | « c'est juste un sac à variables vidé dans un autre fichier » — le page devient illisible | assumé, comme en slice 131 : `values` est la frontière, et le test de câblage interdit qu'un nom s'y glisse sans être lu par quelqu'un (le builder échoue si une valeur n'est lue par ni une vue ni une fabrique) |
+| `ref` passant pendant le render | ESLint `react-hooks/refs` sur `filterRowRef`, `bulkAbortRef`, `retryAbortRef` | `runBulkApprove` et `runRetryEmails` **restent dans la page** (ils lisent ces refs) et passent en props explicites ; jamais via `ctx` |
+| valeur dérivée lisant un handler déplacé | `ReferenceError: Cannot access 'eR' before initialization` au prerender | `trackingFilterValue` est une lecture pure de l'état des filtres : elle reste dans la page. Une valeur dérivée ne peut pas vivre au-dessus du câblage qui instancie la fabrique qui la retourne |
+| imports laissés derrière | `Parsing error: Identifier 'React' has already been declared` | le pruneur d'imports tourne sur le corps **après** coupure des handler et des vues, jamais avant |
+
+Deux autres pièges, cette fois dans l'outillage de découpe :
+
+- l'import par défaut devient nomné si le script écrit `import { X }` pour un
+  module `export default` : ESLint est vert, `npm test` est vert, **seul le build
+  échoue** (`Export X doesn't exist in target module`). C'est le seul filet.
+- un pin de test qui lit le chemin de la page devient *vacuement* vert quand le
+  code migre : `run-report-file.test.js` lisait la page seule, son aiguille
+  `/api/platform/form-runs/report-file` ayant rejoint `actions/runSettings.js`. Le
+  helper lit maintenant `page + actions/ + components/` (300 suites vertes, la
+  garde est plus large qu'avant, pas plus lâche).
+
+**Le contrôle qui manque** — `src/__tests__/platform-runs-wiring.test.js` (5 tests) :
+paramètres de fabrique ⊂ `values`, noms lus par un bloc ⊂ valeurs ∪ handlers,
+refs et handlers de batch hors de `values` et en props, ordre des spreads de `ctx`,
+et `values` sans nom fantôme. Mutation testée (retrait de `selectedRun` de
+`values`) : 2 tests tombent, puis tout repasse après restauration.
+
+Gates du slice : `npm test` 300 suites / 4 762 tests, `npm run lint` 0 erreur
+(16 avertissements préexistants), `npm run build` vert. Suite : le rapport
+opérationnel staff (1 800 lignes).
+
+## Slice 133 — Rapport opérationnel staff : le page d'écran (2026-10-03)
+
+Troisième tranche de la série sur la **taille des écrans**. Cible :
+`src/app/staff/op-report/page.js`, 1 800 lignes. Le dossier
+`components/staff/op-report/` comptait déjà une vingtaine de petites vues, mais
+le page gardait la colonne vertébrale : 42 gestionnaires, 11 helpers de module,
+les gestionnaires de brouillon et deux gros blocs de JSX.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `page.js` | 672 | l'état, les lectures, les effets, les brouillons, la composition |
+| `readers.js` | 215 | les 11 helpers purs de portée module |
+| `useOpReportNav.js` | 47 | les trois gestionnaires de navigation (header) |
+| `actions/` (12 fabriques) | 1 276 | les écritures, une par préoccupation |
+| `ReportContent.js` | 216 | la vue stand-up, retro ou résumé de semaine |
+| `OpReportModals.js` | 125 | les quatre modales |
+
+42 gestionnaires déplacés, 44 corps vérifiés **verbatim** et 211 lignes de markup
+comparées octet pour octet (`/tmp/opencode/oprep/verify.cjs`, en lecture seule :
+il ne régénère rien, donc une retouche manuelle après la génération est attrapée
+au lieu d'être écrasée). `surface.cjs` rejoue l'inventaire des 132 noms que
+l'écran déclarait avant et exige que chacun reste atteignable — page, `readers`,
+handler retourné ou `ctx` de bloc.
+
+Cinq pièges réels :
+
+| Piège | Symptôme | Résolution |
+|---|---|---|
+| hook de brouillons extrait | ESLint `react-hooks/exhaustive-deps` (6 avertissements) parce que les setters d'un `useState` multiple n'ont pas d'identité stable | les brouillons **restent dans la page** ; seuls les trois gestionnaires du header partent, dans un hook sans état |
+| paramètre compté comme lu à tort | `no-unused-vars` sur `userId`, `getWeekNumber` : une déclaration locale (`const userId = user?.cid`) ou un paramètre de fonction imbriquée masquait la lecture du nom de la page | l'analyse de lectures exclut ce qu'une déclaration imbriquée masque, sinon la fabrique réclame un paramètre qu'elle n'utilise pas |
+| `keptText` incluant les imports | 18 imports morts laissés dans le page (aucun plus utilisé) | le texte de référence exclut les lignes d'import : un import n'est jamais une preuve d'usage |
+| `import { getCurrentWeek as getCurrentWeek }` | ESLint vert, build vert, mais du bruit dans chaque module | le rétrécissement d'import réutilise la forme d'origine quand les noms sont identiques |
+| vérification verbatim tautologique | `dedent(...).slice(0, 0) || original` comparait toujours `original` à lui-même : 44 « vérifications » vertes sans rien vérifier | le vérificateur compare le corps dé-indenté ré-indenté de deux espaces, et un test de mutation (un `notify` → `notifY`) le fait tomber |
+
+**Le contrôle** — `src/__tests__/op-report-wiring.test.js` (5 tests) : paramètres de
+fabrique ⊂ `values` ∪ handlers retournés ∪ noms du hook, noms lus par un bloc ⊂
+valeurs ∪ handlers, chaque spread de `ctx` présent, `values` sans nom fantôme et
+sans `draftTimerRef`, et l'ownership des spreads (un paramètre rendu par une autre
+fabrique doit arriver par `...cetteFabriqueResult`). Mutation testée sur trois
+coups : clé de `values` retirée, spread de `ctx` retiré, `orphanKey` ajouté — 3
+tests tombent ; puis le spread de `notify` retiré d'un appel de fabrique — le
+test d'ownership seul tombe (c'est lui qui l'attrape).
+
+Gates du slice : `npm test` 301 suites / 4 767 tests, `npm run lint` 0 erreur
+(16 avertissements préexistants), `npm run build` vert. Suite : `src/lib/email.js`
+(1 626 lignes).
+
+## Slice 134 — `src/lib/email.js` : le service d'email (2026-10-03)
+
+Quatrième tranche de la série sur la **taille des fichiers**, mais plus un écran :
+1 627 lignes de service d'email dans `src/lib/email.js`. Ici le découpage n'a pas
+d'états à partager ni de composants à extraire — c'est un **monolithe de module** :
+61 déclarations de portée module, deux transports, un moteur de template, onze
+points d'entrée publics et 27 fichiers qui importent `@/lib/email`.
+
+Le découpage garde la convention du dépôt : `src/lib/email.js` reste le point
+d'entrée (une façade de 81 lignes), l'implémentation vit dans `src/lib/email/`,
+un module par préoccupation. Aucun des 27 importateurs n'est touché.
+
+| Module | Lignes | Rôle |
+|---|---|---|
+| `email.js` (façade) | 81 | la surface publique, rien d'autre |
+| `config.js` | 56 | les constantes lues dans l'environnement |
+| `resend.js` | 44 | le transport Resend |
+| `gmail.js` | 122 | le transport Google Workspace (MIME, pièces jointes, OAuth) |
+| `templates.js` | 163 | copy par défaut, `{{variable}}`, templates conçus |
+| `addresses.js` | 272 | adresse, nom, langue : toute décision pure de destinataire |
+| `send.js` | 85 | le choix de fournisseur (primaire, repli, erreur) |
+| `delivery.js` | 137 | envoi + journal de livraison |
+| `senders/accounts.js` | 293 | invitation, connexion, bienvenue, mot de passe |
+| `senders/ventures.js` | 175 | invitations venture (membre, fondateur) |
+| `senders/workflow.js` | 105 | décision, confirmation |
+| `senders/results.js` | 281 | copy du résultat et livraison du PDF |
+
+Le graphe est un **DAG** vérifié par tri topologique : `config → gmail/resend →
+send → delivery → senders/*`, plus `templates` et `addresses` en feuilles. Un
+cycle est impossible par construction ici (une seule exception au programme
+ci-dessous), mais il est **détecté** : `templates.js` qui importerait
+`delivery.js` fait tomber la génération.
+
+Chaque déclaration part **verbatim**, bloc de commentaire compris : la plage de
+lignes du monolithe bouge d'un bloc, donc laisser le commentaire derrière
+l'aurait supprimé du dépôt. 207 contrôles en lecture seule
+(`/tmp/opencode/email/verify.cjs` — il ne régénère rien, donc une retouche
+manuelle après la génération est attrapée).
+
+Cinq pièges réels :
+
+| Piège | Symptôme | Résolution |
+|---|---|---|
+| nom privé lu par un autre module | ESLint : 12 avertissements `no-unused-vars` sur des `const`/`function` que d'autres modules importent | seule dérogation à l'identique : le mot-clé `export` est ajouté devant la définition lue ailleurs. Réordonner ou renommer une constante dans un modulecassait tous ses consommateurs sans erreur ici |
+| `sections` du fichier devenues fausses | les invitations étaient sous le bandeau `TEMPLATE ENGINE` : les bandeaux décrivent l'ordre de lecture d'un jour, pas les frontières | le module d'un nom vient d'un `PLAN` explicite, jamais du fichier |
+| specificateur nu | `./addresses` devient `addresses` : un module sans préfixe `./` ou `@/` est un paquet. `npm run lint` **vert**, `npm run build` **vert** | garde dans le générateur : tout specificateur doit être relatif ou aliasé. Seul `npm test` l'a vu |
+| import dupliqué | `import { X } from "./config"` émis sept fois dans `gmail.js` | l'entrée d'un import n'est poussée qu'à sa création |
+| pin de test devenu vide | `result-email-founder-fit.test.js` lisait `src/lib/email.js` : ses 15 pins passaient sur une façade de 81 lignes, la copy ayant migré dans `senders/results.js` | le test lit `readSurface("src/lib/email.js")` — le helper concatène la façade **et** le dossier `email/`, donc le pin suit la copy (15 tests verts) |
+
+**Le contrôle** — `src/__tests__/email-module-surface.test.js` (4 tests) : tout
+nom importé de `@/lib/email` est exporté par la façade ; tout nom exporté est
+défini par exactement un module (sauf le journal de livraison, réexporté depuis
+`@/services/email/log`) ; le graphe est acyclique ; aucun module n'importe un
+nom qu'il n'utilise pas. Mutation testée : `sendDecisionEmail` retiré de la
+façade → 1 test tombe ; `templates.js` important `delivery.js` → le test
+d'acyclicité tombe (`delivery.js → templates.js → delivery.js`).
+
+Gates du slice : `npm test` 302 suites / 4 771 tests, `npm run lint` 0 erreur
+(16 avertissements préexistants), `npm run build` vert.
+
+## Slice 135 — Panneau Venture Journey : le page d'écran (2026-10-03)
+
+Cinquième tranche de la série sur la **taille des écrans**. Cible :
+`src/components/ventures/JourneyManagerPanel.js`, 1 399 lignes — le plus gros
+fichier de composant du dépôt avant ce slice. Le dossier `journey/` comptait déjà
+22 petites vues (stage, milestone, deliverable, session, inbox…), mais le panneau
+gardait la colonne vertébrale : 66 gestionnaires, 52 valeurs d'état, 5 lectures et
+un `return` de 202 lignes de JSX.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `JourneyManagerPanel.js` | 384 | l'état, les lectures, `setStages`, la composition |
+| `journey/actions/stageWrites.js` | 223 | créer, éditer, dupliquer, patcher, les deux flux template |
+| `journey/actions/journeyBulk.js` | 239 | sélecteurs, sélection, bulk archive/restore/delete, confirmation |
+| `journey/actions/milestones.js` | 279 | ajouter, éditer, déplacer, dupliquer un jalon, son menu |
+| `journey/actions/deliverables.js` | 271 | lignes de livrable, preuve soumise, revue |
+| `journey/actions/booking.js` | 163 | la réservation de session et sa note |
+| `journey/actions/reports.js` | 100 | composer un rapport de progression, l'envoyer |
+| `journey/actions/submissions.js` | 70 | lire les soumissions d'un jalon, décider |
+| `journey/actions/labels.js` | 61 | les helpers purs : statut, date, textarea qui grandit |
+| `journey/JourneyManagerModals.js` | 67 | les trois modales : template, sauvegarde, ajout |
+| `journey/JourneyStageList.js` | 242 | le spinner, l'état vide, ou les cartes de jalon |
+
+Les 125 déclarations du plan se répartissent ainsi : 52 `useState` et 5 lectures
+restent dans le panneau, 66 gestionnaires partent, et deux déclarations restent
+parce qu'elles doivent voir l'état lui-même — `setStages` (l'adaptateur qui publie
+une écriture dans sa propre lecture) et la destructure `stages, access,
+templateSource, milestoneAuthority, deliverablesUnavailable`. Les huit fabriques
+sont ordonnées par **tri topologique** : `stageWrites → journeyLabels →
+reportWrites → submissionWrites → milestoneWrites → deliverableWrites →
+sessionBooking → journeySelection`. Aucune ne lit une fabrique placée plus bas —
+`milestoneWrites` a besoin de `fmtDate` (labels) et de `loadMilestoneSubmissions`
+(submissions), `journeySelection` a besoin de `openReportComposer` (reports) et de
+`patchMilestone` (milestones) : l'ordre tombe du graphe, pas de la main.
+
+Chaque corps part **verbatim**, bloc de commentaire compris : la plage de lignes
+du monolithe bouge d'un bloc, donc laisser le commentaire derrière l'aurait
+supprimé du dépôt. 125 déclarations (toutes les `const` du composant, commentaire
+de tête compris) et les 494 chaînes littérales ou morceaux de gabarit du
+monolithe — 155 distincts — sont comparés octet pour octet par 7 contrôles en
+lecture seule (`/tmp/opencode/journey/verify.cjs` : il ne régénère rien, donc une
+retouche manuelle après la génération est attrapée au lieu d'être écrasée).
+
+Les deux blocs gardent leurs accolades : `<JourneyStageList ctx={ctx} />` rend
+exactement ce que rendait le `{ loading ? … : … }` qu'il remplace — un fragment ne
+crée pas de nœud DOM.
+
+Cinq pièges réels :
+
+| Piège | Symptôme | Résolution |
+|---|---|---|
+| nom de fabrique masqué par un état | la fabrique `milestoneSubmissions` était appelée par le panneau… où `const [milestoneSubmissions, setMilestoneSubmissions] = useState({})` déclarait le même nom : l'import était mort, l'appel levait « not a function » au premier rendu | garde dans le générateur : un nom de fabrique ne peut être ni un nom du panneau ni un import du module. La fabrique s'appelle `submissionWrites` |
+| paramètre du composant oublié dans `values` | `ventureId` n'est pas une déclaration, c'est le paramètre du panneau : les fabriques lisaient `undefined` et toutes les URL devenaient `/api/ventures/undefined/journey` — ESLint **vert**, build **vert** | l'inventaire des valeurs part du paramètre du composant, pas seulement de ses déclarations. C'est le vérificateur indépendant qui l'a trouvé, pas les tests |
+| icône importée *et* reçue en paramètre | `journeyBulk` declarait `Play`, `Lock`, `RotateCcw`… à la fois dans son `import` et dans sa signature : `SyntaxError: Identifier 'Play' has already been declared` | une fabrique **réimporte** ce que la portée module avait ; elle ne **reçoit** que ce que le panneau détient. Même règle pour les blocs, qui importent les composants qu'ils rendent |
+| `Set.add(...noms)` n'ajoute qu'un nom | l'analyse de lectures gardait `kind` mais perdait `rawId`, `action`, `step` : les paramètres déstructurés d'un handler passaient pour des lectures libres | `Set.prototype.add` prend **un** argument ; l'ajout passe par une boucle explicite |
+| lecture d'un membre optionnel comptée comme un nom | `editing?.deliverables` leakait `deliverables` comme paramètre orphelin | Babel distingue `OptionalMemberExpression` de `MemberExpression` : les deux sont traités |
+
+**Le contrôle** — `src/__tests__/journey-wiring.test.js` (9 tests) : paramètres de
+fabrique ⊂ `values` ∪ handlers retournés, et l'appel doit étaler le spread qui les
+porte ; chaque nom lu par un bloc est une valeur ou un handler retourné ; **tout
+nom libre du markup d'un bloc est listé dans sa signature** (analyse AST, pas
+regex) ; `ctx` porte chaque fabrique et se termine par `...values,` ; `values`
+sans nom fantôme, **sans handler qui masquerait un résultat** et sans nom que le
+panneau ne déclare pas ; les fabriques sans état ni lecture ; le panneau rend bien
+les deux blocs. Mutation testée sur dix coups
+(`/tmp/opencode/journey/mutate.cjs`) : **10/10 attrapés**, suite verte ensuite.
+
+Un pin voisin a dû suivre le déplacement : `journey-status-lexicon.test.js`
+affirmait que `JourneyManagerPanel.js` importe `@/lib/ventureStatuses` — le
+vocabulaire a migré dans `actions/labels.js` et `actions/deliverables.js`. Le pin
+lit maintenant **la surface** (panneau + ses deux fabriques) : l'intention — un
+seul vocabulaire, aucune carte locale — reste vérifiée là où le code vit.
+
+Gates du slice : `npm test` 303 suites / 4 780 tests, `npm run lint` 0 erreur
+(16 avertissements préexistants), `npm run build` vert.
+
+## Slice 136 — Éditeur de profils d'accès : le page d'écran (2026-10-03)
+
+Sixième tranche de la série sur la **taille des écrans**. Cible :
+`src/components/permissions/permission-center/AccessProfilesView.js`, 1 318 lignes.
+Le dossier `permission-center/` comptait déjà 11 vues extraites, mais l'éditeur de
+profils gardait la colonne vertébrale : 34 valeurs d'état, 2 lectures, 2
+chargementeurs, 3 effets, un `return` de 530 lignes de JSX et 32 gestionnaires de
+haut en bas — le seul écran où l'on pouvait encore « créer / dupliquer / renommer /
+désactiver / supprimer », « assigner un rôle par défaut », « le brouillon des
+capacités » et « sectionner le catalogue » dans un même fichier.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `AccessProfilesView.js` | 409 | l'état, les lectures, les 2 chargeurs, les 3 effets, le retour anticipé, la composition |
+| `profiles/actions/profileList.js` | 240 | créer, dupliquer, activer/désactiver, supprimer, renommer |
+| `profiles/actions/capsDraft.js` | 181 | le brouillon, la revue, la sauvegarde, les confirmations |
+| `profiles/actions/catalogSections.js` | 110 | les sections, l'éligibilité, les capacités éditables |
+| `profiles/actions/roleDefaults.js` | 98 | poser/retirer un rôle par défaut |
+| `profiles/actions/profileSelection.js` | 56 | le sélecteur → sélection, et le lien profond `?profile=<id>` |
+| `profiles/ProfileDetail.js` | 435 | le détail : impact, brouillon, matrice des capacités |
+| `profiles/ProfileDialogs.js` | 70 | les quatre modales |
+| `profiles/ProfileCreateForm.js` | 68 | le formulaire de création |
+| `profiles/ProfileNotices.js` | 66 | les trois avis : fait, échec, refus d'éligibilité |
+| `profiles/ProfilePicker.js` | 53 | le sélecteur de profil |
+
+Les 68 déclarations du plan se répartissent ainsi : 34 `useState` et 2 lectures
+restent dans le panneau, 32 gestionnaires partent. Cinq gestionnaires restent
+malgré tout, parce qu'ils voient l'état lui-même : les deux chargeurs
+mémoïsés (`fetchProfiles`, `selectProfile`, les deux seuls `useCallback` du
+fichier) et les trois dérivées (`availableModules`, `changesCount`,
+`selectedIsDefaultFor`). Les 3 `useEffect` — l'impact du profil sélectionné, la
+présélection par lien profond, le nettoyage des capacités stockées — ne
+bougent pas : un effet déplacé dans une fabrique s'exécuterait au mauvais moment
+de l'ordre des hooks.
+
+Les cinq fabriques sont ordonnées par **tri topologique** : `profileSelection →
+profileList → roleDefaultWrites → capsDraft → catalogSections`. Aucune ne lit une
+fabrique placée plus bas — ici le graphe est plat, `spreads: none` partout : chaque
+fabrique ne lit que `values`. Les deux gestionnaires que le panneau nomme encore
+(`computeChanges`, `defaultRolesFor`) sont **destructurés du résultat** de
+`capsDraftResult`, pas d'un `ctx` partiel : un `ctx` construit deux fois serait
+une deuxième source de vérité.
+
+Chaque corps part **verbatim**, bloc de commentaire compris : la plage de lignes
+du monolithe bouge d'un bloc, donc laisser le commentaire derrière l'aurait
+supprimé du dépôt. 68 déclarations et les chaînes littérales ou morceaux de
+gabarit du monolithe sont comparés octet pour octet par 9 contrôles en lecture
+seule (`/tmp/opencode/profiles/verify.cjs` : il ne régénère rien, donc une
+retouche manuelle après la génération est attrapée au lieu d'être écrasée).
+
+**Une seule phrase a dû être réécrite**, et le vérificateur l'exige au lieu de la
+lâcher : le commentaire de `computeChanges` disait « `availableModules` is defined
+later in the component body », ce qui est devenu faux au moment où les
+dérivées ont changé de place. Il dit maintenant que la vérité du registre arrive
+en paramètre. Le vérificateur connaît le couple avant/après, exige que la
+remplacement apparaisse **exactement une fois** et que l'ancien texte disparaisse
+de toute la surface : la dérogation est écrite, pas concédée.
+
+Cinq pièges réels — dont un que **ni ESLint ni le build ne pouvaient voir** :
+
+| Piège | Symptôme | Résolution |
+|---|---|---|
+| **retour anticipé au milieu du câblage** | dans le monolithe, `changesCount` et `selectedIsDefaultFor` étaient calculés **après** `if (loading) { return … }`. La première version générée les nommait dans `values`, construit **avant** ce retour : lecture dans la zone morte temporelle, `ReferenceError: Cannot access 'changesCount' before initialization` **au premier rendu** — ESLint vert, build vert, 304 suites vertes | câblage étagé : `values` sans ces deux noms, quatre fabriques, `const { computeChanges, defaultRolesFor } = capsDraftResult`, le retour anticipé, puis les deux dérivées, puis `catalogSections({ …values, selectedIsDefaultFor })`, puis `ctx`. Les deux noms voyagent sur `ctx`, entre les handlers et `...values`. Un contrôle du vérificateur et un test du suite refusent désormais qu'un nom soit lu avant sa déclaration, quel que soit le nom |
+| fabrique qui retourne ce que personne ne lit | `isChanged`, `editableModules`, `allSections`… étaient retournés alors qu'ils ne servaient qu'à l'intérieur de leur propre fabrique. Un nom exporté et non lu ressemble à un câblage : il masque une écriture mal rangée | le générateur **trimme** chaque retour aux noms que l'autre côté consomme (paramètre de fabrique, prop de bloc, lecture du panneau) et **lève** si un retour ne trouve aucun lecteur. Le suite vérifie la même propriété dans l'autre sens |
+| nom de fabrique masqué par un état | la fabrique `roleDefaults` était appelée par le panneau… où `const [roleDefaults, setRoleDefaults] = useState({})` déclarait le même nom : l'import était mort, l'appel levait « not a function » | garde dans le générateur : un nom de fabrique ne peut être ni un nom du panneau ni un import du module. La fabrique s'appelle `roleDefaultWrites` |
+| effet ou hook aspiré par une fabrique | `persistCaps`, `saveChanges`, `confirmSave` appelaient `setSaving` puis un `useApi` de rafraîchissement : déplacés tels quels dans `capsDraft.js`, l'ordre des hooks changeait | une fabrique **ne appelle aucun hook** : les deux `useCallback` et les trois `useEffect` restent dans le panneau, qui garde les deux chargeurs ; le contrôle le refuse explicitement |
+| déclaration et boucle séparées | `const editableCaps = […]` est suivi d'une boucle `for` qui la remplit : couper entre les deux produisait `editableCaps is not defined` | la boucle est coupée avec sa déclaration, et le générateur refuse une plage qui commence dans une déclaration et finit dans une autre |
+
+Les cinq blocs gardent leurs accolades : `<ProfileDetail ctx={ctx} />` rend
+exactement ce que rendait le `{selectedProfile && ( … )}` qu'il remplace — un
+fragment ne crée pas de nœud DOM.
+
+**Le contrôle** — `src/__tests__/access-profiles-wiring.test.js` (11 tests) :
+paramètres de fabrique ⊂ ce que déclare le panneau ∪ `values` ∪ handlers
+retournés, et l'appel doit étaler le spread qui les porte (ou nommer
+explicitement la dérivée du panneau) ; chaque prop d'un bloc est portée par
+`ctx` ; **`ctx` porte les cinq fabriques dans l'ordre d'appel**, puis ses deux
+propres noms, puis `...values,` en dernier ; `values` sans nom fantôme, **sans
+handler qui masquerait un résultat** et sans nom que le panneau ne déclare pas ;
+une fabrique **sans retour mort** ; tout nom libre du markup d'un bloc est listé
+dans sa signature (analyse AST, pas regex) ; chaque fabrique appelée **une seule
+fois** ; le panneau garde son paramètre, ses 2 `useCallback`, ses 3 `useEffect`,
+et son retour anticipé **avant** les deux dérivées. Mutation testée sur quinze
+coups (`/tmp/opencode/profiles/mutate.cjs`) : **15/15 attrapés**, suite verte
+ensuite.
+
+Trois pins voisins ont dû suivre le déplacement, et ils ne lisent pas tous la même
+chose. `ui2-profiles`, `ui3-followups` et `ui4-definitions` lisaient
+`AccessProfilesView.js` en entier : `reason: reason.trim() || undefined` est parti
+dans `capsDraft.js`, `PendingChangesList` et `impactAffects` dans `ProfileDetail.js`,
+`catalogUnavailable` et le garde `moduleCatalog && visibleSections.length === 0`
+aussi, `assignRoleDefault` et l'URL des défauts dans `roleDefaults.js`. Ces
+assertions lisent maintenant **la surface** (le panneau + ses dix modules), donc une
+copie plantée ailleurs échoue encore. Les assertions qui décrivent le panneau lui-même
+— la présélection par lien profond, `setModuleCatalog(data.modules || {})`,
+`availableModules`, l'URL de l'impact — **restent sur le panneau** : c'est là
+qu'elles sont vraies, et les relire ailleurs affaiblirait le pin.
+
+Gates du slice : `npm test` 304 suites / 4 791 tests, `npm run lint` 0 erreur
+(16 avertissements préexistants), `npm run build` vert.
+
+## Slice 137 — Plateforme runs : les hooks contrôleurs du page d'écran (2026-10-03)
+
+Suite du slice 132 (`page.js` de la plateforme runs, laissée à 1 432 lignes). La
+page garde son rôle d'orchestrateur, mais la colonne vertébrale — l'état, les
+lectures et les gros calculs — part dans quatre hooks contrôleurs, et la vue
+détail dans un composant. Décision actée au slice précédent : pour un écran à
+colonne vertébrale lourde, on extrait un **hook contrôleur** plutôt que de laisser
+1 400 lignes dans un seul fichier.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `page.js` | 776 | orchestration : composition des hooks, `openRun`, `runList`, `values`/`ctx`, rendu |
+| `RunDetailView.js` | 71 | la vue détail : en-tête, onglets et composition des panneaux/modales |
+| `useRunsReferenceData.js` | 147 | état + lectures de référence (formulaires, contacts, groupes, programmes, statistiques) |
+| `useRunDerivedData.js` | 432 | calculs dérivés purs (réponses, filtres, doublons, emails, activation, statistiques) |
+| `useRunResponseFilters.js` | 127 | la combinaison de filtres de la table et tout ce qu'elle mémorise avec elle |
+| `useRunBulkActions.js` | 228 | état + les deux opérations par lots (approbation, renvoi d'emails) et les lots d'activation/résultat |
+
+Deux points de conception méritent d'être notés.
+
+**Le hook de filtres déplace de la logique rendue, pas seulement de l'état.** Le
+`respFilterKey` et les trois enregistrements clés (`respPageState`,
+`selectionState`, `duplicatesKey`) sont inséparables : le reset *est* la
+comparaison de clés, exécutée pendant le rendu (§4.3). Les garder ensemble dans
+`useRunResponseFilters` évite qu'un futur changement de la page casse la
+propriété de sûreté — une sélection cachée ne doit jamais pouvoir être
+approuvée/exportée. `resetFilters()` rejoue exactement la suite d'écritures de
+`openRun`, avec la même capture de la clé en cours.
+
+**Le hook des lots lit `openRun` par une ref, pas par paramètre.** `runBulkApprove`
+et `runRetryEmails` doivent rafraîchir l'exécution ouverte, mais `openRun` est
+défini *après* le hook (qui, lui, doit être appelé tôt pour que `openRun` puisse
+appeler `resetBulk()`). La ref `openRunRef` est renseignée dans un
+`useEffect(…, [openRun])` : une affectation directe pendant le rendu est refusée
+par `react-hooks/refs` (« Cannot access refs during render »).
+
+Le test de câblage `src/__tests__/platform-runs-wiring.test.js` a suivi : `BLOCKS`
+inclut désormais `RunDetailView.js`, et la liste `values` continue de nommer
+chaque valeur — y compris celles désormais destructurées des hooks — si bien que
+la vérification « pas de nom fantôme » reste vraie sans modification.
+
+Gates du slice : `npm test` 304 suites / 4 791 tests, `npx eslint` 0 erreur sur
+les six fichiers, `npm run build` vert.
+
+## Slice 138 — Éditeur d'accès individuel : le markup de la vue (2026-10-03)
+
+Septième tranche de la série sur la **taille des écrans**, et première de la
+Phase 1. Cible : `src/components/permissions/permission-center/PersonAccessScreen.js`,
+1 145 lignes. L'écran garde toute sa colonne vertébrale — 18 valeurs d'état, la
+garde `createLatestGuard`, les 3 effets, les lectures et les écritures
+(`selectUser`, `saveProfileOverride`, `applyQuickAction`, `handleQuickAction`,
+`refreshUserPerms`) — mais son markup part dans une vue qui ne lit qu'un objet
+`ctx`. Même recette que le slice 132/137 : le rendu ne décide de rien, il reçoit
+tout.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `PersonAccessScreen.js` | 551 | l'état, les 3 effets, les lectures/écritures, la construction de `ctx`, la composition |
+| `person-access/PersonAccessView.js` | 699 | le markup : états de chargement/échec, remplacement de profil, la grille CRUD, le bloc d'exceptions, les modales |
+
+**La liste de `ctx` n'est pas devinée.** Un script lit l'AST : il prend
+l'expression `superAdminAction` et le `return` de `PersonAccessScreen`, calcule
+leurs identifiants libres (référencés mais liés hors du sous-arbre), puis les
+classe en trois tas — 22 imports (composants, icônes, helpers), la portée
+module ; **42 clés `ctx`** (état, dérivées, gestionnaires), la portée composant ;
+et les locaux des callbacks (`section`, `modKey`, `cap`…) qui restent dans la
+vue. `superAdminAction` déménage avec le markup : il ne lit que des noms de
+`ctx`. La découpe est donc exhaustive par construction, pas relue à la main.
+
+Deux pins voisins ont été repointés, pas affaiblis. `ui2-people` et
+`ui7-access-clarity` lisaient le fichier de l'éditeur pour des chaînes qui
+vivaient dans le markup (`visibleFeatures={personFeatures}`,
+`LEVEL_CHIP_ACTIVE`, `{selectedUser && !userPerms && (`, `<Skeleton`…). Le
+markup ayant changé de fichier, ces assertions lisent maintenant **la surface**
+(`readPermissionCenterSurface()`, qui inclut tout `permission-center/`), donc
+une copie plantée ailleurs échoue encore. Les pins de logique — `createLatestGuard`,
+`.begin()`, `isCurrent(token)`, `setUserPerms(null)` — **restent sur
+`PersonAccessScreen.js`**, qui garde l'état et la garde.
+
+**Le nouveau contrôle** — `src/__tests__/person-access-wiring.test.js` (3 tests) :
+chaque nom que la vue destructure de `ctx` est une clé que l'écran met vraiment
+dans `ctx` ; chaque clé de `ctx` est un nom que `PersonAccessScreen` déclare
+(pas de clé fantôme) ; et l'écran rend bien `<PersonAccessView ctx={ctx} />`.
+
+Gates du slice : `npm test` 305 suites / 4 794 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
+
+## Slice 139 — Onglet d'aperçu des runs : les sous-panneaux de la vue (2026-10-03)
+
+Huitième tranche de la série sur la **taille des écrans**, deuxième de la Phase 1.
+Cible : `src/components/platform/runs/OverviewTab.js`, 970 lignes. Particularité :
+c'était déjà un composant **purement présentationnel** — aucune valeur d'état,
+aucun effet, aucun accès données, seulement **109 props** et ~900 lignes de JSX.
+Il n'y avait donc pas de colonne vertébrale à garder : c'est la vue elle-même
+qu'on découpe. `OverviewTab` devient une composition de 15 lignes qui passe ses
+`props` à quatre sous-panneaux, chacun ne lisant qu'un objet `ctx`.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `OverviewTab.js` | 15 | la composition : rend les quatre sous-panneaux et leur passe `props` |
+| `OverviewStats.js` | 38 | la rangée de cartes de statut (total, soumis, approuvé, rejeté, révision, brouillons, en retard) |
+| `OverviewFilters.js` | 311 | la recherche du run, les puces de filtres actifs, les éditeurs en ligne (score, champ, suivi), l'ajout de filtre, la barre de sélection/actions |
+| `OverviewResponsesTable.js` | 292 | le tableau des réponses (colonnes e-mail, score IA, e-mails, statut, compte, paiement, actions) + la timeline |
+| `OverviewRunModals.js` | 313 | les modales : approbation groupée, envoi/renvoi d'activation, confirmation et aperçu du PDF de résultat, progressions, résumés |
+
+**La liste de `ctx` n'est pas devinée.** Un script lit l'AST et, pour chaque
+tranche de lignes (les quatre blocs JSX frères), calcule les identifiants
+référencés mais liés hors de la tranche : les liaisons de portée module deviennent
+des imports, celles de la portée composant deviennent des clés `ctx`, et les
+locaux des callbacks (`statCard`, `fieldValueText`, `filter`, `option`…) restent
+dans le sous-panneau. `t` est traité à part : chaque sous-panneau appelle
+`useI18n()` lui-même. L'union des quatre listes fait **109 clés = exactement les
+109 paramètres d'origine** ; la découpe est donc exhaustive par construction.
+
+Deux garde-fous ajoutés à `src/__tests__/platform-runs-wiring.test.js` : chaque
+clé que les sous-panneaux destructurent de `ctx` est une prop que
+`RunResponsesPanel` passe réellement à `<OverviewTab>` (pas de nom fantôme,
+puisque le JSX ne connecte rien au niveau du type) ; et `OverviewTab` rend bien
+`<OverviewStats ctx={props} />` et ses trois voisins.
+
+Gates du slice : `npm test` 305 suites / 4 796 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
+
+## Slice 140 — Modale de rapport hebdo PM : les sections du formulaire (2026-10-03)
+
+Neuvième tranche de la série sur la **taille des écrans**, troisième de la
+Phase 1. Cible : `src/components/pm/program-workspace/PmReportModal.js`,
+1 043 lignes. Comme l'onglet d'aperçu des runs (slice 139), c'était déjà un
+composant **purement présentationnel** — aucune valeur d'état, aucun effet,
+seulement `useI18n` et **39 props**. Le long formulaire est découpé par section
+métier ; la modale ne garde que la coquille (racine cliquable, en-tête collant,
+pied avec Annuler/Soumettre) et compose sept sous-panneaux.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `PmReportModal.js` | 66 | la coquille : racine, en-tête, pied, composition des sept sections |
+| `PmReportOverviewSection.js` | 124 | semaine : statut, note globale, sujet principal |
+| `PmReportAssignmentSection.js` | 167 | suivi d'assignation : donnée ?, KPI(s), objectif, résultat attendu |
+| `PmReportParticipationSection.js` | 180 | participation : assiduité, niveau, participants à surveiller, remarquables |
+| `PmReportDeliverySection.js` | 137 | livraison : qualité, compréhension, défis |
+| `PmReportIssuesSection.js` | 158 | problèmes : a-t-il eu des soucis ?, types, attention super-admin, note |
+| `PmReportNextWeekSection.js` | 86 | semaine prochaine : programme sur la bonne voie, ajustements |
+| `PmReportNotesSection.js` | 166 | notes libres du PM + pièce jointe (lien ou PDF) |
+
+**La liste de `ctx` n'est pas devinée.** Un script lit l'AST et, pour chaque
+tranche de lignes (un frère JSX du conteneur `space-y-8`), calcule les
+identifiants référencés mais liés hors de la tranche : la portée module donne les
+imports (seule la section Notes utilise `X`), la portée composant donne les clés
+`ctx`, et les locaux des callbacks restent dans la section. `t` est traité à
+part : chaque section appelle `useI18n()`. L'union des sept listes fait **36
+clés** ; les 3 props restantes (`isSaving`, `onClosePMReportModal`,
+`onSubmitPMReport`) ne vivent que dans l'en-tête et le pied, gardés par la coquille.
+
+Deux garde-fous ajoutés à `src/__tests__/program-workspace-wiring.test.js` :
+chaque clé que les sections destructurent de `ctx` est une prop que
+`WorkspaceModals` passe réellement à `<PmReportModal>` ; et `PmReportModal` rend
+bien les sept `<PmReport…Section ctx={props} />`.
+
+Gates du slice : `npm test` 305 suites / 4 798 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
+
+## Slice 141 — Vue de profil : le markup de la vue (2026-10-03)
+
+Dixième tranche de la série sur la **taille des écrans**, quatrième de la
+Phase 1. Cible : `src/components/dashboard/ProfileView.js`, 909 lignes. Contrairement
+aux slices 139/140, l'écran a une vraie colonne vertébrale : état (`useState`),
+sept lectures `useApi`, la session (`useSessionUser`), des gestionnaires et deux
+retours précoces (chargement, erreur). On applique donc la recette du slice 138 :
+le markup part dans une vue qui ne lit qu'un `ctx`, l'écran garde tout le reste.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `ProfileView.js` | 430 | l'état, les lectures, la session, les gestionnaires, les retours chargement/erreur, la construction de `ctx` |
+| `profile-view/ProfileViewContent.js` | 504 | le markup : en-tête, avatar, coordonnées, préférences, langue, e-mails alternatifs, photo, programmes, historique, groupe |
+
+**La liste de `ctx` n'est pas devinée.** Un script lit l'AST, prend le `return`
+principal de `ProfileView` et calcule ses identifiants libres : la portée module
+donne les imports, la portée composant donne les **35 clés `ctx`**, et les locaux
+des callbacks (`email`, `entry`, `event`, `program`, `submission`) restent dans la
+vue. Les imports du parent sont ensuite élagués à ce qu'il utilise encore
+(`AlertCircle`, `RefreshCw`, `useState`/`useMemo`, `useI18n`, `profile-options`,
+`useApi`, `useSessionUser`) ; le reste part dans la vue.
+
+Deux pièges du transfert : un composant utilisé seulement en forme pointée
+(`<motion.div>`) échappe au balayage des `JSXIdentifier` — il faut le rattraper
+sinon `motion` n'est pas importé ; et les imports relatifs de la vue se
+réécrivent (`./profile-view/InfoRow` → `./InfoRow`) puisqu'elle vit dans le
+sous-dossier.
+
+Nouveau contrôle — `src/__tests__/profile-view-wiring.test.js` (3 tests) : chaque
+nom que la vue destructure de `ctx` est une clé que l'écran déclare ; chaque clé
+de `ctx` est lue par la vue (pas de clé morte) ; et l'écran rend bien
+`<ProfileViewContent ctx={ctx} />`.
+
+Gates du slice : `npm test` 306 suites / 4 801 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
+
+## Slice 142 — Coquille du tableau de bord : les hooks contrôleurs du shell (2026-10-03)
+
+Onzième tranche de la série sur la **taille des écrans**, cinquième de la
+Phase 1. Cible : `src/components/layout/DashboardLayout.js`, 1 187 lignes — la
+coquille partagée par **tous les rôles**, donc blast radius maximal. Ici,
+extraire le seul markup ne suffit pas : la logique du composant fait à elle
+seule ~822 lignes. On sort donc la logique dans **deux hooks contrôleurs**, par
+préoccupation, sans déplacer une ligne de comportement.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `DashboardLayout.js` | 586 | la composition : état d'UI, session, `initAuth`, PM programs, relations, venture assignments, `commonProps`, le markup et le wrapper `PermissionProvider` |
+| `shell/useDashboardBadges.js` | 415 | l'inbox et les badges : annonces épinglées, notifications, messages non lus, approbations en attente, invitations, affectations, soumissions PM, l'accordéon des compteurs et les effets (poll, foreground, refresh) |
+| `shell/useDashboardNavigation.js` | 307 | le sidebar : `buildAccessNav` + icônes, branche personnelle pilotée par les relations, porte « My Learning », console Venture, accordéon `activePathIds`/`openMenus`/`toggleMenu` |
+
+**Le découpage suit les dépendances.** `useDashboardBadges({ effectiveCaps,
+pathname })` est appelé juste après `usePermissions()` ; l'effet `initAuth` du
+parent consomme ses fetchers et ses setters, ce qui est stable (les fetchers
+sont des `useCallback([])`). `useDashboardNavigation({ pathname, role, user,
+effectiveCaps, pmPrograms, ventureAssignCount, relationships })` est appelé
+après les lectures de relations : il possède aussi le `useApi` de la porte
+apprenant (`PERSONAL_ROLES.includes(sessionRole)`) et rend `activeRole`, si
+bien que le parent n'a plus besoin de `shellRole` ni de `PERSONAL_ROLES`. Les
+constantes et helpers (`SEEN_KEYS`, marques de lecture, `NOTIFICATIONS_*`,
+`NAV_ICONS`, `attachIcons`, `shellRole`, `PERSONAL_ROLES`, `pickLmsEnrollment`)
+partent avec leur hook ; seul `NOTIFICATIONS_PREVIEW` reste, car il n'habille
+que le JSX du parent.
+
+Le transfert a déplacé les blocs à l'identique par plages de lignes, puis on a
+ajusté les dépendances : `setNotifications`/`setUnreadCount` rejoignent les deps
+de `initAuth` (setters stables), `activeRole` celle du `useMemo` de nav, et
+`role`/`user.role` en sortent (redondants). Les tests qui lisent la source du
+shell ont été repointés vers les hooks : `notification-badge` verse
+`useDashboardBadges`, `ui5-one-dashboard` et `login-landing` vers
+`useDashboardNavigation`.
+
+Nouveau contrôle — `src/__tests__/dashboard-shell-wiring.test.js` (4 tests) :
+chaque valeur que le parent destructure de `useDashboardBadges` /
+`useDashboardNavigation` est une clé rendue par le hook, et chaque hook reçoit
+exactement les arguments attendus.
+
+Gates du slice : `npm test` 307 suites / 4 805 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
+
+## Slice 143 — Formulaires plateforme : la vue d'écran (2026-10-03)
+
+Douzième tranche de la série sur la **taille des écrans**, sixième de la
+Phase 1. Cible : `src/app/platform/forms/page.js`, 886 lignes. Particularité :
+l'écran a **deux `return`** — la liste des formulaires (dans un `if
+(!showBuilder)`) et le constructeur — et le gros des sous-panneaux existait
+déjà (`FormsListView`, `CreateFormModal`, `BuilderHeader`, `FormCanvas`…). On
+sort donc les deux retours, verbatim, dans une vue qui branche sur
+`showBuilder`.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `page.js` | 790 | l'état, les lectures `useApi`, tous les gestionnaires (publication, sections/champs, scoring, workflow, modèles, évaluation IA), la construction de `ctx` |
+| `components/platform/forms/PlatformFormsView.js` | 299 | la liste (grille + modales création/archive) et le constructeur (en-tête + panneaux + palette + canevas + modale republish) |
+
+La vue est placée sous `src/components/platform/forms/` pour rester dans la
+**surface** que lit `result-email-schedule.test.js`
+(`readSurface("…/forms/page.js", "src/components/platform/forms")`) : les pins
+`<ResultDelayEditor`, `updateTemplate("result", "delay_minutes", …)` et
+`function TemplateEditor(` restent donc couverts.
+
+Le calcul de `ctx` par AST donne 93 clés — les identifiants libres des deux
+retours. Un piège : `showBuilder` n'apparaît que dans la **condition** `if
+(!showBuilder)` (hors des sous-arbres des `return`), il faut donc l'ajouter à
+la main — 94 clés au total. La vue ayant désormais besoin de `showBuilder`, le
+`const [showBuilder, setShowBuilder]` du parent reste lu (plus d'avertissement
+`no-unused-vars`).
+
+Nouveau contrôle — `src/__tests__/forms-view-wiring.test.js` (3 tests) : chaque
+nom que la vue destructure de `ctx` est une clé que l'écran déclare ; chaque clé
+de `ctx` est lue par la vue ; et l'écran rend `<PlatformFormsView ctx={ctx} />`.
+
+Gates du slice : `npm test` 308 suites / 4 808 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
+
+## Slice 144 — Import plateforme : la vue d'écran (2026-10-03)
+
+Treizième tranche de la série sur la **taille des écrans**, septième de la
+Phase 1. Cible : `src/app/admin/platform/import/page.js`, 852 lignes. Le wizard
+d'import (dépôt/aperçu/mapping/exécution) n'a qu'un `return` mais il pèse à lui
+seul ~527 lignes, contre ~233 pour l'état et les gestionnaires. On sort donc le
+markup dans une vue, en déplaçant aussi la constante `STEPS` et les imports
+d'icônes/`framer-motion`/`Link` qui ne servaient qu'au rendu.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `page.js` | 338 | l'état du wizard, les lectures (`fetchForms`/`fetchRuns`), la lecture de fichier, `handlePreview`/`handleExecute`, `simpleHash`/`parseTextToRows`, la construction de `ctx` |
+| `components/admin/platform/import/ImportView.js` | 587 | l'en-tête, les indicateurs d'étape, les panneaux des quatre étapes et les animations `motion`/`AnimatePresence` |
+
+`ctx` compte **28 clés**. Le piège du transfert : un composant utilisé en forme
+pointée à racine **minuscule** (`<motion.div>`) échappe au balayage naïf des
+`JSXMemberExpression` — il faut enregistrer la racine quel que soit sa casse,
+sinon `motion` n'est pas importé dans la vue. Le script de calcul de `ctx` a
+donc été corrigé (il excluait à tort les identifiants en minuscules).
+
+Nouveau contrôle — `src/__tests__/import-view-wiring.test.js` (3 tests) : chaque
+nom lu par la vue est une clé de `ctx` ; chaque clé de `ctx` est lue ; l'écran
+rend `<ImportView ctx={ctx} />`.
+
+Gates du slice : `npm test` 309 suites / 4 811 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
+
+## Slice 145 — Accès utilisateurs : la vue d'écran (2026-10-03)
+
+Quatorzième tranche de la **taille des écrans**, huitième de la Phase 1. Cible :
+`src/app/admin/access/page.js`, 849 lignes. Le JSX pèse ~582 lignes (un seul
+`return`) contre ~178 pour l'état, les lectures et les gestionnaires de
+superviseur. On sort le markup dans une vue, avec les quatre tables de
+présentation (`ACCESS_LEVEL_KEYS`, `ACCESS_SHORT`, `ACCESS_COLORS`,
+`MODULE_CATEGORIES`), l'import `isResponsibilityBlockedForRole` et les icônes,
+qui ne servaient qu'au rendu.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `page.js` | 259 | l'état (`searchQuery`, `selectedUser`, `userData`, le sélecteur de superviseur), les lecteurs de module (`pickPeople`/`pickModules`/`filterPeople`), `fetchUserSummary`, l'affectation/retrait de superviseur, la pagination, la construction de `ctx` |
+| `components/admin/access/UserAccessView.js` | 663 | l'en-tête, la recherche, la liste des personnes, le panneau de résumé, la grille des modules, le sélecteur de superviseur |
+
+`ctx` compte **30 clés**. Deux pièges évités : aucun identifiant de `ctx`
+n'était utilisé par la logique de l'écran (les seules occurrences avant le
+`return` étaient les lignes de définition), donc la page a
+pu lâcher `React`, `isResponsibilityBlockedForRole` et toutes les icônes ; et
+les constantes de présentation ont été déplacées à l'identique, vérifiées
+byte-à-byte.
+
+Nouveau contrôle — `src/__tests__/access-view-wiring.test.js` (3 tests) : chaque
+nom lu par la vue est une clé de `ctx` ; chaque clé de `ctx` est lue ; l'écran
+rend `<UserAccessView ctx={ctx} />`.
+
+Gates du slice : `npm test` 310 suites / 4 814 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
+
+## Slice 146 — Fondateurs d'une venture : la vue d'écran (2026-10-03)
+
+Quinzième tranche de la **taille des écrans**, neuvième de la Phase 1. Cible :
+`src/app/admin/ventures/[id]/founders/page.js`, 844 lignes. Les trois branches
+de rendu (chargement, erreur, écran principal) pèsent ~546 lignes contre ~230
+pour l'état et les gestionnaires. On les sort dans une vue, avec la table
+`VENTURE_ROLES` et les icônes qui ne servaient qu'au rendu.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `page.js` | 288 | l'état (invitation, transfert, confirmation, toast, recherche), les lecteurs de module (`pickVenture`/`pickFounders`), `reload`, `notify`, les gestionnaires (`handleInvite`, `handleSuspend`, `handleReactivate`, `handleRemove`, `handleRoleUpdate`), `getRoleColor`, `filteredFounders`, la construction de `ctx` |
+| `components/admin/ventures/VentureFoundersView.js` | 630 | le branchage chargement/erreur, le propriétaire dérivé (`owner`), l'en-tête, la recherche, la liste des fondateurs, le menu d'actions, les deux modales |
+
+`ctx` compte **33 clés**. Deux points d'attention : `loading` n'apparaît que
+dans une condition `if` en dehors des sous-arbres `return`, donc le balayage des
+`return` ne le voit pas — il a été ajouté à la main au `ctx` (même piège que
+`showBuilder` à la slice 143) ; et `const owner = founders.find(...)` était
+calculé *après* les retours anticipés, donc il se déplace naturellement dans la
+vue et n'entre pas dans le `ctx`. `router` reste, lui, dans la page et transite
+par le `ctx` pour que les branches de rendu puissent naviguer.
+
+Nouveau contrôle — `src/__tests__/venture-founders-view-wiring.test.js`
+(3 tests) : chaque nom lu par la vue est une clé de `ctx` ; chaque clé de `ctx`
+est lue ; l'écran rend `<VentureFoundersView ctx={ctx} />`.
+
+Gates du slice : `npm test` 311 suites / 4 817 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
+
+## Slice 147 — Détail d'un programme : la vue d'écran (2026-10-03)
+
+Seizième tranche de la **taille des écrans**, dixième de la Phase 1. Cible :
+`src/components/admin/programs/ProgramDetail.js`, 815 lignes. Le rendu (le
+retour chargement + le grand écran) pèse ~621 lignes contre ~180 pour l'état, la
+lecture et les gestionnaires de KPI/suivi. On sort les deux branches dans une
+vue.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `ProgramDetail.js` | 215 | l'état (session sélectionnée, suivi, édition de KPI), les lecteurs de module (`pickFullState`, `pickReports`, `pickFollowups`, `pickAttendance`, `pickRegistrationLink`), `reload`, `handleAddFollowup`, `handleKpiAction`, la construction de `ctx` |
+| `ProgramDetailView.js` | 670 | le retour chargement, les dérivés de progression (`totalWeeks`, `weeks`, `startMs`, `elapsedWeeks`), l'en-tête exécutif, les sessions, les KPI, les suivis, les ressources et liens |
+
+`ctx` compte **24 clés**. `isLoadingData` n'apparaît que dans la condition du
+retour anticipé, hors des sous-arbres `return` : ajouté à la main au `ctx`
+(piège déjà rencontré). Trois imports réellement morts ont été retirés au
+passage (`React`, `Activity`, `Trash2`) plutôt que dupliqués dans la vue ; aucun
+test ne les épinglait.
+
+Nouveau contrôle — `src/__tests__/program-detail-view-wiring.test.js` (3 tests) :
+chaque nom lu par la vue est une clé de `ctx` ; chaque clé de `ctx` est lue ;
+l'écran rend `<ProgramDetailView ctx={ctx} />`.
+
+Gates du slice : `npm test` 312 suites / 4 820 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
+
+## Slice 148 — Détail d'une venture : la vue d'écran (2026-10-03)
+
+Dix-septième tranche de la **taille des écrans**, onzième et dernière de la
+Phase 1. Cible : `src/app/admin/ventures/[id]/page.js`, 807 lignes. Les trois
+branches de rendu (chargement, erreur, tableau de bord) pèsent ~604 lignes
+contre ~160 pour l'état, la lecture et les getters de présentation. On les sort
+dans une vue.
+
+| Fichier | Lignes | Rôle |
+|---|---|---|
+| `page.js` | 177 | l'état (`activeTab`), les lecteurs de module, `getStageConfig`/`getActivityIcon`/`getActivityColor`, `actorText`, les tables `STAGE_CONFIG`/`ACTIVITY_ICONS`/`ACTIVITY_COLORS`, la construction de `ctx` |
+| `components/admin/ventures/VentureDetailView.js` | 683 | le branchage chargement/erreur, les helpers de membre (`memberStatusColor`, `MEMBER_ROLE_KEYS`, `memberRoleLabel`), `WIZARD_STEPS`, l'en-tête, les onglets, le tableau de bord embarqué, l'activité et l'équipe |
+
+`ctx` compte **15 clés** (`loading`, condition seule, ajouté à la main ; `React`
+reste dans la page pour `React.use(params)`). Piège nouveau : le balayage des
+`return` ne voit pas les icônes qui n'apparaissent que dans une **constante de
+module déplacée** — `WIZARD_STEPS` utilise `Briefcase`, invisible pour l'analyse
+JSX, donc l'erreur `no-undef` n'est apparue qu'à l'eslint. Il faut ajouter à la
+main les icônes référencées par les constantes qui partent dans la vue.
+
+Nouveau contrôle — `src/__tests__/venture-detail-view-wiring.test.js` (3 tests) :
+chaque nom lu par la vue est une clé de `ctx` ; chaque clé de `ctx` est lue ;
+l'écran rend `<VentureDetailView ctx={ctx} />`.
+
+Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint` 0 erreur,
+`npm run build` vert.
+
+La **Phase 1 est terminée** : plus aucune page écran ne dépasse 800 lignes.
+
+## Slice 149 — Modèle ventureWorkspace : éclatement en trois fichiers (2026-10-03)
+
+Première tranche de la **Phase 2** (les modèles de données). Cible :
+`src/models/ventureWorkspace.js`, 1 349 lignes, 143 fonctions d'accès aux
+données. On applique la convention du dépôt (`formRuns.js` + dossier
+`formRuns/`) : le fichier d'origine devient un **barrel** qui réexporte
+`export *` depuis un dossier homonyme, et les fonctions partent par blocs
+contigus, à l'identique.
+
+| Fichier | Lignes | Contenu |
+|---|---|---|
+| `ventureWorkspace.js` (barrel) | 24 | le commentaire de module + trois `export *` |
+| `ventureWorkspace/journeyAndReports.js` | 638 | ventures, membres, progression, tâches, soumissions, file de revue, notes, plans opérationnels, parcours, responsabilités, modèles de plan, calendrier, rapport de parcours |
+| `ventureWorkspace/dashboardAndCheckins.js` | 298 | fiche tableau de bord, bloqueurs, standups, rétros |
+| `ventureWorkspace/milestonesAndAccess.js` | 401 | jalons, suivis, plans d'action, affectations, mon-accès, historique, coach, archivage |
+
+Avant de découper, on a **vérifié qu'aucune des 143 fonctions n'en appelle une
+autre** (chacune un seul `db.execute`) : le déplacement est donc purement
+mécanique, sans graphe d'appels à recâbler. Vérifié après coup : les 143 noms
+exportés sont préservés à l'identique, et chaque bloc est byte-à-byte le texte
+d'origine.
+
+Deux suites lisaient le fichier avec `readFileSync` : elles passent à
+`readSurface("src/models/ventureWorkspace.js")`, qui concatène le barrel **et**
+son dossier — la garantie dont le helper `sourceSurface` existe pour ça.
+
+Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
+`npm run build` vert.
+
+## Slice 150 — Backfill d'autorisation : planificateur + modules + politiques (2026-10-03)
+
+Deuxième tranche de la **Phase 2** (modèles). Cible :
+`src/models/authorization/backfill.js`, 1 176 lignes. Le fichier n'était pas un
+simple chapelet de requêtes : un **planificateur** (`ensureCapabilityBackfills`)
+appelle seize routines de rattrapage (`ensureKnowledgeBackfill`,
+`ensureReportsBackfill`, …), chacune suivant sa table de capacités. On sépare le
+planificateur des routines, et les routines de modules des politiques.
+
+| Fichier | Lignes | Contenu |
+|---|---|---|
+| `backfill.js` (barrel) | 195 | le commentaire de module, `reportFailedMigrations`, le planificateur `ensureCapabilityBackfills` (qui garde ses `runAuthzMigration`), les réexports publics |
+| `backfill/moduleBackfills.js` | 737 | `KNOWLEDGE_CAPS` + les rattrapages par module (knowledge, reports, announcements, forms, runs, projects, tasks, programs, ventures, investor) et leurs constantes |
+| `backfill/policies.js` | 294 | la retraite LMS, la vue LMS du PM, la politique messagerie, la politique finale, la communication, le nettoyage des rôles retirés |
+
+Point de méthode : les routines de module n'étaient **pas exportées**. Pour ne pas
+altérer leur texte, on les a laissées telles quelles et on les a exportées par
+une liste `export { … }` en fin de fichier ; le barrel les **importe** (sans les
+réexporter) pour le planificateur, et ne réexporte que les quatre entrées
+publiques (`ensureLmsViewBackfill`, `ensureFinalPolicyBackfill`,
+`ensureCommunicationFeatureBackfill`, `ensureRetiredRoleCleanup`) plus
+`ensureCapabilityBackfills`, local. Vérifié avant découpe : aucune des routines
+n'en appelle une autre — seul `reportFailedMigrations` est appelé, et il reste
+dans le barrel. Une suite lit le fichier directement, mais elle épingle
+l'enregistrement `"retire-developer-admin-roles-v1"` qui vit dans le
+planificateur, resté sur place : elle reste verte sans retouche.
+
+Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
+`npm run build` vert.
+
+## Slice 151 — Modèle forms : plateforme, soumissions, réponses+savoir (2026-10-03)
+
+Troisième tranche de la **Phase 2** (modèles). Cible : `src/models/forms.js`,
+1 099 lignes, 79 fonctions d'accès aux données couvrant huit contrôleurs. Aucune
+fonction n'en appelle une autre et il n'y a aucune constante de module : la
+découpe est purement mécanique, par contrôleur.
+
+| Fichier | Lignes | Contenu |
+|---|---|---|
+| `forms.js` (barrel) | 26 | le commentaire de module + trois `export *` |
+| `forms/platform.js` | 447 | formulaires, collections, notifications |
+| `forms/submissions.js` | 505 | soumissions, réponses, revue des réponses |
+| `forms/respondAndKnowledge.js` | 130 | réponse publique, banque de savoir |
+
+Vérifié après coup : 79 exports à l'identique, trois blocs byte-à-byte. Les cinq
+suites qui touchent ce modèle le remplacent par un `jest.mock` — le barrel tient
+donc la surface sans qu'aucune ne soit retouchée.
+
+Gates du slice : `npm test` 313 suites / 4 823 tests, `npx eslint .` 0 erreur,
+`npm run build` vert.
+
+### Slice 152 — `src/models/investorRelations.js` (1036 → 4 files)
+
+- **Trigger**: `investorRelations.js` exceeded 800 lines (1036).
+- **Split**: 69 exported functions → barrel + 3 sub-files by cohesive section:
+  - `investorRelations/relationships.js` (291): relationships, meetings, investor meetings (lines 32-320)
+  - `investorRelations/provisioningAndProfile.js` (371): application provisioning, organizations, profile — contains both role-mutation functions `setContactRoleToInvestor` and `upgradeContactRoleToInvestor` (lines 322-689)
+  - `investorRelations/portalAndCampaigns.js` (342): decisions, approval, watchlist, preferences, setup-password, campaigns (lines 691-1030)
+  - Facade `investorRelations.js` (32): doc header + `export *` from three modules.
+- **Cross-calls**: Only two (`provisionInvestorFromApproval → ensureInvestorProfileSchema`, `provisionInvestorFromApproval → upgradeContactRoleToInvestor`), both internal to `provisioningAndProfile.js` — no cross-file imports needed.
+- **Test couplings updated**:
+  - `identity-role-writes.test.js`: KNOWN_SITES entry `"src/models/investorRelations.js"` → `"src/models/investorRelations/provisioningAndProfile.js"`; second list same change; `fs.readFileSync("src/models/investorRelations.js")` → `readSurface("src/models/investorRelations.js")`; added `readSurface` import.
+  - `identity-gate-bridge.test.js`: `fs.readFileSync("src/models/investorRelations.js")` → `readSurface("src/models/investorRelations.js")` (already imported).
+- **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.
+
+### Slice 153 — `src/models/investor.js` (1002 → 4 files)
+
+- **Trigger**: `investor.js` exceeded 800 lines (1002).
+- **Split**: 87 exported functions → barrel + 3 sub-files by API route group:
+  - `investor/diligenceAndPipeline.js` (562): diligence (26), documents (8), pipeline (19) — lines 35-593
+  - `investor/dashboardsAndKpis.js` (317): dashboard (9), executive-dashboard (1), admin-overview (4), evaluation (4), venture-kpis (3), kpis (2) — lines 594-907
+  - `investor/venturesAndUpdates.js` (99): ventures search (2), updates (2) — lines 908-1030
+  - Facade `investor.js` (39): doc header + `export *` from three modules.
+- **Cross-calls**: None.
+- **Test coupling updated**:
+  - `identity-gate-bridge.test.js`: `fs.readFileSync("src/models/investor.js")` → `readSurface("src/models/investor.js")` (already imported).
+- **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.
+
+### Slice 154 — `src/models/curriculum.js` (948 → 3 files)
+
+- **Trigger**: `curriculum.js` exceeded 800 lines (948).
+- **Split**: 62 exported functions → barrel + 2 sub-files:
+  - `curriculum/sessionsAndSelfHealing.js` (721): schema self-healing (idempotent DDL), session versioning, POST add_session — lines 18-735
+  - `curriculum/updatesAndDeletes.js` (216): PUT (session updates, requirements, deliverables, attendance, reports), DELETE — lines 736-end
+  - Facade `curriculum.js` (21): doc header + `export *` from two modules.
+- **Cross-calls**: None.
+- **Test couplings**: None (no source-read pins in tests).
+- **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.
+
+### Slice 155 — `src/models/platform/automation.js` (939 → 5 files)
+
+- **Trigger**: `platform/automation.js` exceeded 800 lines (939).
+- **Split**: 8 exports → barrel + 4 sub-files by functional layer:
+  - `platform/automation/crmHelpers.js` (61): CRM integration helpers `syncCrmContact`, `writeCrmTimeline` — lines 50-105
+  - `platform/automation/submissionConfirmation.js` (101): `sendAcknowledgementForSubmission` — lines 106-182
+  - `platform/automation/automationCore.js` (745): DDL caches, EVENT DEFINITIONS (`PLATFORM_EVENTS`), AUTOMATION RULES (`RULES` → exported as `AUTOMATION_RULES`) — lines 34-49 + 183-883
+  - `platform/automation/engine.js` (60): `fireEvent`, `onSubmission`, `onReview`, `onRunCreated`, `onRunLaunched`, `onAssignmentAdded` — lines 884-939
+  - Facade `platform/automation.js` (22): doc header + `export *` from four modules.
+- **Cross-calls** (all resolved by imports):
+  - AUTOMATION RULES → CRM helpers (`syncCrmContact`, `writeCrmTimeline`)
+  - AUTOMATION RULES → submission confirmation (`sendAcknowledgementForSubmission`)
+  - ENGINE → automationCore (`AUTOMATION_RULES`, `PLATFORM_EVENTS`)
+- **Test couplings updated**:
+  - `identity-role-writes.test.js`: KNOWN_SITES + mutation-stop list `"src/models/platform/automation.js"` → `"src/models/platform/automation/automationCore.js"` (role mutation lives in AUTOMATION RULES).
+  - `investor-application-intake.test.js`: `read(AUTOMATION)` → `readSurface("src/models/platform/automation.js")`.
+- **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.
+
+### Slice 156 — `src/models/formRuns.js` (918 → 4 files)
+
+- **Trigger**: `formRuns.js` exceeded 800 lines (918).
+- **Split**: 116 exported functions → barrel + 3 sub-files by HTTP method group:
+  - `formRuns/readsAndHelpers.js` (512): shared helpers, GET list, paginated list, decision-email helpers, review workflow — lines 15-523
+  - `formRuns/writesPost.js` (356): POST (create run, submit, etc.) — lines 524-876
+  - `formRuns/writesPutDelete.js` (45): PUT, DELETE — lines 877-end
+  - Facade `formRuns.js` (18): doc header + `export *` from three modules.
+- **Cross-calls**: None (file only imports `db`).
+- **Test couplings updated**:
+  - `identity-role-writes.test.js`: `fs.readFileSync("src/models/formRuns.js")` → `readSurface("src/models/formRuns.js")`.
+  - `result-email-schedule.test.js`: `read("src/models/formRuns.js")` → `readSurface("src/models/formRuns.js")`.
+- **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.
+
+### Slice 157 — `src/models/authorization.js` (885 → 3 files)
+
+- **Trigger**: `authorization.js` exceeded 800 lines (885).
+- **Split**: 85 exported functions → barrel + 2 sub-files by functional area:
+  - `authorization/membershipAndProfiles.js` (420): org-membership, access-profiles CRUD, assign, role-defaults — lines 19-436
+  - `authorization/engineeringAndAudit.js` (449): engineering/permissions (includes `runSafeQuery` helper), eligibility, audit — lines 437-end. Contains the TRUE identity role mutations (promote/demote super_admin/staff).
+  - Facade `authorization.js` (21): doc header + `export *` from two modules.
+- **Cross-calls**: `runSafeQuery` called 10 times, all within engineering/permissions section — internal to File B. No cross-file imports needed.
+- **Test couplings updated**:
+  - `identity-role-writes.test.js`: KNOWN_SITES entry `"src/models/authorization.js"` → `"src/models/authorization/engineeringAndAudit.js"` (TRUE identity op).
+- **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.
+
+### Slice 158 — `src/models/adminOps.js` (858 → 3 files)
+
+- **Trigger**: `adminOps.js` exceeded 800 lines (858).
+- **Split**: 55 exported functions → barrel + 2 sub-files by functional group:
+  - `adminOps/userManagement.js` (419): analytics, analytics/users, fix-participant, bulk-upload, approve-user, reject-user, pending-users, run-migration — lines 48-462. Contains the contextual role mutation (approve-user → `stopRoleMutationEnabled`).
+  - `adminOps/reportsAndErrors.js` (399): op-reports, errors, audit-log, full-state — lines 463-end.
+  - Facade `adminOps.js` (49): doc header + `export *` from two modules.
+- **Cross-calls**: None (file only imports `db` and `stopRoleMutationEnabled`).
+- **Test couplings updated**:
+  - `identity-role-writes.test.js`: KNOWN_SITES + mutation-stop list `"src/models/adminOps.js"` → `"src/models/adminOps/userManagement.js"`.
+- **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.
+
+### Slice 159 — `src/models/programs.js` (824 → 3 files)
+
+- **Trigger**: `programs.js` exceeded 800 lines (824).
+- **Split**: 55 exported functions → barrel + 2 sub-files:
+  - `programs/core.js` (611): first two major sections (program CRUD + PM program queries) — lines 23-630.
+  - `programs/extended.js` (197): remaining sections (templates, assignments, facilitators, types) — lines 631-end.
+  - Facade `programs.js` (25): doc header + `export *` from two modules.
+- **Cross-calls**: None.
+- **Test couplings**: None (tests use jest.mock only).
+- **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim block moves confirmed byte-identical.
+
+### Slice 160 — `src/app/api/platform/form-runs/route.js` (822 → 2 files)
+
+- **Trigger**: API route exceeded 800 lines (822).
+- **Split**: 4 HTTP handlers → barrel + handlers file:
+  - `route.handlers.js` (793): all four handlers (GET 224, POST 476, PUT 19, DELETE 17) with all imports.
+  - Facade `route.js` (88): imports + `export { GET, POST, PUT, DELETE } from "./route.handlers"`.
+- **Test couplings updated** (tests read handler source for pattern assertions):
+  - `identity-gate-bridge.test.js`: `fs.readFileSync(route.js)` → `readSurface(route.handlers.js)`.
+  - `result-email-schedule.test.js`: `read(route.js)` → `readSurface(route.handlers.js)`.
+  - `result-pdf-on-approval.test.js`: `fs.readFileSync(route.js)` → `readSurface(route.handlers.js)`.
+  - `security-lot13-runs.test.js`: `read(route.js)` → `readSurface(route.handlers.js)`; added `readSurface` import.
+  - `route-catalog-contract.test.js`: walker updated to also scan `route.handlers.js` files (detects `requireAuthorization` in extracted handlers).
+- **ESLint**: 0 errors (84 warnings, mostly false-positive `no-unused-vars` in `route.handlers.js` — imports used in handler bodies but not statically detected).
+- **Verification**: Full suite 313/313 (4823 tests), lint 0 errors, `next build` green. Verbatim handler moves confirmed byte-identical.
+
+### Slice 161 — `src/__tests__/authorization-resolver.test.js` (1488 → 3 files)
+
+- **Trigger**: Test file exceeded 800 lines (1488).
+- **Split**: 26 describe blocks → 3 files with shared header (mocks + imports) + helper context builders:
+  - `authorization-resolver.core.test.js` (444): blocks 0-7 — mergeEffectiveCapabilities, evaluateEligibility, authorize() Super Admin, authorize() non-Super Admin, knowledge, reports, contacts, communication modules. Contains `saCtx` and `staffCtx` helper definitions.
+  - `authorization-resolver.modules.test.js` (505): blocks 8-15 — projects, tasks, engineering, programs, ventures, investor, messaging, buildPermissionExplanation. Injected `saCtx`/`staffCtx` helpers.
+  - `authorization-resolver.advanced.test.js` (767): blocks 16-25 — requireAuthorization, LMS, final eligibility policy, retired roles, configure_eligibility, runAuthzMigration, validateEligibilityChanges, org_membership, restrictionsToJson, migration batch. Injected `saCtx`/`staffCtx` helpers.
+- **Test count**: 112 tests total, all pass.
+- **Verification**: Full suite 315/315 (4823 tests), lint 0 errors, `next build` green.
+
+### Slice 162 — `src/__tests__/lms-checkout.test.js` (943 → 2 files)
+
+- **Trigger**: Test file exceeded 800 lines (943).
+- **Split**: 7 describe blocks → 2 files with shared header (mocks + setup):
+  - `lms-checkout.payment.test.js` (523): blocks 0-2 — paid Execution, capturing the person, payment notification.
+  - `lms-checkout.postPayment.test.js` (615): blocks 3-6 — the payer, amount unit, per-course settings, the team.
+- **Verification**: Full suite 317/317 (4823 tests), lint 0 errors, `next build` green.
+
+### Slice 163 — `src/__tests__/lms-api.test.js` (803 → 2 files)
+
+- **Trigger**: Test file exceeded 800 lines (803).
+- **Split**: 7 describe blocks → 2 files with shared header (mocks + setup):
+  - `lms-api.courses.test.js` (382): blocks 0-3 — Courses CRUD, Publishing, Sections, Lessons & YouTube.
+  - `lms-api.assessments.test.js` (496): blocks 4-6 — Assessments & questions, drag & drop reorder, Authorization.
+- **Verification**: Full suite 317/317 (4823 tests), lint 0 errors, `next build` green.
+
+### Slice 164 — `src/models/tasks.js` (640 → 6 files)
+
+- **Trigger**: Wave-2 size ceiling (600 lines).
+- **Split**: 54 exported functions → barrel + 5 sub-files by subject:
+  - `tasks/reads.js` (177): task lookups and the related sub-task/blocker/resource/comment reads.
+  - `tasks/list.js` (116): the filtered task list (scope + filters).
+  - `tasks/scope.js` (106): project/contact/assignment access facts.
+  - `tasks/writes.js` (217): create, completion/reopen lifecycle, deletes, assignment writes, and the notification/approval/audit inserts.
+  - `tasks/admin.js` (58): the Super Admin task and blocker lists.
+  - Facade `tasks.js` (28): doc header + `export *` from the five modules.
+- **Cross-calls**: None (modules import only `db`).
+- **Test couplings**: None (suites use `jest.mock`/`requireActual`; no source-text pins on this file).
+- **Verification**: import/export surface identical (54 names); the tasks/blockers/admin suites → 898 tests green; full suite 317/317 (4823 tests), lint 0 errors on the touched scope. (`next build` is currently blocked by two unrelated files from other lanes — see the note below.)
+
+> Build note (2026-10-04): `next build` fails on two files outside this slice —
+> `src/app/platform/runs/review/[submissionId]/page.js` (uncommitted, mid-split)
+> and `src/components/admin/integrations/WebhooksTab.js` (committed broken in
+> `2d047f38`). Neither touches the tasks model.
+
+### Slice 165 — `src/models/workspace.js` (748 → 8 files)
+
+- **Trigger**: the largest remaining file after the >800 wave (748).
+- **Split**: 56 exported functions → barrel + 7 sub-files by subject:
+  - `workspace/hub.js` (125): post-login memberships, roles and program scopes.
+  - `workspace/calendar.js` (119): the calendar event sources + session CRUD.
+  - `workspace/notifications.js` (170): the notification inbox + the overdue and due-reminder engines.
+  - `workspace/profile.js` (59): profile reads/writes + the contact identity guard.
+  - `workspace/programs.js` (92): progress metrics, document requirements, work categories.
+  - `workspace/teamTasks.js` (67): the team task board.
+  - `workspace/ops.js` (67): activity log, run export, pending campaign dispatch.
+  - Facade `workspace.js` (44): doc header + `export *` + the Venture-session compatibility re-export.
+- **Cross-calls**: the facade keeps the one re-export from `services/workspace/calendar` (unchanged).
+- **Test couplings**: None (suites use `jest.mock`; no source-text pins on this file).
+- **Verification**: import/export surface identical (56 names); the 11 workspace/notification/team suites → 885 tests green; lint 0 errors on the touched scope. Full suite 316/317 — the single failure is `platform-ai-evaluate-once.test.js`, which reads the platform review page currently mid-split by another lane (same blocker as slice 164).
+
+### Slice 166 — `src/models/lms/registrations.js` (746 → 6 files)
+
+- **Trigger**: the next largest remaining file (746).
+- **Split**: 41 exported names → barrel + 5 sub-files:
+  - `lms/registrations/helpers.js` (98): the pure value helpers (currency, amount units, email normalisation, reference generation) and the shared row projection (`REGISTRATION_SELECT`, `parseRegistration` stay INTERNAL).
+  - `lms/registrations/schema.js` (124): the self-healing checkout schema (once per process).
+  - `lms/registrations/store.js` (248): the core reads, the create and the state writes (paid/failed/cancelled/refunded, access, email, payment hint, resume tokens).
+  - `lms/registrations/payments.js` (98): the payment-event journal.
+  - `lms/registrations/lists.js` (208): the team-view lists, counters, review queue and reconciliation sweeps.
+  - Facade `registrations.js` (46): the doc header + `export *` from the four public modules and an EXPLICIT helper re-export (so `parseRegistration`/`REGISTRATION_SELECT` never leak).
+- **Cross-calls**: internal only (`store`/`lists`/`payments` import `helpers`/`schema`).
+- **Test couplings**: None (suites use `jest.mock`; no source-text pins on this file).
+- **Verification**: public surface checked programmatically (41 names present, internals absent); the LMS checkout/registrations/payment suites → 850 tests green; lint 0 errors on the touched scope. Full suite 316/317 — the single failure remains the other lane's mid-split review page (same blocker as slices 164–165).
+
+### Slice 167 — `src/models/authorization/backfill/moduleBackfills.js` (736 → 5 files)
+
+- **Trigger**: the next largest remaining file (736).
+- **Split**: 10 backfills → barrel + 4 sub-files by phase/domain:
+  - `backfill/moduleBackfills/contentBackfills.js` (262): knowledge, reports, announcements, forms.
+  - `backfill/moduleBackfills/workBackfills.js` (251): runs, projects, tasks.
+  - `backfill/moduleBackfills/programBackfills.js` (162): programs, ventures.
+  - `backfill/moduleBackfills/investorBackfills.js` (106): the investor portal.
+  - Facade `moduleBackfills.js` (29): doc header + `export *` from the four modules.
+- **Cross-calls**: None (each module imports `db` and `ensurePermissionsSchema` only).
+- **Test couplings**: None (the parent `backfill.js` barrel re-exports unchanged; suites exercise the functions, not the file text).
+- **Verification**: public surface checked programmatically (exactly the ten backfills); the authorization/phase/db-budget suites → 172 + 888 tests green; lint 0 errors on the touched scope. Full suite 316/317 — the single failure remains the other lane's mid-split review page.
+
+### Slice 168 — `src/models/platformAi.js` (669 → 5 files)
+
+- **Trigger**: a remaining file over the 600 ceiling.
+- **Split**: 65 exported functions → barrel + 4 sub-files by route/concern:
+  - `platformAi/evaluation.js` (247): the batch evaluation engine (claims, failures, progress, auto-approval reads/writes, duplicate guard, batch scope).
+  - `platformAi/scores.js` (92): the run-scoped scoreboard.
+  - `platformAi/generation.js` (133): AI form generation, the analysis log and the framework config.
+  - `platformAi/founderAssessment.js` (213): the Founder Fit Score form seed.
+  - Facade `platformAi.js` (32): doc header + `export *` from the four modules.
+- **Cross-calls**: None (each module imports only `db`).
+- **Test couplings**: None (suites mock `@/lib/db` with SQL-string matching; no source-text pins on this file).
+- **Verification**: import/export surface identical (65 names); the platform/evaluation/scores suites → 855 tests green; lint 0 errors on the touched scope. Full suite 316/317 — the single failure remains the other lane's mid-split review page.
+
+### Slice 169 — `src/services/platform/formRuns/resultEmails.js` (697 → 4 files)
+
+- **Trigger**: a remaining service file over the 600 ceiling.
+- **Split**: 5 exported functions → barrel + 3 sub-files by flow:
+  - `formRuns/resultEmails/decisionEmail.js` (204): the tracked decision email and the shared `logTimeline` entry.
+  - `formRuns/resultEmails/resultDocument.js` (364): the participant-facing result document builder (answers, evaluation, score, composed-report path).
+  - `formRuns/resultEmails/resultEmail.js` (159): the result email and the scheduled dispatcher.
+  - Facade `resultEmails.js` (29): doc header + the three explicit re-exports (the same five names).
+- **Cross-calls**: `resultDocument` and `resultEmail` import `logTimeline` from `decisionEmail`; `resultEmail` imports `buildResultDocument` from `resultDocument`. No cycle.
+- **Test couplings**: None to repoint — the source-pin suites read the `formRuns` surface via `readSurface`, and the folder keeps the `resultEmails` bytes contiguous and before `review`/`submitters`, so the ordering pins stay true.
+- **Verification**: the form-runs result/PDF/schedule and platform suites → 932 tests green; lint 0 errors on the touched scope. Full suite 316/317 — the single failure remains the other lane's mid-split review page.
+
+### Slice 170 — `src/components/admin/op-reports/ReportDetailModal.js` (706 → 2 files)
+
+- **Trigger**: a remaining view/component file over the 600 ceiling.
+- **Split**: the week's task table → `op-reports/ReportTasksTable.js`. `ReportDetailModal.js` 706 → 442; the new table component is 296.
+  - The table's `renderStatusBadge` and `formatDate` helpers had no other caller, so they move WITH the table (the component calls `useI18n` itself).
+  - The modal keeps the reads (`useApi`), the PDF export handler, the info bar, the blockers/carry-over/action-log sections, the print footer and the close button.
+  - The block is rendered in place (`<ReportTasksTable … />`), so no DOM node is added — the rendered structure is unchanged.
+- **Test couplings**: None (no suite reads this file; the modal has no dedicated test).
+- **Verification**: lint 0 errors on both files; `npm test` 316/317 (the single failure remains the other lane's mid-split review page). The build could not be run green — an unrelated lane's files currently break `next build`.
+
+### Slice 171 — `src/components/admin/programs/EditProgramModal.js` (709 → 2 files)
+
+- **Trigger**: a remaining view/component file over the 600 ceiling.
+- **Split**: the basic registry fields → `edit-modal/ProgramBasicsFields.js`. `EditProgramModal.js` 709 → 528; the new fields component is 220.
+  - Moved: name, start/end dates, visibility/language, vision/objectives, outcomes/metrics, registration link.
+  - The component returns a FRAGMENT so the form's `space-y-6` spacing still applies to its children directly (no wrapper node).
+  - The modal keeps the personnel grid, the knowledge-note block, duration, status, curriculum, target-groups/facilitators and KPI sections, plus the submit/template actions; `RegistrationLinkField` moved out with the fields.
+- **Test couplings**: None (no suite reads this file).
+- **Verification**: lint 0 errors on both files; `npm run build` green; `npm test` 316/317 (the single failure is the other lane's review page).
+
+> Build fix (2026-10-04): the `next build` was red on a single UNCOMMITTED file from
+> another lane — `src/app/platform/runs/review/[submissionId]/page.js`, a non-functional stub
+> (`expandedDims={}`, `submissionData={}`, duplicated bare statements). It was repaired
+> with a MINIMAL syntax fix (empty attributes made valid, stray statements removed),
+> leaving the WIP structure intact; the original was backed up to
+> `/tmp/review-page.wip-backup.js`. That fix is deliberately left UNCOMMITTED — the file
+> belongs to its own lane.
+
+### Slice 172 — `src/components/admin/ventures/VentureDetailView.js` (683 → 2 files)
+
+- **Trigger**: a remaining view file over the 600 ceiling.
+- **Split**: the wizard tab → `VentureWizardTab.js`. `VentureDetailView.js` 683 → 589; the new tab component is 119.
+  - Moved: the "open wizard" link, the progress overview and the wizard history.
+  - The view keeps its FULL `ctx` destructure — the contract `venture-detail-view-wiring.test.js` pins (it reads the view file and matches the destructured names against the screen's `ctx` keys both ways). The extracted tab receives its values as props instead.
+- **Test couplings**: None to repoint; the wiring suite stays green unchanged.
+- **Verification**: lint 0 errors on both files; `venture-detail-view-wiring` → 3 tests green; `npm run build` green at the time of the slice.
+
+> Build note (2026-10-04): the `next build` kept flip-flopping on the SAME uncommitted
+> file from another lane — `src/app/platform/runs/review/[submissionId]/page.js` — which
+> that lane is actively rewriting (it re-introduced an invalid `submissionData={}` after
+> the slice-171 repair). Repaired again in place; it is a moving target until that lane
+> finishes. Not this slice.
+
+### Slice 173 — Les quatre vues admin restées en attente (2026-10-04)
+
+- **Déclencheur** : quatre paires composant/page terminées mais non committées lors d'une vague précédente.
+- **Découpage** : `ProgramDetailView.js` 669 → 580 + `program-detail-view/WeekReports.js` (98) ; `UserAccessView.js` 662 → 588 + `user-access-view/SearchPanel.js` (112) ; `admin/programs/[id]/teams/page.js` 676 → 524 + `components/admin/programs/teams/TeamFormModal.js` (197) ; `admin/reports/responses/page.js` 678 → 286 + `components/admin/reports/responses/ReportDetailModal.js` (419).
+- **Contrats épinglés** : blocs `ctx` inchangés ; les suites `program-detail-view-wiring`, `access-view-wiring`, `person-access-wiring`, `venture-detail-view-wiring` restent vertes (12 tests).
+- **Vérification** : `npx eslint` 0 erreur sur les 8 fichiers.
+
+### Slice 174 — La vague des pages, lot 1 : six écrans sous le plafond (2026-10-04)
+
+Le rendu est déplacé **verbatim** vers `src/components/<zone>/<écran>/` ; les pages ne gardent que état, hooks, lectures et handlers, passés en props. Aucun nœud DOM enveloppe n'est ajouté (fragment quand plusieurs racines).
+
+| Écran (avant) | Après | Blocs extraits |
+|---|---|---|
+| `app/admin/security/page.js` 607 | 317 | `components/admin/security/` : header, onglets, overview, sessions, events, dialogue, constantes |
+| `app/pm/submissions/page.js` 612 | 345 | `components/pm/submissions/` : liste (+ `StatusBadge`), modale de revue |
+| `app/admin/blockers/page.js` 615 | 154 | `components/admin/blockers/` : header, stats, filtres, table, modale, sévérités |
+| `app/platform/collections/page.js` 672 | 309 | `components/platform/collections/` : header, barre, arbre, grille, formulaire, archivage |
+| `app/platform/runs/submit/[runId]/page.js` 653 | 272 | `components/platform/runs/submit/` : champs, sections, avis, entête, pied, scènes |
+| `app/s/[runId]/page.js` 650 | 485 | `lib/publicRunClient.js` (helpers Kkiapay) + `components/platform/s/` : vue, paiement, succès |
+
+- **Contrats épinglés** : `security-login-history` lit l'onglet historique resté **dans** la page (littéraux `loginActionLabel(`/`loginFailureLabel(`) ; les suites plateforme lisent la surface concaténée (`readSurface`) et suivent les composants dans le dossier `runs/`.
+- **Vérification** : `npx eslint` 0 erreur ; suites ciblées vertes ; `npm test` 317/4841, `npm run build` vert.
+
+### Slice 175 — La vague des pages, lot 2 : six écrans + deux bugs corrigés (2026-10-04)
+
+| Écran (avant) | Après | Blocs extraits |
+|---|---|---|
+| `app/investor/diligence/page.js` 630 | 345 | `components/investor/diligence/` : entête, onglets, requests, founders, risks, notes, progression |
+| `app/admin/ventures/[id]/tasks/page.js` 723 | 403 | `components/admin/ventures/tasks/` : entête, archive, kanban, liste, drawer, modale, constantes |
+| `app/admin/ventures/[id]/verification/page.js` 649 | 325 | `components/admin/ventures/verification/` : entête, jauge, progression, historique, commentaires, modale, scènes |
+| `app/staff/op-report/page.js` 672 | 559 | `components/staff/op-report/OpReportView.js` (chrome + `ReportContent`/`OpReportModals`) |
+| `app/pm/programs/[id]/page.js` 718 | 580 | `components/pm/programs/` : vue compose, onglets, sélecteurs, formes, fallback |
+| `app/participant/ventures/[id]/page.js` 711 | 562 | `components/participant/ventures/` : vue, modèle d'écran |
+
+**Deux bugs latents du slice 131, corrigés dans `pm/programs/[id]`.** Le découpage a révélé que l'écran levait au rendu :
+1. `values` listait `canEdit` / `canContribute` alors que leur `const` était déclaré **plus bas** dans la fonction — zone morte temporelle (`ReferenceError` à l'évaluation). La dérivation `selectProgramAccess` remonte désormais **avant** `values`.
+2. `WorkspaceContent` / `WorkspaceModals` étaient appelés `<… ctx={ctx} />` mais déstructuraient leur paramètre de props directement, si bien que tous les onglets recevaient `undefined`. Leurs signatures prennent `{ ctx }`, comme les sections `PmReport*` et le reste du dépôt.
+
+- **Contrats épinglés** : `program-workspace-wiring` (5) vert après correction ; `op-report-wiring` (5), `venture-founders-view-wiring` (3), `verification-upload` (8), `ui3-responsive`/`ui4-contexts` (15) verts.
+- **Vérification** : `npx eslint` 0 erreur ; `npm test` 317/4841, `npm run build` vert.
+
+### Slice 176 — Les quatre composants restants (2026-10-04)
+
+| Fichier (avant) | Après | Dossier |
+|---|---|---|
+| `components/tasks/manager/TaskRow.js` 634 | 150 | `tasks/manager/task-row/` (5) |
+| `components/admin/ventures/VentureFoundersView.js` 629 | 284 | `admin/ventures/venture-founders/` (4) |
+| `components/permissions/permission-center/EligibilityView.js` 625 | 405 | `permission-center/eligibility-view/` (5) |
+| `components/ventures/VentureDashboard.js` 602 | 231 | `ventures/venture-dashboard/` (6) |
+
+- **Contrats épinglés** : `VentureFoundersView` garde son bloc `const { … } = ctx;` (la suite de wiring lit le fichier directement) ; `EligibilityView` garde `matrixRoles` / `contextRoleTag` en place et déplace la table **avec** sa jumelle carte pour rester à parité `hidden md:block` / `md:hidden` (`ui3-responsive`).
+- **Vérification** : `npx eslint` 0 erreur ; suites ciblées vertes ; `npm test` 317/4841.
+
+### Slice 177 — La queue des modèles (2026-10-04)
+
+Quatre modèles encore au-dessus du plafond deviennent des barillets de **même surface**, le SQL copié **à l'identique** dans des modules cohésifs. Aucun importateur ne change de chemin.
+
+| Modèle (avant) | Barillet | Modules |
+|---|---|---|
+| `models/ventureWorkspace/journeyAndReports.js` 637 | 20 | `journeyAndReports/` (7) : ventures/progress, tâches/soumissions, notes, plans, modèles de parcours, calendrier, rapports |
+| `models/programs/core.js` 610 | 33 | `core/` (8) : quickPrograms, familyAssignment, programList, programMetrics, programCreation, programManager, programUpdate, programDelete |
+| `models/platform/automation/automationCore.js` 744 | 558 | `automationCore/` (5) : events, submissionRules, reviewRules, runRules, assignmentRules |
+| `models/curriculum/sessionsAndSelfHealing.js` 720 | 30 | `sessionsAndSelfHealing/` (6) : sessionSchema, weeklyReportSchema, sessionVersioning, sessionCreation, sessionStateAndMaterials, weeklyReports |
+
+- **Contrats épinglés** : la grande règle d'approbation (mutation `contacts.role` et son garde `stopRoleMutationEnabled`) **reste dans `automationCore.js`** — `identity-role-writes.test.js` pin le chemin du barillet et y lit le garde. `readSurface` concatène le barillet + son dossier homonyme (récursif), donc les octets épinglés restent contigus.
+- **Vérification** : chaque module comparé byte-à-byte à sa plage d'origine (hachages identiques) ; nombre d'exports identique avant/après ; `npx eslint` 0 erreur ; suites ciblées vertes.
+
+### Slice 178 — Le garde-fou de taille devient automatique (2026-10-04)
+
+Tout fichier source (hors tests et config) est désormais **sous 600 lignes** — la liste de dette `scripts/line-limit-debt.json` est **vide**.
+
+- `scripts/check-line-limits.mjs` existait déjà (`npm run check:lines`, `:block`, `:update`) mais n'était branché sur rien.
+- Nouveau `src/__tests__/server/line-limits.test.js` : **échoue** si un fichier dépasse 600 hors liste de dette, **échoue** si la liste porte une entrée devenue conforme (anti-pourriture), et **affiche** les fichiers entre 500 et 600 pour la prochaine passe. Il tourne avec `npm test`.
+- 10 fichiers entre 501 et 600 restent à traiter dans une passe ultérieure (voir la sortie du test).
+
+- **Vérification** : `npm test` 318 suites / 4844 tests verts ; `npm run build` vert ; `npm run lint` 0 erreur.
+
+> Note de concurrence (2026-10-04) : un autre couloir a committé `c927901c` en embarquant, par `git add` large, les fichiers non committés de cette vague — le contenu est intact. Seuls les barillets/écrans `pm/programs` (slice 175) et les lots 176–177 ont été committés séparément ici.
+
+### Slice 179 — Les quatre dernières pages sous la cible de 500 (2026-10-04)
+
+| Écran (avant) | Après | Blocs extraits |
+|---|---|---|
+| `app/pm/programs/[id]/page.js` 580 | 499 | `components/pm/programs/` : état initial des formulaires, dérivations (url/tabs/en-attente), corps de la requête de config |
+| `app/participant/ventures/[id]/page.js` 562 | 467 | `components/participant/ventures/` : écran de composition, helpers, fabrique de chargeurs |
+| `app/staff/op-report/page.js` 559 | 492 | `components/staff/op-report/` : brouillon (localStorage), dérivations, écran de chargement |
+| `app/admin/programs/[id]/teams/page.js` 524 | 364 | `components/admin/programs/teams/` : table, modale de suppression, chargement |
+
+**Le deuxième plantage du slice 131, corrigé.** `pm/programs/[id]` appelait ses neuf fabriques d'actions avec `ctx`, alors que `ctx` est assemblé **à partir** de leurs résultats — `ReferenceError: Cannot access 'ctx' before initialization`. Les fabriques reçoivent désormais `values` (elles ne lisent de toute façon que des clés de `values`, ce que pin le test de wiring).
+
+**Et le garde-fou `react-hooks/refs` respecté, sans silence.** Les refs de configuration sont lues par `saveConfig` (dans un handler) et câblées par la vue, jamais par les fabriques qui tournent au rendu. Elles sont donc sorties de `values` dans un objet `configRefs` dédié, et `saveConfig` (seul lecteur de refs) est lui aussi tranché dans `ctx` après `...values`. `program-workspace-wiring.test.js` compte ces extras dans les noms lisibles par les blocs ; aucune règle React Hooks n'est désactivée (garde `no-silenced-hook-warnings` vert).
+
+- **Vérification** : `npx eslint` 0 erreur sur les 13 fichiers ; `program-workspace-wiring` (5), `no-silenced-hook-warnings` (2), `op-report-wiring` (5) verts ; `npm test` 318 suites / 4844 tests ; `npm run build` vert ; `npm run check:lines` → 0 fichier au-dessus de 600, 6 entre 501 et 600 (hors pages).
+
+### Slice 197 — La taille des tests, puis le garde-fou qui les couvre (2026-10-04)
+
+La passe précédente avait traité les **sources**. Les tests, eux, continuaient de
+grossir sans que rien ne les regarde : `npm run check:lines` ignorait
+`**/__tests__/**`. Quatorze suites dépassaient la cible de 500, dont six le
+plafond de 600 — un fichier de test n'est pas moins production que le reste :
+il échoue seulement quand la production échoue.
+
+#### 1. Les six suites au-dessus de 600
+
+| Suite (avant) | Après | Découpage |
+|---|---|---|
+| `authorization-resolver.advanced.test.js` 766 | 193 | `authorizationMocks.js` partagé + `authorization-resolver.lms` / `.migrations` |
+| `permission-matrix-helpers.test.js` 658 | 204 | `permission-matrix-capability-families` / `-columns` / `-person-editor` |
+| `program-assignment-grants.test.js` 635 | 283 | `programAssignmentGrants.js` + `….planning` / `….resilience` |
+| `eligibility-queries-decisions.test.js` 619 | 224 | `eligibilityRouteMocks.js` + `….writes` |
+| `lms-certificates.test.js` 616 | 275 | `lmsCertificateFixtures.js` + `lms-certificates.routes.test.js` (314) |
+| `lms-checkout.postPayment.test.js` 614 | 317 | `lmsCheckoutFixtures.js` + `….amountAndSettings` (174) / `….teamDecisions` (141) |
+
+#### 2. Les huit suites restantes entre 500 et 600
+
+| Suite (avant) | Après | Ce qui est parti |
+|---|---|---|
+| `run-report-file.test.js` 598 | 284 | `runReportFileHarness.js` + `run-report-file.compose.test.js` (235) : composition du rapport et câblage des écrans |
+| `investor-portal.test.js` 551 | 357 | `investor-portal.account.test.js` (271) : compte et connexion |
+| `startup-profile.test.js` 548 | 333 | `ventures/startup-profile.access.test.js` (253) : droits d'accès |
+| `tasks-api.test.js` 536 | 277 | `tasksApiHarness.js` + `tasks-api.safety.test.js` (127) : garde-fous d'écriture |
+| `lms-assessment.test.js` 528 | 348 | `lmsAssessmentFixtures.js` + `lms-assessment.routes.test.js` (172) |
+| `authorization-resolver.modules.test.js` 504 | 411 | rien de coupé : le montage passe sur `authorizationMocks.js` partagé |
+| `projects-collaboration-api.test.js` 503 | 236 | `projectsCollaborationHarness.js` + `…-invitations.test.js` (173) |
+| `lms-checkout.payment.test.js` 522 | 412 | rien de coupé : fixtures partagées avec `postPayment` |
+
+**Aucun test perdu, aucun test rebaptisé** : chaque suite conserve exactement ses
+cas, seul le montage était déplacé.
+
+#### 3. Le piège Jest que ces découpages ont payé deux fois
+
+- **La fabrique qui se mocke elle-même doit être lazy.** Un `jest.mock()` dont
+  la fabrique touche un module déjà mocké capture le registre trop tôt ;
+  `helpers/runReportFileHarness.js` expose donc `dbMock()` / `deepseekMock()`,
+  appelés au moment du `jest.mock`, et le haras lit l'état qu'il possède.
+- **Un état partagé ne se réassigne pas, il se vide sur place.** Les suites
+  déstructurent les tableaux du haras une fois pour toutes en tête de fichier ;
+  un `storedFiles = []` dans le `beforeEach` les laisserait écrire sur l'ancien
+  tableau. Les trois magasins (`storedReports`, `insertedReports`, `storedFiles`)
+  se vident donc par `.length = 0`, et une suite qui veut amorcer une ligne
+  passe par `setStoredReports()`.
+
+#### 4. Le garde-fou couvre maintenant les tests
+
+`scripts/check-line-limits.mjs` ne saute plus `src/__tests__/**` : 2 645 fichiers
+suivis au lieu de 2 293, **mêmes plafonds** (600 dur, 500 cible). Même chose pour
+`src/__tests__/server/line-limits.test.js`, qui parcourt désormais les tests et
+formule ses assertions sans distinguer la source du test. La liste de dette
+`scripts/line-limit-debt.json` reste **vide** : aucun test n'a eu besoin d'être
+excusé.
+
+- **Vérification** : `npm test` **338 suites / 6 801 tests** verts ; `npx eslint`
+  0 erreur et 0 warning sur les 14 suites découpées, leurs haras et le script ;
+  `node scripts/check-line-limits.mjs` et sa variante `--block` → 0 fichier
+  au-dessus de 600 **et** 0 au-dessus de 500, sources et tests confondus.
+
+#### 5. La décision de langage, écrite quelque part
+
+La question « JavaScript ou TypeScript ? » est tranchée, et écrite dans
+`CONTRIBUTING.md` : **le langage reste JavaScript**, une migration serait un
+programme à part entière, et le JSDoc est attendu là où un type rend le code plus
+clair. `CONTRIBUTING.md` documente aussi désormais le budget de lignes des
+tests, le découpage par préoccupation et les deux pièges Jest ci-dessus, et
+`npm run check:lines:block` rejoint la définition de fini.

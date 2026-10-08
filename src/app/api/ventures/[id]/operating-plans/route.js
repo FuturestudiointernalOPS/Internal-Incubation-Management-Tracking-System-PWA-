@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { initDb } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import { resolvePlanAccess, allowsPlanAction } from "@/services/ventures/operatingPlans";
 import {
   listVentureOperatingPlans,
@@ -55,7 +55,7 @@ export const POST = createHandler(
     });
     const planId = insertResult.rows?.[0]?.id ?? null;
     try {
-      const { addVentureHistory } = await import("@/lib/ventures");
+      const { addVentureHistory } = await import("@/services/ventures/activity");
       await addVentureHistory({ venture_id: access.code, event_type: "OPERATING_PLAN_CREATED", description: `Operating plan "${name}" created` });
     } catch (_) {}
     return NextResponse.json({ success: true, id: planId });

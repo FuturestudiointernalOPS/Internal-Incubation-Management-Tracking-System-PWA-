@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
 import { deleteCampaignCascade } from "@/models/communications";
 import { loadCampaignDetail, updateCampaignDefinition } from "@/services/communications/campaigns";
 

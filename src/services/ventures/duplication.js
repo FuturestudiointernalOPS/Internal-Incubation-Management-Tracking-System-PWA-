@@ -21,8 +21,8 @@
  * parent/child task links) are preserved.
  *
  * Every statement lives in `@/models/ventureDuplicationStore`; nothing here runs
- * SQL. Re-exported unchanged through the compatibility facade
- * `@/lib/ventureDuplication` — see docs/LAYER_SPLIT.md.
+ * SQL. This module used to be re-exported through the `@/lib/ventureDuplication` facade;
+ * that facade is gone (CH-4) and importers read this module directly.
  */
 
 import {

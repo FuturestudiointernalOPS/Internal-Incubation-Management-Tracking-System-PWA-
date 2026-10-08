@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import { resolvePlanAccess, allowsPlanAction, resolveVentureCode } from "@/services/ventures/operatingPlans";
 import { isStaffActorForVenture, roleIsPrivileged } from "@/lib/ventureAuth";
-import { createVentureReport, listVentureReports, getVentureReport, updateVentureReportStatus, listJourneysMissingClosingReport } from "@/lib/ventureReports";
+import { createVentureReport, listVentureReports, getVentureReport, updateVentureReportStatus, listJourneysMissingClosingReport } from "@/services/ventures/reports";
 
 export const dynamic = "force-dynamic";
 
@@ -86,7 +86,7 @@ export async function POST(req, { params }) {
     if (result.error) return NextResponse.json({ success: false, error: result.error }, { status: 400 });
 
     try {
-      const { addVentureHistory } = await import("@/lib/ventures");
+      const { addVentureHistory } = await import("@/services/ventures/activity");
       await addVentureHistory({ venture_id: code, event_type: "VENTURE_REPORT_CREATED", description: `Progress report "${String(body.title || "").slice(0, 80)}" created` });
     } catch (_) {}
 
@@ -119,7 +119,7 @@ export async function PATCH(req, { params }) {
     if (result.error) return NextResponse.json({ success: false, error: result.error }, { status: 400 });
 
     try {
-      const { addVentureHistory } = await import("@/lib/ventures");
+      const { addVentureHistory } = await import("@/services/ventures/activity");
       await addVentureHistory({ venture_id: code, event_type: `VENTURE_REPORT_${String(body.status).toUpperCase()}`, description: `Progress report #${body.id} marked ${body.status}` });
     } catch (_) {}
 

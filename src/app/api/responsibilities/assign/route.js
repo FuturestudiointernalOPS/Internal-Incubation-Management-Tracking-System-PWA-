@@ -1,13 +1,9 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import {
-  getSession,
-  assignResponsibility,
-  removeResponsibility,
-  logPermissionAudit,
-  getAllResponsibilities,
-  seedDefaultResponsibilities,
-} from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
+import { assignResponsibility, removeResponsibility, getAllResponsibilities } from "@/services/authorization/accessProfiles";
+import { logPermissionAudit } from "@/models/authorization/accessQueries";
+import { seedDefaultResponsibilities } from "@/models/authorization/bootstrap";
 import { requireAuthorization } from "@/models/authorization/index";
 import { normalizeAllowedRoles } from "@/lib/featureAccess";
 import {

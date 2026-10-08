@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { duplicateTask } from "@/lib/ventureDuplication";
+import { duplicateTask } from "@/services/ventures/duplication";
 import { getVentureDbIdByCodeOrId } from "@/models/ventureWorkspace";
 
 export const dynamic = "force-dynamic";
@@ -35,7 +35,7 @@ export async function POST(req, { params }) {
     }
 
     try {
-      const { addVentureHistory } = await import("@/lib/ventures");
+      const { addVentureHistory } = await import("@/services/ventures/activity");
       await addVentureHistory({
         venture_id: id,
         event_type: "TASK_DUPLICATED",

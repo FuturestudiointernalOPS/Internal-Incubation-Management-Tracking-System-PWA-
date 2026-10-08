@@ -6,7 +6,12 @@
  * (enforced by `src/__tests__/server/services-boundaries.test.js`).
  *
  *   kpiProgress.js — objective (KPI) progress: the rate and the cache policy
- *   workspace.js — the program list/create/update/delete use cases
+ *   programList.js — the program list read and its completion index
+ *   programCreate.js — program creation (slug, duplicate/date rules, defaults)
+ *   programUpdate.js — the archive shortcut, the field update, the segment sync
+ *   programDelete.js — the protected-data guard and the delete
+ *   programV2.js — the v2 create / directory / whitelisted update
+ *   workspace.js — the aggregator the lifecycle controllers import from
  *   fullState.js — the program workspace bundle assembly
  *   export.js — the program export types, filenames and serialisation
  *   weeklyReports.js — the weekly-report read (own-scope) and write (score)
@@ -15,7 +20,11 @@
  */
 
 export * from "./kpiProgress";
-export * from "./workspace";
+export * from "./programList";
+export * from "./programCreate";
+export * from "./programUpdate";
+export * from "./programDelete";
+export * from "./programV2";
 export * from "./fullState";
 export * from "./export";
 export * from "./weeklyReports";

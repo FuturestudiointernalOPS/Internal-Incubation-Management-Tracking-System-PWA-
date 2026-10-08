@@ -1,16 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  Scissors,
-  Search,
-  AlertTriangle,
-  CheckCircle2,
-  MinusCircle,
-} from "lucide-react";
+import { Scissors, Search } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import AppButton from "@/components/ui/AppButton";
-import AppModal from "@/components/ui/AppModal";
+import ResultDialog, {
+  Count,
+  ErrorBlock,
+  RemovalList,
+} from "@/components/permissions/ProgramPortfolioDefaultAction/ResultDialog";
 
 /**
  * Toast via the app-wide listener (src/components/ui/GlobalToast.js). Kept
@@ -33,50 +31,6 @@ const URL = "/api/engineering/permissions/program-portfolio-default";
  */
 const ASSIGN_CAPABILITY = "permissions.assign_capabilities";
 const READ_CAPABILITY = "permissions.view_matrix";
-
-/** What the repoint would stop granting, row by row, from the server's answer. */
-function RemovalList({ t, removals, whyLabel }) {
-  return (
-    <div className="space-y-1 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2">
-      <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400">
-        <MinusCircle className="h-3 w-3" />
-        {t("engineering.permissions.programScopeRemovalsTitle")}
-      </p>
-      {removals.map((removal) => (
-        <div
-          key={`${removal.module}.${removal.capability}`}
-          className="flex flex-wrap items-center gap-2"
-        >
-          <span className="text-[11px] font-bold text-[var(--text-primary)]">
-            {removal.module}.{removal.capability}
-          </span>
-          <span className="text-[10px] text-[var(--text-secondary)]">
-            {whyLabel(removal)}
-          </span>
-          <span className="text-[10px] font-bold text-amber-400">
-            {t("engineering.permissions.programScopeRemovalHolders", {
-              n: removal.holders ?? 0,
-            })}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** A labelled count, so the two decision numbers never sit unlabelled. */
-function Count({ label, value }) {
-  return (
-    <div className="min-w-[8rem] flex-1 rounded-lg border border-[var(--border-primary)] bg-surface-1 px-3 py-2">
-      <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-        {label}
-      </p>
-      <p className="mt-0.5 text-lg font-bold text-[var(--text-primary)]">
-        {value}
-      </p>
-    </div>
-  );
-}
 
 /**
  * PHASE UI-8d — the deliberate click behind the template split (step 3).
@@ -294,22 +248,6 @@ export default function ProgramPortfolioDefaultAction({ onRefresh }) {
       outcome.kind === "unchanged" ||
       outcome.kind === "customized");
 
-  /** A refusal or a failure stated inline, never presented as a crash. */
-  function errorBlock(error) {
-    if (!error) return null;
-    return (
-      <div className="space-y-1 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2">
-        <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400">
-          <AlertTriangle className="h-3 w-3" />
-          {t(error.titleKey)}
-        </p>
-        <p className="text-[10px] leading-relaxed text-[var(--text-secondary)]">
-          {error.message}
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-2 border-t border-[var(--border-primary)] pt-3">
       <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">
@@ -330,7 +268,7 @@ export default function ProgramPortfolioDefaultAction({ onRefresh }) {
         {t("engineering.permissions.programPortfolioDefaultLoad")}
       </AppButton>
 
-      {errorBlock(readError)}
+      <ErrorBlock error={readError} />
 
       {impact && (
         <div className="space-y-2 rounded-lg border border-[var(--border-primary)] bg-surface-2 px-3 py-2">
@@ -374,183 +312,18 @@ export default function ProgramPortfolioDefaultAction({ onRefresh }) {
       )}
 
       {/* ── Confirmation, then the result, in the same dialog ─────────── */}
-      <AppModal
+      <ResultDialog
         isOpen={confirmOpen}
         onClose={closeConfirm}
-        title={t("engineering.permissions.programPortfolioDefaultConfirmTitle")}
-        size="md"
-      >
-        {settled ? (
-          <div className="space-y-3">
-            <div className="space-y-2 rounded-lg border border-[var(--border-primary)] bg-surface-2 px-3 py-2">
-              {outcome.kind === "done" && (
-                <>
-                  <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
-                    <CheckCircle2 className="h-3 w-3" />
-                    {t(
-                      "engineering.permissions.programPortfolioDefaultResultTitle",
-                    )}
-                  </p>
-                  <p className="text-[11px] leading-relaxed text-[var(--text-primary)]">
-                    {t(
-                      "engineering.permissions.programPortfolioDefaultResultPointed",
-                      { profile: outcome.to || "—" },
-                    )}
-                  </p>
-                  {outcome.from && (
-                    <p className="text-[10px] text-[var(--text-secondary)]">
-                      {t(
-                        "engineering.permissions.programPortfolioDefaultResultFrom",
-                        { profile: outcome.from },
-                      )}
-                    </p>
-                  )}
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                    {t(
-                      "engineering.permissions.programPortfolioDefaultResultRemoved",
-                    )}
-                  </p>
-                  {outcome.removed.length === 0 ? (
-                    <p className="text-[10px] leading-relaxed text-[var(--text-secondary)]">
-                      {t(
-                        "engineering.permissions.programPortfolioDefaultResultRemovedNone",
-                      )}
-                    </p>
-                  ) : (
-                    <ul className="list-disc space-y-0.5 pl-4">
-                      {outcome.removed.map((capability) => (
-                        <li
-                          key={capability}
-                          className="text-[11px] font-bold text-[var(--text-primary)]"
-                        >
-                          {capability}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <p className="flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                      {t("engineering.permissions.programPortfolioDefaultPeople")}
-                    </span>
-                    <span className="text-[11px] font-bold text-[var(--text-primary)]">
-                      {outcome.peopleAffected}
-                    </span>
-                  </p>
-                </>
-              )}
-
-              {outcome.kind === "already" && (
-                <>
-                  <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                    <CheckCircle2 className="h-3 w-3" />
-                    {t(
-                      "engineering.permissions.programPortfolioDefaultAlreadyTitle",
-                    )}
-                  </p>
-                  <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
-                    {t("engineering.permissions.programPortfolioDefaultAlready")}
-                  </p>
-                </>
-              )}
-
-              {outcome.kind === "unchanged" && (
-                <>
-                  <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                    <AlertTriangle className="h-3 w-3" />
-                    {t(
-                      "engineering.permissions.programPortfolioDefaultUnchangedTitle",
-                    )}
-                  </p>
-                  <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
-                    {t(
-                      "engineering.permissions.programPortfolioDefaultUnchanged",
-                    )}
-                  </p>
-                  <p className="text-[10px] text-[var(--text-secondary)]">
-                    {t("engineering.permissions.programPortfolioDefaultReason", {
-                      reason: outcome.reason,
-                    })}
-                  </p>
-                </>
-              )}
-
-              {outcome.kind === "customized" && (
-                <>
-                  <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-400">
-                    <AlertTriangle className="h-3 w-3" />
-                    {t(
-                      "engineering.permissions.programPortfolioDefaultCustomizedTitle",
-                    )}
-                  </p>
-                  <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
-                    {t(
-                      "engineering.permissions.programPortfolioDefaultCustomized",
-                    )}
-                  </p>
-                  {outcome.profile && (
-                    <p className="text-[10px] text-[var(--text-secondary)]">
-                      {t(
-                        "engineering.permissions.programPortfolioDefaultCustomizedProfile",
-                        { profile: outcome.profile },
-                      )}
-                    </p>
-                  )}
-                  <p className="text-[10px] text-[var(--text-secondary)]">
-                    {t("engineering.permissions.programPortfolioDefaultReason", {
-                      reason: outcome.reason,
-                    })}
-                  </p>
-                </>
-              )}
-            </div>
-            <div className="flex justify-end">
-              <AppButton
-                variant="secondary"
-                size="sm"
-                onClick={() => setConfirmOpen(false)}
-              >
-                {t("common.close")}
-              </AppButton>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-              {t("engineering.permissions.programPortfolioDefaultConfirmBody", {
-                n: peopleAffected,
-              })}
-            </p>
-
-            {removals.length > 0 && (
-              <RemovalList t={t} removals={removals} whyLabel={whyLabel} />
-            )}
-
-            {errorBlock(outcome)}
-
-            <div className="flex justify-end gap-2">
-              <AppButton
-                variant="secondary"
-                size="sm"
-                onClick={closeConfirm}
-                disabled={applying}
-              >
-                {t("common.cancel")}
-              </AppButton>
-              <AppButton
-                variant="primary"
-                size="sm"
-                icon={Scissors}
-                loading={applying}
-                onClick={repoint}
-              >
-                {t(
-                  "engineering.permissions.programPortfolioDefaultConfirmApply",
-                )}
-              </AppButton>
-            </div>
-          </div>
-        )}
-      </AppModal>
+        onDismiss={() => setConfirmOpen(false)}
+        settled={settled}
+        outcome={outcome}
+        peopleAffected={peopleAffected}
+        removals={removals}
+        whyLabel={whyLabel}
+        applying={applying}
+        onRepoint={repoint}
+      />
     </div>
   );
 }

@@ -6,7 +6,8 @@
 // If you are an AI agent: READ-ONLY here. Changes go in V1 counterparts.
 // =============================================================================
 import { NextResponse } from "next/server";
-import { requireAuth, getSession } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
+import { getSession } from "@/server/auth/session";
 import { initDb } from "@/lib/db";
 import {
   getProgramStaffAssignments,

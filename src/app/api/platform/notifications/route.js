@@ -16,7 +16,7 @@ import { listNotifications, markNotificationsRead } from "@/services/platform/no
 export async function GET(req) {
   try {
     await initDb();
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
 
@@ -33,7 +33,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
 

@@ -45,6 +45,9 @@ jest.mock("@/models/authorization/contextReads", () => ({
   getBaseCapabilityRows: jest.fn(async () => ({ rows: [] })),
   getGroupCapabilityRows: jest.fn(async () => ({ rows: [] })),
   getFeatureEligibilityRows: jest.fn(async () => ({ rows: [] })),
+  // The context roles this person holds (venture founder, participant,
+  // facilitator…) are eligibility identities too — see contextResolver.
+  getContextEligibilityRoles: jest.fn(async () => ({ rows: [] })),
 }));
 
 jest.mock("@/lib/workspaceContextCache", () => ({

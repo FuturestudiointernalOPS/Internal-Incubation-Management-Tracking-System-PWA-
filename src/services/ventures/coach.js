@@ -15,7 +15,8 @@
  * Unresolvable coaches degrade gracefully (no delivery, catalog fallback).
  *
  * Every statement lives in `@/models/ventureCoachStore`; nothing here runs SQL.
- * Re-exported unchanged through the compatibility facade `@/lib/ventureCoach` —
+ * This module used to be re-exported through the `@/lib/ventureCoach` facade;
+ * that facade is gone (CH-4) and importers read this module directly.
  * see docs/LAYER_SPLIT.md.
  */
 

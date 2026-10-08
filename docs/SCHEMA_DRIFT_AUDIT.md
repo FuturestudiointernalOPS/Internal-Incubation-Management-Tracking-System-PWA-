@@ -26,7 +26,7 @@ Grouped below by root cause — most of the 162 collapse into ~12 clusters, sinc
 
 **Missed entirely — not in any batch, still broken, nobody's fault, just an oversight**: `v2_attendance` (cluster 6 — `attendance/route.js`, `participant/home`, `participant/programs/[id]`, `participant/programs`, `participant/progress`). This one WAS a safe rename candidate (drop `date`/`program_id`, no structural gap) but got dropped from every batch's file list. Pick up whenever convenient — same mechanical treatment as the other renames.
 
-Also still broken, correctly out of scope every time: the 5 uuid/text cast sites that needed a "confirm the id-spaces actually correspond before casting" judgment call (`admin/analytics/users`, `dashboard`, `submissions.js:93`) — 2 of 5 original casts were applied (invites token join, notion sync, auth/login UNION), these 3 remain unresolved.
+Also still broken, correctly out of scope every time: the 5 uuid/text cast sites that needed a "confirm the id-spaces actually correspond before casting" judgment call (`admin/analytics/users`, `dashboard`, `submissions.js:93`) — 2 of 5 original casts were applied (invites token join, auth/login UNION), these 3 remain unresolved.
 
 ---
 
@@ -93,7 +93,6 @@ Files: `forms/route.js`, `forms/[form_id]`, `respond`, `responses`, `responses/r
 ### 10. Type mismatches (need an explicit `::text`/`::uuid` cast, not a rename)
 - `v2_invitations.program_id` (text) joined to `v2_programs.id` (uuid) with no cast. Files: `invites/[token]`, `v2/invites/[token]`.
 - `v2_projects.owner_id` (uuid) compared to a plain string param. Files: `admin/analytics/users`, `dashboard`.
-- `tasks.project_id` (text) compared/joined to `v2_projects.id` (uuid). File: `lib/integrations/notion/sync.js` (×2).
 - `v2_programs.assigned_assistant_id` UNION'd with `v2_teams.handler_id`, incompatible types. File: `auth/login`.
 - `v2_submissions.participant_id` is uuid; a text identifier is passed. File: `submissions/route.js`.
 

@@ -5,9 +5,16 @@ Lis-le en entier avant ta première modification : il t'évitera de casser des
 choses que tu ne soupçonnes pas, et de refaire des erreurs déjà commises.
 
 ImpactOS est une application **Next.js 16 (App Router) + React 19 + PostgreSQL**,
-en JavaScript (ES modules, pas de TypeScript). Environ 1 200 fichiers source,
+en JavaScript (ES modules). Environ 1 200 fichiers source,
 180 écrans, 400 points d'entrée serveur. C'est une grosse application : la
 discipline décrite ici n'est pas du zèle, c'est ce qui la rend encore modifiable.
+
+**Le langage reste JavaScript**, et il n'est pas question de migrer vers
+TypeScript dans le cadre du travail courant. Une migration de projet serait un
+programme à part entière, avec ses propres étapes. Ce qui est attendu en
+attendant : du **JSDoc** là où un type.renderait le code plus clair — le
+paramètre `ctx` d'un handler, la forme d'un objet de config, le contrat d'un
+service — plutôt que des types qui ne sont vérifiés par personne.
 
 ---
 
@@ -306,6 +313,21 @@ npx jest src/__tests__/mon-test.test.js     # un seul fichier
   - avant interaction, rien ne doit se charger tout seul : c'est une partie du
     contrat à vérifier.
 
+- **Un fichier de test ne dépasse pas 600 lignes** (cible 500). Le garde-fou
+  `src/__tests__/server/line-limits.test.js` échoue si un fichier — source ou
+  test — franchit le plafond sans entrée dans `scripts/line-limit-debt.json`, et
+  échoue aussi si la liste de dette contient une entrée devenue conforme. Quand
+  une suite grandit trop, on la **découpe par préoccupation** (un fichier par
+  sujet) et on mutualise ses montages dans `src/__tests__/helpers/`.
+
+  Deux pièges propres à Jest, déjà payés :
+  - une `jest.mock()` dont la fabrique touche un module qu'elle mocke
+    elle-même doit être **lazy** (appeler une fonction du haras au moment du
+    mock), sinon le registre est figé avant le moment utile ;
+  - un état partagé (tableaux de lignes SQL, journal de requêtes) se **vide sur
+    place** (`.length = 0`), jamais par réassignation : une suite qui le
+    déstructure une fois garderait l'ancien tableau.
+
 **Règle d'or :** toute nouvelle fonctionnalité arrive avec ses tests ; toute
 correction arrive avec le test qui l'aurait attrapée. Un test déjà rouge avant
 ton passage se **signale**, il ne se corrige pas en silence.
@@ -320,6 +342,7 @@ ton passage se **signale**, il ne se corrige pas en silence.
 npm run i18n:parity      # « Missing » doit valoir 0
 npm run lint             # 0 erreur
 npm test                 # tout au vert
+npm run check:lines:block # aucun fichier (source ou test) au-dessus de 600
 npm run build            # doit compiler
 ```
 

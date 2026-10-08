@@ -16,7 +16,7 @@ import {
   updateV2ProgramStaffAssignment,
   upsertV2ProgramStaffAssignment,
 } from "@/models/programMembership";
-import { isAssignedPmForProgram } from "@/lib/auth";
+import { isAssignedPmForProgram } from "@/models/authorization/accessQueries";
 import { buildFullFacilitatorPermissions } from "@/lib/facilitator-permissions";
 
 export class ProgramStaffError extends Error {

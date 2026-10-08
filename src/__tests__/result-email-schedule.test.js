@@ -18,6 +18,7 @@
  */
 const fs = require("fs");
 const path = require("path");
+const { readSurface } = require("./helpers/sourceSurface");
 
 const { resolveResultDelayMinutes } = require("@/lib/email");
 const { readResultDelayMinutes } = require("@/lib/constants");
@@ -25,17 +26,16 @@ const { readResultDelayMinutes } = require("@/lib/constants");
 const ROOT = path.resolve(__dirname, "..", "..");
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
-const ROUTE_SRC = read("src/app/api/platform/form-runs/route.js");
-const SERVICE_SRC = read("src/services/platform/formRuns.js");
-const MODEL_SRC = read("src/models/formRuns.js");
+const ROUTE_SRC = readSurface("src/app/api/platform/form-runs/handlers/get.js") + "\n" + readSurface("src/app/api/platform/form-runs/handlers/post/dispatch_scheduled_result_emails.js");
+// The run-email service is split across `formRuns/`; read the whole surface.
+const SERVICE_SRC = readSurface("src/services/platform/formRuns.js");
+const MODEL_SRC = readSurface("src/models/formRuns.js");
 // V2: the run-level template editors (RunTemplateEditor + the templates tab)
-// moved from the page into components/platform/runs/TemplatesTab.js — append
-// it so assertions against either half still match.
-const RUNS_PAGE =
-  read("src/app/platform/runs/page.js") +
-  "\n" +
-  read("src/components/platform/runs/TemplatesTab.js");
-const FORMS_PAGE = read("src/app/platform/forms/page.js");
+// live in components/platform/runs/. Both screens are split across their own
+// component folders, so read each page's whole surface — a pin that still read
+// only the shim would go vacuously green once the code moved out.
+const RUNS_PAGE = readSurface("src/app/platform/runs/page.js", "src/components/platform/runs");
+const FORMS_PAGE = readSurface("src/app/platform/forms/page.js", "src/components/platform/forms");
 const DELAY_EDITOR = read("src/components/ui/ResultDelayEditor.js");
 
 const formWith = (entry) => ({ automation: { templates: { result: entry } } });
@@ -90,9 +90,13 @@ describe("readResultDelayMinutes — the single entry the editors write", () => 
 });
 
 describe("the dispatcher — one sender, time-based, idempotent by construction", () => {
-  test("only the approved, not-yet-sent submissions are candidates", () => {
-    expect(MODEL_SRC).toMatch(/ps\.status = 'approved'/);
+  test("submitted, not-yet-sent submissions are candidates — approval is NOT required", () => {
+    // A report no longer waits for an approval: any submitted form whose run
+    // scheduled a result goes out on its delay. The only gates left are
+    // structural (submitted, run not a draft/cancelled one).
+    expect(MODEL_SRC).not.toMatch(/ps\.status = 'approved'/);
     expect(MODEL_SRC).toMatch(/ps\.submitted_at IS NOT NULL/);
+    expect(MODEL_SRC).toMatch(/NOT IN \('draft', 'cancelled'\)/);
     // The sent row is the sentinel: once it exists, the submission is out of
     // the candidate set, so a second sweep can never resend.
     expect(MODEL_SRC).toMatch(/el\.email_type = 'result' AND el\.status = 'sent'/);
@@ -114,25 +118,33 @@ describe("the dispatcher — one sender, time-based, idempotent by construction"
   test("the log table exists before the candidate query reads it", () => {
     const dispatchStart = SERVICE_SRC.indexOf("async function dispatchScheduledResultEmails");
     const ensure = SERVICE_SRC.indexOf("await ensureEmailLogTable();", dispatchStart);
-    const query = SERVICE_SRC.indexOf("await listApprovedSubmissionsAwaitingResultEmail();", dispatchStart);
+    const query = SERVICE_SRC.indexOf("await listSubmissionsAwaitingResultEmail();", dispatchStart);
     expect(ensure).toBeGreaterThan(dispatchStart);
     expect(query).toBeGreaterThan(ensure);
   });
 
+  const ROUTE_SRC = readSurface("src/app/api/platform/form-runs/route.js");
+  const DISPATCH_SRC = readSurface("src/app/api/platform/form-runs/handlers/post/dispatch_scheduled_result_emails.js");
+
   test("a scheduled caller is accepted, otherwise a capability is required", () => {
-    expect(ROUTE_SRC).toMatch(/action === "dispatch_scheduled_result_emails"/);
-    expect(ROUTE_SRC).toMatch(/req\.headers\.get\("x-cron-secret"\)/);
-    expect(ROUTE_SRC).toMatch(/process\.env\.CRON_SECRET/);
-    expect(ROUTE_SRC).toMatch(/requireAuthorization\("runs", "edit"\)/);
+    expect(ROUTE_SRC).toMatch(/dispatch_scheduled_result_emails/);
+    expect(DISPATCH_SRC).toMatch(/req\.headers\.get\("x-cron-secret"\)/);
+    expect(DISPATCH_SRC).toMatch(/process\.env\.CRON_SECRET/);
+    expect(DISPATCH_SRC).toMatch(/requireAuthorization\("runs", "edit"\)/);
   });
 
   test("a timer is a convenience, not the only way a result leaves", () => {
-    // Opening a run sweeps: the read asks for it (route), and the approval flow
+    // Opening a run sweeps: the read asks for it (GET handler), and the decision flow
     // asks for it too (service) — the service is HTTP-free, so the controller
     // injects `scheduleResultSweep` rather than letting the service import it.
-    expect(ROUTE_SRC).toMatch(/scheduleResultSweep\(id\);/);
+    const GET_SRC = readSurface("src/app/api/platform/form-runs/handlers/get.js");
+    const REVIEW_SRC = readSurface("src/app/api/platform/form-runs/handlers/post/review.js");
+    expect(GET_SRC).toMatch(/scheduleResultSweep\(id\);/);
     expect(SERVICE_SRC).toMatch(/scheduleResultSweep\(submissionRunResult\.rows\[0\]\.run_id\);/);
-    expect(ROUTE_SRC).toMatch(/scheduleResultSweep,\n\s*\}\);/);
+    // A report no longer waits for an approval: the decision flow sweeps on EVERY
+    // decision, so a rejected or revision decision picks a due result up too.
+    expect(SERVICE_SRC).not.toMatch(/if \(decision === "approved"\) \{\s*scheduleResultSweep/);
+    expect(REVIEW_SRC).toMatch(/scheduleResultSweep,\n\s*\}\);/);
   });
 });
 

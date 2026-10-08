@@ -1,6 +1,8 @@
 import db from "@/lib/db";
 import { DEFAULT_VENTURE_DOCUMENT_TYPES } from "@/lib/ventureDocumentTypeDefaults";
-import { ensureVentureDocumentTypesTable } from "@/models/ventureDocumentTypes";
+import {
+  ensureVentureDocumentTypesTable,
+} from "@/models/ventureDocumentTypesStore";
 
 /**
  * Document-driven Venture readiness — the single source of the Ready / % that
@@ -8,8 +10,10 @@ import { ensureVentureDocumentTypesTable } from "@/models/ventureDocumentTypes";
  * docs/INTELLIGENCE_SUPERVISOR_DECISIONS.md §7).
  *
  * How the percentage works:
- *   - denominator = the Venture's ACTIVE, REQUIRED document types, minus the
- *     ones tagged `not_applicable` (that state is excluded too).
+ *   - denominator = the Venture's ACTIVE, REQUIRED document types THAT COUNT FOR
+ *     READINESS (`is_readiness`, so a document stored in the Data bank only is
+ *     left out), minus the ones tagged `not_applicable` (that state is excluded
+ *     too).
  *   - points per required document: verified → 1 · rejected → 0.5 ·
  *     everything else (pending, under_review, not uploaded) → 0.
  *   - percent = round(points ÷ denominator × 100), null when the Venture has no
@@ -27,7 +31,7 @@ const ITEM_POINTS = {
 /** Built-in required seed — fallback for Ventures without configured types yet. */
 const REQUIRED_FALLBACK_TYPES = DEFAULT_VENTURE_DOCUMENT_TYPES.filter(
   (documentType) => documentType.required === true,
-).map((documentType) => ({ code: documentType.code, required: true }));
+).map((documentType) => ({ code: documentType.code, required: true, is_readiness: true }));
 
 /**
  * Batch readiness for many Ventures in a constant number of queries.
@@ -47,7 +51,7 @@ export async function listVentureDocumentReadiness(ventureIds) {
 
   const [typesResult, itemsResult] = await Promise.all([
     db.execute({
-      sql: `SELECT venture_id, code, required
+      sql: `SELECT venture_id, code, required, is_readiness
             FROM venture_document_types
             WHERE venture_id IN (${placeholders}) AND is_active = TRUE`,
       args: ids,
@@ -79,8 +83,12 @@ export async function listVentureDocumentReadiness(ventureIds) {
   }
 
   return ids.map((ventureId) => {
+    // `is_readiness` separates a document that COUNTS for readiness from one that
+    // is merely stored in the Data bank. It is only ever absent on a row that
+    // predates the column, and such a row used to count — so absence means true.
     const requiredTypes = (typesByVenture.get(ventureId) || []).filter(
-      (documentType) => documentType.required === true,
+      (documentType) =>
+        documentType.required === true && documentType.is_readiness !== false,
     );
     const itemStatusByCategory = new Map(
       (itemsByVenture.get(ventureId) || []).map((item) => [item.category, item.status]),

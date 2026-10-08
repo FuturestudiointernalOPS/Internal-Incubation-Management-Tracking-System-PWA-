@@ -1,4 +1,4 @@
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import { can } from "@/models/authorization/index";
 import MessagingAccessDenied from "@/components/messaging/MessagingAccessDenied";
 

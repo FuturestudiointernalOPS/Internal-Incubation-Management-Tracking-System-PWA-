@@ -21,15 +21,18 @@
  */
 const fs = require("fs");
 const path = require("path");
+const { readSurface } = require("./helpers/sourceSurface");
 
 const read = (rel) => {
   const text = fs.readFileSync(path.join(process.cwd(), rel), "utf8");
   // Slice 1/2: the review/decision cluster (incl. the AI-evaluate-once logic
   // in submit/manual_add) moved from the route to the service — append it so
-  // assertions against either half still match.
+  // assertions against either half still match. The service is itself split
+  // across `formRuns/`, so read its whole surface.
   if (rel === "src/app/api/platform/form-runs/route.js") {
-    return fs.readFileSync(path.join(process.cwd(), "src/services/platform/formRuns.js"), "utf8") + "\n" + text;
+    return readSurface("src/services/platform/formRuns.js") + "\n" + text;
   }
+  if (rel === "src/services/platform/formRuns.js") return readSurface(rel);
   return text;
 };
 
@@ -38,6 +41,35 @@ const REVIEW_PAGE = "src/app/platform/runs/review/[submissionId]/page.js";
 // evaluation guard moved with it (see docs/LAYER_SPLIT.md, slice 104).
 const FORM_RUNS_SERVICE = "src/services/platform/formRuns.js";
 const EVALUATE = "src/models/platform/ai/evaluate.js";
+// The single-evaluation endpoint's decisions live in this service.
+const EVALUATION_SERVICE = "src/services/platform/evaluation.js";
+
+describe("a click on Re-evaluate reads what was decided, it does not decide again", () => {
+  // A model is not deterministic, so calling it again moves the number — and the
+  // row it replaces is the one a reviewer's own values live on. The automatic
+  // paths were stopped from doing this unasked; a deliberate click must not do
+  // it either. So an evaluation that exists is returned exactly as it stands.
+  test("the stored evaluation is returned BEFORE the model is ever called", () => {
+    const src = read(EVALUATION_SERVICE);
+    const storedRead = src.indexOf("getEvaluation(parseInt(submission_id))");
+    const modelCall = src.indexOf("await evaluateSubmission(submission_id)");
+    expect(storedRead).toBeGreaterThan(-1);
+    expect(modelCall).toBeGreaterThan(-1);
+    expect(storedRead).toBeLessThan(modelCall);
+  });
+
+  test("nothing is deleted on the way in — the record survives the click", () => {
+    const src = read(EVALUATION_SERVICE);
+    expect(src).not.toContain("deleteEvaluationsForSubmission");
+    expect(src).not.toContain("resetEvaluationFailuresForSubmission");
+  });
+
+  test("the response says whether the row was stored or freshly made", () => {
+    const src = read(EVALUATION_SERVICE);
+    expect(src).toMatch(/stored: true/);
+    expect(src).toMatch(/stored: false/);
+  });
+});
 
 let mockFrameworkRows = [];
 let mockFormRows = [];

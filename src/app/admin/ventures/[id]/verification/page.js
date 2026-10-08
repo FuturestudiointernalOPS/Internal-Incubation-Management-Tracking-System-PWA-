@@ -2,25 +2,20 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  Shield,
-  CheckCircle2,
-  AlertCircle,
-  AlertTriangle,
-  Clock,
-  Loader2,
-  Upload,
-  Send,
-  X,
-  FileText,
-  MessageCircle,
-} from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
+import { cacheGet, cacheSet, clearResponseCachePrefix, useApi } from "@/lib/hooks/useApi";
 import { DEFAULT_VENTURE_DOCUMENT_TYPES } from "@/lib/ventureDocumentTypeDefaults";
-import { documentTypeIcon, documentTypeName, isUploadDocumentType } from "@/components/ventures/documentTypeMeta";
-import DataBankDocumentRow from "@/components/ventures/DataBankDocumentRow";
+import {
+  VerificationLoading,
+  VerificationError,
+  VerificationToast,
+} from "@/components/admin/ventures/verification/VerificationScenes";
+import VerificationHeader from "@/components/admin/ventures/verification/VerificationHeader";
+import ReadinessGauge from "@/components/admin/ventures/verification/ReadinessGauge";
+import VerificationProgress from "@/components/admin/ventures/verification/VerificationProgress";
+import VerificationHistory from "@/components/admin/ventures/verification/VerificationHistory";
+import VerificationComments from "@/components/admin/ventures/verification/VerificationComments";
+import ReviewModal from "@/components/admin/ventures/verification/ReviewModal";
 
 // The documents the Data bank asks for are CONFIGURED (Super Admin / Lead
 // Manager, see /admin/ventures/document-types) and read from the API below; the
@@ -33,22 +28,6 @@ import DataBankDocumentRow from "@/components/ventures/DataBankDocumentRow";
 // off — and renders no sections at all.
 const pickDocumentTypes = (payload) =>
   payload?.success ? payload.document_types || [] : null;
-
-const STATUS_CONFIG = {
-  draft: { label: "vadmin.verification.statusDraft", color: "text-slate-400 bg-slate-500/10", dot: "bg-slate-400" },
-  pending_review: { label: "vadmin.verification.statusPendingReview", color: "text-amber-400 bg-amber-500/10", dot: "bg-amber-400" },
-  verified: { label: "vadmin.verification.statusVerified", color: "text-emerald-400 bg-emerald-500/10", dot: "bg-emerald-400" },
-  rejected: { label: "vadmin.verification.statusRejected", color: "text-rose-400 bg-rose-500/10", dot: "bg-rose-400" },
-  suspended: { label: "vadmin.verification.statusSuspended", color: "text-red-400 bg-red-500/10", dot: "bg-red-400" },
-};
-
-const ITEM_STATUS_CONFIG = {
-  pending: { label: "vadmin.verification.itemStatusPending", color: "text-slate-400 bg-slate-500/10" },
-  under_review: { label: "vadmin.verification.itemStatusUnderReview", color: "text-amber-400 bg-amber-500/10" },
-  verified: { label: "vadmin.verification.statusVerified", color: "text-emerald-400 bg-emerald-500/10" },
-  rejected: { label: "vadmin.verification.statusRejected", color: "text-rose-400 bg-rose-500/10" },
-  not_applicable: { label: "vadmin.verification.itemStatusNotApplicable", color: "text-slate-500 bg-slate-500/5" },
-};
 
 export default function VentureVerificationPage() {
   const { id } = useParams();
@@ -147,21 +126,6 @@ export default function VentureVerificationPage() {
     Promise.resolve().then(() => fetchData());
   }, [fetchData]);
 
-  const getStatusBadge = (status) => {
-    const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.draft;
-    return (
-      <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${statusConfig.color} flex items-center gap-1.5 w-fit`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`} />
-        {t(statusConfig.label)}
-      </span>
-    );
-  };
-
-  const getItemStatusBadge = (status) => {
-    const itemStatusConfig = ITEM_STATUS_CONFIG[status] || ITEM_STATUS_CONFIG.pending;
-    return <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${itemStatusConfig.color}`}>{t(itemStatusConfig.label)}</span>;
-  };
-
   const handleUpload = async (category, file) => {
     if (!file) return;
     setUploading((previous) => ({ ...previous, [category]: true }));
@@ -241,6 +205,9 @@ export default function VentureVerificationPage() {
         notify(`Verification ${reviewDecision}`);
         setShowReviewModal(false);
         setReviewNotes("");
+        // Global verdict also lands on the Venture's verification items, so the
+        // Investment screen must not serve a cached read of them.
+        clearResponseCachePrefix(`/api/ventures/${id}/`);
         fetchData(true);
       } else { notify(t((result.error || t("vadmin.verification.reviewFailed")) || "") || (result.error || t("vadmin.verification.reviewFailed")), "error"); }
     } catch { notify(t("vadmin.verification.networkError"), "error"); }
@@ -260,6 +227,10 @@ export default function VentureVerificationPage() {
       const result = await response.json();
       if (result.success) {
         notify(t("vadmin.verification.reviewedItem"));
+        // The Investment screen reads this same document status through the
+        // Venture's readiness rows. Without dropping the cached reads, it would
+        // keep showing the previous status until the 30s TTL expired.
+        clearResponseCachePrefix(`/api/ventures/${id}/`);
         fetchData(true);
       } else { notify(t((result.error || t("vadmin.verification.reviewFailed")) || "") || (result.error || t("vadmin.verification.reviewFailed")), "error"); }
     } catch { notify(t("vadmin.verification.networkError"), "error"); }
@@ -279,23 +250,14 @@ export default function VentureVerificationPage() {
     fetchData(true);
   };
 
-  if (loading) return (
-    <>
-      <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" />
-      </div>
-    </>
-  );
+  if (loading) return <VerificationLoading />;
 
   if (error || !venture) return (
-    <>
-      <div className="text-center py-20">
-        <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
-        <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">{t("vadmin.verification.error")}</h2>
-        <p className="text-[var(--text-secondary)] mb-6">{error || t("vadmin.verification.ventureNotFound")}</p>
-        <button onClick={() => router.push("/admin/ventures")} className="btn btn-primary">{t("vadmin.verification.backToVentures")}</button>
-      </div>
-    </>
+    <VerificationError
+      t={t}
+      message={error}
+      onBack={() => router.push("/admin/ventures")}
+    />
   );
 
   const verification = data?.verification;
@@ -305,345 +267,74 @@ export default function VentureVerificationPage() {
   const comments = data?.comments || [];
   const readiness = data?.readiness;
 
-  const readinessState = () => {
-    if (!readiness) return null;
-    if (readiness.is_ready) return { label: t("vadmin.verification.ready"), cls: "text-emerald-400 bg-emerald-500/10" };
-    if (readiness.readiness_percent != null) {
-      return {
-        label: `${t("vadmin.verification.notReady")} · ${readiness.readiness_percent}%`,
-        cls: "text-rose-400 bg-rose-500/10",
-      };
-    }
-    return { label: t("vadmin.verification.readinessUndefined"), cls: "text-slate-400 bg-slate-500/10" };
-  };
-
   const getDocsForCategory = (category) => documents.filter((payload) => payload.category === category);
   const getItemForCategory = (category) => items.find((item) => item.category === category);
+
+  // Files the Data bank holds that no configured document type asks for. The
+  // list below walks the configured types, so such a file used to have no row
+  // anywhere — no View, no download, no history — purely because its category
+  // went unmatched. Listed apart at the end so nothing can go missing again.
+  const configuredCategories = new Set(documentTypes.map((documentType) => documentType.code));
+  const unassignedDocs = documents.filter((payload) => !configuredCategories.has(payload.category));
 
   return (
     <>
       <div className="space-y-8 pb-20">
-        {toast && (
-          <div className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 ${
-            toast.type === "error" ? "bg-rose-600 text-white" : "bg-emerald-600 text-white"
-          }`}>
-            {toast.type === "error" ? <AlertCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-            {toast.msg}
-          </div>
-        )}
+        <VerificationToast toast={toast} />
 
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <button onClick={() => router.push(`/admin/ventures/${id}`)}
-              className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-3">
-              <ArrowLeft className="w-3 h-3" /> {t("vadmin.verification.backTo", { name: venture.company_name })}
-            </button>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
-                <Shield className="w-6 h-6 text-emerald-400" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-black text-[var(--text-primary)] tracking-tight">{t("vadmin.verification.startupVerification")}</h1>
-                <p className="text-xs text-[var(--text-secondary)] mt-0.5">{venture.company_name} · {venture.venture_id}</p>
-              </div>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => router.push(`/admin/ventures/${id}/document-types`)}
-              className="px-4 py-2.5 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all flex items-center gap-2"
-              title={t("venture.documentTypes.ventureHint")}
-            >
-              <FileText className="w-3.5 h-3.5" /> {t("venture.documentTypes.title")}
-            </button>
-            {verification && getStatusBadge(verification.status)}
-            {verification?.status === "pending_review" && (
-              <button onClick={() => setShowReviewModal(true)}
-                className="px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2">
-                <Shield className="w-3.5 h-3.5" /> {t("vadmin.verification.review")}
-              </button>
-            )}
-          </div>
-        </div>
+        <VerificationHeader
+          venture={venture}
+          verification={verification}
+          t={t}
+          onBack={() => router.push(`/admin/ventures/${id}`)}
+          onOpenDocumentTypes={() => router.push(`/admin/ventures/${id}/document-types`)}
+          onOpenReview={() => setShowReviewModal(true)}
+        />
 
-        {/* Readiness gauge */}
-        {readiness && (
-          <div className="card">
-            <div className="flex items-center justify-between gap-4 mb-4">
-              <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">{t("vadmin.verification.readiness")}</h3>
-              {(() => { const state = readinessState(); return state ? (
-                <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase px-2.5 py-1 rounded ${state.cls}`}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-current" /> {state.label}
-                </span>
-              ) : null; })()}
-            </div>
-            <div className="flex flex-wrap items-center gap-6">
-              <div className="min-w-[120px]">
-                <p className="text-4xl font-black tracking-tighter text-[var(--brand-orange)]">
-                  {readiness.readiness_percent != null ? readiness.readiness_percent : "—"}
-                  {readiness.readiness_percent != null && <span className="text-base font-bold text-[var(--text-tertiary)]">%</span>}
-                </p>
-                <p className="mt-1 text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wide">
-                  {t("vadmin.verification.ventureReadiness")}
-                </p>
-              </div>
-              <div className="flex-1 min-w-[200px]">
-                <div className="h-2.5 rounded-full bg-surface-3 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-[var(--brand-orange)] transition-all"
-                    style={{ width: `${Math.min(100, readiness.readiness_percent ?? 0)}%` }}
-                  />
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">✓ {readiness.verified_count}</span>
-                <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-1 rounded">✕ {readiness.rejected_count}</span>
-                <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-1 rounded">◷ {readiness.pending_count}</span>
-                <span className="text-[10px] font-bold text-slate-400 bg-slate-500/10 px-2 py-1 rounded">… {readiness.missing_count}</span>
-              </div>
-            </div>
-          </div>
-        )}
+        <ReadinessGauge readiness={readiness} t={t} />
 
-        {/* Verification Progress */}
-        <div className="card">
-          <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4">{t("vadmin.verification.progress")}</h3>
-          <div className="space-y-3">
-            {documentTypes.map((documentType) => {
-              const stepKey = documentType.code;
-              const item = getItemForCategory(stepKey);
-              const stepDocs = getDocsForCategory(stepKey);
-              const StepIcon = documentTypeIcon(stepKey);
-              const isUploading = uploading[stepKey];
-              const isUpload = isUploadDocumentType(documentType);
-              return (
-                <div key={stepKey} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <StepIcon className="w-4 h-4 text-[var(--brand-orange)]" />
-                      <span className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">{documentTypeName(documentType, lang, t)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {item && getItemStatusBadge(item.status)}
-                      {item?.notes && (
-                        <span className="text-[10px] text-[var(--text-secondary)] max-w-[200px] truncate" title={item.notes}>{item.notes}</span>
-                      )}
-                    </div>
-                  </div>
+        <VerificationProgress
+          id={id}
+          documentTypes={documentTypes}
+          uploading={uploading}
+          verification={verification}
+          reviewing={reviewing}
+          t={t}
+          lang={lang}
+          getItemForCategory={getItemForCategory}
+          getDocsForCategory={getDocsForCategory}
+          unassignedDocs={unassignedDocs}
+          onUpload={handleUpload}
+          onReviewItem={handleReviewItem}
+          onReload={fetchData}
+          onSubmit={handleSubmit}
+          onResubmit={handleResubmit}
+        />
 
-                  {documentType.description && (
-                    <p className="text-[10px] text-[var(--text-secondary)] mb-3 break-words">{documentType.description}</p>
-                  )}
+        <VerificationHistory history={history} t={t} />
 
-                  {/* Uploaded documents */}
-                  {stepDocs.length > 0 && (
-                    <div className="space-y-1.5 mb-3">
-                      {stepDocs.map((documentEntry) => (
-                        <DataBankDocumentRow
-                          key={documentEntry.id}
-                          ventureId={id}
-                          doc={documentEntry}
-                          canUpload={isUpload && item?.status !== "verified"}
-                          onChanged={() => fetchData(true)}
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Upload button (only for upload-backed, non-verified types) */}
-                  {isUpload && item?.status !== "verified" && (
-                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-orange/10 text-[var(--brand-orange)] rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:brightness-110 transition-all">
-                      {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                      {isUploading ? t("vadmin.verification.uploading") : t("vadmin.verification.upload")}
-                      <input type="file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" className="hidden"
-                        disabled={isUploading}
-                        onChange={(event) => { if (event.target.files[0]) handleUpload(stepKey, event.target.files[0]); event.target.value = ""; }}
-                      />
-                    </label>
-                  )}
-                  {!isUpload && stepKey === "email_verification" && <p className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.verification.emailVerifiedViaLink")}</p>}
-                  {!isUpload && stepKey === "phone_verification" && <p className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.verification.phoneVerifiedViaSms")}</p>}
-                  {!isUpload && stepKey !== "email_verification" && stepKey !== "phone_verification" && (
-                    <p className="text-[10px] text-[var(--text-secondary)]">{t("venture.verificationTab.confirmedAnotherWay")}</p>
-                  )}
-
-                  {/* Per-document review (decision Q6): validate or reject ONE
-                      document at a time. Hidden for not_applicable items. */}
-                  {item && item.status !== "not_applicable" && (
-                    <div className="flex gap-2 mt-3">
-                      {item.status !== "verified" && (
-                        <button
-                          type="button"
-                          onClick={() => handleReviewItem(stepKey, "verified")}
-                          disabled={reviewing}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-500/20 transition-all disabled:opacity-30"
-                        >
-                          {reviewing ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
-                          {t("vadmin.verification.approve")}
-                        </button>
-                      )}
-                      {item.status !== "rejected" && (
-                        <button
-                          type="button"
-                          onClick={() => handleReviewItem(stepKey, "rejected")}
-                          disabled={reviewing}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-rose-500/20 transition-all disabled:opacity-30"
-                        >
-                          {reviewing ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
-                          {t("vadmin.verification.reject")}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Action buttons */}
-          <div className="mt-6 flex gap-3">
-            {verification?.status === "draft" || verification?.status === "rejected" ? (
-              <button onClick={verification?.status === "rejected" ? handleResubmit : handleSubmit}
-                className="px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2">
-                <Send className="w-4 h-4" />
-                {verification?.status === "rejected" ? t("vadmin.verification.resubmitForReview") : t("vadmin.verification.submitForReview")}
-              </button>
-            ) : null}
-            {verification?.status === "pending_review" && (
-              <span className="text-[10px] font-bold text-amber-400 flex items-center gap-2 px-4 py-3 bg-amber-500/10 rounded-xl">
-                <Clock className="w-4 h-4" /> {t("vadmin.verification.pendingReviewerAction")}
-              </span>
-            )}
-            {verification?.status === "verified" && (
-              <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-2 px-4 py-3 bg-emerald-500/10 rounded-xl">
-                <CheckCircle2 className="w-4 h-4" /> {t("vadmin.verification.allVerified")}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* History Timeline */}
-        {history.length > 0 && (
-          <div className="card">
-            <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4">{t("vadmin.verification.activityTimeline")}</h3>
-            <div className="space-y-3">
-              {history.map((entry, index) => (
-                <div key={entry.id || index} className="flex items-start gap-4 p-3 rounded-lg bg-tertiary border border-[var(--border-primary)]">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                    entry.action.includes("APPROVED") || entry.action.includes("VERIFIED") ? "bg-emerald-500/10 text-emerald-500" :
-                    entry.action.includes("REJECTED") || entry.action.includes("SUSPENDED") ? "bg-rose-500/10 text-rose-500" :
-                    "bg-amber-500/10 text-amber-500"
-                  }`}>
-                    {entry.action.includes("APPROVED") || entry.action.includes("VERIFIED") ? <CheckCircle2 className="w-4 h-4" /> :
-                     entry.action.includes("REJECTED") || entry.action.includes("SUSPENDED") ? <AlertCircle className="w-4 h-4" /> :
-                     <Clock className="w-4 h-4" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-[11px] font-bold text-[var(--text-primary)]">{entry.action.replace(/_/g, " ")}</p>
-                      <span className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.verification.byActor", { name: entry.actor_name || t("vadmin.verification.system") })}</span>
-                    </div>
-                    <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{entry.previous_status} → {entry.new_status}</p>
-                    {entry.notes && <p className="text-sm text-[var(--text-secondary)] mt-1">{entry.notes}</p>}
-                    <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{new Date(entry.created_at).toLocaleString()}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Comments */}
-        <div className="card">
-          <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4 flex items-center gap-2">
-            <MessageCircle className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("vadmin.verification.comments")}
-          </h3>
-          {comments.length === 0 && <p className="text-sm text-[var(--text-secondary)] mb-4">{t("vadmin.verification.noCommentsYet")}</p>}
-          <div className="space-y-3 mb-4">
-            {comments.map((comment, index) => (
-              <div key={comment.id || index} className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-bold text-[var(--text-primary)]">{comment.author_name || comment.author_cid}</span>
-                  <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-500">{comment.author_type}</span>
-                  <span className="text-[10px] text-[var(--text-secondary)] ml-auto">{new Date(comment.created_at).toLocaleString()}</span>
-                </div>
-                <p className="text-[10px] text-[var(--text-secondary)]">{comment.message}</p>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-3">
-            <input type="text" value={comment} onChange={(event) => setComment(event.target.value)}
-              placeholder={t("vadmin.verification.addCommentPlaceholder")}
-              className="flex-1 bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-            />
-            <button onClick={handleSendComment} disabled={!comment.trim() || sendingComment}
-              className="px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30 flex items-center gap-2">
-              {sendingComment ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-              {t("vadmin.verification.send")}
-            </button>
-          </div>
-        </div>
+        <VerificationComments
+          comments={comments}
+          comment={comment}
+          sendingComment={sendingComment}
+          onCommentChange={setComment}
+          onSend={handleSendComment}
+          t={t}
+        />
       </div>
 
-      {/* Review Modal */}
-      {showReviewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-brand-orange/10 flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-[var(--brand-orange)]" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.verification.reviewVerification")}</h2>
-                  <p className="text-[10px] text-[var(--text-secondary)]">{venture.company_name}</p>
-                </div>
-              </div>
-              <button onClick={() => setShowReviewModal(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">{t("vadmin.verification.decision")}</label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {[
-                    { value: "verified", label: "vadmin.verification.approve", icon: CheckCircle2, color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20" },
-                    { value: "rejected", label: "vadmin.verification.reject", icon: X, color: "bg-rose-500/10 text-rose-500 border-rose-500/30 hover:bg-rose-500/20" },
-                    { value: "suspended", label: "vadmin.verification.suspend", icon: AlertTriangle, color: "bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20" },
-                  ].map((decisionOption) => (
-                    <button key={decisionOption.value}
-                      onClick={() => setReviewDecision(decisionOption.value)}
-                      className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-[10px] font-bold uppercase tracking-wider ${
-                        reviewDecision === decisionOption.value ? `${decisionOption.color} ring-2 ring-offset-1` : "bg-primary border-[var(--border-primary)] text-slate-500 hover:border-slate-500/30"
-                      }`}>
-                      <decisionOption.icon className="w-5 h-5" />
-                      {t(decisionOption.label)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5 block">{t("vadmin.verification.notesOptional")}</label>
-                <textarea value={reviewNotes} onChange={(event) => setReviewNotes(event.target.value)}
-                  rows={3} placeholder={t("vadmin.verification.reviewNotesPlaceholder")}
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button onClick={() => setShowReviewModal(false)}
-                className="flex-1 py-3 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all">{t("vadmin.verification.cancel")}</button>
-              <button onClick={handleReview} disabled={reviewing}
-                className="flex-1 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30 flex items-center justify-center gap-2">
-                {reviewing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
-                {reviewing ? t("vadmin.verification.processing") : t("vadmin.verification.submitReview")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ReviewModal
+        open={showReviewModal}
+        venture={venture}
+        reviewDecision={reviewDecision}
+        reviewNotes={reviewNotes}
+        reviewing={reviewing}
+        onClose={() => setShowReviewModal(false)}
+        onDecisionChange={setReviewDecision}
+        onNotesChange={setReviewNotes}
+        onReview={handleReview}
+        t={t}
+      />
     </>
   );
 }

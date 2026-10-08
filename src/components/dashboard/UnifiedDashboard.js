@@ -15,16 +15,7 @@ import DashboardHeader from "./unified-dashboard/DashboardHeader";
 import CalendarPanel from "./unified-dashboard/CalendarPanel";
 import AssignmentsSection from "./unified-dashboard/AssignmentsSection";
 import AttentionSection from "./unified-dashboard/AttentionSection";
-import OperationsSection from "./unified-dashboard/OperationsSection";
-import StrategicKpisCard from "./unified-dashboard/StrategicKpisCard";
-import MyProgramsCard from "./unified-dashboard/MyProgramsCard";
-import FacilitatorProgramsCard from "./unified-dashboard/FacilitatorProgramsCard";
-import MyTasksCard from "./unified-dashboard/MyTasksCard";
-import RecentActivityCard from "./unified-dashboard/RecentActivityCard";
-import QuickStatsCard from "./unified-dashboard/QuickStatsCard";
-import MyProjectsCard from "./unified-dashboard/MyProjectsCard";
-import ActiveBlockersCard from "./unified-dashboard/ActiveBlockersCard";
-import UpcomingEventsCard from "./unified-dashboard/UpcomingEventsCard";
+import WorkspaceGrid from "./unified-dashboard/WorkspaceGrid";
 import EmptyState from "./unified-dashboard/EmptyState";
 import EventDetailDrawer from "./unified-dashboard/EventDetailDrawer";
 
@@ -317,6 +308,8 @@ export default function UnifiedDashboard({ role: propRole }) {
     setSelectedEvent(null);
     router.push(`/admin/projects/${projectId}`);
   };
+  const openAllPrograms = () => router.push("/pm/programs");
+  const openAllActivity = () => router.push("/admin/op-reports");
 
   // A task on the month grid is read first, so the drawer shows the whole task;
   // anything else opens the event drawer.
@@ -440,109 +433,32 @@ export default function UnifiedDashboard({ role: propRole }) {
         )}
 
         {/* ═══════ CONSOLIDATED WORKSPACE ═══════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* ===== LEFT COLUMN (2/3) ===== */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* ═══════ OPERATIONS (staff / super_admin) ═══════ */}
-            {(effectiveRole === "staff" ||
-              effectiveRole === "super_admin") && (
-              <OperationsSection
-                userId={user?.cid || user?.id}
-                summary={summary}
-              />
-            )}
-
-            {/* STRATEGIC KPIs */}
-            {visibility.showQuickPrograms &&
-              (data?.kpis || []).length > 0 && (
-                <StrategicKpisCard
-                  kpis={data.kpis}
-                  programs={quickAccess.programs}
-                />
-              )}
-
-            {/* My Programs — Rich Cards */}
-            {visibility.showQuickPrograms && (
-              <MyProgramsCard
-                t={t}
-                programs={quickAccess.programs}
-                kpis={data?.kpis}
-                completionIndexById={completionIndexById}
-                fetching={fetching}
-                onViewAll={() => router.push("/pm/programs")}
-                onOpenProgram={openProgram}
-              />
-            )}
-
-            {/* My Facilitator Programs — program-scoped assignments for any role */}
-            {facilitatorPrograms.length > 0 && (
-              <FacilitatorProgramsCard
-                t={t}
-                programs={facilitatorPrograms}
-                onOpenProgram={openFacilitatorProgram}
-              />
-            )}
-
-            {/* My Tasks — Compact List */}
-            {visibility.showQuickTasks && (
-              <MyTasksCard
-                t={t}
-                lang={lang}
-                tasks={quickAccess.tasks}
-                fetching={fetching}
-                onOpenReport={openRoleAwareReport}
-                onViewAll={openStaffReport}
-              />
-            )}
-
-            {/* Recent Activity */}
-            {visibility.showActivity && (
-              <RecentActivityCard
-                t={t}
-                lang={lang}
-                activity={activity}
-                onViewAll={() => router.push("/admin/op-reports")}
-              />
-            )}
-          </div>
-
-          {/* ===== RIGHT COLUMN (1/3) — SIDEBAR ===== */}
-          <div className="space-y-6">
-            {/* Quick Stats — Compact Inline Badges */}
-            <QuickStatsCard t={t} summary={summary} />
-
-            {/* My Projects — With Role Status */}
-            {visibility.showQuickProjects && (
-              <MyProjectsCard
-                t={t}
-                projects={quickAccess.projects}
-                onOpenProject={openProject}
-              />
-            )}
-
-            {/* Active Blockers — With Inline Resolve */}
-            {visibility.showQuickBlockers && (
-              <ActiveBlockersCard
-                t={t}
-                blockers={quickAccess.blockers}
-                fetching={fetching}
-                resolvingBlocker={resolvingBlocker}
-                onResolveBlocker={handleResolveBlocker}
-              />
-            )}
-
-            {/* Upcoming Events — From Calendar */}
-            {events.length > 0 && (
-              <UpcomingEventsCard
-                t={t}
-                lang={lang}
-                events={events}
-                weekDateRange={weekDateRange}
-                onSelectEvent={setSelectedEvent}
-              />
-            )}
-          </div>
-        </div>
+        <WorkspaceGrid
+          t={t}
+          lang={lang}
+          effectiveRole={effectiveRole}
+          userId={user?.cid || user?.id}
+          summary={summary}
+          data={data}
+          quickAccess={quickAccess}
+          visibility={visibility}
+          completionIndexById={completionIndexById}
+          facilitatorPrograms={facilitatorPrograms}
+          fetching={fetching}
+          weekDateRange={weekDateRange}
+          events={events}
+          activity={activity}
+          resolvingBlocker={resolvingBlocker}
+          onOpenRoleAwareReport={openRoleAwareReport}
+          onOpenStaffReport={openStaffReport}
+          onOpenProgram={openProgram}
+          onOpenFacilitatorProgram={openFacilitatorProgram}
+          onOpenProject={openProject}
+          onResolveBlocker={handleResolveBlocker}
+          onSelectEvent={setSelectedEvent}
+          onViewAllPrograms={openAllPrograms}
+          onViewAllActivity={openAllActivity}
+        />
         {/* ═══════ EMPTY STATE (when nothing is visible) ═══════ */}
         {!visibility.showAssignments &&
           !visibility.showAttention &&

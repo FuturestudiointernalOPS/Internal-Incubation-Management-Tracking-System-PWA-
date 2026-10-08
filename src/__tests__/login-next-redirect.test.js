@@ -17,6 +17,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { safeNextPath } = require("@/lib/safeNextPath");
+const { readSurface } = require("./helpers/sourceSurface");
 
 const read = (relativePath) => fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
 
@@ -51,8 +52,9 @@ describe("an explicit `next` is only ever an INTERNAL path", () => {
 
 describe("the server mints links that carry the course destination", () => {
   test("the setup-password link carries an encoded `next`", () => {
-    // The link builder moved to the service with the checkout decision.
-    const src = read("src/services/lms/checkout.js");
+    // The link builder moved to the service with the checkout decision, and
+    // then into the `checkout/` split — readSurface keeps the pin covering it.
+    const src = readSurface("src/services/lms/checkout.js");
     // One shared builder, reused by both setup-password exits.
     expect(src).toMatch(/function setupPasswordUrl\(token, courseId\)/);
     expect(src).toContain("?next=${encodeURIComponent(learningPath(courseId))}");

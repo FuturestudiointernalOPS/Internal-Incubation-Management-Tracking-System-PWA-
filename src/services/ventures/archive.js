@@ -2,16 +2,19 @@
  * VENTURE ARCHIVE — the milestone/task soft-delete engine.
  *
  * Archive is a SOFT delete: rows keep their history and can be restored. A
- * milestone or task that already has FILED work (task submissions, task reviews
- * or milestone deliverables) can NEVER be archived/deleted — it is part of the
- * Venture's record. Archiving a milestone cascades to its tasks (same guard per
- * task).
+ * milestone or task that already has FILED work can NEVER be archived/deleted —
+ * it is part of the Venture's record. Filed work is someone's engagement: task
+ * submissions, staff reviews, or deliverables that have been worked on (left
+ * their initial state, carry evidence, or were reviewed). A pristine deliverable
+ * row — a tracker import creates one per tracker line — is plan structure, NOT
+ * filed work. Archiving a milestone cascades to its tasks (same guard per task).
  *
  * This service holds the DECISIONS (the filed-work guard, the cascade, the
  * per-row archived/restored/blocked classification); every statement lives in
  * `@/models/ventureArchiveStore`. Nothing here runs SQL.
  *
- * Re-exported unchanged through the compatibility facade `@/lib/ventureArchive`
+ * This module used to be re-exported through the `@/lib/ventureArchive` facade;
+ * that facade is gone (CH-4) and importers read this module directly.
  * — see docs/LAYER_SPLIT.md. Column additions (is_archived, archived_at,
  * archived_by) live in ensureVentureSchema (ventures.js).
  */
@@ -48,19 +51,49 @@ export async function taskHasFiledWork(taskId) {
   }
 }
 
-/** True when a milestone has filed work (deliverables or task submissions/reviews). */
+/**
+ * The KINDS of filed work a milestone holds — what a block is actually about.
+ * The booleans feed both the guard and the words the block message uses, so a
+ * person is told "submitted work" or "a deliverable that was worked on" rather
+ * than a bare refusal.
+ */
+export async function milestoneFiledWorkKinds(milestoneId) {
+  const kinds = { deliverables: false, submissions: false, reviews: false };
+  if (milestoneId == null) return kinds;
+  try {
+    const deliverableResult = await selectMilestoneDeliverableProbe(milestoneId).catch(() => ({ rows: [] }));
+    kinds.deliverables = rowsOf(deliverableResult).length > 0;
+    const submissionResult = await selectMilestoneSubmissionProbe(milestoneId).catch(() => ({ rows: [] }));
+    kinds.submissions = rowsOf(submissionResult).length > 0;
+    const reviewResult = await selectMilestoneReviewProbe(milestoneId).catch(() => ({ rows: [] }));
+    kinds.reviews = rowsOf(reviewResult).length > 0;
+    return kinds;
+  } catch (_) {
+    // Fail safe on the conservative side: treat every kind as filed.
+    return { deliverables: true, submissions: true, reviews: true };
+  }
+}
+
+/** True when a milestone has filed work — see milestoneFiledWorkKinds. */
 export async function milestoneHasFiledWork(milestoneId) {
   if (milestoneId == null) return false;
   try {
-    const deliverableResult = await selectMilestoneDeliverableProbe(milestoneId).catch(() => ({ rows: [] }));
-    if (rowsOf(deliverableResult).length > 0) return true;
-    const submissionResult = await selectMilestoneSubmissionProbe(milestoneId).catch(() => ({ rows: [] }));
-    if (rowsOf(submissionResult).length > 0) return true;
-    const reviewResult = await selectMilestoneReviewProbe(milestoneId).catch(() => ({ rows: [] }));
-    return rowsOf(reviewResult).length > 0;
+    const kinds = await milestoneFiledWorkKinds(milestoneId);
+    return kinds.deliverables || kinds.submissions || kinds.reviews;
   } catch (_) {
     return true; // conservative
   }
+}
+
+/** The words a block message uses for the kinds that were found. */
+export function filedWorkPhrase(kinds = {}) {
+  const parts = [];
+  if (kinds.submissions) parts.push("submitted work");
+  if (kinds.reviews) parts.push("staff reviews");
+  if (kinds.deliverables) parts.push("deliverables that have already been worked on");
+  if (parts.length === 0) return "recorded work";
+  if (parts.length === 1) return parts[0];
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
 }
 
 /** Mark one task archived (soft delete). Returns { archived } or { error }. */
@@ -83,8 +116,9 @@ export async function restoreTask({ taskId }) {
 /** Archive a milestone + every task bound to it (same filed-work guard). */
 export async function archiveMilestone({ milestoneId, actorCid = null }) {
   if (milestoneId == null) return { error: "Milestone ID required." };
-  if (await milestoneHasFiledWork(milestoneId)) {
-    return { error: "This milestone already has submitted work — it cannot be deleted. Archive is only available before work is filed." };
+  const kinds = await milestoneFiledWorkKinds(milestoneId);
+  if (kinds.deliverables || kinds.submissions || kinds.reviews) {
+    return { error: `This milestone contains ${filedWorkPhrase(kinds)} — it cannot be deleted. Archive is only available before work is filed.` };
   }
   // Cascade: archive the milestone and its (still clean) tasks.
   await archiveMilestoneRow(actorCid, milestoneId);

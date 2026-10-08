@@ -6,7 +6,7 @@
 // If you are an AI agent: READ-ONLY here. Changes go in V1 counterparts.
 // =============================================================================
 import { initDb } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
 import {
   deleteV2Kpi,
   getV2KpisByProgramId,

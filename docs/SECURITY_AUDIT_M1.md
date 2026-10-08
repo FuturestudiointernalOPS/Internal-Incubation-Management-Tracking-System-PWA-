@@ -64,8 +64,6 @@ Confirmed each exposes a state-changing verb with zero auth:
 | Route | Issue | Fix |
 |---|---|---|
 | `api/tasks/notify-deadlines/route.js` | No auth, no secret. Anyone can trigger a notification blast (spam/DoS). | Require header `x-cron-secret === process.env.CRON_SECRET`, else 401. |
-| `api/integrations/calendar/route.js` | No auth. **Verify intent**: internal call → `requireAuth`; external webhook → shared-secret header. |
-| `api/integrations/notion/route.js` | Same as calendar — verify webhook-vs-internal, then secret-or-auth. |
 | `api/errors/route.js` | Public error sink (client posts JS errors). Keep open but **cap body size + rate-limit** to prevent log flooding. |
 
 ### 2d. 🟠 HIGH — 39 routes call `requireAuth()` with no role

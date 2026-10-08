@@ -45,7 +45,7 @@ const STAFF_VENTURE = "VNT-BETA";
 const MEMBER_UUID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const SENTINEL = "__no_venture_scope__";
 
-const { getCalendarVentureSessions } = require("@/models/workspace");
+const { getCalendarVentureSessions } = require("@/services/workspace/calendar");
 
 const scopeQuery = () => executed.find((query) => query.sql.includes("FROM venture_members"));
 const expansionQuery = () => executed.find((query) => query.sql.includes("FROM ventures WHERE venture_id IN"));

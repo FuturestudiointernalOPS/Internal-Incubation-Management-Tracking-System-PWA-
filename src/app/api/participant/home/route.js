@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
 import { getHomeContactByCid } from "@/models/participantPortal";
 import { buildParticipantHome } from "@/services/participant";
 
@@ -12,7 +12,7 @@ export async function GET(_req) {
     const authError = await requireAuth();
     if (authError) return authError;
 
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(

@@ -208,27 +208,27 @@ export function insertMilestone(
 /** Insert one task, returning its id (the dependency edges need it). */
 export function insertTask(
   query,
-  { ventureId, milestoneId, title, description, priority, startDate, dueDate, assignedCid, assignedName, displayOrder, labels },
+  { ventureId, milestoneId, title, description, priority, startDate, dueDate, assignedCid, assignedName, definitionOfDone, supportName, sourceRef, displayOrder, labels },
 ) {
   return query(
     `INSERT INTO venture_tasks
        (venture_id, milestone_id, title, description, status, priority, start_date, due_date,
-        assigned_cid, assigned_name, display_order, labels, checklist, is_archived)
-     VALUES (?, ?, ?, ?, 'backlog', ?, ?, ?, ?, ?, ?, ?::jsonb, '[]'::jsonb, FALSE)
+        assigned_cid, assigned_name, definition_of_done, support_name, source_ref, display_order, labels, checklist, is_archived)
+     VALUES (?, ?, ?, ?, 'backlog', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, '[]'::jsonb, FALSE)
      RETURNING id`,
-    [ventureId, milestoneId, title, description, priority, startDate, dueDate, assignedCid, assignedName, displayOrder, JSON.stringify(labels)],
+    [ventureId, milestoneId, title, description, priority, startDate, dueDate, assignedCid, assignedName, definitionOfDone, supportName, sourceRef, displayOrder, JSON.stringify(labels)],
   );
 }
 
-/** Insert one deliverable under a milestone. */
+/** Insert one deliverable under a milestone (taskId links it to its Activity). */
 export function insertDeliverable(
   query,
-  { milestoneId, ventureId, title, dueDate, assignedCid, assignedName, createdBy },
+  { milestoneId, ventureId, title, dueDate, assignedCid, assignedName, createdBy, taskId },
 ) {
   return query(
     `INSERT INTO venture_deliverables
-       (milestone_id, venture_id, title, deliverable_type, due_date, assigned_cid, assigned_name, created_by)
-     VALUES (?, ?, ?, 'document', ?, ?, ?, ?)`,
-    [milestoneId, ventureId, title, dueDate, assignedCid, assignedName, createdBy],
+       (milestone_id, venture_id, title, deliverable_type, due_date, assigned_cid, assigned_name, task_id, created_by)
+     VALUES (?, ?, ?, 'document', ?, ?, ?, ?, ?)`,
+    [milestoneId, ventureId, title, dueDate, assignedCid, assignedName, taskId ?? null, createdBy],
   );
 }

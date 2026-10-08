@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { querySegmentContacts } from "@/models/groups";
+import {
+  querySegmentContacts,
+} from "@/models/groups/segments";
 
 // ── SEGMENTS RETIRED ───────────────────────────────────────────────────────
 // Segments are hidden from the sidebar and their API is disabled (403).

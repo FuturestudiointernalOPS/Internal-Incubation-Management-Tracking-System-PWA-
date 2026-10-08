@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { getSession, ensurePermissionsSchema } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
+import { ensurePermissionsSchema } from "@/models/authorization/bootstrap";
 import { requireAuthorization } from "@/models/authorization/index";
 import { preparePermissionReads, readPermissionMatrix } from "@/services/authorization/permissionMatrix";
 import { applyPermissionChange } from "@/services/authorization/permissionWrites";

@@ -30,10 +30,12 @@ const {
   canManageVentureDocumentTypes,
   deleteVentureDocumentType,
   ensureVentureDocumentTypesForVenture,
-  ensureVentureDocumentTypesTable,
   listActiveVentureDocumentTypesOrDefaults,
+} = require("@/services/ventures/ventureDocumentTypes");
+const {
+  ensureVentureDocumentTypesTable,
   listVentureDocumentTypes,
-} = require("@/models/ventureDocumentTypes");
+} = require("@/models/ventureDocumentTypesStore");
 const {
   BUILT_IN_DOCUMENT_TYPE_CODES,
   DEFAULT_VENTURE_DOCUMENT_TYPES,
@@ -59,11 +61,15 @@ describe("ensureVentureDocumentTypesTable", () => {
     await ensureVentureDocumentTypesTable(db);
     await ensureVentureDocumentTypesTable(db);
 
-    expect(db.execute).toHaveBeenCalledTimes(2);
+    // CREATE TABLE + the readiness ALTER + the index: three statements, and the
+    // second call must add none of them again.
+    expect(db.execute).toHaveBeenCalledTimes(3);
     expect(statements[0]).toContain("CREATE TABLE IF NOT EXISTS venture_document_types");
     expect(statements[0]).toContain("UNIQUE(venture_id, code)");
     expect(statements[0]).toContain("REFERENCES ventures(venture_id)");
-    expect(statements[1]).toContain("INDEX IF NOT EXISTS idx_venture_document_types_venture");
+    // A database created before this column existed still has to gain it.
+    expect(statements[1]).toContain("ADD COLUMN IF NOT EXISTS is_readiness");
+    expect(statements[2]).toContain("INDEX IF NOT EXISTS idx_venture_document_types_venture");
   });
 });
 
@@ -80,7 +86,9 @@ describe("ensureVentureDocumentTypesForVenture", () => {
 
     const insert = statements.find((sql) => sql.includes("INSERT INTO venture_document_types"));
     expect(insert).toBeTruthy();
-    expect(insert.match(/\(\?, \?, \?, \?, \?, \?, \?, TRUE\)/g)).toHaveLength(
+    // required=TRUE and is_readiness=TRUE: the built-in types are the readiness
+    // criteria, which is what the Investment score is computed against.
+    expect(insert.match(/\(\?, \?, \?, \?, \?, \?, \?, TRUE, TRUE\)/g)).toHaveLength(
       DEFAULT_VENTURE_DOCUMENT_TYPES.length,
     );
     // Every row is written AGAINST the Venture, so the seed is per Venture.

@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { getSession } from "@/lib/auth";
-import {
-  reactivateFounder,
-  canManageFounders,
-} from "@/lib/ventures";
+import { getSession } from "@/server/auth/session";
+import { reactivateFounder, canManageFounders } from "@/services/ventures/founders";
 
 /**
  * POST /api/ventures/[id]/founders/[founderId]/reactivate

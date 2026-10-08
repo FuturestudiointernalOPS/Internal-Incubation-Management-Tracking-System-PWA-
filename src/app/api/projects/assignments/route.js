@@ -17,7 +17,7 @@ import { listProjectAssignments } from "@/services/projects/collaboration";
  */
 export const GET = createHandler(async (req) => {
   const { searchParams } = new URL(req.url);
-  const { getSession } = await import("@/lib/auth");
+  const { getSession } = await import("@/server/auth/session");
   const session = await getSession();
   if (!session) {
     return NextResponse.json(

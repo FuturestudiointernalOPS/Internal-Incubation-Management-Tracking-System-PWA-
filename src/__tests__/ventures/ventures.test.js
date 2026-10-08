@@ -37,18 +37,9 @@ jest.mock("uuid", () => {
 });
 
 import db from "@/lib/db";
-import {
-  generateVentureId,
-  validateCompanyInfo,
-  checkDuplicates,
-  createVenture,
-  createFounder,
-  logVentureActivity,
-  addVentureHistory,
-  createVentureNotification,
-  getVentureById,
-  updateVenture,
-} from "@/lib/ventures";
+import { logVentureActivity, addVentureHistory, createVentureNotification } from "@/services/ventures/activity";
+import { generateVentureId, validateCompanyInfo, checkDuplicates, createVenture, createFounder } from "@/services/ventures/intake";
+import { getVentureById, updateVenture } from "@/services/ventures/record";
 
 describe("Venture OS — Workflow B", () => {
   beforeEach(() => {

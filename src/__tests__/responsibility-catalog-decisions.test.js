@@ -43,12 +43,20 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({ cid: "SA-1", name: "Super Admin" }),
+}));
+jest.mock("@/models/authorization/accessQueries", () => ({
   logPermissionAudit: jest.fn().mockResolvedValue(true),
+}));
+jest.mock("@/services/authorization/accessProfiles", () => ({
   getUserResponsibilities: jest.fn(async () => mockState.userResponsibilities),
   getAllResponsibilities: jest.fn(async () => mockState.allResponsibilities),
+}));
+jest.mock("@/models/authorization/bootstrap", () => ({
   seedDefaultResponsibilities: jest.fn().mockResolvedValue(true),
 }));
 
@@ -75,7 +83,7 @@ jest.mock("@/models/responsibilities", () => ({
 }));
 
 const responsibilitiesModel = require("@/models/responsibilities");
-const { logPermissionAudit } = require("@/lib/auth");
+const { logPermissionAudit } = require("@/models/authorization/accessQueries");
 const catalogRoute = require("@/app/api/responsibilities/route");
 const accessRoute = require("@/app/api/responsibilities/access/route");
 
@@ -134,7 +142,7 @@ describe("GET /api/responsibilities — two shapes, one endpoint", () => {
   });
 
   test("the defaults are seeded before the query, on every read", async () => {
-    const { seedDefaultResponsibilities } = require("@/lib/auth");
+    const { seedDefaultResponsibilities } = require("@/models/authorization/bootstrap");
     await catalogRoute.GET(req("GET", "http://localhost/api/responsibilities"));
     expect(seedDefaultResponsibilities).toHaveBeenCalled();
   });

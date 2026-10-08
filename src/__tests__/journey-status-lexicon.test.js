@@ -18,6 +18,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { readSurface } = require("./helpers/sourceSurface");
 
 const {
   STATUS_WORDS,
@@ -37,7 +38,13 @@ const englishStatus = require("@/locales/en/status.json").status;
 const frenchStatus = require("@/locales/fr/status.json").status;
 
 const FOUNDER = "src/components/ventures/workspace/tabs/JourneyPlaybookTabs.js";
-const MANAGER = "src/components/ventures/JourneyManagerPanel.js";
+// the Venture Manager panel and the factories its writes moved into: the surface
+// that renders the journey vocabulary
+const MANAGER = [
+  "src/components/ventures/JourneyManagerPanel.js",
+  "src/components/ventures/journey/actions/labels.js",
+  "src/components/ventures/journey/actions/deliverables.js",
+];
 const ADMIN_TIMELINE = "src/app/admin/ventures/[id]/timeline/page.js";
 const ADMIN_REPORTS = "src/app/admin/ventures/[id]/reports/page.js";
 const ADMIN_SESSIONS = "src/app/admin/ventures/[id]/sessions/page.js";
@@ -186,7 +193,10 @@ describe("one tone map — the same colour for the same state everywhere", () =>
 
 describe("every surface reads the one source", () => {
   test("the founder journey tab delegates and keeps no local milestone map", () => {
-    const src = read(FOUNDER);
+    // readSurface, not read: the deliverables block moved into
+    // `JourneyPlaybookTabs/` for size, and the pinned vocabulary must stay
+    // covered there too.
+    const src = readSurface(FOUNDER);
     expect(src).toContain('from "@/lib/ventureStatuses"');
     expect(src).toContain("milestoneStatusWord");
     expect(src).toContain("deliverableStatusWord");
@@ -197,7 +207,7 @@ describe("every surface reads the one source", () => {
   });
 
   test("the Venture Manager panel delegates for milestones, deliverables and stages", () => {
-    const src = read(MANAGER);
+    const src = MANAGER.map(read).join("\n");
     expect(src).toContain('from "@/lib/ventureStatuses"');
     expect(src).toContain("stageStatusWord");
     expect(src).toContain("milestoneStatusWord");

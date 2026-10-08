@@ -5,7 +5,9 @@
  * 487-line module, lane L2; code moved verbatim). The public surface is
  * re-exported unchanged by `src/services/ventures/verification.js`.
  */
-import { listActiveVentureDocumentTypesOrDefaults } from "@/models/ventureDocumentTypes";
+import {
+  listActiveVentureDocumentTypesOrDefaults,
+} from "@/services/ventures/ventureDocumentTypes";
 import {
   deleteVerificationDocumentRow,
   insertVerification,

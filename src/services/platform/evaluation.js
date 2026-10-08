@@ -23,12 +23,10 @@ import {
   createEvaluationClaimsTable,
   createEvaluationFailuresTable,
   deleteEvaluationFailureRecord,
-  deleteEvaluationsForSubmission,
   deleteExpiredEvaluationClaims,
   findEvaluationBatchCandidates,
   recordEvaluationFailure,
   releaseEvaluationClaim,
-  resetEvaluationFailuresForSubmission,
 } from "@/models/platformAi";
 
 const DEFAULT_BATCH_SIZE = 10;
@@ -161,7 +159,12 @@ async function runBatch(formId, onlyFailed, batchSize) {
 
 /**
  * Handle a POST: the progress-only read, the batch / retry_failed run, or a
- * single evaluation (with an optional `force` re-evaluate).
+ * single evaluation for a response that has none.
+ *
+ * `force` is accepted from older callers and deliberately NOT acted on: a
+ * re-evaluate is a read of what was already decided (see the single-evaluation
+ * branch). Accepting it and ignoring it beats refusing a call the review screen
+ * still makes.
  *
  * @returns {Promise<{status: number, body: Object}>}
  */
@@ -211,17 +214,24 @@ export async function handleEvaluationPost(body) {
   }
 
   // ── SINGLE EVALUATION ──
-  const { submission_id, force } = body;
+  const { submission_id } = body;
   if (!submission_id) {
     return { status: 400, body: { success: false, error: "submission_id required" } };
   }
 
-  // Manual Re-evaluate: delete prior evaluations so exactly one current row remains.
-  if (force) {
-    try {
-      await deleteEvaluationsForSubmission(submission_id);
-      await resetEvaluationFailuresForSubmission(submission_id);
-    } catch (_) {}
+  // A DELIBERATE re-evaluate is a READ of what was already decided.
+  //
+  // The stored row is the record of what this response scored, and it is the row
+  // a reviewer's own values live on. Calling the model again would move the
+  // number — a model is not deterministic — and would discard those values. That
+  // is the harm `Stop re-evaluating when nobody asked` removed from the automatic
+  // paths, and a click must not reintroduce it.
+  //
+  // So an evaluation that exists is returned EXACTLY as it stands. Only a
+  // response with none is evaluated — which is what the button's first run is.
+  const stored = await getEvaluation(parseInt(submission_id)).catch(() => null);
+  if (stored) {
+    return { status: 200, body: { success: true, evaluation: stored, re_evaluated: false, stored: true } };
   }
 
   const evaluation = await evaluateSubmission(submission_id);
@@ -232,10 +242,10 @@ export async function handleEvaluationPost(body) {
     };
   }
 
-  // Auto-approve by cutoff applies to manual single evaluation too.
+  // Auto-approve by cutoff applies to a first evaluation too.
   await maybeAutoApprove(parseInt(submission_id), evaluation);
 
-  return { status: 200, body: { success: true, evaluation, re_evaluated: !!force } };
+  return { status: 200, body: { success: true, evaluation, re_evaluated: false, stored: false } };
 }
 
 /**

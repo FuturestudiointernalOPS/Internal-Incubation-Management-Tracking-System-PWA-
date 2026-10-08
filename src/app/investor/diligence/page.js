@@ -2,16 +2,18 @@
 export const dynamic = "force-dynamic";
 
 import { useState, Suspense } from "react";
-import {
-  ArrowLeft, Loader2, Building2, FileText, Send, Plus,
-  MessageSquare, CheckCircle2, ClipboardList,
-  Shield, X, Users, AlertTriangle, Save, Upload,
-} from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import AppCard from "@/components/ui/AppCard";
-import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
-import { useI18n } from "@/lib/i18n";
+import DiligenceHeader from "@/components/investor/diligence/DiligenceHeader";
+import NoWorkspaceState from "@/components/investor/diligence/NoWorkspaceState";
+import DiligenceProgress from "@/components/investor/diligence/DiligenceProgress";
+import DiligenceTabs from "@/components/investor/diligence/DiligenceTabs";
+import OverviewTab from "@/components/investor/diligence/OverviewTab";
+import RequestsTab from "@/components/investor/diligence/RequestsTab";
+import FoundersTab from "@/components/investor/diligence/FoundersTab";
+import RisksTab from "@/components/investor/diligence/RisksTab";
+import NotesTab from "@/components/investor/diligence/NotesTab";
 import { useSafeBack } from "@/lib/useSafeBack";
 import { useApi } from "@/lib/hooks/useApi";
 
@@ -21,19 +23,10 @@ import { useApi } from "@/lib/hooks/useApi";
 const pickDiligence = (response) => (response?.success ? response : null);
 const pickEvaluation = (response) => (response?.success ? response : null);
 
-const REQUEST_CATEGORIES = [
-  { id: "corporate", label: "Corporate", color: "bg-blue-500/10 text-blue-400" },
-  { id: "financial", label: "Financial", color: "bg-emerald-500/10 text-emerald-400" },
-  { id: "commercial", label: "Commercial", color: "bg-amber-500/10 text-amber-400" },
-  { id: "technical", label: "Technical", color: "bg-purple-500/10 text-purple-400" },
-  { id: "legal", label: "Legal", color: "bg-rose-500/10 text-rose-400" },
-];
-
 function DueDiligenceContent() {
   const goBack = useSafeBack("/investor");
   const searchParams = useSearchParams();
   const pipelineId = searchParams.get("pipeline_id");
-  const { t } = useI18n();
 
   // Two reads, the pipeline identifier staying a plain dependency of each. Their
   // loaders' work — cache-first paint, discarding a stale response, the
@@ -259,360 +252,82 @@ function DueDiligenceContent() {
         <GlobalToast toast={toast} onClose={() => setToast(null)} />
 
         {/* Header */}
-        <div className="flex items-center gap-4">
-          <button onClick={goBack} className="p-2 hover:text-[var(--brand-orange)]"><ArrowLeft className="w-5 h-5" /></button>
-          <div className="flex-1">
-            <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              {t("dueDiligence")}: {pipeline?.venture_name || "Venture"}
-            </h1>
-            <p className="text-xs text-[var(--text-secondary)]">{pipeline?.industry} · {pipeline?.country} · {pipeline?.business_stage}</p>
-          </div>
-          {workspace && workspace.status !== "completed" && (
-            <AppButton variant="primary" icon={CheckCircle2} onClick={completeDiligence}>Complete</AppButton>
-          )}
-        </div>
+        <DiligenceHeader onBack={goBack} pipeline={pipeline} workspace={workspace} onComplete={completeDiligence} />
 
         {/* No Workspace */}
         {!workspace ? (
-          <div className="text-center py-20">
-            <Shield className="w-16 h-16 text-[var(--text-tertiary)] mx-auto mb-4" />
-            <h2 className="text-lg font-black text-[var(--text-primary)] uppercase mb-2">Start Due Diligence</h2>
-            <p className="text-sm text-[var(--text-secondary)] max-w-md mx-auto mb-6">
-              Create a secure due diligence workspace to evaluate this venture.
-            </p>
-            <AppButton variant="primary" icon={Shield} onClick={createWorkspace}>Begin Due Diligence</AppButton>
-          </div>
+          <NoWorkspaceState onStart={createWorkspace} />
         ) : (
           <>
             {/* Progress */}
             {requests.length > 0 && (
-              <div className="p-4 rounded-xl bg-[var(--surface-2)] border border-[var(--border-primary)]">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Progress</span>
-                  <span className="text-xs font-bold text-[var(--brand-orange)]">{progress}%</span>
-                </div>
-                <div className="h-2 rounded-full bg-[var(--surface-3)] overflow-hidden">
-                  <div className="h-full rounded-full bg-[var(--brand-orange)] transition-all" style={{ width: `${progress}%` }} />
-                </div>
-                <p className="text-[10px] text-[var(--text-tertiary)] mt-2">{completedReqs}/{requests.length} items resolved</p>
-              </div>
+              <DiligenceProgress progress={progress} completedReqs={completedReqs} totalRequests={requests.length} />
             )}
 
             {/* Tabs */}
-            <div className="flex gap-1 border-b border-[var(--border-primary)]">
-              {[
-                { id: "overview", label: "Overview", icon: Building2 },
-                { id: "requests", label: `Requests (${requests.length})`, icon: ClipboardList },
-                { id: "founders", label: "Founders", icon: Users },
-                { id: "risks", label: "Risks", icon: AlertTriangle },
-                { id: "notes", label: `Notes (${notes.length})`, icon: MessageSquare },
-              ].map(tab => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-3 text-[10px] font-black uppercase tracking-wider relative ${
-                    activeTab === tab.id ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                  }`}>
-                  <tab.icon className="w-3.5 h-3.5" />{tab.label}
-                  {activeTab === tab.id && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--brand-orange)]" />}
-                </button>
-              ))}
-            </div>
+            <DiligenceTabs activeTab={activeTab} onTabChange={setActiveTab} requestCount={requests.length} noteCount={notes.length} />
 
             {/* Overview */}
-            {activeTab === "overview" && (
-              <div className="space-y-4">
-                <AppCard padding="lg">
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">Venture Overview</h3>
-                    <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{pipeline?.venture_description || "No description available."}</p>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {[
-                        { label: "Industry", value: pipeline?.industry || "—" },
-                        { label: "Country", value: pipeline?.country || "—" },
-                        { label: "Stage", value: pipeline?.business_stage || "—" },
-                        { label: "Status", value: workspace.status || "active" },
-                      ].map((metric, index) => (
-                        <div key={index} className="p-3 rounded-xl bg-[var(--surface-3)]">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{metric.label}</p>
-                          <p className="text-xs font-bold text-[var(--text-primary)] mt-1">{metric.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </AppCard>
-              </div>
-            )}
+            {activeTab === "overview" && <OverviewTab pipeline={pipeline} workspace={workspace} />}
 
             {/* Requests */}
             {activeTab === "requests" && (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">{t("requests")}</h3>
-                  <AppButton variant="primary" size="sm" icon={Plus} onClick={() => setShowRequestForm(true)}>{t("newRequest")}</AppButton>
-                </div>
-
-                {showRequestForm && (
-                  <AppCard padding="md">
-                    <div className="space-y-3">
-                      <input value={newRequest.title} onChange={event => setNewRequest({...newRequest, title: event.target.value})}
-                        placeholder="What information do you need? (e.g. Financial Statements 2024)"
-                        className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none" />
-                      <div className="flex gap-2 flex-wrap">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] self-center">Category:</span>
-                        {REQUEST_CATEGORIES.map(categoryOption => (
-                          <button key={categoryOption.id} onClick={() => setNewRequest({...newRequest, category: categoryOption.id})}
-                            className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase ${newRequest.category === categoryOption.id ? "bg-[var(--brand-orange)] text-white" : categoryOption.color}`}>
-                            {categoryOption.label}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Priority</label>
-                          <select value={newRequest.priority} onChange={event => setNewRequest({...newRequest, priority: event.target.value})}
-                            className="w-full mt-0.5 px-3 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-[10px] font-bold text-[var(--text-primary)] outline-none">
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Due Date</label>
-                          <input type="date" value={newRequest.due_date} onChange={event => setNewRequest({...newRequest, due_date: event.target.value})}
-                            className="w-full mt-0.5 px-3 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-[10px] font-bold text-[var(--text-primary)] outline-none" />
-                        </div>
-                      </div>
-                      <textarea value={newRequest.description} onChange={event => setNewRequest({...newRequest, description: event.target.value})}
-                        rows={2} placeholder="Additional details or comments..."
-                        className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none" />
-                      <div className="flex gap-2 justify-end">
-                        <AppButton variant="secondary" size="sm" onClick={() => setShowRequestForm(false)}>{t("cancel")}</AppButton>
-                        <AppButton variant="primary" size="sm" icon={Send} onClick={addRequest}>{t("submit")}</AppButton>
-                      </div>
-                    </div>
-                  </AppCard>
-                )}
-
-                {requests.length === 0 && !showRequestForm ? (
-                  <div className="text-center py-12">
-                    <ClipboardList className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3" />
-                    <p className="text-sm font-bold text-[var(--text-secondary)]">No requests yet</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {requests.map(request => {
-                      const category = REQUEST_CATEGORIES.find(categoryOption => categoryOption.id === request.category) || REQUEST_CATEGORIES[0];
-                      return (
-                        <AppCard key={request.id} padding="md">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${category.color}`}>{category.label}</span>
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                  request.status === "responded" || request.status === "closed" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
-                                }`}>{request.status}</span>
-                              </div>
-                              <p className="text-sm font-bold text-[var(--text-primary)]">{request.title}</p>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                {request.priority && (
-                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                    request.priority === "high" ? "bg-rose-500/10 text-rose-400" : request.priority === "medium" ? "bg-amber-500/10 text-amber-400" : "bg-slate-500/10 text-slate-400"
-                                  }`}>{request.priority}</span>
-                                )}
-                                {request.due_date && (
-                                  <span className="text-[10px] font-medium text-[var(--text-tertiary)]">Due: {new Date(request.due_date).toLocaleDateString()}</span>
-                                )}
-                              </div>
-                              {request.description && <p className="text-xs text-[var(--text-secondary)] mt-1">{request.description}</p>}
-                              {request.response_text && (
-                                <div className="mt-2 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                                  <p className="text-[10px] font-bold text-emerald-400 uppercase mb-1">Response:</p>
-                                  <p className="text-xs text-[var(--text-secondary)]">{request.response_text}</p>
-                                </div>
-                              )}
-                              {/* Follow-up questions */}
-                              {request.follow_up_questions && (() => {
-                                try {
-                                  const followUps = typeof request.follow_up_questions === "string" ? JSON.parse(request.follow_up_questions) : request.follow_up_questions;
-                                  if (!Array.isArray(followUps) || followUps.length === 0) return null;
-                                  return (
-                                    <div className="mt-2 space-y-1.5">
-                                      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Follow-up Questions</p>
-                                      {followUps.map((followUp, index) => (
-                                        <div key={index} className="p-2 rounded-lg bg-[var(--surface-2)] text-[10px]">
-                                          <p className="text-[var(--text-primary)] font-bold">Q: {followUp.question}</p>
-                                          {followUp.response ? (
-                                            <p className="text-emerald-400 mt-1">A: {followUp.response}</p>
-                                          ) : (
-                                            <p className="text-amber-400 mt-1">Awaiting response...</p>
-                                          )}
-                                          <p className="text-[10px] font-medium text-[var(--text-tertiary)] mt-0.5">{new Date(followUp.asked_at).toLocaleDateString()}</p>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  );
-                                } catch (_) { return null; }
-                              })()}
-                              {/* Add follow-up question (for investor, when docs uploaded) */}
-                              {request.status === "documents_uploaded" || request.status === "verified" ? (
-                                <div className="mt-2">
-                                  {followupRequestId === request.id ? (
-                                    <div className="flex gap-2">
-                                      <input value={followupQuestion} onChange={event => setFollowupQuestion(event.target.value)}
-                                        placeholder="Ask a follow-up question..."
-                                        className="flex-1 px-3 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-[10px] font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60"
-                                        onKeyDown={event => event.key === "Enter" && addFollowup()} />
-                                      <AppButton variant="primary" size="sm" icon={Send} onClick={addFollowup}>Send</AppButton>
-                                      <AppButton variant="secondary" size="sm" onClick={() => { setFollowupRequestId(null); setFollowupQuestion(""); }}>Cancel</AppButton>
-                                    </div>
-                                  ) : (
-                                    <button onClick={() => setFollowupRequestId(request.id)}
-                                      className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline">
-                                      + Ask follow-up question
-                                    </button>
-                                  )}
-                                </div>
-                              ) : null}
-                              {/* Documents section */}
-                              <div className="pt-2 border-t border-[var(--border-primary)]">
-                                {(diligenceDocs[request.id] || []).length > 0 && (
-                                  <div className="space-y-1 mb-2">
-                                    {(diligenceDocs[request.id] || []).map(doc => (
-                                      <div key={doc.id} className="flex items-center justify-between p-1.5 rounded-lg bg-[var(--surface-2)]">
-                                        <div className="flex items-center gap-2">
-                                          <FileText className="w-3 h-3 text-[var(--text-tertiary)]" />
-                                          <span className="text-[10px] font-bold text-[var(--text-primary)]">{doc.file_name}</span>
-                                          <span className="text-[10px] font-medium text-[var(--text-tertiary)]">{doc.file_size ? `${(doc.file_size / 1024).toFixed(1)}KB` : ""}</span>
-                                        </div>
-                                        <button onClick={() => handleDownload(doc.id)}
-                                          className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline">Download</button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                                {request.status !== "completed" && request.status !== "closed" && (
-                                  uploadRequestId === request.id ? (
-                                    <div className="flex items-center gap-2">
-                                      <input type="file" id={`inv-dd-upload-${request.id}`}
-                                        onChange={event => { if (event.target.files[0]) handleFileUpload(request.id, event.target.files[0]); }}
-                                        className="hidden" />
-                                      <label htmlFor={`inv-dd-upload-${request.id}`}
-                                        className="px-3 py-1.5 rounded-lg bg-[var(--surface-2)] text-[10px] font-bold text-[var(--text-secondary)] cursor-pointer hover:text-[var(--text-primary)]">
-                                        Choose file...
-                                      </label>
-                                      <button onClick={() => setUploadRequestId(null)}
-                                        className="text-[10px] font-bold text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">Cancel</button>
-                                    </div>
-                                  ) : (
-                                    <button onClick={() => { setUploadRequestId(request.id); fetchDiligenceDocs(request.id); }}
-                                      className="flex items-center gap-1 text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline">
-                                      <Upload className="w-3 h-3" /> Upload Document
-                                    </button>
-                                  )
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex gap-2 shrink-0">
-                              {request.status === "pending" && (
-                                <>
-                                  <AppButton variant="secondary" size="sm" onClick={() => updateRequest(request.id, "responded")}><CheckCircle2 className="w-3 h-3" /></AppButton>
-                                  <AppButton variant="secondary" size="sm" onClick={() => updateRequest(request.id, "closed")}><X className="w-3 h-3" /></AppButton>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </AppCard>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <RequestsTab
+                requests={requests}
+                showRequestForm={showRequestForm}
+                setShowRequestForm={setShowRequestForm}
+                newRequest={newRequest}
+                setNewRequest={setNewRequest}
+                addRequest={addRequest}
+                updateRequest={updateRequest}
+                followupRequestId={followupRequestId}
+                setFollowupRequestId={setFollowupRequestId}
+                followupQuestion={followupQuestion}
+                setFollowupQuestion={setFollowupQuestion}
+                addFollowup={addFollowup}
+                uploadRequestId={uploadRequestId}
+                setUploadRequestId={setUploadRequestId}
+                handleFileUpload={handleFileUpload}
+                fetchDiligenceDocs={fetchDiligenceDocs}
+                diligenceDocs={diligenceDocs}
+                handleDownload={handleDownload}
+              />
             )}
 
             {/* Founder Evaluation */}
             {activeTab === "founders" && (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center"><h3 className="text-sm font-black text-[var(--text-primary)] uppercase">Founder Evaluations</h3><AppButton variant="primary" size="sm" icon={Plus} onClick={()=>setShowFounderForm(true)}>Evaluate Founder</AppButton></div>
-                {showFounderForm && (<AppCard padding="md"><div className="space-y-3">
-                  <input value={founderForm.founder_name} onChange={event=>setFounderForm({...founderForm,founder_name:event.target.value})} placeholder="Founder name *" className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none"/>
-                  <input value={founderForm.role} onChange={event=>setFounderForm({...founderForm,role:event.target.value})} placeholder="Role (e.g. CEO, CTO)" className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none"/>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {[{key:"experience_score",label:"Experience"},{key:"leadership_score",label:"Leadership"},{key:"domain_expertise_score",label:"Domain"},{key:"overall_rating",label:"Overall"}].map(scoreField=>(<div key={scoreField.key}><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{scoreField.label} (0-10)</label><input type="number" min={0} max={10} value={founderForm[scoreField.key]} onChange={event=>setFounderForm({...founderForm,[scoreField.key]:parseInt(event.target.value)||0})} className="w-full mt-0.5 px-2 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-xs font-bold text-[var(--text-primary)] outline-none"/></div>))}
-                  </div>
-                  <textarea value={founderForm.notes} onChange={event=>setFounderForm({...founderForm,notes:event.target.value})} rows={2} placeholder="Evaluation notes..." className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none"/>
-                  <div className="flex justify-end gap-2"><AppButton variant="secondary" size="sm" onClick={()=>setShowFounderForm(false)}>Cancel</AppButton><AppButton variant="primary" size="sm" icon={Save} onClick={saveFounder}>Save</AppButton></div>
-                </div></AppCard>)}
-                {founders.length===0&&!showFounderForm?<div className="text-center py-12"><Users className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3"/><p className="text-sm font-bold text-[var(--text-secondary)]">No founder evaluations yet</p></div>:<div className="space-y-3">{founders.map(founder=>(<AppCard key={founder.id} padding="md"><div className="flex items-start justify-between"><div><p className="text-sm font-bold text-[var(--text-primary)]">{founder.founder_name}{founder.role?` — ${founder.role}`:""}</p><div className="flex gap-4 mt-2 text-[10px]"><span className="text-[var(--text-secondary)]">Exp: <b className="text-[var(--text-primary)]">{founder.experience_score}/10</b></span><span className="text-[var(--text-secondary)]">Leadership: <b className="text-[var(--text-primary)]">{founder.leadership_score}/10</b></span><span className="text-[var(--text-secondary)]">Domain: <b className="text-[var(--text-primary)]">{founder.domain_expertise_score}/10</b></span></div><div className="mt-1"><span className="text-[10px] font-black text-[var(--brand-orange)]">Overall: {founder.overall_rating}/10</span></div>{founder.notes&&<p className="text-[10px] text-[var(--text-tertiary)] mt-2">{founder.notes}</p>}</div></div></AppCard>))}</div>}
-              </div>
+              <FoundersTab
+                founders={founders}
+                showFounderForm={showFounderForm}
+                setShowFounderForm={setShowFounderForm}
+                founderForm={founderForm}
+                setFounderForm={setFounderForm}
+                saveFounder={saveFounder}
+              />
             )}
 
             {/* Risk Assessment */}
             {activeTab === "risks" && (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center"><h3 className="text-sm font-black text-[var(--text-primary)] uppercase">Risk Assessments</h3><AppButton variant="primary" size="sm" icon={Plus} onClick={()=>setShowRiskForm(true)}>Add Risk</AppButton></div>
-                {showRiskForm && (<AppCard padding="md"><div className="space-y-3">
-                  <div className="flex gap-2">{["market","product","financial","operational","legal"].map(riskCategory=>(<button key={riskCategory} onClick={()=>setRiskForm({...riskForm,risk_category:riskCategory})} className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase ${riskForm.risk_category===riskCategory?"bg-[var(--brand-orange)] text-white":"bg-[var(--surface-3)] text-[var(--text-secondary)]"}`}>{riskCategory}</button>))}</div>
-                  <textarea value={riskForm.risk_description} onChange={event=>setRiskForm({...riskForm,risk_description:event.target.value})} rows={2} placeholder="Describe the risk *" className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none"/>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Severity</label><select value={riskForm.severity} onChange={event=>setRiskForm({...riskForm,severity:event.target.value})} className="w-full mt-0.5 px-2 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-xs font-bold outline-none"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></div>
-                    <div><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Status</label><select value={riskForm.status} onChange={event=>setRiskForm({...riskForm,status:event.target.value})} className="w-full mt-0.5 px-2 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-xs font-bold outline-none"><option value="open">Open</option><option value="mitigated">Mitigated</option><option value="accepted">Accepted</option></select></div>
-                    <div/>
-                  </div>
-                  <input value={riskForm.mitigation} onChange={event=>setRiskForm({...riskForm,mitigation:event.target.value})} placeholder="Mitigation strategy (optional)" className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none"/>
-                  <div className="flex justify-end gap-2"><AppButton variant="secondary" size="sm" onClick={()=>setShowRiskForm(false)}>Cancel</AppButton><AppButton variant="primary" size="sm" onClick={saveRisk}>Save</AppButton></div>
-                </div></AppCard>)}
-                {risks.length===0&&!showRiskForm?<div className="text-center py-12"><AlertTriangle className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3"/><p className="text-sm font-bold text-[var(--text-secondary)]">No risks assessed yet</p></div>:<div className="space-y-3">{risks.map(risk=>{const severityColors={low:"bg-blue-500/10 text-blue-400",medium:"bg-amber-500/10 text-amber-400",high:"bg-orange-500/10 text-orange-400",critical:"bg-rose-500/10 text-rose-400"};return(<AppCard key={risk.id} padding="md"><div className="flex items-start justify-between"><div className="flex-1"><div className="flex items-center gap-2 mb-1"><span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-purple-500/10 text-purple-400">{risk.risk_category}</span><span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${severityColors[risk.severity]||severityColors.medium}`}>{risk.severity}</span><span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${risk.status==="open"?"bg-amber-500/10 text-amber-400":risk.status==="mitigated"?"bg-emerald-500/10 text-emerald-400":"bg-slate-500/10 text-slate-400"}`}>{risk.status}</span></div><p className="text-xs text-[var(--text-primary)]">{risk.risk_description}</p>{risk.mitigation&&<p className="text-[10px] text-emerald-400 mt-1">Mitigation: {risk.mitigation}</p>}</div></div></AppCard>)})}</div>}
-              </div>
+              <RisksTab
+                risks={risks}
+                showRiskForm={showRiskForm}
+                setShowRiskForm={setShowRiskForm}
+                riskForm={riskForm}
+                setRiskForm={setRiskForm}
+                saveRisk={saveRisk}
+              />
             )}
 
             {/* Notes */}
             {activeTab === "notes" && (
-              <div className="space-y-4">
-                <AppCard padding="md">
-                  <div className="space-y-3">
-                    <textarea value={newNote} onChange={event => setNewNote(event.target.value)}
-                      rows={2} placeholder="Write an investment note..."
-                      className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none" />
-                    <div className="flex items-center justify-between">
-                      <div className="flex gap-2">
-                        {["private", "shared", "advisor", "decision"].map(noteTypeOption => (
-                          <button key={noteTypeOption} onClick={() => setNoteType(noteTypeOption)}
-                            className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${noteType === noteTypeOption ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)]"}`}>
-                            {noteTypeOption}
-                          </button>
-                        ))}
-                      </div>
-                      <AppButton variant="primary" size="sm" icon={Send} onClick={addNote}>Save</AppButton>
-                    </div>
-                  </div>
-                </AppCard>
-
-                {notes.length === 0 ? (
-                  <div className="text-center py-12">
-                    <MessageSquare className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3" />
-                    <p className="text-sm font-bold text-[var(--text-secondary)]">No notes yet</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {notes.map(note => (
-                      <AppCard key={note.id} padding="md">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                note.note_type === "private" ? "bg-slate-500/10 text-slate-400" :
-                                note.note_type === "shared" ? "bg-blue-500/10 text-blue-400" :
-                                note.note_type === "advisor" ? "bg-purple-500/10 text-purple-400" : "bg-brand-orange/10 text-[var(--brand-orange)]"
-                              }`}>{note.note_type}</span>
-                            </div>
-                            <p className="text-xs text-[var(--text-primary)]">{note.content}</p>
-                            <p className="text-[10px] text-[var(--text-tertiary)] mt-2">{new Date(note.created_at).toLocaleString()}</p>
-                          </div>
-                        </div>
-                      </AppCard>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <NotesTab
+                notes={notes}
+                newNote={newNote}
+                setNewNote={setNewNote}
+                noteType={noteType}
+                setNoteType={setNoteType}
+                addNote={addNote}
+              />
             )}
           </>
         )}

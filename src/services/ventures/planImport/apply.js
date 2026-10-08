@@ -8,7 +8,7 @@
 // Edges are added through the ONE dependency writer in the platform, so an
 // imported plan gets the same cycle refusal (including transitive) that a
 // hand-made edge gets.
-import { addDependency } from "@/lib/ventures";
+import { addDependency } from "@/services/ventures/timeline";
 import { recordVentureChange } from "@/models/ventureChangeLog";
 import {
   applyPlanImportDraft,
@@ -109,24 +109,26 @@ export async function applyPlanImport({ dbId, importId, proposal, actorCid = nul
         let taskOrder = 0;
         for (const task of milestone.tasks || []) {
           taskOrder += 1;
-          // The tracker's extra columns travel WITH the task instead of widening
-          // the schema for them: Support and Phase become labels, and the
-          // Definition of Done becomes the description when nothing else is.
+          // The tracker's extra context travels as REAL fields, never folded
+          // text: Phase stays a label, Support keeps its own (display-only)
+          // name — nobody is assigned work by it — and the Definition of Done
+          // keeps its own column instead of being swallowed by the description.
           const labels = [];
-          if (toText(task.support)) labels.push(`Support: ${toText(task.support)}`);
           if (toText(task.phase)) labels.push(toText(task.phase));
-          const taskDescription = toText(task.description) || toText(task.definition_of_done);
 
           const inserted = await insertTask(query, {
             ventureId: String(dbId),
             milestoneId,
             title: task.title,
-            description: taskDescription,
+            description: toText(task.description) || null,
             priority: task.priority || "medium",
             startDate: task.start_date || null,
             dueDate: task.due_date || null,
             assignedCid: task.owner_cid || null,
             assignedName: task.owner_name || null,
+            definitionOfDone: toText(task.definition_of_done) || null,
+            supportName: toText(task.support) || null,
+            sourceRef: toText(task.ref) || null,
             displayOrder: taskOrder,
             labels,
           });
@@ -135,6 +137,8 @@ export async function applyPlanImport({ dbId, importId, proposal, actorCid = nul
           if (task.ref && newTaskId !== undefined && newTaskId !== null) taskIdByRef.set(task.ref, newTaskId);
 
           for (const deliverable of task.deliverables || []) {
+            // The link that makes "Activity → Deliverable" a relationship: the
+            // deliverable points at the task that produces it.
             await insertDeliverable(query, {
               milestoneId,
               ventureId: String(dbId),
@@ -142,6 +146,7 @@ export async function applyPlanImport({ dbId, importId, proposal, actorCid = nul
               dueDate: task.due_date || null,
               assignedCid: task.owner_cid || null,
               assignedName: task.owner_name || null,
+              taskId: newTaskId ?? null,
               createdBy: actorCid || "system",
             });
             counts.deliverables += 1;

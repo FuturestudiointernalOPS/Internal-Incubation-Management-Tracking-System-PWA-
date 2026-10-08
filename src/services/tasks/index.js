@@ -5,6 +5,8 @@
  * `@/models/**` (the repository layer) and never runs SQL itself (enforced by
  * `src/__tests__/server/services-boundaries.test.js`).
  *
+ *   blockers.js        — the blockers use cases (/api/blockers and its discuss
+ *                        route): read scope, create/resolve/edit/delete rules
  *   carryover.js       — carry-over: ownership, chain walk, the completed and
  *                        idempotency guards, the migration order
  *   approval.js        — approve/reject a pending-project-approval task
@@ -29,6 +31,7 @@
  *   dates.js           — the shared date helpers
  */
 
+export * from "./blockers";
 export * from "./carryover";
 export * from "./approval";
 export * from "./reconcile";

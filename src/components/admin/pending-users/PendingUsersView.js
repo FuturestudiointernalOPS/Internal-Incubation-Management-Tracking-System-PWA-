@@ -1,0 +1,379 @@
+"use client";
+
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Users,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Loader2,
+  Mail,
+  Clock,
+  Shield,
+  UserCheck,
+  Search,
+  ChevronDown,
+  ChevronRight,
+  RefreshCw,
+  Archive,
+} from "lucide-react";
+
+export default function PendingUsersView({
+  t,
+  loading,
+  loadError,
+  loadStatus,
+  actionMsg,
+  searchQuery,
+  setSearchQuery,
+  displayGrouped,
+  grouped,
+  total,
+  isExpanded,
+  setCollapsedGroups,
+  processingId,
+  onRefresh,
+  onBulkUpload,
+  handleApprove,
+  handleArchive,
+  handleResendInvite,
+  handleReject,
+}) {
+  return (
+    <>
+      <div className="space-y-8">
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-2 h-2 rounded-full bg-[var(--brand-orange)]" />
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+                {t("adminMisc.pendingUsers.userManagement")}
+              </span>
+            </div>
+            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
+              {t("adminMisc.pendingUsers.title")}
+            </h1>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">
+              {t("adminMisc.pendingUsers.subtitle")}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onRefresh}
+              className="btn p-3"
+              title={t("adminMisc.pendingUsers.refresh")}
+            >
+              <RefreshCw
+                className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+              />
+            </button>
+            <button
+              onClick={onBulkUpload}
+              className="btn btn-primary text-sm font-bold uppercase tracking-wide px-4 py-3"
+            >
+              {t("adminMisc.pendingUsers.bulkUpload")}
+            </button>
+          </div>
+        </div>
+
+        {/* Summary bar */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="card p-5 flex items-center gap-4 border-l-4 border-[var(--brand-orange)]">
+            <Users className="w-6 h-6 text-[var(--brand-orange)]" />
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+                {t("adminMisc.pendingUsers.totalPending")}
+              </p>
+              <p className="text-2xl font-black tracking-tight">{total}</p>
+            </div>
+          </div>
+          <div className="card p-5 flex items-center gap-4 border-l-4 border-emerald-500">
+            <Shield className="w-6 h-6 text-emerald-500" />
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+                {t("adminMisc.pendingUsers.groups")}
+              </p>
+              <p className="text-2xl font-black tracking-tight">
+                {Object.keys(grouped).length}
+              </p>
+            </div>
+          </div>
+          <div className="card p-5 flex items-center gap-4 border-l-4 border-amber-500">
+            <Clock className="w-6 h-6 text-amber-500" />
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+                {t("adminMisc.pendingUsers.awaitingReview")}
+              </p>
+              <p className="text-2xl font-black tracking-tight">{total}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="relative max-w-md">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
+          <input
+            type="text"
+            placeholder={t("adminMisc.pendingUsers.searchPlaceholder")}
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg py-3 pl-12 pr-4 text-sm font-medium outline-none focus:border-[var(--brand-orange)] transition-all"
+          />
+        </div>
+
+        {/* Action message */}
+        <AnimatePresence>
+          {actionMsg && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className={`p-4 rounded-xl flex items-center gap-3 ${
+                actionMsg.type === "success"
+                  ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500"
+                  : actionMsg.type === "error"
+                    ? "bg-rose-500/10 border border-rose-500/20 text-rose-500"
+                    : "bg-blue-500/10 border border-blue-500/20 text-blue-500"
+              }`}
+            >
+              {actionMsg.type === "success" ? (
+                <CheckCircle className="w-5 h-5 flex-shrink-0" />
+              ) : actionMsg.type === "error" ? (
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              ) : (
+                <XCircle className="w-5 h-5 flex-shrink-0" />
+              )}
+              <span className="text-[11px] font-bold uppercase">
+                {actionMsg.text}
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Load failure. Without this a failed read fell through to the empty
+            state below and read as "nothing to review" — a green all-clear for
+            an expired session or a down server. */}
+        {!loading && loadError && (
+          <div className="card p-16 text-center">
+            <AlertCircle className="w-16 h-16 text-rose-500/40 mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-[var(--text-primary)] uppercase tracking-tight">
+              {t("adminMisc.pendingUsers.loadFailedTitle")}
+            </h3>
+            <p className="text-sm text-[var(--text-secondary)] mt-2 max-w-md mx-auto">
+              {loadStatus === 401
+                ? t("errors.authRequired")
+                : t("adminMisc.pendingUsers.loadFailedDesc")}
+            </p>
+            <button
+              onClick={() => onRefresh()}
+              className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary transition-all"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              {t("common.retry")}
+            </button>
+          </div>
+        )}
+
+        {/* Loading state */}
+        {loading && (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 text-[var(--brand-orange)] animate-spin" />
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!loading && !loadError && Object.keys(displayGrouped).length === 0 && (
+          <div className="card p-16 text-center">
+            <UserCheck className="w-16 h-16 text-emerald-500/30 mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-[var(--text-primary)] uppercase tracking-tight">
+              {t("adminMisc.pendingUsers.emptyTitle")}
+            </h3>
+            <p className="text-sm text-[var(--text-secondary)] mt-2 max-w-md mx-auto">
+              {t("adminMisc.pendingUsers.emptyDesc")}
+            </p>
+          </div>
+        )}
+
+        {/* Grouped users */}
+        {!loading &&
+          !loadError &&
+          Object.entries(displayGrouped).map(([groupName, users]) => (
+            <div key={groupName} className="card !p-0 overflow-hidden">
+              {/* Group header */}
+              <button
+                onClick={() =>
+                  setCollapsedGroups((prev) => ({
+                    ...prev,
+                    [groupName]: !prev[groupName],
+                  }))
+                }
+                className="w-full flex items-center justify-between p-5 hover:bg-white/5 transition-colors border-b border-[var(--border-primary)]"
+              >
+                <div className="flex items-center gap-3">
+                  <Users className="w-5 h-5 text-[var(--brand-orange)]" />
+                  <span className="text-sm font-bold uppercase tracking-tight text-[var(--text-primary)]">
+                    {groupName === "UNASSIGNED" ? t("adminMisc.pendingUsers.unassigned") : groupName}
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-orange/10 text-[var(--brand-orange)]">
+                    {users.length}
+                  </span>
+                </div>
+                {isExpanded(groupName) ? (
+                  <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
+                )}
+              </button>
+
+              <AnimatePresence>
+                {isExpanded(groupName) && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-divider/50">
+                          <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+                            {t("adminMisc.pendingUsers.colName")}
+                          </th>
+                          <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+                            {t("adminMisc.pendingUsers.colEmail")}
+                          </th>
+                          <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hidden md:table-cell">
+                            {t("adminMisc.pendingUsers.colRole")}
+                          </th>
+                          <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hidden md:table-cell">
+                            {t("adminMisc.pendingUsers.colRegistered")}
+                          </th>
+                          <th className="text-right p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+                            {t("adminMisc.pendingUsers.colActions")}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {users.map((user) => (
+                          <tr
+                            key={user.cid}
+                            className="border-b border-divider/20 hover:bg-white/5 transition-colors"
+                          >
+                            <td className="p-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold uppercase">
+                                  {user.name?.charAt(0)}
+                                </div>
+                                <div>
+                                  <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
+                                    {user.name}
+                                  </p>
+                                  {user.phone && (
+                                    <p className="text-[10px] font-medium text-[var(--text-secondary)]">
+                                      {user.phone}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center gap-2">
+                                <Mail className="w-3 h-3 text-[var(--text-secondary)]" />
+                                <span className="text-[11px] font-medium text-[var(--text-secondary)] truncate max-w-[160px]">
+                                  {user.email}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="p-4 hidden md:table-cell">
+                              <span className="text-[10px] font-bold px-2 py-1 rounded bg-indigo-500/10 text-indigo-400 uppercase">
+                                {user.role}
+                              </span>
+                            </td>
+                            <td className="p-4 hidden md:table-cell">
+                              <span className="text-[10px] text-[var(--text-secondary)]">
+                                {user.created_at
+                                  ? new Date(
+                                      user.created_at,
+                                    ).toLocaleDateString()
+                                  : "—"}
+                              </span>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center justify-end gap-2 flex-wrap">
+                                <select
+                                  id={"role-" + user.cid}
+                                  className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-sm font-bold outline-none text-[var(--text-primary)]"
+                                >
+                                  <option value="participant">{t("adminMisc.pendingUsers.roleParticipant")}</option>
+                                  <option value="member">{t("adminMisc.pendingUsers.roleMember")}</option>
+                                  <option value="staff">{t("adminMisc.pendingUsers.roleStaff")}</option>
+                                  <option value="intern">{t("adminMisc.pendingUsers.roleIntern")}</option>
+                                </select>
+                                <button
+                                  onClick={() =>
+                                    handleReject(user.cid, user.name)
+                                  }
+                                  disabled={processingId === user.cid}
+                                  className="btn !bg-rose-500/10 hover:!bg-rose-500/20 border border-rose-500/20 text-rose-500 p-2 rounded-lg transition-all"
+                                  title={t("adminMisc.pendingUsers.reject")}
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                </button>
+                                <button
+                                                                  onClick={() =>
+                                                                    handleArchive(user.cid, user.name)
+                                                                  }
+                                                                  disabled={processingId === user.cid}
+                                                                  className="btn !bg-amber-500/10 hover:!bg-amber-500/20 border border-amber-500/20 text-amber-500 p-2 rounded-lg transition-all"
+                                                                  title={t("adminMisc.pendingUsers.archive")}
+                                                                >
+                                                                  <Archive className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                  onClick={() =>
+                                                                    handleResendInvite(user.cid, user.name)
+                                                                  }
+                                                                  disabled={processingId === user.cid}
+                                                                  className="btn !bg-blue-500/10 hover:!bg-blue-500/20 border border-blue-500/20 text-blue-500 p-2 rounded-lg transition-all flex items-center gap-1"
+                                                                  title={t("adminMisc.pendingUsers.resendInvite")}
+                                                                >
+                                                                  <Mail className="w-4 h-4" />
+                                                                  <span className="text-[10px] font-bold uppercase tracking-wide hidden lg:inline">{t("adminMisc.pendingUsers.resend")}</span>
+                                                                </button>
+                                                                <button
+                                                                  onClick={() =>
+                                                                    handleApprove(user.cid, user.name)
+                                                                  }
+                                  disabled={processingId === user.cid}
+                                  className="btn !bg-emerald-500 hover:!bg-emerald-600 border-none text-white p-2 rounded-lg transition-all flex items-center gap-2"
+                                  title={t("adminMisc.pendingUsers.approve")}
+                                >
+                                  {processingId === user.cid ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <>
+                                      <CheckCircle className="w-4 h-4" />
+                                      <span className="text-[10px] font-bold uppercase tracking-wide hidden lg:inline">
+                                        {t("adminMisc.pendingUsers.approve")}
+                                      </span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ))}
+      </div>
+    </>
+  );
+}

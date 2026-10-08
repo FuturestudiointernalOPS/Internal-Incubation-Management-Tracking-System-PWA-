@@ -11,7 +11,7 @@
  * Same facades as the controller used, so route-level test mocks still apply.
  * No SQL, no HTTP.
  */
-import { releaseMilestonesForStage } from "@/lib/ventureMilestoneEngine";
+import { releaseMilestonesForStage } from "@/services/ventures/milestoneEngine";
 import { moveJourneyStage, deleteJourneyStage, nextJourneyStageOrder } from "@/services/ventures/journey";
 import { diffFields, recordVentureChange } from "@/models/ventureChangeLog";
 import {
@@ -49,7 +49,7 @@ export async function addJourneyStage({ ventureParam, dbId, body }) {
   });
 
   try {
-    const { addVentureHistory } = await import("@/lib/ventures");
+    const { addVentureHistory } = await import("@/services/ventures/activity");
     await addVentureHistory({ venture_id: ventureParam, event_type: "JOURNEY_STAGE_ADDED", description: `Journey stage "${name}" added` });
   } catch (_) {}
   return { insertResult };

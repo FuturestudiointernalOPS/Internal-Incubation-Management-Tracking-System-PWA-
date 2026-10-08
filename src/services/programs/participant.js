@@ -15,6 +15,9 @@ import {
 } from "@/models/programMembership";
 import { isParticipantInProgram } from "@/models/participant-membership";
 import { getProgramLearningForParticipant } from "@/models/lms/programRequirements";
+import { buildCurriculumWeeks } from "./participantCurriculum";
+import { computeParticipantMetrics } from "./participantMetrics";
+import { shapeParticipantResources } from "./participantResources";
 
 export async function getParticipantProgramDetailService({ cid, email, programId }) {
   // Verify the participant is actually assigned to this program.
@@ -89,28 +92,12 @@ export async function getParticipantProgramDetailService({ cid, email, programId
     if (pmResult.rows.length > 0) pmName = pmResult.rows[0].name;
   }
 
-  // ─── Determine locked/unlocked status for all weeks ───
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const checkUnlocked = (session) => {
-    const status = String(session.status || "").toLowerCase();
-    if (["active", "in progress", "completed"].includes(status)) return true;
-    if (!session.scheduled_date) return true;
-    const scheduledDate = new Date(session.scheduled_date);
-    scheduledDate.setHours(0, 0, 0, 0);
-    return scheduledDate <= today;
-  };
-
-  const unlockedSessions = sessions.filter(checkUnlocked);
-  const unlockedSessionWeekNumbers = new Set(
-    unlockedSessions.map((session) => session.week_number || 1),
-  );
-
-  const currentWeek =
-    unlockedSessions.length > 0
-      ? Math.max(...unlockedSessions.map((session) => session.week_number || 1))
-      : 1;
+  // ─── Weekly curriculum, with locked/unlocked status and the current week ───
+  const { weeks, unlockedSessions, currentWeek } = buildCurriculumWeeks({
+    sessions,
+    deliverables,
+    submissions,
+  });
 
   // Only show KPIs linked to all sessions
   const unlockedKpiIds = new Set();
@@ -130,79 +117,6 @@ export async function getParticipantProgramDetailService({ cid, email, programId
         ? kpis
         : [];
 
-  // Build weekly curriculum from all content
-  const weeks = [];
-  const weekMap = new Map();
-  for (const session of sessions) {
-    const weekNumber = session.week_number || 1;
-    if (!weekMap.has(weekNumber))
-      weekMap.set(weekNumber, {
-        number: weekNumber,
-        sessions: [],
-        deliverables: [],
-      });
-    weekMap.get(weekNumber).sessions.push(session);
-  }
-  for (const deliverable of deliverables) {
-    const weekNumber =
-      deliverable.session_id != null
-        ? sessions.find((session) => String(session.id) === String(deliverable.session_id))
-            ?.week_number ?? deliverable.week_number ?? 1
-        : deliverable.week_number ?? 1;
-    if (!weekMap.has(weekNumber))
-      weekMap.set(weekNumber, {
-        number: weekNumber,
-        sessions: [],
-        deliverables: [],
-      });
-    weekMap.get(weekNumber).deliverables.push(deliverable);
-  }
-
-  for (const [weekNumber, weekData] of weekMap) {
-    const completedDeliverableCount = weekData.deliverables.filter((deliverable) =>
-      submissions.some(
-        (submission) =>
-          String(submission.deliverable_id || submission.document_id) === String(deliverable.id) &&
-          submission.status === "approved",
-      ),
-    ).length;
-    
-    const isWeekUnlocked = weekData.sessions.some(checkUnlocked) || unlockedSessionWeekNumbers.has(weekNumber) || (weekNumber <= currentWeek);
-
-    weeks.push({
-      number: weekData.number,
-      sessions: weekData.sessions,
-      locked: !isWeekUnlocked,
-      deliverables: weekData.deliverables.map((deliverable) => {
-        const matchedSubmission = submissions.find(
-          (submission) => String(submission.deliverable_id || submission.document_id) === String(deliverable.id),
-        );
-        return {
-          id: deliverable.id,
-          title: deliverable.title,
-          description: deliverable.description,
-          dueDate: deliverable.due_date || deliverable.created_at,
-          allowedFormat: deliverable.allowed_format,
-          weight: deliverable.weight,
-          submission: matchedSubmission
-            ? {
-                id: matchedSubmission.id,
-                status: matchedSubmission.status,
-                fileUrl: matchedSubmission.file_url,
-                score: matchedSubmission.score,
-                submittedAt: matchedSubmission.created_at,
-              }
-            : null,
-        };
-      }),
-      completed:
-        weekData.deliverables.length > 0 &&
-        completedDeliverableCount === weekData.deliverables.length,
-      isCurrent: weekData.number === currentWeek,
-    });
-  }
-  weeks.sort((first, second) => first.number - second.number);
-
   // ─── Phase 6: LMS learning items per week (progress read from the LMS —
   // the Program never stores a second progress counter).
   const learningItems = await getProgramLearningForParticipant(programId, cid);
@@ -218,147 +132,26 @@ export async function getParticipantProgramDetailService({ cid, email, programId
   }
 
   // Build resources with real attachment URLs
-  const resources = knowledgeItems.map((knowledgeItem) => {
-    const attachments = attachmentsByNote[knowledgeItem.id] || [];
-    return {
-      id: knowledgeItem.id,
-      title: knowledgeItem.title,
-      description: knowledgeItem.description,
-      url: attachments.length > 0 ? attachments[0].url : null,
-      fileType: knowledgeItem.file_type,
-      filePath: knowledgeItem.file_path,
-      category: knowledgeItem.category,
-      tags: knowledgeItem.tags ? knowledgeItem.tags.split(",").map((tag) => tag.trim()) : [],
-      attachments,
-      createdAt: knowledgeItem.created_at,
-    };
-  });
-  const resourcesByWeek = new Map();
-  for (const resource of resources) {
-    const matchedSession = unlockedSessions.find(
-      (session) =>
-        resource.tags?.includes(String(session.id)) ||
-        resource.category === String(session.id) ||
-        resource.title?.toLowerCase().includes(`week ${session.week_number}`),
-    );
-    const weekNum = matchedSession?.week_number || 0;
-    if (!resourcesByWeek.has(weekNum)) resourcesByWeek.set(weekNum, []);
-    resourcesByWeek.get(weekNum).push(resource);
-  }
-  const generalResources = resources.filter((resource) => {
-    for (const [, weekResources] of resourcesByWeek) {
-      if (weekResources.includes(resource)) return false;
-    }
-    return true;
+  const { resources, resourcesByWeek, generalResources } = shapeParticipantResources({
+    knowledgeItems,
+    attachmentsByNote,
+    unlockedSessions,
   });
 
-  const unlockedWeeks = weeks.filter((week) => !week.locked);
-  const unlockedDeliverables = unlockedWeeks.flatMap((week) => week.deliverables);
-
-  // ─── 1. Program completion — performance-based, computed below from the
-  // approved deliverables (falls back to approved submissions when the
-  // program tracks no deliverables). Kept in sync with the dashboard card.
-
-  // ─── 2. Deliverables done — exclude 'attendance' deliverables ───
-  const unlockedNonAttendanceDeliverables = unlockedDeliverables.filter(
-    (deliverable) => !deliverable.title?.toLowerCase().includes("attendance")
-  );
-  const totalDeliverables = unlockedNonAttendanceDeliverables.length;
-  const completedDeliverables = unlockedNonAttendanceDeliverables.filter((deliverable) =>
-    submissions.some(
-      (submission) =>
-        String(submission.deliverable_id || submission.document_id) === String(deliverable.id) &&
-        submission.status === "approved",
-    ),
-  ).length;
-  const percentComplete =
-    totalDeliverables > 0
-      ? Math.round((completedDeliverables / totalDeliverables) * 100)
-      : submissions.length > 0
-        ? Math.round(
-            (submissions.filter((submission) => submission.status === "approved").length /
-              submissions.length) *
-              100,
-          )
-        : 0;
-
-  // ─── 3. Attendance — for this participant only ───
-  // Count distinct sessions with a "present" mark, restricted to unlocked
-  // sessions, so duplicate attendance rows (same session recorded on
-  // multiple dates) can never push the rate above 100%.
-  const unlockedSessionIds = new Set(
-    unlockedSessions.map((session) => String(session.id)),
-  );
-  const attendedSessions = new Set(
-    attendance
-      .filter(
-        (record) =>
-          record.status === "present" &&
-          unlockedSessionIds.has(String(record.session_id)),
-      )
-      .map((record) => String(record.session_id)),
-  ).size;
-  // Total sessions this participant was expected to attend = sessions that are unlocked
-  const totalSessions = unlockedSessions.length || 1;
   // A program "tracks" attendance only when attendance records actually exist.
   const attendanceMetaResult = await getProgramDetailAttendanceCount(programId);
   const attendanceTracked = parseInt(attendanceMetaResult.rows[0]?.total || 0) > 0;
-  const attendanceRate = Math.round((attendedSessions / totalSessions) * 100);
 
-  // ─── 4. KPI Progress — per participant ───
-  // A participant's KPI achievement is the average across the program's
-  // measurable objectives, each contributing the participant's own share of
-  // its linked deliverables that were approved (2 of 3 counts as two
-  // thirds). An objective with no linked deliverable is left out.
-  let kpiCompletion = 0;
-  const approvedSubmissionRows = (submissions || []).filter(
-    (submission) => submission.status === "approved",
-  );
-  const deliverableIdsByKpi = new Map();
-  for (const deliverable of deliverables || []) {
-    let linkedKpiIds = [];
-    try {
-      linkedKpiIds =
-        typeof deliverable.kpi_ids === "string"
-          ? JSON.parse(deliverable.kpi_ids || "[]")
-          : deliverable.kpi_ids || [];
-    } catch (_) {
-      linkedKpiIds = [];
-    }
-    for (const kpiId of linkedKpiIds) {
-      const kpiKey = String(kpiId);
-      if (!deliverableIdsByKpi.has(kpiKey)) {
-        deliverableIdsByKpi.set(kpiKey, new Set());
-      }
-      deliverableIdsByKpi.get(kpiKey).add(String(deliverable.id));
-    }
-  }
-  // Attendance counts as an extra factor in KPI achievement when the
-  // program actually tracks attendance (at least one record exists).
-  const kpiFactors = (kpis || [])
-    .map((kpi) => {
-      const linkedDeliverableIds = deliverableIdsByKpi.get(String(kpi.id)) || new Set();
-      if (linkedDeliverableIds.size === 0) return null;
-      const approvedDeliverableIds = new Set();
-      for (const submission of approvedSubmissionRows) {
-        const deliverableId = String(submission.deliverable_id || "");
-        const documentId = String(submission.document_id || "");
-        if (deliverableId && linkedDeliverableIds.has(deliverableId)) {
-          approvedDeliverableIds.add(deliverableId);
-        } else if (documentId && linkedDeliverableIds.has(documentId)) {
-          approvedDeliverableIds.add(documentId);
-        }
-      }
-      return Math.round((approvedDeliverableIds.size / linkedDeliverableIds.size) * 100);
-    })
-    .filter((rate) => rate !== null);
-  if (attendanceTracked) kpiFactors.push(attendanceRate);
-  kpiCompletion =
-    kpiFactors.length > 0
-      ? Math.round(
-          kpiFactors.reduce((sum, factor) => sum + factor, 0) / kpiFactors.length,
-        )
-      : 0;
+  // ─── Metrics: completion, attendance and KPI achievement ───
+  const metrics = computeParticipantMetrics({
+    weeks,
+    unlockedSessions,
+    attendance,
+    submissions,
+    deliverables,
+    kpis,
+    attendanceTracked,
+  });
 
   return {
     status: 200,
@@ -377,14 +170,8 @@ export async function getParticipantProgramDetailService({ cid, email, programId
         pmName,
         facilitators,
         metrics: {
-          percentComplete,
-          attendanceRate,
-          kpiCompletion,
+          ...metrics,
           currentWeek,
-          totalDeliverables,
-          completedDeliverables,
-          totalSessions,
-          attendedSessions,
         },
       },
       curriculum: { weeks, totalWeeks: weeks.length, currentWeek },

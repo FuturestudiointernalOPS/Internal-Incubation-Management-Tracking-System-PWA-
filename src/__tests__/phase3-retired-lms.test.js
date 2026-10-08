@@ -32,7 +32,7 @@ describe("Retired LMS capabilities stay removed", () => {
   });
 
   test("PERMISSION_MODULES never lists a retired capability", () => {
-    const { PERMISSION_MODULES } = require("@/lib/auth");
+    const { PERMISSION_MODULES } = require("@/server/authz/capabilities");
     for (const capability of RETIRED) {
       expect(PERMISSION_MODULES.lms.capabilities).not.toContain(capability);
     }

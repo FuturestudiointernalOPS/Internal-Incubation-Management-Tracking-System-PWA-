@@ -15,8 +15,8 @@
  *    assignment, so a scoped GTM Coach can view/comment but never author.
  *
  * Every statement lives in `@/models/ventureOperatingPlanStore`; nothing here
- * runs SQL. Re-exported unchanged through the compatibility facade
- * `@/lib/ventureOperatingPlans` — see docs/LAYER_SPLIT.md.
+ * runs SQL. This module used to be re-exported through the `@/lib/ventureOperatingPlans` facade;
+ * that facade is gone (CH-4) and importers read this module directly.
  */
 
 import {

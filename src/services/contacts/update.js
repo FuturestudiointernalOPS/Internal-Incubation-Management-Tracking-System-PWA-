@@ -21,9 +21,11 @@ import {
   clearContactPrograms,
   addContactProgramMembership,
   recordParticipantProgramAudit,
+} from "@/models/contacts/programMembership";
+import {
   getContactIdentityByCid,
   markAdminNotificationsRead,
-} from "@/models/contacts";
+} from "@/models/contacts/contactStore";
 
 /** Roles that are not participants: promoting to one drops the enrollment. */
 const NON_PARTICIPANT_ROLES = [

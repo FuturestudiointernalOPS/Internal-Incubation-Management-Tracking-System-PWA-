@@ -12,8 +12,8 @@
  * Same facades as the controller used, so route-level test mocks still apply.
  * No SQL, no HTTP.
  */
-import { completeMilestone, completeStageIfAllMilestonesDone, activateDueStages } from "@/lib/ventureMilestoneEngine";
-import { notifyVentureFounders } from "@/lib/ventures";
+import { completeMilestone, completeStageIfAllMilestonesDone, activateDueStages } from "@/services/ventures/milestoneEngine";
+import { notifyVentureFounders } from "@/services/ventures/activity";
 import { diffFields, recordVentureChange } from "@/models/ventureChangeLog";
 import { getVentureDbIdByCodeOrId, getVentureMilestoneTitleAndStage } from "@/models/ventureWorkspace";
 
@@ -78,7 +78,7 @@ export async function settleMilestoneCompletion({ ventureParam, milestoneId, ses
       );
     } catch (_) {}
     try {
-      const { addVentureHistory } = await import("@/lib/ventures");
+      const { addVentureHistory } = await import("@/services/ventures/activity");
       await addVentureHistory({ venture_id: id, event_type: "MILESTONE_COMPLETED", description: `Milestone "${milestone?.title || milestoneId}" completed` });
     } catch (_) {}
 
@@ -96,7 +96,7 @@ export async function settleMilestoneCompletion({ ventureParam, milestoneId, ses
         name: stageOutcome.stage_name || null,
       };
       try {
-        const { addVentureHistory } = await import("@/lib/ventures");
+        const { addVentureHistory } = await import("@/services/ventures/activity");
         await addVentureHistory({
           venture_id: id,
           event_type: "JOURNEY_COMPLETED",

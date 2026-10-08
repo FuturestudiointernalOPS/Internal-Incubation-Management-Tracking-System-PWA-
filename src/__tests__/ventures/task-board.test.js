@@ -3,9 +3,9 @@
  * (`services/ventures/taskBoard.js`, buildTaskBoard). Characterises the
  * archived filter, the Kanban columns and the dependency decoration.
  */
-jest.mock("@/lib/ventures", () => ({}));
+
 jest.mock("@/lib/ventureAuth", () => ({}));
-jest.mock("@/lib/ventureMilestoneEngine", () => ({}));
+jest.mock("@/services/ventures/milestoneEngine", () => ({}));
 jest.mock("@/models/ventureWorkspace", () => ({}));
 
 const { buildTaskBoard, TASK_PROCEED_STATUSES } = require("@/services/ventures/taskBoard");

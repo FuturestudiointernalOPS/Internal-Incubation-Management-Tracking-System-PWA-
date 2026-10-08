@@ -31,6 +31,7 @@ jest.mock("@/models/adminOps", () => ({
 
 const fs = require("node:fs");
 const path = require("node:path");
+const { readSurface } = require("./helpers/sourceSurface");
 
 const ROOT = process.cwd();
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
@@ -44,7 +45,7 @@ const SEED_SERVICE = "src/services/platform/seed.js";
 const RUN_ROUTE = "src/app/api/platform/investor-run/route.js";
 const FORMS_ROUTE = "src/app/api/platform/forms/route.js";
 const FORMS_SERVICE = "src/services/platform/forms.js";
-const AUTOMATION = "src/models/platform/automation.js";
+const AUTOMATION = "src/models/platform/automation.js"; // read via readSurface
 const INTAKE_MODEL = "src/models/investorIntake.js";
 const ADMIN_PAGE = "src/app/admin/investors/page.js";
 const PROXY = "src/proxy.js";
@@ -60,7 +61,8 @@ describe("static contract — the investor intake wiring", () => {
     // The gate stays in the route; the orchestration moved to the service.
     const src = read(SEED_ROUTE);
     expect(src).toMatch(/requireAuth\(\["super_admin"\]\)/);
-    const service = read(SEED_SERVICE);
+    // The seed service is split across `seed/`; read the whole surface.
+    const service = readSurface(SEED_SERVICE);
     expect(service).toMatch(/findInvestorApplicationFormByName/);
     expect(service).toMatch(/assertSingleInvestorForm/);
     expect(service).toMatch(/findActiveInvestorRun/);
@@ -97,7 +99,7 @@ describe("static contract — the investor intake wiring", () => {
   });
 
   test("the automation provisions investors for the flagged form, on approval only", () => {
-    const src = read(AUTOMATION);
+    const src = readSurface(AUTOMATION);
     expect(src).toMatch(/isApproved && ctx\.form\?\.settings\?\.investor_application === true/);
     expect(src).toMatch(/provisionInvestorFromApproval/);
   });

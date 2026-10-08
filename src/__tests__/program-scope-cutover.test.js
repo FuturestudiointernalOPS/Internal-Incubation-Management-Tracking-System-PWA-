@@ -26,8 +26,10 @@ jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => ({ cid: "USR_SA", name: "Super Admin" })),
+}));
+jest.mock("@/models/authorization/accessQueries", () => ({
   logPermissionAudit: jest.fn(async () => true),
 }));
 
@@ -56,7 +58,7 @@ jest.mock("@/models/authorization/programAssignmentBackfill", () => ({
 }));
 
 const { requireAuthorization } = require("@/models/authorization/index");
-const { logPermissionAudit } = require("@/lib/auth");
+const { logPermissionAudit } = require("@/models/authorization/accessQueries");
 const {
   buildProgramScopeReadiness,
 } = require("@/services/authorization/programScopeReadiness");

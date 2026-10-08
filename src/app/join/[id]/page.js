@@ -20,6 +20,7 @@ export default function JoinGroupPage() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState({});
+  const [runSlug, setRunSlug] = useState(null);
 
   useEffect(() => {
     if (!id) return;
@@ -76,6 +77,17 @@ export default function JoinGroupPage() {
           if (formData.success) cacheSet(formUrl, formData);
           applyForm(formData);
         }
+
+        // The Execution (run) the group is assigned to is where a join
+        // submission is recorded. It is resolved the same way the "Copy Join
+        // Link" action does; a group with no assigned Execution has no run to
+        // submit to, and the CRM contact created on submit is then the record.
+        try {
+          const runsUrl = `/api/platform/form-runs?group_id=${encodeURIComponent(matchedGroup.registration_id || matchedGroup.id)}`;
+          const runsRes = await fetch(runsUrl);
+          const runsData = await runsRes.json();
+          setRunSlug(runsData.success && runsData.runs?.length ? runsData.runs[0].public_slug || null : null);
+        } catch (_) {}
       } catch {
         if (!painted) setError(t("rootMisc.join.failedToLoad"));
       } finally {
@@ -108,18 +120,15 @@ export default function JoinGroupPage() {
         });
       }
 
-      // Submit to platform if form exists
-      if (form) {
-        await fetch("/api/platform/form-runs", {
+      // Submit to the group's Execution through the PUBLIC endpoint — the same
+      // one the shared /s/<slug> link uses. The authed /api/platform/form-runs
+      // route expects a session and a run id, neither of which a public join
+      // visitor has, which is why this call never reached the platform before.
+      if (runSlug) {
+        await fetch("/api/s/public-submit", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "submit",
-            run_id: null,
-            form_id: form.id,
-            data: formData,
-            status: "submitted",
-          }),
+          body: JSON.stringify({ slug: runSlug, data: formData }),
         });
       }
 

@@ -12,7 +12,9 @@
  * See docs/LAYER_SPLIT.md.
  */
 
-import { softDeleteContact } from "@/models/contacts";
+import {
+  softDeleteContact,
+} from "@/models/contacts/contactStore";
 
 /** Soft-delete a contact as `actor`; false when no row matched. */
 export async function softDeleteRegistryContact(actor, cid) {

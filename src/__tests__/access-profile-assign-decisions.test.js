@@ -74,8 +74,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => mockState.session),
+}));
+jest.mock("@/models/authorization/accessQueries", () => ({
   logPermissionAudit: jest.fn().mockResolvedValue(true),
 }));
 
@@ -374,7 +376,7 @@ describe("override removal — fallback to the role default", () => {
 
 describe("audit + cache invalidation", () => {
   test("an assignment logs profile_assigned and invalidates that user's context", async () => {
-    const { logPermissionAudit } = require("@/lib/auth");
+    const { logPermissionAudit } = require("@/models/authorization/accessQueries");
     const { invalidateAuthorizationContext } = require("@/services/authorization/context");
     mockState.profileCaps = [{ module: "projects", capability: "view", access_level: 1 }];
 
@@ -386,7 +388,7 @@ describe("audit + cache invalidation", () => {
   });
 
   test("a removal logs profile_removed and invalidates the same context", async () => {
-    const { logPermissionAudit } = require("@/lib/auth");
+    const { logPermissionAudit } = require("@/models/authorization/accessQueries");
     const { invalidateAuthorizationContext } = require("@/services/authorization/context");
 
     await assignRoute.PUT(putReq({ user_cid: "U-1", profile_id: null }));
@@ -397,7 +399,7 @@ describe("audit + cache invalidation", () => {
   });
 
   test("a refused 409 writes no audit entry", async () => {
-    const { logPermissionAudit } = require("@/lib/auth");
+    const { logPermissionAudit } = require("@/models/authorization/accessQueries");
     mockState.roleCaps = [{ module: "projects", capability: "view", access_level: 1 }];
     mockState.profileCaps = [];
 

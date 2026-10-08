@@ -5,7 +5,11 @@ import { requireAuthorization } from "@/models/authorization/index";
 import { requireProgramScope } from "@/lib/programScopedAccess";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
-import { ensureInvitationsTable, createInvitation, listActiveInvites } from "@/models/groups";
+import {
+  ensureInvitationsTable,
+  createInvitation,
+  listActiveInvites,
+} from "@/models/groups/invitations";
 
 export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (req) => {
   // Rate limit: 20 program invite links per IP per 10 minutes

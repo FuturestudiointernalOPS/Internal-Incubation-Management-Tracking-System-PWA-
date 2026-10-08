@@ -14,8 +14,8 @@
  * authority for completing a milestone and simply sees the evidence state.
  */
 
-import { getAssignmentScopes, hasVentureWideReach, isTaskInScope } from "@/lib/ventureScope";
-import { canManageMilestones } from "@/lib/ventureMilestoneEngine";
+import { getAssignmentScopes, hasVentureWideReach, isTaskInScope } from "@/services/ventures/scope";
+import { canManageMilestones } from "@/services/ventures/milestoneEngine";
 
 /** Create / edit a deliverable's definition — Lead Manager or Super Admin. */
 export async function canDefineDeliverables({ id, cid, role }) {

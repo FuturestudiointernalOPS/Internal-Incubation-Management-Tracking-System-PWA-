@@ -29,11 +29,19 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => {}),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn(async () => null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => ({ cid: "U-FAC", role: "facilitator" })),
+}));
+jest.mock("@/server/authz/guards", () => ({
   requireAssignmentAccess: jest.fn(async () => null),
+}));
+jest.mock("@/models/authorization/accessQueries", () => ({
   getFacilitatorTeamScope: jest.fn(async () => ({ scope: "none", teamIds: [] })),
+}));
+jest.mock("@/server/authz/capabilities", () => ({
   hasProgramManagementAccess: jest.fn((role) =>
     ["super_admin", "program_manager"].includes(role),
   ),
@@ -97,7 +105,8 @@ jest.mock("@/models/facilitation", () => ({
   listAttendance: jest.fn(async () => ({ rows: [] })),
 }));
 
-const { getSession, getFacilitatorTeamScope } = require("@/lib/auth");
+const { getSession } = require("@/server/auth/session");
+const { getFacilitatorTeamScope } = require("@/models/authorization/accessQueries");
 const { checkSubmissionInFacilitatorTeamScope } = require("@/models/forms");
 const {
   getFacilitatorProgramScopePids,

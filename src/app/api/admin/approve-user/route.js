@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { requireAuthorization } from "@/models/authorization/index";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import { NextResponse } from "next/server";
 import { ensureTokenHashColumns } from "@/lib/token-hashing";
 import { approveUser } from "@/services/dashboard/userAdmin";

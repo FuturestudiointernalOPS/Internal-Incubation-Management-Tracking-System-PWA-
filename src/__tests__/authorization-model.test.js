@@ -14,7 +14,9 @@
 const { readFileSync, readdirSync, statSync } = require("fs");
 const { join } = require("path");
 const { ROLE_CATALOG } = require("@/services/authorization/eligibilityAdmin");
-const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+const {
+  FEATURE_ELIGIBILITY_DEFAULTS,
+} = require("@/models/authorization/eligibility");
 const { resolveEffectiveRole, INTERNAL_GROUP } = require("@/models/platform/roles");
 
 const API_ROOT = join(__dirname, "..", "app", "api");

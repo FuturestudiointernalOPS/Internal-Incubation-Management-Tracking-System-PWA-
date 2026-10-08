@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { Play, ChevronDown, ChevronUp, RotateCcw, Archive, Trash2 } from "lucide-react";
+import AppSplitMenu from "@/components/ui/AppSplitMenu";
 import { useI18n } from "@/lib/i18n";
 import { STATUS_CONFIG } from "./constants";
 import { cn } from "./helpers";
@@ -90,14 +91,17 @@ const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, so
                 <td className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] whitespace-nowrap">{run.closes_at ? new Date(run.closes_at).toLocaleDateString() : "—"}</td>
                 <td className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] whitespace-nowrap">{new Date(run.created_at).toLocaleDateString()}</td>
                 <td className="px-3 py-3 text-right" onClick={(event) => event.stopPropagation()}>
-                  <div className="flex items-center justify-end gap-1">
-                    {run.status === "archived" ? (
-                      <button onClick={() => onRestore(run.id)} title={t("platformMisc.runs.restore")} className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-500/10 transition-colors"><RotateCcw className="w-3.5 h-3.5" /></button>
-                    ) : run.status !== "active" ? (
-                      <button onClick={() => onArchive(run.id)} title={t("platformMisc.runs.archive")} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-500/10 transition-colors"><Archive className="w-3.5 h-3.5" /></button>
-                    ) : null}
-                    <button onClick={() => onDelete(run.id)} title={t("platformMisc.runs.delete")} className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
-                  </div>
+                  <AppSplitMenu
+                    label={t("platformMisc.runs.colActions")}
+                    actions={[
+                      run.status === "archived"
+                        ? { key: "restore", label: t("platformMisc.runs.restore"), icon: RotateCcw, className: "text-emerald-500 hover:bg-emerald-500/10", iconClassName: "text-emerald-500", onSelect: () => onRestore(run.id) }
+                        : run.status !== "active"
+                          ? { key: "archive", label: t("platformMisc.runs.archive"), icon: Archive, className: "text-[var(--text-secondary)] hover:bg-slate-500/10 hover:text-[var(--text-primary)]", iconClassName: "text-[var(--text-secondary)]", onSelect: () => onArchive(run.id) }
+                          : null,
+                      { key: "delete", label: t("platformMisc.runs.delete"), icon: Trash2, danger: true, className: "text-rose-500 hover:bg-rose-500/10", iconClassName: "text-rose-500", onSelect: () => onDelete(run.id) },
+                    ].filter(Boolean)}
+                  />
                 </td>
               </tr>
             );

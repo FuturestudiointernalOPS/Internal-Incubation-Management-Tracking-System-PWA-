@@ -1,24 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Compass,
-  Flag,
-  HelpCircle,
-  Loader2,
-  Package,
-  Play,
-  Save,
-  Sparkles,
-  Trash2,
-  UserX,
-} from "lucide-react";
+import { UserX } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useDialogs } from "@/components/ui/DialogProvider";
+import PlanReviewHeader from "./PlanReviewHeader";
+import PlanProposalEditor from "./PlanProposalEditor";
+import ExternalOwnerResolver from "./ExternalOwnerResolver";
+import PlanReviewNotes from "./PlanReviewNotes";
+import PlanCorrectionPanel from "./PlanCorrectionPanel";
+import PlanReviewActions from "./PlanReviewActions";
 
-const PRIORITIES = ["high", "medium", "low"];
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const isEmpty = (value) => !String(value ?? "").trim();
 
@@ -404,8 +396,6 @@ export default function PlanReview({ ventureId, draft, onSaved }) {
   const inputClass =
     "w-full px-2 py-1 rounded-lg outline-none border bg-[var(--surface-1)] text-[11px] text-[var(--text-primary)]";
 
-  const showValue = (value) => (value === null || value === undefined || value === "" ? "—" : String(value));
-
   const ownerField = (task, onChange) => (
     <span className="inline-flex items-center gap-1">
       <input
@@ -432,518 +422,52 @@ export default function PlanReview({ ventureId, draft, onSaved }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-        <HelpCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
-        <span className="text-[11px] font-bold text-amber-300">{t("venture.planImport.nothingCreated")}</span>
-      </div>
+      <PlanReviewHeader
+        draft={draft}
+        error={error}
+        notice={notice}
+        stats={stats}
+        alreadyCovered={alreadyCovered}
+        proposal={proposal}
+      />
 
-      <p className="text-[10px] text-slate-400">{t("venture.planImport.reviewIntro")}</p>
+      <PlanProposalEditor
+        proposal={proposal}
+        inputClass={inputClass}
+        patchJourney={patchJourney}
+        patchMilestone={patchMilestone}
+        patchTask={patchTask}
+        removeMilestone={removeMilestone}
+        ownerField={ownerField}
+      />
 
-      {/* The analyst had to infer the task references, and references are what
-          dependencies point at — so this is said plainly, once. */}
-      {draft.proposal?.refs_derived && (
-        <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-          <HelpCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
-          <span className="text-[11px] font-bold text-amber-300">{t("venture.planImport.refsDerived")}</span>
-        </div>
-      )}
+      <ExternalOwnerResolver
+        externalPeople={externalPeople}
+        resolving={resolving}
+        emailValid={emailValid}
+        lookup={lookup}
+        typedEmail={typedEmail}
+        inviting={inviting}
+        inputClass={inputClass}
+        setResolving={setResolving}
+        linkExisting={linkExisting}
+        addAndInvite={addAndInvite}
+      />
 
-      {error && (
-        <div className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs font-bold text-rose-400">
-          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>{error}</span>
-        </div>
-      )}
-      {notice && (
-        <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs font-bold text-emerald-400">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <span>{notice}</span>
-        </div>
-      )}
+      <PlanReviewNotes unplaced={unplaced} draft={draft} />
 
-      <div className="flex flex-wrap items-center gap-2 text-[9px] font-black uppercase tracking-widest">
-        <span className="px-2 py-1 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)]">
-          {t("venture.planImport.statJourneys", { n: stats.journeys || 0 })}
-        </span>
-        <span className="px-2 py-1 rounded-lg bg-white/5 text-[var(--text-secondary)]">
-          {t("venture.planImport.statMilestones", { n: stats.milestones || 0 })}
-        </span>
-        <span className="px-2 py-1 rounded-lg bg-white/5 text-[var(--text-secondary)]">
-          {t("venture.planImport.statTasks", { n: stats.tasks || 0 })}
-        </span>
-        <span className="px-2 py-1 rounded-lg bg-white/5 text-[var(--text-secondary)]">
-          {t("venture.planImport.statDeliverables", { n: stats.deliverables || 0 })}
-        </span>
-        <span className="px-2 py-1 rounded-lg bg-white/5 text-slate-400 normal-case tracking-normal">
-          {t("venture.planImport.sheetsRead", {
-            n: (draft.sheets || []).length,
-            names: (draft.sheets || []).map((sheet) => sheet.name).join(", "),
-          })}
-        </span>
-        {/* Which sheet the analyst TOOK the work from. The choice is made in the
-            route, not by the model, so the reviewer can see it and check it. */}
-        {(draft.sheets || [])
-          .filter((sheet) => sheet.plan)
-          .map((sheet) => (
-            <span
-              key={sheet.name}
-              className="px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 normal-case tracking-normal"
-            >
-              {t("venture.planImport.planSheet", { name: sheet.name })}
-            </span>
-          ))}
-      </div>
+      <PlanCorrectionPanel
+        instruction={instruction}
+        setInstruction={setInstruction}
+        ask={ask}
+        asking={asking}
+        suggestion={suggestion}
+        setSuggestion={setSuggestion}
+        keepSuggestion={keepSuggestion}
+        inputClass={inputClass}
+      />
 
-      {alreadyCovered.length > 0 && (
-        <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3">
-          <p className="text-[9px] font-black uppercase tracking-widest text-sky-400 mb-1.5">
-            {t("venture.planImport.alreadyCovered", { n: alreadyCovered.length })}
-          </p>
-          <ul className="space-y-0.5 mb-1.5">
-            {alreadyCovered.map((item, index) => (
-              <li key={index} className="text-[10px] text-[var(--text-secondary)]">
-                <span className="text-[var(--text-primary)]">{item.sheet_item}</span> → {item.existing}
-              </li>
-            ))}
-          </ul>
-          <p className="text-[10px] text-slate-400">{t("venture.planImport.alreadyCoveredHint")}</p>
-        </div>
-      )}
-
-      {(proposal.journeys || []).length === 0 && (
-        <div className="rounded-xl border border-[var(--border-primary)] p-3">
-          <p className="text-[11px] font-bold text-[var(--text-primary)]">{t("venture.planImport.nothingNew")}</p>
-        </div>
-      )}
-
-      {(proposal.journeys || []).map((journey, ji) => (
-        <div key={`${journey.name}-${ji}`} className="rounded-xl border border-[var(--border-primary)] p-3 space-y-3">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <label className="space-y-1 sm:col-span-2">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-                <Compass className="w-3 h-3 text-[var(--brand-orange)]" />
-                {t("venture.planImport.journeyName")}
-              </span>
-              <input
-                value={journey.name || ""}
-                onChange={(event) => patchJourney(ji, { name: event.target.value })}
-                className={inputClass}
-              />
-            </label>
-            <label className="space-y-1 sm:col-span-2">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
-                {t("venture.planImport.objective")}
-              </span>
-              <textarea
-                rows={2}
-                value={journey.objective || ""}
-                onChange={(event) => patchJourney(ji, { objective: event.target.value || null })}
-                className={inputClass}
-              />
-            </label>
-            <label className="space-y-1">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
-                {t("venture.planImport.start")}
-              </span>
-              <input
-                type="date"
-                value={journey.start_date || ""}
-                onChange={(event) => patchJourney(ji, { start_date: event.target.value || null })}
-                className={inputClass}
-              />
-            </label>
-            <label className="space-y-1">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
-                {t("venture.planImport.target")}
-              </span>
-              <input
-                type="date"
-                value={journey.target_date || ""}
-                onChange={(event) =>
-                  patchJourney(ji, { target_date: event.target.value || null, dates_derived: null })
-                }
-                className={inputClass}
-              />
-            </label>
-            {journey.dates_derived && (
-              <p className="text-[9px] text-sky-400 sm:col-span-2">{t("venture.planImport.suggestedDates")}</p>
-            )}
-          </div>
-
-          <div className="space-y-2 pl-4">
-            {(journey.milestones || []).map((milestone, mi) => (
-              <div key={`${milestone.name}-${mi}`} className="rounded-lg border border-divider/60 p-2.5 space-y-2">
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => removeMilestone(ji, mi)}
-                    className="text-[9px] font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/10 px-2 py-1 rounded-lg flex items-center gap-1.5"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    {t("venture.planImport.removeMilestone")}
-                  </button>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <label className="space-y-1">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-                      <Flag className="w-3 h-3 text-sky-400" />
-                      {t("venture.planImport.name")}
-                      {milestone.ref && <span className="text-slate-500 normal-case">({milestone.ref})</span>}
-                    </span>
-                    <input
-                      value={milestone.name || ""}
-                      onChange={(event) => patchMilestone(ji, mi, { name: event.target.value })}
-                      className={inputClass}
-                    />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
-                      {t("venture.planImport.target")}
-                    </span>
-                    <input
-                      type="date"
-                      value={milestone.target_date || ""}
-                      onChange={(event) =>
-                        patchMilestone(ji, mi, { target_date: event.target.value || null, dates_derived: null })
-                      }
-                      className={inputClass}
-                    />
-                  </label>
-                  <label className="space-y-1 sm:col-span-2">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
-                      {t("venture.planImport.objective")}
-                    </span>
-                    <input
-                      value={milestone.objective || ""}
-                      onChange={(event) => patchMilestone(ji, mi, { objective: event.target.value || null })}
-                      className={inputClass}
-                    />
-                  </label>
-                </div>
-
-                <div className="space-y-1.5">
-                  {(milestone.tasks || []).map((task, ti) => (
-                    <div key={`${task.title}-${ti}`} className="rounded-lg border border-divider/50 p-2 space-y-1.5">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        {task.ref && <span className="text-[8px] font-black text-slate-500">{task.ref}</span>}
-                        <input
-                          value={task.title || ""}
-                          onChange={(event) => patchTask(ji, mi, ti, { title: event.target.value })}
-                          className={`${inputClass} flex-1 min-w-[180px]`}
-                        />
-                        <select
-                          value={task.priority || ""}
-                          onChange={(event) => patchTask(ji, mi, ti, { priority: event.target.value || null })}
-                          className={`${inputClass} w-24`}
-                        >
-                          <option value="">{t("venture.planImport.priority")}</option>
-                          {PRIORITIES.map((priority) => (
-                            <option key={priority} value={priority}>
-                              {t(`venture.planImport.priorities.${priority}`)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10px] text-slate-500">
-                        <span className="flex items-center gap-1.5">
-                          {t("venture.planImport.owner")}
-                          {ownerField(task, (patch) => patchTask(ji, mi, ti, patch))}
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          {t("venture.planImport.start")}
-                          <input
-                            type="date"
-                            value={task.start_date || ""}
-                            onChange={(event) => patchTask(ji, mi, ti, { start_date: event.target.value || null })}
-                            className={`${inputClass} w-36`}
-                          />
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          {t("venture.planImport.due")}
-                          <input
-                            type="date"
-                            value={task.due_date || ""}
-                            onChange={(event) => patchTask(ji, mi, ti, { due_date: event.target.value || null })}
-                            className={`${inputClass} w-36`}
-                          />
-                        </span>
-                        {(task.depends_on || []).length > 0 && (
-                          <span className="uppercase tracking-widest text-[8px]">
-                            {t("venture.planImport.dependsOn", { refs: task.depends_on.join(", ") })}
-                          </span>
-                        )}
-                      </div>
-                      {/* What the tracker carried beyond the task itself. Shown
-                          because it is ABOUT to be folded into the task's labels
-                          and description — nothing is stored invisibly. */}
-                      {(task.support || task.phase || task.definition_of_done) && (
-                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] text-slate-500">
-                          {task.support && (
-                            <span>
-                              {t("venture.planImport.supportLabel")}: {task.support}
-                            </span>
-                          )}
-                          {task.phase && (
-                            <span>
-                              {t("venture.planImport.phaseLabel")}: {task.phase}
-                            </span>
-                          )}
-                          {task.definition_of_done && (
-                            <span className="truncate max-w-md">
-                              {t("venture.planImport.dodLabel")}: {task.definition_of_done}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      {(task.deliverables || []).length > 0 && (
-                        <div className="space-y-1">
-                          {(task.deliverables || []).map((deliverable, di) => (
-                            <div key={`${deliverable.title}-${di}`} className="flex items-center gap-1.5">
-                              <Package className="w-3 h-3 text-slate-500 shrink-0" />
-                              <input
-                                value={deliverable.title || ""}
-                                onChange={(event) =>
-                                  patchTask(ji, mi, ti, {
-                                    deliverables: task.deliverables.map((item, index) =>
-                                      index === di ? { ...item, title: event.target.value } : item,
-                                    ),
-                                  })
-                                }
-                                className={`${inputClass} flex-1 max-w-md`}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-
-      {/* §6 — EXTERNAL ASSIGNMENTS ARE NOT AN ERROR. The plan is complete without
-          these people ever becoming members; adding them is an option, not a
-          repair. Derived from the WORKING COPY, so resolving a name updates this
-          list on the spot. */}
-      {externalPeople.length > 0 && (
-        <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3">
-          <p className="text-[9px] font-black uppercase tracking-widest text-sky-400 flex items-center gap-1.5">
-            <UserX className="w-3.5 h-3.5" />
-            {t("venture.planImport.externalDetected", { n: externalPeople.length })}
-          </p>
-          <p className="text-[10px] text-slate-400 mt-1">{t("venture.planImport.externalDetectedHint")}</p>
-
-          <ul className="mt-2 space-y-2">
-            {externalPeople.map((entry) => {
-              const isOpen = resolving?.name === entry.name;
-              // Derived, never stored: an address with no answer yet is simply
-              // "still checking", so there is no window in which a row shows a
-              // verdict it has not actually received.
-              const state = !isOpen || !emailValid ? "idle" : lookup.email === typedEmail ? lookup.state : "searching";
-              return (
-                <li key={entry.name} className="rounded-lg border border-[var(--border-primary)] p-2 space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[11px] font-bold text-[var(--text-primary)]">{entry.name}</span>
-                    <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-white/5 text-slate-400">
-                      {t("venture.planImport.externalBadge")}
-                    </span>
-                    <span className="text-[9px] text-slate-500">
-                      {t("venture.planImport.externalAssignments", { n: entry.count })}
-                    </span>
-                  </div>
-
-                  {/* ONE field. The address decides which of the two things this
-                      row offers — the reviewer does not have to know first. */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="email"
-                      value={isOpen ? resolving.email || "" : ""}
-                      onChange={(event) => setResolving({ name: entry.name, email: event.target.value })}
-                      placeholder={t("venture.planImport.emailLookupPlaceholder")}
-                      className={`${inputClass} flex-1 min-w-[200px]`}
-                    />
-
-                    {state === "searching" && (
-                      <span className="text-[9px] text-slate-400 flex items-center gap-1.5">
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        {t("venture.planImport.checkingEmail")}
-                      </span>
-                    )}
-                    {state === "member" && (
-                      <span className="text-[9px] font-bold text-emerald-400">
-                        {t("venture.planImport.emailIsMember", { name: lookup.contact?.name || "" })}
-                      </span>
-                    )}
-                    {state === "new" && (
-                      <span className="text-[9px] font-bold text-amber-400">
-                        {t("venture.planImport.emailNotMember")}
-                      </span>
-                    )}
-                    {state === "error" && (
-                      <span className="text-[9px] font-bold text-rose-400">
-                        {t("venture.planImport.lookupFailed")}
-                      </span>
-                    )}
-
-                    {state === "member" && (
-                      <button
-                        type="button"
-                        onClick={() => linkExisting(entry, lookup.contact)}
-                        className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-[var(--brand-orange)] text-black"
-                      >
-                        {t("venture.planImport.linkMember")}
-                      </button>
-                    )}
-                    {state === "new" && (
-                      <button
-                        type="button"
-                        disabled={inviting}
-                        onClick={() => addAndInvite(entry.name)}
-                        className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {inviting && <Loader2 className="w-3 h-3 animate-spin" />}
-                        {t("venture.planImport.invitePerson")}
-                      </button>
-                    )}
-                  </div>
-
-                  {isOpen && <p className="text-[10px] text-slate-400">{t("venture.planImport.emailDecidesHint")}</p>}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-
-      {unplaced.length > 0 && (
-        <div className="rounded-xl border border-[var(--border-primary)] p-3">
-          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1.5">
-            {t("venture.planImport.unplaced")}
-          </p>
-          <ul className="space-y-1">
-            {unplaced.map((item, index) => (
-              <li key={`${item.location}-${index}`} className="text-[10px] text-[var(--text-secondary)]">
-                <span className="font-bold text-[var(--text-primary)]">{item.location}</span> — {item.reason}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {(draft.warnings || []).length > 0 && (
-        <div className="rounded-xl border border-[var(--border-primary)] p-3">
-          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1.5">
-            {t("venture.planImport.warnings")}
-          </p>
-          <ul className="space-y-1">
-            {(draft.warnings || []).map((warning, index) => (
-              <li key={index} className="text-[10px] text-[var(--text-secondary)] flex items-start gap-1.5">
-                <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5 text-slate-500" />
-                <span>{warning}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* The correction chat. Saying "MS02 starts too early" is faster than
-          hunting the field, and the analyst returns the WHOLE plan with only
-          that changed — listed, so nothing moves behind the reviewer's back. */}
-      <div className="rounded-xl border border-[var(--border-primary)] p-3 space-y-2">
-        <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-          {t("venture.planImport.correctTitle")}
-        </p>
-        <p className="text-[10px] text-slate-400">{t("venture.planImport.correctHint")}</p>
-        <textarea
-          rows={2}
-          value={instruction}
-          onChange={(event) => setInstruction(event.target.value)}
-          placeholder={t("venture.planImport.correctPlaceholder")}
-          className={inputClass}
-        />
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={ask}
-            disabled={asking || !instruction.trim()}
-            className="px-3 py-1.5 rounded-lg border border-brand-orange/40 text-[var(--brand-orange)] text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 disabled:opacity-50"
-          >
-            {asking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-            {t(asking ? "venture.planImport.correcting" : "venture.planImport.correct")}
-          </button>
-        </div>
-
-        {suggestion && (
-          <div className="rounded-lg border border-sky-500/30 bg-sky-500/5 p-2.5 space-y-2">
-            {suggestion.notes && <p className="text-[11px] text-[var(--text-primary)]">{suggestion.notes}</p>}
-            {suggestion.changes.length === 0 ? (
-              <p className="text-[10px] text-slate-400">{t("venture.planImport.noChanges")}</p>
-            ) : (
-              <div className="space-y-1">
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">
-                  {t("venture.planImport.changesCount", { n: suggestion.changes.length })}
-                </p>
-                <ul className="space-y-0.5 max-h-56 overflow-y-auto">
-                  {suggestion.changes.map((change, index) => (
-                    <li key={index} className="text-[10px] text-[var(--text-secondary)]">
-                      <span className="font-bold text-[var(--text-primary)]">
-                        {change.target || change.scope}
-                      </span>{" "}
-                      <span className="text-slate-500">{change.field}</span>: {showValue(change.from)} →{" "}
-                      {showValue(change.to)}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setSuggestion(null)}
-                className="px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-slate-500 text-[9px] font-black uppercase tracking-widest"
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                type="button"
-                onClick={keepSuggestion}
-                disabled={suggestion.changes.length === 0}
-                className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest disabled:opacity-50"
-              >
-                {t("venture.planImport.keepChanges")}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[10px] text-slate-500">{t("venture.planImport.nextStep")}</p>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={apply}
-            disabled={applying || saving}
-            className="px-4 py-2 rounded-xl border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 text-[9px] font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50"
-          >
-            {applying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
-            {t(applying ? "venture.planImport.applying" : "venture.planImport.apply")}
-          </button>
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving || applying}
-            className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            {t("venture.planImport.saveReview")}
-          </button>
-        </div>
-      </div>
+      <PlanReviewActions applying={applying} saving={saving} onApply={apply} onSave={save} />
 
       {/* One shared suggestion list: every owner field searches through it. */}
       <datalist id="plan-import-owner-options">

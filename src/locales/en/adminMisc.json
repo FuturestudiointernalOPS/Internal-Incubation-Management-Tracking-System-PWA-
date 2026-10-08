@@ -112,18 +112,11 @@
       "networkError": "Network error during upload."
     },
     "integrations": {
-      "tabIntegrations": "Integrations",
       "apiKeys": "API Keys",
       "webhooks": "Webhooks",
       "title": "External Integrations",
-      "subtitle": "Manage API keys, webhooks, and third-party integrations",
+      "subtitle": "Manage API keys and webhooks",
       "refresh": "Refresh",
-      "connectedIntegrations": "Connected Integrations",
-      "addIntegration": "Add Integration",
-      "noIntegrations": "No integrations connected yet.",
-      "noIntegrationsHint": "Connect Google Calendar, Slack, Zoom, and more.",
-      "lastSync": "Last sync: {date}",
-      "availableProviders": "Available Providers",
       "generateKey": "Generate Key",
       "apiKeyGenerated": "API Key Generated",
       "copyKeyWarning": "Copy this key now. You won't be able to see it again.",
@@ -141,11 +134,6 @@
       "deliveryLogs": "Delivery Logs",
       "noDeliveries": "No deliveries yet.",
       "deliveryMeta": "HTTP {status} · {duration}ms",
-      "provider": "Provider",
-      "selectProvider": "Select provider...",
-      "labelOptional": "Label (optional)",
-      "labelPlaceholder": "My Calendar Integration",
-      "connect": "Connect",
       "generateApiKey": "Generate API Key",
       "nameRequired": "Name *",
       "apiKeyNamePlaceholder": "Production API Key",
@@ -157,8 +145,6 @@
       "callbackUrlRequired": "Callback URL * (HTTPS only)",
       "secretOptional": "Secret (optional — for HMAC signature)",
       "eventsRequired": "Events *",
-      "removeIntegration": "Remove Integration",
-      "disconnectConfirm": "Disconnect \"{name}\"?",
       "cancel": "Cancel",
       "remove": "Remove",
       "revokeApiKey": "Revoke API Key",
@@ -166,28 +152,7 @@
       "revoke": "Revoke",
       "deleteWebhook": "Delete Webhook",
       "deleteConfirm": "Delete \"{name}\"?",
-      "delete": "Delete",
-      "providerNames": {
-        "google_calendar": "Google Calendar",
-        "google_drive": "Google Drive",
-        "microsoft_outlook": "Microsoft Outlook",
-        "slack": "Slack",
-        "zoom": "Zoom",
-        "microsoft_teams": "Microsoft Teams"
-      },
-      "providerDescriptions": {
-        "google_calendar": "Sync venture milestones, sessions, and deadlines with Google Calendar",
-        "google_drive": "Attach files and manage documents directly from Google Drive",
-        "microsoft_outlook": "Sync venture events and email notifications with Outlook calendar",
-        "slack": "Post notifications and updates to Slack channels",
-        "zoom": "Create and manage Zoom meetings for venture sessions and events",
-        "microsoft_teams": "Create Teams meetings and post updates to channels"
-      },
-      "statusValues": {
-        "connected": "Connected",
-        "error": "Error",
-        "disconnected": "Disconnected"
-      }
+      "delete": "Delete"
     },
     "intelligence": {
       "title": "Intelligence",
@@ -821,8 +786,7 @@
         "email": "Email",
         "storage": "Storage",
         "search": "Search",
-        "notifications": "Notifications",
-        "integrations": "Integrations"
+        "notifications": "Notifications"
       },
       "statuses": {
         "healthy": "Healthy",
@@ -903,7 +867,6 @@
       "componentStorage": "Storage",
       "componentSearch": "Search",
       "componentNotifications": "Notifications",
-      "componentIntegrations": "Integrations",
       "statusHealthy": "Healthy",
       "statusDegraded": "Degraded",
       "statusUnhealthy": "Unhealthy",

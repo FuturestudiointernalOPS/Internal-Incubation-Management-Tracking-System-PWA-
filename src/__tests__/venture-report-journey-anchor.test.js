@@ -43,8 +43,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({ cid: "manager-1", name: "David", role: "staff" }),
+}));
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
 }));
 
@@ -64,7 +66,9 @@ jest.mock("@/lib/ventureAuth", () => ({
   roleIsPrivileged: jest.requireActual("@/lib/ventureAuth").roleIsPrivileged,
 }));
 
-jest.mock("@/lib/ventures", () => ({ addVentureHistory: jest.fn().mockResolvedValue(true) }));
+jest.mock("@/services/ventures/activity", () => ({
+  addVentureHistory: jest.fn().mockResolvedValue(true),
+}));
 
 const { GET, POST } = require("@/app/api/ventures/[id]/progress-reports/route");
 const ctx = { params: { id: VENTURE_DB_ID } };

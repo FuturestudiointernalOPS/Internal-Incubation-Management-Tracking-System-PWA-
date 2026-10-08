@@ -1,5 +1,5 @@
-import { getSession } from "@/lib/auth";
-import { getVentureFacts, getViewerRelationship, ventureAccessFacts } from "@/lib/ventureAccessFacts";
+import { getSession } from "@/server/auth/session";
+import { getVentureFacts, getViewerRelationship, ventureAccessFacts } from "@/services/ventures/accessFacts";
 
 /** Roles that may always access Venture records (incl. archived, historical). */
 export function roleIsPrivileged(role) {

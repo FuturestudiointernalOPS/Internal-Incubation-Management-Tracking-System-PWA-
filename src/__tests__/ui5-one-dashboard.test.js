@@ -26,6 +26,7 @@ const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const exists = (rel) => fs.existsSync(path.join(process.cwd(), rel));
 
 const DASHBOARD = "src/components/layout/DashboardLayout.js";
+const NAV_HOOK = "src/components/layout/shell/useDashboardNavigation.js";
 
 describe("one dashboard — the calendar page is the only dashboard", () => {
   test("the staff dashboard renders the calendar dashboard, with no cards", () => {
@@ -50,7 +51,7 @@ describe("one dashboard — the calendar page is the only dashboard", () => {
 });
 
 describe("sidebar additions — the doors live in the sidebar", () => {
-  const src = read(DASHBOARD);
+  const src = read(DASHBOARD) + read(NAV_HOOK);
 
   test("assigned staff get the ventures door, opening ALL ventures", () => {
     expect(src).toContain("withVentureConsole");
@@ -106,8 +107,8 @@ describe("sidebar additions — the doors live in the sidebar", () => {
 
 describe("founder classification — ownership, not the role string", () => {
   test("the memberships the sidebar reads are active memberships", () => {
-    const contacts = require("@/models/contacts");
-    expect(typeof contacts.getVentureMembershipsForContact).toBe("function");
+    const { getVentureMembershipsForContact } = require("@/models/contacts/programMembership");
+    expect(typeof getVentureMembershipsForContact).toBe("function");
   });
 
   test("the relationships API derives isFounder from ownership/founder type", () => {
@@ -124,7 +125,7 @@ describe("founder classification — ownership, not the role string", () => {
   });
 
   test("a removed membership is not a relationship", () => {
-    const src = read("src/models/contacts.js");
+    const src = read("src/models/contacts/programMembership.js");
     expect(src).toContain("(vm.user_cid = ? OR vm.contact_id = ?) AND vm.removed_at IS NULL");
   });
 });
@@ -146,7 +147,7 @@ describe("landing — the dashboard shows first, not the workspace hub", () => {
     // Regression: a member on /participant has activeRole "participant" but
     // sessionRole "member"; keying off sessionRole sent Dashboard back to
     // /workspaces. The personal branch must resolve the href from activeRole.
-    const src = read(DASHBOARD);
+    const src = read(DASHBOARD) + read(NAV_HOOK);
     expect(src).not.toMatch(/homeRole\s*=\s*sessionRole/);
     expect(src).toContain('activeRole === "team" ? "/team" : "/participant"');
   });

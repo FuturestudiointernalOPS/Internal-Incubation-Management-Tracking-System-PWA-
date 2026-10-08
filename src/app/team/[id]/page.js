@@ -2,26 +2,11 @@
 
 import { useState, use, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import AppTabs from "@/components/ui/AppTabs";
-import AppButton from "@/components/ui/AppButton";
-import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
-import { Calendar, FileText, FolderKanban, BookOpen, ListTodo, Loader2 } from "lucide-react";
-import TeamHeader from "@/components/team/team-workspace/TeamHeader";
-import StatsRow from "@/components/team/team-workspace/StatsRow";
-import TeamInfoCard from "@/components/team/team-workspace/TeamInfoCard";
-import MembersCard from "@/components/team/team-workspace/MembersCard";
-import OverviewDeadlines from "@/components/team/team-workspace/OverviewDeadlines";
-import DeliverablesTab from "@/components/team/team-workspace/DeliverablesTab";
-import TasksTab from "@/components/team/team-workspace/TasksTab";
-import FilesTab from "@/components/team/team-workspace/FilesTab";
-import CalendarTab from "@/components/team/team-workspace/CalendarTab";
-import SubmitModal from "@/components/team/team-workspace/SubmitModal";
-import ReviewModal from "@/components/team/team-workspace/ReviewModal";
-import TaskModal from "@/components/team/team-workspace/TaskModal";
+import TeamWorkspaceView from "@/components/team/team-workspace/TeamWorkspaceView";
 import {
   EMPTY_MAP,
   NO_DELIVERABLES,
@@ -387,52 +372,6 @@ export default function TeamDashboardPage({ params }) {
     } catch (_) {}
   };
 
-  // — Tab definitions —
-  const tabs = [
-    { id: "overview", label: t("rootMisc.team.tabOverview"), icon: FolderKanban },
-    { id: "deliverables", label: t("rootMisc.team.tabDeliverables"), icon: FileText },
-    { id: "tasks", label: t("rootMisc.team.tabTasks"), icon: ListTodo },
-    { id: "files", label: t("rootMisc.team.tabFiles"), icon: BookOpen },
-    { id: "calendar", label: t("rootMisc.team.tabCalendar"), icon: Calendar },
-  ];
-
-  // — Loading state —
-  if (loading) {
-    return (
-      <>
-        <div className="max-w-6xl mx-auto p-6 flex items-center justify-center min-h-[60vh]">
-          <div className="flex items-center gap-3 text-[var(--text-secondary)]">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="text-sm font-bold uppercase tracking-wider">
-              {t("rootMisc.team.loading")}
-            </span>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  // — Not found —
-  if (!team) {
-    return (
-      <>
-        <div className="max-w-6xl mx-auto p-6">
-          <div className="text-center py-20">
-            <h2 className="text-lg font-black text-[var(--text-primary)] uppercase mb-2">
-              {t("rootMisc.team.notFound")}
-            </h2>
-            <p className="text-sm text-[var(--text-secondary)] mb-6">
-              {t("rootMisc.team.notFoundDesc")}
-            </p>
-            <AppButton variant="secondary" onClick={() => router.push("/")}>
-              {t("rootMisc.team.goHome")}
-            </AppButton>
-          </div>
-        </div>
-      </>
-    );
-  }
-
   const completedCount = deliverables.filter((deliverable) => {
     const submission = getSubmissionStatus(deliverable.id);
     return submission && ["approved", "completed"].includes(submission.status);
@@ -446,145 +385,62 @@ export default function TeamDashboardPage({ params }) {
   const canReview = REVIEW_ROLES.includes(userRole);
 
   return (
-    <>
-      <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
-        <GlobalToast toast={toast} onClose={() => setToast(null)} />
-
-        {/* — Header — */}
-        <TeamHeader team={team} program={program} onBack={goBack} />
-
-        {/* — Tabs — */}
-        <AppTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
-
-        {/* ============================================
-            TAB: OVERVIEW
-            ============================================ */}
-        {activeTab === "overview" && (
-          <div className="space-y-6">
-            <StatsRow
-              progressPct={progressPct}
-              completedCount={completedCount}
-              deliverableCount={deliverables.length}
-              pendingCount={pendingCount}
-              memberCount={members.length}
-            />
-
-            {/* Team Info + Members */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <TeamInfoCard
-                team={team}
-                program={program}
-                canMarkVentureReady={canReview}
-                onToggleVentureReady={toggleVentureReady}
-              />
-              <MembersCard members={members} />
-            </div>
-
-            {/* Quick links */}
-            <OverviewDeadlines upcomingDeadlines={upcomingDeadlines} />
-          </div>
-        )}
-
-        {/* ============================================
-            TAB: DELIVERABLES
-            ============================================ */}
-        {activeTab === "deliverables" && (
-          <DeliverablesTab
-            deliverables={deliverables}
-            submissions={submissions}
-            getSubmissionStatus={getSubmissionStatus}
-            canReview={canReview}
-            onReview={openReviewModal}
-            onSubmit={openSubmitModal}
-          />
-        )}
-
-        {/* ============================================
-            TAB: TASKS (Team Workspace)
-            ============================================ */}
-        {activeTab === "tasks" && (
-          <TasksTab
-            tasks={tasks}
-            tasksLoading={tasksLoading}
-            onCreate={openTaskModal}
-            onUpdateStatus={handleUpdateTaskStatus}
-            onDelete={handleDeleteTask}
-          />
-        )}
-
-        {/* ============================================
-            TAB: FILES
-            ============================================ */}
-        {activeTab === "files" && (
-          <FilesTab
-            program={program}
-            submissions={submissions}
-            deliverables={deliverables}
-          />
-        )}
-
-        {/* ============================================
-            TAB: CALENDAR
-            ============================================ */}
-        {activeTab === "calendar" && (
-          <CalendarTab
-            upcomingDeadlines={upcomingDeadlines}
-            submissions={submissions}
-            deliverables={deliverables}
-            getSubmissionStatus={getSubmissionStatus}
-          />
-        )}
-
-        {/* ============================================
-            SUBMIT MODAL
-            ============================================ */}
-        {showSubmitModal && selectedDeliverable && (
-          <SubmitModal
-            deliverable={selectedDeliverable}
-            fileUrl={submitFileUrl}
-            link={submitLink}
-            uploading={uploading}
-            submitting={submitting}
-            onClose={() => setShowSubmitModal(false)}
-            onFileUpload={handleFileUpload}
-            onLinkChange={(event) => setSubmitLink(event.target.value)}
-            onSubmit={handleSubmitDeliverable}
-          />
-        )}
-
-        {/* ============================================
-            COACHING REVIEW MODAL
-            ============================================ */}
-        {showReviewModal && reviewSubData && (
-          <ReviewModal
-            submission={reviewSubData}
-            feedback={reviewFeedback}
-            onFeedbackChange={(event) => setReviewFeedback(event.target.value)}
-            showFollowUp={showFollowUpModal}
-            followUpDate={followUpDate}
-            onFollowUpDateChange={(event) => setFollowUpDate(event.target.value)}
-            onScheduleFollowUp={() => setShowFollowUpModal(true)}
-            reviewing={reviewing}
-            onClose={closeReviewModal}
-            onAction={handleReviewAction}
-          />
-        )}
-
-        {/* ============================================
-            TASK CREATION MODAL
-            ============================================ */}
-        {showTaskModal && (
-          <TaskModal
-            form={taskForm}
-            editing={editingTask}
-            saving={savingTask}
-            members={members}
-            onClose={() => setShowTaskModal(false)}
-            onChange={(field, value) => setTaskForm({ ...taskForm, [field]: value })}
-            onSave={handleCreateTask}
-          />
-        )}
-      </div>
-    </>
+    <TeamWorkspaceView
+      t={t}
+      loading={loading}
+      team={team}
+      program={program}
+      onGoHome={() => router.push("/")}
+      goBack={goBack}
+      toast={toast}
+      onCloseToast={() => setToast(null)}
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      progressPct={progressPct}
+      completedCount={completedCount}
+      pendingCount={pendingCount}
+      members={members}
+      deliverables={deliverables}
+      upcomingDeadlines={upcomingDeadlines}
+      submissions={submissions}
+      getSubmissionStatus={getSubmissionStatus}
+      canReview={canReview}
+      tasks={tasks}
+      tasksLoading={tasksLoading}
+      onToggleVentureReady={toggleVentureReady}
+      onReview={openReviewModal}
+      onSubmit={openSubmitModal}
+      onCreateTask={openTaskModal}
+      onUpdateStatus={handleUpdateTaskStatus}
+      onDeleteTask={handleDeleteTask}
+      showSubmitModal={showSubmitModal}
+      selectedDeliverable={selectedDeliverable}
+      submitFileUrl={submitFileUrl}
+      submitLink={submitLink}
+      uploading={uploading}
+      submitting={submitting}
+      onCloseSubmit={() => setShowSubmitModal(false)}
+      onFileUpload={handleFileUpload}
+      onLinkChange={(event) => setSubmitLink(event.target.value)}
+      onSubmitDeliverable={handleSubmitDeliverable}
+      showReviewModal={showReviewModal}
+      reviewSubData={reviewSubData}
+      reviewFeedback={reviewFeedback}
+      onFeedbackChange={(event) => setReviewFeedback(event.target.value)}
+      showFollowUpModal={showFollowUpModal}
+      followUpDate={followUpDate}
+      onFollowUpDateChange={(event) => setFollowUpDate(event.target.value)}
+      onScheduleFollowUp={() => setShowFollowUpModal(true)}
+      reviewing={reviewing}
+      onCloseReview={closeReviewModal}
+      onReviewAction={handleReviewAction}
+      showTaskModal={showTaskModal}
+      taskForm={taskForm}
+      editingTask={editingTask}
+      savingTask={savingTask}
+      onCloseTask={() => setShowTaskModal(false)}
+      onTaskChange={(field, value) => setTaskForm({ ...taskForm, [field]: value })}
+      onTaskSave={handleCreateTask}
+    />
   );
 }

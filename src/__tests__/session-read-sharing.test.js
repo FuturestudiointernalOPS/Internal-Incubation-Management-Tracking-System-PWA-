@@ -26,7 +26,7 @@ jest.mock("@/lib/token-hashing", () => ({
 }));
 
 const { cookies } = require("next/headers");
-const { getSession } = require("@/lib/auth");
+const { getSession } = require("@/server/auth/session");
 
 /** Session rows keyed by the value stored in the token hash column. */
 function serveSessions(byHash) {

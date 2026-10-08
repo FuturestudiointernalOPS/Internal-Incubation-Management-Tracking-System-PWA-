@@ -14,7 +14,8 @@
  *                  BLOCKED on it: closing a journey stays automatic.
  *
  * Every statement lives in `@/models/ventureReportStore`; nothing here runs SQL.
- * Re-exported unchanged through the compatibility facade `@/lib/ventureReports` —
+ * This module used to be re-exported through the `@/lib/ventureReports` facade;
+ * that facade is gone (CH-4) and importers read this module directly.
  * see docs/LAYER_SPLIT.md.
  */
 

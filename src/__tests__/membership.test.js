@@ -5,12 +5,14 @@
 
 const {
   normalizeGroupName,
+  MEMBERSHIP_ACTIONS,
+  INTERNAL_GROUP,
+} = require("@/models/authorization/membership");
+const {
   isEffectiveMembership,
   selectEffectiveGroups,
   applyMembershipAction,
-  MEMBERSHIP_ACTIONS,
-  INTERNAL_GROUP,
-} = require("@/lib/authorization/membership");
+} = require("@/services/authorization/membership");
 
 const NOW = new Date("2026-08-27T12:00:00Z");
 const FUTURE = new Date("2026-12-31T00:00:00Z");

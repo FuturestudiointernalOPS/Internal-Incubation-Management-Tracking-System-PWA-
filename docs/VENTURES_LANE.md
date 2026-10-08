@@ -448,3 +448,79 @@ same public surface: `planImport.js` (1 178), `milestoneEngine.js` (548),
 let that service be split too.
 
 Final checks: `npm test` 3631/3631, `npx eslint` 0 errors, `npm run build` OK.
+
+---
+
+## Suite — découpage des composants restants et des services laissés entiers
+
+Même méthode que B7/L2 : déplacement **verbatim**, le parent garde tout l'état et
+les écritures, la surface publique ne change pas, les nouveaux fichiers vont dans
+le dossier dédié du couloir.
+
+### Fin du panneau du parcours — `JourneyManagerPanel.js`
+
+| Fichier (nouveau, dans `src/components/ventures/journey/`) | Ce qui a été déplacé |
+|---|---|
+| `JourneyPanelHeader.js` | la barre d'en-tête : titre + nombre de parcours actifs, boutons « From template » / « Save as template » / « Add journey » et la ligne d'intro |
+| `JourneyNotices.js` | les deux bandeaux de statut (message transitoire, avertissement « deliverables unavailable ») |
+| `JourneyTemplateSource.js` | le bandeau « generated from <template> » |
+| `JourneyEmptyState.js` | l'état vide de la vue archivée et celui de la vue active |
+| `JourneyStageCard.js` | un parcours de la frise : nœud numéroté + connecteur, formulaire d'édition en ligne, en-tête de carte (case à cocher, titre, pastille de statut, menu d'actions, restauration), description/objectif/métat/progression, section rapports, liste des jalons + « Add milestone » |
+| `JourneyMilestoneRow.js` | un jalon : formulaire d'édition, en-tête dépliable, barre de progression/date, boîte de revue, livrables, réservation de session, sessions réservées + mémo, notes internes |
+
+`JourneyManagerPanel.js` : **1 761 → 1 399 lignes**. Restent dans le parent (par
+contrainte ou par nature) : tous les `useState`, les écritures, les menus qui
+ferment sur l'état, et **les usages de `@/lib/ventureStatuses`**
+(`stageStatusWord`, `milestoneStatusWord`, `deliverableStatusWord`) que
+`src/__tests__/journey-status-lexicon.test.js` exige dans ce fichier — calculés
+ici et passés en props.
+
+### Fin de la revue de plan — `PlanReview.js`
+
+| Fichier (nouveau, dans `src/components/ventures/plan-import/`) | Ce qui a été déplacé |
+|---|---|
+| `PlanReviewHeader.js` | avis « rien n'est encore créé », intro, avis « refs déduites », bandeaux erreur/succès, pastilles de statistiques du brouillon, panneau « déjà couvert », état vide « rien de nouveau » |
+| `PlanProposalEditor.js` | l'éditeur parcours → jalons → tâches (+ la constante `PRIORITIES`) |
+| `ExternalOwnerResolver.js` | le panneau §6 des affectations externes (recherche par e-mail, membre/invitation, aides) |
+| `PlanReviewNotes.js` | les panneaux « non placés » et « avertissements » |
+| `PlanCorrectionPanel.js` | la conversation de correction (+ le helper `showValue`) |
+
+`PlanReview.js` : **958 → 503 lignes**. Restent dans le parent : tout l'état, les
+`fetch`, `useDialogs` (`confirm`/`alert`), les gestionnaires (`ask`,
+`keepSuggestion`, `apply`, `removeMilestone`, `applyContactToName`,
+`linkExisting`, `addAndInvite`, `save`…), le helper de rendu `ownerField`, la
+barre d'actions appliquer/enregistrer et le `<datalist>` partagé.
+
+### Découpage des services laissés entiers (L2)
+
+| Service (barrel) | Avant | Parties |
+|---|---|---|
+| `submissions.js` | 526 | `submissions/createSubmission.js` (l'acte de soumission : liaison d'identité, versionnage), `review.js` (la décision de revue et ses suites : notifications, équipe, KPI), `scope.js` (portée « soi » / équipe / facilitateur), `read.js` (mise en forme des lignes, groupement des versions), `score.js` (écriture du score) |
+| `schema.js` | 420 | `schema/{core,security,infrastructure,foundation,operatingModel,governance,journey}.js` — les 260 instructions DDL réparties par domaine, **concaténées dans l'ordre d'origine** par le barrel |
+
+`submissions` n'est pas dans le barrel `index.js` (il est importé directement par
+`src/app/api/submissions/route.js`) : sa surface publique est identique. Le test
+`identity-gate-bridge.test.js`, qui lisait le source de `submissions.js`, est
+repointé sur `submissions/scope.js` et `submissions/createSubmission.js` (mêmes
+assertions).
+
+### Vérifications
+
+- `npx eslint` sur le périmètre (services, composants, test) : **0 erreur**
+  (2 avertissements `no-unused-vars` préexistants dans `identity-gate-bridge.test.js`, hors zone modifiée).
+- Tests ciblés : **786/786** (`identity-gate-bridge`, `services-boundaries`,
+  `journey-status-lexicon`, `venture-plan-*`, `venture-journey-*`).
+- `npm run build` : **OK** (arbre de routes complet rendu).
+- Invariance du rendu : sur `JourneyManagerPanel` (parent + 6 parties) et
+  `PlanReview` (parent + 5 parties), les comptes de clés `t("…")` et de
+  `className` sont **identiques** à l'original (130/130 et 102/102 ; 72/72 et
+  144/144).
+
+### À suivre (non fait ici)
+
+- `docs/HANDOVER_VENTURES.md` §5.2 n°4 : « finir la moitié UI du sceau » — les
+  cartes de jalon ne lisent pas encore le drapeau `sealed`, `firstOpenId` ne
+  saute pas les jalons `locked`, et un commentaire de
+  `JourneyPlaybookTabs.js` est devenu faux. Petit lot fonctionnel, distinct du
+  découpage ci-dessus.
+- Commiter/pousser sur `G` (jamais `main`).

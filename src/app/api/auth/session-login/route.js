@@ -1,10 +1,13 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { verifyPassword } from "@/server/auth/password";
-import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
+import { createSession } from "@/server/auth/session";
+import { setSessionCookieOnResponse } from "@/server/auth/cookies";
 import { resolveLanding, landingNeedsRelationships } from "@/models/platform/roles";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
-import { getVentureMembershipsForContact } from "@/models/contacts";
+import {
+  getVentureMembershipsForContact,
+} from "@/models/contacts/programMembership";
 import { getApprovedInvestorProfileIdByUserId } from "@/models/investor";
 import {
   getContactByEmailOrCid,

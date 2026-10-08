@@ -17,9 +17,11 @@
 import {
   isParticipantInProgram,
   isVentureFounderInProgram,
+} from "@/models/contacts/programMembership";
+import {
   searchContactsInProgram,
   searchContactsByNameOrEmail,
-} from "@/models/contacts";
+} from "@/models/contacts/directory";
 
 /** The LIKE pattern for a trimmed search term. */
 export function contactSearchPattern(query) {

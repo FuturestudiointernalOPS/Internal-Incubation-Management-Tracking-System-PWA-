@@ -20,13 +20,17 @@ import {
   getPmAssignedPrograms,
   getContactsScopedByProgramsAndGroups,
   getEnrolledProgramParticipants,
-  getFamiliesScopedByProgramsAndGroups,
   getTeamsScopedByPrograms,
+} from "@/models/contacts/directory";
+import {
+  getFamiliesScopedByProgramsAndGroups,
+} from "@/models/contacts/families";
+import {
   getRegistryContacts,
   getFamiliesList,
   getRegistryTeams,
   getActivationEmailLogForContacts,
-} from "@/models/contacts";
+} from "@/models/contacts/registry";
 
 /**
  * Build the registry feed for one scope. `pmId` null means the global feed.

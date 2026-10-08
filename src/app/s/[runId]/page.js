@@ -2,78 +2,18 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
-import { Loader2, Send, AlertTriangle, Clock } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
-import BrandingLogo from "@/components/public/run-submit/BrandingLogo";
-import ContactFooter from "@/components/public/run-submit/ContactFooter";
-import LanguageSelector from "@/components/public/run-submit/LanguageSelector";
-import SectionsStepper from "@/components/public/run-submit/SectionsStepper";
-import ConsentCard from "@/components/public/run-submit/ConsentCard";
-import PaymentStep from "@/components/public/run-submit/PaymentStep";
-import SubmissionSuccess from "@/components/public/run-submit/SubmissionSuccess";
-
-// ─── Translation helper via MyMemory (free, no API key needed) ───
-async function translateText(text, sourceLang, targetLang) {
-  if (!text || !text.trim()) return text;
-  if (sourceLang === targetLang) return text;
-  try {
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${targetLang}`;
-    const response = await fetch(url);
-    const payload = await response.json();
-    return payload?.responseData?.translatedText || text;
-  } catch (_) { return text; }
-}
-
-async function translateBatch(strings, sourceLang, targetLang) {
-  const results = [];
-  for (const str of strings) {
-    results.push(await translateText(str, sourceLang, targetLang));
-  }
-  return results;
-}
-
-// ─── Kkiapay's PLAIN web SDK (not the React package) ─────────────────────────
-// Loaded once per page, and the widget is opened with `key` + `partnerId`.
-const KKIAPAY_SCRIPT_URL = "https://cdn.kkiapay.me/k.js";
-
-function loadKkiapayScript() {
-  if (typeof window === "undefined") return Promise.resolve(false);
-  if (window.openKkiapayWidget) return Promise.resolve(true);
-  if (!window.__kkiapayCheckoutScript) {
-    window.__kkiapayCheckoutScript = new Promise((resolve) => {
-      const script = document.createElement("script");
-      script.src = KKIAPAY_SCRIPT_URL;
-      script.async = true;
-      script.onload = () => resolve(Boolean(window.openKkiapayWidget));
-      script.onerror = () => resolve(false);
-      document.head.appendChild(script);
-    });
-  }
-  return window.__kkiapayCheckoutScript;
-}
-
-/**
- * Ask the SERVER to re-verify a payment with the provider (fire-and-forget).
- *
- * The Kkiapay notification is the primary path, but it can be missed — and a
- * real payment must not stay stuck on "en cours" because of it. The payer's own
- * tab is a second, independent way to reach the truth, but the BROWSER never
- * decides: it only asks, and the server answers with the verified result.
- */
-function requestPaymentVerification(reference, email, transactionId = null) {
-  if (!reference || !email) return;
-  fetch("/api/public/checkout", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      action: "verify",
-      reference,
-      email,
-      ...(transactionId ? { transactionId } : {}),
-    }),
-  }).catch(() => {});
-}
+import {
+  translateBatch,
+  loadKkiapayScript,
+  requestPaymentVerification,
+  detectFormLanguage,
+} from "@/lib/publicRunClient";
+import PublicSubmitView from "@/components/platform/s/PublicSubmitView";
+import PublicSubmitPayment from "@/components/platform/s/PublicSubmitPayment";
+import PublicSubmitSuccess from "@/components/platform/s/PublicSubmitSuccess";
 
 // ─── What the screen starts from (module scope: built once per run) ──────────
 
@@ -88,13 +28,6 @@ const EMPTY_RUN = {
   checkout: null,
   failure: null,
 };
-
-/** The form's own language, guessed from the accents in its content. */
-function detectFormLanguage(strings) {
-  const allText = strings.filter(Boolean).join(" ").toLowerCase();
-  const frenchChars = (allText.match(/[éèêëàâîïôûùçœ]/g) || []).length;
-  return frenchChars > 2 ? "fr" : "en";
-}
 
 /**
  * The run, its form, and THIS visit's saved draft — everything the screen starts
@@ -490,161 +423,63 @@ export default function PublicSubmitPage() {
   if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>;
   if (error) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><div className="text-center"><AlertTriangle className="w-10 h-10 mx-auto text-red-500 mb-3" /><p className="text-slate-100 font-bold">{error}</p></div></div>;
 
-  // The sections that actually carry fields: an empty section is never a step.
-  const validSections = sections.filter((sec) =>
-    fields.some((field) => String(field.section_id) === String(sec.id)),
-  );
-
-  const escapeHtml = (value) => {
-    return String(value ?? "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#x27;");
-  };
-
-  const resolvePlaceholders = (template) => {
-    if (!template) return null;
-    let result = template;
-    // Resolve by field label placeholders (values are user input — escape them)
-    for (const field of fields) {
-      const rawLabel = (field.label || "").toLowerCase();
-      const safeKey = rawLabel.replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
-      const value = formData[field.id] != null ? escapeHtml(String(formData[field.id])) : "";
-      result = result.replace(new RegExp(`\\{\\{${safeKey}\\}\\}`, "gi"), value);
-      result = result.replace(new RegExp(`\\{\\{field_${field.id}\\}\\}`, "gi"), value);
-    }
-    // Common special placeholders (all dynamic values escaped)
-    const nameField = fields.find(field => (field.label || "").toLowerCase().includes("name"));
-    const emailField = fields.find(field => (field.label || "").toLowerCase().includes("email"));
-    if (nameField) {
-      const nameVal = escapeHtml(String(formData[nameField.id] || ""));
-      result = result.replace(/\{\{submitter_name\}\}/gi, nameVal);
-      result = result.replace(/\{\{name\}\}/gi, nameVal);
-    }
-    if (emailField) {
-      result = result.replace(/\{\{submitter_email\}\}/gi, escapeHtml(String(formData[emailField.id] || "")));
-    }
-    result = result.replace(/\{\{form_name\}\}/gi, escapeHtml(form?.name || ""));
-    result = result.replace(/\{\{group_name\}\}/gi, escapeHtml(run?.group_name || ""));
-    result = result.replace(/\{\{organization\}\}/gi, escapeHtml("ImpactOS"));
-    return result;
-  };
-
   // ─── The payment step of a PAID Execution ─────────────────────────────────
   if (payment) {
-    const displayAmount = payment.display_amount ?? checkout?.course?.amount ?? 0;
-    const amountLabel = `${Number(displayAmount).toLocaleString()} ${
-      payment.currency || checkout?.course?.currency || ""
-    }`.trim();
-
     return (
-      <PaymentStep
+      <PublicSubmitPayment
         t={t}
-        payStage={payStage}
-        amountLabel={amountLabel}
-        payAccessUrl={payAccessUrl}
         payment={payment}
+        checkout={checkout}
+        payStage={payStage}
+        payAccessUrl={payAccessUrl}
+        payEmail={payEmail}
         resendEmail={resendEmail}
         resendNotice={resendNotice}
-        onRetryPayment={retryPayment}
-        onCheckAgain={() =>
-          payment.reference && payEmail && pollPayment(payment.reference, payEmail)
-        }
-        onResendEmailChange={setResendEmail}
-        onResend={handleResend}
+        retryPayment={retryPayment}
+        pollPayment={pollPayment}
+        setResendEmail={setResendEmail}
+        handleResend={handleResend}
       />
     );
   }
 
   if (success) {
-    const successMessage = successConfig?.message 
-      ? resolvePlaceholders(successConfig.message) 
-      : null;
-    
     return (
-      <SubmissionSuccess
+      <PublicSubmitSuccess
         t={t}
-        successMessage={successMessage}
-        redirectUrl={successConfig?.redirect_url}
+        successConfig={successConfig}
+        fields={fields}
+        formData={formData}
+        form={form}
+        run={run}
       />
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      {notification && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-orange-500 text-white text-xs font-black uppercase">{notification}</div>}
-      <div className="max-w-2xl mx-auto p-6 space-y-8">
-        {/* Branding */}
-        <BrandingLogo className="h-12 w-auto object-contain mb-0" />
-
-        {/* Language Selector */}
-        <LanguageSelector
-          t={t}
-          lang={lang}
-          translating={translating}
-          onLangChange={switchLang}
-        />
-
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-black uppercase text-slate-100">{form?.name || run?.name}</h1>
-          {form?.description && <p className="text-sm text-slate-400 mt-2">{form.description}</p>}
-          {run?.closes_at && <p className="text-xs text-slate-400 mt-2 flex items-center gap-1"><Clock className="w-3 h-3" /> {t("forms.closes")} {new Date(run.closes_at).toLocaleDateString()}</p>}
-        </div>
-
-        {/* The run's own instructions — the same text the internal form shows. */}
-        {run?.settings?.instructions && (
-          <div className="p-4 rounded-2xl border border-orange-500/20 bg-orange-500/5">
-            <p className="text-xs font-medium text-slate-200 whitespace-pre-wrap">{run.settings.instructions}</p>
-          </div>
-        )}
-
-        {/* Sections — step-by-step navigation */}
-        <SectionsStepper
-          validSections={validSections}
-          fields={fields}
-          currentSection={currentSection}
-          formData={formData}
-          errors={errors}
-          disabled={success}
-          saving={saving}
-          onFieldChange={updateField}
-          onStep={(direction) =>
-            setSectionChoice((prev) => {
-              const from = prev ?? raw.draftSection;
-              return direction < 0
-                ? Math.max(0, from - 1)
-                : Math.min(validSections.length - 1, from + 1);
-            })
-          }
-          onSubmit={handleSubmit}
-          t={t}
-        />
-
-        {/* A PAID Execution: the price, and the consent the capture requires */}
-        {paidRun && run?.status === "active" && !success && (
-          <ConsentCard
-            t={t}
-            checkout={checkout}
-            consent={consent}
-            onConsentChange={setConsent}
-          />
-        )}
-
-        {/* Submit — only for forms with no sections (single-page layout) */}
-        {!success && run?.status === "active" && validSections.length <= 1 && (
-          <div className="pt-4">
-            <button onClick={handleSubmit} disabled={saving} className="w-full px-6 py-4 rounded-xl bg-orange-500 text-white text-sm font-black uppercase hover:bg-orange-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
-              <Send className="w-4 h-4" /> {saving ? t("forms.submitting") : t("forms.submit")}
-            </button>
-          </div>
-        )}
-
-        {/* Footer */}
-        <ContactFooter className="text-center pt-4 border-t border-slate-800" />
-      </div>
-    </div>
+    <PublicSubmitView
+      t={t}
+      form={form}
+      run={run}
+      notification={notification}
+      lang={lang}
+      translating={translating}
+      switchLang={switchLang}
+      sections={sections}
+      fields={fields}
+      currentSection={currentSection}
+      formData={formData}
+      errors={errors}
+      success={success}
+      saving={saving}
+      updateField={updateField}
+      setSectionChoice={setSectionChoice}
+      raw={raw}
+      handleSubmit={handleSubmit}
+      paidRun={paidRun}
+      checkout={checkout}
+      consent={consent}
+      setConsent={setConsent}
+    />
   );
 }

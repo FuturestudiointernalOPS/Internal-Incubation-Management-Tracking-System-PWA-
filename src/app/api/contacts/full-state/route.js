@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import { requireAuthorization } from "@/models/authorization/index";
 import { buildRegistryFeed } from "@/services/contacts/registryFeed";
 

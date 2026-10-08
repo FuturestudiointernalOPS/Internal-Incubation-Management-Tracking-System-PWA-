@@ -12,8 +12,7 @@
  *      Returned a form's stored scoring framework anonymously. Now follows the
  *      Forms capability its PUT/DELETE siblings use.
  *   3. GET  /api/platform/integrations/calendar
- *   4. GET  /api/platform/integrations/notion
- *      Disclosed integration configuration state anonymously. Now follow the
+ *      Disclosed integration configuration state anonymously. Now follows the
  *      System Settings read capability.
  *
  * The assertions are deliberately about ORDER OF OPERATIONS as well as status:
@@ -31,7 +30,7 @@ jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
 
-jest.mock("@/models/groups", () => ({
+jest.mock("@/models/groups/invitations", () => ({
   ensureInvitationsTable: jest.fn(async () => {}),
   createInvitation: jest.fn(async () => {}),
   listActiveInvites: jest.fn(async () => ({ rows: [] })),
@@ -50,22 +49,16 @@ jest.mock("@/models/integrations/calendar/sync", () => ({
   syncAllRunDeadlines: jest.fn(async () => ({})),
 }));
 
-jest.mock("@/models/integrations/notion/sync", () => ({
-  checkNotionHealth: jest.fn(() => ({ configured: true })),
-  syncSubmission: jest.fn(async () => ({})),
-  syncAllSubmissions: jest.fn(async () => ({})),
-}));
-
 const { requireAuthorization } = require("@/models/authorization/index");
-const { listActiveInvites } = require("@/models/groups");
+const {
+  listActiveInvites,
+} = require("@/models/groups/invitations");
 const { getEvaluationFrameworkByFormId } = require("@/models/platformAi");
 const { checkCalendarHealth } = require("@/models/integrations/calendar/sync");
-const { checkNotionHealth } = require("@/models/integrations/notion/sync");
 
 const { GET: invitesGET } = require("@/app/api/invites/route");
 const { GET: evaluationConfigGET } = require("@/app/api/platform/ai/evaluation-config/route");
 const { GET: calendarHealthGET } = require("@/app/api/platform/integrations/calendar/route");
-const { GET: notionHealthGET } = require("@/app/api/platform/integrations/notion/route");
 
 const denied = () => new Response(JSON.stringify({ success: false }), { status: 403 });
 const req = (url) => new Request(url);
@@ -128,15 +121,6 @@ describe("integration health probes require authorization", () => {
     expect(res.status).toBe(403);
     expect(requireAuthorization).toHaveBeenCalledWith("settings", "view");
     expect(checkCalendarHealth).not.toHaveBeenCalled();
-  });
-
-  test("notion health denies before disclosing configuration", async () => {
-    requireAuthorization.mockResolvedValueOnce(denied());
-    const res = await notionHealthGET(req("http://localhost/api/platform/integrations/notion?action=health"));
-
-    expect(res.status).toBe(403);
-    expect(requireAuthorization).toHaveBeenCalledWith("settings", "view");
-    expect(checkNotionHealth).not.toHaveBeenCalled();
   });
 
   test("an authorized caller still gets the calendar health", async () => {

@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, requireProjectAccess } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
+import { requireProjectAccess } from "@/server/authz/guards";
 import { generateProjectReport } from "@/services/dashboard/adminProjectReports";
 
 /**

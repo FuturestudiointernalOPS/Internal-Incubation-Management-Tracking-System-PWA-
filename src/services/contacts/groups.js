@@ -24,7 +24,7 @@ import {
   addFamilyDescriptionColumnOnUpdate,
   addFamilyDefaultRoleColumnOnUpdate,
   addFamilyIsArchivedColumnOnUpdate,
-} from "@/models/groups";
+} from "@/models/groups/contactGroups";
 
 /** Whether an error means a column/table is missing (the self-heal trigger). */
 function isMissingSchemaError(error) {

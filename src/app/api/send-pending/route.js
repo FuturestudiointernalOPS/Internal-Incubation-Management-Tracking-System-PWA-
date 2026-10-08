@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { sendStandaloneEmail } from "@/lib/email";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
 import {
   getPendingCampaignContacts,
   completeCampaignContact,

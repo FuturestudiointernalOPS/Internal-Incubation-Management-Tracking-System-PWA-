@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import { resolvePlanAccess, allowsPlanAction } from "@/services/ventures/operatingPlans";
 import { resolveVentureCode } from "@/services/ventures/operatingPlans";
 import { VENTURE_SCOPE_TYPES } from "@/services/ventures/permissions";
-import { inviteCoachByEmail } from "@/lib/ventureCoach";
+import { inviteCoachByEmail } from "@/services/ventures/coach";
 import { getVentureNameByIdOrCode } from "@/models/ventureWorkspace";
 
 export const dynamic = "force-dynamic";
@@ -69,7 +69,7 @@ export async function POST(req, { params }) {
     });
 
     try {
-      const { addVentureHistory } = await import("@/lib/ventures");
+      const { addVentureHistory } = await import("@/services/ventures/activity");
       const status = result.results?.[0]?.status;
       await addVentureHistory({
         venture_id: code,

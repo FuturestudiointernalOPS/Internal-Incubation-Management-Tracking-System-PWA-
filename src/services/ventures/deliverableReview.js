@@ -11,8 +11,8 @@
  * Same facades as the controller used, so route-level test mocks still apply.
  * No SQL, no HTTP.
  */
-import { canManageMilestones, syncMilestoneStatusFromDeliverables } from "@/lib/ventureMilestoneEngine";
-import { notifyVentureFounders } from "@/lib/ventures";
+import { canManageMilestones, syncMilestoneStatusFromDeliverables } from "@/services/ventures/milestoneEngine";
+import { notifyVentureFounders } from "@/services/ventures/activity";
 
 /**
  * Reads the review decision and its comments.
@@ -61,7 +61,7 @@ export async function afterDeliverableSubmitted({ dbId, milestone, session }) {
 export async function afterDeliverableReviewed({ ventureParam, dbId, session, milestone, deliverable, decision }) {
   const id = ventureParam;
   try {
-    const { addVentureHistory } = await import("@/lib/ventures");
+    const { addVentureHistory } = await import("@/services/ventures/activity");
     await addVentureHistory({
       venture_id: id,
       event_type: "DELIVERABLE_REVIEWED",
@@ -88,7 +88,7 @@ export async function afterDeliverableReviewed({ ventureParam, dbId, session, mi
       );
     } catch (_) {}
     try {
-      const { addVentureHistory } = await import("@/lib/ventures");
+      const { addVentureHistory } = await import("@/services/ventures/activity");
       await addVentureHistory({
         venture_id: id,
         event_type: "MILESTONE_COMPLETED",
@@ -111,7 +111,7 @@ export async function afterDeliverableReviewed({ ventureParam, dbId, session, mi
         );
       } catch (_) {}
       try {
-        const { addVentureHistory } = await import("@/lib/ventures");
+        const { addVentureHistory } = await import("@/services/ventures/activity");
         await addVentureHistory({
           venture_id: id,
           event_type: "JOURNEY_COMPLETED",

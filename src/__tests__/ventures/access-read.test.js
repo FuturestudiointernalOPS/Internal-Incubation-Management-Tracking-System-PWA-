@@ -33,8 +33,10 @@ let mockVentureRow = { venture_id: "VNT-1" };
 let mockAssignments = [];
 let mockMatrixAllowed = false;
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => mockSession),
+}));
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn(),
 }));
 

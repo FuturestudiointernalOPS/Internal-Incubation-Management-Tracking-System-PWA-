@@ -106,8 +106,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(),
 }));
 
@@ -124,7 +126,7 @@ const mockVentureAuth = require("@/lib/ventureAuth");
 
 const { POST: reviewPOST } = require("@/app/api/ventures/[id]/tasks/[taskId]/submissions/route");
 const { GET: queueGET } = require("@/app/api/ventures/[id]/submissions/review-queue/route");
-const { getAssignmentScopes, isTaskInScope, hasVentureWideReach } = require("@/lib/ventureScope");
+const { getAssignmentScopes, isTaskInScope, hasVentureWideReach } = require("@/services/ventures/scope");
 const readJson = async (res) => res.json();
 
 const reviewRequest = (taskId, body) =>

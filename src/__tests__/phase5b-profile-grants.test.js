@@ -45,7 +45,7 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-const { seedDefaultAccessProfiles } = require("@/lib/auth");
+const { seedDefaultAccessProfiles } = require("@/models/authorization/bootstrap");
 
 beforeEach(() => {
   mockCapabilityInserts.length = 0;

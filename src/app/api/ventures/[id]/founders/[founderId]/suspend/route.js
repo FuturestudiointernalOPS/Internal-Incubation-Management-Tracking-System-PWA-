@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { getSession } from "@/lib/auth";
-import {
-  suspendFounder,
-  canManageFounders,
-} from "@/lib/ventures";
+import { getSession } from "@/server/auth/session";
+import { suspendFounder, canManageFounders } from "@/services/ventures/founders";
 
 /**
  * POST /api/ventures/[id]/founders/[founderId]/suspend

@@ -44,12 +44,12 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({ cid: "USR-founder", role: "participant" }),
 }));
 
 const { requireVentureAccess, resolveVentureLifecycle } = require("@/lib/ventureAuth");
-const { invalidateVentureAccess, resetVentureAccessCache } = require("@/lib/ventureAccessFacts");
+const { invalidateVentureAccess, resetVentureAccessCache } = require("@/services/ventures/accessFacts");
 
 const CODE = "VNT-1";
 const ACCESS_SQL = (sql) => sql.includes("FROM ventures") || sql.includes("FROM venture_members");

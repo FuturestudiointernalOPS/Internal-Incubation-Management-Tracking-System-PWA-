@@ -8,7 +8,8 @@
  * custom-role flag and the platform-version fallbacks — live here; every
  * statement is in `@/models/ventureSystemAdminStore`. Nothing here runs SQL.
  *
- * Re-exported unchanged through `@/lib/ventures` (the module it came from) — see
+ * This module used to be re-exported through the `@/lib/ventures` barrel; that
+ * barrel is gone (CH-4) and importers read this module directly — see
  * docs/LAYER_SPLIT.md. (Distinct from `@/models/ventureAdmin`, which backs
  * Super-Admin Venture creation.)
  */

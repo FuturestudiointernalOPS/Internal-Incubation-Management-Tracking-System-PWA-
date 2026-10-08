@@ -53,7 +53,7 @@
   box-shadow: inset 3px 0 var(--brand-orange);
 }
 .shell [data-nav-active="true"] svg { color: inherit; }
-.shell [data-nav-children] [data-nav-active="true"] {
+.shell [data-nav-children] [data-nav-kind="link"][data-nav-active="true"] {
   background: var(--brand-orange);
   color: var(--participant-on-accent);
   box-shadow: none;
@@ -67,7 +67,7 @@
   background: linear-gradient(135deg, var(--brand-orange), var(--participant-accent-end)) !important;
   color: var(--participant-on-accent) !important;
 }
-.shell select, .shell [role="combobox"] {
+.shell select, .shell [role="combobox"], .shell [data-select-trigger] {
   background: var(--surface-1) !important;
   border: 1px solid var(--border-primary);
   border-radius: 12px;
@@ -76,7 +76,8 @@
   color: var(--text-primary);
 }
 .shell select:focus, .shell [role="combobox"]:focus,
-.shell [role="combobox"][aria-expanded="true"] {
+.shell [role="combobox"][aria-expanded="true"],
+.shell [data-select-trigger]:focus, .shell [data-select-trigger][aria-expanded="true"] {
   border-color: var(--brand-orange) !important;
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-orange) 16%, transparent);
@@ -102,3 +103,15 @@
 .shell [data-mobile-sidebar] { animation: participantDrawerIn 180ms ease-out; }
 @keyframes participantDrawerIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 @media (prefers-reduced-motion: reduce) { .shell [data-mobile-sidebar] { animation: none; } }
+
+.shell [data-nav-active="true"]:hover { color: var(--brand-orange); }
+.shell [data-nav-children] [data-nav-kind="link"][data-nav-active="true"]:hover { color: var(--participant-on-accent); background: var(--brand-orange); }
+
+.shell [data-select-panel] { background: var(--surface-1); border: 1px solid var(--border-primary); border-radius: 12px; font-size: 13px; }
+.shell [data-select-panel] button { font-size: 13px; }
+
+.shell [data-sidebar-brand] { gap: 12px; padding-inline: 0; margin-top: 8px; margin-bottom: 28px; }
+.shell [data-sidebar-wordmark] { display: flex; flex-direction: column; color: var(--text-primary); font-size: 13px; font-weight: 800; line-height: 15px; }
+.shell [data-sidebar-wordmark] span:last-child { color: var(--brand-orange); font-size: 9px; letter-spacing: 2px; line-height: 14px; }
+.shell [data-sidebar-collapse] { flex-shrink: 0; width: 30px; height: 30px; border: 1px solid var(--border-primary); border-radius: 9px; background: var(--bg-secondary); }
+.shell [data-sidebar-collapse]:hover { color: var(--brand-orange); border-color: var(--brand-orange); background: var(--surface-2); }

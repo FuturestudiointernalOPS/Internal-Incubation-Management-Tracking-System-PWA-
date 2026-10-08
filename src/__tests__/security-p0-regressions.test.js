@@ -21,10 +21,16 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(),
+}));
+jest.mock("@/server/authz/capabilities", () => ({
   hasProgramManagementAccess: jest.fn().mockReturnValue(true),
+}));
+jest.mock("@/server/authz/guards", () => ({
   assertNoParticipantFacilitatorConflict: jest.fn().mockResolvedValue(null),
 }));
 
@@ -32,12 +38,10 @@ jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn().mockResolvedValue(null),
 }));
 
-jest.mock("@/lib/authorization/membership", () => ({
+jest.mock("@/models/authorization/membership", () => ({
   normalizeGroupName: (value) => String(value || "").trim().toUpperCase(),
   INTERNAL_GROUP: "FUTURE STUDIO",
-}));
-
-jest.mock("@/models/invitations", () => ({
+}));jest.mock("@/models/invitations", () => ({
   attachInvitationStatus: jest.fn().mockResolvedValue([]),
 }));
 
@@ -46,16 +50,22 @@ jest.mock("@/lib/email", () => ({
   sendLoginEmail: jest.fn().mockResolvedValue({ success: true }),
 }));
 
-jest.mock("@/models/contacts", () => ({
+jest.mock("@/models/contacts/contactStore", () => ({
   upsertContact: jest.fn().mockResolvedValue({ rows: [] }),
   createAccessRequestNotification: jest.fn().mockResolvedValue(true),
   createPasswordSetupToken: jest.fn().mockResolvedValue(true),
   markContactInvited: jest.fn().mockResolvedValue(true),
+  findContactCidByPhone: jest.fn().mockResolvedValue({ rows: [] }),
+  updateContactFields: jest.fn().mockResolvedValue({ rows: [] }),
+  getContactIdentityByCid: jest.fn().mockResolvedValue({ rows: [] }),
+  markAdminNotificationsRead: jest.fn().mockResolvedValue(true),
+  getContactByCid: jest.fn().mockResolvedValue({ rows: [] }),
+  getArchivedContacts: jest.fn().mockResolvedValue({ rows: [] }),
+  softDeleteContact: jest.fn().mockResolvedValue(true),
+}));
+jest.mock("@/models/contacts/programMembership", () => ({
   assignContactToProgram: jest.fn().mockResolvedValue(true),
   createParticipantProgramAudit: jest.fn().mockResolvedValue(true),
-  findContactCidByPhone: jest.fn().mockResolvedValue({ rows: [] }),
-  createDuplicatePhoneFlag: jest.fn().mockResolvedValue(true),
-  updateContactFields: jest.fn().mockResolvedValue({ rows: [] }),
   deleteContactPrograms: jest.fn().mockResolvedValue(true),
   getProgramById: jest.fn().mockResolvedValue({ rows: [] }),
   removeContactProgramsExcept: jest.fn().mockResolvedValue(true),
@@ -63,23 +73,31 @@ jest.mock("@/models/contacts", () => ({
   addContactProgramMembership: jest.fn().mockResolvedValue(true),
   recordParticipantProgramAudit: jest.fn().mockResolvedValue(true),
   ensureContactProgramMembership: jest.fn().mockResolvedValue(true),
-  getContactIdentityByCid: jest.fn().mockResolvedValue({ rows: [] }),
-  markAdminNotificationsRead: jest.fn().mockResolvedValue(true),
-  getContactByCid: jest.fn().mockResolvedValue({ rows: [] }),
-  getArchivedContacts: jest.fn().mockResolvedValue({ rows: [] }),
+}));
+jest.mock("@/models/contacts/duplicates", () => ({
+  createDuplicatePhoneFlag: jest.fn().mockResolvedValue(true),
+}));
+jest.mock("@/models/contacts/directory", () => ({
   getContactsForSuperAdmin: jest.fn().mockResolvedValue({ rows: [] }),
   getContactsForStaff: jest.fn().mockResolvedValue({ rows: [] }),
   getParticipantProgramCids: jest.fn().mockResolvedValue({ rows: [] }),
   getContactRoleAssignmentCids: jest.fn().mockResolvedValue({ rows: [] }),
-  softDeleteContact: jest.fn().mockResolvedValue(true),
-  // families route
+}));
+jest.mock("@/models/contacts/families", () => ({
   getFamilyByRegistrationId: jest.fn(),
   getAllFamilies: jest.fn().mockResolvedValue({ rows: [] }),
+  // families route,
 }));
 
-const { getSession, requireAuth } = require("@/lib/auth");
+const { getSession } = require("@/server/auth/session");
+const { requireAuth } = require("@/server/auth/guards");
 const { requireAuthorization } = require("@/models/authorization/index");
-const { upsertContact, getFamilyByRegistrationId } = require("@/models/contacts");
+const {
+  upsertContact,
+} = require("@/models/contacts/contactStore");
+const {
+  getFamilyByRegistrationId,
+} = require("@/models/contacts/families");
 
 const { POST: postContact } = require("@/app/api/contacts/route");
 const { GET: getFamilies } = require("@/app/api/families/route");

@@ -15,12 +15,14 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(),
 }));
 
-jest.mock("@/lib/ventures", () => ({
+jest.mock("@/services/ventures/activity", () => ({
   logVentureActivity: jest.fn().mockResolvedValue(undefined),
 }));
 
@@ -41,7 +43,7 @@ jest.mock("@/lib/appUrl", () => ({
   resolveAppUrl: () => "https://app.example",
 }));
 
-const { getSession } = require("@/lib/auth");
+const { getSession } = require("@/server/auth/session");
 const { createAdminVenture } = require("@/models/ventureAdmin");
 const {
   createVentureMemberInvitation,

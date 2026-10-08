@@ -15,7 +15,7 @@ jest.mock("uuid", () => ({
 }));
 
 const db = require("@/lib/db").default;
-const { changeVentureLead } = require("@/lib/ventures");
+const { changeVentureLead } = require("@/services/ventures/record");
 
 beforeEach(() => {
   jest.clearAllMocks();

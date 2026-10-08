@@ -12,6 +12,7 @@ import {
   discardPlanImport,
 } from "@/services/ventures/planImport";
 import { choosePlanSheet, proposePlanFromSheet, applyPlanDraft } from "@/services/ventures/planImportFlow";
+import { ensureVentureSchema } from "@/services/ventures/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -179,6 +180,17 @@ export async function PATCH(req, { params }) {
 
     // ── APPLY: save what is on screen, then build the programme ──────────
     if (body.action === "apply") {
+      // Self-heal BEFORE the write: the import inserts the tracker-context
+      // columns (definition_of_done, support_name, source_ref, task_id) and a
+      // database whose schema predates them would fail the whole transaction
+      // with "column does not exist" — which is exactly how a missing
+      // `assigned_name` once reached production. The bootstrap is idempotent
+      // and swallows its own errors, so a healthy database pays only the
+      // no-op statements.
+      try {
+        await ensureVentureSchema();
+      } catch (_) {}
+
       const applied = await applyPlanDraft({
         dbId, draftId, proposal: body.proposal, actorCid: access.session?.cid,
       });

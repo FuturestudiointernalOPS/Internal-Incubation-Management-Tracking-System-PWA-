@@ -13,10 +13,12 @@
 
 import {
   getProgramIdsForPm,
+} from "@/models/contacts/programMembership";
+import {
   getContactTimelineEvents,
   getTimelineContactIdentity,
   createContactTimelineEvent,
-} from "@/models/contacts";
+} from "@/models/contacts/timeline";
 
 /** Whether this caller may read this contact's timeline (own-record for members). */
 export function mayReadContactTimeline(session, cid) {
