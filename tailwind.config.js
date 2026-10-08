@@ -1,4 +1,34 @@
 /** @type {import('tailwindcss').Config} */
+
+// ─── CHARTER PALETTE ────────────────────────────────────────────────────────
+// Every Tailwind colour family a page may use is mapped onto the charter, so a
+// class such as `text-emerald-400` or `bg-slate-800/40` looks the same on every
+// page of every role. Green and red are the only colours outside the charter.
+const mix = (hex, target, amount) => {
+  const channels = (value) => [1, 3, 5].map((index) => parseInt(value.slice(index, index + 2), 16));
+  const from = channels(hex);
+  const to = channels(target);
+  return from.map((channel, index) => Math.round(channel + (to[index] - channel) * amount));
+};
+const rgb = (parts) => `rgb(${parts.join(" ")} / <alpha-value>)`;
+/** A 50–950 scale around `base` (the 500 step): lighter toward white, darker toward black. */
+const scale = (base) => {
+  const steps = { 50: ["#ffffff", 0.92], 100: ["#ffffff", 0.84], 200: ["#ffffff", 0.68], 300: ["#ffffff", 0.5], 400: ["#ffffff", 0.25], 500: ["#000000", 0], 600: ["#000000", 0.15], 700: ["#000000", 0.3], 800: ["#000000", 0.45], 900: ["#000000", 0.6], 950: ["#000000", 0.72] };
+  const out = {};
+  for (const [step, [target, amount]] of Object.entries(steps)) out[step] = rgb(mix(base, target, amount));
+  out.DEFAULT = out[500];
+  return out;
+};
+const charterBlue = scale("#8f8fe8"); // in progress
+const charterNeutral = {
+  50: "#f4f5fc", 100: "#ecedfb", 200: "#d6d8f0", 300: "#b4b6dc", 400: "#8a8abf",
+  500: "#6c6cae", 600: "#5a5a9c", 700: "#2a2a80", 800: "#14146e", 900: "#0d0d58", 950: "#06063f",
+};
+const neutral = Object.fromEntries(Object.entries(charterNeutral).map(([step, hex]) => [step, rgb(mix(hex, "#000000", 0))]));
+const charterGreen = scale("#2dd4a0"); // done
+const charterRed = scale("#ff5470"); // blocked / critical
+const charterPending = scale("#9a9ad0"); // pending
+const charterOrange = scale("#ff6600"); // accent
 module.exports = {
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -34,6 +64,13 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        slate: neutral, gray: neutral, zinc: neutral, neutral, stone: neutral,
+        blue: charterBlue, sky: charterBlue, cyan: charterBlue, teal: charterBlue,
+        indigo: charterBlue, violet: charterBlue, purple: charterBlue, fuchsia: charterBlue, pink: charterBlue,
+        emerald: charterGreen, green: charterGreen, lime: charterGreen,
+        red: charterRed, rose: charterRed,
+        amber: charterPending, yellow: charterPending,
+        orange: charterOrange,
         primary: {
           50: "#f5f7ff",
           100: "#ebf0fe",
@@ -46,19 +83,11 @@ module.exports = {
           800: "#233e93",
           900: "#1d3378",
         },
-        indigo: {
-          DEFAULT: "#6366f1",
-          50: "#eef2ff",
-          100: "#e0e7ff",
-          200: "#c7d2fe",
-          300: "#a5b4fc",
-          400: "#818cf8",
-          500: "#6366f1",
-          600: "#4f46e5",
-          700: "#4338ca",
-          800: "#3730a3",
-          900: "#312e81",
-        },
+      },
+      borderRadius: {
+        // One corner language: cards, panels and modals are 14px everywhere.
+        "2xl": "14px",
+        "3xl": "14px",
       },
       fontFamily: {
         sans: ["Inter", "sans-serif"],

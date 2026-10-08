@@ -37,29 +37,15 @@ export default function AppTabs({
   const variants = useMemo(
     () => ({
       underline: {
-        container: `flex overflow-x-auto border-b`,
-        containerBorder: "var(--border-primary)",
-        tab: (isActive) => `
-          relative px-4 py-3 text-[10px] font-bold uppercase tracking-wider
-          whitespace-nowrap shrink-0 transition-all duration-150 cursor-pointer
-          ${isActive ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}
-        `,
-        indicator: (isActive) =>
-          isActive
-            ? "absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--brand-orange)]"
-            : "",
+        container: "stf-tabs",
+        containerBorder: undefined,
+        tab: (isActive) => `stf-tab ${isActive ? "on" : ""}`,
+        indicator: () => "",
       },
       pills: {
-        container: `flex gap-1 overflow-x-auto`,
-        tab: (isActive) => `
-          px-4 py-2 text-[10px] font-bold uppercase tracking-wider
-          whitespace-nowrap shrink-0 rounded-[var(--radius-sm)] transition-all duration-150 cursor-pointer
-          ${
-            isActive
-              ? "bg-[var(--brand-orange)] text-white"
-              : "text-[var(--text-secondary)] hover:bg-[var(--surface-2)]"
-          }
-        `,
+        container: "stf-tabs",
+        containerBorder: undefined,
+        tab: (isActive) => `stf-tab ${isActive ? "on" : ""}`,
         indicator: () => "",
       },
     }),
@@ -116,17 +102,10 @@ export default function AppTabs({
               <span>{tab.label}</span>
               {tab.count !== undefined && (
                 <span
-                  className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
-                    isActive
-                      ? "bg-brand-orange/20 text-[var(--brand-orange)]"
-                      : "bg-[var(--surface-3)] text-[var(--text-tertiary)]"
-                  }`}
+                  className="stf-tag"
                 >
                   {tab.count}
                 </span>
-              )}
-              {isActive && variant === "underline" && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--brand-orange)]" />
               )}
             </div>
           </button>

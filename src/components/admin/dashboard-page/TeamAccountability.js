@@ -2,6 +2,7 @@
 
 import { AlertTriangle, CheckCircle2, Clock, ChevronUp } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import StatusCard from "@/components/ui/StatusCard";
 
 /**
  * The three accountability figures: staff reporting consistently, staff at
@@ -10,53 +11,13 @@ import { useI18n } from "@/lib/i18n";
  */
 export function TeamSummaryStats({ staffReports, totalStaff }) {
   const { t } = useI18n();
+  const reports = (staff) => staff.standups + staff.retros;
+  const stat = (tone, icon, label, value) => <StatusCard tone={tone} icon={icon} label={label} value={value} />;
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-      <div className="card flex items-center gap-3 p-4 border-l-4 border-emerald-500">
-        <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-        <div>
-          <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-            {t("admin.consistent")}
-          </p>
-          <p className="text-2xl font-black tracking-tight">
-            {
-              staffReports.filter(
-                (staff) => staff.standups + staff.retros >= 4,
-              ).length
-            }
-          </p>
-        </div>
-      </div>
-      <div className="card flex items-center gap-3 p-4 border-l-4 border-amber-500">
-        <Clock className="w-5 h-5 text-amber-500 shrink-0" />
-        <div>
-          <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-            {t("admin.atRisk")}
-          </p>
-          <p className="text-2xl font-black tracking-tight">
-            {
-              staffReports.filter(
-                (staff) =>
-                  staff.standups + staff.retros > 0 &&
-                  staff.standups + staff.retros < 4,
-              ).length
-            }
-          </p>
-        </div>
-      </div>
-      <div className="card flex items-center gap-3 p-4 border-l-4 border-rose-500">
-        <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0" />
-        <div>
-          <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-            {t("admin.inactive")}
-          </p>
-          <p className="text-2xl font-black tracking-tight">
-            {totalStaff - staffReports.length > 0
-              ? totalStaff - staffReports.length
-              : 0}
-          </p>
-        </div>
-      </div>
+    <div className="stf-grid g3">
+      {stat("g", CheckCircle2, t("admin.consistent"), staffReports.filter((staff) => reports(staff) >= 4).length)}
+      {stat("o", Clock, t("admin.atRisk"), staffReports.filter((staff) => reports(staff) > 0 && reports(staff) < 4).length)}
+      {stat("r", AlertTriangle, t("admin.inactive"), totalStaff - staffReports.length > 0 ? totalStaff - staffReports.length : 0)}
     </div>
   );
 }

@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, PlayCircle, CheckCircle2, AlertCircle, Award } from "lucide-react";
+import { BookOpen, PlayCircle, CheckCircle2, AlertCircle, Award, RefreshCw } from "lucide-react";
+import AppCard from "@/components/ui/AppCard";
+import AppInput from "@/components/ui/AppInput";
 import AppButton from "@/components/ui/AppButton";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import LearnerProgressBar from "./LearnerProgressBar";
@@ -35,6 +38,7 @@ const pickMyLearning = (data) =>
 export default function LearnerLearning() {
   const { t } = useI18n();
   const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
 
   // The list is read through the shared hook, which owns the cache, the
   // cache-first paint and the discarding of a stale answer, so the screen keeps
@@ -50,6 +54,7 @@ export default function LearnerLearning() {
     transform: pickMyLearning,
   });
   const courses = coursesRead.list;
+  const visibleCourses = courses.filter(entry => entry.course.title.toLowerCase().includes(searchQuery.trim().toLowerCase()));
 
   // The loader's failure flag, derived: the payload refusing or a request that
   // never answered.
@@ -64,7 +69,7 @@ export default function LearnerLearning() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-black uppercase tracking-tight" style={{ color: "var(--text-primary)" }}>
           {t("lms.learning.title")}
@@ -73,8 +78,16 @@ export default function LearnerLearning() {
         <LearnerCoachingButton />
       </div>
 
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 my-6">{[
+        [t("participant.template.courses"), courses.length],
+        [t("participant.template.completedCourses"), courses.filter(course => course.progress?.complete).length],
+        [t("participant.template.lessonsCompleted"), `${courses.reduce((sum, course) => sum + Number(course.progress?.completedLessons || 0), 0)} / ${courses.reduce((sum, course) => sum + Number(course.progress?.totalLessons || 0), 0)}`],
+        [t("participant.template.certificates"), courses.filter(course => course.certificate).length],
+      ].map(([label, value]) => <AppCard key={label} padding="sm"><p className="text-xs text-[var(--text-secondary)]">{label}</p><strong className="block mt-3 text-2xl font-bold font-mono text-[var(--text-primary)]">{loading ? t("common.loading") : value}</strong></AppCard>)}</div>
+      <div className="flex items-end gap-3 mb-6"><div className="flex-1"><AppInput type="search" label={t("common.search")} value={searchQuery} onChange={event => setSearchQuery(event.target.value)} /></div><AppButton icon={RefreshCw} variant="secondary" onClick={refresh}>{t("common.refresh")}</AppButton></div>
+
       {loading ? (
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
           {[0, 1].map((index) => (
             <div
               key={index}
@@ -93,17 +106,17 @@ export default function LearnerLearning() {
             {t("common.refresh")}
           </AppButton>
         </div>
-      ) : courses.length === 0 ? (
+      ) : visibleCourses.length === 0 ? (
         <div className="mt-6">
           <AppEmptyState
-            title={t("lms.learning.emptyTitle")}
+            title={t(courses.length ? "common.noResults" : "lms.learning.emptyTitle")}
             description={t("lms.learning.emptyDescription")}
             icon={BookOpen}
           />
         </div>
       ) : (
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-          {courses.map(({ course, progress, continueLesson, certificate }) => (
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+          {visibleCourses.map(({ course, progress, continueLesson, certificate }) => (
             <div
               key={course.id}
               className="rounded-xl border overflow-hidden"

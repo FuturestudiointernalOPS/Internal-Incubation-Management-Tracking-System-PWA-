@@ -1,3 +1,4 @@
+import styles from "./participant.module.css";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
 /**
@@ -7,8 +8,10 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
  * itself) so the sidebar mounts a single time and survives client-side
  * navigation between participant pages.
  */
+export const dynamic = "force-dynamic";
+
 export default function ParticipantLayout({ children }) {
   return (
-    <DashboardLayout role="participant">{children}</DashboardLayout>
+    <DashboardLayout role="participant"><div className={styles.surface}>{children}</div></DashboardLayout>
   );
 }
