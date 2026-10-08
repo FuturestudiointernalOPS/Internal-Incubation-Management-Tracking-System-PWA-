@@ -471,6 +471,59 @@
       "emptyStateHint": "La chronologie de {name} se remplira au fil de ses interactions avec Future Studio.",
       "phaseNote": "Chronologie — Phase 1. Les événements sont reconstitués à partir des données d'audit existantes.",
       "loading": "Chargement..."
+    },
+    "organizations": {
+      "title": "Organisations",
+      "subtitle": "Entreprises, écoles, fonds et autres organisations liées à vos contacts.",
+      "nameRequired": "Le nom de l'organisation est obligatoire.",
+      "notFound": "Organisation introuvable.",
+      "newOrganization": "Nouvelle organisation",
+      "editOrganization": "Modifier l'organisation",
+      "deleteOrganization": "Supprimer l'organisation",
+      "confirmDelete": "Voulez-vous vraiment supprimer cette organisation ? Cette action est irréversible.",
+      "namePlaceholder": "Nom de l'organisation",
+      "typePlaceholder": "Type (entreprise, école, fonds…)",
+      "websitePlaceholder": "URL du site web",
+      "industryPlaceholder": "Secteur d'activité",
+      "descriptionPlaceholder": "Courte description",
+      "ownerLabel": "Propriétaire",
+      "noOrganizations": "Aucune organisation pour l'instant.",
+      "noOrganizationsHint": "Ajoutez la première organisation pour commencer à cartographier vos relations CRM.",
+      "loading": "Chargement des organisations…",
+      "people": "Personnes",
+      "types": {
+        "company": "Entreprise",
+        "ngo": "ONG / Association",
+        "school": "École / Université",
+        "fund": "Fonds d'investissement",
+        "government": "Gouvernement",
+        "other": "Autre"
+      }
+    },
+    "relationships": {
+      "organizationRequired": "L'organisation est obligatoire.",
+      "notFound": "Relation introuvable.",
+      "alreadyExists": "Cette personne est déjà liée à cette organisation avec le même type de relation.",
+      "addRelationship": "Lier à une organisation",
+      "editRelationship": "Modifier la relation",
+      "removeRelationship": "Supprimer le lien",
+      "relationshipTypePlaceholder": "Type de relation",
+      "titlePlaceholder": "Titre ou rôle dans cette organisation",
+      "notesPlaceholder": "Notes",
+      "isPrimary": "Organisation principale",
+      "isCurrent": "Actuellement active",
+      "startedAtLabel": "Début",
+      "endedAtLabel": "Fin",
+      "noRelationships": "Aucune organisation liée pour l'instant.",
+      "types": {
+        "works_for": "Travaille pour",
+        "founded": "A fondé",
+        "advises": "Conseille",
+        "represents": "Représente",
+        "invested_in": "A investi dans",
+        "partners_with": "Partenaire de",
+        "other": "Autre"
+      }
     }
   }
 }

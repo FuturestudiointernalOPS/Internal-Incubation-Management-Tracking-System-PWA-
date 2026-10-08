@@ -258,6 +258,23 @@ export const CAPABILITY_CATALOG = {
       manage: { label: "Manage", risk: "critical", description: "Manage protected-group membership (e.g. FUTURE STUDIO)" },
     },
   },
+  // ─── CRM MODULE ───────────────────────────────────────────────────────────
+  // Registered as an isolated capability: does not inherit from contacts or
+  // org_membership. The CRM hub gates on crm.view; write operations gate on
+  // crm.create / crm.edit / crm.delete / crm.assign. Super-admin retains
+  // crm.manage for pipeline and configuration actions in Phase 2+.
+  crm: {
+    name: "CRM",
+    risk: "medium",
+    capabilities: {
+      view:   { label: "View",   risk: "low",    description: "Access CRM workspace, people directory, organizations, and timeline" },
+      create: { label: "Create", risk: "medium", description: "Create CRM organizations and contact-organization relationships" },
+      edit:   { label: "Edit",   risk: "medium", description: "Modify CRM organizations and relationships" },
+      delete: { label: "Delete", risk: "high",   description: "Remove CRM organizations and relationships (soft delete)" },
+      assign: { label: "Assign", risk: "medium", description: "Assign ownership of CRM records" },
+      manage: { label: "Manage", risk: "high",   description: "Administer CRM configuration, module capabilities, and pipeline (Phase 2+)" },
+    },
+  },
 };
 
 /** Human label for a capability (falls back to the raw key). */

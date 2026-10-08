@@ -72,7 +72,7 @@ export default function CrmWorkspace() {
     },
   ];
 
-  if (has("contacts", "view")) {
+  if (has("crm", "view")) {
     cards.push(
       {
         key: "people",
@@ -80,6 +80,20 @@ export default function CrmWorkspace() {
         icon: Users,
         title: t("crm.overview.allPeople"),
         subtitle: t("crm.directory.subtitle"),
+      },
+      {
+        key: "leads",
+        href: "/crm/leads",
+        icon: FileText, // Will use FileText for Leads or a suitable Lucide icon. Wait, better yet, Target. I'll import it if needed. Let's use FileText which is already imported for forms.
+        title: t("crm.leads.title"),
+        subtitle: t("crm.leads.subtitle"),
+      },
+      {
+        key: "organizations",
+        href: "/crm/organizations",
+        icon: Shield,
+        title: t("crm.organizations.title"),
+        subtitle: t("crm.organizations.subtitle"),
       },
       {
         key: "timeline",
@@ -98,6 +112,7 @@ export default function CrmWorkspace() {
       icon: Shield,
       title: t("membership.page.title"),
       subtitle: t("membership.page.subtitle"),
+
     });
   }
 

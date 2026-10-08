@@ -471,6 +471,59 @@
       "emptyStateHint": "{name}'s timeline will populate as they interact with Future Studio.",
       "phaseNote": "Timeline — Phase 1. Events are backfilled from existing audit data.",
       "loading": "Loading..."
+    },
+    "organizations": {
+      "title": "Organizations",
+      "subtitle": "Companies, schools, funds, and other organizations linked to your contacts.",
+      "nameRequired": "Organization name is required.",
+      "notFound": "Organization not found.",
+      "newOrganization": "New Organization",
+      "editOrganization": "Edit Organization",
+      "deleteOrganization": "Delete Organization",
+      "confirmDelete": "Are you sure you want to remove this organization? This cannot be undone.",
+      "namePlaceholder": "Organization name",
+      "typePlaceholder": "Type (company, school, fund…)",
+      "websitePlaceholder": "Website URL",
+      "industryPlaceholder": "Industry or sector",
+      "descriptionPlaceholder": "Short description",
+      "ownerLabel": "Owner",
+      "noOrganizations": "No organizations yet.",
+      "noOrganizationsHint": "Add the first organization to start building your CRM relationship map.",
+      "loading": "Loading organizations…",
+      "people": "People",
+      "types": {
+        "company": "Company",
+        "ngo": "NGO / Non-profit",
+        "school": "School / University",
+        "fund": "Investment Fund",
+        "government": "Government",
+        "other": "Other"
+      }
+    },
+    "relationships": {
+      "organizationRequired": "Organization is required.",
+      "notFound": "Relationship not found.",
+      "alreadyExists": "This person is already linked to that organization with the same relationship type.",
+      "addRelationship": "Link to Organization",
+      "editRelationship": "Edit Relationship",
+      "removeRelationship": "Remove Link",
+      "relationshipTypePlaceholder": "Relationship type",
+      "titlePlaceholder": "Title or role at this organization",
+      "notesPlaceholder": "Notes",
+      "isPrimary": "Primary organization",
+      "isCurrent": "Currently active",
+      "startedAtLabel": "Started",
+      "endedAtLabel": "Ended",
+      "noRelationships": "No organizations linked yet.",
+      "types": {
+        "works_for": "Works for",
+        "founded": "Founded",
+        "advises": "Advises",
+        "represents": "Represents",
+        "invested_in": "Invested in",
+        "partners_with": "Partners with",
+        "other": "Other"
+      }
     }
   }
 }
