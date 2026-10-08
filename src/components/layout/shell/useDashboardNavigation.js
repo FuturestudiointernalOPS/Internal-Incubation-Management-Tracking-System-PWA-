@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   Briefcase,
   Calendar,
-  RefreshCw,
   User,
   MessageSquare,
   Bell,
@@ -156,17 +155,10 @@ export function useDashboardNavigation({
       }
       if (rel.isProgramParticipant) {
         items.push({ id: "programs", name: "MY PROGRAMS", icon: Briefcase, href: "/participant/dashboard" });
-        if (activeRole !== "team") {
-          items.push({ id: "assignments", name: "ASSIGNMENTS", icon: FileText, href: "/participant/assignments" });
-          items.push({ id: "progress", name: "PROGRESS", icon: TrendingUp, href: "/participant/progress" });
-          items.push({ id: "rituals", name: "RITUALS", icon: RefreshCw, href: "/participant/rituals" });
-          items.push({ id: "followups", name: "FOLLOWUPS", icon: Calendar, href: "/participant/followups" });
-        }
         items.push({ id: "certificates", name: "MY CERTIFICATES", icon: FileText, href: "/participant/certificates" });
       }
-      if (canReadMessages && activeRole !== "team") {
-        items.push({ id: "messages", name: "MESSAGES", icon: MessageSquare, href: "/participant/messages" });
-      }
+      if (activeRole !== "team") items.push({ id: "announcements", name: "ANNOUNCEMENTS", icon: Bell, href: "/participant/announcements" });
+      if (canReadMessages && activeRole !== "team") items.push({ id: "messages", name: "MESSAGES", icon: MessageSquare, href: "/participant/messages" });
       if (rel.isVentureMember) {
         // A founder's venture door sits with their program doors (the founder
         // nav contract reads Dashboard → Programs → Ventures → Timeline),

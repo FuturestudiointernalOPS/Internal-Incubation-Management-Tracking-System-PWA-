@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React from "react";
 import { useI18n } from "@/lib/i18n";
 import {
   Layers,

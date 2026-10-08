@@ -444,7 +444,7 @@ propres à leur surface, tandis que les composants UI génériques restent dans 
 
 The participant portal follows `participant-page.html`: a welcome banner,
 compact metric cards, a command calendar, attention lists, announcements, and
-lettered Learning / Rituals / Shortcuts sections. Its sentence-case typography
+a Learning section. The dashboard omits Rituals and Shortcuts. Its sentence-case typography
 and navy/orange palette are scoped to participant routes by
 `participant.module.css` and `participant-shell.module.css`; other sections keep
 their existing theme. Colors are always expressed through theme variables.
@@ -462,3 +462,5 @@ Participant shell uses the specified navy/orange palette in `participant-shell.m
 Desktop collapse is persisted with `impactos_participant_sidebar_collapsed` and uses a 76px rail; mobile always renders expanded labels. Participant groups toggle independently, and collapsed group clicks expand the rail. `AppButton` exposes `data-variant` and `AppStatusBadge` exposes `data-status`/`data-status-variant` so scoped themes can style them without changing other sections. Participant selects use card surfaces, 12px corners and orange focus rings.
 
 Participant active group styling uses `data-nav-kind="group"`; only active nested links use the solid orange surface. SearchableSelect exposes `data-select-trigger` and `aria-expanded` so the participant select theme applies to searchable dropdowns, with labels associated to the trigger. The participant brand header displays Future Studio / ImpactOS beside the logo and an outlined collapse control.
+
+Participant announcements now live at `/participant/announcements`, sourced from the complete announcement notification history for the session recipient. Read/unread changes persist through the notification API; categorisation and personal pins are stored per recipient on the current browser. Uncategorized notifications default to Programme. The participant sidebar omits Assignments, Progress, Rituals and Follow-ups while their routes remain accessible. The home page links to the announcement hub.

@@ -40,7 +40,7 @@ export default function ShellHeader({
 
             <div className="flex items-center gap-2 sm:gap-4 ml-auto relative z-10">
               {/* Context Switcher — navigate between legitimate contexts (Phase 2C) */}
-              <ContextSwitcher />
+              {!pathname?.startsWith("/participant") && <ContextSwitcher />}
               {/* Theme Selector */}
               <div className="relative hidden sm:block">
                 <button
@@ -165,7 +165,7 @@ export default function ShellHeader({
                                 setShowNotifications(false);
                               }
                               if (notification.type === "announcement" && ["participant", "member", "founder"].includes(user?.role)) {
-                                router.push("/participant#announcements");
+                                router.push("/participant/announcements");
                                 setShowNotifications(false);
                               }
                               if (notification.type === "message") {
