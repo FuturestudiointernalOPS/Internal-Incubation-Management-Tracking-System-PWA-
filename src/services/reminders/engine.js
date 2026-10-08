@@ -90,13 +90,26 @@ async function deliverOne({
   });
 
   if (!result?.success) {
-    await markReminderFailed({ id: logId, error: result?.error || "the transport refused the message" });
+    const raw = result?.error != null ? result.error : result?.note;
+    const errorText =
+      raw == null || raw === ""
+        ? "the transport refused the message"
+        : typeof raw === "string"
+          ? raw
+          : (() => {
+              try {
+                return JSON.stringify(raw);
+              } catch {
+                return String(raw);
+              }
+            })();
+    await markReminderFailed({ id: logId, error: errorText });
     return {
       email: recipient.email,
       name: recipient.name,
       role: recipient.role,
       outcome: "failed",
-      error: result?.error || null,
+      error: errorText,
     };
   }
 

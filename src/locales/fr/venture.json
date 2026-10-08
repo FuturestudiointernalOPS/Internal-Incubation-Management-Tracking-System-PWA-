@@ -897,6 +897,7 @@
       "nobodyReachable": "Personne n'a pu être joint — aucune adresse e-mail enregistrée. Ajoutez-en une ci-dessus et renvoyez.",
       "sentCount": "Envoyé à {count} destinataire(s).",
       "failedCount": "{count} n'a pas pu être envoyé.",
+      "failedReason": "{reason}",
       "addEmail": "Ajouter un e-mail",
       "addEmailTitle": "Adresse e-mail",
       "addEmailMessage": "Où doivent aller les rappels pour {name} ?",

@@ -150,10 +150,17 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
         <p className="text-[10px] text-amber-400">{t("venture.reminders.nobodyReachable")}</p>
       )}
       {outcome && !outcome.no_recipients && (
-        <p className="text-[10px] text-[var(--text-secondary)]">
-          {t("venture.reminders.sentCount", { count: outcome.sent })}
-          {outcome.failed?.length > 0 && ` · ${t("venture.reminders.failedCount", { count: outcome.failed.length })}`}
-        </p>
+        <div className="space-y-1">
+          <p className="text-[10px] text-[var(--text-secondary)]">
+            {t("venture.reminders.sentCount", { count: outcome.sent })}
+            {outcome.failed?.length > 0 && ` · ${t("venture.reminders.failedCount", { count: outcome.failed.length })}`}
+          </p>
+          {outcome.failed?.[0]?.error ? (
+            <p className="text-[10px] text-amber-400">
+              {t("venture.reminders.failedReason", { reason: outcome.failed[0].error })}
+            </p>
+          ) : null}
+        </div>
       )}
     </div>
   );

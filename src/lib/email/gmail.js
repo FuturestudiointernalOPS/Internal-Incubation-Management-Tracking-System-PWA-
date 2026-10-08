@@ -98,7 +98,9 @@ function buildGmailRawMessage({ to, subject, html, attachments, fromName }) {
 export async function sendViaGmail({ to, subject, html, attachments, fromName }) {
   if (!gmailCredentialsAvailable()) {
     console.warn("[Gmail] Credentials not configured — skipping Gmail send to:", to);
-    return { success: false, provider: "gmail", note: "Gmail credentials not configured" };
+    // `error` (not only `note`) so sendEmail / the reminder engine surface the
+    // real reason instead of collapsing to a generic "Email send failed".
+    return { success: false, provider: "gmail", error: "Gmail credentials not configured", note: "Gmail credentials not configured" };
   }
 
   try {

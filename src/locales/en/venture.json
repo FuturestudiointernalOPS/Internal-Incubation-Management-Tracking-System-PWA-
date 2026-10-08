@@ -897,6 +897,7 @@
       "nobodyReachable": "Nobody could be reached — no email address on file. Add one above and send again.",
       "sentCount": "Sent to {count} recipient(s).",
       "failedCount": "{count} could not be sent.",
+      "failedReason": "{reason}",
       "addEmail": "Add email",
       "addEmailTitle": "Email address",
       "addEmailMessage": "Where should reminders for {name} go?",
