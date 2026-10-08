@@ -133,6 +133,7 @@ export const SidebarContent = ({
         >
           <button
             onClick={() => {
+<<<<<<< HEAD
               if (participant && collapsed) {
                 setCollapsed(false);
                 if (!isOpen) toggleMenu(item.id);
@@ -141,8 +142,20 @@ export const SidebarContent = ({
             title={show ? undefined : label(item)}
             data-nav-active={onPath || undefined}
             data-nav-depth={depth}
+=======
+              if (collapsed && !showLabels) {
+                // From the rail: reopen the sidebar and unfold this group.
+                setFlyout(null);
+                setCollapsed(false);
+                if (!openMenus[item.id]) toggleSection(item.id);
+                return;
+              }
+              toggleSection(item.id);
+            }}
+>>>>>>> origin/frontend_b
             aria-expanded={expanded}
             aria-label={show ? undefined : label(item)}
+            title={show ? undefined : label(item)}
             onMouseEnter={
               participant ? undefined : collapsed && !showLabels
                 ? (event) => openFlyout(event, item.id)
@@ -155,13 +168,13 @@ export const SidebarContent = ({
             onMouseLeave={
               !participant && collapsed && !showLabels ? scheduleFlyoutClose : undefined
             }
-            className={`w-full flex items-center justify-between transition-all ${
+            className={`w-full flex items-center transition-all ${show ? "justify-between" : "justify-center"} ${
               isTop
-                ? "px-4 py-3 rounded-xl text-[13px] font-semibold"
+                ? `${show ? "px-4" : "px-0"} py-3 rounded-xl text-[13px] font-semibold`
                 : "px-4 py-2 rounded-lg text-[13px] font-medium"
             } ${
               onPath
-                ? "text-[var(--text-primary)] bg-tertiary border border-[var(--border-secondary)]"
+                ? "relative text-[var(--brand-orange)] bg-gradient-to-r from-[rgb(255_102_0/0.14)] to-transparent before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[3px] before:rounded-full before:bg-[var(--brand-orange)]"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"
             }`}
           >
@@ -193,7 +206,11 @@ export const SidebarContent = ({
             )}
           </button>
           {expanded && show && (
+<<<<<<< HEAD
             <div data-nav-children className={`space-y-1 py-1 ${isTop ? "pl-8" : "pl-6"}`}>
+=======
+            <div className="space-y-1 py-1 ml-[18px] pl-3 border-l border-[var(--border-primary)]">
+>>>>>>> origin/frontend_b
               {childItems.map((childItem) => renderNavItem(childItem, depth + 1, showLabels))}
             </div>
           )}
@@ -210,25 +227,28 @@ export const SidebarContent = ({
         data-nav-active={isActive || onPath || undefined}
         data-nav-depth={depth}
         aria-label={show ? undefined : label(item)}
+        title={show ? undefined : label(item)}
         onClick={() => {
           setMobileMenuOpen(false);
           setFlyout(null);
         }}
-        className={`w-full flex items-center transition-all ${
+        className={`w-full flex items-center transition-all ${show ? "" : "justify-center"} ${
           isTop
-            ? "gap-4 px-4 py-3 rounded-xl text-[13px] font-semibold"
+            ? `${show ? "gap-4 px-4" : "px-0"} py-3 rounded-xl text-[13px] font-semibold`
             : "gap-3 px-4 py-2 rounded-lg text-[13px] font-medium"
         } ${
           isActive
-            ? "text-[var(--brand-orange)] bg-tertiary border border-[var(--border-secondary)]"
+            ? isTop
+              ? "relative text-[var(--brand-orange)] bg-gradient-to-r from-[rgb(255_102_0/0.14)] to-transparent before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[3px] before:rounded-full before:bg-[var(--brand-orange)]"
+              : "bg-[var(--brand-orange)] text-white"
             : onPath
-              ? "text-[var(--text-primary)] bg-tertiary border border-[var(--border-secondary)]"
+              ? "text-[var(--text-primary)] bg-tertiary"
               : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"
         }`}
       >
         {item.icon && (
           <item.icon
-            className={`w-4 h-4 flex-shrink-0 ${isActive || onPath ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}
+            className={`w-4 h-4 flex-shrink-0 ${isActive && !isTop ? "text-white" : isActive || onPath ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}
           />
         )}
         {show && <span className="truncate">{label(item)}</span>}
@@ -287,14 +307,21 @@ export const SidebarContent = ({
         </button>}
       </div>
 
+<<<<<<< HEAD
       {participant && collapsed && <div data-section-rule className="border-t border-[var(--border-primary)] mx-3 mb-4" />}
       {!collapsed && (
         <div className="px-3 mb-4">
+=======
+      <div className="px-3 mb-4">
+        {collapsed ? (
+          <div className="h-px w-full bg-[var(--border-primary)]" aria-hidden="true" />
+        ) : (
+>>>>>>> origin/frontend_b
           <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.25em] opacity-40">
             {t(["participant", "member", "founder"].includes(role) ? "participant.template.mySpace" : "navigation.mainOperations")}
           </p>
-        </div>
-      )}
+        )}
+      </div>
 
       <nav className="flex-1 space-y-2 overflow-y-auto min-h-0 pr-1">
         {(navItems || []).map((item) => renderNavItem(item, 0, false))}

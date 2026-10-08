@@ -54,6 +54,19 @@ function toDateStr(value) {
   }
 }
 
+/**
+ * A timestamp as the calendar needs it to place a block on the hour grid: an
+ * ISO string for a Date, the raw text otherwise (it is parsed by the browser, so
+ * a value written with an offset keeps its instant and a naive one keeps its
+ * wall-clock). Empty / unreadable → null, so the item is simply all-day.
+ */
+function toInstant(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return null;
+  return value instanceof Date ? date.toISOString() : String(value);
+}
+
 /** All dates from start to end (inclusive). */
 function dateRange(start, end) {
   const dates = [];
@@ -222,6 +235,7 @@ export async function buildDashboardOverview({ session, requestedUserId, request
         status: "scheduled",
         related_id: sessionRow.id,
         project_id: sessionRow.program_id,
+        starts_at: toInstant(sessionRow.start_at),
       });
     }
   }
@@ -243,6 +257,7 @@ export async function buildDashboardOverview({ session, requestedUserId, request
         project_id: null,
         description: sessionRow.coach_name ? `Coach: ${sessionRow.coach_name}` : null,
         milestone_ref: sessionRow.milestone_ref || null,
+        starts_at: toInstant(sessionRow.start_time),
       });
     }
   }
@@ -273,6 +288,9 @@ export async function buildDashboardOverview({ session, requestedUserId, request
         source: "event",
         status: "scheduled",
         related_id: calendarEvent.id,
+        starts_at: toInstant(calendarEvent.start_time),
+        ends_at: toInstant(calendarEvent.end_time),
+        location: calendarEvent.location || null,
       });
     }
   }

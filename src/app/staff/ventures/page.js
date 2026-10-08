@@ -1,101 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Rocket, Loader2, ChevronRight, ShieldAlert } from "lucide-react";
-import { useI18n } from "@/lib/i18n";
+import VenturesView from "@/components/staff/VenturesView";
 
 /**
  * Staff → Ventures — My Ventures (delegated).
  * Lists only the Ventures this staff member is explicitly assigned to.
  */
 export default function StaffVenturesList() {
-  const router = useRouter();
-  const { t } = useI18n();
-  const [assignments, setAssignments] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const response = await fetch("/api/ventures/assigned");
-        const data = await response.json();
-        if (data.success) setAssignments(data.assignments || []);
-      } catch (error) {
-        console.error("Failed to load my Venture assignments:", error);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)]" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-6 space-y-6 max-w-5xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
-          <Rocket className="w-6 h-6 text-[var(--brand-orange)]" /> {t("venture.personal.myVentures")}
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          {t("staff.ventureWorkspace.listSubtitle")}
-        </p>
-      </div>
-
-      {assignments.length === 0 ? (
-        <div className="card text-center py-16">
-          <ShieldAlert className="w-10 h-10 text-slate-400 mx-auto mb-3" />
-          <p className="text-sm font-bold text-[var(--text-primary)]">{t("staff.ventureWorkspace.listEmpty")}</p>
-          <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-            {t("staff.ventureWorkspace.listEmptyHint")}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {assignments.map((assignment) => {
-            const displayName = assignment.company_name || assignment.name || assignment.venture_id;
-            return (
-              <button
-                key={assignment.id}
-                onClick={() => router.push(`/staff/ventures/${assignment.venture_id}`)}
-                className="w-full card hover:border-brand-orange/40 transition-all text-left"
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className="w-11 h-11 rounded-xl bg-brand-orange/10 flex items-center justify-center shrink-0">
-                      <Rocket className="w-5 h-5 text-[var(--brand-orange)]" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-black text-[var(--text-primary)] truncate">{displayName}</p>
-                      <p className="text-[10px] text-slate-500 font-mono">{assignment.venture_id}</p>
-                      <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-brand-orange/10 text-[var(--brand-orange)]">
-                          {assignment.responsibility_name || assignment.responsibility_code}
-                        </span>
-                        {assignment.scope_type !== "venture_wide" && (
-                          <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">
-                            {assignment.scope_type}{assignment.scope_ref_id ? ` · ${assignment.scope_ref_id}` : ""}
-                          </span>
-                        )}
-                        <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-slate-500/10 text-slate-400">
-                          {assignment.status}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+  return <VenturesView />;
 }

@@ -161,7 +161,31 @@ const PERSONAL_ROLES = ["member", "founder", "participant", "team"];
 const pickLmsEnrollment = (payload) => (payload && payload.success ? !!payload.enrolled : false);
 
 function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidth = false }) {
+<<<<<<< HEAD
   const [legacyCollapsed, setLegacyCollapsed] = useState(false);
+=======
+  const [collapsed, setCollapsedState] = useState(false);
+  // The choice survives a reload. It is read after mount (never during render),
+  // so the server and first client paint agree.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("sidebar-collapsed") === "1") setCollapsedState(true);
+    } catch {
+      /* storage unavailable: the rail simply starts open */
+    }
+  }, []);
+  const setCollapsed = useCallback((next) => {
+    setCollapsedState((previous) => {
+      const value = typeof next === "function" ? next(previous) : next;
+      try {
+        localStorage.setItem("sidebar-collapsed", value ? "1" : "0");
+      } catch {
+        /* storage unavailable: the choice just won't be remembered */
+      }
+      return value;
+    });
+  }, []);
+>>>>>>> origin/frontend_b
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAllNotifications, setShowAllNotifications] = useState(false);
@@ -925,10 +949,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     return next;
   }, [activePathKey, menuToggles]);
 
-  // Accordion toggle: opening one section closes the other click-opened ones,
-  // except sections on the active path (they stay as context). Defined AFTER
-  // activePathIds — referencing it in the dependency array before its
-  // declaration would hit the const temporal dead zone (build crash).
+  // Toggle one section; several can stay open together.
   const toggleMenu = useCallback(
     (id) => {
       if (!id) return;
@@ -938,16 +959,24 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
           map[id] = false;
           return { key: activePathKey, map };
         }
+<<<<<<< HEAD
         // Opening one section closes the other hand-opened ones, except the
         // sections on the active path — they stay as context.
         for (const key of Object.keys(map)) {
           if (!participantSurface && key !== id && !activePathIds.has(key)) delete map[key];
         }
+=======
+        // Several groups may be open at once.
+>>>>>>> origin/frontend_b
         map[id] = true;
         return { key: activePathKey, map };
       });
     },
+<<<<<<< HEAD
     [activePathKey, activePathIds, openMenus, participantSurface],
+=======
+    [activePathKey, openMenus],
+>>>>>>> origin/frontend_b
   );
 
   const handleLogout = async () => {
@@ -999,8 +1028,12 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     <AppErrorBoundary>
       <div className={`flex h-screen w-full overflow-hidden bg-primary text-[var(--text-primary)] ${pathname?.startsWith("/participant") ? participantStyles.shell : ""}`}>
         <aside
+<<<<<<< HEAD
           style={{ width: collapsed ? (participantSurface ? 76 : 64) : 260 }}
           data-collapsed={collapsed}
+=======
+          style={{ width: collapsed ? 76 : 260 }}
+>>>>>>> origin/frontend_b
           className="hidden md:flex flex-col h-screen sticky top-0 bg-secondary border-r border-[var(--border-primary)] p-4 overflow-hidden min-h-0 z-[100] transition-[width] duration-150"
         >
           <SidebarContent {...commonProps} />
@@ -1012,8 +1045,13 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
               onClick={() => setMobileMenuOpen(false)}
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             />
+<<<<<<< HEAD
             <aside data-mobile-sidebar className="absolute inset-y-0 left-0 w-64 flex flex-col overflow-hidden bg-secondary p-6 border-r border-[var(--border-primary)]">
               <SidebarContent {...commonProps} collapsed={false} mobile />
+=======
+            <aside className="absolute inset-y-0 left-0 w-64 flex flex-col overflow-hidden bg-secondary p-6 border-r border-[var(--border-primary)]">
+              <SidebarContent {...commonProps} collapsed={false} />
+>>>>>>> origin/frontend_b
             </aside>
           </div>
         )}
