@@ -568,6 +568,46 @@
         "qualified": "Qualified",
         "unqualified": "Unqualified"
       }
+    },
+    "opportunities": {
+      "title": "Opportunities",
+      "subtitle": "Track and manage commercial and relationship outcomes.",
+      "newOpportunity": "New Opportunity",
+      "noOpportunities": "No opportunities found.",
+      "noOpportunitiesHint": "Create an opportunity to start tracking pipeline progress.",
+      "nameLabel": "Opportunity Name",
+      "pipelineLabel": "Pipeline & Stage",
+      "valueLabel": "Value",
+      "probabilityLabel": "Probability",
+      "statusLabel": "Status",
+      "expectedCloseLabel": "Expected Close",
+      "lostReasonLabel": "Lost Reason",
+      "commercialLabel": "Commercial Details",
+      "stageHistoryLabel": "Stage History",
+      "noHistory": "No stage history yet.",
+      "historyCreated": "Created",
+      "fromLead": "From Lead",
+      "allPipelines": "All Pipelines",
+      "allStatuses": "All Statuses",
+      "metrics": {
+        "active": "Active",
+        "won": "Won",
+        "lost": "Lost",
+        "weighted": "Weighted Value",
+        "weightedHint": "Value × Probability"
+      },
+      "statuses": {
+        "active": "Active",
+        "won": "Won",
+        "lost": "Lost",
+        "on_hold": "On Hold"
+      }
+    },
+    "pipelines": {
+      "title": "Pipelines",
+      "subtitle": "Configure and review stage workflows.",
+      "noPipelines": "No pipelines configured.",
+      "inactive": "Inactive"
     }
   }
 }

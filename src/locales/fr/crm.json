@@ -568,6 +568,46 @@
         "qualified": "Qualifié",
         "unqualified": "Non qualifié"
       }
+    },
+    "opportunities": {
+      "title": "Opportunités",
+      "subtitle": "Suivez et gérez les résultats commerciaux et relationnels.",
+      "newOpportunity": "Nouvelle opportunité",
+      "noOpportunities": "Aucune opportunité trouvée.",
+      "noOpportunitiesHint": "Créez une opportunité pour commencer à suivre la progression du pipeline.",
+      "nameLabel": "Nom de l'opportunité",
+      "pipelineLabel": "Pipeline et étape",
+      "valueLabel": "Valeur",
+      "probabilityLabel": "Probabilité",
+      "statusLabel": "Statut",
+      "expectedCloseLabel": "Clôture prévue",
+      "lostReasonLabel": "Raison de la perte",
+      "commercialLabel": "Détails commerciaux",
+      "stageHistoryLabel": "Historique des étapes",
+      "noHistory": "Aucun historique d'étape.",
+      "historyCreated": "Créé",
+      "fromLead": "Depuis la piste",
+      "allPipelines": "Tous les pipelines",
+      "allStatuses": "Tous les statuts",
+      "metrics": {
+        "active": "Actives",
+        "won": "Gagnées",
+        "lost": "Perdues",
+        "weighted": "Valeur pondérée",
+        "weightedHint": "Valeur × Probabilité"
+      },
+      "statuses": {
+        "active": "Actif",
+        "won": "Gagné",
+        "lost": "Perdu",
+        "on_hold": "En attente"
+      }
+    },
+    "pipelines": {
+      "title": "Pipelines",
+      "subtitle": "Configurez et examinez les flux d'étapes.",
+      "noPipelines": "Aucun pipeline configuré.",
+      "inactive": "Inactif"
     }
   }
 }

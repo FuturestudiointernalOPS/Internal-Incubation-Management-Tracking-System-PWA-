@@ -10,3 +10,6 @@
 export * from "./organizations";
 export * from "./relationships";
 export * from "./leads";
+export * from "./pipelines";
+export * from "./opportunities";
+export * from "./stageHistory";

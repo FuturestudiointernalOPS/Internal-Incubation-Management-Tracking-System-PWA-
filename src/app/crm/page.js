@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Users, FileText, MessageSquare, ShieldAlert, Clock, Shield } from "lucide-react";
+import { Users, FileText, MessageSquare, ShieldAlert, Clock, Shield, TrendingUp, Settings } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
@@ -84,9 +84,23 @@ export default function CrmWorkspace() {
       {
         key: "leads",
         href: "/crm/leads",
-        icon: FileText, // Will use FileText for Leads or a suitable Lucide icon. Wait, better yet, Target. I'll import it if needed. Let's use FileText which is already imported for forms.
+        icon: FileText,
         title: t("crm.leads.title"),
         subtitle: t("crm.leads.subtitle"),
+      },
+      {
+        key: "opportunities",
+        href: "/crm/opportunities",
+        icon: TrendingUp,
+        title: t("crm.opportunities.title"),
+        subtitle: t("crm.opportunities.subtitle"),
+      },
+      {
+        key: "pipelines",
+        href: "/crm/pipelines",
+        icon: Settings,
+        title: t("crm.pipelines.title"),
+        subtitle: t("crm.pipelines.subtitle"),
       },
       {
         key: "organizations",
