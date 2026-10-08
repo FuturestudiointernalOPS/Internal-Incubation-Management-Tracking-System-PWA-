@@ -19,6 +19,7 @@ const {
 
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
+const { PROTOTYPE_TABS } = require("@/components/permissions/prototype/prototypeNav");
 const { readPermissionCenterSurface } = require("./helpers/permissionCenterSource");
 
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
@@ -88,12 +89,12 @@ describe("UI-2b — screen wiring", () => {
   const view = "src/components/permissions/PeopleView.js";
   const matrix = "src/components/permissions/people-view/PeopleMatrix.js";
 
-  test("the people door renders the person editor with its two registries", () => {
+  test("the people door renders the approved prototype with its two registries", () => {
     const src = read(route);
-    expect(src).toContain("IndividualAccessScreen");
-    expect(src).toContain("GroupsView");
-    expect(src).toContain("AdminsView");
-    expect(src).not.toContain("PERMISSION_PEOPLE_SUB_ALIASES");
+    expect(src).toContain("PermissionPrototype");
+    expect(src).toContain('initialSection="people"');
+    // The person, plus the two people-wide registries beside it.
+    expect(PROTOTYPE_TABS.people).toEqual(["people", "groups", "administrators", "context"]);
   });
 
   test("the merged screen feeds the same person to both lenses", () => {

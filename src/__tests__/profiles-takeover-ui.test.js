@@ -13,6 +13,7 @@ const path = require("path");
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
 const { PERMISSION_NAV } = require("@/components/permissions/permissionNav");
+const { PROTOTYPE_TABS } = require("@/components/permissions/prototype/prototypeNav");
 
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const resolveKey = (bundle, dotted) =>
@@ -25,13 +26,15 @@ const PAGE = "src/app/admin/security/permissions/profiles/page.js";
 test("the Profiles door carries the capability matrix and the context-role mapping", () => {
   const templates = PERMISSION_NAV.find((item) => item.key === "templates");
   expect(templates).toBeTruthy();
-  expect((templates.tabs || []).map((tab) => tab.key)).toEqual(["matrix", "contextRoles"]);
-  expect(templates.defaultSub).toBe("matrix");
+  // The door's tabs live in the approved prototype: matrix first, then the
+  // contextual role → profile mapping.
+  expect(PROTOTYPE_TABS.profiles).toEqual(["matrix", "contextRoles"]);
 });
 
-test("the route renders the profile catalogue, not the retired editor or rollup", () => {
+test("the route renders the approved prototype, not the retired editor or rollup", () => {
   const src = read(PAGE);
-  expect(src).toContain("ProfilesView");
+  expect(src).toContain("PermissionPrototype");
+  expect(src).toContain('initialSection="profiles"');
   expect(src).not.toContain("PermissionManager");
   expect(src).not.toContain("EntitlementRollup");
 });

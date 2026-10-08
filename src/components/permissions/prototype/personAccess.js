@@ -58,24 +58,24 @@ export function buildRightRows({ ctx, catalog = {}, moduleToFeature = {} }) {
   ]);
 
   const rows = [];
-  for (const module of modules) {
-    const feature = moduleToFeature[module] || "";
-    const capabilities = new Set(Object.keys(catalog?.[module]?.capabilities || {}));
+  for (const mod of modules) {
+    const feature = moduleToFeature[mod] || "";
+    const capabilities = new Set(Object.keys(catalog?.[mod]?.capabilities || {}));
     for (const layer of ["profile", "groups", "grants"]) {
-      for (const capability of Object.keys(sources?.[layer]?.[module] || {})) capabilities.add(capability);
+      for (const capability of Object.keys(sources?.[layer]?.[mod] || {})) capabilities.add(capability);
     }
-    for (const capability of Object.keys(sources?.restrictions?.[module] || {})) capabilities.add(capability);
+    for (const capability of Object.keys(sources?.restrictions?.[mod] || {})) capabilities.add(capability);
 
     for (const capability of capabilities) {
       const eligible = isFeatureEligible(ctx, feature);
-      const state = deriveUserCapState(sources, module, capability, eligible);
-      const restricted = Boolean(sources?.restrictions?.[module]?.[capability]);
-      const level = sourceLevel(sources, module, capability);
+      const state = deriveUserCapState(sources, mod, capability, eligible);
+      const restricted = Boolean(sources?.restrictions?.[mod]?.[capability]);
+      const level = sourceLevel(sources, mod, capability);
       const origin = sourceOf(state);
       rows.push({
-        key: `${module}.${capability}`,
+        key: `${mod}.${capability}`,
         feature,
-        module,
+        module: mod,
         capability,
         level,
         restricted,

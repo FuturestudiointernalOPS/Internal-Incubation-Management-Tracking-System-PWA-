@@ -13,6 +13,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { deriveProfileBadges } = require("@/components/permissions/profileBadges");
+const { PROTOTYPE_TABS } = require("@/components/permissions/prototype/prototypeNav");
 
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
@@ -54,8 +55,9 @@ describe("UI-2c — screen contracts", () => {
 
   test("the Profiles door renders the catalogue and the context-role mapping", () => {
     const src = read(route);
-    expect(src).toContain("ProfilesView");
-    expect(src).toContain("ContextRolesView");
+    expect(src).toContain("PermissionPrototype");
+    expect(src).toContain('initialSection="profiles"');
+    expect(PROTOTYPE_TABS.profiles).toEqual(["matrix", "contextRoles"]);
     expect(src).not.toContain("PermissionManager");
     expect(src).not.toContain("EntitlementRollup");
   });

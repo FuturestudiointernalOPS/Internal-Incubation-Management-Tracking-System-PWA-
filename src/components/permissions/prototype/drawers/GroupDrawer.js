@@ -18,7 +18,7 @@ import { Cell, EmptyRow, HeadCell, Kpi, KpiRow, Pill, PrototypeTable } from "../
 
 export default function GroupDrawer({ group, data, onClose, onOpenPerson }) {
   const { t } = useI18n();
-  const { contacts = [], groupDefaults = [], eligibilityMatrix = {}, moduleToFeature = {}, features = [] } = data;
+  const { groupDefaults = [], eligibilityMatrix = {}, moduleToFeature = {}, features = [] } = data;
   const [members, setMembers] = useState(null);
 
   useEffect(() => {

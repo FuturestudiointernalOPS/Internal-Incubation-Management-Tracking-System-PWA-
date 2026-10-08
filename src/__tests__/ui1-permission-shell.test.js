@@ -146,8 +146,8 @@ describe("UI-1 — shell translations (en + fr parity)", () => {
 describe("UI-1 — overview governance math", () => {
   test("counts mapped roles and keeps unmapped ones as visible gaps", () => {
     const summary = summarizeContextRoles([
-      { context: "program", role_key: "participant", profile_id: 2 },
-      { context: "venture", role_key: "founder", profile_id: null },
+      { context: "program", role_key: "participant", profile_key: 2 },
+      { context: "venture", role_key: "founder", profile_key: null },
       { context: "lms", role_key: "learner" },
     ]);
     expect(summary.total).toBe(3);

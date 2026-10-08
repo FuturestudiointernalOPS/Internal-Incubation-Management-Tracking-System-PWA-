@@ -2,15 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n";
-
-const TABS = {
-  people: ["people", "groups", "administrators", "context"],
-  profiles: ["matrix", "contextRoles"],
-  rules: ["eligibility", "responsibilities", "scope"],
-  journal: [],
-};
-
-const SECTION_KEYS = ["people", "profiles", "rules", "journal"];
+import { PROTOTYPE_SECTIONS as SECTION_KEYS, firstTab, sectionTabs } from "./prototype/prototypeNav";
 
 function PrototypeTable({ children }) {
   return (
@@ -36,7 +28,7 @@ function eligibilityState(rows, role, feature) {
 export default function PermissionPrototype({ initialSection = "people" }) {
   const { t } = useI18n();
   const [section, setSection] = useState(initialSection);
-  const [tab, setTab] = useState(TABS[initialSection]?.[0] || "");
+  const [tab, setTab] = useState(firstTab(initialSection));
   const [query, setQuery] = useState("");
   const [data, setData] = useState({ contacts: [], profiles: [], roleDefaults: {}, eligibility: null, audit: [] });
   const [loading, setLoading] = useState(true);
@@ -66,7 +58,7 @@ export default function PermissionPrototype({ initialSection = "people" }) {
   const empty = t("engineering.permissions.prototype.emptyValue");
   const changeSection = (next) => {
     setSection(next);
-    setTab(TABS[next][0] || "");
+    setTab(firstTab(next));
   };
   const roleFor = (person) => person.role || person.user_role || empty;
   const profileFor = (person) => data.roleDefaults[roleFor(person)]?.profileName || empty;
@@ -120,7 +112,7 @@ export default function PermissionPrototype({ initialSection = "people" }) {
     </nav>
     <h2 className="text-xl font-black tracking-tight text-[var(--text-primary)]">{title}</h2>
     <p className="mb-4 text-sm text-[var(--text-secondary)]">{t(`engineering.permissions.prototype.intro.${section}`)}</p>
-    {TABS[section].length > 0 && <div className="mb-4 flex gap-1 overflow-x-auto border-b border-[var(--border-primary)]">{TABS[section].map((item) => <button key={item} onClick={() => setTab(item)} className={`shrink-0 border-b-2 px-3 py-2 text-sm transition-colors ${tab === item ? "border-[var(--brand-orange)] text-[var(--brand-orange)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}>{t(`engineering.permissions.prototype.tabs.${item}`)}</button>)}</div>}
+    {sectionTabs(section).length > 0 && <div className="mb-4 flex gap-1 overflow-x-auto border-b border-[var(--border-primary)]">{sectionTabs(section).map((item) => <button key={item} onClick={() => setTab(item)} className={`shrink-0 border-b-2 px-3 py-2 text-sm transition-colors ${tab === item ? "border-[var(--brand-orange)] text-[var(--brand-orange)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}>{t(`engineering.permissions.prototype.tabs.${item}`)}</button>)}</div>}
     {loading ? <div className="rounded-[var(--radius-md)] border border-[var(--border-primary)] p-6 text-sm text-[var(--text-secondary)]">{t("common.loading")}</div> : panel}
   </div>;
 }
