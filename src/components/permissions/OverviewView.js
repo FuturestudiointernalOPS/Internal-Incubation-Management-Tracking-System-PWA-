@@ -105,8 +105,8 @@ export default function OverviewView({ hideRecent = false }) {
             { key: "identity", label: t("engineering.permissions.modelStripIdentity"), href: null },
             { key: "eligibility", label: t("engineering.permissions.modelStripEligibility"), href: `${PERMISSION_BASE}/eligibility` },
             { key: "profile", label: t("engineering.permissions.modelStripProfile"), href: `${PERMISSION_BASE}/profiles` },
-            { key: "context", label: t("engineering.permissions.modelStripContext"), href: `${PERMISSION_BASE}/context-scope?sub=roles` },
-            { key: "scope", label: t("engineering.permissions.modelStripScope"), href: `${PERMISSION_BASE}/context-scope?sub=policies` },
+            { key: "context", label: t("engineering.permissions.modelStripContext"), href: `${PERMISSION_BASE}/profiles?sub=contextRoles` },
+            { key: "scope", label: t("engineering.permissions.modelStripScope"), href: `${PERMISSION_BASE}/eligibility?sub=scope` },
           ].map((chip, index) => (
             <React.Fragment key={chip.key}>
               {index > 0 && <span className="text-[var(--text-secondary)] opacity-50">→</span>}

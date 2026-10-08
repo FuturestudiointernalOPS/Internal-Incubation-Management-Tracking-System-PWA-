@@ -11,14 +11,12 @@ import { deriveMembershipStatus } from "@/lib/membership-ui";
 
 /*
  * Memberships (formerly the "Governance" / "Advanced" door). Exported because
- * Phase 2 retired that door: the screen now lives under Context & Scope, next
- * to the context-role registry it reads its data from. Exported rather than
- * moved to keep that change reviewable; Phase 3 is where the file move
- * actually happened, and it happened here. The shim keeps re-exporting this
- * name because `ContextScopeView.js` imports it from `./PermissionCenter`,
- * and that file is outside the corridor this phase is allowed to touch.
+ * Phase 2 retired that door, and re-homed again when the Context & Scope door
+ * was retired: the memberships health now heads the History screen, beside the
+ * log it summarizes. The shim keeps re-exporting this name so old importers and
+ * the History route can reach it from `./PermissionCenter`.
  */
-export default function GovernanceView() {
+export default function GovernanceView({ hideRecent = false } = {}) {
   const { t } = useI18n();
   const [memberships, setMemberships] = useState(null);
   const [protectedMap, setProtectedMap] = useState({});
@@ -126,6 +124,7 @@ export default function GovernanceView() {
           </div>
 
           {/* Recent permission changes */}
+          {!hideRecent && (
           <div className="space-y-2">
             <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
               {t("engineering.permissions.governanceRecent")}
@@ -169,6 +168,7 @@ export default function GovernanceView() {
               </div>
             )}
           </div>
+          )}
 
           {/* Protected configuration */}
           <div className="space-y-2">

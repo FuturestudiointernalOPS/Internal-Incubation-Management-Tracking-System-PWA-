@@ -50,13 +50,14 @@ describe("UI-5 — navigation model", () => {
   test("the places, in the order an admin asks", () => {
     expect(PERMISSION_NAV.map((navItem) => navItem.key)).toEqual([
       "people",
+      // Profiles answers "what a whole kind of person gets" and carries the
+      // contextual-role mapping that turns a relationship into rights.
       "templates",
+      // Rules gathers every ceiling: eligibility, responsibility access, scope.
       "rules",
-      "context",
       // Portfolio-wide jobs: the two consequential operations that used to have
-      // no button anywhere. Its own door because "Where it applies" already
-      // carries its three sub-tasks and the max-3 rule is what keeps a tab
-      // readable.
+      // no button anywhere, kept as their own door so their impact preview and
+      // readiness report are never lost.
       "operations",
       "history",
     ]);
@@ -108,10 +109,10 @@ describe("UI-5 — navigation model", () => {
     // A pure forwarder: no shell, so this path can never render a navigation.
     expect(src).not.toContain("PermissionShell");
     for (const target of [
-      "eligibility?sub=ceilings", // the catalog now lives under Rules
+      "eligibility?sub=eligibility", // the catalog now lives under Rules
       "/people", // responsibilities → the single person-access door
-      "eligibility?sub=warnings",
-      "context-scope?sub=memberships",
+      "eligibility?sub=responsibilities",
+      "/audit",
     ]) {
       expect(src).toContain(target);
     }
@@ -120,7 +121,7 @@ describe("UI-5 — navigation model", () => {
   test("the retired catalog link forwards out of Templates", () => {
     const src = read("src/app/admin/security/permissions/profiles/page.js");
     expect(src).toContain('retiredSub === "catalog"');
-    expect(src).toContain("/eligibility?sub=ceilings");
+    expect(src).toContain("/eligibility?sub=eligibility");
   });
 
   test("there is exactly one navigation: no legacy tab bar survives", () => {

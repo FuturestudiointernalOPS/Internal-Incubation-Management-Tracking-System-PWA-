@@ -52,9 +52,10 @@ describe("UI-2c — screen contracts", () => {
   const route = "src/app/admin/security/permissions/profiles/page.js";
   const view = "src/components/permissions/ProfilesView.js";
 
-  test("the Templates door renders ONE screen: the profile catalogue", () => {
+  test("the Profiles door renders the catalogue and the context-role mapping", () => {
     const src = read(route);
     expect(src).toContain("ProfilesView");
+    expect(src).toContain("ContextRolesView");
     expect(src).not.toContain("PermissionManager");
     expect(src).not.toContain("EntitlementRollup");
   });

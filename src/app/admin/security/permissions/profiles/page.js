@@ -2,36 +2,35 @@
 
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import PermissionShell from "@/components/permissions/PermissionShell";
+import { useI18n } from "@/lib/i18n";
+import PermissionShell, { useSubTab } from "@/components/permissions/PermissionShell";
 import ProfilesView from "@/components/permissions/ProfilesView";
+import ContextRolesView from "@/components/permissions/ContextRolesView";
 import { defer } from "@/components/permissions/effectUtils";
 import { PERMISSION_BASE } from "@/components/permissions/permissionNav";
 
 /**
- * PHASE UI-5 → profiles takeover.
+ * Profiles (formerly "Templates") — what a WHOLE kind of person gets.
  *
- * "What does a kind of person get by default?" — now answered on ONE screen:
- * the profile catalogue, where each profile is created, deleted and given its
- * capabilities (docs/PROFILES_TAKEOVER_MIGRATION.md).
+ *   matrix       → the profile catalogue: create, delete and give each profile
+ *                  its capabilities (a profile IS its capability set)
+ *   contextRoles → map a contextual relationship (mentor of this program…)
+ *                  onto a profile, which is what turns a link into rights
  *
- * Retired with this screen:
- *   • the "Access profiles" editor sub-tab (a profile IS the capability set);
- *   • the role/group rollup (it answered a read-only half of the same question).
- *
- * Retired link: ?sub=catalog forwards to Rules, where the eligibility registry
- * lives.
+ * Retired link: ?sub=catalog forwards to Rules, where the capability registry
+ * now opens beneath the ceiling it explains.
  */
 export default function PermissionTemplatesPage() {
+  const { t } = useI18n();
   const router = useRouter();
+  const [sub, setSub] = useSubTab("matrix");
 
   useEffect(() => {
-    // Deferred (project convention): a mount effect performs no synchronous
-    // state write.
     defer(() => {
       try {
         const retiredSub = new URLSearchParams(window.location.search).get("sub");
         if (retiredSub === "catalog") {
-          router.replace(`${PERMISSION_BASE}/eligibility?sub=ceilings`);
+          router.replace(`${PERMISSION_BASE}/eligibility?sub=eligibility`);
         }
       } catch {
         /* cosmetic forwarding only */
@@ -40,8 +39,11 @@ export default function PermissionTemplatesPage() {
   }, [router]);
 
   return (
-    <PermissionShell active="templates">
-      <ProfilesView />
+    <PermissionShell active="templates" sub={sub} onSubChange={setSub}>
+      <p className="mb-4 text-xs font-medium text-[var(--text-secondary)]">
+        {t("engineering.permissions.questionTemplates")}
+      </p>
+      {sub === "contextRoles" ? <ContextRolesView /> : <ProfilesView />}
     </PermissionShell>
   );
 }

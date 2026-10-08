@@ -5,25 +5,25 @@ import { useRouter } from "next/navigation";
 import { PERMISSION_BASE } from "@/components/permissions/permissionNav";
 
 /**
- * PHASE UI-2d — retired "Advanced" door.
+ * Retired "Advanced" / "Governance" door.
  *
- * The door is gone from the navigation (six doors, one nav each). This route
+ * The door is gone from the navigation (five doors, one nav each). This route
  * stays only so old bookmarks and deep links do not 404: each former sub-tab
  * forwards to the question it now belongs to.
  *
- *   catalog          → Access Profiles    (Profiles → Catalog)
- *   responsibilities → Person access      (People, the single door)
- *   access           → Eligibility        (Eligibility → Responsibility access)
- *   governance       → Context & Scope    (Context & Scope → Memberships)
+ *   catalog          → Rules      → Eligibility
+ *   responsibilities → People     (the single person-access door)
+ *   access           → Rules      → Responsibility access
+ *   governance       → History    (membership health heads the log)
  *
  * Nothing is rendered here; the shell is never mounted on this path.
  */
 const TARGET_BY_SUB = {
-  catalog: `${PERMISSION_BASE}/eligibility?sub=ceilings`,
+  catalog: `${PERMISSION_BASE}/eligibility?sub=eligibility`,
   responsibilities: `${PERMISSION_BASE}/people`,
-  access: `${PERMISSION_BASE}/eligibility?sub=warnings`,
-  governance: `${PERMISSION_BASE}/context-scope?sub=memberships`,
-  eligibility: `${PERMISSION_BASE}/eligibility?sub=ceilings`,
+  access: `${PERMISSION_BASE}/eligibility?sub=responsibilities`,
+  governance: `${PERMISSION_BASE}/audit`,
+  eligibility: `${PERMISSION_BASE}/eligibility?sub=eligibility`,
 };
 
 export default function PermissionGovernanceRedirectPage() {

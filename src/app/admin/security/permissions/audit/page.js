@@ -5,15 +5,17 @@ import { useI18n } from "@/lib/i18n";
 import PermissionShell from "@/components/permissions/PermissionShell";
 import PermissionManager from "@/components/permissions/PermissionCenter";
 import OverviewView from "@/components/permissions/OverviewView";
+import GovernanceView from "@/components/permissions/permission-center/GovernanceView";
 
 /**
- * PHASE UI-5 — History.
+ * History — "what changed, who did it, and why?", plus the health that used to
+ * need its own door.
  *
- * "What changed, who did it, and why?"
+ * Three bands, longest-lived first:
+ *   1. governance health (coverage, profiles, scope-engine state)
+ *   2. membership health (who holds what, protected groups, default profiles)
+ *   3. the log itself, with its filters and reasons
  *
- * The retired Home door lives at the top here (coverage, template count, scope
- * state) because both answer the same question at two lengths: the numbers are
- * the summary, the log is the detail — including the reason each admin typed.
  * Read-only and append-only: nothing on this screen can be edited.
  */
 export default function PermissionHistoryPage() {
@@ -26,6 +28,7 @@ export default function PermissionHistoryPage() {
       </p>
       <div className="space-y-6">
         <OverviewView hideRecent />
+        <GovernanceView hideRecent />
         <PermissionManager initialTab="audit" />
       </div>
     </PermissionShell>

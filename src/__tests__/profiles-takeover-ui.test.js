@@ -22,11 +22,11 @@ const PERMS = "src/components/permissions/";
 const VIEW = `${PERMS}ProfilesView.js`;
 const PAGE = "src/app/admin/security/permissions/profiles/page.js";
 
-test("the Templates door is ONE screen: no sub-tabs", () => {
+test("the Profiles door carries the capability matrix and the context-role mapping", () => {
   const templates = PERMISSION_NAV.find((item) => item.key === "templates");
   expect(templates).toBeTruthy();
-  expect(templates.tabs || []).toHaveLength(0);
-  expect(templates.defaultSub).toBeUndefined();
+  expect((templates.tabs || []).map((tab) => tab.key)).toEqual(["matrix", "contextRoles"]);
+  expect(templates.defaultSub).toBe("matrix");
 });
 
 test("the route renders the profile catalogue, not the retired editor or rollup", () => {

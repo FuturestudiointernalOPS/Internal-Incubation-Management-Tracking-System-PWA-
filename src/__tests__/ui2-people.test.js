@@ -88,12 +88,11 @@ describe("UI-2b — screen wiring", () => {
   const view = "src/components/permissions/PeopleView.js";
   const matrix = "src/components/permissions/people-view/PeopleMatrix.js";
 
-  test("the people route renders ONE screen, with no sub-tabs", () => {
+  test("the people door renders the person editor with its two registries", () => {
     const src = read(route);
     expect(src).toContain("IndividualAccessScreen");
-    // The former "Person access" / "Job shortcuts" sub-tabs were retired: the
-    // door has no sub-tab switch and no read-only job-shortcut report.
-    expect(src).not.toContain('initialTab="responsibilities"');
+    expect(src).toContain("GroupsView");
+    expect(src).toContain("AdminsView");
     expect(src).not.toContain("PERMISSION_PEOPLE_SUB_ALIASES");
   });
 

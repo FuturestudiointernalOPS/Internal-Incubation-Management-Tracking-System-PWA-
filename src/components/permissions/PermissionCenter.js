@@ -7,7 +7,7 @@
  * only the routing and the public surface:
  *
  *   default PermissionManager  — the screen for a given `initialTab`
- *   { GovernanceView }         — re-exported, imported by ContextScopeView.js
+ *   { GovernanceView }         — re-exported, imported by the History route
  *
  * The individual-access editor (the `search` view) keeps its own
  * `space-y-8 pb-20` wrapper, exactly as it had before the split, so the rendered
