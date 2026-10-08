@@ -194,7 +194,7 @@ export async function sendResultEmails({ run_id, submission_ids }) {
  * recipient only, never the batch. Returns { batch_id, recipients, sent, failed,
  * results } — the same envelope the UI already consumes.
  */
-export async function sendManualMessages({ run_id, submission_ids, subject, body: messageBody }) {
+export async function sendManualMessages({ run_id, submission_ids, subject, body: messageBody, cc = [] }) {
   const batchId = "msg_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
   const idList = [...new Set(submission_ids.map((id) => parseInt(id)).filter((numericId) => Number.isFinite(numericId)))];
   const validationsResult = await getManualMessageSubmissionsByIdsInRun(idList, run_id);
@@ -242,6 +242,7 @@ export async function sendManualMessages({ run_id, submission_ids, subject, body
 
     const sendResult = await sendManualMessage({
       to: contactEmail,
+      cc,
       name,
       subject,
       body: messageBody,
