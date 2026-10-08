@@ -45,11 +45,13 @@ import {
   QuickActionsCard,
 } from "@/components/admin/dashboard-page/RisksSection";
 import TaskDetailDrawer from "@/components/admin/dashboard-page/TaskDetailDrawer";
+import GoogleCalendarConnect from "@/components/admin/dashboard-page/GoogleCalendarConnect";
 import { useAdminDashboardData } from "./hooks/useAdminDashboardData";
 import { useAdminWidgetData } from "./hooks/useAdminWidgetData";
 import { useAdminSections } from "./hooks/useAdminSections";
 import { useAdminActions } from "./hooks/useAdminActions";
 import { useAdminCalendar } from "./hooks/useAdminCalendar";
+import { useGoogleCalendar } from "./hooks/useGoogleCalendar";
 
 const ASSIGNMENTS_PER_PAGE = 5;
 
@@ -58,7 +60,8 @@ export default function AdminDashboard() {
   const { t, lang } = useI18n();
 
   const dashboardData = useAdminDashboardData({ router, t, lang });
-  const widgetData = useAdminWidgetData({ t, lang });
+  const googleCalendar = useGoogleCalendar({ t });
+  const widgetData = useAdminWidgetData({ t, lang, externalItems: googleCalendar.events });
   const sections = useAdminSections();
   const actions = useAdminActions({ 
     tasks: widgetData.tasks, 
@@ -73,7 +76,24 @@ export default function AdminDashboard() {
     tasks: widgetData.tasks,
     assignments: widgetData.assignments,
     fetchWidgetData: widgetData.fetchWidgetData,
+    externalItems: googleCalendar.events,
   });
+
+  // A Google Calendar entry has no task drawer: it opens in Google instead.
+  const selectCalendarItem = (item) => {
+    if (item?.source === "google") {
+      if (item.html_link) window.open(item.html_link, "_blank", "noopener,noreferrer");
+      return;
+    }
+    widgetData.setSelectedTask(item);
+  };
+
+  // Same rule for the calendar's own items: a Google entry carries the link on
+  // its original row and opens in Google; a task opens its drawer.
+  const openCalendarExternal = (item) => {
+    const link = item?.raw?.html_link || item?.html_link;
+    if (link) window.open(link, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <>
@@ -86,13 +106,28 @@ export default function AdminDashboard() {
           loading={false}
           onRangeChange={calendar.onRangeChange}
           onOpenTask={(item) => widgetData.setSelectedTask(item.raw?.task || null)}
+          onOpenExternal={openCalendarExternal}
           onSetStatus={calendar.onSetStatus}
           onCreateTask={calendar.onCreateTask}
           onCreateMeeting={calendar.onCreateMeeting}
+          headerAction={
+            <GoogleCalendarConnect
+              status={googleCalendar.status}
+              syncing={googleCalendar.syncing}
+              onConnect={googleCalendar.connect}
+              onSync={googleCalendar.syncNow}
+              onDisconnect={googleCalendar.disconnect}
+            />
+          }
+          extraLegend={
+            googleCalendar.status?.connected
+              ? [{ key: "google", label: t("admin.googleCalendar.legend"), color: "var(--stf-google)" }]
+              : []
+          }
         />
 
         <div className="stf-grid g3">
-          <UpcomingWidget calendarTasks={widgetData.calendarTasks} onSelectTask={widgetData.setSelectedTask} />
+          <UpcomingWidget calendarTasks={widgetData.calendarTasks} onSelectTask={selectCalendarItem} />
           <TasksSummaryWidget tasks={widgetData.tasks} onOpen={() => router.push("/admin/tasks")} />
           <BlockersSummaryWidget blockers={widgetData.activeBlockers} onOpen={() => router.push("/admin/blockers")} />
         </div>

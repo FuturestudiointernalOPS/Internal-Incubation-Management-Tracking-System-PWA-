@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { Ico } from "./calendarIcons";
 import { EventDetailModal, EventFormModal } from "./CalendarModals";
+import CalendarLegend from "./CalendarLegend";
 import {
   KINDS,
   SETTABLE_STATUSES,
@@ -44,6 +45,7 @@ const STATUS_COLOR = {
  *           `onRangeChange` when the view reaches into another month.
  * Actions:  status change, task/meeting creation and opening a task go through
  *           the callbacks, which own the requests — this component only draws.
+ * Extras:   optional `headerAction`, `extraLegend` and `onOpenExternal`.
  */
 export default function StaffCalendar({
   events,
@@ -51,10 +53,13 @@ export default function StaffCalendar({
   loading,
   onRangeChange,
   onOpenTask,
+  onOpenExternal,
   onSetStatus,
   onCreateTask,
   onCreateMeeting,
   formRequest,
+  headerAction,
+  extraLegend = [],
 }) {
   const { t, lang } = useI18n();
   const locale = lang === "fr" ? "fr-FR" : "en-US";
@@ -257,7 +262,11 @@ export default function StaffCalendar({
     );
   };
 
-  const openItem = (item) => (item.kind === "task" ? onOpenTask(item) : showDetails(item));
+  const isExternal = (item) => item.source === "google";
+  const openItem = (item) => {
+    if (isExternal(item)) return onOpenExternal?.(item);
+    return item.kind === "task" ? onOpenTask(item) : showDetails(item);
+  };
   const timeChip = (item) => (item.allDay ? null : <b>{timeLabel(item.start)}</b>);
 
   const chip = (item) => {
@@ -276,14 +285,15 @@ export default function StaffCalendar({
       );
     }
     const isMeeting = item.kind === "meeting";
+    const external = isExternal(item);
     return (
-      <div key={item.uid} className={`x-it ${isMeeting ? "mt" : "ms"} x-grp`} title={`${item.title}${item.place ? ` · ${item.place}` : ""}`}>
+      <div key={item.uid} className={`x-it ${isMeeting ? "mt" : "ms"}${external ? " g" : ""} x-grp`} title={`${item.title}${item.place ? ` · ${item.place}` : ""}`}>
         <Ico name={isMeeting ? "video" : "flag"} />
         <button type="button" className="x-tt" onClick={() => openItem(item)}>
           {timeChip(item)}
           {item.title}
         </button>
-        <span className="kbw">{kebab(item)}</span>
+        {!external && <span className="kbw">{kebab(item)}</span>}
       </div>
     );
   };
@@ -429,14 +439,14 @@ export default function StaffCalendar({
                         : { left: 4, right: 6 };
                     const rangeText = `${timeLabel(item.start)} – ${timeLabel(item.end)}`;
                     return (
-                      <div key={item.uid} className="x-ab mt x-grp" data-ev style={{ top, minHeight: short ? 26 : height, ...position }} title={`${rangeText} · ${item.title}${item.place ? ` · ${item.place}` : ""}`}>
+                      <div key={item.uid} className={`x-ab mt${isExternal(item) ? " g" : ""} x-grp`} data-ev style={{ top, minHeight: short ? 26 : height, ...position }} title={`${rangeText} · ${item.title}${item.place ? ` · ${item.place}` : ""}`}>
                         <Ico name="video" />
-                        <button type="button" className={short ? "x-sh" : ""} style={{ background: "none", border: 0, padding: 0, textAlign: "left", color: "inherit", width: "100%" }} onClick={() => showDetails(item)}>
+                        <button type="button" className={short ? "x-sh" : ""} style={{ background: "none", border: 0, padding: 0, textAlign: "left", color: "inherit", width: "100%" }} onClick={() => openItem(item)}>
                           <b className={short ? "mr6" : "blk"}>{short ? timeLabel(item.start) : rangeText}</b>
                           {item.title}
                           {item.place && !short ? <span className="pl"> · {item.place}</span> : null}
                         </button>
-                        {kebab(item)}
+                        {!isExternal(item) && kebab(item)}
                       </div>
                     );
                   })}
@@ -529,6 +539,7 @@ export default function StaffCalendar({
                 <Ico name="plus" />
                 {t("staffMisc.front.calendar.add")}
               </button>
+              {headerAction}
             </div>
           </div>
 
@@ -558,14 +569,7 @@ export default function StaffCalendar({
 
           {loading && events.length === 0 ? <div className="stf-empty">{t("common.loading")}</div> : mode === "month" ? renderMonth() : renderGrid()}
 
-          <div className="x-leg">
-            {TASK_STATUSES.map((value) => (
-              <span key={value}>
-                <i style={{ background: STATUS_COLOR[value] }} />
-                {statusLabel(value)}
-              </span>
-            ))}
-          </div>
+          <CalendarLegend statuses={TASK_STATUSES} colors={STATUS_COLOR} labelFor={statusLabel} extra={extraLegend} />
 
           {menu && menuItem && (
             <div className="x-menu" role="menu" aria-label={menuItem.kind === "task" ? t("staffMisc.front.calendar.taskStatus") : t("staffMisc.front.calendar.details")} style={{ top: menu.top, left: menu.left }}>

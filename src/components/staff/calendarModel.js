@@ -66,7 +66,7 @@ export function monthsNeeded(days) {
 
 // ─── Normalising the feed ────────────────────────────────────────────────────
 
-const SOURCE_KIND = { task: "task", session: "meeting", event: "meeting", program: "milestone", deliverable: "milestone" };
+const SOURCE_KIND = { task: "task", session: "meeting", event: "meeting", program: "milestone", deliverable: "milestone", google: "meeting" };
 const STATUS_RANK = { blocked: 0, in_progress: 1, pending: 2, carried_over: 3, completed: 4 };
 
 function localTime(iso) {
