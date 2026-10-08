@@ -6,7 +6,7 @@
  *      that page renders the shell with the matching `active` key.
  *   2. Navigation ↔ translations: every nav/sub-tab label resolves in BOTH
  *      English and French (no raw key leaking into the UI).
- *   3. The readability rules of Phase UI-5: five places, never more than three
+ *   3. The readability rules of the current centre: four places, never more than three
  *      sub-tasks under a tab, and a sub-tab is never named like its own tab.
  *   4. Retired doors keep forwarding, so old bookmarks never 404.
  */
@@ -50,15 +50,8 @@ describe("UI-5 — navigation model", () => {
   test("the places, in the order an admin asks", () => {
     expect(PERMISSION_NAV.map((navItem) => navItem.key)).toEqual([
       "people",
-      // Profiles answers "what a whole kind of person gets" and carries the
-      // contextual-role mapping that turns a relationship into rights.
       "templates",
-      // Rules gathers every ceiling: eligibility, responsibility access, scope.
       "rules",
-      // Portfolio-wide jobs: the two consequential operations that used to have
-      // no button anywhere, kept as their own door so their impact preview and
-      // readiness report are never lost.
-      "operations",
       "history",
     ]);
   });
@@ -86,21 +79,21 @@ describe("UI-5 — navigation model", () => {
     }
   });
 
-  test("every nav item has a route page that renders the shell with the matching key", () => {
+  test("every primary section has a route page that renders the approved prototype", () => {
+    const prototypeSection = { people: "people", templates: "profiles", rules: "rules", history: "journal" };
     for (const item of PERMISSION_NAV) {
       const file = routeFileFor(item);
       expect(fs.existsSync(file)).toBe(true);
       const src = fs.readFileSync(file, "utf8");
-      expect(src).toContain("PermissionShell");
-      expect(src).toContain(`active="${item.key}"`);
+      expect(src).toContain("PermissionPrototype");
+      expect(src).toContain(`initialSection="${prototypeSection[item.key]}"`);
     }
   });
 
-  test("the landed URL forwards to the first place, keeping ?cid=", () => {
+  test("the landed URL renders the approved permission-centre prototype", () => {
     const src = read("src/app/admin/security/permissions/page.js");
     expect(src).toContain("PermissionCenterLanding");
-    expect(src).toContain("/people");
-    expect(src).toContain('get("cid")');
+    expect(src).toContain("PermissionPrototype");
   });
 
   test("the retired Advanced door still forwards to the new homes", () => {
@@ -109,19 +102,19 @@ describe("UI-5 — navigation model", () => {
     // A pure forwarder: no shell, so this path can never render a navigation.
     expect(src).not.toContain("PermissionShell");
     for (const target of [
-      "eligibility?sub=eligibility", // the catalog now lives under Rules
-      "/people", // responsibilities → the single person-access door
-      "eligibility?sub=responsibilities",
-      "/audit",
+      "eligibility?sub=ceilings", // the catalog now lives under Rules
+      "people?sub=jobs",
+      "eligibility?sub=warnings",
+      "context-scope?sub=memberships",
     ]) {
       expect(src).toContain(target);
     }
   });
 
-  test("the retired catalog link forwards out of Templates", () => {
+  test("the profiles route is served by the approved prototype", () => {
     const src = read("src/app/admin/security/permissions/profiles/page.js");
-    expect(src).toContain('retiredSub === "catalog"');
-    expect(src).toContain("/eligibility?sub=eligibility");
+    expect(src).toContain("PermissionPrototype");
+    expect(src).toContain('initialSection="profiles"');
   });
 
   test("there is exactly one navigation: no legacy tab bar survives", () => {
@@ -153,8 +146,8 @@ describe("UI-1 — shell translations (en + fr parity)", () => {
 describe("UI-1 — overview governance math", () => {
   test("counts mapped roles and keeps unmapped ones as visible gaps", () => {
     const summary = summarizeContextRoles([
-      { context: "program", role_key: "participant", profile_key: "participant" },
-      { context: "venture", role_key: "founder", profile_key: null },
+      { context: "program", role_key: "participant", profile_id: 2 },
+      { context: "venture", role_key: "founder", profile_id: null },
       { context: "lms", role_key: "learner" },
     ]);
     expect(summary.total).toBe(3);

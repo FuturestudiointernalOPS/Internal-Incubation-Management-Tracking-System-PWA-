@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><title>Centre de permissions</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1b1f27;--mu:#667085;--bd:#e3e6ec;--ac:#3b5bdb;--ok:#2b8a3e;--wa:#e67700;--er:#c92a2a;--sb:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14161b;--card:#1d2027;--tx:#e8eaf0;--mu:#98a0b0;--bd:#2c303a;--ac:#748ffc;--ok:#69db7c;--wa:#ffa94d;--er:#ff8787;--sb:#191c22}}
+:root[data-theme="dark"]{--bg:#14161b;--card:#1d2027;--tx:#e8eaf0;--mu:#98a0b0;--bd:#2c303a;--ac:#748ffc;--ok:#69db7c;--wa:#ffa94d;--er:#ff8787;--sb:#191c22}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif;display:flex;min-height:100vh}
+nav{width:200px;background:var(--sb);border-right:1px solid var(--bd);padding:14px 10px;flex-shrink:0}
+nav h1{font-size:15px;margin:0 6px 12px}
+nav a{display:flex;justify-content:space-between;padding:8px 10px;border-radius:8px;color:var(--mu);cursor:pointer;margin-bottom:2px}
+nav a.on{background:var(--ac);color:#fff}nav a:hover:not(.on){background:var(--bg)}
+nav i{font-style:normal;background:var(--wa);color:#fff;border-radius:99px;padding:0 7px;font-size:12px}
+main{flex:1;padding:20px;min-width:0;overflow-x:auto}
+h2{margin:0 0 4px;font-size:20px}.sub{color:var(--mu);margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:14px}
+.kpis{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.kpi{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 14px;min-width:110px}
+.kpi b{font-size:22px;display:block}.kpi span{color:var(--mu);font-size:12px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--bd);white-space:nowrap}th{color:var(--mu);font-weight:500;font-size:12px}
+tr.cl{cursor:pointer}tr.cl:hover{background:var(--bg)}
+.b{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;border:1px solid var(--bd)}
+.Profil{color:var(--ac)}.Direct{color:var(--ok)}.Groupe{color:#9c36b5}.Restriction{color:var(--er)}
+.warn{color:var(--wa)}.crit{color:var(--er)}.okc{color:var(--ok)}
+button{font:inherit;padding:6px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--tx);cursor:pointer}
+button.p{background:var(--ac);color:#fff;border-color:var(--ac)}button.d{color:var(--er)}button:disabled{opacity:.4;cursor:not-allowed}
+input,select,textarea{font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--tx)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--bd);margin-bottom:12px;flex-wrap:wrap}
+.tabs a{padding:8px 12px;cursor:pointer;color:var(--mu);border-bottom:2px solid transparent}.tabs a.on{color:var(--ac);border-color:var(--ac)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.gates{display:flex;gap:8px;flex-wrap:wrap}.gate{flex:1;min-width:130px;border:1px solid var(--bd);border-radius:8px;padding:8px}
+.gate.y{border-color:var(--ok)}.gate.n{border-color:var(--er)}.gate.s{opacity:.5}
+.cell{cursor:pointer;border-radius:6px;padding:4px 10px;display:inline-block;min-width:34px;text-align:center;border:1px solid var(--bd)}
+.cell.E{background:#d3f9d8;color:#2b8a3e}.cell.D{background:#ffe3e3;color:#c92a2a}.cell.N{background:repeating-linear-gradient(45deg,transparent 0 4px,var(--bd) 4px 5px);color:var(--mu)}
+#dr{position:fixed;top:0;right:0;bottom:0;width:370px;max-width:100%;background:var(--card);border-left:1px solid var(--bd);padding:18px;transform:translateX(100%);transition:.2s;overflow:auto;z-index:5;box-shadow:-4px 0 20px #0003}
+#dr.o{transform:none}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:8px 16px;border-radius:8px;display:none;z-index:9}
+.note{background:var(--bg);border-left:3px solid var(--ac);padding:8px 10px;border-radius:4px;color:var(--mu);margin-bottom:12px}
+.al{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bd);cursor:pointer}.al:last-child{border:0}
+.lk{color:var(--ac);cursor:pointer}
+@media(max-width:700px){body{flex-direction:column}nav{width:100%;display:flex;overflow-x:auto;gap:4px}nav h1{display:none}nav a{white-space:nowrap;gap:6px}}
+</style></head><body>
+<nav id="nav"></nav><main id="m"></main><div id="dr"></div><div id="toast"></div>
+<script>
+const LV=['Aucun','Lire','Créer','Modifier','Supprimer','Complet'];
+const FEATS=['Communication','Programmes','Finance','Rapports','Sécurité'];
+const ROWS=[['Communication','Messages'],['Programmes','Projets'],['Programmes','Cours'],['Finance','Rapports financiers'],['Rapports','Exports']];
+let people=[
+{id:1,n:'Awa K.',role:'Mentor',prof:'Mentor',sa:false,elig:['Communication','Programmes','Rapports'],r:[[1,'Profil'],[1,'Profil'],[0,''],[0,'Restriction'],[0,'']]},
+{id:2,n:'Koffi D.',role:'Participant',prof:'Participant',sa:false,elig:['Communication','Programmes'],r:[[1,'Profil'],[1,'Groupe'],[1,'Profil'],[0,''],[0,'']]},
+{id:3,n:'Marie L.',role:'Super administrateur',prof:'—',sa:true,elig:FEATS,r:[[5,'Profil'],[5,'Profil'],[5,'Profil'],[5,'Profil'],[5,'Profil']]}];
+let profs={Mentor:[1,1,0,0,0],Participant:[1,1,1,0,0],Fondateur:[2,3,3,1,1]};
+let elig={Mentor:['E','E','D','E','N'],Participant:['E','E','N','N','N'],Fondateur:['E','E','E','E','D'],Facilitateur:['E','E','N','E','N']};
+let map=[['Programme','Mentor','Mentor',1],['Programme','Participant','Participant',1],['Venture','Fondateur','Fondateur',1],['Cours','Facilitateur','—',1]];
+let logs=[['08/10 09:12','Marie L.','Awa K.','Accorder','Projets','Modifier','Co-animation du programme'],['07/10 16:40','Marie L.','Koffi D.','Restreindre','Rapports financiers','Retiré','Accès retiré après audit']];
+let S={sec:'ppl',pid:0,tab:'Droits',pt:'Personnes',q:'',rt:'Éligibilité',ft:'Matrice',lq:''};
+const $=s=>document.querySelector(s);
+const toast=t=>{const e=$('#toast');e.textContent=t;e.style.display='block';setTimeout(()=>e.style.display='none',2400)};
+const go=(s,o={})=>{Object.assign(S,{sec:s},o);render()};
+const eff=p=>p.r.filter(x=>x[0]>0).length;
+const NAV=[['ppl','Personnes',0],['prof','Profils',1],['rul','Règles',2],['log','Journal',0]];
+function render(){
+$('#nav').innerHTML='<h1>🔐 Permissions</h1>'+NAV.map(([k,l,n])=>`<a class="${S.sec==k?'on':''}" onclick="go('${k}')">${l}${n?`<i>${n}</i>`:''}</a>`).join('');
+$('#m').innerHTML=V[S.sec]();closeD()}
+const tabs=(arr,key)=>`<div class="tabs">${arr.map(t=>`<a class="${S[key]==t?'on':''}" onclick="S.${key}='${t}';${key=='pt'?'S.pid=0;':''}render()">${t}</a>`).join('')}</div>`;
+const help=t=>`<div class="note">${t}</div>`;
+const V={
+ppl(){
+if(S.pid)return person(people.find(p=>p.id==S.pid));
+let b='';const L=people.filter(p=>p.n.toLowerCase().includes(S.q.toLowerCase()));
+if(S.pt=='Personnes')b=`<div class="row"><input id="sq" placeholder="Rechercher une personne…" value="${S.q}" oninput="S.q=this.value;render();$('#sq').focus()"><select><option>Tous les rôles</option></select><select><option>Avec restrictions</option></select><button class="p" onclick="checker()">Vérifier un accès</button></div>
+<div class="card"><table><tr><th>Nom</th><th>Rôle</th><th>Profil</th><th>Droits effectifs</th></tr>${L.map(p=>`<tr class="cl" onclick="go('ppl',{pid:${p.id},tab:'Droits'})"><td>${p.n}</td><td>${p.role}</td><td>${p.prof}</td><td>${eff(p)}</td></tr>`).join('')}</table></div>`;
+else if(S.pt=='Groupes')b=`<div class="card"><table><tr><th>Groupe</th><th>Membres</th><th>Capacités</th><th>Éligibilité</th></tr><tr class="cl" onclick="toast('Détail du groupe : membres + matrice (même composant)')"><td>Équipe studio</td><td>6</td><td>4</td><td class="okc">Communication, Programmes</td></tr><tr class="cl" onclick="toast('Détail du groupe')"><td>Comité d'investissement</td><td>3</td><td>2</td><td class="warn">Finance : non configuré</td></tr></table></div>`;
+else if(S.pt=='Administrateurs')b=`${help('Promouvoir ou retirer un super administrateur est l\'action la plus verrouillée : réservée aux super administrateurs.')}<div class="card"><table><tr><th>Nom</th><th>Depuis</th><th></th></tr><tr><td>Marie L.</td><td>12/01/2026</td><td><button class="d" onclick="promo('retirer')">Retirer le statut…</button></td></tr></table></div><button class="p" onclick="promo('promouvoir')">Promouvoir…</button>`;
+else b=`<div class="row"><select><option>Programme Alpha</option><option>Programme Beta</option></select><select><option>Tous les statuts</option></select></div><div class="card"><table><tr><th>Personne</th><th>Fonction</th><th>Profil reçu</th><th>Statut</th></tr><tr class="cl" onclick="go('ppl',{pid:1,tab:'Droits',pt:'Personnes'})"><td>Awa K.</td><td>Mentor</td><td>Mentor</td><td class="okc">Actif</td></tr><tr class="cl" onclick="go('ppl',{pid:2,tab:'Droits',pt:'Personnes'})"><td>Koffi D.</td><td>Participant</td><td>Participant</td><td class="warn">Expire dans 5 j</td></tr></table></div>`;
+return `<h2>Personnes</h2><div class="sub">Que peut faire cette personne, exactement ?</div>${tabs(['Personnes','Groupes','Administrateurs','Par contexte'],'pt')}${b}`},
+prof(){
+let b;
+if(S.ft=='Matrice')b=`${help('Cliquez sur un niveau pour le faire monter (0→5→0). 🔒 = plafond non éligible.')}<div class="card"><table><tr><th>Capacité</th>${Object.keys(profs).map(k=>`<th>${k}</th>`).join('')}</tr>${ROWS.map((r,i)=>`<tr><td>${r[0]} ▸ ${r[1]}</td>${Object.keys(profs).map(k=>{const lock=elig[k][FEATS.indexOf(r[0])]!='E'&&profs[k][i]>0;return `<td><span class="cell ${lock?'D':''}" onclick="cyc('${k}',${i})">${LV[profs[k][i]]}${lock?' 🔒':''}</span></td>`}).join('')}</tr>`).join('')}</table></div>
+<div class="row"><button class="d" onclick="toast('Refusé : Mentor est utilisé par 1 rôle par défaut et 1 attribution')">Supprimer Mentor</button></div>`;
+else b=`${help('Relie une fonction dans un contexte à un profil : c\'est ce qui transforme un lien (être mentor de ce programme) en droits.')}<div class="card"><table><tr><th>Contexte</th><th>Fonction</th><th>Profil</th><th>Actif</th></tr>${map.map((m,i)=>`<tr><td>${m[0]}</td><td>${m[1]}</td><td><select onchange="map[${i}][2]=this.value;render()">${['—',...Object.keys(profs)].map(k=>`<option ${k==m[2]?'selected':''}>${k}</option>`).join('')}</select>${m[2]=='—'?' <span class="warn">⚠ sans profil</span>':''}</td><td><input type="checkbox" ${m[3]?'checked':''} onchange="map[${i}][3]=+this.checked"></td></tr>`).join('')}</table></div>
+<div class="card"><b>Re-dériver les droits depuis les liens contextuels</b><div class="sub">Recalcule les attributions et applique les écarts.</div><button onclick="rederive()">Prévisualiser…</button></div>`;
+return `<h2>Profils</h2><div class="sub">Que reçoit une fonction par défaut ?</div>${tabs(['Matrice','Rôles contextuels'],'ft')}${b}`},
+rul(){
+let b;
+if(S.rt=='Éligibilité')b=`<div class="card"><table><tr><th>Identité</th>${FEATS.map(f=>`<th>${f}</th>`).join('')}</tr>${Object.keys(elig).map(k=>`<tr><td>${k}</td>${elig[k].map((v,i)=>`<td><span class="cell ${v}" onclick="ce('${k}',${i})">${v=='N'?'—':v}</span></td>`).join('')}</tr>`).join('')}</table><div class="sub" style="margin:8px 0 0">É éligible · D refusé · — non configuré (= refusé). Cliquez pour changer.</div></div>`;
+else if(S.rt=='Responsabilités')b=`<div class="card"><table><tr><th>Responsabilité</th><th>Rôles autorisés</th></tr><tr><td>Valider les budgets</td><td>admin, fondateur</td></tr><tr><td>Animer un atelier</td><td>mentor, facilitateur</td></tr></table></div>`;
+else b=`<div class="card"><table><tr><th>Politique</th><th>État</th><th></th></tr><tr><td>Mes programmes</td><td class="okc">● Implémentée</td><td><button onclick="toast('Awa K. → 2 enregistrements')">Tester sur Awa</button></td></tr><tr><td>Mes ventures</td><td class="okc">● Implémentée</td><td><button onclick="toast('Awa K. → 0 enregistrement')">Tester sur Awa</button></td></tr><tr><td>Tout mon portefeuille</td><td class="warn">● En attente (refuse toujours)</td><td></td></tr></table></div>`;
+return `<h2>Règles</h2><div class="sub">Quel est le maximum qui peut jamais être accordé ?</div>${help('Les règles fixent des maximums. Elles n\'accordent rien par elles-mêmes.')}${tabs(['Éligibilité','Responsabilités','Portée'],'rt')}${b}`},
+log(){const L=logs.filter(l=>l.join(' ').toLowerCase().includes(S.lq));
+return `<h2>Journal</h2><div class="sub">Qu'est-ce qui a changé, qui, pourquoi ?</div>
+<div class="card"><b>Santé & alertes</b><div class="kpis" style="margin:10px 0"><div class="kpi"><b>1</b><span>Super admin</span></div><div class="kpi"><b>2</b><span>Restrictions</span></div><div class="kpi"><b>${logs.length}</b><span>Changements</span></div><div class="kpi"><b>3</b><span>Adhésions bientôt expirées</span></div></div>
+<div class="al" onclick="go('rul',{rt:'Éligibilité'})"><span class="warn">⚠ Droits « morts » : Fondateur a « Sécurité » mais le plafond est refusé</span><span class="lk">Voir</span></div>
+<div class="al" onclick="go('rul',{rt:'Portée'})"><span class="warn">⚠ 1 politique de portée en attente (refuse toujours)</span><span class="lk">Voir</span></div>
+<div class="al" onclick="go('prof',{ft:'Rôles contextuels'})"><span>🔗 1 lien contextuel sans profil</span><span class="lk">Voir</span></div></div>
+<div class="row"><input id="lq" placeholder="Rechercher…" value="${S.lq}" oninput="S.lq=this.value.toLowerCase();render();$('#lq').focus()"><button onclick="toast('Export CSV généré')">Exporter CSV</button></div>
+<div class="card"><table><tr><th>Date</th><th>Auteur</th><th>Cible</th><th>Action</th><th>Capacité</th><th>Niveau</th><th>Motif</th></tr>${L.map(l=>`<tr>${l.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</table></div>`}};
+function person(p){
+const T=['Droits','Pourquoi','Portée','Responsabilités','Historique'];let body='';
+if(S.tab=='Droits')body=`<table><tr><th>Fonctionnalité ▸ Sous-section</th><th>Niveau</th><th>Source</th><th></th></tr>${ROWS.map((r,i)=>{const[l,s]=p.r[i];return `<tr><td>${r[0]} ▸ ${r[1]}</td><td>${s=='Restriction'?'<span class="crit">✕ Retiré</span>':LV[l]}</td><td>${s?`<span class="b ${s}">${s}</span>`:'—'}</td><td>${p.sa?'':`<button onclick="drawer(${p.id},${i})">Modifier…</button>`}</td></tr>`}).join('')}</table>`;
+else if(S.tab=='Pourquoi')body=ROWS.map((r,i)=>gates(p,i)).join('');
+else if(S.tab=='Portée')body='<table><tr><th>Politique</th><th>Enregistrements</th></tr><tr><td>Mes programmes</td><td>2</td></tr><tr><td>Mes ventures</td><td>0</td></tr></table>';
+else if(S.tab=='Responsabilités')body='<p>Responsabilités : Animer un atelier</p><p>Profil forcé : <span class="b">aucun</span></p>';
+else body=`<table>${logs.filter(l=>l[2]==p.n).map(l=>`<tr><td>${l[0]}</td><td>${l[3]}</td><td>${l[4]}</td><td>${l[6]}</td></tr>`).join('')||'<tr><td>Aucune entrée</td></tr>'}</table>`;
+return `<span class="lk" onclick="S.pid=0;render()">← Personnes</span><h2>${p.n}</h2><div class="sub">${p.role} · Profil : ${p.prof}${p.sa?' · <span class="b warn">Super administrateur</span>':''}</div>
+<div class="kpis"><div class="kpi"><b>${eff(p)}</b><span>Effectifs</span></div><div class="kpi"><b>${p.r.filter(x=>x[1]=='Profil').length}</b><span>Hérités</span></div><div class="kpi"><b>${p.r.filter(x=>x[1]=='Direct').length}</b><span>Directs</span></div><div class="kpi"><b>${p.r.filter(x=>x[1]=='Restriction').length}</b><span>Restreints</span></div></div>
+${tabs(T,'tab')}<div class="card">${body}</div>`}
+function gates(p,i){const r=ROWS[i],[l,s]=p.r[i];const e=p.sa||p.elig.includes(r[0]),c=l>0;
+return `<div class="card"><b>${r[0]} ▸ ${r[1]}</b><div class="gates" style="margin-top:8px"><div class="gate ${e?'y':'n'}">1 Éligibilité<br>${e?'✓ ouverte':'✕ non éligible'}</div><div class="gate ${!e?'s':c?'y':'n'}">2 Capacité<br>${c?'✓ '+LV[l]+' ('+s+')':'✕ '+(s=='Restriction'?'restreinte':'aucun droit')}</div><div class="gate ${c&&e?'y':'s'}">3 Portée<br>${c&&e?'✓ Mes programmes':'—'}</div></div></div>`}
+function D(h){$('#dr').innerHTML=h;$('#dr').classList.add('o')}
+function closeD(){$('#dr').classList.remove('o')}
+function checker(){D(`<h3>Vérifier un accès</h3><div class="row"><select id="cp">${people.map(p=>`<option value="${p.id}">${p.n}</option>`).join('')}</select></div><div class="row"><select id="cf">${ROWS.map((r,i)=>`<option value="${i}">${r[0]} ▸ ${r[1]}</option>`).join('')}</select></div><div class="row"><select id="cl">${[1,2,3,4].map(i=>`<option value="${i}">${LV[i]}</option>`).join('')}</select><button class="p" onclick="check()">Vérifier</button><button onclick="closeD()">Fermer</button></div><div id="res"></div>`)}
+function check(){const p=people.find(x=>x.id==$('#cp').value),i=+$('#cf').value,n=+$('#cl').value;const ok=(p.sa||p.elig.includes(ROWS[i][0]))&&p.r[i][0]>=n;
+$('#res').innerHTML=`<p><b class="${ok?'okc':'crit'}">${ok?'✓ Autorisé':'✕ Refusé'}</b></p>`+gates(p,i)}
+function cyc(k,i){profs[k][i]=(profs[k][i]+1)%6;render()}
+function ce(k,i){const nx={E:'D',D:'N',N:'E'}[elig[k][i]];
+const dead=nx!='E'&&profs[k]&&profs[k][ROWS.findIndex(r=>r[0]==FEATS[i])]>0;
+if(!dead){elig[k][i]=nx;render();return}
+D(`<h3>Aperçu d'impact</h3><div class="sub">${k} › ${FEATS[i]} → ${nx=='N'?'non configuré':'refusé'}</div><div class="card"><b class="warn">⚠ Droits « morts »</b><br>Le profil ${k} accorde encore des droits dans ${FEATS[i]}.<br><br>1 personne perdrait l'accès (Awa K.).</div><p class="sub">Rien n'est enregistré tant que vous n'avez pas confirmé.</p><button onclick="closeD()">Annuler</button> <button class="p" onclick="elig['${k}'][${i}]='${nx}';render();toast('Plafond mis à jour')">Confirmer</button>`)}
+function rederive(){D(`<h3>Re-dériver les droits</h3><div class="card">Aperçu : 3 personnes évaluées · 1 droit appliqué · 0 retiré<br><br><b>Programme Alpha</b> : 1 changement<br><b>Venture Z</b> : à jour</div><button onclick="closeD()">Annuler</button> <button class="p" onclick="closeD();toast('Terminé : 1 changement appliqué')">Exécuter</button>`)}
+function promo(a){D(`<h3>${a=='retirer'?'Retirer le statut':'Promouvoir'} super administrateur</h3><div class="card"><span class="b crit">critique</span><br><br><label>Motif (obligatoire)<br><textarea rows="3" style="width:100%" id="pr" oninput="pk()"></textarea></label><br><br><label>Tapez CONFIRMER<br><input id="pc" oninput="pk()"></label></div><button onclick="closeD()">Annuler</button> <button class="p" id="ok" disabled onclick="closeD();toast('Action enregistrée au journal')">Confirmer</button>`)}
+function pk(){$('#ok').disabled=!($('#pr').value.trim()&&$('#pc').value=='CONFIRMER')}
+function drawer(id,i){const p=people.find(x=>x.id==id);
+D(`<h3>${ROWS[i][0]} ▸ ${ROWS[i][1]}</h3><div class="sub">${p.n}</div><label>Action<br><select id="da" onchange="pv(${id},${i})"><option>Accorder</option><option>Restreindre</option></select></label><br><br><label>Niveau<br><select id="dl" onchange="pv(${id},${i})">${LV.slice(1).map((n,j)=>`<option value="${j+1}" ${j==2?'selected':''}>${n}</option>`).join('')}</select></label><div id="pv"></div><button onclick="closeD()">Annuler</button> <button class="p" id="ok" onclick="apply(${id},${i})">Confirmer</button>`);pv(id,i)}
+function pv(id,i){const p=people.find(x=>x.id==id),a=$('#da').value,n=+$('#dl').value,from=p.r[i][0],to=a=='Restreindre'?0:n;
+const risk=a=='Restreindre'?(from>=3?'high':'normal'):n>=4?'critical':n==3?'high':'normal';
+$('#pv').innerHTML=`<div class="card" style="margin:14px 0"><b>Avant → Après</b><br>${LV[from]} → <b>${to?LV[to]:'Retiré'}</b><br><br>Risque : <span class="b ${risk=='critical'?'crit':risk=='high'?'warn':'okc'}">${risk}</span>${risk!='normal'?`<br><br><label>Motif (obligatoire)<br><textarea id="rs" rows="3" style="width:100%" oninput="$('#ok').disabled=!this.value.trim()"></textarea></label>`:''}</div>`;$('#ok').disabled=risk!='normal'}
+function apply(id,i){const p=people.find(x=>x.id==id),a=$('#da').value,n=+$('#dl').value;const rs=$('#rs')?$('#rs').value:'—';
+p.r[i]=a=='Restreindre'?[0,'Restriction']:[n,'Direct'];
+logs.unshift(['08/10 maintenant','Vous',p.n,a,ROWS[i][1],a=='Restreindre'?'Retiré':LV[n],rs]);render();toast('Appliqué — consigné au journal')}
+render();
+</script></body></html>

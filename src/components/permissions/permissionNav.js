@@ -1,93 +1,77 @@
 /**
- * Permission Center navigation model (pure module).
+ * PHASE UI-5 — Permission Center navigation model (pure module).
  *
- * Adopted from the "Centre de permissions" prototype, reconciled with the
- * project's own rules (docs and __tests__/ui1-permission-shell.test.js):
+ * Single source of truth shared by the shell, the route segments and the UI
+ * contract tests. No React / Next imports, so it can be unit-tested directly.
  *
- *   FIVE places, named as work rather than as machinery, in the order an admin
- *   actually asks the questions:
+ * Four places, named as work rather than as machinery, in the order an admin
+ * actually asks the questions:
  *
- *     1 People       — change what ONE person can do, plus the two people-wide
- *                      registries that answer the same question at a glance:
- *                      Groups (what a collection gets) and Administrators
- *                      (who holds the platform-wide bypass).
- *     2 Profiles     — change what a WHOLE kind of person gets by default, and
- *                      the contextual roles that map a relationship to one.
- *     3 Rules        — who may even have this (eligibility ceilings), which
- *                      roles may use a responsibility's feature, and the scope
- *                      policies that bound where a right operates.
- *     4 Operations   — the two portfolio-wide jobs, each behind a confirm.
- *     5 History      — what changed, who did it, why, plus the governance and
- *                      membership health that used to need its own door.
+ *   1 People            — change what ONE person can do
+ *   2 Templates         — change what a WHOLE group gets
+ *   3 Rules             — who may even have this, and why can't I grant it
+ *   4 History           — what changed, who did it, and why
  *
- * Rules that keep it readable (locked by the shell contract test):
+ * Context, scope and portfolio operations remain available through their direct
+ * URLs. They belong to Rules rather than competing with the four questions in
+ * the centre's primary navigation.
+ *
+ * Rules that keep it readable (locked by __tests__/ui1-permission-shell.test.js):
  *   • never more than 3 sub-tasks under a tab;
  *   • a sub-tab is never named like its own tab;
  *   • every item is a REAL route (deep linkable), the selected sub-tab is
  *     reflected in the URL (`?sub=`), so a screen is at most two clicks deep.
  *
- * Retired with this phase: the separate "Where it applies" door (its three
- * sub-tasks moved to the question each one answers), and the standalone
- * memberships screen (it now heads History, beside the log it summarizes).
- * Both keep forwarding from their old routes so old bookmarks never 404.
+ * The former standalone Context and Operations doors are intentionally absent
+ * from this primary model. Their URLs remain supported for bookmarked work.
  */
 
 export const PERMISSION_BASE = "/admin/security/permissions";
 
 export const PERMISSION_NAV = [
   {
-    // Slot 1 — the daily job, now carrying the two people-wide registries.
+    // Slot 1 — the daily job. Task-first: this is what an admin came to do.
     key: "people",
     href: `${PERMISSION_BASE}/people`,
     labelKey: "engineering.permissions.navPeople",
-    defaultSub: "people",
+    defaultSub: "access",
     tabs: [
-      { key: "people", labelKey: "engineering.permissions.tabIndividualAccess" },
-      { key: "groups", labelKey: "engineering.permissions.tabGroups" },
-      { key: "admins", labelKey: "engineering.permissions.tabAdmins" },
+      { key: "access", labelKey: "engineering.permissions.tabIndividualAccess" },
+      { key: "jobs", labelKey: "engineering.permissions.tabJobShortcuts" },
     ],
   },
   {
-    // Slot 2 — a profile IS the capability set, so there is nothing to edit
-    // beside it and nothing to roll up. The second sub-tab maps a contextual
-    // relationship onto a profile.
+    // No sub-tabs on purpose: the door IS the screen.
     key: "templates",
     href: `${PERMISSION_BASE}/profiles`,
     labelKey: "engineering.permissions.navTemplates",
-    defaultSub: "matrix",
-    tabs: [
-      { key: "matrix", labelKey: "engineering.permissions.tabProfileCapabilities" },
-      { key: "contextRoles", labelKey: "engineering.permissions.tabContextRoles" },
-    ],
   },
   {
-    // Slot 3 — every ceiling in one place: eligibility, the responsibility role
-    // allowlists, and the scope policies that bound where a right applies.
     key: "rules",
     href: `${PERMISSION_BASE}/eligibility`,
     labelKey: "engineering.permissions.navRules",
-    defaultSub: "eligibility",
+    defaultSub: "ceilings",
     tabs: [
-      { key: "eligibility", labelKey: "engineering.permissions.tabEligibilityCeilings" },
-      { key: "responsibilities", labelKey: "engineering.permissions.tabResponsibilityAccess" },
-      { key: "scope", labelKey: "engineering.permissions.tabScopePolicies" },
+      { key: "ceilings", labelKey: "engineering.permissions.tabEligibilityCeilings" },
+      { key: "warnings", labelKey: "engineering.permissions.tabResponsibilityAccess" },
     ],
   },
   {
-    // Slot 4 — the portfolio-wide jobs. No sub-tabs: the door IS the screen, and
-    // each action states its own consequences before it runs.
-    key: "operations",
-    href: `${PERMISSION_BASE}/operations`,
-    labelKey: "engineering.permissions.navOperations",
-  },
-  {
-    // Slot 5 — the health numbers head the log; both are the same story at two
-    // lengths.
+    // The numbers head the log; both are the same story at two lengths.
     key: "history",
     href: `${PERMISSION_BASE}/audit`,
     labelKey: "engineering.permissions.navHistory",
   },
 ];
+
+/**
+ * Sub-tab values that existed before Individual Access was merged into one
+ * screen. The route redirects them to `access` so old bookmarks keep working.
+ */
+export const PERMISSION_PEOPLE_SUB_ALIASES = {
+  search: "access",
+  matrix: "access",
+};
 
 export function navByKey(key) {
   return PERMISSION_NAV.find((navItem) => navItem.key === key) || null;
