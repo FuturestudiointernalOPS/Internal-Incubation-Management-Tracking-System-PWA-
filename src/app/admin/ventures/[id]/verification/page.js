@@ -11,7 +11,6 @@ import {
   VerificationToast,
 } from "@/components/admin/ventures/verification/VerificationScenes";
 import VerificationHeader from "@/components/admin/ventures/verification/VerificationHeader";
-import ReadinessGauge from "@/components/admin/ventures/verification/ReadinessGauge";
 import VerificationProgress from "@/components/admin/ventures/verification/VerificationProgress";
 import VerificationHistory from "@/components/admin/ventures/verification/VerificationHistory";
 import VerificationComments from "@/components/admin/ventures/verification/VerificationComments";
@@ -291,7 +290,6 @@ export default function VentureVerificationPage() {
           onOpenReview={() => setShowReviewModal(true)}
         />
 
-        <ReadinessGauge readiness={readiness} t={t} />
 
         <VerificationProgress
           id={id}
