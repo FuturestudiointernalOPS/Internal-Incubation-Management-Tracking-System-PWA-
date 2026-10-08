@@ -3,7 +3,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/server/auth/session";
 import { requireAuthorization } from "@/models/authorization/index";
 import { getCrmLeadById, updateCrmLead, softDeleteCrmLead } from "@/models/crm/leads";
-import { createContactTimelineEvent } from "@/models/contacts/timeline";
+import { addContactTimelineEvent } from "@/services/contacts/timeline";
 
 export const dynamic = "force-dynamic";
 
@@ -58,21 +58,21 @@ export const PATCH = createHandler(
     // Log meaningful changes to the timeline if attached to a person
     if (updatedLead && updatedLead.contact_cid) {
       if (body.status && body.status !== existingLead.status) {
-        await createContactTimelineEvent({
-          contact_cid: updatedLead.contact_cid,
-          event_type: "lead_status_changed",
+        await addContactTimelineEvent({
+          cid: updatedLead.contact_cid,
+          eventType: "lead_status_changed",
           description: `Lead status changed to ${body.status}`,
+          actorCid: session?.user?.cid ?? null,
           metadata: { lead_id: id, old: existingLead.status, new: body.status },
-          actor_cid: session?.user?.cid ?? null,
         });
       }
       if (body.owner_cid && body.owner_cid !== existingLead.owner_cid) {
-        await createContactTimelineEvent({
-          contact_cid: updatedLead.contact_cid,
-          event_type: "lead_assigned",
-          description: `Lead reassigned`,
+        await addContactTimelineEvent({
+          cid: updatedLead.contact_cid,
+          eventType: "lead_assigned",
+          description: `Lead reassigned to ${body.owner_cid}`,
+          actorCid: session?.user?.cid ?? null,
           metadata: { lead_id: id, new_owner: body.owner_cid },
-          actor_cid: session?.user?.cid ?? null,
         });
       }
     }

@@ -3,7 +3,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/server/auth/session";
 import { requireAuthorization } from "@/models/authorization/index";
 import { getCrmLeads, createCrmLead } from "@/models/crm/leads";
-import { createContactTimelineEvent } from "@/models/contacts/timeline";
+import { addContactTimelineEvent } from "@/services/contacts/timeline";
 
 export const dynamic = "force-dynamic";
 
@@ -77,12 +77,12 @@ export const POST = createHandler(
 
     // Optional: Log to existing contact timeline if attached to a person
     if (lead && lead.contact_cid) {
-      await createContactTimelineEvent({
-        contact_cid: lead.contact_cid,
-        event_type: "lead_created",
+      await addContactTimelineEvent({
+        cid: lead.contact_cid,
+        eventType: "lead_created",
         description: `Lead created: ${lead.title}`,
+        actorCid: session?.user?.cid ?? null,
         metadata: { lead_id: lead.id, lead_type: lead.lead_type },
-        actor_cid: session?.user?.cid ?? null,
       });
     }
 
