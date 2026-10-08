@@ -13,7 +13,9 @@
  * driven by the module mock rather than an injected double.
  */
 
-jest.mock("@/lib/auth", () => ({ getSession: jest.fn() }));
+jest.mock("@/server/auth/session", () => ({
+  getSession: jest.fn(),
+}));
 
 jest.mock("@/lib/db", () => {
   const state = { calls: [], assigned: false };
@@ -40,7 +42,7 @@ jest.mock("@/lib/db", () => {
 const mockDb = require("@/lib/db").default;
 const { __state: state } = require("@/lib/db");
 const { isStaffActorForVenture } = require("@/lib/ventureAuth");
-const { resetVentureAccessCache } = require("@/lib/ventureAccessFacts");
+const { resetVentureAccessCache } = require("@/services/ventures/accessFacts");
 
 // The relationship is remembered process-wide for a real 10 s window: empty it
 // per test so one test's assignment cannot answer the next one's question.

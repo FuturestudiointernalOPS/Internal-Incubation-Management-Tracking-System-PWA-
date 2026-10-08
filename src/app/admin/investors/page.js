@@ -128,10 +128,10 @@ export default function AdminInvestorsPage() {
     setCopied(false);
     setLink((prev) => ({ ...prev, loading: true, error: "" }));
     try {
-      const res = await fetch("/api/platform/form-runs", {
+      const res = await fetch("/api/platform/form-runs?action=regenerate_link", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "regenerate_link", id: link.runId }),
+        body: JSON.stringify({ id: link.runId }),
       });
       const data = await res.json();
       if (data.success && data.public_slug) {

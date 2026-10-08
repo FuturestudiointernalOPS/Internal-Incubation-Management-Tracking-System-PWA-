@@ -9,8 +9,8 @@
  *   password.js — the single seam to the hashing algorithm
  *   guards.js   — requireSession / requireAuth
  *
- * New code imports from `@/server/auth`. `@/lib/auth` keeps re-exporting these
- * for the importers that predate the split.
+ * New code imports from `@/server/auth`. The old `@/lib/auth` facade was removed
+ * once every importer was repointed to this layer.
  */
 
 export * from "./cookies";

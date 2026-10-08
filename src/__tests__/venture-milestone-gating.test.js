@@ -83,8 +83,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(),
 }));
 
@@ -97,7 +99,7 @@ jest.mock("@/lib/ventureScopedAccess", () => ({
   requireVentureScopedAccess: jest.fn().mockResolvedValue({ session: { cid: "u1", role: "super_admin" }, path: "super-admin" }),
 }));
 
-jest.mock("@/lib/ventures", () => ({
+jest.mock("@/services/ventures/activity", () => ({
   notifyVentureFounders: jest.fn().mockResolvedValue(true),
   addVentureHistory: jest.fn().mockResolvedValue(true),
 }));
@@ -160,7 +162,7 @@ describe("milestone completion authority (Lead Manager / Super Admin only)", () 
       expect(sweep.sql).toContain("FROM venture_dependencies");
     }
 
-    const { notifyVentureFounders } = require("@/lib/ventures");
+    const { notifyVentureFounders } = require("@/services/ventures/activity");
     expect(notifyVentureFounders).toHaveBeenCalledWith(
       VENTURE_DB_ID,
       "Milestone approved",

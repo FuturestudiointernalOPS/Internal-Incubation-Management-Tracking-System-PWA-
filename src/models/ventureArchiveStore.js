@@ -32,10 +32,30 @@ export function selectTaskReviewProbe(taskId) {
   });
 }
 
-/** A milestone's first deliverable, if any (filed-work check). */
+/**
+ * A milestone's first deliverable that has been WORKED ON, if any (filed-work
+ * check).
+ *
+ * A deliverable ROW is not evidence: a tracker import creates one pristine row
+ * per tracker line. Counting rows made every imported journey permanently
+ * undeletable even though nobody had filed anything, so the probe asks for
+ * engagement instead — the deliverable left its initial state, carries an
+ * evidence attachment, or was reviewed. An untouched import row is plan
+ * structure, and a permanent delete removes it with the rest of the plan.
+ */
 export function selectMilestoneDeliverableProbe(milestoneId) {
   return db.execute({
-    sql: "SELECT 1 FROM venture_deliverables WHERE milestone_id = ? LIMIT 1",
+    sql: `SELECT 1 FROM venture_deliverables d
+           WHERE d.milestone_id = ?
+             AND (
+               COALESCE(d.status, 'pending') NOT IN ('pending', 'not_started')
+               OR COALESCE(d.approval_status, '') NOT IN ('', 'pending')
+               OR NULLIF(TRIM(d.attachment_url), '') IS NOT NULL
+               OR NULLIF(TRIM(d.reviewer_name), '') IS NOT NULL
+               OR NULLIF(TRIM(d.rejection_reason), '') IS NOT NULL
+               OR EXISTS (SELECT 1 FROM venture_deliverable_reviews r WHERE r.deliverable_id = d.id)
+             )
+           LIMIT 1`,
     args: [String(milestoneId)],
   });
 }

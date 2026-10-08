@@ -10,8 +10,8 @@
  * — live here; every statement is in `@/models/ventureDeliverablesStore`.
  * Nothing here runs SQL.
  *
- * Re-exported unchanged through `@/lib/ventures` (the module it came from) —
- * see docs/LAYER_SPLIT.md.
+ * This module used to be re-exported through `@/lib/ventures`; that barrel is
+ * gone (CH-4) and importers read this module directly. See docs/LAYER_SPLIT.md.
  */
 
 import {
@@ -61,7 +61,7 @@ export async function createDeliverable({ milestoneId, ventureId, title, descrip
 }
 
 export async function updateDeliverable(deliverableId, updates, actorCid, actorName) {
-  const allowed = ["title", "description", "deliverable_type", "status", "due_date", "assigned_cid", "attachment_url", "attachment_name", "approval_status", "reviewer_cid", "reviewer_name", "rejection_reason"];
+  const allowed = ["title", "description", "deliverable_type", "status", "due_date", "assigned_cid", "assigned_name", "attachment_url", "attachment_name", "approval_status", "reviewer_cid", "reviewer_name", "rejection_reason"];
   // One assignment per column. The list used to be built by pushing, and the
   // approval workflow pushed a column the caller may already have supplied —
   // `status` on a submission, `reviewer_cid` / `reviewer_name` on a review —

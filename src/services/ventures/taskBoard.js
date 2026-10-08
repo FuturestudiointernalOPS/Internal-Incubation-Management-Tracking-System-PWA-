@@ -12,11 +12,7 @@
  * Same facades as the controller used, so route-level test mocks still apply.
  * No SQL, no HTTP.
  */
-import {
-  getUnmetTaskDependencies,
-  syncTaskBlockState,
-  releaseTasksBlockedBy,
-} from "@/lib/ventures";
+import { getUnmetTaskDependencies, syncTaskBlockState, releaseTasksBlockedBy } from "@/services/ventures/tasks";
 import {
   TASK_BOARD_COLUMNS,
   TASK_REVIEW_GATED_COMPLETION_STATUSES,
@@ -24,7 +20,7 @@ import {
   TASK_COMPLETED_STATUSES,
 } from "@/lib/ventureStatuses";
 import { isStaffActorForVenture } from "@/lib/ventureAuth";
-import { canManageMilestones, syncMilestoneFromWork } from "@/lib/ventureMilestoneEngine";
+import { canManageMilestones, syncMilestoneFromWork } from "@/services/ventures/milestoneEngine";
 import { hasApprovedTaskSubmission } from "@/models/ventureWorkspace";
 
 /**

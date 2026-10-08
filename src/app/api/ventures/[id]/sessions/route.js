@@ -2,11 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { ventureOwned, ventureNotFound, resolveVentureDbId } from "@/lib/ventureOwnership";
-import {
-  listSessions, getSession, createSession, updateSession, cancelSession,
-  rescheduleSession, deleteSession, addSessionNote, recordAttendance,
-  createActionItem, updateActionItem,
-} from "@/lib/ventures";
+import { listSessions, getSession, createSession, updateSession, cancelSession, rescheduleSession, deleteSession, addSessionNote, recordAttendance, createActionItem, updateActionItem } from "@/services/ventures/sessions";
 import { isStaffActorForVenture } from "@/lib/ventureAuth";
 import { signSessionMaterials } from "@/lib/ventureEvidence";
 import { checkSessionBooking } from "@/services/ventures/sessionBooking";

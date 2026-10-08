@@ -4,7 +4,7 @@ import { requireVentureAccess } from "@/lib/ventureAuth";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { canDefineDeliverables, canReviewDeliverable } from "@/lib/ventureDeliverables";
 import { dateOrNull, textOrNull } from "@/lib/ventureInput";
-import { listDeliverables, createDeliverable, updateDeliverable, getDeliverable } from "@/lib/ventures";
+import { listDeliverables, createDeliverable, updateDeliverable, getDeliverable } from "@/services/ventures/deliverables";
 import { getVentureDbIdByCodeOrId, getVentureMilestoneForDeliverables } from "@/models/ventureWorkspace";
 import {
   readDeliverableDecision,
@@ -102,7 +102,7 @@ export const POST = createHandler(async (req, { params }) => {
   });
 
   try {
-    const { addVentureHistory } = await import("@/lib/ventures");
+    const { addVentureHistory } = await import("@/services/ventures/activity");
     await addVentureHistory({
       venture_id: id,
       event_type: "DELIVERABLE_ADDED",

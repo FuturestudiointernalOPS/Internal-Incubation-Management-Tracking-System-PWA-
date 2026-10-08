@@ -2,7 +2,11 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { hashPassword } from "@/server/auth/password";
-import { requireAuth, getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
+import { getSession } from "@/server/auth/session";
+import { requireAssignmentAccess, assertNoParticipantFacilitatorConflict } from "@/server/authz/guards";
+import { getFacilitatorTeamScope } from "@/models/authorization/accessQueries";
+import { hasProgramManagementAccess } from "@/server/authz/capabilities";
 import { getAuthorizationContext, authorize } from "@/models/authorization/index";
 import {
   upsertParticipantContact,
@@ -10,7 +14,7 @@ import {
   enrollPendingParticipantProgram,
   logParticipantEnrollment,
   getProgramParticipants,
-} from "@/models/groups";
+} from "@/models/groups/enrollment";
 
 /**
  * PARTICIPANTS API — ENROLLMENT ENGINE

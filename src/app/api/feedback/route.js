@@ -22,7 +22,7 @@ export const POST = createHandler(async (req) => {
 
   // Own-scope: a participant writes only their OWN weekly feedback. Only
   // management may record feedback on behalf of someone else.
-  const { getSession } = await import("@/lib/auth");
+  const { getSession } = await import("@/server/auth/session");
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
@@ -51,7 +51,7 @@ export const GET = createHandler(async (req) => {
 
   // The feedback list is a management view: a participant must not be able to
   // read every program's weekly reflections by changing the query.
-  const { getSession } = await import("@/lib/auth");
+  const { getSession } = await import("@/server/auth/session");
   const session = await getSession();
   if (!["super_admin", "staff", "program_manager"].includes(session?.role)) {
     return NextResponse.json(

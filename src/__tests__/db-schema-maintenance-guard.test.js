@@ -64,6 +64,26 @@ describe("idempotent DDL runs once per process", () => {
     expect(sent(/ADD COLUMN IF NOT EXISTS nick_name/)).toHaveLength(1);
   });
 
+  test("a repeated DROP TABLE IF EXISTS is sent once", async () => {
+    const { db } = await freshDb();
+    const sql = "DROP TABLE IF EXISTS integration_configs";
+
+    await db.execute({ sql, args: [] });
+    await db.execute({ sql, args: [] });
+
+    expect(sent(/DROP TABLE IF EXISTS integration_configs/)).toHaveLength(1);
+  });
+
+  test("a repeated DROP COLUMN IF EXISTS is sent once", async () => {
+    const { db } = await freshDb();
+    const sql = "ALTER TABLE platform_form_submissions DROP COLUMN IF EXISTS notion_page_id";
+
+    await db.execute({ sql, args: [] });
+    await db.execute({ sql, args: [] });
+
+    expect(sent(/DROP COLUMN IF EXISTS notion_page_id/)).toHaveLength(1);
+  });
+
   test("a skipped statement resolves with an empty result, not an error", async () => {
     const { db } = await freshDb();
     const sql = "CREATE INDEX IF NOT EXISTS idx_demo ON demo_table (id)";
@@ -122,6 +142,16 @@ describe("data statements are never skipped", () => {
     await db.execute({ sql, args: [] });
 
     expect(sent(/DROP CONSTRAINT demo_check/)).toHaveLength(2);
+  });
+
+  test("a DROP TABLE without IF EXISTS is not treated as maintenance", async () => {
+    const { db } = await freshDb();
+    const sql = "DROP TABLE demo_counters";
+
+    await db.execute({ sql, args: [] });
+    await db.execute({ sql, args: [] });
+
+    expect(sent(/DROP TABLE demo_counters/)).toHaveLength(2);
   });
 });
 

@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { getSession, logPermissionAudit } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
+import { logPermissionAudit } from "@/models/authorization/accessQueries";
 import {
   requireAuthorization,
   invalidateAllAuthorizationContexts,
@@ -9,9 +10,11 @@ import {
   ensureMembershipSchema,
   normalizeGroupName,
   MEMBERSHIP_ACTIONS,
-  applyMembershipAction,
   getMembership,
-} from "@/lib/authorization/membership";
+} from "@/models/authorization/membership";
+import {
+  applyMembershipAction,
+} from "@/services/authorization/membership";
 import {
   buildMembershipFilter,
   resolveProtectedGroupFlags,

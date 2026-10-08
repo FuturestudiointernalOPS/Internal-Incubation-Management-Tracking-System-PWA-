@@ -20,7 +20,7 @@ jest.mock("uuid", () => ({
 }));
 
 const db = require("@/lib/db").default;
-const { resolveTeamMembersForPromotion } = require("@/lib/ventures");
+const { resolveTeamMembersForPromotion } = require("@/services/ventures/intake");
 
 describe("resolveTeamMembersForPromotion", () => {
   beforeEach(() => {

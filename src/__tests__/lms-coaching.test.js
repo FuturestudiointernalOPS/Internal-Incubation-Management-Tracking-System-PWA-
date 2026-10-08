@@ -16,8 +16,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => {}),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn(async () => null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => ({ cid: "U-LEARNER", name: "Learner", role: "participant" })),
 }));
 
@@ -31,7 +33,7 @@ jest.mock("@/lib/programScopedAccess", () => ({
 
 const { requireAuthorization } = require("@/models/authorization/index");
 const { requireProgramScope } = require("@/lib/programScopedAccess");
-const { getSession } = require("@/lib/auth");
+const { getSession } = require("@/server/auth/session");
 
 const {
   createCoachingRequest,

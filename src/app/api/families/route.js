@@ -1,10 +1,8 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import {
-  requireAuth,
-  getSession,
-  hasProgramManagementAccess,
-} from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
+import { getSession } from "@/server/auth/session";
+import { hasProgramManagementAccess } from "@/server/authz/capabilities";
 import { requireAuthorization } from "@/models/authorization/index";
 
 import { v4 as uuidv4 } from "uuid";
@@ -23,7 +21,7 @@ import {
   updateFamilyArchiveStatus,
   ensureFamilyArchiveColumn,
   deleteFamily,
-} from "@/models/contacts";
+} from "@/models/contacts/families";
 
 /**
  * Columns that must never leave this API. A family/group row also carries the

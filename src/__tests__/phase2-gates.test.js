@@ -7,7 +7,9 @@
  * are denied; PMs (staff + Program Manager profile) are allowed.
  */
 const { authorize, mergeEffectiveCapabilities } = require("@/services/authorization/context");
-const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
+const {
+  MODULE_TO_FEATURE,
+} = require("@/models/authorization/eligibility");
 
 function ctx({ role = "staff", eligibility = {}, profileCaps = {}, grants = {}, restrictions = {} }) {
   return {

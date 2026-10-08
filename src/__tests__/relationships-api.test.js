@@ -44,8 +44,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({
     cid: "user-1",
     name: "User One",
@@ -172,7 +174,7 @@ describe("GET /api/me/relationships", () => {
   });
 
   test("returns 401 when there is no session", async () => {
-    const authMock = require("@/lib/auth");
+    const authMock = require("@/server/auth/session");
     authMock.getSession.mockResolvedValueOnce(null);
     const res = await GET(new Request("http://localhost/api/me/relationships"));
     expect(res.status).toBe(401);

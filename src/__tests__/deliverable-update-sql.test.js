@@ -43,7 +43,7 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-const { updateDeliverable } = require("@/lib/ventures");
+const { updateDeliverable } = require("@/services/ventures/deliverables");
 
 /** The `column = value` pairs of the UPDATE's SET list, in order. */
 const setEntries = (sql) => sql.slice(sql.indexOf("SET ") + 4, sql.indexOf(" WHERE id = ?")).split(", ");

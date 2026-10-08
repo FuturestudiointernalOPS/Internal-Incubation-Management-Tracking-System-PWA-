@@ -16,18 +16,22 @@
 
 import { v4 as uuidv4 } from "uuid";
 import { hashPassword } from "@/server/auth/password";
-import { assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import { assertNoParticipantFacilitatorConflict } from "@/server/authz/guards";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import {
   createPasswordSetupToken,
   markContactInvited,
   upsertContact,
   createAccessRequestNotification,
+  findContactCidByPhone,
+} from "@/models/contacts/contactStore";
+import {
   assignContactToProgram,
   createParticipantProgramAudit,
-  findContactCidByPhone,
+} from "@/models/contacts/programMembership";
+import {
   createDuplicatePhoneFlag,
-} from "@/models/contacts";
+} from "@/models/contacts/duplicates";
 
 /**
  * Self-service roles: the only roles a caller WITHOUT the role-assignment

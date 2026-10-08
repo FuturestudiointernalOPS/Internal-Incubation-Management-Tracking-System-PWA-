@@ -1,6 +1,8 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession, isAssignedPmForProgram } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
+import { getSession } from "@/server/auth/session";
+import { isAssignedPmForProgram } from "@/models/authorization/accessQueries";
 import { requireProgramScope } from "@/lib/programScopedAccess";
 import { v4 as uuidv4 } from "uuid";
 import { sendInviteEmail, sendLoginEmail } from "@/lib/email";

@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { computeRoadmapReadiness } from "@/lib/ventureReadiness";
+import { computeRoadmapReadiness } from "@/services/ventures/readiness";
 import {
   getInvestmentReadinessVentureId,
   getVentureInvestmentDocuments,

@@ -14,7 +14,7 @@
  *     than a silent allow.
  */
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => ({ cid: "USR_PM", role: "staff", email: "pm@x.test" })),
 }));
 
@@ -27,7 +27,7 @@ jest.mock("@/services/authorization/scope", () => ({
   isWithinScope: jest.fn(async () => true),
 }));
 
-const { getSession } = require("@/lib/auth");
+const { getSession } = require("@/server/auth/session");
 const { getAuthorizationContext, requireAuthorization } = require("@/models/authorization/index");
 const { isWithinScope } = require("@/services/authorization/scope");
 const {

@@ -1,13 +1,14 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { datePickerFloor } from "@/components/ventures/journey/journeyShapers";
+import { datePickerFloor, groupDeliverablesByActivity } from "@/components/ventures/journey/journeyShapers";
 import { dateOnly, todayDateInput } from "@/lib/ventureMilestoneDates";
 import { statusChipClass, statusDotClass, statusLabel } from "@/lib/ventureStatuses";
 import { Loader2, Plus, Save } from "lucide-react";
 import AppMenu from "@/components/ui/AppMenu";
 import VenturePersonField from "@/components/ventures/VenturePersonField";
+import DeliverableDetailDialog from "@/components/ventures/journey/DeliverableDetailDialog";
 
 /**
  * The deliverables of an open milestone: list, status, review, evidence
@@ -47,17 +48,47 @@ export default function MilestoneDeliverables({
   submitDeliverableEvidence,
 }) {
   const { t } = useI18n();
+  // The deliverable whose detail dialog is open (id only, so the dialog reads
+  // the current row from props and a review/approval shows up live).
+  const [detailId, setDetailId] = useState(null);
+  const groups = groupDeliverablesByActivity(deliverableList);
+  const detailGroup =
+    detailId == null
+      ? null
+      : groups.find((group) => group.deliverables.some((item) => item.id === detailId));
+  const detailDeliverable =
+    detailGroup?.deliverables.find((item) => item.id === detailId) || null;
+
   return (
     <div className="mt-2 ml-5 space-y-1.5">
       <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
         {t("venture.manager.deliverables")}
       </p>
-      {deliverableList.map((deliverable) => {
-        const status = deliverableStatus(deliverable);
-        const mode = deliverableAction?.id === deliverable.id ? deliverableAction.mode : null;
-        return (
-          <div key={deliverable.id} className="rounded-lg border border-divider/70 px-2.5 py-2">
-            {mode === "edit" ? (
+      {groups.map((group, groupIndex) => (
+        <div key={group.activity?.id ?? `group-${groupIndex}`} className="rounded-lg border border-divider/70 px-2.5 py-2 space-y-2">
+          {/* ACTIVITY — the work that produces what follows */}
+          <div>
+            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">{t("venture.manager.activityLabel")}</p>
+            <p className="text-[11px] font-bold text-[var(--text-primary)] mt-0.5">
+              {group.activity?.source_ref && (
+                <span className="mr-1.5 px-1 py-0.5 rounded bg-tertiary text-[8px] font-black text-slate-500 align-middle">{group.activity.source_ref}</span>
+              )}
+              {group.activity?.title || t("venture.manager.notProvided")}
+            </p>
+            {group.activity?.description && (
+              <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{group.activity.description}</p>
+            )}
+          </div>
+
+          {/* DELIVERABLE(S) — the output, underneath its activity */}
+          <div className="space-y-1">
+            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">{t("venture.manager.deliverableLabel")}</p>
+            {group.deliverables.map((deliverable) => {
+              const status = deliverableStatus(deliverable);
+              const mode = deliverableAction?.id === deliverable.id ? deliverableAction.mode : null;
+              return (
+                <div key={deliverable.id}>
+                  {mode === "edit" ? (
               <form onSubmit={(event) => saveDeliverableEdit(event, deliverable, milestone)} className="space-y-2">
                 <input
                   value={deliverableForm.title}
@@ -155,9 +186,17 @@ export default function MilestoneDeliverables({
                 </div>
               </div>
             ) : (
+              <>
               <div className="flex items-center gap-2">
                 <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDotClass(status)}`} />
-                <p className="flex-1 min-w-0 text-[11px] font-bold text-[var(--text-primary)] truncate">{deliverable.title}</p>
+                <button
+                  type="button"
+                  onClick={() => setDetailId(deliverable.id)}
+                  aria-label={`${t("venture.manager.viewDetails")}: ${deliverable.title}`}
+                  className="flex-1 min-w-0 text-left text-[11px] font-bold whitespace-normal break-words text-[var(--text-primary)] hover:text-[var(--brand-orange)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 rounded"
+                >
+                  {deliverable.title}
+                </button>
                 {deliverable.due_date && <span className="hidden sm:inline text-[9px] text-slate-500">{fmtDate(deliverable.due_date)}</span>}
                 {deliverable.attachment_url && (
                   <a href={deliverable.evidence_download_url || deliverable.attachment_url} target="_blank" rel="noreferrer" className="text-[9px] font-bold text-sky-300 hover:underline shrink-0">
@@ -177,15 +216,50 @@ export default function MilestoneDeliverables({
                 )}
                 {deliverableBusy === deliverable.id && <Loader2 className="w-3 h-3 animate-spin text-slate-400 shrink-0" />}
               </div>
+              </>
             )}
-            {!mode && deliverable.approval_status === "rejected" && deliverable.rejection_reason && (
-              <p className="text-[9px] text-rose-400 mt-1">
-                {t("venture.manager.changesRequestedReason", { reason: deliverable.rejection_reason })}
-              </p>
-            )}
+                  {!mode && deliverable.description && (
+                    <p className="text-[10px] text-[var(--text-secondary)] mt-1 whitespace-pre-line break-words">
+                      {deliverable.description}
+                    </p>
+                  )}
+                  {!mode && deliverable.approval_status === "rejected" && deliverable.rejection_reason && (
+                    <p className="text-[9px] text-rose-400 mt-1">
+                      {t("venture.manager.changesRequestedReason", { reason: deliverable.rejection_reason })}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        );
-      })}
+
+          {/* DEFINITION OF DONE — what makes the activity complete */}
+          <div>
+            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">{t("venture.manager.definitionOfDone")}</p>
+            <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{group.activity?.definition_of_done || t("venture.manager.notProvided")}</p>
+          </div>
+
+          {/* METADATA — people and timing, kept out of the prose */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[10px]">
+            <span>
+              <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.milestoneOwner")}:</span>{" "}
+              <span className="text-[var(--text-primary)]">{group.activity?.owner_name || group.deliverables[0]?.assigned_name || "—"}</span>
+            </span>
+            <span>
+              <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.supporting")}:</span>{" "}
+              <span className="text-[var(--text-primary)]">{group.activity?.support_name || "—"}</span>
+            </span>
+            <span>
+              <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.startDate")}:</span>{" "}
+              <span className="text-[var(--text-primary)]">{group.activity?.start_date ? fmtDate(group.activity.start_date) : "—"}</span>
+            </span>
+            <span>
+              <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.finishDate")}:</span>{" "}
+              <span className="text-[var(--text-primary)]">{(group.activity?.due_date || group.deliverables[0]?.due_date) ? fmtDate(group.activity?.due_date || group.deliverables[0]?.due_date) : "—"}</span>
+            </span>
+          </div>
+        </div>
+      ))}
 
       {milestoneAuthority && (
         deliverableAddFor === milestone.id ? (
@@ -263,6 +337,12 @@ export default function MilestoneDeliverables({
           </button>
         )
       )}
+
+      <DeliverableDetailDialog
+        deliverable={detailDeliverable}
+        activity={detailGroup?.activity || null}
+        onClose={() => setDetailId(null)}
+      />
     </div>
   );
 }

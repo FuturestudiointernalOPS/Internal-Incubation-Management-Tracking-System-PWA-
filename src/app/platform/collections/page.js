@@ -4,22 +4,21 @@ export const dynamic = "force-dynamic";
 
 import React, { useState } from "react";
 import {
-  FolderKanban,
-  Plus,
-  Search,
-  Loader2,
   ChevronRight,
   Archive,
   RotateCcw,
   Edit3,
-  User,
-  Clock,
-  X,
-  FolderTree,
-  AlertTriangle,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
+import { cn } from "@/components/platform/collections/helpers";
+import { STATUS_CONFIG } from "@/components/platform/collections/constants";
+import CollectionsHeader from "@/components/platform/collections/CollectionsHeader";
+import CollectionsToolbar from "@/components/platform/collections/CollectionsToolbar";
+import CollectionsTreeView from "@/components/platform/collections/CollectionsTreeView";
+import CollectionsGridView from "@/components/platform/collections/CollectionsGridView";
+import CollectionFormModal from "@/components/platform/collections/CollectionFormModal";
+import ArchiveConfirmModal from "@/components/platform/collections/ArchiveConfirmModal";
 
 /**
  * PLATFORM COLLECTIONS
@@ -34,16 +33,6 @@ const pickCollections = (response) =>
   response?.success
     ? { collections: response.collections || [], tree: response.tree || [] }
     : EMPTY_COLLECTIONS;
-
-const STATUS_CONFIG = {
-  active: { color: "text-emerald-500", bg: "bg-emerald-500/10", label: "platformMisc.collections.statusActive" },
-  draft: { color: "text-amber-500", bg: "bg-amber-500/10", label: "platformMisc.collections.statusDraft" },
-  archived: { color: "text-rose-500", bg: "bg-rose-500/10", label: "platformMisc.collections.statusArchived" },
-};
-
-function cn(...classes) {
-  return classes.filter(Boolean).join(" ");
-}
 
 export default function CollectionsPage() {
   const { t } = useI18n();
@@ -182,6 +171,17 @@ export default function CollectionsPage() {
     setShowCreate(true);
   };
 
+  const openCreate = () => {
+    setEditing(null);
+    setForm({ name: "", description: "", parent_id: "", visibility: "internal", tags: "", category: "", color: "#FF6600", status: "active" });
+    setShowCreate(true);
+  };
+
+  const closeForm = () => {
+    setShowCreate(false);
+    setEditing(null);
+  };
+
   const renderTreeNode = (node, depth = 0) => {
     const statusConfig = STATUS_CONFIG[node.status] || STATUS_CONFIG.active;
     const hasChildren = node.children && node.children.length > 0;
@@ -251,421 +251,58 @@ export default function CollectionsPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-lg font-black uppercase tracking-tight text-[var(--text-primary)]">
-            {t("platformMisc.collections.title")}
-          </h1>
-          <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-            {t("platformMisc.collections.subtitle")}
-          </p>
-        </div>
-        <button
-          onClick={() => {
-            setEditing(null);
-            setForm({ name: "", description: "", parent_id: "", visibility: "internal", tags: "", category: "", color: "#FF6600", status: "active" });
-            setShowCreate(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
-        >
-          <Plus className="w-3.5 h-3.5" /> {t("platformMisc.collections.newCollection")}
-        </button>
-      </div>
+      <CollectionsHeader t={t} onNew={openCreate} />
 
       {/* Search & Filters */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)]" />
-          <input
-            type="text"
-            placeholder={t("platformMisc.collections.searchPlaceholder")}
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-          />
-        </div>
-        <select
-          value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value)}
-          className="px-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
-        >
-          <option value="all">{t("platformMisc.collections.allStatus")}</option>
-          <option value="active">{t("platformMisc.collections.statusActive")}</option>
-          <option value="draft">{t("platformMisc.collections.statusDraft")}</option>
-          <option value="archived">{t("platformMisc.collections.statusArchived")}</option>
-        </select>
-        <div className="flex bg-primary p-1 rounded-xl border border-[var(--border-primary)]">
-          {[
-            { id: "grid", label: t("platformMisc.collections.viewGrid") },
-            { id: "tree", icon: FolderTree, label: t("platformMisc.collections.viewTree") },
-          ].map((mode) => (
-            <button
-              key={mode.id}
-              onClick={() => setViewMode(mode.id)}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
-                viewMode === mode.id
-                  ? "bg-[var(--brand-orange)] text-black"
-                  : "text-[var(--text-secondary)]",
-              )}
-            >
-              {mode.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <CollectionsToolbar
+        t={t}
+        search={search}
+        setSearch={setSearch}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+      />
 
       {/* Tree View */}
       {viewMode === "tree" && (
-        <div className="rounded-2xl bg-secondary border border-[var(--border-primary)] p-3 space-y-1">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" />
-            </div>
-          ) : tree.length === 0 ? (
-            <div className="py-16 text-center">
-              <FolderTree className="w-10 h-10 mx-auto text-[var(--text-secondary)] opacity-20" />
-              <p className="text-[11px] text-[var(--text-secondary)] mt-3 font-bold">
-                {t("platformMisc.collections.noCollections")}
-              </p>
-              <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1 opacity-50">
-                {t("platformMisc.collections.createFirstPrompt")}
-              </p>
-            </div>
-          ) : (
-            tree.map((node) => renderTreeNode(node))
-          )}
-        </div>
+        <CollectionsTreeView t={t} loading={loading} tree={tree} renderTreeNode={renderTreeNode} />
       )}
 
       {/* Grid View */}
       {viewMode === "grid" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {loading ? (
-            <div className="col-span-full flex items-center justify-center py-12">
-              <Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" />
-            </div>
-          ) : collections.length === 0 ? (
-            <div className="col-span-full py-16 text-center">
-              <FolderKanban className="w-10 h-10 mx-auto text-[var(--text-secondary)] opacity-20" />
-              <p className="text-[11px] text-[var(--text-secondary)] mt-3 font-bold">
-                {t("platformMisc.collections.noCollections")}
-              </p>
-              <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1 opacity-50">
-                {t("platformMisc.collections.createFirstPrompt")}
-              </p>
-            </div>
-          ) : (
-            collections.map((collection) => {
-              const statusConfig = STATUS_CONFIG[collection.status] || STATUS_CONFIG.active;
-              const parent = collection.parent_id
-                ? collections.find((entry) => entry.id === collection.parent_id)
-                : null;
-              return (
-                <div
-                  key={collection.id}
-                  className="p-5 rounded-2xl bg-secondary border border-[var(--border-primary)] hover:border-brand-orange/50 transition-all group"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <span
-                      className="w-10 h-10 rounded-xl flex items-center justify-center"
-                      style={{ backgroundColor: (collection.color || "#FF6600") + "20" }}
-                    >
-                      <FolderKanban
-                        className="w-5 h-5"
-                        style={{ color: collection.color || "#FF6600" }}
-                      />
-                    </span>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => handleEdit(collection)}
-                        className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:bg-tertiary"
-                      >
-                        <Edit3 className="w-3 h-3" />
-                      </button>
-                      {collection.status !== "archived" ? (
-                        <button
-                          onClick={() => handleArchive(collection.id)}
-                          className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-rose-500 hover:bg-tertiary"
-                          title={t("platformMisc.collections.archiveTitle")}
-                        >
-                          <Archive className="w-3 h-3" />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleUnarchive(collection.id)}
-                          className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-emerald-500 hover:bg-tertiary"
-                          title={t("platformMisc.collections.restoreTitle")}
-                        >
-                          <RotateCcw className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                    {collection.name}
-                  </h3>
-                  {collection.description && (
-                    <p className="text-[10px] text-[var(--text-secondary)] mt-1 leading-relaxed">
-                      {collection.description}
-                    </p>
-                  )}
-
-                  {parent && (
-                    <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-2 opacity-50">
-                      {t("platformMisc.collections.nestedIn", { name: parent.name })}
-                    </p>
-                  )}
-
-                  <div className="flex items-center gap-2 mt-3 flex-wrap">
-                    <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", statusConfig.color, statusConfig.bg)}>
-                      {t(statusConfig.label)}
-                    </span>
-                    {Array.isArray(collection.tags) &&
-                      collection.tags.slice(0, 3).map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-2 py-0.5 rounded bg-tertiary text-[var(--text-secondary)] text-[10px] font-bold"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                  </div>
-
-                  <div className="flex items-center gap-3 mt-3 pt-3 border-t border-[var(--border-primary)] text-[10px] text-[var(--text-secondary)]">
-                    {collection.owner_name && (
-                      <span className="flex items-center gap-1">
-                        <User className="w-3 h-3" />
-                        {collection.owner_name}
-                      </span>
-                    )}
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {collection.updated_at
-                        ? new Date(collection.updated_at).toLocaleDateString()
-                        : "—"}
-                    </span>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+        <CollectionsGridView
+          t={t}
+          loading={loading}
+          collections={collections}
+          onEdit={handleEdit}
+          onArchive={handleArchive}
+          onUnarchive={handleUnarchive}
+        />
       )}
 
       {/* Create / Edit Modal */}
       {showCreate && (
-        <div
-          className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6"
-          onClick={() => {
-            setShowCreate(false);
-            setEditing(null);
-          }}
-        >
-          <div
-            className="card w-full max-w-xl space-y-5 max-h-[90vh] overflow-y-auto"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-                {editing ? t("platformMisc.collections.editCollection") : t("platformMisc.collections.newCollection")}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowCreate(false);
-                  setEditing(null);
-                }}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                  {t("platformMisc.collections.name")}
-                </label>
-                <input
-                  value={form.name}
-                  onChange={(event) => setForm({ ...form, name: event.target.value })}
-                  placeholder={t("platformMisc.collections.namePlaceholder")}
-                  className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                  {t("platformMisc.collections.description")}
-                </label>
-                <textarea
-                  value={form.description}
-                  onChange={(event) => setForm({ ...form, description: event.target.value })}
-                  rows={2}
-                  placeholder={t("platformMisc.collections.descriptionPlaceholder")}
-                  className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)] resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                    {t("platformMisc.collections.parent")}
-                  </label>
-                  <select
-                    value={form.parent_id}
-                    onChange={(event) => setForm({ ...form, parent_id: event.target.value })}
-                    className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]"
-                  >
-                    <option value="">{t("platformMisc.collections.noParent")}</option>
-                    {collections
-                      .filter((entry) => entry.id !== editing?.id)
-                      .map((entry) => (
-                        <option key={entry.id} value={entry.id}>
-                          {entry.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                    {t("platformMisc.collections.visibility")}
-                  </label>
-                  <select
-                    value={form.visibility}
-                    onChange={(event) => setForm({ ...form, visibility: event.target.value })}
-                    className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]"
-                  >
-                    <option value="internal">{t("platformMisc.collections.visibilityInternal")}</option>
-                    <option value="public">{t("platformMisc.collections.visibilityPublic")}</option>
-                    <option value="restricted">{t("platformMisc.collections.visibilityRestricted")}</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                  {t("platformMisc.collections.tagsLabel")}
-                </label>
-                <input
-                  value={form.tags}
-                  onChange={(event) => setForm({ ...form, tags: event.target.value })}
-                  placeholder={t("platformMisc.collections.tagsPlaceholder")}
-                  className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                    {t("platformMisc.collections.status")}
-                  </label>
-                  <select
-                    value={form.status}
-                    onChange={(event) => setForm({ ...form, status: event.target.value })}
-                    className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]"
-                  >
-                    <option value="active">{t("platformMisc.collections.statusActive")}</option>
-                    <option value="draft">{t("platformMisc.collections.statusDraft")}</option>
-                    <option value="archived">{t("platformMisc.collections.statusArchived")}</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                    {t("platformMisc.collections.category")}
-                  </label>
-                  <input
-                    value={form.category}
-                    onChange={(event) => setForm({ ...form, category: event.target.value })}
-                    placeholder={t("platformMisc.collections.categoryPlaceholder")}
-                    className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                    {t("platformMisc.collections.color")}
-                  </label>
-                  <input
-                    type="color"
-                    value={form.color}
-                    onChange={(event) => setForm({ ...form, color: event.target.value })}
-                    className="w-full h-[42px] rounded-xl cursor-pointer border border-[var(--border-primary)]"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => {
-                  setShowCreate(false);
-                  setEditing(null);
-                }}
-                className="flex-1 btn btn-secondary"
-              >
-                {t("platformMisc.collections.cancel")}
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={saving || !form.name.trim()}
-                className="flex-1 btn btn-primary"
-              >
-                {saving ? t("platformMisc.collections.saving") : editing ? t("platformMisc.collections.update") : t("platformMisc.collections.create")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <CollectionFormModal
+          t={t}
+          editing={editing}
+          form={form}
+          setForm={setForm}
+          collections={collections}
+          saving={saving}
+          onSubmit={handleSubmit}
+          onClose={closeForm}
+        />
       )}
 
       {/* Archive Confirmation Modal */}
       {archiveConfirm && (
-        <div className="fixed inset-0 z-[500] bg-black/50 flex items-center justify-center p-6" onClick={() => setArchiveConfirm(null)}>
-          <div className="card w-full max-w-sm space-y-5" onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5 text-rose-500" />
-              </div>
-              <div>
-                <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">
-                  {archiveConfirm.action === 'archive' ? t("platformMisc.collections.archiveCollectionTitle") : t("platformMisc.collections.restoreCollectionTitle")}
-                </h3>
-                <p className="text-[10px] text-[var(--text-secondary)] mt-1 leading-relaxed">
-                  {archiveConfirm.action === 'archive'
-                    ? t("platformMisc.collections.confirmArchivePrompt")
-                    : t("platformMisc.collections.confirmRestorePrompt")}
-                  <strong className="text-[var(--text-primary)]">&quot;{archiveConfirm.name}&quot;</strong>?
-                </p>
-              </div>
-            </div>
-            {archiveConfirm.action === 'archive' ? (
-              <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-2">
-                <p className="text-[10px] font-bold text-amber-500 uppercase">{t("platformMisc.collections.archiveExplanationTitle")}</p>
-                <ul className="text-[10px] font-medium text-[var(--text-secondary)] space-y-1 list-disc list-inside">
-                  <li>{t("platformMisc.collections.archiveHidden")}</li>
-                  <li>{t("platformMisc.collections.archiveFormsAccessible")}</li>
-                  <li>{t("platformMisc.collections.archiveRestorable")}</li>
-                  <li>{t("platformMisc.collections.archiveInFilter")}</li>
-                </ul>
-              </div>
-            ) : (
-              <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 space-y-2">
-                <p className="text-[10px] font-bold text-emerald-500 uppercase">{t("platformMisc.collections.restoreExplanationTitle")}</p>
-                <ul className="text-[10px] font-medium text-[var(--text-secondary)] space-y-1 list-disc list-inside">
-                  <li>{t("platformMisc.collections.restoreActive")}</li>
-                  <li>{t("platformMisc.collections.restoreReappear")}</li>
-                  <li>{t("platformMisc.collections.restoreFormsUnchanged")}</li>
-                </ul>
-              </div>
-            )}
-            <div className="flex gap-3">
-              <button onClick={() => setArchiveConfirm(null)} className="flex-1 btn btn-secondary">{t("platformMisc.collections.cancel")}</button>
-              <button onClick={confirmArchiveAction}
-                className={archiveConfirm.action === 'archive' ? 'flex-1 px-4 py-2.5 rounded-xl bg-rose-500 text-white text-[10px] font-black uppercase hover:bg-rose-600 transition-all' : 'flex-1 px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-[10px] font-black uppercase hover:bg-emerald-600 transition-all'}>
-                {archiveConfirm.action === 'archive' ? t("platformMisc.collections.archive") : t("platformMisc.collections.restore")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ArchiveConfirmModal
+          t={t}
+          archiveConfirm={archiveConfirm}
+          onClose={() => setArchiveConfirm(null)}
+          onConfirm={confirmArchiveAction}
+        />
       )}
     </div>
   );

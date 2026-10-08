@@ -30,7 +30,7 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-const { rescheduleSession } = require("@/lib/ventures");
+const { rescheduleSession } = require("@/services/ventures/sessions");
 
 const SESSION_ID = 7;
 const HOUR = 60 * 60 * 1000;

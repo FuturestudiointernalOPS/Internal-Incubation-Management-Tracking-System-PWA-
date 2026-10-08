@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
  */
 
 export const GET = createHandler(async (req) => {
-  const { getSession } = await import("@/lib/auth");
+  const { getSession } = await import("@/server/auth/session");
   const session = await getSession();
   const cid = session.cid;
   const { searchParams } = new URL(req.url);
@@ -23,7 +23,7 @@ export const GET = createHandler(async (req) => {
 });
 
 export const POST = createHandler(async (req) => {
-  const { getSession } = await import("@/lib/auth");
+  const { getSession } = await import("@/server/auth/session");
   const session = await getSession();
   const { week_number } = await req.json();
 

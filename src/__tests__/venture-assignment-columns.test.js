@@ -20,10 +20,15 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const SCHEMA_SOURCE = fs.readFileSync(
-  path.join(__dirname, "..", "services", "ventures", "schema.js"),
-  "utf8",
-);
+// The schema self-heal is split into parts under `services/ventures/schema/`;
+// the pin reads the whole set, so a statement moving between parts is not a failure.
+const SCHEMA_DIR = path.join(__dirname, "..", "services", "ventures", "schema");
+const SCHEMA_SOURCE = fs
+  .readdirSync(SCHEMA_DIR)
+  .filter((file) => file.endsWith(".js"))
+  .sort()
+  .map((file) => fs.readFileSync(path.join(SCHEMA_DIR, file), "utf8"))
+  .join("\n");
 
 /** table -> [identity column, name column] */
 const ASSIGNMENT_TABLES = {
@@ -55,5 +60,24 @@ describe("the writers agree with the self-heal", () => {
     // 500 at apply rather than a silently dropped assignment.
     expect(importer).toMatch(/INSERT INTO venture_tasks[\s\S]*?assigned_name/);
     expect(importer).toMatch(/INSERT INTO venture_deliverables[\s\S]*?assigned_name/);
+  });
+
+  test("the operational-context columns are created AND written", () => {
+    // The schema self-heal states them…
+    expect(SCHEMA_SOURCE).toContain("ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS definition_of_done ");
+    expect(SCHEMA_SOURCE).toContain("ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS support_name ");
+    expect(SCHEMA_SOURCE).toContain("ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS source_ref ");
+    expect(SCHEMA_SOURCE).toContain("ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS support_name ");
+    expect(SCHEMA_SOURCE).toContain("ALTER TABLE venture_deliverables ADD COLUMN IF NOT EXISTS task_id ");
+    // …and the plan import writes them, so the Definition of Done and the
+    // Activity → Deliverable link survive an import instead of a folded label.
+    const importer = fs.readFileSync(
+      path.join(__dirname, "..", "models", "venturePlanImportStore.js"),
+      "utf8",
+    );
+    expect(importer).toMatch(/INSERT INTO venture_tasks[\s\S]*?definition_of_done/);
+    expect(importer).toMatch(/INSERT INTO venture_tasks[\s\S]*?support_name/);
+    expect(importer).toMatch(/INSERT INTO venture_tasks[\s\S]*?source_ref/);
+    expect(importer).toMatch(/INSERT INTO venture_deliverables[\s\S]*?task_id/);
   });
 });

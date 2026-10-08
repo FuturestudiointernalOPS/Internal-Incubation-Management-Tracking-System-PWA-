@@ -12,7 +12,7 @@
  * seed-before-read — live here; every statement is in
  * `@/models/accessProfilesStore`. Nothing here runs SQL.
  *
- * Re-exported unchanged through `@/lib/auth` (the module it came from) — see
+ * Imported directly from here now that the `@/lib/auth` facade is gone — see
  * docs/LAYER_SPLIT.md.
  */
 

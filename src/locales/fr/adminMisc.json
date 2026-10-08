@@ -112,18 +112,11 @@
       "networkError": "Erreur réseau pendant l'import."
     },
     "integrations": {
-      "tabIntegrations": "Intégrations",
       "apiKeys": "Clés API",
       "webhooks": "Webhooks",
       "title": "Intégrations externes",
-      "subtitle": "Gérez les clés API, les webhooks et les intégrations tierces",
+      "subtitle": "Gérez les clés API et les webhooks",
       "refresh": "Actualiser",
-      "connectedIntegrations": "Intégrations connectées",
-      "addIntegration": "Ajouter une intégration",
-      "noIntegrations": "Aucune intégration connectée pour le moment.",
-      "noIntegrationsHint": "Connectez Google Calendar, Slack, Zoom et plus encore.",
-      "lastSync": "Dernière synchronisation : {date}",
-      "availableProviders": "Fournisseurs disponibles",
       "generateKey": "Générer une clé",
       "apiKeyGenerated": "Clé API générée",
       "copyKeyWarning": "Copiez cette clé maintenant. Vous ne pourrez plus la voir.",
@@ -141,11 +134,6 @@
       "deliveryLogs": "Journal des livraisons",
       "noDeliveries": "Aucune livraison pour le moment.",
       "deliveryMeta": "HTTP {status} · {duration}ms",
-      "provider": "Fournisseur",
-      "selectProvider": "Sélectionnez un fournisseur...",
-      "labelOptional": "Libellé (facultatif)",
-      "labelPlaceholder": "Mon intégration calendrier",
-      "connect": "Connecter",
       "generateApiKey": "Générer une clé API",
       "nameRequired": "Nom *",
       "apiKeyNamePlaceholder": "Clé API de production",
@@ -157,8 +145,6 @@
       "callbackUrlRequired": "URL de rappel * (HTTPS uniquement)",
       "secretOptional": "Secret (facultatif — pour signature HMAC)",
       "eventsRequired": "Événements *",
-      "removeIntegration": "Supprimer l'intégration",
-      "disconnectConfirm": "Déconnecter « {name} » ?",
       "cancel": "Annuler",
       "remove": "Supprimer",
       "revokeApiKey": "Révoquer la clé API",
@@ -166,28 +152,7 @@
       "revoke": "Révoquer",
       "deleteWebhook": "Supprimer le webhook",
       "deleteConfirm": "Supprimer « {name} » ?",
-      "delete": "Supprimer",
-      "providerNames": {
-        "google_calendar": "Google Agenda",
-        "google_drive": "Google Drive",
-        "microsoft_outlook": "Microsoft Outlook",
-        "slack": "Slack",
-        "zoom": "Zoom",
-        "microsoft_teams": "Microsoft Teams"
-      },
-      "providerDescriptions": {
-        "google_calendar": "Synchronisez les étapes, sessions et échéances des entreprises avec Google Agenda",
-        "google_drive": "Joignez des fichiers et gérez les documents directement depuis Google Drive",
-        "microsoft_outlook": "Synchronisez les événements et notifications email des entreprises avec le calendrier Outlook",
-        "slack": "Publiez des notifications et mises à jour dans les canaux Slack",
-        "zoom": "Créez et gérez des réunions Zoom pour les sessions et événements des entreprises",
-        "microsoft_teams": "Créez des réunions Teams et publiez des mises à jour dans les canaux"
-      },
-      "statusValues": {
-        "connected": "Connecté",
-        "error": "Erreur",
-        "disconnected": "Déconnecté"
-      }
+      "delete": "Supprimer"
     },
     "intelligence": {
       "title": "Intelligence",
@@ -821,8 +786,7 @@
         "email": "E-mail",
         "storage": "Stockage",
         "search": "Recherche",
-        "notifications": "Notifications",
-        "integrations": "Intégrations"
+        "notifications": "Notifications"
       },
       "statuses": {
         "healthy": "Sain",
@@ -903,7 +867,6 @@
       "componentStorage": "Stockage",
       "componentSearch": "Recherche",
       "componentNotifications": "Notifications",
-      "componentIntegrations": "Intégrations",
       "statusHealthy": "Sain",
       "statusDegraded": "Dégradé",
       "statusUnhealthy": "Malsain",

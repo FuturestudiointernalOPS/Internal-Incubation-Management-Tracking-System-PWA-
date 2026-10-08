@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
 import {
   archiveCollection,
   createCollection,
@@ -54,7 +54,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
@@ -73,7 +73,7 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
@@ -92,7 +92,7 @@ export async function PUT(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });

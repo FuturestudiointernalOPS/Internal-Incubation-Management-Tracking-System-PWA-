@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import { resolvePlanAccess, allowsPlanAction } from "@/services/ventures/operatingPlans";
 import {
   ensureJourneyTable,
   resolveVentureInternalId,
   listJourneyStages,
 } from "@/services/ventures/journey";
-import { duplicateJourneyStage } from "@/lib/ventureDuplication";
+import { duplicateJourneyStage } from "@/services/ventures/duplication";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +49,7 @@ export async function POST(req, { params }) {
     }
 
     try {
-      const { addVentureHistory } = await import("@/lib/ventures");
+      const { addVentureHistory } = await import("@/services/ventures/activity");
       await addVentureHistory({
         venture_id: id,
         event_type: "JOURNEY_STAGE_DUPLICATED",

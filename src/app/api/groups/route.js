@@ -1,13 +1,13 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
 import { requireProgramScope } from "@/lib/programScopedAccess";
 import { requireAuthorization } from "@/models/authorization/index";
 import {
   getGroups,
   deleteGroup,
   getFamilyProgramId,
-} from "@/models/groups";
+} from "@/models/groups/contactGroups";
 import { createContactGroup, updateContactGroup } from "@/services/contacts/groups";
 export const dynamic = "force-dynamic";
 

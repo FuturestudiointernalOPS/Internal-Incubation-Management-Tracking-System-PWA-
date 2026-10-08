@@ -28,8 +28,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({ cid: "manager-1", name: "David", role: "staff" }),
+}));
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
 }));
 
@@ -44,7 +46,7 @@ jest.mock("@/lib/ventureAuth", () => ({
   roleIsPrivileged: jest.requireActual("@/lib/ventureAuth").roleIsPrivileged,
 }));
 
-jest.mock("@/lib/ventures", () => ({
+jest.mock("@/services/ventures/activity", () => ({
   addVentureHistory: jest.fn().mockResolvedValue(true),
 }));
 
@@ -87,7 +89,7 @@ describe("Venture Progress Reports", () => {
     expect(JSON.parse(insert.args[6])).toEqual(["Pitch Deck", "Business Plan"]);
     expect(JSON.parse(insert.args[7])).toEqual(["Validation Report"]);
 
-    const { addVentureHistory } = require("@/lib/ventures");
+    const { addVentureHistory } = require("@/services/ventures/activity");
     expect(addVentureHistory).toHaveBeenCalledWith(expect.objectContaining({ event_type: "VENTURE_REPORT_CREATED" }));
   });
 
@@ -106,7 +108,7 @@ describe("Venture Progress Reports", () => {
   });
 
   test("founders are denied (no staff actor)", async () => {
-    require("@/lib/auth").getSession.mockResolvedValueOnce({ cid: "founder-1", role: "founder" });
+    require("@/server/auth/session").getSession.mockResolvedValueOnce({ cid: "founder-1", role: "founder" });
     require("@/lib/ventureAuth").isStaffActorForVenture.mockResolvedValueOnce(false);
     const res = await GET(new Request("http://localhost/api/ventures/VNT-TEST/progress-reports"), ctx);
     expect(res.status).toBe(403);

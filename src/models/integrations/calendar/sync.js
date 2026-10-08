@@ -1,8 +1,8 @@
 /**
  * Platform Calendar Sync Engine
  *
- * Syncs Platform form run deadlines to external calendar providers
- * (Microsoft Graph / Google Calendar) via the provider abstraction.
+ * Syncs Platform form run deadlines to the external calendar
+ * (Microsoft Graph) via the provider abstraction.
  *
  * Adapted from main branch — syncs platform_form_runs instead of v2_events.
  *

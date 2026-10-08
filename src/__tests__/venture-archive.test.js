@@ -10,21 +10,37 @@
 jest.mock("@/lib/db", () => {
   const state = {
     calls: [],
-    fixtures: { submissions: [], reviews: [], deliverables: [], tasks: [] },
+    fixtures: { submissions: [], reviews: [], deliverables: [], deliverableReviews: [], tasks: [] },
   };
+
+  // Mirrors the probe's "worked on" test: a PRISTINE deliverable (a tracker
+  // import row nobody touched) is not filed work; anything else is.
+  const PRISTINE = ["", "pending", "not_started"];
+  const text = (value) => String(value ?? "").trim().toLowerCase();
+  const deliverableIsTouched = (row, deliverableReviews = []) =>
+    !PRISTINE.includes(text(row.status)) ||
+    !PRISTINE.includes(text(row.approval_status)) ||
+    text(row.attachment_url) !== "" ||
+    text(row.reviewer_name) !== "" ||
+    text(row.rejection_reason) !== "" ||
+    deliverableReviews.some((review) => String(review.deliverable_id) === String(row.id));
 
   /** Minimal db double: routes each query by matching fragments of the SQL. */
   const handler = async (sql, args) => {
     state.calls.push({ sql, args });
-    const { submissions, reviews, deliverables, tasks } = state.fixtures;
+    const { submissions, reviews, deliverables, deliverableReviews, tasks } = state.fixtures;
     if (sql.includes("FROM venture_task_submissions") && sql.includes("WHERE task_id")) {
       return { rows: submissions.filter((submission) => String(submission.task_id) === String(args[0])) };
     }
     if (sql.includes("FROM venture_task_reviews") && sql.includes("WHERE task_id")) {
       return { rows: reviews.filter((review) => String(review.task_id) === String(args[0])) };
     }
-    if (sql.includes("FROM venture_deliverables") && sql.includes("WHERE milestone_id")) {
-      return { rows: deliverables.filter((deliverable) => String(deliverable.milestone_id) === String(args[0])) };
+    if (sql.includes("FROM venture_deliverables")) {
+      return {
+        rows: deliverables.filter(
+          (deliverable) => String(deliverable.milestone_id) === String(args[0]) && deliverableIsTouched(deliverable, deliverableReviews),
+        ),
+      };
     }
     if (sql.includes("FROM venture_task_submissions s")) {
       return { rows: submissions.filter((submission) => String(submission.milestone_id) === String(args[0])) };
@@ -57,12 +73,12 @@ const {
   archiveMilestone,
   restoreMilestone,
   applyBulk,
-} = require("@/lib/ventureArchive");
+} = require("@/services/ventures/archive");
 
 /** Point the db double at this test's rows (and clear the recorded calls). */
 function fakeDb(fixtures = {}) {
   state.calls.length = 0;
-  state.fixtures = { submissions: [], reviews: [], deliverables: [], tasks: [], ...fixtures };
+  state.fixtures = { submissions: [], reviews: [], deliverables: [], deliverableReviews: [], tasks: [], ...fixtures };
 }
 
 describe("taskHasFiledWork", () => {
@@ -88,8 +104,28 @@ describe("milestoneHasFiledWork", () => {
     expect(await milestoneHasFiledWork("m1")).toBe(false);
   });
 
-  test("true when the milestone has deliverables", async () => {
-    fakeDb({ deliverables: [{ milestone_id: "m1" }] });
+  test("false when the milestone only holds untouched tracker-import deliverables", async () => {
+    // A tracker import creates one pristine deliverable per tracker line. A row
+    // is not evidence — counting it made every imported journey undeletable.
+    fakeDb({ deliverables: [{ id: "d1", milestone_id: "m1", status: "pending", approval_status: null }] });
+    expect(await milestoneHasFiledWork("m1")).toBe(false);
+  });
+
+  test("true when a deliverable has left its untouched state", async () => {
+    fakeDb({ deliverables: [{ id: "d1", milestone_id: "m1", status: "in_progress" }] });
+    expect(await milestoneHasFiledWork("m1")).toBe(true);
+  });
+
+  test("true when a deliverable carries evidence even before a status change", async () => {
+    fakeDb({ deliverables: [{ id: "d1", milestone_id: "m1", status: "pending", attachment_url: "deliverables/x.xlsx" }] });
+    expect(await milestoneHasFiledWork("m1")).toBe(true);
+  });
+
+  test("true when a deliverable was reviewed", async () => {
+    fakeDb({
+      deliverables: [{ id: "d1", milestone_id: "m1", status: "pending", approval_status: null }],
+      deliverableReviews: [{ deliverable_id: "d1" }],
+    });
     expect(await milestoneHasFiledWork("m1")).toBe(true);
   });
 
@@ -119,9 +155,17 @@ describe("archiveTask", () => {
 
 describe("archiveMilestone", () => {
   test("refuses when the milestone has filed work", async () => {
-    fakeDb({ deliverables: [{ milestone_id: "m1" }] });
+    fakeDb({ deliverables: [{ id: "d1", milestone_id: "m1", status: "submitted" }] });
     const out = await archiveMilestone({ milestoneId: "m1" });
     expect(out.error).toMatch(/cannot be deleted/i);
+  });
+
+  test("archives a milestone whose only deliverables are untouched imports", async () => {
+    // The exact case that used to be impossible: a tracker-imported milestone
+    // nobody has worked on yet. Pristine rows are plan structure, not evidence.
+    fakeDb({ deliverables: [{ id: "d1", milestone_id: "m1", status: "pending", approval_status: null }] });
+    const out = await archiveMilestone({ milestoneId: "m1", actorCid: "USR-1" });
+    expect(out.archived).toBe(true);
   });
 
   test("archives the milestone and cascades to its tasks", async () => {

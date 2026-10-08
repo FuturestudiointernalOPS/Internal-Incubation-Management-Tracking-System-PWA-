@@ -17,7 +17,7 @@ jest.mock("@/lib/db", () => ({
 jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
 }));
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => ({
     cid: "ADM1",
     name: "Admin One",

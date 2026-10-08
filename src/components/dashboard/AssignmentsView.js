@@ -17,6 +17,7 @@ import AppInput from "@/components/ui/AppInput";
 import AppButton from "@/components/ui/AppButton";
 import AppStatusBadge from "@/components/ui/AppStatusBadge";
 import { useI18n } from "@/lib/i18n";
+import FiltersBar from "./assignments-view/FiltersBar";
 
 function isSafeUrl(url) {
   return typeof url === "string" && /^https?:\/\//i.test(url.trim());
@@ -227,33 +228,13 @@ export default function AssignmentsView() {
       <AppInput type="search" label={t("common.search")} value={searchQuery} onChange={event => setSearchQuery(event.target.value)} />
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          value={filterProgram}
-          onChange={(event) => setFilterProgram(event.target.value)}
-          className="px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
-        >
-          <option value="all">{t("participantMisc.assignments.filterAllPrograms")}</option>
-          {programs.map((program) => (
-            <option key={program.id} value={program.id}>
-              {program.name}
-            </option>
-          ))}
-        </select>
-        <select
-          value={filterStatus}
-          onChange={(event) => setFilterStatus(event.target.value)}
-          className="px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
-        >
-          <option value="all">{t("participantMisc.assignments.filterAllStatus")}</option>
-          <option value="pending">{t("participantMisc.assignments.filterPending")}</option>
-          <option value="overdue">{t("participantMisc.assignments.filterOverdue")}</option>
-          <option value="submitted">{t("participantMisc.assignments.filterSubmitted")}</option>
-          <option value="approved">{t("participantMisc.assignments.filterApproved")}</option>
-          <option value="rejected">{t("participantMisc.assignments.filterRejected")}</option>
-          <option value="revision_requested">{t("participantMisc.assignments.filterRevision")}</option>
-        </select>
-      </div>
+      <FiltersBar
+        filterProgram={filterProgram}
+        setFilterProgram={setFilterProgram}
+        filterStatus={filterStatus}
+        setFilterStatus={setFilterStatus}
+        programs={programs}
+      />
 
       <AppTable data={filtered} emptyMessage={t("participantMisc.assignments.noMatches")} columns={[
         { key: "title", label: t("participant.template.assignmentTitle"), render: (_, assignment) => <div><b>{assignment.title}</b>{assignment.description && <p className="mt-1 text-xs text-[var(--text-secondary)]">{assignment.description}</p>}{assignment.resourceUrl && isSafeUrl(assignment.resourceUrl) && <a href={assignment.resourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex mt-2 items-center gap-1 text-xs text-[var(--brand-orange)]"><ExternalLink className="w-3 h-3" />{assignment.resourceLabel || t("participantMisc.assignments.openResource")}</a>}</div> },

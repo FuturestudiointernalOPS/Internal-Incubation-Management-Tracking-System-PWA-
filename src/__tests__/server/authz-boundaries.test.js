@@ -82,29 +82,10 @@ describe("authorization lives in its own layer", () => {
     expect(authz[name]).toBeDefined();
   });
 
-  it("no longer implements the guards, the capability vocabulary or the reads", () => {
-    const source = fs.readFileSync(path.join(SRC, "lib", "auth.js"), "utf8");
-    for (const name of [
-      "requireProjectAccess",
-      "requireProgramFacilitator",
-      "enforceFacilitatorProgramAccess",
-      "requireAssignmentAccess",
-      "assertNoParticipantFacilitatorConflict",
-      "resolveProgramAssignment",
-      "getFacilitatorPermissionLevel",
-      "PERMISSION_MODULES",
-      "getUserGroups",
-      "logPermissionAudit",
-      "isAssignedPmForProgram",
-      "hasAnyFacilitatorAssignment",
-      "getFacilitatorTeamScope",
-      "isSupervisorOf",
-      "getProgramFacilitatorAssignment",
-      "getProgramAssignment",
-      "getAssignmentStatus",
-    ]) {
-      expect(source).not.toMatch(new RegExp(`export\\s+(async\\s+)?(function|const)\\s+${name}\\b`));
-    }
+  it("no longer keeps a lib/auth facade to implement or forward them", () => {
+    // The facade was deleted: every importer reads the real layer directly, so
+    // neither an implementation nor a forwarding re-export can live there.
+    expect(fs.existsSync(path.join(SRC, "lib", "auth.js"))).toBe(false);
   });
 
   it("keeps every SQL statement of the guard paths in the model layer", () => {

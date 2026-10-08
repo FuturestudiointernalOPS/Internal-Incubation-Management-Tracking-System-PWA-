@@ -15,7 +15,8 @@
  */
 
 import db, { initDb } from "@/lib/db";
-import { ensureVentureSchema, generateVentureId } from "@/lib/ventures";
+import { generateVentureId } from "@/services/ventures/intake";
+import { ensureVentureSchema } from "@/services/ventures/schema";
 
 /**
  * A Venture already carrying this company name, if any (case-insensitive).

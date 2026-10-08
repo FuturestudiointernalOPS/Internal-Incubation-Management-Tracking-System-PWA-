@@ -7,8 +7,8 @@
  * keeps the sequence deterministic no matter what the rows contained.
  *
  * Every statement lives in `@/models/ventureMilestoneOrderStore`; nothing here
- * runs SQL. Re-exported unchanged through the compatibility facade
- * `@/lib/ventureMilestoneOrder` — see docs/LAYER_SPLIT.md.
+ * runs SQL. This module used to be re-exported through the `@/lib/ventureMilestoneOrder` facade;
+ * that facade is gone (CH-4) and importers read this module directly.
  */
 
 import {

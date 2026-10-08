@@ -12,7 +12,8 @@
  * for events explicitly designated Venture-facing.
  *
  * Every statement lives in `@/models/ventureNotifyStore`; nothing here runs SQL.
- * Re-exported unchanged through the compatibility facade `@/lib/ventureNotify` —
+ * This module used to be re-exported through the `@/lib/ventureNotify` facade;
+ * that facade is gone (CH-4) and importers read this module directly.
  * see docs/LAYER_SPLIT.md.
  */
 import { sendStandaloneEmail } from "@/lib/email";
@@ -46,7 +47,7 @@ function renderEmailHtml(emailLines) {
 export async function notifyAndEmailVentureFounders({ dbId, title, message, emailSubject, emailLines = [], context = {}, templateKey = null, params = null, dedupeKey = null }) {
   // In-app founder notifications (existing stream).
   try {
-    const { notifyVentureFounders } = await import("@/lib/ventures");
+    const { notifyVentureFounders } = await import("@/services/ventures/activity");
     await notifyVentureFounders(dbId, title, message, context, { templateKey, params, dedupeKey });
   } catch (_) {}
 
@@ -81,7 +82,7 @@ export async function notifyVentureCoach({ dbId, coachContactId, title, message,
     const contact = (await selectNotifyContact(coachContactId)).rows?.[0];
     if (!contact) return { sent: 0, skipped: true };
 
-    const { createVentureNotification } = await import("@/lib/ventures");
+    const { createVentureNotification } = await import("@/services/ventures/activity");
     await createVentureNotification({
       recipient_id: contact.cid,
       title,
@@ -141,7 +142,7 @@ export async function notifyVentureLeadManagers({ dbId, ventureCode, title, mess
         const contact = (await selectNotifyContact(cid)).rows?.[0];
         if (!contact) continue;
 
-        const { createVentureNotification } = await import("@/lib/ventures");
+        const { createVentureNotification } = await import("@/services/ventures/activity");
         await createVentureNotification({
           recipient_id: contact.cid,
           title,

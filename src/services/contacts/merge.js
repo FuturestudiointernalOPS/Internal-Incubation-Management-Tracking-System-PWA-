@@ -14,6 +14,8 @@
 
 import {
   reassignContactPrograms,
+} from "@/models/contacts/programMembership";
+import {
   reassignContactVentures,
   reassignContactTimelineEvents,
   createContactMergeTimelineEvent,
@@ -22,7 +24,7 @@ import {
   countMergeParticipantPrograms,
   countMergeVentureMemberships,
   countMergeTimelineEvents,
-} from "@/models/contacts";
+} from "@/models/contacts/duplicates";
 import { syncContextGrantsForUser } from "@/services/authorization/contextGrants";
 
 /** What a merge would move from the duplicate into the survivor. */

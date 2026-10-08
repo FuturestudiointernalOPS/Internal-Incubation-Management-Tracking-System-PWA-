@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
 
 const DB_PATH = path.join(process.cwd(), "data.json");
 

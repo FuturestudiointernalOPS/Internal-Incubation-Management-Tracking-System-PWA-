@@ -17,7 +17,7 @@ import {
   insertGroupMember,
   getGroupMembers,
   getGroupMemberParticipants,
-} from "@/models/groups";
+} from "@/models/groups/v2Groups";
 
 /** The program a group belongs to, or null when the group does not exist. */
 export async function resolveGroupProgram(groupId) {

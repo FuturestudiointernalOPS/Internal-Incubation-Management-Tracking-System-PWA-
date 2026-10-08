@@ -9,12 +9,24 @@
 jest.mock("@/lib/db", () => {
   const state = { calls: [] };
 
+  // Mirrors the probe's "worked on" test: a PRISTINE deliverable (a tracker
+  // import row nobody touched) is not filed work; anything else is.
+  const PRISTINE = ["", "pending", "not_started"];
+  const text = (value) => String(value ?? "").trim().toLowerCase();
+  const deliverableIsTouched = (row) =>
+    !PRISTINE.includes(text(row.status)) ||
+    !PRISTINE.includes(text(row.approval_status)) ||
+    text(row.attachment_url) !== "" ||
+    text(row.reviewer_name) !== "" ||
+    text(row.rejection_reason) !== "";
+
   /**
    * db double shaped after the real schema:
-   *  - journey stages: s1 (clean), s2 (has filed work via submission)
+   *  - journey stages: s1 (clean), s2 (filed work)
    *  - milestones: m1 (stage s1), m2 (stage s2)
    *  - tasks: t1 (milestone m1)
-   *  - one submission on t2 (milestone m2) => s2 is "filed"
+   *  - m1 holds ONE pristine tracker-import deliverable → NOT filed work
+   *  - m2 holds a submission on t2 AND a worked-on deliverable → s2 is "filed"
    */
   const handler = async (sql, args = []) => {
     state.calls.push({ sql, args });
@@ -28,7 +40,13 @@ jest.mock("@/lib/db", () => {
       const milestonesByStage = { s1: [{ id: "m1" }], s2: [{ id: "m2" }] };
       return { rows: milestonesByStage[stageId] || [] };
     }
-    if (sql.includes("FROM venture_deliverables WHERE milestone_id")) return { rows: [] };
+    if (sql.includes("FROM venture_deliverables")) {
+      const rows = [
+        { id: "d1", milestone_id: "m1", status: "pending", approval_status: null },
+        { id: "d2", milestone_id: "m2", status: "submitted", approval_status: null },
+      ];
+      return { rows: rows.filter((row) => String(row.milestone_id) === String(args[0]) && deliverableIsTouched(row)) };
+    }
     if (sql.includes("FROM venture_task_submissions s") && sql.includes("t.milestone_id")) {
       const milestoneId = args[0];
       return { rows: milestoneId === "m2" ? [{ task_id: 2, milestone_id: "m2" }] : [] };
@@ -72,11 +90,12 @@ beforeEach(() => {
 });
 
 describe("stageHasFiledWork", () => {
-  test("false for a journey without filed work", async () => {
+  test("false for a journey whose only deliverable is an untouched import", async () => {
+    // s1 holds one pristine tracker-import deliverable. A row is not evidence.
     expect(await stageHasFiledWork({ dbId: "v1", stageId: "s1" })).toBe(false);
   });
 
-  test("true when a bound milestone has a submission/review/deliverable", async () => {
+  test("true when a bound milestone has a submission and a worked-on deliverable", async () => {
     expect(await stageHasFiledWork({ dbId: "v1", stageId: "s2" })).toBe(true);
   });
 });
@@ -105,11 +124,21 @@ describe("archiveJourneyStages / restoreJourneyStages", () => {
 });
 
 describe("deleteJourneyStages", () => {
-  test("blocks a journey that already has submitted work", async () => {
+  test("blocks a journey that has filed work, and NAMES what blocks it", async () => {
     const out = await deleteJourneyStages({ dbId: "v1", stageIds: ["s2"] });
     expect(out.deleted.length).toBe(0);
     expect(out.blocked.length).toBe(1);
     expect(out.blocked[0].reason).toMatch(/cannot be permanently deleted/i);
+    // The reason says WHAT was found — not a blanket "submitted work".
+    expect(out.blocked[0].reason).toMatch(/submitted work/i);
+    expect(out.blocked[0].reason).toMatch(/deliverables that have already been worked on/i);
+  });
+
+  test("an untouched tracker-import deliverable does not block a delete", async () => {
+    // s1's only deliverable is pristine — the plan structure goes with the plan.
+    const out = await deleteJourneyStages({ dbId: "v1", stageIds: ["s1"] });
+    expect(out.deleted.length).toBe(1);
+    expect(out.blocked.length).toBe(0);
   });
 
   test("deletes a clean journey with its milestone/task structure", async () => {

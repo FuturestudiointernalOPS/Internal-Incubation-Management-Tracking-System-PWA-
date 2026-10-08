@@ -101,6 +101,7 @@ export async function createVentureDocumentType({
   required = true,
   verification_method = "upload",
   sort_order = 0,
+  is_readiness = false,
   created_by = null,
 }, database) {
   if (!ventureId) throw new Error("venture.documentTypes.errorVentureRequired");
@@ -122,6 +123,7 @@ export async function createVentureDocumentType({
     required: required ? 1 : 0,
     verification_method: method,
     sort_order: Number.isFinite(Number(sort_order)) ? Number(sort_order) : 0,
+    is_readiness: is_readiness ? 1 : 0,
     created_by,
   }, database);
   return { id, code };
@@ -135,7 +137,7 @@ export async function updateVentureDocumentType({ ventureId, id, fields }, datab
   if (!ventureId) throw new Error("venture.documentTypes.errorVentureRequired");
   if (!id) throw new Error("venture.documentTypes.errorIdRequired");
 
-  const { label_en, label_fr, description, required, verification_method, sort_order, is_active } = fields || {};
+  const { label_en, label_fr, description, required, verification_method, sort_order, is_active, is_readiness } = fields || {};
   const changes = {};
 
   if (label_en !== undefined) {
@@ -163,6 +165,9 @@ export async function updateVentureDocumentType({ ventureId, id, fields }, datab
   }
   if (is_active !== undefined) {
     changes.is_active = is_active ? 1 : 0;
+  }
+  if (is_readiness !== undefined) {
+    changes.is_readiness = is_readiness ? 1 : 0;
   }
   if (Object.keys(changes).length === 0) throw new Error("venture.documentTypes.errorNothingToUpdate");
 

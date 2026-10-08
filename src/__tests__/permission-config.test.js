@@ -8,7 +8,9 @@
  * reads them from access_profile_capabilities.
  */
 const { authorize, mergeEffectiveCapabilities } = require("@/services/authorization/context");
-const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
+const {
+  MODULE_TO_FEATURE,
+} = require("@/models/authorization/eligibility");
 
 function resolveCtx({ role = "staff", eligibility = {}, profileCaps = {}, grants = {}, restrictions = {} }) {
   return {

@@ -17,8 +17,10 @@ import { invalidateAuthorizationContext } from "@/services/authorization";
 import {
   normalizeGroupName,
   getMembership,
+} from "@/models/authorization/membership";
+import {
   applyMembershipAction,
-} from "@/lib/authorization/membership";
+} from "@/services/authorization/membership";
 import {
   getUserGroups,
   getContactLegacyGroup,
@@ -28,7 +30,7 @@ import {
   unassignUserFromGroup,
   endGroupMembership,
   createGroupMembershipEndEvent,
-} from "@/models/groups";
+} from "@/models/groups/userGroups";
 
 /**
  * Every group a user belongs to — the `user_groups` table when it exists

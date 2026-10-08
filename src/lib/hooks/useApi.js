@@ -88,6 +88,26 @@ export function clearResponseCache() {
   responseCache.clear();
 }
 
+/**
+ * Drops every cached response whose URL starts with `prefix`.
+ *
+ * The cache is a plain Map keyed on the exact URL, and reads are keyed by
+ * path alone (`/api/ventures/<id>/verification`), so a write on one screen can
+ * leave the next one rendering a value the cache still holds for a full TTL. A
+ * review decision made on the verification screen would then take up to 30
+ * seconds to show up on the Investment readiness screen, which reads the same
+ * rows through a different endpoint. Invalidating the prefix after a write is
+ * what makes the two screens agree immediately.
+ *
+ * @param {string} prefix URL prefix to forget, e.g. "/api/ventures/VNT-42/verification"
+ */
+export function clearResponseCachePrefix(prefix) {
+  if (!prefix) return;
+  for (const url of responseCache.keys()) {
+    if (url.startsWith(prefix)) responseCache.delete(url);
+  }
+}
+
 // ─── In-flight GET sharing ──────────────────────────────────────────────────
 // The cache above only helps AFTER a response arrives. Several components (the
 // shell's badge chain and the page body) ask for the same endpoint in the same

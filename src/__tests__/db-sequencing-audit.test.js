@@ -76,14 +76,17 @@ jest.mock("@/models/authorization/index", () => {
   };
 });
 
-jest.mock("@/lib/auth", () => {
-  const actual = jest.requireActual("@/lib/auth");
+jest.mock("@/server/auth/guards", () => {
+  const actual = jest.requireActual("@/server/auth/guards");
   return {
     ...actual,
     requireAuth: jest.fn(async () => null),
     requireSession: jest.fn(async () => SESSION),
-    getSession: jest.fn(async () => SESSION),
   };
+});
+jest.mock("@/server/auth/session", () => {
+  const actual = jest.requireActual("@/server/auth/session");
+  return { ...actual, getSession: jest.fn(async () => SESSION) };
 });
 
 function describeWaves(report) {

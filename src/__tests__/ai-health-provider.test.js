@@ -7,7 +7,7 @@
  */
 process.env.DEEPSEEK_API_KEY = "test-key";
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => ({ id: 1, role: "super_admin" })),
 }));
 

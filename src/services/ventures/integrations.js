@@ -1,28 +1,20 @@
 /**
- * VENTURE EXTERNAL INTEGRATIONS & PUBLIC APIs.
+ * VENTURE PUBLIC APIs — API KEYS & WEBHOOKS.
  *
- * The integration providers and configs (list / create with provider check /
- * update / delete), the API keys (mint with the one-time secret, list, revoke,
- * rotate) and the webhooks (create with the HTTPS/event guards, list, delete)
- * with their delivery logs. Every mutation writes an audit event.
+ * The API keys (mint with the one-time secret, list, revoke, rotate) and the
+ * webhooks (create with the HTTPS/event guards, list, delete) with their
+ * delivery logs. Every mutation writes an audit event.
  *
- * The decisions — the provider check, the key id/secret/hash generation, the
- * HTTPS + event guards and the audit calls — live here; every statement is in
+ * The decisions — the key id/secret/hash generation, the HTTPS + event guards
+ * and the audit calls — live here; every statement is in
  * `@/models/ventureIntegrationsStore`. Nothing here runs SQL.
  *
- * Re-exported unchanged through `@/lib/ventures` (the module it came from) — see
- * docs/LAYER_SPLIT.md.
+ * This module used to be re-exported through `@/lib/ventures`; that barrel is
+ * gone (CH-4) and importers read this module directly. See docs/LAYER_SPLIT.md.
  */
 
 import crypto from "crypto";
 import {
-  selectIntegrationProviders,
-  selectIntegrations,
-  selectAvailableProvider,
-  insertIntegration,
-  updateIntegrationColumns,
-  selectIntegrationById,
-  deleteIntegrationRow,
   insertApiKey,
   selectApiKeys,
   selectActiveApiKey,
@@ -38,70 +30,7 @@ import { logAuditEvent } from "@/services/ventures/auditSecurity";
 
 const API_KEY_PREFIX = "IMP";
 
-// ─── Integration Providers ──────────────────────────────────────────────────
-
-export async function getIntegrationProviders() {
-  return (await selectIntegrationProviders()).rows || [];
-}
-
-export async function getIntegrations({ ventureId, provider, status, limit=50, offset=0 } = {}) {
-  return (await selectIntegrations({ ventureId, provider, status, limit, offset })).rows || [];
-}
-
-export async function createIntegration({ provider, label, ventureId, config, createdBy }) {
-  // Verify provider exists
-  const providerExists = await selectAvailableProvider(provider);
-  if (providerExists.rows.length === 0) throw new Error("Invalid or unavailable integration provider.");
-
-  const id = (await insertIntegration(provider, label||null, ventureId||null, JSON.stringify(config||{}), createdBy||"system")).rows[0]?.id;
-
-  await logAuditEvent({
-    eventType: "INTEGRATION_CONNECTED", actorCid: createdBy,
-    entityType: "integration", entityId: String(id),
-    description: `Integration connected: ${provider}`,
-    severity: "info",
-  });
-
-  return { id };
-}
-
-export async function updateIntegration(id, updates, updatedBy) {
-  const allowed = ["label", "config", "credentials_encrypted", "status"];
-  const sets = []; const args = [];
-  for (const column of allowed) {
-    if (updates[column] !== undefined) {
-      if (column === "config") { sets.push("config=?::jsonb"); args.push(JSON.stringify(updates[column])); }
-      else { sets.push(`${column}=?`); args.push(updates[column]); }
-    }
-  }
-  if (updates.status === "disconnected") {
-    await logAuditEvent({
-      eventType: "INTEGRATION_REMOVED", actorCid: updatedBy,
-      entityType: "integration", entityId: String(id),
-      description: `Integration disconnected: ${id}`,
-      severity: "info",
-    });
-  }
-  if (sets.length === 0) return { updated: false };
-  sets.push("updated_at=NOW()"); args.push(id);
-  await updateIntegrationColumns(sets, args);
-  return { updated: true };
-}
-
-export async function deleteIntegration(id, deletedBy) {
-  const integration = (await selectIntegrationById(id)).rows[0];
-  if (!integration) throw new Error("Integration not found.");
-  await deleteIntegrationRow(id);
-  await logAuditEvent({
-    eventType: "INTEGRATION_REMOVED", actorCid: deletedBy,
-    entityType: "integration", entityId: String(id),
-    description: `Integration deleted: ${integration.provider}`,
-    severity: "warning",
-  });
-  return { success: true };
-}
-
-// ─── API Keys ───────────────────────────────────────────────────────────────
+// ─── API Keys ───────────────────────────────────────────────────────────────────────────
 
 function generateApiKeyId() {
   const suffix = crypto.randomBytes(6).toString("hex").toUpperCase();

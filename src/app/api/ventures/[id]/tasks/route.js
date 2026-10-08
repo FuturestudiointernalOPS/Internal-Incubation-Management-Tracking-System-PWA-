@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import {
-  listTasks, getTask, getMilestone, createTask, updateTask,
-  listTaskComments, addTaskComment, deleteTaskComment,
-  listTaskAttachments, addTaskAttachment, deleteTaskAttachment,
-  setTaskDependencies, syncTaskBlockState,
-  releaseTasksBlockedBy, listVentureTaskDependencyEdges,
-} from "@/lib/ventures";
-import { archiveTask } from "@/lib/ventureArchive";
+import { getMilestone } from "@/services/ventures/deliverables";
+import { listTasks, getTask, createTask, updateTask, listTaskComments, addTaskComment, deleteTaskComment, listTaskAttachments, addTaskAttachment, deleteTaskAttachment, setTaskDependencies, syncTaskBlockState, releaseTasksBlockedBy, listVentureTaskDependencyEdges } from "@/services/ventures/tasks";
+import { archiveTask } from "@/services/ventures/archive";
 import { ventureOwned, ventureNotFound } from "@/lib/ventureOwnership";
 import {
   getVentureDbIdForTasks,

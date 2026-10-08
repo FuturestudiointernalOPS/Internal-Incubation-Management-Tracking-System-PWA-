@@ -6,7 +6,7 @@
  *  - PUT /api/access-profiles/assign refuses (409) to strip capabilities
  *    unless the caller confirms
  *
- * Mocks @/lib/db's `execute` and @/lib/auth, mirroring the mocking approach in
+ * Mocks @/lib/db's `execute` and the auth modules, mirroring the mocking approach in
  * permissions-admin-api.test.js. SQL lives in @/models/authorization (not
  * mocked), so these tests also exercise the real queries.
  */
@@ -94,9 +94,13 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({ cid: "SA-1", name: "Super Admin" }),
+}));
+jest.mock("@/models/authorization/accessQueries", () => ({
   logPermissionAudit: jest.fn().mockResolvedValue(true),
+}));
+jest.mock("@/server/authz/capabilities", () => ({
   PERMISSION_MODULES: {},
 }));
 

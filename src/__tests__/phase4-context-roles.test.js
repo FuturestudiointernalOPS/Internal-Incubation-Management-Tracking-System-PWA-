@@ -63,8 +63,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({ cid: "SA-1", name: "Super Admin" }),
+}));
+jest.mock("@/models/authorization/accessQueries", () => ({
   logPermissionAudit: jest.fn().mockResolvedValue(true),
 }));
 
@@ -76,7 +78,7 @@ jest.mock("@/models/authorization/index", () => ({
 }));
 
 const requireAuthorization = require("@/models/authorization/index").requireAuthorization;
-const logPermissionAudit = require("@/lib/auth").logPermissionAudit;
+const logPermissionAudit = require("@/models/authorization/accessQueries").logPermissionAudit;
 const invalidateAllAuthorizationContexts = mockInvalidateAll;
 const route = require("@/app/api/engineering/permissions/context-roles/route");
 const {

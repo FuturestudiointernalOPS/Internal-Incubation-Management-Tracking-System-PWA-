@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
 import { listTasks } from "@/services/tasks/query";
 import { createTaskRecord } from "@/services/tasks/create";
 import { updateTaskRecord } from "@/services/tasks/update";
@@ -26,7 +26,7 @@ export async function GET(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -73,7 +73,7 @@ export async function POST(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     const body = await req.json();
 
@@ -113,7 +113,7 @@ export async function PUT(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -158,7 +158,7 @@ export async function DELETE(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
@@ -212,7 +212,7 @@ export async function PATCH(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) {
       return NextResponse.json(

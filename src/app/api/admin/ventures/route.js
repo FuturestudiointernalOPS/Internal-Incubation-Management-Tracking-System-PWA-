@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import {
-  getSystemSettings, updateSetting, getFeatureFlags, updateFeatureFlag,
-  getSystemRoles, updateRole, createRole, getSystemInfo, getAdminActivityLogs,
-} from "@/lib/ventures";
+import { getSystemSettings, updateSetting, getFeatureFlags, updateFeatureFlag, getSystemRoles, updateRole, createRole, getSystemInfo, getAdminActivityLogs } from "@/services/ventures/systemAdmin";
 
 export const GET = createHandler(
   { roles: ["super_admin"] },

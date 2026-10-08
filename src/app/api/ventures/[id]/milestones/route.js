@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { computeInitialMilestoneStatus, isMilestoneLeadAuthority, canManageMilestones, activateDueStages } from "@/lib/ventureMilestoneEngine";
+import { computeInitialMilestoneStatus, isMilestoneLeadAuthority, canManageMilestones, activateDueStages } from "@/services/ventures/milestoneEngine";
 import { dateOrNull, cidOrNull, isValidCid, isUnknownColumnError } from "@/lib/ventureInput";
 import { roleIsPrivileged } from "@/lib/ventureAuth";
 import { projectMilestonesForVenture } from "@/lib/ventureVisibility";

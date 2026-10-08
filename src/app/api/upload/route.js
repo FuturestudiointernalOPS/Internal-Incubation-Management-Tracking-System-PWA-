@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
 import { createClient } from "@supabase/supabase-js";
 import { getActiveParticipantEnrollments } from "@/models/workspace";
 import { getContactContexts } from "@/models/authorization/contactContexts";
@@ -32,7 +32,7 @@ export async function POST(request) {
     const authError = await requireAuth();
     if (authError) return authError;
 
-    const { getSession } = await import("@/lib/auth");
+    const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     const role = String(session?.role || "").toLowerCase();
     const internal = ["super_admin", "staff", "program_manager", "team"].includes(role);

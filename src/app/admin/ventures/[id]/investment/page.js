@@ -30,16 +30,18 @@ export default function VentureInvestmentPage() {
   const router = useRouter();
   const { t } = useI18n();
   const [openingDataBank, setOpeningDataBank] = useState(false);
+  const [promotingCode, setPromotingCode] = useState(null);
+  const [promotionError, setPromotionError] = useState(null);
 
   const { data: venture, loading: ventureLoading } = useApi(
     `/api/ventures/${id}`,
     { transform: pickVenture, deps: [id] },
   );
-  const { data: verificationData, loading: verificationLoading } = useApi(
+  const { data: verificationData, loading: verificationLoading, refresh: refreshVerification } = useApi(
     `/api/ventures/${id}/verification`,
     { transform: pickVerification, deps: [id] },
   );
-  const { data: configuredDocumentTypes } = useApi(
+  const { data: configuredDocumentTypes, refresh: refreshDocumentTypes } = useApi(
     `/api/ventures/${id}/document-types`,
     { transform: pickDocumentTypes, deps: [id], defaultValue: null },
   );
@@ -81,6 +83,67 @@ export default function VentureInvestmentPage() {
   const items = verificationData?.items || [];
   const itemByCategory = new Map(items.map((item) => [item.category, item]));
 
+  // Promoting a Data-bank document into the readiness criteria changes the score
+  // denominator, so both the gauge and the list have to be re-read — `refresh()`
+  // bypasses the 30s GET cache, which would otherwise leave a stale percentage on
+  // screen.
+  //
+  // The failure text has to survive three shapes of answer, because they mean
+  // three different things and one generic message sent us all chasing the wrong
+  // one: a JSON refusal carries an i18n KEY, a misrouted request comes back as an
+  // HTML error page (the local dev server drops routes from its manifest often
+  // enough that "reload" is the right advice), and a dead network never reaches
+  // the server at all.
+  const promoteToReadiness = async (documentType) => {
+    if (promotingCode === documentType.code) return;
+    setPromotingCode(documentType.code);
+    setPromotionError(null);
+    try {
+      let response;
+      try {
+        response = await fetch(`/api/ventures/${id}/document-types/${documentType.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ is_readiness: true }),
+        });
+      } catch {
+        // fetch only throws when the request never completed.
+        setPromotionError(t("venture.documentTypes.promoteFailedNetwork"));
+        return;
+      }
+
+      const { status } = response;
+      const isJson = (response.headers.get("content-type") || "").includes("application/json");
+      const result = isJson ? await response.json().catch(() => null) : null;
+
+      if (result?.success) {
+        await Promise.all([refreshVerification(), refreshDocumentTypes()]);
+        return;
+      }
+      if (result?.error) {
+        // The server answers with an i18n key; translate it rather than showing
+        // the raw key, and fall back only if the key does not resolve.
+        const translated = t(result.error);
+        setPromotionError(
+          translated === result.error ? t("venture.manager.actionFailed") : translated,
+        );
+        return;
+      }
+      setPromotionError(
+        t(
+          process.env.NODE_ENV !== "production"
+            ? "venture.documentTypes.promoteFailedUnexpectedDev"
+            : "venture.documentTypes.promoteFailedUnexpectedProd",
+          { status },
+        ),
+      );
+    } catch (caught) {
+      setPromotionError(caught?.message || t("venture.manager.actionFailed"));
+    } finally {
+      setPromotingCode(null);
+    }
+  };
+
   const readinessState = () => {
     if (!readiness) return null;
     if (readiness.is_ready) return { label: t("vadmin.verification.ready"), cls: "text-emerald-400 bg-emerald-500/10" };
@@ -120,8 +183,8 @@ export default function VentureInvestmentPage() {
         </div>
 
         {/* Document readiness (decision Q4): the acceptance % computed live from
-            the Venture's Data bank documents, replacing the old 10-category
-            recorded assessment. */}
+             the Venture's Data bank documents, replacing the old 10-category
+             recorded assessment. */}
         <div className="card">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div className="min-w-0">
@@ -155,23 +218,65 @@ export default function VentureInvestmentPage() {
               </div>
             </div>
           </div>
-
-          {/* Per-document status detail */}
-          <div className="space-y-2 mt-5">
-            {documentTypes.map((documentType) => {
-              const item = itemByCategory.get(documentType.code);
-              const itemStatusConfig = ITEM_STATUS_CONFIG[item?.status] || ITEM_STATUS_CONFIG.pending;
-              return (
-                <div key={documentType.code} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                  <span className="text-[10px] font-bold text-[var(--text-primary)]">{documentType.label_en}</span>
-                  <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${itemStatusConfig.color}`}>
-                    {t(itemStatusConfig.label)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
         </div>
+
+        {/* Verification Progress — per-document status, separate from the gauge above */}
+        {documentTypes.length > 0 && (
+          <div className="card">
+            <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4 flex items-center gap-2">
+              <Shield className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("vadmin.verification.progress")}
+            </h3>
+            {promotionError && (
+              <p className="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-1 rounded mb-3">
+                {promotionError}
+              </p>
+            )}
+            <div className="space-y-2">
+              {documentTypes.map((documentType) => {
+                const item = itemByCategory.get(documentType.code);
+                const itemStatusConfig = ITEM_STATUS_CONFIG[item?.status] || ITEM_STATUS_CONFIG.pending;
+                // Only a type this Venture actually stores can be promoted, and the
+                // write is gated server-side by the same can_manage rule.
+                const isStorageOnly = documentType.is_readiness === false && documentType.id != null;
+                return (
+                  <div
+                    key={documentType.code}
+                    className={`flex items-center justify-between gap-3 p-3 rounded-xl border ${
+                      isStorageOnly
+                        ? "border-dashed border-[var(--border-primary)] bg-surface-1 opacity-80"
+                        : "border-[var(--border-primary)] bg-tertiary"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[10px] font-bold text-[var(--text-primary)] truncate">{documentType.label_en}</span>
+                      {isStorageOnly && (
+                        <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-[var(--surface-3)] text-[var(--text-secondary)] shrink-0">
+                          {t("venture.documentTypes.readinessNoBadge")}
+                        </span>
+                      )}
+                    </div>
+                    {isStorageOnly ? (
+                      <button
+                        onClick={() => promoteToReadiness(documentType)}
+                        disabled={promotingCode === documentType.code}
+                        className="shrink-0 text-[10px] font-bold uppercase px-2 py-1 rounded border border-[var(--brand-orange)] bg-brand-orange/10 text-[var(--brand-orange)] hover:brightness-110 transition-all disabled:opacity-40 flex items-center gap-1"
+                      >
+                        {promotingCode === documentType.code
+                          ? <Loader2 className="w-3 h-3 animate-spin" />
+                          : t("venture.documentTypes.readinessPromote")}
+                      </button>
+                    ) : (
+                      <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${itemStatusConfig.color}`}>
+                        {t(itemStatusConfig.label)}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
 
         {/* Roadmap readiness (derived) — the live pipeline numbers, kept from
             the previous screen because it does not belong to the retired

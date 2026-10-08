@@ -11,12 +11,8 @@ import {
   pickAnalytics,
   pickProjects,
 } from "@/components/admin/projects/list/constants";
-import ProjectsHeader from "@/components/admin/projects/list/ProjectsHeader";
-import AnalyticsRow from "@/components/admin/projects/list/AnalyticsRow";
-import ProjectsFilters from "@/components/admin/projects/list/ProjectsFilters";
-import ProjectsTable from "@/components/admin/projects/list/ProjectsTable";
-import ProjectEditorModal from "@/components/admin/projects/list/ProjectEditorModal";
-import CreateProjectModal from "@/components/admin/projects/list/CreateProjectModal";
+import ProjectsContent from "@/components/admin/projects/list/ProjectsContent";
+import ProjectsModals from "@/components/admin/projects/list/ProjectsModals";
 
 /**
  * SUPER ADMIN PROJECTS DASHBOARD
@@ -436,89 +432,58 @@ export default function AdminProjects() {
 
   return (
     <>
-      <div className="space-y-8 pb-20 text-left">
-        {/* HEADER */}
-        {/* Toast notification */}
-        {toast && (
-          <div
-            className={`fixed top-6 right-6 z-[999] px-5 py-3 rounded-xl shadow-2xl text-[10px] font-black uppercase tracking-widest animate-in ${toast.type === "success" ? "bg-emerald-500 text-black" : "bg-rose-500 text-white"}`}
-          >
-            {toast.msg}
-          </div>
-        )}
+      <ProjectsContent
+        toast={toast}
+        projectCount={projects.length}
+        canCreate={canCreate}
+        onBack={goToDashboard}
+        onCreate={openCreate}
+        onRefresh={refreshProjects}
+        analytics={analytics}
+        search={search}
+        setSearch={setSearch}
+        filterStatus={filterStatus}
+        setFilterStatus={setFilterStatus}
+        loading={loading}
+        filteredProjects={filteredProjects}
+        onOpen={(project) => router.push(`/admin/projects/${project.id}`)}
+        actionLoading={actionLoading}
+        onQuickStatus={quickStatus}
+        onEdit={openEditor}
+        onArchiveToggle={handleArchiveToggle}
+      />
 
-        <ProjectsHeader
-          projectCount={projects.length}
-          canCreate={canCreate}
-          onBack={goToDashboard}
-          onCreate={openCreate}
-          onRefresh={refreshProjects}
-        />
-
-        {/* ANALYTICS ROW */}
-        {analytics && <AnalyticsRow analytics={analytics} />}
-
-        {/* FILTERS */}
-        <ProjectsFilters
-          search={search}
-          setSearch={setSearch}
-          filterStatus={filterStatus}
-          setFilterStatus={setFilterStatus}
-        />
-
-        {/* PROJECTS TABLE */}
-        <ProjectsTable
-          loading={loading}
-          filteredProjects={filteredProjects}
-          onOpen={(project) => router.push(`/admin/projects/${project.id}`)}
-          actionLoading={actionLoading}
-          onQuickStatus={quickStatus}
-          onEdit={openEditor}
-          onArchiveToggle={handleArchiveToggle}
-        />
-      </div>
-
-      {/* PROJECT EDITOR + COLLABORATORS MODAL */}
-      {showMemberModal && (
-        <ProjectEditorModal
-          projectId={showMemberModal}
-          editProject={editProject}
-          onFieldChange={updateEditField}
-          onToggleLead={toggleEditLead}
-          allStaff={allStaff}
-          editConceptFile={editConceptFile}
-          onConceptFileChange={setEditConceptFile}
-          uploadingEditConcept={uploadingEditConcept}
-          onUploadConcept={handleUploadEditConcept}
-          savingEdit={savingEdit}
-          onSave={handleSaveProject}
-          onClose={() => setShowMemberModal(null)}
-          projectMembers={projectMembers}
-          onRemoveMember={(userCid) =>
-            handleRemoveMember(showMemberModal, userCid)
-          }
-          onAddCollaborator={handleAddCollaboratorFromSelect}
-        />
-      )}
-
-      {/* CREATE PROJECT MODAL */}
-      {showCreateModal && canCreate && (
-        <CreateProjectModal
-          newProject={newProject}
-          onFieldChange={updateNewField}
-          onToggleLead={toggleNewLead}
-          conceptNoteFile={conceptNoteFile}
-          onConceptFileChange={setConceptNoteFile}
-          uploadingConcept={uploadingConcept}
-          onUploadConcept={handleUploadConcept}
-          allStaff={allStaff}
-          selectedMembers={selectedMembers}
-          onToggleMember={toggleSelectedMember}
-          creating={creating}
-          onClose={closeCreate}
-          onCreate={handleCreateProject}
-        />
-      )}
+      <ProjectsModals
+        showMemberModal={showMemberModal}
+        showCreateModal={showCreateModal}
+        canCreate={canCreate}
+        editProject={editProject}
+        onEditFieldChange={updateEditField}
+        onToggleEditLead={toggleEditLead}
+        allStaff={allStaff}
+        editConceptFile={editConceptFile}
+        onEditConceptFileChange={setEditConceptFile}
+        uploadingEditConcept={uploadingEditConcept}
+        onUploadEditConcept={handleUploadEditConcept}
+        savingEdit={savingEdit}
+        onSaveProject={handleSaveProject}
+        onCloseEditor={() => setShowMemberModal(null)}
+        projectMembers={projectMembers}
+        onRemoveMember={handleRemoveMember}
+        onAddCollaborator={handleAddCollaboratorFromSelect}
+        newProject={newProject}
+        onNewFieldChange={updateNewField}
+        onToggleNewLead={toggleNewLead}
+        conceptNoteFile={conceptNoteFile}
+        onNewConceptFileChange={setConceptNoteFile}
+        uploadingConcept={uploadingConcept}
+        onUploadConcept={handleUploadConcept}
+        selectedMembers={selectedMembers}
+        onToggleMember={toggleSelectedMember}
+        creating={creating}
+        onCloseCreate={closeCreate}
+        onCreateProject={handleCreateProject}
+      />
     </>
   );
 }

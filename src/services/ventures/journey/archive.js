@@ -24,7 +24,7 @@ import {
   updateJourneyStageOrder,
 } from "@/models/ventureJourneyStore";
 // The filed-work guard is the archive engine's decision — reused, never copied.
-import { milestoneHasFiledWork } from "@/services/ventures/archive";
+import { filedWorkPhrase, milestoneFiledWorkKinds } from "@/services/ventures/archive";
 import { rowsOf } from "./stages";
 
 // ── Archive / permanent delete ───────────────────────────────────────────────
@@ -35,13 +35,23 @@ async function stageMilestoneIds({ dbId, stageId }) {
   return rowsOf(result).map((milestone) => milestone.id);
 }
 
-/** True when the stage's journey has any filed work (submissions/reviews/deliverables). */
-export async function stageHasFiledWork({ dbId, stageId }) {
+/** The KINDS of filed work a journey stage holds, across its milestones. */
+export async function stageFiledWorkKinds({ dbId, stageId }) {
+  const kinds = { deliverables: false, submissions: false, reviews: false };
   const milestoneIds = await stageMilestoneIds({ dbId, stageId });
   for (const milestoneId of milestoneIds) {
-    if (await milestoneHasFiledWork(milestoneId)) return true;
+    const found = await milestoneFiledWorkKinds(milestoneId);
+    kinds.deliverables = kinds.deliverables || found.deliverables;
+    kinds.submissions = kinds.submissions || found.submissions;
+    kinds.reviews = kinds.reviews || found.reviews;
   }
-  return false;
+  return kinds;
+}
+
+/** True when the stage's journey has any filed work — see stageFiledWorkKinds. */
+export async function stageHasFiledWork({ dbId, stageId }) {
+  const kinds = await stageFiledWorkKinds({ dbId, stageId });
+  return kinds.deliverables || kinds.submissions || kinds.reviews;
 }
 
 /**
@@ -99,8 +109,10 @@ async function renumberStages(dbId) {
 }
 
 /**
- * Permanently delete journey stages (and their clean milestone/task
- * structure). Journeys with filed work are blocked — archive them instead.
+ * Permanently delete journey stages (and their milestone/task structure).
+ * Journeys with filed work are blocked — archive them instead. A pristine
+ * deliverable row (a tracker-import artifact) is NOT filed work: it belongs to
+ * the plan and is deleted with it.
  * Returns { deleted: [...], blocked: [{ id, title, reason }] }.
  */
 export async function deleteJourneyStages({ dbId, stageIds = [] }) {
@@ -115,11 +127,14 @@ export async function deleteJourneyStages({ dbId, stageIds = [] }) {
         blocked.push({ id, title: id, reason: "Journey not found." });
         continue;
       }
-      if (await stageHasFiledWork({ dbId, stageId: id })) {
+      const filed = await stageFiledWorkKinds({ dbId, stageId: id });
+      if (filed.deliverables || filed.submissions || filed.reviews) {
         blocked.push({
           id,
           title: row.name || id,
-          reason: "This journey already has submitted work — it cannot be permanently deleted. Archive it instead.",
+          // Says WHAT blocks it — "submitted work" alone sent people looking
+          // for submissions that were never made.
+          reason: `This journey contains ${filedWorkPhrase(filed)} — it cannot be permanently deleted. Archive it instead.`,
         });
         continue;
       }

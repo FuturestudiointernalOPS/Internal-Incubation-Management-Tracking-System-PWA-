@@ -1,22 +1,15 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useI18n } from "@/lib/i18n";
-import {
-  Search,
-  Filter,
-  Users,
-  AlertTriangle,
-  ArrowLeft,
-  X,
-  CheckCircle2,
-  Shield,
-  ListTodo,
-} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { TableSkeleton } from "@/components/ui/Skeleton";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import BlockersHeader from "@/components/admin/blockers/BlockersHeader";
+import BlockersStats from "@/components/admin/blockers/BlockersStats";
+import BlockersFilters from "@/components/admin/blockers/BlockersFilters";
+import BlockersTable from "@/components/admin/blockers/BlockersTable";
+import BlockerDetailModal from "@/components/admin/blockers/BlockerDetailModal";
 
 // Module scope on purpose: the hook keys its internal callback on these functions,
 // so inline arrows would give them a new identity on every render and refetch in
@@ -35,40 +28,6 @@ const pickBlockerTasks = (payload) => (payload?.success ? payload.tasks || [] : 
  *   - Only blocker creator can mark resolved
  *   - Super Admin can view, filter, monitor but NOT resolve
  */
-
-const SEVERITY_CONFIG = {
-  low: {
-    label: "Low",
-    color: "text-[var(--text-secondary)]",
-    bg: "bg-divider/20",
-  },
-  medium: { label: "Medium", color: "text-amber-500", bg: "bg-amber-500/10" },
-  high: { label: "High", color: "text-rose-500", bg: "bg-rose-500/10" },
-  critical: { label: "Critical", color: "text-red-600", bg: "bg-red-600/10" },
-};
-
-// Translation keys keyed by raw severity value (raw values stay for API/comparisons)
-const SEVERITY_LABEL_KEYS = {
-  low: "adminMisc.blockers.severityLow",
-  medium: "adminMisc.blockers.severityMedium",
-  high: "adminMisc.blockers.severityHigh",
-  critical: "adminMisc.blockers.severityCritical",
-};
-
-function formatSeverity(severity, t) {
-  const config = SEVERITY_CONFIG[severity];
-  return t(SEVERITY_LABEL_KEYS[severity] || "") || config?.label || severity;
-}
-
-function getSeverityColor(severity) {
-  const config = SEVERITY_CONFIG[severity];
-  return config ? config.color : "text-[var(--text-secondary)]";
-}
-
-function getSeverityBg(severity) {
-  const config = SEVERITY_CONFIG[severity];
-  return config ? config.bg : "bg-divider/20";
-}
 
 export default function AdminBlockers() {
   const router = useRouter();
@@ -156,458 +115,38 @@ export default function AdminBlockers() {
     <>
       <div className="space-y-8 pb-20 text-left">
         {/* HEADER */}
-        <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
-          <div className="space-y-2">
-            <button
-              onClick={() => router.push("/admin")}
-              className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[10px] uppercase tracking-wide"
-            >
-              <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
-              {t("adminMisc.blockers.backToDashboard")}
-            </button>
-            <div className="flex items-center gap-2 mt-2">
-              <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                {t("navigation.internalReports")}
-              </span>
-            </div>
-            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
-              {t("reports.blockers")}
-            </h1>
-          </div>
-
-          <div className="flex gap-3">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20">
-                <AlertTriangle className="w-4 h-4 text-rose-500" />
-                <span className="text-[10px] font-bold uppercase text-rose-500">
-                  {stats.active} {t("reports.active")}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                <span className="text-[10px] font-bold uppercase text-emerald-500">
-                  {stats.resolved} {t("reports.resolved")}
-                </span>
-              </div>
-            </div>
-          </div>
-        </header>
+        <BlockersHeader stats={stats} onBack={() => router.push("/admin")} />
 
         {/* STATS ROW */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="card flex items-center gap-4 p-5 border-l-4 border-rose-500">
-            <AlertTriangle className="w-6 h-6 text-rose-500" />
-            <div>
-              <p
-                className="text-[10px] font-bold uppercase tracking-widest"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                {t("reports.active")}
-              </p>
-              <p className="text-2xl font-black tracking-tight text-rose-500">
-                {stats.active}
-              </p>
-            </div>
-          </div>
-          <div className="card flex items-center gap-4 p-5 border-l-4 border-emerald-500">
-            <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-            <div>
-              <p
-                className="text-[10px] font-bold uppercase tracking-widest"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                {t("reports.resolved")}
-              </p>
-              <p className="text-2xl font-black tracking-tight text-emerald-500">
-                {stats.resolved}
-              </p>
-            </div>
-          </div>
-          <div className="card flex items-center gap-4 p-5 border-l-4 border-[var(--brand-orange)]">
-            <Shield className="w-6 h-6 text-[var(--brand-orange)]" />
-            <div>
-              <p
-                className="text-[10px] font-bold uppercase tracking-widest"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                {t("reports.blockers")}
-              </p>
-              <p className="text-2xl font-black tracking-tight">{stats.total}</p>
-            </div>
-          </div>
-        </div>
+        <BlockersStats stats={stats} />
 
         {/* FILTERS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="relative">
-            <Search
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4"
-              style={{ color: "var(--text-secondary)" }}
-            />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder={t("common.search")}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-sm font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
-              style={{ color: "var(--text-primary)" }}
-            />
-          </div>
-
-          <div className="relative">
-            <Users
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4"
-              style={{ color: "var(--text-secondary)" }}
-            />
-            <select
-              value={filterUser}
-              onChange={(event) => setFilterUser(event.target.value)}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
-            >
-              <option value="All Users">{t("adminMisc.blockers.allUsers")}</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="relative">
-            <Filter
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4"
-              style={{ color: "var(--text-secondary)" }}
-            />
-            <select
-              value={filterStatus}
-              onChange={(event) => setFilterStatus(event.target.value)}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
-            >
-              <option value="all">{t("adminMisc.blockers.allStatuses")}</option>
-              <option value="active">{t("status.active")}</option>
-              <option value="resolved">{t("status.resolved")}</option>
-            </select>
-          </div>
-        </div>
+        <BlockersFilters
+          search={search}
+          setSearch={setSearch}
+          users={users}
+          filterUser={filterUser}
+          setFilterUser={setFilterUser}
+          filterStatus={filterStatus}
+          setFilterStatus={setFilterStatus}
+        />
 
         {/* BLOCKERS TABLE */}
-        {loading ? (
-          <TableSkeleton rows={8} />
-        ) : filteredBlockers.length === 0 ? (
-          <div className="card py-32 flex flex-col items-center justify-center text-center opacity-40 border-dashed">
-            <Shield className="w-16 h-16 mb-4" />
-            <p className="text-sm text-[var(--text-secondary)]">
-              {t("reports.noBlockersFound")}
-            </p>
-            <p
-              className="text-sm mt-2"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              {t("adminMisc.blockers.emptyStateHint")}
-            </p>
-          </div>
-        ) : (
-          <div className="card !p-0 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[var(--border-primary)]">
-                    <th
-                      className="text-left p-4 text-[10px] font-bold uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("adminMisc.blockers.colBlocker")}
-                    </th>
-                    <th
-                      className="text-left p-4 text-[10px] font-bold uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("adminMisc.blockers.owner")}
-                    </th>
-                    <th
-                      className="text-left p-4 text-[10px] font-bold uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("adminMisc.blockers.linkedTask")}
-                    </th>
-                    <th
-                      className="text-center p-4 text-[10px] font-bold uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("adminMisc.blockers.severity")}
-                    </th>
-                    <th
-                      className="text-center p-4 text-[10px] font-bold uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("adminMisc.blockers.status")}
-                    </th>
-                    <th
-                      className="text-center p-4 text-[10px] font-bold uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("time.created")}
-                    </th>
-                    <th
-                      className="text-center p-4 text-[10px] font-bold uppercase tracking-widest"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("time.updated")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredBlockers.map((blocker) => (
-                    <tr
-                      key={blocker.id}
-                      className={`border-b border-divider/50 hover:bg-white/5 transition-colors ${
-                        blocker.status === "active"
-                          ? "bg-rose-500/5"
-                          : "opacity-60"
-                      }`}
-                    >
-                      <td className="p-4">
-                        <button
-                          onClick={() => setViewingBlocker(blocker)}
-                          className="text-left group"
-                        >
-                          <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide group-hover:text-[var(--brand-orange)] transition-colors">
-                            {blocker.title}
-                          </p>
-                          {blocker.description && (
-                            <p
-                              className="text-[10px] font-medium mt-0.5 line-clamp-1"
-                              style={{ color: "var(--text-secondary)" }}
-                            >
-                              {blocker.description}
-                            </p>
-                          )}
-                        </button>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold uppercase">
-                            {blocker.user_name?.charAt(0) || "?"}
-                          </div>
-                          <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
-                            {blocker.user_name || blocker.user_id || t("adminMisc.blockers.unknown")}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <button
-                          onClick={() => router.push(`/admin/tasks`)}
-                          className="text-[10px] font-bold hover:underline flex items-center gap-1"
-                          style={{ color: "var(--chart-info)" }}
-                        >
-                          <ListTodo className="w-3 h-3" />
-                          {getTaskTitle(blocker.task_id)}
-                        </button>
-                      </td>
-                      <td className="text-center p-4">
-                        <span
-                          className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${getSeverityBg(blocker.severity)} ${getSeverityColor(blocker.severity)}`}
-                        >
-                          {formatSeverity(blocker.severity, t)}
-                        </span>
-                      </td>
-                      <td className="text-center p-4">
-                        <span
-                          className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${
-                            blocker.status === "active"
-                              ? "bg-rose-500/10 text-rose-500"
-                              : "bg-emerald-500/10 text-emerald-500"
-                          }`}
-                        >
-                          {blocker.status === "active"
-                            ? t("status.active")
-                            : t("status.resolved")}
-                        </span>
-                      </td>
-                      <td className="text-center p-4">
-                        <span
-                          className="text-[10px] font-medium"
-                          style={{ color: "var(--text-secondary)" }}
-                        >
-                          {new Date(blocker.created_at).toLocaleDateString()}
-                        </span>
-                      </td>
-                      <td className="text-center p-4">
-                        <span
-                          className="text-[10px] font-medium"
-                          style={{ color: "var(--text-secondary)" }}
-                        >
-                          {blocker.resolved_at
-                            ? new Date(blocker.resolved_at).toLocaleDateString()
-                            : "—"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        <BlockersTable
+          loading={loading}
+          filteredBlockers={filteredBlockers}
+          onView={setViewingBlocker}
+          onOpenTasks={() => router.push("/admin/tasks")}
+          getTaskTitle={getTaskTitle}
+        />
 
         {/* BLOCKER DETAIL MODAL */}
         {viewingBlocker && (
-          <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
-            <div
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => setViewingBlocker(null)}
-            />
-            <div className="relative bg-secondary border border-[var(--border-primary)] rounded-2xl w-full max-w-lg p-8 shadow-2xl max-h-[85vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-black text-[var(--text-primary)] tracking-tight">
-                  {t("adminMisc.blockers.detailsTitle")}
-                </h3>
-                <button
-                  onClick={() => setViewingBlocker(null)}
-                  className="p-2 rounded-lg hover:bg-white/5 transition-all"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <p
-                    className="text-[10px] font-bold uppercase tracking-widest mb-1"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {t("adminMisc.blockers.title")}
-                  </p>
-                  <p className="text-sm font-bold text-[var(--text-primary)]">
-                    {viewingBlocker.title}
-                  </p>
-                </div>
-
-                {viewingBlocker.description && (
-                  <div>
-                    <p
-                      className="text-[10px] font-bold uppercase tracking-widest mb-1"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("adminMisc.blockers.description")}
-                    </p>
-                    <p className="text-sm text-[var(--text-secondary)]">
-                      {viewingBlocker.description}
-                    </p>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p
-                      className="text-[10px] font-bold uppercase tracking-widest mb-1"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("adminMisc.blockers.owner")}
-                    </p>
-                    <p className="text-sm font-bold text-[var(--text-primary)]">
-                      {viewingBlocker.user_name || viewingBlocker.user_id || t("adminMisc.blockers.unknown")}
-                    </p>
-                  </div>
-                  <div>
-                    <p
-                      className="text-[10px] font-bold uppercase tracking-widest mb-1"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("adminMisc.blockers.linkedTask")}
-                    </p>
-                    <p
-                      className="text-sm font-bold"
-                      style={{ color: "var(--chart-info)" }}
-                    >
-                      {getTaskTitle(viewingBlocker.task_id)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p
-                      className="text-[10px] font-bold uppercase tracking-widest mb-1"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("adminMisc.blockers.severity")}
-                    </p>
-                    <span
-                      className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${getSeverityBg(viewingBlocker.severity)} ${getSeverityColor(viewingBlocker.severity)}`}
-                    >
-                      {formatSeverity(viewingBlocker.severity, t)}
-                    </span>
-                  </div>
-                  <div>
-                    <p
-                      className="text-[10px] font-bold uppercase tracking-widest mb-1"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("adminMisc.blockers.status")}
-                    </p>
-                    <span
-                      className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${
-                        viewingBlocker.status === "active"
-                          ? "bg-rose-500/10 text-rose-500"
-                          : "bg-emerald-500/10 text-emerald-500"
-                      }`}
-                    >
-                      {viewingBlocker.status === "active"
-                        ? t("status.active")
-                        : t("status.resolved")}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p
-                      className="text-[10px] font-bold uppercase tracking-widest mb-1"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      {t("time.created")}
-                    </p>
-                    <p className="text-sm font-bold text-[var(--text-primary)]">
-                      {new Date(viewingBlocker.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  {viewingBlocker.resolved_at && (
-                    <div>
-                      <p
-                        className="text-[10px] font-bold uppercase tracking-widest mb-1"
-                        style={{ color: "var(--text-secondary)" }}
-                      >
-                        {t("adminMisc.blockers.resolvedAt")}
-                      </p>
-                      <p className="text-sm font-bold text-emerald-500">
-                        {new Date(
-                          viewingBlocker.resolved_at,
-                        ).toLocaleDateString()}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-4 border-t border-[var(--border-primary)] bg-amber-500/5 p-4 rounded-xl">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500">
-                    {t("adminMisc.blockers.superAdminNotice")}
-                  </p>
-                  <p
-                    className="text-[10px] font-medium mt-1"
-                    style={{ color: "var(--text-secondary)" }}
-                  >
-                    {t("adminMisc.blockers.resolutionNoticePrefix")}{" "}
-                    <span className="font-bold text-[var(--text-primary)]">
-                      {viewingBlocker.user_name ||
-                        t("adminMisc.blockers.theBlockerCreator")}
-                    </span>{" "}
-                    {t("adminMisc.blockers.resolutionNoticeSuffix")}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <BlockerDetailModal
+            viewingBlocker={viewingBlocker}
+            setViewingBlocker={setViewingBlocker}
+            getTaskTitle={getTaskTitle}
+          />
         )}
       </div>
     </>

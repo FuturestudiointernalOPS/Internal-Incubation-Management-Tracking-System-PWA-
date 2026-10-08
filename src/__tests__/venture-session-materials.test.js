@@ -19,7 +19,7 @@ const {
   isSessionMaterialPath,
   normalizeSessionMaterials,
 } = require("@/lib/ventureSessionRules");
-const { assertBookableMilestone } = require("@/lib/ventureMilestoneEngine");
+const { assertBookableMilestone } = require("@/services/ventures/milestoneEngine");
 const { signSessionMaterials } = require("@/lib/ventureEvidence");
 
 jest.mock("@/lib/db", () => {

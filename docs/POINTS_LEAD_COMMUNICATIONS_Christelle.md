@@ -7,6 +7,15 @@ Les points hérités ci-dessous n'ont pas été corrigés fonctionnellement : la
 mission demandait un refactoring conservant le comportement et le rendu.
 Le rapport complet est dans [RAPPORT_TECHNIQUE_COMMUNICATIONS_Christelle.md](RAPPORT_TECHNIQUE_COMMUNICATIONS_Christelle.md).
 
+> **Mise à jour (tâche G, 2026-10-02).** Les points **1** (propriété des messages
+> marqués lus) et **3** (textes et styles de la coquille) ont été traités : le
+> marquage lu est désormais filtré par le plan de visibilité de l'appelant
+> (`updateMessagesReadByIds`, épinglé par `communications-read-scope.test.js` et
+> `internal-comms-read.test.js`), et les libellés de la coquille passent par `t()`
+> avec les couleurs ramenées aux jetons du design system. Le point **2** reste une
+> checklist de validation ; les points 4 à 7 sont des notes de coordination. Voir
+> `docs/LAYER_SPLIT.md` (§ Communications) pour le détail.
+
 ## 1. Priorité haute : propriété des messages marqués lus
 
 **Constat vérifié par lecture du code, sans exploitation en environnement réel.**

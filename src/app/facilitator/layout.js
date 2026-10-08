@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { getSession, hasAnyFacilitatorAssignment } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
+import { hasAnyFacilitatorAssignment } from "@/models/authorization/accessQueries";
 import { roleHomeHref } from "@/models/platform/roles";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 

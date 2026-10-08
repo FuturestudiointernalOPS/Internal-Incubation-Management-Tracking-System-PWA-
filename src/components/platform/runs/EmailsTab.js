@@ -17,6 +17,15 @@ const STATUS_BADGE = {
   pending: "bg-amber-500/10 text-amber-400",
 };
 
+// Each email type keeps its own colour chip so approval, report and the rest
+// read apart at a glance, and each carries the label used by the filter tabs.
+const EMAIL_TYPE_BADGE = {
+  acknowledgement: { label: "platformMisc.runs.emailTypeConfirmation", cls: "bg-cyan-500/10 text-cyan-400" },
+  approval: { label: "platformMisc.runs.emailTypeApproval", cls: "bg-violet-500/10 text-violet-400" },
+  activation: { label: "platformMisc.runs.emailTypeActivation", cls: "bg-purple-500/10 text-purple-400" },
+  result: { label: "platformMisc.runs.emailTypeReport", cls: "bg-emerald-500/10 text-emerald-400" },
+};
+
 export default function EmailsTab({
   allEmailRows, visibleEmailRows, pagedEmailRows, retryableVisible, retrySelectedSet, emailStatusSets, emailSummary,
   emailTypeFilter, setEmailTypeFilter, emailStatusFilter, setEmailStatusFilter,
@@ -30,11 +39,12 @@ export default function EmailsTab({
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
       {/* Email stats — clickable status filters per category */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
           { key: "acknowledgement", label: t("platformMisc.runs.emailSummaryConfirmation") },
           { key: "approval", label: t("platformMisc.runs.emailSummaryApproval") },
           { key: "activation", label: t("platformMisc.runs.emailSummaryActivation") },
+          { key: "result", label: t("platformMisc.runs.emailSummaryReport") },
         ].map((category) => {
           const categoryTotal = allEmailRows.filter((emailRow) => emailRow.email_type === category.key).length;
           return (
@@ -82,6 +92,7 @@ export default function EmailsTab({
               { key: "acknowledgement", label: t("platformMisc.runs.emailTypeConfirmation") },
               { key: "approval", label: t("platformMisc.runs.emailTypeApproval") },
               { key: "activation", label: t("platformMisc.runs.emailTypeActivation") },
+              { key: "result", label: t("platformMisc.runs.emailTypeReport") },
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -223,9 +234,14 @@ export default function EmailsTab({
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap">{emailRow.name}</td>
                       <td className="px-3 py-3">
-                        <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", emailRow.email_type === "activation" ? "bg-purple-500/10 text-purple-400" : "bg-cyan-500/10 text-cyan-400")}>
-                          {emailRow.email_type}
-                        </span>
+                        {(() => {
+                          const typeBadge = EMAIL_TYPE_BADGE[emailRow.email_type];
+                          return (
+                            <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap", typeBadge?.cls || "bg-cyan-500/10 text-cyan-400")}>
+                              {typeBadge ? t(typeBadge.label) : emailRow.email_type}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-3 py-3">
                         <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", STATUS_BADGE[emailRow.status] || STATUS_BADGE.failed)}>

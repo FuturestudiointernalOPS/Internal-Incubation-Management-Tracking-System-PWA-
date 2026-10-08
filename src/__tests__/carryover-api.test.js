@@ -98,8 +98,10 @@ jest.mock("@/lib/db", () => {
   };
 });
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({
     cid: "staff-1",
     name: "Staff One",

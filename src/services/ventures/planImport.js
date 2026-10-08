@@ -26,6 +26,7 @@ export {
   MAX_PLAN_PROMPT_CHARS,
   MAX_PLAN_CONTEXT_CHARS,
   renderPlanSheets,
+  isMilestoneSheet,
   buildPlanPrompt,
 } from "./planImport/prompt";
 export {
@@ -41,6 +42,11 @@ export {
 export {
   buildExistingProgramme,
   interpretPlanSheet,
+  PLAN_ANSWER_TOKENS,
+  PLAN_CHUNK_ROWS,
+  chunkPlanRows,
+  mergePlanParts,
+  dedupeTasksByRef,
 } from "./planImport/interpret";
 export {
   getOpenPlanImport,
@@ -60,6 +66,7 @@ export {
 
 import {
   renderPlanSheets,
+  isMilestoneSheet,
   buildPlanPrompt,
 } from "./planImport/prompt";
 import {
@@ -74,6 +81,11 @@ import {
 import {
   buildExistingProgramme,
   interpretPlanSheet,
+  PLAN_ANSWER_TOKENS,
+  PLAN_CHUNK_ROWS,
+  chunkPlanRows,
+  mergePlanParts,
+  dedupeTasksByRef,
 } from "./planImport/interpret";
 import {
   getOpenPlanImport,
@@ -94,6 +106,12 @@ export default {
   interpretPlanSheet,
   buildPlanPrompt,
   renderPlanSheets,
+  isMilestoneSheet,
+  PLAN_ANSWER_TOKENS,
+  PLAN_CHUNK_ROWS,
+  chunkPlanRows,
+  mergePlanParts,
+  dedupeTasksByRef,
   buildExistingProgramme,
   normalizeJourneys,
   deriveProposalDates,

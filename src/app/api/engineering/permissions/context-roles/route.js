@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { getSession, logPermissionAudit } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
+import { logPermissionAudit } from "@/models/authorization/accessQueries";
 import { requireAuthorization } from "@/models/authorization/index";
 import { requireSameOrigin } from "@/lib/requestOrigin";
 import { getAccessProfileMeta, listAccessProfiles } from "@/models/authorization";

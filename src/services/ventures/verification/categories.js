@@ -6,7 +6,10 @@
  * re-exported unchanged by `src/services/ventures/verification.js`.
  */
 import { DEFAULT_VENTURE_DOCUMENT_TYPES } from "@/lib/ventureDocumentTypeDefaults";
-import { canManageVentureDocumentTypes, listActiveVentureDocumentTypesOrDefaults } from "@/models/ventureDocumentTypes";
+import {
+  canManageVentureDocumentTypes,
+  listActiveVentureDocumentTypesOrDefaults,
+} from "@/services/ventures/ventureDocumentTypes";
 import { selectVerificationFounderIdByEmail } from "@/models/ventureVerificationStore";
 
 /**
@@ -48,7 +51,7 @@ export async function canManageVerification(ventureId, session) {
   if (session.role === "staff") {
     // Assignments key on the VNT code; the rule above is asked of the code, so
     // an internal id in the URL is resolved first.
-    const { resolveVentureCode } = await import("@/lib/ventureScope");
+    const { resolveVentureCode } = await import("@/services/ventures/scope");
     const code = await resolveVentureCode(ventureId);
     if (code && (await canManageVentureDocumentTypes(session, code))) {
       return { allowed: true, isReviewer: true };

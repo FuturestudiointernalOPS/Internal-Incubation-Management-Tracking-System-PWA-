@@ -55,8 +55,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({ cid: "staff-1", role: "staff" }),
+}));
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
 }));
 
@@ -78,13 +80,13 @@ jest.mock("@/services/ventures/operatingPlans", () => ({
   resolveVentureCode: jest.fn(async () => mockVentureCode),
 }));
 
-jest.mock("@/lib/ventureMilestoneEngine", () => ({
+jest.mock("@/services/ventures/milestoneEngine", () => ({
   assertBookableMilestone: jest.fn(async () => mockBookable),
   // The route sweeps due Journeys before the booking gate; nothing to do here.
   activateDueStages: jest.fn(async () => ({ activated_stage_ids: [], released_milestone_ids: [] })),
 }));
 
-jest.mock("@/lib/ventureCoach", () => ({
+jest.mock("@/services/ventures/coach", () => ({
   resolveCoachContact: jest.fn().mockResolvedValue(null),
 }));
 
@@ -92,11 +94,13 @@ jest.mock("@/lib/ventureEvidence", () => ({
   signSessionMaterials: jest.fn(async () => []),
 }));
 
-jest.mock("@/lib/ventures", () => ({
+jest.mock("@/services/ventures/deliverables", () => ({
+  getDeliverable: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/services/ventures/sessions", () => ({
   listSessions: jest.fn().mockResolvedValue([]),
   getSession: (...args) => mockGetSession(...args),
   createSession: (...args) => mockCreateSession(...args),
-  getDeliverable: jest.fn().mockResolvedValue(null),
   updateSession: (...args) => mockUpdateSession(...args),
   cancelSession: (...args) => mockCancelSession(...args),
   rescheduleSession: (...args) => mockRescheduleSession(...args),

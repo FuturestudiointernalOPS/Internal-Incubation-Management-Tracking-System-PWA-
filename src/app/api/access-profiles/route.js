@@ -1,10 +1,8 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import {
-  getSession,
-  PERMISSION_MODULES,
-  logPermissionAudit,
-} from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
+import { PERMISSION_MODULES } from "@/server/authz/capabilities";
+import { logPermissionAudit } from "@/models/authorization/accessQueries";
 import {
   requireAuthorization,
   invalidateAllAuthorizationContexts,

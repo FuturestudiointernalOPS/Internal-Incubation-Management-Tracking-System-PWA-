@@ -16,6 +16,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { readSurface } = require("../helpers/sourceSurface");
 
 const read = (relativePath) =>
   fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
@@ -25,7 +26,7 @@ describe("a Venture is named company_name-first everywhere", () => {
     // The name query moved to the model; the route calls it.
     const route = read("src/app/api/ventures/[id]/members/route.js");
     expect(route).toMatch(/getVentureDisplayNameByCode/);
-    const model = read("src/models/ventureWorkspace.js");
+    const model = readSurface("src/models/ventureWorkspace.js");
     expect(model).toMatch(/COALESCE\(NULLIF\(company_name, ''\), name\) AS venture_name/);
   });
 

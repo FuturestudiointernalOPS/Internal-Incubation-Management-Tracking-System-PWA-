@@ -1,11 +1,9 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import {
-  requireAuth,
-  getSession,
-  hasProgramManagementAccess,
-  requireAssignmentAccess,
-} from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
+import { getSession } from "@/server/auth/session";
+import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { requireAssignmentAccess } from "@/server/authz/guards";
 import {
   requireAuthorization,
   getAuthorizationContext,

@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
-import {
-  getInvestmentReadiness,
-  evaluateInvestmentReadiness,
-  getInvestmentRecommendations,
-} from "@/lib/ventures";
+import { getInvestmentReadiness, evaluateInvestmentReadiness, getInvestmentRecommendations } from "@/services/ventures/investmentReadiness";
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;

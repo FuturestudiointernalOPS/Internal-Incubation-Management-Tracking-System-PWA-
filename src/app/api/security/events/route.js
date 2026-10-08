@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import {
-  querySecurityEvents,
-  resolveSecurityEvent,
-  getSecurityStats,
-  logAuditEvent,
-} from "@/lib/ventures";
+import { querySecurityEvents, resolveSecurityEvent, getSecurityStats } from "@/services/ventures/auditSecurity";
+import { logAuditEvent } from "@/services/ventures/auditSecurity";
 
 export const GET = createHandler(
   { roles: ["super_admin", "security_officer"] },

@@ -51,11 +51,11 @@ const mockModels = {
 };
 
 jest.mock("@/models/curriculum", () => mockModels);
-jest.mock("@/models/kpi-progress", () => ({
+jest.mock("@/models/kpiProgressStore", () => ({
   listKpiNamesForPrograms: jest.fn(async () => ({ rows: [] })),
 }));
 
-jest.mock("@/models/kpi-progress", () => ({
+jest.mock("@/services/programs/kpiProgress", () => ({
   recalculateKpiProgress: jest.fn(async () => ({})),
 }));
 
@@ -65,7 +65,7 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => ({ cid: "USR_1", name: "PM One" })),
 }));
 

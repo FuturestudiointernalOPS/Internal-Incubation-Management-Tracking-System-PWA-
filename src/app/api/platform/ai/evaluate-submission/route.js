@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/server/auth/guards";
 import { requireAuthorization } from "@/models/authorization/index";
 import {
   getEvaluationResult,

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import { resolvePlanAccess, allowsPlanAction } from "@/services/ventures/operatingPlans";
 import { ensureJourneyTable, resolveVentureInternalId, listJourneyStages } from "@/services/ventures/journey";
-import { deleteJourneyStages } from "@/lib/ventureJourneyArchive";
+import { deleteJourneyStages } from "@/services/ventures/journey";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +11,10 @@ export const dynamic = "force-dynamic";
  * Body: { ids: [stageId...] }
  *
  * Permanent delete of whole journeys (stage + its milestone/task structure).
- * A journey with filed work (submissions, reviews, deliverables) is BLOCKED
- * and reported back — archive it instead. The UI asks for a DOUBLE
- * confirmation before calling this.
+ * A journey with filed work is BLOCKED and reported back — archive it instead.
+ * Filed work is engagement (submissions, staff reviews, deliverables that have
+ * been worked on); pristine tracker-import deliverable rows are plan structure
+ * and do not block. The UI asks for a DOUBLE confirmation before calling this.
  */
 export async function POST(req, { params }) {
   try {

@@ -12,11 +12,11 @@
  * promote/remove (a role change is never a capability grant — it stays in the
  * HTTP boundary, not here).
  *
- * It imports the same `@/lib/auth` and `@/lib/authorization` facades the
- * controller used, so module-level test mocks keep intercepting the calls.
+ * It imports the same model/service homes the controller used, so module-level
+ * test mocks keep intercepting the calls.
  */
 
-import { logPermissionAudit } from "@/lib/auth";
+import { logPermissionAudit } from "@/models/authorization/accessQueries";
 import {
   getAuthorizationContext,
   invalidateAuthorizationContext,

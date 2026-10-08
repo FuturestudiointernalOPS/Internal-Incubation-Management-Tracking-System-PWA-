@@ -18,14 +18,22 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => true),
 }));
 
-jest.mock("@/lib/auth", () => ({
+jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn(async () => null),
+}));
+jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => ({ cid: "USR_STAFF", role: "staff", email: "s@x.test" })),
+}));
+jest.mock("@/server/authz/capabilities", () => ({
   hasProgramManagementAccess: jest.fn(() => false),
+}));
+jest.mock("@/server/authz/guards", () => ({
   requireAssignmentAccess: jest.fn(async () => null),
   assertNoParticipantFacilitatorConflict: jest.fn(async () => null),
-  isAssignedPmForProgram: jest.fn(async () => true),
   requireProjectAccess: jest.fn(async () => null),
+}));
+jest.mock("@/models/authorization/accessQueries", () => ({
+  isAssignedPmForProgram: jest.fn(async () => true),
 }));
 
 jest.mock("@/models/authorization/index", () => ({
@@ -92,7 +100,9 @@ jest.mock("@/models/projects", () => ({
 
 const { isWithinScope } = require("@/services/authorization/scope");
 const { getAuthorizationContext } = require("@/models/authorization/index");
-const { getSession, requireProjectAccess, isAssignedPmForProgram } = require("@/lib/auth");
+const { getSession } = require("@/server/auth/session");
+const { requireProjectAccess } = require("@/server/authz/guards");
+const { isAssignedPmForProgram } = require("@/models/authorization/accessQueries");
 const programsModel = require("@/models/programs");
 const facilitationModel = require("@/models/facilitation");
 const projectsModel = require("@/models/projects");

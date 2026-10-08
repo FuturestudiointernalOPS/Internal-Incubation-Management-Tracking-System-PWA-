@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
-import { getUnmetTaskDependencies, releaseTasksBlockedBy } from "@/lib/ventures";
+import { getUnmetTaskDependencies, releaseTasksBlockedBy } from "@/services/ventures/tasks";
 import {
   isGlobalRole,
   resolveVentureCode,
@@ -9,7 +9,7 @@ import {
   hasVentureWideReach,
   isTaskInScope,
   resolveTaskContext,
-} from "@/lib/ventureScope";
+} from "@/services/ventures/scope";
 import {
   getVentureByCode,
   getVentureTaskById,

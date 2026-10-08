@@ -2,16 +2,17 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  Loader2, Send, Save, ArrowLeft, CheckCircle2, AlertTriangle,
-  FileText, Clock, Info, ChevronDown, ChevronUp, Star,
-} from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
-import AppPhoneInput from "@/components/ui/AppPhoneInput";
 import { useApi } from "@/lib/hooks/useApi";
-
-const cn = (...classes) => classes.filter(Boolean).join(" ");
+import SubmitHeader from "@/components/platform/runs/submit/SubmitHeader";
+import RunInfoCard from "@/components/platform/runs/submit/RunInfoCard";
+import SubmissionNotices from "@/components/platform/runs/submit/SubmissionNotices";
+import SubmitFormSections from "@/components/platform/runs/submit/SubmitFormSections";
+import SubmitFooterActions from "@/components/platform/runs/submit/SubmitFooterActions";
+import SubmitSuccess from "@/components/platform/runs/submit/SubmitSuccess";
+import SubmitLoading from "@/components/platform/runs/submit/SubmitLoading";
+import SubmitError from "@/components/platform/runs/submit/SubmitError";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here
@@ -191,285 +192,19 @@ export default function SubmitFormPage() {
   const needsRevision = submission?.status === "revision_requested";
   const isDraft = submission?.status === "draft";
 
-  const renderField = (field) => {
-    const value = answers[field.id] || field.default_value || "";
-    const hasError = errors[field.id];
-    const isDisabled = isSubmitted && !needsRevision;
-
-    const baseInputClass = "w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border text-[var(--text-primary)] transition-colors";
-    const normalBorder = hasError ? "border-rose-500" : "border-[var(--border-primary)] focus:border-[var(--brand-orange)]";
-    const inputClass = cn(baseInputClass, normalBorder, isDisabled && "opacity-60 cursor-not-allowed");
-
-    switch (field.field_type) {
-      case "textarea":
-      case "richtext":
-        return (
-          <textarea
-            value={value}
-            onChange={(event) => updateField(field.id, event.target.value)}
-            rows={4}
-            placeholder={field.placeholder || ""}
-            disabled={isDisabled}
-            className={cn(inputClass, "resize-none")}
-          />
-        );
-
-      case "number":
-      case "currency":
-        return (
-          <input
-            type="number"
-            value={value}
-            onChange={(event) => updateField(field.id, event.target.value)}
-            placeholder={field.placeholder || ""}
-            disabled={isDisabled}
-            className={inputClass}
-            min={field.validation?.min}
-            max={field.validation?.max}
-          />
-        );
-
-      case "email":
-        return (
-          <input
-            type="email"
-            value={value}
-            onChange={(event) => updateField(field.id, event.target.value)}
-            placeholder={field.placeholder || t("platformMisc.runSubmitDetail.emailExample")}
-            disabled={isDisabled}
-            className={inputClass}
-          />
-        );
-
-      case "phone":
-        return (
-          <AppPhoneInput
-            value={value}
-            onChange={(nextValue) => updateField(field.id, nextValue)}
-            placeholder={field.placeholder || t("platformMisc.runSubmitDetail.phoneExample")}
-            disabled={isDisabled}
-            inputClassName={inputClass + " flex-1"}
-          />
-        );
-
-      case "date":
-        return (
-          <input
-            type="date"
-            value={value}
-            onChange={(event) => updateField(field.id, event.target.value)}
-            disabled={isDisabled}
-            className={inputClass}
-          />
-        );
-
-      case "time":
-        return (
-          <input
-            type="time"
-            value={value}
-            onChange={(event) => updateField(field.id, event.target.value)}
-            disabled={isDisabled}
-            className={inputClass}
-          />
-        );
-
-      case "url":
-        return (
-          <input
-            type="url"
-            value={value}
-            onChange={(event) => updateField(field.id, event.target.value)}
-            placeholder={field.placeholder || "https://"}
-            disabled={isDisabled}
-            className={inputClass}
-          />
-        );
-
-      case "select": {
-        const options = field.options || [];
-        return (
-          <select
-            value={value}
-            onChange={(event) => updateField(field.id, event.target.value)}
-            disabled={isDisabled}
-            className={inputClass}
-          >
-            <option value="">{field.placeholder || t("platformMisc.runSubmitDetail.select")}</option>
-            {options.map((option, index) => (
-              <option key={index} value={option.value || option}>{option.label || option}</option>
-            ))}
-          </select>
-        );
-      }
-
-      case "radio": {
-        const options = field.options || [];
-        return (
-          <div className="space-y-2">
-            {options.map((option, index) => (
-              <label key={index} className={cn("flex items-center gap-2 text-[11px] font-bold text-[var(--text-primary)]", isDisabled && "opacity-60")}>
-                <input
-                  type="radio"
-                  name={`field-${field.id}`}
-                  value={option.value || option}
-                  checked={String(value) === String(option.value || option)}
-                  onChange={(event) => updateField(field.id, event.target.value)}
-                  disabled={isDisabled}
-                  className="accent-[var(--brand-orange)]"
-                />
-                {option.label || option}
-              </label>
-            ))}
-          </div>
-        );
-      }
-
-      case "checkbox": {
-        const checked = value === true || value === "true" || value === "on";
-        return (
-          <label className={cn("flex items-center gap-2 text-[11px] font-bold text-[var(--text-primary)]", isDisabled && "opacity-60")}>
-            <input
-              type="checkbox"
-              checked={checked}
-              onChange={(event) => updateField(field.id, event.target.checked)}
-              disabled={isDisabled}
-              className="accent-[var(--brand-orange)]"
-            />
-            {field.label}
-          </label>
-        );
-      }
-
-      case "multiselect": {
-        const options = field.options || [];
-        const selected = Array.isArray(value) ? value : [];
-        return (
-          <div className="space-y-2">
-            {options.map((option, index) => {
-              const optionValue = option.value || option;
-              const isChecked = selected.includes(optionValue);
-              return (
-                <label key={index} className={cn("flex items-center gap-2 text-[11px] font-bold text-[var(--text-primary)]", isDisabled && "opacity-60")}>
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={(event) => {
-                      const nextValue = event.target.checked
-                        ? [...selected, optionValue]
-                        : selected.filter((selectedValue) => selectedValue !== optionValue);
-                      updateField(field.id, nextValue);
-                    }}
-                    disabled={isDisabled}
-                    className="accent-[var(--brand-orange)]"
-                  />
-                  {option.label || option}
-                </label>
-              );
-            })}
-          </div>
-        );
-      }
-
-      case "rating": {
-        const max = field.validation?.max || 5;
-        const current = parseInt(value) || 0;
-        return (
-          <div className={cn("flex items-center gap-1", isDisabled && "opacity-60")}>
-            {Array.from({ length: max }, (_, starIndex) => (
-              <button
-                key={starIndex}
-                type="button"
-                onClick={() => !isDisabled && updateField(field.id, String(starIndex + 1))}
-                className={cn("transition-colors", starIndex < current ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]")}
-              >
-                <Star className={cn("w-5 h-5", starIndex < current ? "fill-current" : "")} />
-              </button>
-            ))}
-          </div>
-        );
-      }
-
-      case "file":
-        return (
-          <div className={cn("p-3 rounded-xl border border-dashed border-[var(--border-primary)] text-center", isDisabled && "opacity-60")}>
-            <input
-              type="file"
-              onChange={(event) => updateField(field.id, event.target.files?.[0]?.name || "")}
-              disabled={isDisabled}
-              className="text-[10px] text-[var(--text-secondary)]"
-            />
-            {value && <p className="text-[10px] font-bold text-[var(--text-primary)] mt-1">{typeof value === "string" ? value : t("platformMisc.runSubmitDetail.fileSelected")}</p>}
-          </div>
-        );
-
-      case "hidden":
-        return <input type="hidden" value={value} />;
-
-      default: // text
-        return (
-          <input
-            type="text"
-            value={value}
-            onChange={(event) => updateField(field.id, event.target.value)}
-            placeholder={field.placeholder || ""}
-            disabled={isDisabled}
-            className={inputClass}
-          />
-        );
-    }
-  };
-
   // ─── SUCCESS STATE ───
   if (success) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="max-w-md w-full text-center space-y-6">
-          <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto">
-            <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-          </div>
-          <div>
-            <h1 className="text-lg font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runSubmitDetail.successTitle")}</h1>
-            <p className="text-[11px] text-[var(--text-secondary)] mt-2">
-              {run?.settings?.confirmation_message || t("platformMisc.runSubmitDetail.confirmationMessage")}
-            </p>
-          </div>
-          {submission && (
-            <div className="p-4 rounded-xl bg-secondary border border-[var(--border-primary)] text-left space-y-1">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runSubmitDetail.submissionDetails")}</p>
-              <p className="text-[11px] font-bold text-[var(--text-primary)]">{t("platformMisc.runSubmitDetail.status")}: <span className="text-[var(--brand-orange)]">{submission.status?.toUpperCase()}</span></p>
-              <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runSubmitDetail.submittedOn", { date: new Date(submission.submitted_at || submission.updated_at).toLocaleString() })}</p>
-            </div>
-          )}
-          <button onClick={() => router.push("/platform/runs/submit")} className="px-6 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide hover:brightness-110">
-            {t("platformMisc.runSubmitDetail.backToSubmissions")}
-          </button>
-        </div>
-      </div>
-    );
+    return <SubmitSuccess t={t} run={run} submission={submission} router={router} />;
   }
 
   // ─── LOADING ───
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)]" />
-      </div>
-    );
+    return <SubmitLoading />;
   }
 
   // ─── ERROR ───
   if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="text-center space-y-4">
-          <AlertTriangle className="w-8 h-8 text-rose-500 mx-auto" />
-          <h1 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runSubmitDetail.errorTitle")}</h1>
-          <p className="text-[11px] text-[var(--text-secondary)]">{error}</p>
-          <button onClick={goBack} className="px-4 py-2 rounded-xl bg-tertiary text-[var(--text-primary)] text-[10px] font-bold uppercase tracking-wide">{t("platformMisc.runSubmitDetail.goBack")}</button>
-        </div>
-      </div>
-    );
+    return <SubmitError t={t} error={error} goBack={goBack} />;
   }
 
   // ─── FORM ───
@@ -482,170 +217,54 @@ export default function SubmitFormPage() {
       )}
 
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-secondary border-b border-[var(--border-primary)]">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={goBack} className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1">
-              <ArrowLeft className="w-3 h-3" /> {t("platformMisc.runSubmitDetail.back")}
-            </button>
-            <span className="text-[var(--text-secondary)] opacity-30">|</span>
-            <FileText className="w-4 h-4 text-[var(--brand-orange)]" />
-            <h1 className="text-sm font-black uppercase text-[var(--text-primary)]">{form?.name || t("platformMisc.runSubmitDetail.formTitle")}</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            {isDraft && <span className="px-2 py-0.5 rounded bg-slate-500/10 text-slate-500 text-[10px] font-bold uppercase">{t("platformMisc.runSubmitDetail.badgeDraft")}</span>}
-            {isSubmitted && <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-500 text-[10px] font-bold uppercase">{t("platformMisc.runSubmitDetail.badgeSubmitted")}</span>}
-            {isApproved && <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[10px] font-bold uppercase">{t("platformMisc.runSubmitDetail.badgeApproved")}</span>}
-            {isRejected && <span className="px-2 py-0.5 rounded bg-rose-500/10 text-rose-500 text-[10px] font-bold uppercase">{t("platformMisc.runSubmitDetail.badgeRejected")}</span>}
-            {needsRevision && <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase">{t("platformMisc.runSubmitDetail.badgeRevision")}</span>}
-          </div>
-        </div>
-      </div>
+      <SubmitHeader
+        t={t}
+        form={form}
+        goBack={goBack}
+        isDraft={isDraft}
+        isSubmitted={isSubmitted}
+        isApproved={isApproved}
+        isRejected={isRejected}
+        needsRevision={needsRevision}
+      />
 
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
         {/* Run info */}
-        {run && (
-          <div className="p-4 rounded-2xl bg-secondary border border-[var(--border-primary)] space-y-2">
-            <h2 className="text-sm font-black uppercase text-[var(--text-primary)]">{run.name}</h2>
-            {run.description && <p className="text-[10px] font-medium text-[var(--text-secondary)]">{run.description}</p>}
-            {run.settings?.instructions && (
-              <div className="flex items-start gap-2 p-3 rounded-xl bg-brand-orange/5 border border-brand-orange/10">
-                <Info className="w-3.5 h-3.5 text-[var(--brand-orange)] shrink-0 mt-0.5" />
-                <p className="text-[10px] text-[var(--text-primary)] font-bold whitespace-pre-wrap">{run.settings.instructions}</p>
-              </div>
-            )}
-            {(run.opens_at || run.closes_at) && (
-              <div className="flex items-center gap-2 text-[10px] font-medium text-[var(--text-secondary)]">
-                <Clock className="w-3 h-3" />
-                {run.opens_at && <span>{t("platformMisc.runSubmitDetail.opensAt", { date: new Date(run.opens_at).toLocaleString() })}</span>}
-                {run.closes_at && <span>{t("platformMisc.runSubmitDetail.closesAt", { date: new Date(run.closes_at).toLocaleString() })}</span>}
-              </div>
-            )}
-          </div>
-        )}
+        {run && <RunInfoCard t={t} run={run} />}
 
-        {/* Already submitted notice */}
-        {isSubmitted && !needsRevision && (
-          <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex items-start gap-3">
-            <CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500">{t("platformMisc.runSubmitDetail.alreadySubmitted")}</p>
-              <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                {t("platformMisc.runSubmitDetail.submittedNotice", { date: new Date(submission.submitted_at || submission.updated_at).toLocaleString() })}
-                {isApproved && ` ${t("platformMisc.runSubmitDetail.approvedNotice")}`}
-                {isRejected && ` ${t("platformMisc.runSubmitDetail.rejectedNotice")}`}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {needsRevision && (
-          <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500">{t("platformMisc.runSubmitDetail.revisionTitle")}</p>
-              <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                {t("platformMisc.runSubmitDetail.revisionNotice")}
-              </p>
-            </div>
-          </div>
-        )}
+        {/* Already submitted notice / revision notice */}
+        <SubmissionNotices
+          t={t}
+          isSubmitted={isSubmitted}
+          needsRevision={needsRevision}
+          isApproved={isApproved}
+          isRejected={isRejected}
+          submission={submission}
+        />
 
         {/* Form fields by section */}
-        {sections.length > 0 ? (
-          sections.map((section) => {
-            const sectionFields = fields.filter((field) => field.section_id === section.id);
-            if (sectionFields.length === 0) return null;
-            const isExpanded = !closedSections[section.id];
-
-            return (
-              <div key={section.id} className="rounded-2xl bg-secondary border border-[var(--border-primary)] overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setClosedSections((previousClosed) => ({ ...previousClosed, [section.id]: isExpanded }))}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-tertiary/50 transition-colors"
-                >
-                  <div className="text-left">
-                    <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">{section.title}</h3>
-                    {section.description && <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">{section.description}</p>}
-                  </div>
-                  {isExpanded ? <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />}
-                </button>
-                {isExpanded && (
-                  <div className="px-5 pb-5 space-y-4 border-t border-[var(--border-primary)] pt-4">
-                    {sectionFields.map((field) => (
-                      <div key={field.id} className="space-y-1.5">
-                        <label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]">
-                          {field.label}
-                          {field.required && <span className="text-rose-500">*</span>}
-                        </label>
-                        {field.help_text && <p className="text-[10px] font-medium text-[var(--text-secondary)]">{field.help_text}</p>}
-                        {renderField(field)}
-                        {errors[field.id] && (
-                          <p className="text-[10px] font-bold text-rose-500 flex items-center gap-1">
-                            <AlertTriangle className="w-3 h-3" />
-                            {errors[field.id]}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })
-        ) : (
-          // Fields without sections
-          <div className="rounded-2xl bg-secondary border border-[var(--border-primary)] p-5 space-y-4">
-            {fields.map((field) => (
-              <div key={field.id} className="space-y-1.5">
-                <label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]">
-                  {field.label}
-                  {field.required && <span className="text-rose-500">*</span>}
-                </label>
-                {field.help_text && <p className="text-[10px] font-medium text-[var(--text-secondary)]">{field.help_text}</p>}
-                {renderField(field)}
-                {errors[field.id] && (
-                  <p className="text-[10px] font-bold text-rose-500 flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" />
-                    {errors[field.id]}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Empty form */}
-        {fields.length === 0 && (
-          <div className="py-16 text-center">
-            <FileText className="w-8 h-8 mx-auto text-[var(--text-secondary)] opacity-30" />
-            <p className="text-sm text-[var(--text-secondary)] mt-3">{t("platformMisc.runSubmitDetail.noFields")}</p>
-          </div>
-        )}
+        <SubmitFormSections
+          t={t}
+          sections={sections}
+          fields={fields}
+          closedSections={closedSections}
+          setClosedSections={setClosedSections}
+          answers={answers}
+          errors={errors}
+          isSubmitted={isSubmitted}
+          needsRevision={needsRevision}
+          updateField={updateField}
+        />
 
         {/* Action buttons */}
         {fields.length > 0 && !isSubmitted && (
-          <div className="sticky bottom-4 z-20">
-            <div className="flex items-center gap-3 p-3 rounded-2xl bg-secondary border border-[var(--border-primary)] shadow-lg">
-              <button
-                onClick={handleSaveDraft}
-                disabled={saving}
-                className="flex items-center gap-2 px-4 py-3 rounded-xl bg-tertiary text-[var(--text-primary)] text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary/80 disabled:opacity-50"
-              >
-                <Save className="w-3.5 h-3.5" />
-                {saving ? t("platformMisc.runSubmitDetail.saving") : t("platformMisc.runSubmitDetail.saveDraft")}
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={saving}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide hover:brightness-110 disabled:opacity-50"
-              >
-                <Send className="w-3.5 h-3.5" />
-                {saving ? t("platformMisc.runSubmitDetail.submitting") : needsRevision ? t("platformMisc.runSubmitDetail.resubmit") : t("platformMisc.runSubmitDetail.submit")}
-              </button>
-            </div>
-          </div>
+          <SubmitFooterActions
+            t={t}
+            saving={saving}
+            needsRevision={needsRevision}
+            handleSaveDraft={handleSaveDraft}
+            handleSubmit={handleSubmit}
+          />
         )}
       </div>
     </div>

@@ -59,7 +59,7 @@ Sidebar navigation is defined once in `src/lib/masterNavigation.js` (`MASTER_NAV
 - **AI** (`src/lib/deepseek.js`): mentor feedback parsing, program insights, investor reports.
 - **i18n** (`src/lib/i18n.js`, `src/lib/locales.js`, `src/locales/en/`, `src/locales/fr/`): custom `t()` translation engine, English + French mandatory.
 - **Design system** (`src/components/ui/`, `src/lib/ThemeProvider.js`, `src/lib/constants.js`): CSS variable–driven theme, reusable components (AppCard, AppButton, AppTable, etc.).
-- **Integrations** (`src/lib/integrations/`): Microsoft Graph Calendar sync, Notion sync.
+- **Integrations** (`src/models/integrations/calendar/`): Microsoft Graph calendar sync (Outlook / Teams).
 
 ### 2.5 Key database tables (partial — see `supabase/migrations/` for authoritative sources)
 

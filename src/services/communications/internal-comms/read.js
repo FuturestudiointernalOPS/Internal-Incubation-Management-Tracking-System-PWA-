@@ -1,10 +1,16 @@
 
-import { ensureMessagesIsReadColumnForMarkRead, markConversationMessagesRead, markMessageNotificationsRead, markMessagesReadByIds } from "@/models/communications";
+import { ensureMessagesIsReadColumnForMarkRead, markConversationMessagesRead, markMessageNotificationsRead, updateMessagesReadByIds } from "@/models/communications";
 
+import { resolveMessageVisibilityPlan } from "./scope";
 
 /**
  * Mark messages read. Returns `{ denied: { error, status } }` when the caller is
  * not part of the named conversation.
+ *
+ * The `messageIds` branch is restricted to the caller's message visibility (the
+ * same plan the inbox renders), so a caller can only mark read rows they could
+ * actually list — an id they cannot see updates zero rows. The conversation
+ * branch is already scoped to the sender/recipient pair.
  */
 export async function markMessagesRead({ session, messageIds, conversationWith }) {
   const sessionCid = session.cid;
@@ -31,7 +37,9 @@ export async function markMessagesRead({ session, messageIds, conversationWith }
   } catch (_) {}
 
   if (Array.isArray(messageIds) && messageIds.length > 0) {
-    await markMessagesReadByIds(messageIds);
+    // SECURITY: only the messages this caller may see can be marked read.
+    const plan = await resolveMessageVisibilityPlan(session, sessionCid);
+    await updateMessagesReadByIds(messageIds, plan);
     // Mark corresponding notifications as read
     try {
       await markMessageNotificationsRead(sessionCid);

@@ -13,7 +13,9 @@
  * Mocks @/lib/db's `execute`, mirroring the approach used across the suite.
  */
 import db from "@/lib/db";
-import { recalculateKpiProgress } from "@/models/kpi-progress";
+import {
+  recalculateKpiProgress,
+} from "@/services/programs/kpiProgress";
 import { averageKpiProgress } from "@/lib/constants";
 
 jest.mock("@/lib/db", () => ({

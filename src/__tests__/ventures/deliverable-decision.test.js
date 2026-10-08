@@ -2,8 +2,8 @@
  * Lane L2 — the review decision reading moved out of the deliverables
  * controller (`services/ventures/deliverableReview.js`).
  */
-jest.mock("@/lib/ventureMilestoneEngine", () => ({}));
-jest.mock("@/lib/ventures", () => ({}));
+jest.mock("@/services/ventures/milestoneEngine", () => ({}));
+
 
 const { readDeliverableDecision } = require("@/services/ventures/deliverableReview");
 

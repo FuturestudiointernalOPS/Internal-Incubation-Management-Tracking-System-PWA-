@@ -14,9 +14,8 @@
  * REAL service runs against the fake LMS database.
  */
 
-const fs = require("fs");
-const path = require("path");
 const { createFakeDb } = require("./helpers/fakeLmsDb");
+const { readSurface } = require("./helpers/sourceSurface");
 
 const mockFake = createFakeDb();
 
@@ -167,10 +166,10 @@ test("grouping by section still separates material per section", async () => {
 test("the learner course payload reads material through the learner view", () => {
   // Wiring check: the payload is what reaches a learner, so it must not read the
   // staff view — that is where the permanent link still lives.
-  const source = fs.readFileSync(
-    path.join(__dirname, "../services/lms/learning.js"),
-    "utf8",
-  );
+  // readSurface, not readFileSync: the learner payload lives in the
+  // `learning/` split now, and a pin that read only the barrel would go green
+  // without guarding anything.
+  const source = readSurface("src/services/lms/learning.js");
   expect(source).toContain("learnerSectionResourcesByCourse");
   expect(source).not.toContain("listSectionResourcesByCourse");
 });

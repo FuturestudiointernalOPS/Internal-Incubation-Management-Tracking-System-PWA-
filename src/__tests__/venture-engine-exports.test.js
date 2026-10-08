@@ -11,7 +11,7 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..", "..");
-const engine = require("@/lib/ventureMilestoneEngine");
+const engine = require("@/services/ventures/milestoneEngine");
 const exported = new Set(Object.keys(engine));
 
 function walk(directory) {
@@ -32,7 +32,7 @@ describe("ventureMilestoneEngine — importers only use names the module exports
       if (file.includes("__tests__")) continue;
       const source = fs.readFileSync(file, "utf8");
       for (const line of source.split(/\r?\n/)) {
-        if (!line.includes("ventureMilestoneEngine")) continue;
+        if (!line.includes("milestoneEngine")) continue;
         const named = line.match(/\{([^}]*)\}/);
         if (!named) continue;
         for (const raw of named[1].split(",")) {

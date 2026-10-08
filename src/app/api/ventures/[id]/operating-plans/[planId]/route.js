@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import db, { initDb } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
 import { resolvePlanAccess, allowsPlanAction } from "@/services/ventures/operatingPlans";
 import {
   getVentureOperatingPlan,
@@ -73,7 +73,7 @@ export const PATCH = createHandler(
     const plan = await loadPlan(db, access, params.planId);
     if (body.status) {
       try {
-        const { addVentureHistory } = await import("@/lib/ventures");
+        const { addVentureHistory } = await import("@/services/ventures/activity");
         await addVentureHistory({ venture_id: access.code, event_type: "OPERATING_PLAN_STATUS", description: `Operating plan status → ${body.status}` });
       } catch (_) {}
     }
@@ -92,7 +92,7 @@ export const DELETE = createHandler(
     }
     await archiveVentureOperatingPlan(params.planId, access.code);
     try {
-      const { addVentureHistory } = await import("@/lib/ventures");
+      const { addVentureHistory } = await import("@/services/ventures/activity");
       await addVentureHistory({ venture_id: access.code, event_type: "OPERATING_PLAN_ARCHIVED", description: `Operating plan archived` });
     } catch (_) {}
     return NextResponse.json({ success: true });

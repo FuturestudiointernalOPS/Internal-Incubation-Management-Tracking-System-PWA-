@@ -1,0 +1,378 @@
+/**
+ * Platform — the CSV/XLSX import: execute (SERVICE layer).
+ *
+ * The lookup-first contact resolution (crm-id → email → phone → name; a
+ * name-only match is `uncertain` and never silently merged), the label-aware
+ * applicant-email resolution and the whole row loop (dedupe by run + submitter,
+ * the batch/file-hash idempotency, the review-flag persistence).
+ *
+ * Split of `services/platform/import.js` (see docs/LAYER_SPLIT.md): this is the
+ * `execute` slice; the barrel at the original path re-exports the same surface.
+ *
+ * Layer: decisions and orchestration, no SQL, no HTTP. It reads and writes
+ * through `@/models/**` and `@/lib/**`.
+ */
+
+import crypto from "crypto";
+import { v4 as uuidv4 } from "uuid";
+import { resolveSubmissionEmail } from "@/lib/email";
+import {
+  accumulateImportBatchCounts,
+  createImportBatch,
+  createImportReviewFlag,
+  createPlatformFormSubmission,
+  ensureImportBatchesTable,
+  ensureImportReviewFlagsTable,
+  findContactByCidForImport,
+  findContactByLowerEmailForImport,
+  findContactByPhoneForImport,
+  findPreviousImportBatch,
+  findSubmissionByRunAndSubmitter,
+  getFormFieldLabels,
+  getFormRunByIdForImport,
+  selectAllContactsForImport,
+  upsertImportedContact,
+} from "@/models/platformImport";
+
+// ── Execute: contact resolution + the row loop ──────────────────────────────
+
+export function sortNameTokens(name) {
+  if (!name) return "";
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join(" ");
+}
+
+function fileHash(csvRows) {
+  try {
+    return crypto.createHash("sha256").update(JSON.stringify(csvRows)).digest("hex").substring(0, 24);
+  } catch (_) {
+    return "hash-" + Date.now().toString(36);
+  }
+}
+
+/**
+ * Resolve the applicant email for one imported row using the exact same rules
+ * as the Run view (resolveSubmissionEmail — label-aware, EN/FR, placeholder-safe):
+ *   1. the form's email question value,
+ *   2. any other real email in the row,
+ *   3. the explicit _email column mapping.
+ * Returns "" when the row genuinely has no real email — only then is the
+ * import placeholder (import-…@placeholder.impactos.local) used.
+ */
+function resolveRowEmail(row, mapping, fieldLabels) {
+  const rowData = {};
+  for (const csvCol of Object.keys(row)) {
+    const fieldId = mapping[csvCol];
+    if (fieldId && !String(fieldId).startsWith("_")) {
+      rowData[String(fieldId)] = row[csvCol];
+    }
+  }
+  const emailKey = Object.keys(mapping).find((key) => mapping[key] === "_email");
+  const explicitEmail = emailKey && row[emailKey] != null ? String(row[emailKey]) : "";
+  return resolveSubmissionEmail({
+    submissionData: rowData,
+    fieldLabels,
+    contactEmail: explicitEmail,
+  });
+}
+
+export async function resolveContact(row, mapping, email) {
+  // 1. CRM ID (degrade gracefully if column missing)
+  const crmIdField = Object.keys(mapping).find((key) => mapping[key] === "_crm_id");
+  if (crmIdField && row[crmIdField]) {
+    try {
+      const contactResult = await findContactByCidForImport(row[crmIdField]);
+      if (contactResult.rows.length > 0) return { contact: contactResult.rows[0], method: "crm_id", uncertain: false };
+    } catch (_) {}
+  }
+
+  // 2. Email (exact, lowercase) — resolved upstream with the same label-aware,
+  // placeholder-safe logic as the Run view, so it matches whether the column
+  // was mapped to _email or to the form's email question.
+  if (email) {
+    const contactResult = await findContactByLowerEmailForImport(email);
+    if (contactResult.rows.length > 0) return { contact: contactResult.rows[0], method: "email", uncertain: false };
+  }
+
+  // 3. Phone (normalized)
+  const phoneField = Object.keys(mapping).find(
+    (key) =>
+      mapping[key] === "_phone" ||
+      (typeof mapping[key] === "string" &&
+        (mapping[key].toLowerCase().includes("phone") ||
+          mapping[key].toLowerCase().includes("telephone")))
+  );
+  if (phoneField && row[phoneField]) {
+    const phone = String(row[phoneField]).replace(/[^\d+]/g, "");
+    if (phone.length >= 7) {
+      const contactResult = await findContactByPhoneForImport(phone);
+      if (contactResult.rows.length > 0) return { contact: contactResult.rows[0], method: "phone", uncertain: false };
+    }
+  }
+
+  // 4. Name matching — ALWAYS uncertain (never silently merge by name alone)
+  const nameField = Object.keys(mapping).find(
+    (key) =>
+      mapping[key] === "_name" ||
+      (typeof mapping[key] === "string" &&
+        (mapping[key].toLowerCase().includes("name") ||
+          mapping[key].toLowerCase().includes("full")))
+  );
+  if (nameField && row[nameField]) {
+    const sorted = sortNameTokens(row[nameField]);
+    if (sorted) {
+      let allContacts;
+      try {
+        allContacts = await selectAllContactsForImport();
+      } catch (_) {
+        allContacts = { rows: [] };
+      }
+      for (const contactRow of allContacts.rows) {
+        if (sortNameTokens(contactRow.name) === sorted) {
+          return { contact: contactRow, method: "name", uncertain: true };
+        }
+      }
+      const tokens = sorted.split(" ");
+      if (tokens.length >= 2) {
+        for (const contactRow of allContacts.rows) {
+          const cTokens = sortNameTokens(contactRow.name).split(" ");
+          const overlap = tokens.filter((token) => cTokens.includes(token)).length;
+          if (overlap >= 2) {
+            return { contact: contactRow, method: "name_partial", uncertain: true };
+          }
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Execute one import batch. PHASE 1 SAFETY MODEL:
+ *  - Submissions created with status 'submitted' (visible to review + AI eval)
+ *  - Contacts created as role 'participant', status 'pending' (never approved)
+ *  - No automation, no emails, no credentials, no group assignment
+ *  - Lookup-first contact matching (email, phone, name); name-only matches are
+ *    flagged needs_review and never silently merged
+ *  - Duplicate protection: skips rows where submitter already has a submission
+ *    in this run; records import batch with file hash for idempotency detection
+ *
+ * @returns {Promise<{status: number, body: Object}>}
+ */
+export async function executeImport({ form_id, run_id, mapping, csv_rows, batch_id, file_hash }) {
+  if ((!form_id && !run_id) || !mapping || !csv_rows) {
+    return {
+      status: 400,
+      body: { success: false, error: "form_id (or run_id), mapping, and csv_rows are required" },
+    };
+  }
+
+  // ── Resolve the run's actual form — server-side source of truth ──
+  // The run determines the form, so a mismatched client form_id can never cause
+  // data to be imported against the wrong form.
+  let effectiveFormId = form_id != null ? parseInt(form_id) : null;
+  if (run_id) {
+    const runResult = await getFormRunByIdForImport(run_id);
+    if (runResult.rows.length === 0) {
+      return { status: 404, body: { success: false, error: "Run not found" } };
+    }
+    effectiveFormId = runResult.rows[0].form_id;
+  }
+  if (effectiveFormId == null) {
+    return { status: 400, body: { success: false, error: "Could not determine the form for this run" } };
+  }
+
+  // Form field labels — used to resolve the applicant email label-aware (same
+  // logic as the Run view), so imports keep real emails whether the CSV/XLSX
+  // column was mapped to _email or to the form's email question.
+  let fieldLabels = {};
+  try {
+    const labelsResult = await getFormFieldLabels(effectiveFormId);
+    for (const field of labelsResult.rows) fieldLabels[String(field.id)] = field.label;
+  } catch (_) {}
+
+  // Self-heal: ensure import batch + review flag tables exist (additive, idempotent)
+  try {
+    await ensureImportBatchesTable();
+    await ensureImportReviewFlagsTable();
+  } catch (error) {
+    console.warn("[Import] Could not ensure batch tables:", error.message);
+  }
+
+  // Chunked imports send a client-computed hash of the FULL file so every chunk
+  // (and every re-upload of the same file) maps to one stable hash.
+  const hash = file_hash || fileHash(csv_rows);
+
+  let duplicateBatch = false;
+  let previousBatch = null;
+  let activeBatchId = batch_id ? parseInt(batch_id) : null;
+
+  // Detect previous import of the same file (only when starting a fresh batch)
+  if (!activeBatchId) {
+    try {
+      const previousBatchResult = await findPreviousImportBatch(run_id, hash);
+      if (previousBatchResult.rows.length > 0) {
+        duplicateBatch = true;
+        previousBatch = previousBatchResult.rows[0];
+      }
+    } catch (_) {}
+  }
+
+  // Create the batch row upfront so review flags can reference it
+  if (!activeBatchId) {
+    try {
+      const batchResult = await createImportBatch(effectiveFormId, run_id, hash);
+      activeBatchId = batchResult.rows[0]?.id || null;
+    } catch (error) {
+      console.warn("[Import] Batch row creation failed:", error.message);
+    }
+  }
+
+  let imported = 0;
+  let skipped = 0;
+  let needsReview = 0;
+  const errors = [];
+  const reviewRows = [];
+
+  for (let rowIndex = 0; rowIndex < csv_rows.length; rowIndex++) {
+    const row = csv_rows[rowIndex];
+    try {
+      const hasData = Object.values(row).some(
+        (value) => value !== undefined && value !== null && String(value).trim() !== ""
+      );
+      if (!hasData) {
+        skipped++;
+        continue;
+      }
+
+      // Applicant email: label-aware + placeholder-safe (see resolveRowEmail).
+      // "" means the row has no real email — only then is a placeholder used.
+      const email = resolveRowEmail(row, mapping, fieldLabels);
+
+      const resolved = await resolveContact(row, mapping, email);
+      let contact = resolved?.contact || null;
+      const uncertain = resolved?.uncertain || false;
+      const matchMethod = resolved?.method || null;
+
+      let name = "Unknown";
+      const nameKey = Object.keys(mapping).find(
+        (key) =>
+          mapping[key] === "_name" ||
+          (typeof mapping[key] === "string" &&
+            (mapping[key].toLowerCase().includes("name") ||
+              mapping[key].toLowerCase().includes("full")))
+      );
+      if (nameKey && row[nameKey]) name = String(row[nameKey]).trim();
+
+      let phone = null;
+      const phoneKey = Object.keys(mapping).find(
+        (key) =>
+          mapping[key] === "_phone" ||
+          (typeof mapping[key] === "string" &&
+            (mapping[key].toLowerCase().includes("phone") ||
+              mapping[key].toLowerCase().includes("telephone")))
+      );
+      if (phoneKey && row[phoneKey]) {
+        phone = String(row[phoneKey]).replace(/[^\d+]/g, "");
+      }
+
+      if (!contact) {
+        const cid = "USER_" + uuidv4().split("-")[0].toUpperCase() + Math.floor(Math.random() * 10000);
+
+        const contactEmail = email || `import-${cid.toLowerCase()}@placeholder.impactos.local`;
+
+        const insertResult = await upsertImportedContact(cid, name, contactEmail, phone);
+        if (insertResult.rows.length > 0) contact = insertResult.rows[0];
+      }
+
+      if (!contact) {
+        errors.push({ row: rowIndex + 1, error: "Could not resolve or create contact" });
+        skipped++;
+        continue;
+      }
+
+      const existingSubmission = await findSubmissionByRunAndSubmitter(run_id, contact.cid);
+      if (existingSubmission.rows.length > 0) {
+        skipped++;
+        continue;
+      }
+
+      const submissionData = {};
+      for (const csvCol of Object.keys(row)) {
+        const fieldId = mapping[csvCol];
+        if (fieldId && !String(fieldId).startsWith("_")) {
+          submissionData[fieldId] = row[csvCol];
+        }
+      }
+
+      await createPlatformFormSubmission(run_id, contact.cid, contact.name, submissionData);
+
+      if (uncertain) {
+        needsReview++;
+        const reason =
+          matchMethod === "name_partial"
+            ? "Partial name match — possible duplicate, verify identity"
+            : "Name-only match with different email/phone — verify identity";
+        reviewRows.push({
+          row: rowIndex + 1,
+          name,
+          email: email || null,
+          matched_cid: contact.cid,
+          matched_name: contact.name,
+          method: matchMethod,
+          reason,
+        });
+        // Persist flag for the review screen (non-blocking)
+        try {
+          await createImportReviewFlag(
+            activeBatchId,
+            effectiveFormId,
+            run_id,
+            rowIndex + 1,
+            name,
+            email,
+            contact.cid,
+            contact.name,
+            matchMethod,
+            reason,
+          );
+        } catch (_) {}
+      }
+
+      imported++;
+    } catch (rowError) {
+      errors.push({ row: rowIndex + 1, error: rowError.message });
+      skipped++;
+    }
+  }
+
+  // Accumulate counts into the batch row
+  const batchId = activeBatchId;
+  try {
+    await accumulateImportBatchCounts(csv_rows.length, imported, skipped, needsReview, batchId);
+  } catch (error) {
+    console.warn("[Import] Batch record failed:", error.message);
+  }
+
+  return {
+    status: 200,
+    body: {
+      success: true,
+      imported,
+      skipped,
+      needs_review: needsReview,
+      review_rows: reviewRows,
+      errors,
+      total: csv_rows.length,
+      duplicate_batch: duplicateBatch,
+      previous_batch: previousBatch,
+      batch: { id: batchId, file_hash: hash },
+    },
+  };
+}

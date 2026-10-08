@@ -1,15 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { getSession } from "@/lib/auth";
-import {
-  getOrCreateStartupProfile,
-  updateWizardStep,
-  validateStep,
-  uploadProfileDocument,
-  deleteProfileDocument,
-  canEditStartupProfile,
-  canReadStartupProfile,
-} from "@/lib/ventures";
+import { getSession } from "@/server/auth/session";
+import { getOrCreateStartupProfile, updateWizardStep, validateStep, uploadProfileDocument, deleteProfileDocument, canEditStartupProfile, canReadStartupProfile } from "@/services/ventures/profile";
 
 /**
  * GET /api/ventures/[id]/startup-profile

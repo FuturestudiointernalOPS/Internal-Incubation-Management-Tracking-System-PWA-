@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { getSession, isAssignedPmForProgram } from "@/lib/auth";
+import { getSession } from "@/server/auth/session";
+import { isAssignedPmForProgram } from "@/models/authorization/accessQueries";
 import { updateProgramAssignmentColumn } from "@/models/programs";
 
 export const PATCH = createHandler(

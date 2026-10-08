@@ -15,6 +15,7 @@ import {
   listJourneyMilestonesByStage,
   listJourneyMilestonesByStageLegacy,
   listJourneyDeliverablesByMilestoneIds,
+  listJourneyTasksByMilestoneIds,
   listJourneyTaskStatusesByMilestoneIds,
   listJourneyTaskStatusesByMilestoneIdsLegacy,
   getJourneyTemplateName,
@@ -100,6 +101,15 @@ export async function attachJourneyWork({ ventureParam, dbId, stages, signEviden
     }
   }
 
+  // The Activity behind each deliverable: a deliverable points at the task
+  // that produces it (task_id), so the pair is resolved here. Guarded like the
+  // counts — a database without the new columns still renders the roadmap.
+  const tasksById = new Map();
+  if (boundMilestoneIds.length > 0) {
+    const tasksResult = await listJourneyTasksByMilestoneIds(boundMilestoneIds).catch(() => ({ rows: [] }));
+    for (const task of tasksResult.rows || []) tasksById.set(String(task.id), task);
+  }
+
   // Template provenance: stages generated from a reusable template carry a
   // (type, id) stamp — resolve the current template name for the UI banner.
   const stamped = stages.find((stage) => stage.source_template_id);
@@ -120,6 +130,28 @@ export async function attachJourneyWork({ ventureParam, dbId, stages, signEviden
     for (const milestone of stageMilestones) {
       milestone.deliverables = deliverablesByMilestone[String(milestone.id)] || [];
       milestone.task_counts = taskCountsByMilestone[String(milestone.id)] || { total: 0, done: 0 };
+      // "Activity → Deliverable": the deliverable carries its linked task's
+      // title, Definition of Done, support and start — so one screen shows the
+      // whole chain without a second read.
+      for (const deliverable of milestone.deliverables) {
+        const task =
+          deliverable.task_id === null || deliverable.task_id === undefined
+            ? null
+            : tasksById.get(String(deliverable.task_id));
+        deliverable.activity = task
+          ? {
+              id: task.id,
+              source_ref: task.source_ref || null,
+              title: task.title || null,
+              description: task.description || null,
+              definition_of_done: task.definition_of_done || null,
+              owner_name: task.assigned_name || null,
+              support_name: task.support_name || null,
+              start_date: task.start_date || null,
+              due_date: task.due_date || null,
+            }
+          : null;
+      }
     }
     stage.milestone_counts = {
       total: stageMilestones.length,
