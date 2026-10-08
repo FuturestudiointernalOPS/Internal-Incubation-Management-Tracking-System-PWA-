@@ -130,6 +130,9 @@
         "versionCount": "{count} version",
         "versionCountPlural": "{count} versions",
     "template": {
+      "brandFuture": "FUTURE",
+      "brandStudio": "STUDIO",
+      "brandProduct": "IMPACTOS",
       "profileTitle": "My profile",
       "profileHint": "Your personal information and program activity",
       "ritualTypeColumn": "Type",

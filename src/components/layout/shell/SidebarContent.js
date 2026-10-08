@@ -144,6 +144,7 @@ export const SidebarContent = ({
             }}
             data-nav-active={onPath || undefined}
             data-nav-depth={depth}
+            data-nav-kind="group"
             aria-expanded={expanded}
             aria-label={show ? undefined : label(item)}
             title={show ? undefined : label(item)}
@@ -213,6 +214,7 @@ export const SidebarContent = ({
         title={show ? undefined : label(item)}
         data-nav-active={isActive || onPath || undefined}
         data-nav-depth={depth}
+        data-nav-kind="link"
         aria-label={show ? undefined : label(item)}
         onClick={() => {
           setMobileMenuOpen(false);
@@ -249,6 +251,7 @@ export const SidebarContent = ({
   return (
     <>
       <div
+        data-sidebar-brand
         className={`px-3 mb-14 mt-4 ${
           collapsed ? "flex flex-col items-center gap-3" : "flex items-center gap-4"
         }`}
@@ -270,9 +273,15 @@ export const SidebarContent = ({
             className="h-8 w-auto object-contain animate-in fade-in"
           />
         )}
+        {participant && !collapsed && <div data-sidebar-wordmark>
+          <span>{t("participant.template.brandFuture")}</span>
+          <span>{t("participant.template.brandStudio")}</span>
+          <span>{t("participant.template.brandProduct")}</span>
+        </div>}
         {/* The rail can always be reopened, so the control is present in both
             widths: beside the logo when open, under the mark when collapsed. */}
         {!mobile && <button
+          data-sidebar-collapse
           type="button"
           onClick={() => setCollapsed((previousCollapsed) => !previousCollapsed)}
           aria-label={t(

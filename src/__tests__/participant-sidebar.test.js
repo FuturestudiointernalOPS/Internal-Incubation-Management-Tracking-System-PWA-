@@ -36,3 +36,17 @@ test("mobile keeps labels and omits the collapse control", () => {
   expect(screen.getByText("One")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "navigation.collapseSidebar" })).toBeNull();
 });
+
+test("searchable select label targets its trigger and exposes its open state", () => {
+  const SearchableSelect = require("@/components/ui/SearchableSelect").default;
+  const onChange = jest.fn();
+  render(<SearchableSelect label="Country" options={[{ value: "BJ", label: "Benin" }]} value="" onChange={onChange} placeholder="Choose a country" />);
+  const trigger = screen.getByLabelText("Country");
+  expect(trigger.hasAttribute("data-select-trigger")).toBe(true);
+  expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  fireEvent.click(trigger);
+  expect(trigger.getAttribute("aria-expanded")).toBe("true");
+  fireEvent.click(screen.getByText("Benin"));
+  expect(onChange).toHaveBeenCalledWith("BJ");
+  expect(trigger.getAttribute("aria-expanded")).toBe("false");
+});
