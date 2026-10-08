@@ -67,7 +67,6 @@ export const MASTER_NAVIGATION = [
       // for the platform's separate top-level PROJECTS section (Future Studio's
       // own internal projects, which is a different table and a different idea).
       { id: "venture_projects", name: "PROJECT MANAGEMENT", href: "/admin/ventures/projects" },
-      { id: "journey_reports", name: "JOURNEY REPORTS", href: "/admin/journey-reports" },
     ],
   },
 
