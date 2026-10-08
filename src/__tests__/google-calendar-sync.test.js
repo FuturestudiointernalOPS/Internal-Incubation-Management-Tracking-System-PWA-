@@ -8,10 +8,13 @@
  */
 import {
   addDays,
+  eventKey,
   isPlatformEvent,
   normalizeGoogleEvent,
+  planEventSync,
   planTaskSync,
   taskToGoogleEvent,
+  timedEventToGoogleEvent,
   toDashboardItem,
 } from "@/services/integrations/googleCalendar/mapping";
 import {
@@ -81,6 +84,58 @@ describe("planTaskSync", () => {
     expect(plan.creates.map((entry) => entry.task.id)).toEqual([3]);
     expect(plan.updates.map((entry) => entry.eventId)).toEqual(["e2"]);
     expect(plan.deletes).toEqual([{ taskId: 9, eventId: "e9" }]);
+  });
+});
+
+describe("timed objects (sessions, follow-ups)", () => {
+  const session = (overrides = {}) => ({
+    source: "session",
+    sourceId: "3",
+    title: "Kickoff",
+    description: "Session — BOOTCAMP",
+    startsAt: "2026-10-12T09:00:00.000Z",
+    endsAt: "2026-10-12T10:00:00.000Z",
+    ...overrides,
+  });
+
+  it("makes a TIMED (busy) event carrying a real start and end instant", () => {
+    const body = timedEventToGoogleEvent(session(), { appUrl: "https://app.test" });
+    expect(body.start).toEqual({ dateTime: "2026-10-12T09:00:00.000Z" });
+    expect(body.end).toEqual({ dateTime: "2026-10-12T10:00:00.000Z" });
+    expect(body.transparency).toBe("opaque"); // a session occupies the person's time
+    expect(body.extendedProperties.private).toMatchObject({ fs_source: "impactos", fs_ref: "session:3" });
+    expect(body.description).toContain("https://app.test");
+  });
+
+  it("falls back to the start when there is no end, and skips a missing start", () => {
+    const body = timedEventToGoogleEvent(session({ endsAt: null }));
+    expect(body.end).toEqual({ dateTime: "2026-10-12T09:00:00.000Z" });
+    expect(timedEventToGoogleEvent(session({ startsAt: null }))).toBeNull();
+  });
+
+  it("keys a timed source by source + id", () => {
+    expect(eventKey("followup", "9")).toBe("followup:9");
+  });
+
+  it("creates, updates and deletes by <source>:<id>, leaving unchanged objects alone", () => {
+    const unchanged = session({ source: "session", sourceId: "1" });
+    const fingerprint = planEventSync([unchanged], []).creates[0].fingerprint;
+
+    const plan = planEventSync(
+      [unchanged, session({ source: "followup", sourceId: "2" })],
+      [
+        { source: "session", source_id: "1", google_event_id: "e1", fingerprint },
+        { source: "followup", source_id: "2", google_event_id: "e2", fingerprint: "old" },
+        { source: "session", source_id: "9", google_event_id: "e9", fingerprint: "x" },
+      ],
+    );
+    expect(plan.creates).toHaveLength(0);
+    expect(plan.updates.map((entry) => entry.eventId)).toEqual(["e2"]);
+    expect(plan.deletes).toEqual([{ source: "session", sourceId: "9", eventId: "e9" }]);
+  });
+
+  it("our own timed copies are recognised and skipped on the way back", () => {
+    expect(isPlatformEvent(timedEventToGoogleEvent(session()))).toBe(true);
   });
 });
 

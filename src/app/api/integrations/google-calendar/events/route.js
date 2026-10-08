@@ -8,10 +8,11 @@ import { listDashboardItems } from "@/services/integrations/googleCalendar";
  * GET /api/integrations/google-calendar/events — the events the user added in
  * Google to the "Future Studio" calendar, shaped like dashboard calendar items.
  * Personal calendars are never read (see the service), so nothing else can appear.
+ * Available to every authenticated user.
  */
 export async function GET() {
   try {
-    const authError = await requireAuth(["super_admin"]);
+    const authError = await requireAuth();
     if (authError) return authError;
     await initDb();
     const session = await getSession();

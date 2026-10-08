@@ -8,10 +8,11 @@ import { syncUser, syncUserIfStale } from "@/services/integrations/googleCalenda
  * POST /api/integrations/google-calendar/sync          — "sync now" button
  * POST /api/integrations/google-calendar/sync?ifStale=1 — dashboard load: only
  *      when the last sync is older than a few minutes.
+ * Available to every authenticated user.
  */
 export async function POST(req) {
   try {
-    const authError = await requireAuth(["super_admin"]);
+    const authError = await requireAuth();
     if (authError) return authError;
     await initDb();
     const session = await getSession();

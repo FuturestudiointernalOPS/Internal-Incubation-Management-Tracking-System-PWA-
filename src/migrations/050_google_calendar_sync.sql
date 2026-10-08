@@ -41,6 +41,18 @@ CREATE TABLE IF NOT EXISTS google_calendar_task_links (
   PRIMARY KEY (user_id, task_id)
 );
 
+-- Timed objects (program sessions, coaching follow-ups) copied to Google, keyed
+-- by source + id so an unchanged object is never re-sent.
+CREATE TABLE IF NOT EXISTS google_calendar_event_links (
+  user_id TEXT NOT NULL,
+  source TEXT NOT NULL,                     -- 'session' | 'followup'
+  source_id TEXT NOT NULL,
+  google_event_id TEXT NOT NULL,
+  fingerprint TEXT,
+  synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, source, source_id)
+);
+
 CREATE TABLE IF NOT EXISTS google_calendar_events (
   user_id TEXT NOT NULL,
   google_event_id TEXT NOT NULL,

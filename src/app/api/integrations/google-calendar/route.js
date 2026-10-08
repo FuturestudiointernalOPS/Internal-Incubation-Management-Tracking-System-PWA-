@@ -10,15 +10,14 @@ import { disconnect, getStatus } from "@/services/integrations/googleCalendar";
  * GET    /api/integrations/google-calendar  → { configured, connected, email, lastSyncedAt, … }
  * DELETE /api/integrations/google-calendar  → revoke the grant, erase stored tokens
  *
- * Thin controller: the super-admin gate, then `@/services/integrations/googleCalendar`.
- * Tokens never leave the server; the status only says whether one exists.
+ * Available to every authenticated user. Thin controller: the session gate, then
+ * `@/services/integrations/googleCalendar`. Tokens never leave the server; the
+ * status only says whether one exists.
  */
-
-const ROLES = ["super_admin"];
 
 export async function GET() {
   try {
-    const authError = await requireAuth(ROLES);
+    const authError = await requireAuth();
     if (authError) return authError;
     await initDb();
     const session = await getSession();
@@ -32,7 +31,7 @@ export async function GET() {
 
 export async function DELETE() {
   try {
-    const authError = await requireAuth(ROLES);
+    const authError = await requireAuth();
     if (authError) return authError;
     await initDb();
     const session = await getSession();
