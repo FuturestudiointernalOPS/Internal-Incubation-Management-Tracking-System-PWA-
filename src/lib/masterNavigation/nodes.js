@@ -68,6 +68,10 @@ export const MASTER_NAVIGATION = [
       // own internal projects, which is a different table and a different idea).
       { id: "venture_projects", name: "PROJECT MANAGEMENT", href: "/admin/ventures/projects" },
       { id: "journey_reports", name: "JOURNEY REPORTS", href: "/admin/journey-reports" },
+      // The portfolio-wide read: Ventures by phase and sector, the readiness
+      // distribution and how many Parcours are running. Last of the section
+      // because it summarises what the entries above it work on.
+      { id: "ventures_dashboard", name: "DASHBOARD", href: "/admin/ventures/dashboard" },
     ],
   },
 
