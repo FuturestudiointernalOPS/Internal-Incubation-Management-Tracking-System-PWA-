@@ -22,7 +22,7 @@ const pickGroup = (payload) =>
 // ─── Main Profile View ─────────────────────────────────
 
 // ─── Main Component ─────────────────────────────────────────────────
-export default function ProfileView() {
+export default function ProfileView({ participant = false }) {
   const { t, switchLang, lang } = useI18n();
 
   // Who is signed in, from the shell's session cache: it costs no request of this
@@ -424,6 +424,7 @@ export default function ProfileView() {
     t,
     timeline,
     uploadingPhoto,
+    participant,
   };
 
   return <ProfileViewContent ctx={ctx} />;

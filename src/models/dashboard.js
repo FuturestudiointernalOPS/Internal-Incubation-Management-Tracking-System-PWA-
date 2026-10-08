@@ -91,7 +91,7 @@ export async function getCalendarDeliverables(userId, role) {
 /** Calendar source — v2_events created by the user. */
 export async function getCalendarEvents(userId) {
   return db.execute({
-    sql: `SELECT id, title, start_time, event_type, created_by
+    sql: `SELECT id, title, start_time, end_time, location, event_type, created_by
           FROM v2_events
           WHERE start_time IS NOT NULL
             AND created_by = ?`,

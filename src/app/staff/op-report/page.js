@@ -474,6 +474,8 @@ function StaffOpReport() {
       toast={toast}
       t={t}
       existingReport={existingReport}
+      history={history}
+      now={new Date(now)}
       reportType={reportType}
       weekInfo={weekInfo}
       onSelectType={setReportType}

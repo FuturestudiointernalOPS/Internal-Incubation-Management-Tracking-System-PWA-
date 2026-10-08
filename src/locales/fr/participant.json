@@ -128,6 +128,131 @@
         "action": "Action",
         "status": "Statut",
         "versionCount": "{count} version",
-        "versionCountPlural": "{count} versions"
+        "versionCountPlural": "{count} versions",
+    "template": {
+      "brandFuture": "FUTURE",
+      "brandStudio": "STUDIO",
+      "brandProduct": "IMPACTOS",
+      "profileTitle": "Mon profil",
+      "profileHint": "Vos informations personnelles et votre activité dans le programme",
+      "ritualTypeColumn": "Type",
+      "summaryColumn": "Résumé",
+      "followupCancelled": "Annulée",
+      "welcome": "Bon retour, {name}",
+      "newReminder": "Nouveau rappel",
+      "mySpace": "MON ESPACE",
+      "approvedAssignments": "Devoirs approuvés",
+      "awaitingCorrection": "Soumis — en attente de correction",
+      "submit": "Rendre",
+      "nothingDue": "Aucun devoir à traiter ici.",
+      "markRead": "Lu",
+      "readFailed": "Cette notification n’a pas pu être marquée comme lue.",
+      "learningHint": "Cours en cours et prochaines étapes",
+      "allCourses": "Tous mes cours",
+      "courses": "Cours",
+      "lessonCount": "{completed}/{total} leçons",
+      "noCourses": "Aucun cours inscrit pour le moment.",
+      "nextSessions": "Prochaines séances",
+      "noSessions": "Aucune séance à venir.",
+      "rituals": "Mes rituels",
+      "ritualsHint": "Points, check-ins et réflexions de la semaine",
+      "openRituals": "Ouvrir les rituels",
+      "ritualSubmitted": "Soumis",
+      "ritualTodo": "À faire",
+      "notAvailable": "Non disponible",
+      "shortcuts": "Raccourcis",
+      "shortcutsHint": "Tout votre parcours en un clic",
+      "programsHint": "Vos programmes et leurs jalons",
+      "program": "Programme",
+      "facilitator": "Formateur",
+      "viewProgress": "Voir ma progression",
+      "assignmentsHint": "Vos livrables, leur état et les retours du formateur",
+      "toSubmit": "À rendre",
+      "submitted": "Soumis",
+      "approved": "Approuvés",
+      "assignmentTitle": "Devoir",
+      "programColumn": "Programme",
+      "dueColumn": "Échéance",
+      "statusColumn": "Statut",
+      "feedbackColumn": "Retour / score",
+      "actionsColumn": "Actions",
+      "completedCourses": "Cours terminés",
+      "lessonsCompleted": "Leçons faites",
+      "certificates": "Certificats",
+      "coursesInProgress": "Cours en cours",
+      "certificateHint": "Vos certificats de programmes et de cours délivrés",
+      "certificateTitle": "Certificat",
+      "issuedAt": "Délivré le",
+      "calendar": {
+        "statusFilter": "Statut",
+        "all": "Tout planifié",
+        "tasks": "Tâches",
+        "meetings": "Réunions",
+        "task": "Tâche",
+        "meeting": "Réunion",
+        "add": "Ajouter",
+        "previous": "Précédent",
+        "next": "Suivant",
+        "more": "+{count} autres",
+        "newTask": "Nouveau rappel",
+        "newMeeting": "Nouvelle réunion personnelle",
+        "title": "Titre",
+        "date": "Date",
+        "time": "Début",
+        "end": "Fin",
+        "place": "Lieu ou lien",
+        "localNote": "Les rappels et réunions personnels restent sur cette page jusqu’à votre départ ou son rechargement. Les événements du programme restent en lecture seule.",
+        "required": "Renseignez le titre, la date, le début et la fin.",
+        "endAfterStart": "L’heure de fin doit être après l’heure de début.",
+        "deleteConfirm": "Supprimer ce rappel ou cette réunion personnelle ?",
+        "openDetails": "Voir les détails",
+        "noTime": "Horaire à confirmer",
+        "statuses": {
+          "pending": "À faire",
+          "in_progress": "En cours",
+          "blocked": "Bloqué",
+          "completed": "Terminé",
+          "carried_over": "Reporté"
+        },
+        "views": {
+          "day": "Jour",
+          "week": "Semaine",
+          "month": "Mois"
+        }
+      },
+      "progressLabels": {
+        "program": "Programme",
+        "assignments": "Devoirs",
+        "attendance": "Présences",
+        "courses": "Cours"
+      },
+      "ritualTypes": {
+        "standup": "Point",
+        "checkin": "Check-in",
+        "reflect": "Réflexion"
+      },
+      "shortcutsItems": {
+        "assignments": {
+          "title": "Devoirs",
+          "description": "Rendre mes livrables et lire les retours"
+        },
+        "progress": {
+          "title": "Ma progression",
+          "description": "Complétion, KPI et détail hebdomadaire"
+        },
+        "followups": {
+          "title": "Réunions de suivi",
+          "description": "Mes points avec le formateur"
+        },
+        "certificates": {
+          "title": "Mes certificats",
+          "description": "Certificats obtenus"
+        },
+        "messages": {
+          "title": "Messages",
+          "description": "Formateur et cohorte"
+        }
+      }
+    }
       }
 }

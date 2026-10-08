@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import UnifiedDashboard from "@/components/dashboard/UnifiedDashboard";
+import StaffDashboard from "@/components/staff/StaffDashboard";
 
 /**
  * STAFF DASHBOARD — the ONE dashboard for this surface.
@@ -15,6 +15,6 @@ import UnifiedDashboard from "@/components/dashboard/UnifiedDashboard";
  *   sidebar  → the doors (My Ventures, Programs, …) — added when assigned
  *   dashboard → the calendar and the work
  */
-export default function StaffDashboard() {
-  return <UnifiedDashboard />;
+export default function StaffDashboardPage() {
+  return <StaffDashboard />;
 }

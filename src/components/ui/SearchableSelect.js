@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useId } from "react";
 import { ChevronDown, Search } from "lucide-react";
 
 /**
@@ -27,6 +27,7 @@ export default function SearchableSelect({
   icon: Icon,
   className = "",
 }) {
+  const triggerId = useId();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
@@ -104,12 +105,15 @@ export default function SearchableSelect({
   return (
     <div className={`space-y-1 ${className}`} ref={rootRef}>
       {label && (
-        <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
+        <label htmlFor={triggerId} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
           {Icon && <Icon className="w-3 h-3" />} {label}
-        </p>
+        </label>
       )}
 
       <button
+        id={triggerId}
+        data-select-trigger
+        aria-expanded={open}
         type="button"
         onClick={toggle}
         className="w-full flex items-center gap-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg p-3 text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all text-left"
@@ -124,7 +128,7 @@ export default function SearchableSelect({
 
       {open && (
         <div className="relative z-30">
-          <div className="absolute left-0 right-0 top-0 mt-1 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg shadow-xl overflow-hidden">
+          <div data-select-panel className="absolute left-0 right-0 top-0 mt-1 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg shadow-xl overflow-hidden">
             <div className="flex items-center gap-2 px-3 border-b border-[var(--border-primary)]">
               <Search className="w-4 h-4 shrink-0 text-[var(--text-tertiary)]" />
               <input

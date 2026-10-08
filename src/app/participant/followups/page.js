@@ -1,5 +1,7 @@
 "use client";
 
+import AppCard from "@/components/ui/AppCard";
+import AppStatusBadge from "@/components/ui/AppStatusBadge";
 import { Calendar, Clock, ExternalLink, Video, MessageSquare } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
@@ -22,26 +24,24 @@ export default function ParticipantFollowupsPage() {
     transform: pickFollowups,
   });
 
-  const statusStyles = {
-    scheduled: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-    completed: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-    cancelled: "bg-rose-500/10 text-rose-400 border-rose-500/20",
-  };
+
 
   return (
     <>
       <div className="p-6 space-y-6">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
-          <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">
             {t("participantMisc.followups.title")}
-          </span>
+          </h1>
         </div>
+
+        <div className="grid grid-cols-2 gap-4">{["scheduled", "completed"].map(status => <AppCard key={status} padding="sm"><p className="text-xs text-[var(--text-secondary)]">{t(status === "scheduled" ? "status.planned" : "status.completed")}</p><strong className="block mt-3 text-3xl font-bold font-mono text-[var(--text-primary)]">{loading ? t("common.loading") : followups.filter(item => item.status === status).length}</strong></AppCard>)}</div>
 
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="w-5 h-5 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
-              style={{ borderColor: "rgba(255,102,0,0.1)", borderTopColor: "var(--brand-orange)" }}
+              style={{ borderColor: "var(--border-primary)", borderTopColor: "var(--brand-orange)" }}
             />
           </div>
         ) : followups.length === 0 ? (
@@ -52,7 +52,7 @@ export default function ParticipantFollowupsPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {followups.map((followup) => (
               <div
                 key={followup.id}
@@ -68,9 +68,7 @@ export default function ParticipantFollowupsPage() {
                       {followup.deliverable_title ? ` · ${followup.deliverable_title}` : ""}
                     </p>
                   </div>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${statusStyles[followup.status] || statusStyles.scheduled}`}>
-                    {followup.status || t("participantMisc.followups.statusScheduled")}
-                  </span>
+                  <AppStatusBadge status={followup.status === "completed" ? "completed" : followup.status === "cancelled" ? "blocked" : "pending"} label={t(followup.status === "completed" ? "status.completed" : followup.status === "cancelled" ? "participant.template.followupCancelled" : "status.planned")} />
                 </div>
 
                 <div className="flex items-center gap-4 text-[10px] font-medium text-[var(--text-tertiary)]">

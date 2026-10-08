@@ -13,7 +13,7 @@ export default function AppCard({
     <div
       onClick={onClick}
       className={`
-        rounded-[var(--radius-md)]
+        rounded-[14px]
         ${border ? "border" : "border-0"}
         ${padMap[padding] || padMap.md}
         ${hover ? "hover:bg-[var(--surface-2)] cursor-pointer transition-all" : ""}
@@ -21,7 +21,7 @@ export default function AppCard({
         ${className}
       `}
       style={{
-        background: "var(--surface-1)",
+        background: "var(--bg-secondary)",
         borderColor: "var(--border-primary)",
       }}
     >

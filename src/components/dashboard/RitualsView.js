@@ -9,6 +9,9 @@ import {
   Lightbulb,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import AppCard from "@/components/ui/AppCard";
+import AppTable from "@/components/ui/AppTable";
+import AppStatusBadge from "@/components/ui/AppStatusBadge";
 import { useI18n } from "@/lib/i18n";
 
 // ─── RITUAL TYPES ──────────────────────────────────────────────────
@@ -212,13 +215,13 @@ function RitualForm({ type, programs, onSubmit, onClose }) {
       <div className="flex gap-2">
         <button
           onClick={onClose}
-          className="flex-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:bg-white/5 transition-all"
+          className="flex-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:bg-surface-2 transition-all"
         >
           {t("participantMisc.rituals.cancel")}
         </button>
         <button
           onClick={handleSubmit}
-          className="flex-1 py-2.5 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all flex items-center justify-center gap-2"
+          className="flex-1 py-2.5 rounded-lg bg-[var(--brand-orange)] text-[var(--text-primary)] text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all flex items-center justify-center gap-2"
         >
           <Send className="w-3 h-3" /> {t("participantMisc.rituals.submit")}
         </button>
@@ -229,7 +232,7 @@ function RitualForm({ type, programs, onSubmit, onClose }) {
 
 export default function RitualsView() {
   const { t } = useI18n();
-  const [activeForm, setActiveForm] = useState(null);
+  const [activeForm, setActiveForm] = useState("standup");
 
   // The programmes and the ritual history are reads through the shared hook,
   // which owns the cache, the cache-first paint and the discarding of a stale
@@ -279,8 +282,12 @@ export default function RitualsView() {
         </p>
       </div>
 
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{[
+        [t("participant.template.submitted"), allHistory.length],
+        ...RITUAL_TYPES.map(type => [t("participantMisc.rituals." + type.id), history[type.id]?.length || 0]),
+      ].map(([label, value]) => <AppCard key={label} padding="sm"><p className="text-xs text-[var(--text-secondary)]">{label}</p><strong className="block mt-3 text-3xl font-bold font-mono text-[var(--text-primary)]">{loading ? t("common.loading") : value}</strong></AppCard>)}</div>
       {/* Ritual type buttons */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {RITUAL_TYPES.map((ritualType) => (
           <button
             key={ritualType.id}
@@ -323,65 +330,12 @@ export default function RitualsView() {
         <h2 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-3">
           {t("participantMisc.rituals.recentActivity")}
         </h2>
-        {loading ? (
-          <div className="space-y-2 animate-pulse">
-            {[...Array(3)].map((_, index) => (
-              <div
-                key={index}
-                className="h-12 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]"
-              />
-            ))}
-          </div>
-        ) : allHistory.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <Zap className="w-10 h-10 text-[var(--text-tertiary)] mb-3" />
-            <p className="text-sm text-[var(--text-secondary)]">
-              {t("participantMisc.rituals.noSubmissions")}
-            </p>
-            <p className="text-sm text-[var(--text-secondary)] mt-1">
-              {t("participantMisc.rituals.noSubmissionsHint")}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {allHistory.slice(0, 10).map((item, index) => {
-              const ritualType = RITUAL_TYPES.find((candidate) => candidate.id === item.ritualType);
-              return (
-                <div
-                  key={`${item.ritualType}-${item.id || index}`}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)]"
-                >
-                  {ritualType && (
-                    <div
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center ${ritualType.bg} shrink-0`}
-                    >
-                      <ritualType.icon className={`w-4 h-4 ${ritualType.color}`} />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-bold text-[var(--text-primary)] capitalize">
-                      {t("participantMisc.rituals." + item.ritualType)} ·{" "}
-                      {t("participantMisc.rituals.week")} {item.week_number || "?"}
-                    </p>
-                    <p className="text-sm text-[var(--text-secondary)] truncate">
-                      {item.what_done ||
-                        item.learnings ||
-                        item.went_well ||
-                        item.notes ||
-                        item.status ||
-                        t("participantMisc.rituals.submitted")}
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-medium text-[var(--text-secondary)] shrink-0">
-                    {item.created_at
-                      ? new Date(item.created_at).toLocaleDateString()
-                      : ""}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <AppTable data={allHistory.slice(0, 20)} loading={loading} emptyMessage={t("participantMisc.rituals.noSubmissions")} columns={[
+          { key: "ritualType", label: t("participant.template.ritualTypeColumn"), render: value => t("participantMisc.rituals." + value) },
+          { key: "week_number", label: t("participantMisc.rituals.week") },
+          { key: "summary", label: t("participant.template.summaryColumn"), render: (_, item) => item.what_done || item.learnings || item.went_well || item.notes || t("participantMisc.rituals.submitted") },
+          { key: "status", label: t("participant.template.statusColumn"), render: () => <AppStatusBadge status="completed" label={t("participantMisc.rituals.submitted")} /> },
+        ]} />
       </div>
     </motion.div>
   );
