@@ -252,10 +252,40 @@
           "title": "Messages",
           "description": "Facilitator and cohort"
         }
+      }
+    },
+    "announcementHub": {
+      "open": "View all announcements",
+      "description": "Your announcement history from notifications, organised in one place.",
+      "total": "Announcements",
+      "unread": "Unread",
+      "read": "Read",
+      "pinned": "Pinned",
+      "category": "Category",
+      "allCategories": "All categories",
+      "readState": "Read status",
+      "onlyPinned": "Pinned announcements only",
+      "searchPlaceholder": "Search titles and messages",
+      "localPreferences": "Categories and personal pins are saved on this device. Announcements without a category start in Programme.",
+      "preferenceError": "Your preference could not be saved on this device.",
+      "readError": "The read status could not be updated.",
+      "empty": "You have not received any announcements yet.",
+      "noMatches": "No announcements match these filters.",
+      "pin": "Pin this announcement",
+      "unpin": "Unpin this announcement",
+      "markRead": "Mark as read",
+      "markUnread": "Mark as unread",
+      "categoryFor": "Category for {title}",
+      "categories": {
+        "important": "Important",
+        "program": "Programme",
+        "opportunity": "Opportunity"
       },
-      "brandFuture": "FUTURE",
-      "brandStudio": "STUDIO",
-      "brandProduct": "IMPACTOS"
+      "filters": {
+        "all": "All announcements",
+        "read": "Read",
+        "unread": "Unread"
+      }
     }
   }
 }

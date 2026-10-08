@@ -252,10 +252,40 @@
           "title": "Messages",
           "description": "Formateur et cohorte"
         }
+      }
+    },
+    "announcementHub": {
+      "open": "Voir toutes les annonces",
+      "description": "Retrouvez ici l’historique des annonces reçues dans vos notifications.",
+      "total": "Annonces",
+      "unread": "Non lues",
+      "read": "Lue",
+      "pinned": "Épinglées",
+      "category": "Catégorie",
+      "allCategories": "Toutes les catégories",
+      "readState": "État de lecture",
+      "onlyPinned": "Annonces épinglées uniquement",
+      "searchPlaceholder": "Rechercher dans les titres et les messages",
+      "localPreferences": "Les catégories et vos épingles personnelles sont mémorisées sur cet appareil. Les annonces sans catégorie sont classées dans Programme.",
+      "preferenceError": "Impossible de mémoriser votre préférence sur cet appareil.",
+      "readError": "Impossible de modifier l’état de lecture.",
+      "empty": "Vous n’avez pas encore reçu d’annonce.",
+      "noMatches": "Aucune annonce ne correspond à ces filtres.",
+      "pin": "Épingler cette annonce",
+      "unpin": "Désépingler cette annonce",
+      "markRead": "Marquer comme lue",
+      "markUnread": "Marquer comme non lue",
+      "categoryFor": "Catégorie de {title}",
+      "categories": {
+        "important": "Important",
+        "program": "Programme",
+        "opportunity": "Opportunité"
       },
-      "brandFuture": "FUTURE",
-      "brandStudio": "STUDIO",
-      "brandProduct": "IMPACTOS"
+      "filters": {
+        "all": "Toutes les annonces",
+        "read": "Lues",
+        "unread": "Non lues"
+      }
     }
   }
 }

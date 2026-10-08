@@ -66,11 +66,12 @@ test("local reminder validates duration, can be added, and is found by search", 
   fireEvent.click(screen.getByRole("button", { name: "Week" }));
   expect(screen.getByRole("button", { name: /Prepare pitch/ })).toBeTruthy();
 });
-test("new dashboard uses authoritative course ids and preserves capability gating", () => {
+test("dashboard keeps course links and omits the removed shortcut and ritual sections", () => {
   render(<ParticipantDashboardHome />);
   expect(screen.getByText("Welcome back, Amina")).toBeTruthy();
   expect(screen.getByRole("link", { name: /Real course/ }).getAttribute("href")).toBe("/participant/learning/course1");
-  expect(screen.getByRole("link", { name: /Assignments/ }).getAttribute("href")).toBe("/participant/assignments");
+  expect(screen.queryByRole("link", { name: /Assignments/ })).toBeNull();
+  expect(screen.queryByRole("heading", { name: /Shortcuts|My rituals/ })).toBeNull();
   expect(screen.queryByRole("link", { name: /Messages/ })).toBeNull();
   expect(screen.queryByText("Your weekly recap")).toBeNull();
 });
