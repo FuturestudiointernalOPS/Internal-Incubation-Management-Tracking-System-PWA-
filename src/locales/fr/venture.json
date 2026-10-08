@@ -359,6 +359,8 @@
     "investment": "Préparation à l'investissement",
     "verification": "Banque de données",
     "verificationTab": {
+      "unassignedDocuments": "Documents non rattachés",
+      "unassignedDocumentsHint": "Ces fichiers sont stockés dans la Data bank mais aucun type de document ne les réclame. Ils sont listés ici pour que rien ne se perde.",
       "yourDocuments": "Vos documents",
       "missingDocuments": "Aucun document téléversé",
       "stillRequired": "Encore requis : {items}",
@@ -373,6 +375,10 @@
       "versionsLoadFailed": "Impossible de charger l'historique des versions.",
       "fromReviewer": "Équipe de révision",
       "confirmedAnotherWay": "Confirmé autrement — rien à téléverser"
+    },
+    "dashboardReadiness": {
+      "uploadDocuments": "Téléverser les documents justificatifs",
+      "completeVerification": "Terminer la vérification ({count} en attente)"
     },
     "documentTypes": {
       "title": "Documents de la banque de données",
@@ -397,6 +403,15 @@
       "methodUpload": "Téléversement d'un document",
       "methodExternal": "Confirmé autrement",
       "requiredLabel": "Requis avant l'envoi en révision",
+      "readinessLabel": "Compte pour le readiness",
+      "readinessHint": "Les documents de readiness entrent dans le score d'Investment Readiness. Les autres sont stockés dans la Data Bank uniquement et ne modifient pas le score.",
+      "readinessNoBadge": "Data Bank uniquement",
+      "readinessPromote": "Ajouter au readiness",
+      "readinessPromoted": "Ajouté au readiness.",
+      "promoteFailedStatus": "Mise à jour du readiness impossible ({status}).",
+      "promoteFailedNetwork": "Serveur injoignable. Vérifiez votre connexion et réessayez.",
+      "promoteFailedUnexpectedDev": "Le serveur a renvoyé une réponse inattendue ({status}). Rechargez la page et réessayez.",
+      "promoteFailedUnexpectedProd": "Le serveur a renvoyé une réponse inattendue ({status}). Réessayez, ou contactez un administrateur si cela persiste.",
       "addAction": "Ajouter le document",
       "emptyTitle": "Aucun type de document",
       "emptyDescription": "Ajoutez le premier document que la banque de données doit demander.",

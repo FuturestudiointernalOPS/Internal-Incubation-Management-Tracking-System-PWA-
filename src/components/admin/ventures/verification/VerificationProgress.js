@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, Loader2, Send, Upload, X } from "lucide-react";
+import { CheckCircle2, Clock, Eye, FileText, Loader2, Send, X } from "lucide-react";
 import { documentTypeIcon, documentTypeName, isUploadDocumentType } from "@/components/ventures/documentTypeMeta";
 import DataBankDocumentRow from "@/components/ventures/DataBankDocumentRow";
 import { VerificationItemStatusBadge } from "./verificationStatus";
@@ -6,14 +6,13 @@ import { VerificationItemStatusBadge } from "./verificationStatus";
 export default function VerificationProgress({
   id,
   documentTypes,
-  uploading,
   verification,
   reviewing,
   t,
   lang,
   getItemForCategory,
   getDocsForCategory,
-  onUpload,
+  unassignedDocs = [],
   onReviewItem,
   onReload,
   onSubmit,
@@ -28,8 +27,16 @@ export default function VerificationProgress({
           const item = getItemForCategory(stepKey);
           const stepDocs = getDocsForCategory(stepKey);
           const StepIcon = documentTypeIcon(stepKey);
-          const isUploading = uploading[stepKey];
           const isUpload = isUploadDocumentType(documentType);
+          // The first uploaded doc with a viewable URL, used for the PDF preview
+          const previewDoc = stepDocs.find((d) => d.file_url_signed || /^https?:\/\//i.test(String(d.file_url || "")));
+          const previewHref = previewDoc?.file_url_signed || (
+            /^https?:\/\//i.test(String(previewDoc?.file_url || "")) ? previewDoc?.file_url : null
+          );
+          const isPdf = previewDoc && (
+            String(previewDoc.file_name || "").toLowerCase().endsWith(".pdf") ||
+            String(previewDoc.file_type || "").includes("pdf")
+          );
           return (
             <div key={stepKey} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
               <div className="flex items-center justify-between mb-3">
@@ -49,7 +56,38 @@ export default function VerificationProgress({
                 <p className="text-[10px] text-[var(--text-secondary)] mb-3 break-words">{documentType.description}</p>
               )}
 
-              {/* Uploaded documents */}
+              {/* PDF peek — overflow/scale effect: shows the top of the document
+                  inline without opening it. The iframe is scaled down and clipped
+                  so the section stays ≤ 1.5× its natural height. */}
+              {isPdf && previewHref && (
+                <div
+                  className="relative mb-3 rounded-lg overflow-hidden border border-[var(--border-primary)] bg-surface-2"
+                  style={{ height: "72px" }}
+                  title={t("vadmin.verification.pdfPreviewHint")}
+                >
+                  <iframe
+                    src={`${previewHref}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                    className="absolute top-0 left-0 w-full pointer-events-none"
+                    style={{
+                      height: "400px",
+                      transform: "scale(0.35)",
+                      transformOrigin: "top left",
+                      width: "285%",
+                    }}
+                    loading="lazy"
+                    sandbox="allow-same-origin"
+                    title={documentTypeName(documentType, lang, t)}
+                  />
+                  {/* Gradient fade at the bottom */}
+                  <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-[var(--bg-tertiary)] to-transparent pointer-events-none" />
+                  {/* "Preview" badge */}
+                  <span className="absolute top-1.5 right-1.5 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/40 text-white/70 flex items-center gap-1 pointer-events-none">
+                    <Eye className="w-2.5 h-2.5" /> {t("vadmin.verification.preview")}
+                  </span>
+                </div>
+              )}
+
+              {/* Uploaded documents list — admin is read-only (canUpload=false) */}
               {stepDocs.length > 0 && (
                 <div className="space-y-1.5 mb-3">
                   {stepDocs.map((documentEntry) => (
@@ -57,24 +95,24 @@ export default function VerificationProgress({
                       key={documentEntry.id}
                       ventureId={id}
                       doc={documentEntry}
-                      canUpload={isUpload && item?.status !== "verified"}
+                      canUpload={false}
                       onChanged={() => onReload(true)}
                     />
                   ))}
                 </div>
               )}
 
-              {/* Upload button (only for upload-backed, non-verified types) */}
-              {isUpload && item?.status !== "verified" && (
-                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-orange/10 text-[var(--brand-orange)] rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:brightness-110 transition-all">
-                  {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                  {isUploading ? t("vadmin.verification.uploading") : t("vadmin.verification.upload")}
-                  <input type="file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" className="hidden"
-                    disabled={isUploading}
-                    onChange={(event) => { if (event.target.files[0]) onUpload(stepKey, event.target.files[0]); event.target.value = ""; }}
-                  />
-                </label>
+              {/* A slot that expects a file but has none is stated outright.
+                  Left blank it read like a section that simply had nothing to
+                  show, which is how "documents were added" got mistaken for a
+                  row with a missing View button. */}
+              {isUpload && stepDocs.length === 0 && (
+                <p className="text-[10px] text-[var(--text-secondary)] mb-3">
+                  {t("venture.verificationTab.missingDocuments")}
+                </p>
               )}
+
+              {/* No upload button for admin — ventures upload, admins review */}
               {!isUpload && stepKey === "email_verification" && <p className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.verification.emailVerifiedViaLink")}</p>}
               {!isUpload && stepKey === "phone_verification" && <p className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.verification.phoneVerifiedViaSms")}</p>}
               {!isUpload && stepKey !== "email_verification" && stepKey !== "phone_verification" && (
@@ -113,6 +151,32 @@ export default function VerificationProgress({
           );
         })}
       </div>
+
+      {/* Files whose category matches no configured document type. They are
+          stored and reviewable, so they must stay visible — they are just
+          not attached to any slot above. */}
+      {unassignedDocs.length > 0 && (
+        <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <h3 className="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-2">
+            <FileText className="w-3 h-3" />
+            {t("venture.verificationTab.unassignedDocuments")}
+          </h3>
+          <p className="text-[10px] text-[var(--text-secondary)] mt-1 mb-3">
+            {t("venture.verificationTab.unassignedDocumentsHint")}
+          </p>
+          <div className="space-y-1.5">
+            {unassignedDocs.map((documentEntry) => (
+              <DataBankDocumentRow
+                key={documentEntry.id}
+                ventureId={id}
+                doc={documentEntry}
+                canUpload={false}
+                onChanged={() => onReload(true)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Action buttons */}
       <div className="mt-6 flex gap-3">

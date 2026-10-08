@@ -49,6 +49,9 @@ const EMPTY_FORM = {
   label_fr: "",
   description: "",
   required: true,
+  // A type invented here is Data-bank storage until it is promoted to a
+  // readiness criterion, matching createVentureDocumentType's default.
+  is_readiness: false,
   verification_method: "upload",
 };
 
@@ -198,6 +201,9 @@ export default function DocumentTypeManager({ ventureId, backHref = "/admin/vent
       label_fr: documentType.label_fr || "",
       description: documentType.description || "",
       required: documentType.required !== false,
+      // Absent on a row written before the column existed: those used to count,
+      // so keep showing them as readiness documents.
+      is_readiness: documentType.is_readiness !== false,
       verification_method: documentType.verification_method || "upload",
     });
   };
@@ -220,6 +226,37 @@ export default function DocumentTypeManager({ ventureId, backHref = "/admin/vent
 
   const setField = (key, value) => setForm((previous) => ({ ...previous, [key]: value }));
   const setEditField = (key, value) => setEditForm((previous) => ({ ...previous, [key]: value }));
+
+  /** The Yes/No pair behind "Required" and "Counts for readiness". */
+  const yesNoField = (label, value, onChoose) => (
+    <div className="space-y-2">
+      <label className="text-[10px] font-bold uppercase tracking-wider ml-1 text-[var(--text-secondary)]">
+        {label}
+      </label>
+      <div className="flex gap-2">
+        {[
+          { value: true, labelKey: "common.yes" },
+          { value: false, labelKey: "common.no" },
+        ].map((choice) => {
+          const selected = value === choice.value;
+          return (
+            <button
+              key={String(choice.value)}
+              type="button"
+              onClick={() => onChoose(choice.value)}
+              className={`px-4 py-3 rounded-md text-[10px] font-bold uppercase tracking-wider border transition-all ${
+                selected
+                  ? "border-[var(--brand-orange)] bg-brand-orange/10 text-[var(--brand-orange)]"
+                  : "border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              {t(choice.labelKey)}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 
   /** The name / French name / required pair, shared by the add form and the edit modal. */
   const nameFields = (values, setValue) => (
@@ -252,34 +289,20 @@ export default function DocumentTypeManager({ ventureId, backHref = "/admin/vent
           onChange={(event) => setValue("verification_method", event.target.value)}
           options={METHOD_OPTIONS.map((option) => ({ value: option.value, label: t(option.labelKey) }))}
         />
-        <div className="space-y-2">
-          <label className="text-[10px] font-bold uppercase tracking-wider ml-1 text-[var(--text-secondary)]">
-            {t("venture.documentTypes.requiredLabel")}
-          </label>
-          <div className="flex gap-2">
-            {[
-              { value: true, labelKey: "common.yes" },
-              { value: false, labelKey: "common.no" },
-            ].map((choice) => {
-              const selected = values.required === choice.value;
-              return (
-                <button
-                  key={String(choice.value)}
-                  type="button"
-                  onClick={() => setValue("required", choice.value)}
-                  className={`px-4 py-3 rounded-md text-[10px] font-bold uppercase tracking-wider border transition-all ${
-                    selected
-                      ? "border-[var(--brand-orange)] bg-brand-orange/10 text-[var(--brand-orange)]"
-                      : "border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                  }`}
-                >
-                  {t(choice.labelKey)}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        {yesNoField(
+          t("venture.documentTypes.requiredLabel"),
+          values.required,
+          (next) => setValue("required", next),
+        )}
+        {yesNoField(
+          t("venture.documentTypes.readinessLabel"),
+          values.is_readiness !== false,
+          (next) => setValue("is_readiness", next),
+        )}
       </div>
+      <p className="text-[10px] text-[var(--text-secondary)]">
+        {t("venture.documentTypes.readinessHint")}
+      </p>
     </>
   );
 
