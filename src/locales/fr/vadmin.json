@@ -9,10 +9,12 @@
       "byPhase": "Entreprises par phase",
       "bySector": "Entreprises par secteur",
       "byReadiness": "Entreprises par niveau de préparation",
+      "assessed": "Évaluées",
       "assessedOf": "{assessed} sur {total} évaluées",
       "unassessed": "Pas encore évaluée",
       "emptyReadiness": "Aucune évaluation de préparation enregistrée pour l'instant.",
       "emptyReadinessHint": "La répartition apparaît dès qu'une entreprise est évaluée.",
+      "emptyList": "Rien à afficher pour l'instant.",
       "noPhase": "Sans phase",
       "noSector": "Sans secteur",
       "levels": {

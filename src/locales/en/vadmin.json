@@ -9,10 +9,12 @@
       "byPhase": "Ventures by phase",
       "bySector": "Ventures by sector",
       "byReadiness": "Ventures by readiness level",
+      "assessed": "Assessed",
       "assessedOf": "{assessed} of {total} assessed",
       "unassessed": "Not assessed yet",
       "emptyReadiness": "No readiness assessment has been recorded yet.",
       "emptyReadinessHint": "The distribution appears as soon as a Venture is assessed.",
+      "emptyList": "Nothing to chart yet.",
       "noPhase": "No phase",
       "noSector": "No sector",
       "levels": {
