@@ -37,9 +37,13 @@ export const PATCH = createHandler(
 
     // Differentiate between generic edit and assignment
     const isAssignment = Object.keys(body).length === 1 && body.owner_cid !== undefined;
-    const requiredCap = isAssignment ? "assign" : "edit";
-    
-    const authError = await requireAuthorization("crm", requiredCap);
+
+    // Literal guards on purpose: the route-catalog contract scans for
+    // requireAuthorization("crm", "…") literals, and a capability held in a
+    // variable would hide crm.assign from that floor check.
+    const authError = isAssignment
+      ? await requireAuthorization("crm", "assign")
+      : await requireAuthorization("crm", "edit");
     if (authError) return authError;
 
     const existing = await getCrmLeadById(id);

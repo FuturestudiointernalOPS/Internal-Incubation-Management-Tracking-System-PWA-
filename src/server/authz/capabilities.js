@@ -51,6 +51,10 @@ export const PERMISSION_MODULES = {
     name: "Contacts",
     capabilities: ["view", "create", "edit", "delete"],
   },
+  crm: {
+    name: "CRM",
+    capabilities: ["view", "create", "edit", "delete", "assign", "manage"],
+  },
   permissions: {
     name: "Permissions",
     capabilities: [

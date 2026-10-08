@@ -30,10 +30,11 @@ export { FEATURE_ORDER } from "./eligibility-defaults";
 // modules are their sub-sections. The resolver authorizes against capability
 // modules (PERMISSION_MODULES); eligibility is expressed per feature.
 export const MODULE_TO_FEATURE = {
-  // CRM — people data
+  // CRM — people data + the CRM records layer
   contacts: "crm",
   duplicates: "crm",
   bulk_upload: "crm",
+  crm: "crm",
   // Communication
   messaging: "communication",
   internal_comms: "communication",
