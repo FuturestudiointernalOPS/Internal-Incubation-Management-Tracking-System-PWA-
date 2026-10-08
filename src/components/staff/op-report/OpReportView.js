@@ -9,17 +9,17 @@
  */
 
 "use client";
-import { CheckCircle2 } from "lucide-react";
-import WeeklyOverview from "@/components/staff/op-report/WeeklyOverview";
 import ReportHeader from "@/components/staff/op-report/ReportHeader";
 import ReportTypeToggle from "@/components/staff/op-report/ReportTypeToggle";
+import WeeklyOverview from "@/components/staff/op-report/WeeklyOverview";
 import ReportContent from "@/components/staff/op-report/ReportContent";
 import OpReportModals from "@/components/staff/op-report/OpReportModals";
 
 export default function OpReportView({
   toast,
-  t,
   existingReport,
+  history,
+  now,
   reportType,
   weekInfo,
   onSelectType,
@@ -49,7 +49,6 @@ export default function OpReportView({
           weekInfo={weekInfo}
         />
 
-        <WeeklyOverview existingReport={existingReport} history={ctx.history} now={new Date(ctx.now)} reportType={reportType} weekInfo={weekInfo} />
 
         {/* REPORT TYPE TOGGLE */}
         <ReportTypeToggle
@@ -57,14 +56,13 @@ export default function OpReportView({
           reportType={reportType}
         />
 
-        {existingReport?.status === "submitted" && (
-          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-            <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
-              {t("staff.opReport.alreadySubmitted")}
-            </p>
-          </div>
-        )}
+        <WeeklyOverview
+          existingReport={existingReport}
+          history={history}
+          now={now}
+          reportType={reportType}
+          weekInfo={weekInfo}
+        />
 
         <ReportContent ctx={ctx} />
       </div>

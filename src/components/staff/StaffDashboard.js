@@ -1,5 +1,7 @@
 "use client";
 
+import PageHero from "@/components/ui/PageHero";
+import KpiCard from "@/components/ui/KpiCard";
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, BarChart3, FolderKanban, ListChecks, Users } from "lucide-react";
@@ -210,39 +212,27 @@ export default function StaffDashboard() {
   return (
     <div className="stf" style={{ paddingBottom: 60 }}>
       {/* Hero */}
-      <div className="stf-hero">
-        <div>
-          <div className="stf-k">
-            {now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-          </div>
-          <h2>
-            {firstName
-              ? t("staffMisc.front.dashboard.hello", { name: firstName, count: openCount })
-              : t("staffMisc.front.dashboard.helloAnon", { count: openCount })}
-          </h2>
-          <p>{t("staffMisc.front.dashboard.heroSub", { programs: activePrograms, meetings: meetings.length })}</p>
-        </div>
-        <button type="button" className="stf-btn pr" onClick={() => ask()}>
-          {t("staffMisc.front.dashboard.newItem")}
-        </button>
-      </div>
+      <PageHero
+        kicker={now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+        title={
+          firstName
+            ? t("staffMisc.front.dashboard.hello", { name: firstName, count: openCount })
+            : t("staffMisc.front.dashboard.helloAnon", { count: openCount })
+        }
+        subtitle={t("staffMisc.front.dashboard.heroSub", { programs: activePrograms, meetings: meetings.length })}
+        action={
+          <button type="button" className="stf-btn pr" onClick={() => ask()}>
+            {t("staffMisc.front.dashboard.newItem")}
+          </button>
+        }
+      />
 
       {/* KPIs */}
       <div className="stf-grid">
-        {[
-          [t("staffMisc.front.dashboard.kpiPrograms"), activePrograms, FolderKanban],
-          [t("staffMisc.front.dashboard.kpiProjects"), summary.projects || 0, Users],
-          [t("staffMisc.front.dashboard.kpiTasks"), summary.tasks?.open || 0, ListChecks],
-          [t("staffMisc.front.dashboard.kpiReports"), `${(currentWeek.standup ? 1 : 0) + (currentWeek.retro ? 1 : 0)} / 2`, BarChart3],
-        ].map(([label, value, Icon]) => (
-          <div key={label} className="stf-card stf-kpi">
-            <div className="stf-k">
-              <span>{label}</span>
-              <Icon size={15} />
-            </div>
-            <div className="big">{loading ? "…" : value}</div>
-          </div>
-        ))}
+        <KpiCard label={t("staffMisc.front.dashboard.kpiPrograms")} value={activePrograms} icon={FolderKanban} loading={loading} />
+        <KpiCard label={t("staffMisc.front.dashboard.kpiProjects")} value={summary.projects || 0} icon={Users} loading={loading} />
+        <KpiCard label={t("staffMisc.front.dashboard.kpiTasks")} value={summary.tasks?.open || 0} icon={ListChecks} loading={loading} />
+        <KpiCard label={t("staffMisc.front.dashboard.kpiReports")} value={`${(currentWeek.standup ? 1 : 0) + (currentWeek.retro ? 1 : 0)} / 2`} icon={BarChart3} loading={loading} />
       </div>
 
       {/* Calendar */}

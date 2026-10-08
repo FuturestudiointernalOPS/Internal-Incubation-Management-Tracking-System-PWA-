@@ -1,5 +1,4 @@
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import "@/components/staff/staff.css";
 
 /**
  * STAFF LAYOUT — persistent dashboard shell.

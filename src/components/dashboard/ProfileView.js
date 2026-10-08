@@ -424,7 +424,8 @@ export default function ProfileView({ participant = false }) {
     t,
     timeline,
     uploadingPhoto,
+    participant,
   };
 
-  return <ProfileViewContent ctx={ctx} participant={participant} />;
+  return <ProfileViewContent ctx={ctx} />;
 }

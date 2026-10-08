@@ -1,11 +1,10 @@
 "use client";
-
-import participantStyles from "./participant-shell.module.css";
 import ShellHeader from "@/components/layout/shell/ShellHeader";
 
 import { SidebarContent } from "@/components/layout/shell/SidebarContent";
 
 import ShellBanners from "./shell/ShellBanners";
+import participantStyles from "./participant-shell.module.css";
 
 import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import {
@@ -36,16 +35,6 @@ const NOTIFICATIONS_PREVIEW = 3;
 
 
 
-// ─── The identity the shell paints with ─────────────────────────────────────
-//
-// It comes from the shared session store: the session this shell has already
-// published (an in-memory store that survives a remount, so navigating costs no
-// re-fetch), or — on a cold load, before the session has answered — the browser's
-// stored copy. Reading it through a SUBSCRIPTION is what removes the effect that
-// used to copy it into state, and with it the cascaded render that copy caused.
-// The server snapshot is deliberately absent, so the server's render and the
-// browser's first render agree and the identity arrives on the client's own read.
-const EMPTY_USER = {};
 const COLLAPSE_KEY = "impactos_participant_sidebar_collapsed";
 const collapseListeners = new Set();
 let collapseFallback = false;
@@ -74,6 +63,17 @@ function setLegacyCollapsed(value) {
   collapseListeners.forEach(listener => listener());
 }
 const expandedServerSnapshot = () => false;
+
+// ─── The identity the shell paints with ─────────────────────────────────────
+//
+// It comes from the shared session store: the session this shell has already
+// published (an in-memory store that survives a remount, so navigating costs no
+// re-fetch), or — on a cold load, before the session has answered — the browser's
+// stored copy. Reading it through a SUBSCRIPTION is what removes the effect that
+// used to copy it into state, and with it the cascaded render that copy caused.
+// The server snapshot is deliberately absent, so the server's render and the
+// browser's first render agree and the identity arrives on the client's own read.
+const EMPTY_USER = {};
 
 function getShellUserSnapshot() {
   return getDashboardSessionUser();
@@ -426,7 +426,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
 
   return (
     <AppErrorBoundary>
-      <div className={`flex h-screen w-full overflow-hidden bg-primary text-[var(--text-primary)] ${pathname?.startsWith("/participant") ? participantStyles.shell : ""}`}>
+      <div className={`flex h-screen w-full overflow-hidden bg-primary text-[var(--text-primary)] ${participantSurface ? participantStyles.shell : ""}`}>
         <aside
           style={{ width: collapsed ? 76 : 260 }}
           data-collapsed={collapsed}
@@ -472,7 +472,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
             setMobileMenuOpen={setMobileMenuOpen}
           />
 
-          <main className="flex-1 p-6 lg:p-10 overflow-y-auto bg-primary">
+          <main className="app-page flex-1 p-6 lg:p-10 overflow-y-auto bg-primary">
             <ShellBanners
               pinnedAnnouncements={participantSurface ? [] : pinnedAnnouncements}
               pendingInvites={pendingInvites}

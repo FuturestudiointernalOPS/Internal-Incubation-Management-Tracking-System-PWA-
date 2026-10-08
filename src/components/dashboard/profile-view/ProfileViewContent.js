@@ -9,8 +9,8 @@ import ProfileSaveActions from "./ProfileSaveActions";
 import SearchableSelect from "@/components/ui/SearchableSelect";
 import SectionCard from "./SectionCard";
 
-export default function ProfileViewContent({ ctx, participant = false }) {
-  const { addAltEmail, altBusy, altEmails, altNotice, contact, countryOptions, deriveCurrentRole, editedCountryCode, editedLanguage, formatDate, formatDateTime, groupInfo, handlePhotoUpload, handleSave, history, languageOptions, newAltEmail, photoMessage, programs, removeAltEmail, roleLabel, saveMessage, saving, setEditedAlternativePhone, setEditedCountryCode, setEditedLanguage, setEditedName, setEditedPhone, setNewAltEmail, statusLabel, storedCountryCode, submissions, t, timeline, uploadingPhoto } = ctx;
+export default function ProfileViewContent({ ctx }) {
+  const { addAltEmail, altBusy, altEmails, altNotice, contact, countryOptions, deriveCurrentRole, editedCountryCode, editedLanguage, formatDate, formatDateTime, groupInfo, handlePhotoUpload, handleSave, history, languageOptions, newAltEmail, photoMessage, programs, removeAltEmail, roleLabel, saveMessage, saving, setEditedAlternativePhone, setEditedCountryCode, setEditedLanguage, setEditedName, setEditedPhone, setNewAltEmail, statusLabel, storedCountryCode, submissions, t, timeline, uploadingPhoto, participant } = ctx;
 return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -23,7 +23,7 @@ return (
           {t(participant ? "participant.template.profileTitle" : "adminMisc.profile.title")}
         </h1>
         <p className="text-sm text-[var(--text-secondary)] mt-1">
-          {t("adminMisc.profile.subtitle")}
+          {t(participant ? "participant.template.profileHint" : "adminMisc.profile.subtitle")}
         </p>
       </div>
 

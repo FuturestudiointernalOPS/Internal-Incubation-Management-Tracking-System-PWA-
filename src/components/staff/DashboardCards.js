@@ -15,6 +15,10 @@ import {
   Video,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import SectionHead from "@/components/ui/SectionHead";
+import LinkCard from "@/components/ui/LinkCard";
+import StatusCard from "@/components/ui/StatusCard";
+import KpiCard from "@/components/ui/KpiCard";
 import { timeLabel } from "./calendarModel";
 
 const initial = (name) => String(name || "?").trim().charAt(0).toUpperCase() || "?";
@@ -263,28 +267,6 @@ export function ProjectsCard({ projects, onOpen, onOpenAll }) {
 
 // ─── Sections A–D ────────────────────────────────────────────────────────────
 
-function SectionHead({ letter, tone, icon: Icon, title, subtitle, action }) {
-  return (
-    <div className="stf-sech">
-      <div>
-        <span className={`ltr ${tone}`}>{letter}</span>
-        <div>
-          <h4>
-            <Icon size={15} />
-            {title}
-          </h4>
-          <div className="stf-k" style={{ marginTop: 2 }}>{subtitle}</div>
-        </div>
-      </div>
-      {action && (
-        <button type="button" className="stf-link-btn" onClick={action.onClick}>
-          {action.label}
-        </button>
-      )}
-    </div>
-  );
-}
-
 const ACTIVITY_KEYS = {
   task_completed: "staffMisc.front.activity.task_completed",
   blocker_resolved: "staffMisc.front.activity.blocker_resolved",
@@ -352,22 +334,12 @@ export function ProgramsSection({ activity, programs, onOpenProgram, onOpenAll }
 /** B — the person's own operational numbers, and the doors to the work. */
 export function OperationsSection({ totals, summary, onGo }) {
   const { t } = useI18n();
-  const stat = (label, value, hint, tone) => (
-    <div className="stf-card stf-kpi">
-      <div className={`stf-ico ${tone || ""}`}>
-        <RefreshCw size={17} />
-      </div>
-      <div className="stf-k">{label}</div>
-      <div className="stf-num">{value}</div>
-      {hint && <small className="stf-small">{hint}</small>}
-    </div>
+  const stat = (label, value, hint) => (
+    <KpiCard label={label} value={value} hint={hint} icon={RefreshCw} />
   );
+
   const link = (title, text, route, tone, tag) => (
-    <button type="button" className={`stf-lk ${tone || ""}`} onClick={() => onGo(route)}>
-      <div className="t">{title}</div>
-      <p>{text}</p>
-      {tag}
-    </button>
+    <LinkCard title={title} text={text} tone={tone || ""} tag={tag} onClick={() => onGo(route)} />
   );
   const active = summary?.blockers?.active || 0;
   return (
@@ -416,13 +388,12 @@ export function RegularitySection({ record, regularity, open, onToggle }) {
         action={{ label: open ? t("staffMisc.front.sectionC.collapse") : t("staffMisc.front.sectionC.expand"), onClick: onToggle }}
       />
       <div className="stf-grid g3">
-        <div className={`stf-st ${tone}`}>
-          {regularity === "regular" ? <Check size={18} /> : regularity === "at_risk" ? <Clock size={18} /> : <AlertTriangle size={18} />}
-          <div>
-            <div className="stf-k">{t("staffMisc.front.sectionC.currentStatus")}</div>
-            <div className="stf-num">{t(`staffMisc.front.regularity.${regularity}`)}</div>
-          </div>
-        </div>
+        <StatusCard
+          tone={tone}
+          icon={regularity === "regular" ? Check : regularity === "at_risk" ? Clock : AlertTriangle}
+          label={t("staffMisc.front.sectionC.currentStatus")}
+          value={t(`staffMisc.front.regularity.${regularity}`)}
+        />
       </div>
       {open && (
         <div className="stf-tw d2t">
@@ -459,10 +430,7 @@ export function RegularitySection({ record, regularity, open, onToggle }) {
 export function ShortcutsSection({ onGo }) {
   const { t } = useI18n();
   const link = (title, text, route, tone) => (
-    <button type="button" className={`stf-lk ${tone || ""}`} onClick={() => onGo(route)}>
-      <div className="t">{title}</div>
-      <p>{text}</p>
-    </button>
+    <LinkCard title={title} text={text} tone={tone || ""} onClick={() => onGo(route)} />
   );
   return (
     <section className="stf-sec">

@@ -1,5 +1,6 @@
 "use client";
 
+import KpiCard from "@/components/ui/KpiCard";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, FolderKanban, Users, X } from "lucide-react";
@@ -101,13 +102,7 @@ export default function ProjectsView() {
 
       <div className="stf-grid">
         {kpis.map(([label, value]) => (
-          <div key={label} className="stf-card stf-kpi">
-            <div className="stf-k">
-              <span>{label}</span>
-              <FolderKanban size={15} />
-            </div>
-            <div className="big">{loading ? "…" : value}</div>
-          </div>
+          <KpiCard key={label} label={label} value={value} icon={FolderKanban} loading={loading} />
         ))}
       </div>
 

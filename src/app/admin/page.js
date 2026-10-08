@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback } from "react";
+import React from "react";
 import { useI18n } from "@/lib/i18n";
 import {
   Layers,
@@ -19,8 +19,6 @@ import DashboardHeader from "@/components/admin/dashboard-page/DashboardHeader";
 import StatCard from "@/components/admin/dashboard-page/StatCard";
 import SectionHeader from "@/components/admin/dashboard-page/SectionHeader";
 import StaffCalendar from "@/components/staff/StaffCalendar";
-import { buildMeetingPayload, buildTaskPayload } from "@/components/staff/calendarModel";
-import { tasksToEvents } from "@/components/admin/dashboard-page/calendarEvents";
 import UpcomingWidget from "@/components/admin/dashboard-page/UpcomingWidget";
 import {
   TasksSummaryWidget,
@@ -51,23 +49,9 @@ import { useAdminDashboardData } from "./hooks/useAdminDashboardData";
 import { useAdminWidgetData } from "./hooks/useAdminWidgetData";
 import { useAdminSections } from "./hooks/useAdminSections";
 import { useAdminActions } from "./hooks/useAdminActions";
+import { useAdminCalendar } from "./hooks/useAdminCalendar";
 
 const ASSIGNMENTS_PER_PAGE = 5;
-
-async function send(url, method, body) {
-  try {
-    const response = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.success === false) return { ok: false, error: data.error || data.message || null };
-    return { ok: true };
-  } catch {
-    return { ok: false, error: null };
-  }
-}
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -85,70 +69,30 @@ export default function AdminDashboard() {
     router 
   });
 
-  const now = new Date();
-  // The calendar reads the same tasks the widgets below summarise.
-  const calendarTasks = React.useMemo(() => {
-    const byDay = {};
-    for (const event of tasksToEvents([...(widgetData.tasks || []), ...(widgetData.assignments || [])])) {
-      (byDay[event.date] ||= []).push(event.task);
-    }
-    return byDay;
-  }, [widgetData.tasks, widgetData.assignments]);
-  const calendarEvents = React.useMemo(
-    () => tasksToEvents([...(widgetData.tasks || []), ...(widgetData.assignments || [])]),
-    [widgetData.tasks, widgetData.assignments],
-  );
-  const onRangeChange = useCallback(() => {}, []);
-
-  const currentUser = () => {
-    try {
-      return JSON.parse(localStorage.getItem("user") || "{}");
-    } catch {
-      return {};
-    }
-  };
-  const onSetStatus = async (item, status) => {
-    const result = await send("/api/tasks", "PUT", { id: item.relatedId, status });
-    if (result.ok) widgetData.fetchWidgetData();
-    return result;
-  };
-  const onCreateTask = async (form) => {
-    const user = currentUser();
-    const result = await send(
-      "/api/tasks",
-      "POST",
-      buildTaskPayload(form, { cid: user.cid || user.id, name: user.name }, new Date()),
-    );
-    if (result.ok) widgetData.fetchWidgetData();
-    return result;
-  };
-  const onCreateMeeting = async (form) => {
-    const user = currentUser();
-    const result = await send("/api/events", "POST", buildMeetingPayload(form, { cid: user.cid || user.id }));
-    if (result.ok) widgetData.fetchWidgetData();
-    return result;
-  };
-
-
+  const calendar = useAdminCalendar({
+    tasks: widgetData.tasks,
+    assignments: widgetData.assignments,
+    fetchWidgetData: widgetData.fetchWidgetData,
+  });
 
   return (
     <>
-      <div className="stf space-y-6 pb-20 text-left">
+      <div className="stf text-left" style={{ paddingBottom: 80 }}>
         <DashboardHeader onNewProgram={() => router.push("/admin/programs/new")} />
 
         <StaffCalendar
-          events={calendarEvents}
-          now={now}
-          loading={dashboardData.loading}
-          onRangeChange={onRangeChange}
+          events={calendar.events}
+          now={calendar.now}
+          loading={false}
+          onRangeChange={calendar.onRangeChange}
           onOpenTask={(item) => widgetData.setSelectedTask(item.raw?.task || null)}
-          onSetStatus={onSetStatus}
-          onCreateTask={onCreateTask}
-          onCreateMeeting={onCreateMeeting}
+          onSetStatus={calendar.onSetStatus}
+          onCreateTask={calendar.onCreateTask}
+          onCreateMeeting={calendar.onCreateMeeting}
         />
 
         <div className="stf-grid g3">
-          <UpcomingWidget calendarTasks={calendarTasks} onSelectTask={widgetData.setSelectedTask} />
+          <UpcomingWidget calendarTasks={widgetData.calendarTasks} onSelectTask={widgetData.setSelectedTask} />
           <TasksSummaryWidget tasks={widgetData.tasks} onOpen={() => router.push("/admin/tasks")} />
           <BlockersSummaryWidget blockers={widgetData.activeBlockers} onOpen={() => router.push("/admin/blockers")} />
         </div>
@@ -164,9 +108,6 @@ export default function AdminDashboard() {
           onPageChange={() => {}}
         />
 
-        {/* ═══════════════════════════════════════════════ */}
-        {/* SECTION A — PROGRAM OPERATIONS                 */}
-        {/* ═══════════════════════════════════════════════ */}
         <div className="stf-sec">
           <SectionHeader
             number="A"
@@ -239,9 +180,6 @@ export default function AdminDashboard() {
           onOpen={(program) => router.push(`/admin/programs/${program.id}`)}
         />
 
-        {/* ═══════════════════════════════════════════════ */}
-        {/* SECTION B — INTERNAL OPERATIONS                */}
-        {/* ═══════════════════════════════════════════════ */}
         <div className="stf-sec">
           <SectionHeader
             number="B"
@@ -295,9 +233,6 @@ export default function AdminDashboard() {
 
         <InternalOpsNavCards onNavigate={(path) => router.push(path)} />
 
-        {/* ═══════════════════════════════════════════════ */}
-        {/* SECTION C — TEAM ACCOUNTABILITY                */}
-        {/* ═══════════════════════════════════════════════ */}
         <div className="stf-sec">
           <SectionHeader
             number="C"
@@ -337,9 +272,6 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        {/* ═══════════════════════════════════════════════ */}
-        {/* SECTION D — RISKS & BLOCKERS                   */}
-        {/* ═══════════════════════════════════════════════ */}
         <div className="stf-sec">
           <SectionHeader
             number="D"
@@ -359,9 +291,6 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* ═══════════════════════════════════════════════ */}
-        {/* SECTION E — HISTORICAL INTELLIGENCE            */}
-        {/* ═══════════════════════════════════════════════ */}
         <div className="stf-sec">
           <SectionHeader
             number="E"

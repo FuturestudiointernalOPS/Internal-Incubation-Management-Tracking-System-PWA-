@@ -61,7 +61,7 @@ export default function AppButton({
       className={`
         inline-flex items-center justify-center gap-2
         font-bold uppercase tracking-wider
-        rounded-[var(--radius-sm)]
+        rounded-[9px]
         transition-all duration-150
         disabled:opacity-50 disabled:cursor-not-allowed
         ${SIZES[size] || SIZES.md}

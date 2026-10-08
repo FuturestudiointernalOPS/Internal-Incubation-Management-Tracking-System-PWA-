@@ -2,6 +2,7 @@
 
 import { AlertTriangle, CheckCircle2, Clock, ChevronUp } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import StatusCard from "@/components/ui/StatusCard";
 
 /**
  * The three accountability figures: staff reporting consistently, staff at
@@ -11,15 +12,7 @@ import { useI18n } from "@/lib/i18n";
 export function TeamSummaryStats({ staffReports, totalStaff }) {
   const { t } = useI18n();
   const reports = (staff) => staff.standups + staff.retros;
-  const stat = (tone, Icon, label, value) => (
-    <div className={`stf-st ${tone}`}>
-      <Icon size={18} />
-      <div>
-        <div className="stf-k">{label}</div>
-        <div className="stf-num">{value}</div>
-      </div>
-    </div>
-  );
+  const stat = (tone, icon, label, value) => <StatusCard tone={tone} icon={icon} label={label} value={value} />;
   return (
     <div className="stf-grid g3">
       {stat("g", CheckCircle2, t("admin.consistent"), staffReports.filter((staff) => reports(staff) >= 4).length)}

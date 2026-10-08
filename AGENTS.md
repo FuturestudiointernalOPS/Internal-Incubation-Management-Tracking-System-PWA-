@@ -137,6 +137,22 @@ import { Skeleton, TableSkeleton } from "@/components/ui/Skeleton";
 import { useDialogs } from "@/components/ui/DialogProvider";
 ```
 
+Page-level building blocks shared by EVERY role (admin, staff, participant, pm…) — use
+these instead of hand-rolling a banner, KPI, section heading or link card, so no page
+looks like it was written by someone else (styles: `src/components/staff/staff.css`,
+the `stf-*` kit, loaded once in `src/app/layout.js`):
+```jsx
+import PageHero from "@/components/ui/PageHero";     // home-page banner (kicker, title, subtitle, action)
+import KpiCard from "@/components/ui/KpiCard";       // one figure
+import StatusCard from "@/components/ui/StatusCard"; // a figure with a state: tone g | o | r
+import SectionHead from "@/components/ui/SectionHead"; // lettered section heading (+ action)
+import LinkCard from "@/components/ui/LinkCard";     // navigation card (onClick or href)
+```
+Tabs, entries and data are each role's own; the look is never. Use `stf-grid`, `stf-card`,
+`stf-tw` (tables), `stf-tag`, `stf-btn` for layout, cards, tables, tags and buttons.
+Colours: only tokens or the Tailwind families (they are remapped to the charter palette in
+`tailwind.config.js`) — never a new hex.
+
 For in-app confirmation, prompts and notices — never the browser's own pop-ups:
 ```jsx
 const { confirm, prompt, alert } = useDialogs();

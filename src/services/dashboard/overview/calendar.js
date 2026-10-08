@@ -7,14 +7,7 @@
  * events one row each. No SQL, no HTTP.
  */
 
-import { toDateStr, dateRange } from "./dates";
-
-function toInstant(value) {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return value instanceof Date ? date.toISOString() : String(value);
-}
+import { toDateStr, dateRange, toInstant } from "./dates";
 
 /**
  * The calendar rows of the overview, in the order the sources are read.
@@ -130,11 +123,11 @@ export function buildOverviewCalendar({
       // the type still says exactly what it is.
       source: "session",
       status: sessionRow.status || "scheduled",
-      starts_at: toInstant(sessionRow.start_time),
       related_id: sessionRow.id,
       project_id: null,
       description: sessionRow.coach_name ? `Coach: ${sessionRow.coach_name}` : null,
       milestone_ref: sessionRow.milestone_ref || null,
+      starts_at: toInstant(sessionRow.start_time),
     });
   }
 
@@ -163,6 +156,7 @@ export function buildOverviewCalendar({
       related_id: calendarEvent.id,
       starts_at: toInstant(calendarEvent.start_time),
       ends_at: toInstant(calendarEvent.end_time),
+      location: calendarEvent.location || null,
     });
   }
 
