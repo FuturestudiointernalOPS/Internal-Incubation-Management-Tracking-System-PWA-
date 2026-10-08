@@ -2,20 +2,20 @@
 
 import React, { useMemo, useState } from "react";
 import { ChevronRight, Search, ShieldQuestion, SlidersHorizontal } from "lucide-react";
-import { ALL_MODULES, PEOPLE, PERSON_BY_ID, effectiveOf, sourceOf } from "./data";
+import { effectiveOf, sourceOf } from "./constants";
 import { Btn, EmptyLine, INPUT_CLASS, Tabs } from "./ui";
+import { usePerm } from "./store";
 import Checker from "./Checker";
 import PersonDetail from "./PersonDetail";
 import PersonnesSubTabs from "./PersonnesTabs";
 
 /**
  * PERSONNES — « que peut faire cette personne, exactement ? »
- *
- * Onglets : Personnes · Groupes · Administrateurs · Par contexte.
- * La fiche personne (PersonDetail) ouvre cinq lentilles sur la même réalité.
+ * Données réelles : liste et détail lus depuis le moteur.
  */
 export default function Personnes({ sub, onSub, cid, onOpenPerson }) {
-  const person = cid ? PERSON_BY_ID[cid] : null;
+  const { peopleById } = usePerm();
+  const person = cid ? peopleById[cid] : null;
 
   if (person) {
     return <PersonDetail person={person} onBack={() => onOpenPerson(null)} />;
@@ -42,36 +42,38 @@ export default function Personnes({ sub, onSub, cid, onOpenPerson }) {
       {sub === "personnes" ? (
         <PeopleList onOpenPerson={onOpenPerson} />
       ) : (
-        <PersonnesSubTabs sub={sub} onOpenPerson={onOpenPerson} />
+        <PersonnesSubTabs sub={sub} />
       )}
     </div>
   );
 }
 
-// ─── Liste des personnes ────────────────────────────────────────────────────
 function PeopleList({ onOpenPerson }) {
+  const { people, features } = usePerm();
   const [query, setQuery] = useState("");
   const [role, setRole] = useState("tous");
   const [onlyRestricted, setOnlyRestricted] = useState(false);
   const [onlyDirect, setOnlyDirect] = useState(false);
   const [checker, setChecker] = useState(false);
 
-  const roles = useMemo(() => ["tous", ...new Set(PEOPLE.map((person) => person.roleLabel))], []);
+  const modules = useMemo(() => features.flatMap((feature) => feature.modules), [features]);
+  const roles = useMemo(() => ["tous", ...new Set(people.map((person) => person.roleLabel))], [people]);
 
   const rows = useMemo(
     () =>
-      PEOPLE.filter((person) => (query ? person.name.toLowerCase().includes(query.toLowerCase()) : true))
+      people
+        .filter((person) => (query ? person.name.toLowerCase().includes(query.toLowerCase()) : true))
         .filter((person) => (role === "tous" ? true : person.roleLabel === role))
         .filter((person) => (onlyRestricted ? Object.keys(person.sources.restrictions || {}).length > 0 : true))
         .filter((person) => (onlyDirect ? Object.keys(person.sources.grants || {}).length > 0 : true)),
-    [query, role, onlyRestricted, onlyDirect],
+    [people, query, role, onlyRestricted, onlyDirect],
   );
 
   const stats = (person) => {
     let effective = 0;
     let restricted = 0;
     let direct = 0;
-    for (const mod of ALL_MODULES) {
+    for (const mod of modules) {
       for (const cap of mod.caps) {
         const source = sourceOf(person.sources, mod.key, cap);
         if (person.isSuperAdmin || effectiveOf(person.sources, mod.key, cap) > 0) effective += 1;
@@ -90,9 +92,7 @@ function PeopleList({ onOpenPerson }) {
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher une personne…" className={`${INPUT_CLASS} w-full pl-9`} />
         </div>
         <select value={role} onChange={(event) => setRole(event.target.value)} className={INPUT_CLASS} aria-label="Filtrer par rôle">
-          {roles.map((value) => (
-            <option key={value} value={value}>{value === "tous" ? "Tous les rôles" : value}</option>
-          ))}
+          {roles.map((value) => <option key={value} value={value}>{value === "tous" ? "Tous les rôles" : value}</option>)}
         </select>
         <Toggle active={onlyRestricted} onClick={() => setOnlyRestricted((value) => !value)} label="A des restrictions" />
         <Toggle active={onlyDirect} onClick={() => setOnlyDirect((value) => !value)} label="A des droits directs" />
@@ -116,11 +116,7 @@ function PeopleList({ onOpenPerson }) {
             {rows.map((person) => {
               const detail = stats(person);
               return (
-                <tr
-                  key={person.id}
-                  onClick={() => onOpenPerson(person.id)}
-                  className="cursor-pointer border-b border-[var(--border-primary)]/60 transition-colors hover:bg-[var(--surface-2)]"
-                >
+                <tr key={person.id} onClick={() => onOpenPerson(person.id)} className="cursor-pointer border-b border-[var(--border-primary)]/60 transition-colors hover:bg-[var(--surface-2)]">
                   <td className="px-4 py-3">
                     <p className="text-xs font-bold text-[var(--text-primary)]">{person.name}</p>
                     <p className="text-[10px] text-[var(--text-tertiary)]">{person.email}</p>

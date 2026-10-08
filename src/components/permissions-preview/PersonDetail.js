@@ -4,56 +4,33 @@
 
 import React, { useMemo, useState } from "react";
 import { ArrowLeft, ChevronDown, ChevronRight, Lock, UserCog } from "lucide-react";
-import {
-  ALL_MODULES,
-  AUDIT,
-  FEATURES,
-  GRANT_KEYS,
-  LEVELS,
-  MODULE_BY_KEY,
-  explainCap,
-  effectiveOf,
-  eligibleOf,
-  gatesFor,
-  riskOf,
-  scopeResolves,
-  sourceOf,
-} from "./data";
-import {
-  Btn,
-  EmptyLine,
-  Field,
-  GateThree,
-  InfoTip,
-  INPUT_CLASS,
-  Kpi,
-  LevelChip,
-  NoteBox,
-  RiskBadge,
-  SidePanel,
-  SourceBadge,
-  Tabs,
-} from "./ui";
+import { notify } from "@/lib/notify";
+import { LEVELS, GRANT_KEYS, buildGates, effectiveOf, explainCap, riskOf, sourceOf } from "./constants";
+import { Btn, EmptyLine, Field, GateThree, InfoTip, INPUT_CLASS, Kpi, LevelChip, NoteBox, RiskBadge, SidePanel, SourceBadge, Tabs } from "./ui";
+import { usePerm } from "./store";
 
 /**
- * FICHE PERSONNE — cinq lentilles sur la même réalité : droits, pourquoi,
- * portée, responsabilités, historique.
+ * FICHE PERSONNE — données réelles. Cinq lentilles : droits, pourquoi, portée,
+ * responsabilités, historique. Les actions écrivent via le moteur.
  */
 
-const CAP_TIP = "Une capacité est un droit précis (lire, créer, modifier…). Elle vit dans une sous-section, elle-même rangée dans une fonctionnalité.";
-const FEATURE_TIP = "Une fonctionnalité est une grande section du tableau de bord (Programmes, Finance…). Le plafond d'éligibilité s'exprime par fonctionnalité.";
+const CAP_TIP = "Une capacité est un droit précis (lire, créer, modifier…), dans une sous-section.";
+const FEATURE_TIP = "Une fonctionnalité est une grande section du tableau de bord. Le plafond (éligibilité) s'exprime par fonctionnalité.";
 
 export default function PersonDetail({ person, onBack }) {
+  const { features, audit, profiles, actions } = usePerm();
   const [tab, setTab] = useState("droits");
   const [action, setAction] = useState(null);
   const [forceProfile, setForceProfile] = useState(false);
+
+  const modules = useMemo(() => features.flatMap((feature) => feature.modules), [features]);
 
   const kpis = useMemo(() => {
     let effective = 0;
     let inherited = 0;
     let direct = 0;
     let restricted = 0;
-    for (const mod of ALL_MODULES) {
+    for (const mod of modules) {
       for (const cap of mod.caps) {
         const source = sourceOf(person.sources, mod.key, cap);
         const level = effectiveOf(person.sources, mod.key, cap);
@@ -64,9 +41,12 @@ export default function PersonDetail({ person, onBack }) {
       }
     }
     return { effective, inherited, direct, restricted };
-  }, [person]);
+  }, [modules, person]);
 
-  const history = AUDIT.filter((entry) => entry.target === person.name);
+  const history = useMemo(
+    () => audit.filter((entry) => entry.targetCid === person.id || entry.target === person.name),
+    [audit, person],
+  );
 
   return (
     <div className="space-y-5">
@@ -123,14 +103,19 @@ export default function PersonDetail({ person, onBack }) {
       )}
       {tab === "historique" && <HistoryTable entries={history} />}
 
-      <ActionPanel action={action} person={person} onClose={() => setAction(null)} />
-      <ForceProfilePanel open={forceProfile} person={person} onClose={() => setForceProfile(false)} />
+      <ActionPanel
+        action={action}
+        person={person}
+        actions={actions}
+        onClose={() => setAction(null)}
+      />
+      <ForceProfilePanel open={forceProfile} person={person} profiles={profiles} actions={actions} onClose={() => setForceProfile(false)} />
     </div>
   );
 }
 
-// ─── Droits : matrice repliable par fonctionnalité ──────────────────────────
 function RightsMatrix({ person, onAction }) {
+  const { features } = usePerm();
   const [closed, setClosed] = useState({});
   return (
     <div className="space-y-3">
@@ -138,9 +123,9 @@ function RightsMatrix({ person, onAction }) {
         <SourceBadge source="Profil" /> <SourceBadge source="Groupe" /> <SourceBadge source="Direct" /> <SourceBadge source="Restriction" />
         <span className="ml-1">L'origine du niveau le plus élevé est indiquée par le badge.</span>
       </div>
-      {FEATURES.map((feature) => {
+      {features.map((feature) => {
         const isClosed = closed[feature.key];
-        const eligible = person.isSuperAdmin || eligibleOf(person, feature.key);
+        const eligible = person.isSuperAdmin || person.eligibility?.[feature.key] === true;
         return (
           <section key={feature.key} className="overflow-hidden rounded-xl border border-[var(--border-primary)] bg-[var(--surface-1)]">
             <button
@@ -193,12 +178,12 @@ function RightsMatrix({ person, onAction }) {
   );
 }
 
-// ─── Pourquoi : les trois portes par droit ──────────────────────────────────
 function WhyTab({ person }) {
+  const { features } = usePerm();
   return (
     <div className="space-y-3">
       <NoteBox>Chaque droit passe par trois filtres successifs. Un seul « non » suffit à refuser.</NoteBox>
-      {FEATURES.map((feature) => (
+      {features.map((feature) => (
         <section key={feature.key} className="space-y-2 rounded-xl border border-[var(--border-primary)] bg-[var(--surface-1)] p-4">
           <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text-primary)]">{feature.label}</h3>
           {feature.modules.map((mod) => (
@@ -206,13 +191,14 @@ function WhyTab({ person }) {
               <p className="text-xs font-bold text-[var(--text-secondary)]">{mod.label}</p>
               {mod.caps.map((cap) => {
                 const detail = explainCap(person, mod.key, cap);
-                const gates = person.isSuperAdmin
-                  ? [
-                      { key: "eligibility", tone: "open", label: "Contournée (super admin)" },
-                      { key: "capability", tone: "open", label: "Complet (5)" },
-                      { key: "scope", tone: "neutral", label: "Non évaluée ici" },
-                    ]
-                  : gatesFor(person, mod.key, cap, 1);
+                const eligible = person.isSuperAdmin || person.eligibility?.[feature.key] === true;
+                const gates = buildGates({
+                  isSuperAdmin: person.isSuperAdmin,
+                  eligible,
+                  level: person.isSuperAdmin ? 5 : detail.effective,
+                  restricted: detail.source === "Restriction",
+                  required: 1,
+                });
                 return (
                   <div key={cap} className="rounded-lg bg-[var(--surface-2)] p-3">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -220,11 +206,9 @@ function WhyTab({ person }) {
                       <InfoTip text={CAP_TIP} />
                       <SourceBadge source={detail.source} />
                       <span className="text-[10px] text-[var(--text-tertiary)]">
-                        {detail.layers
-                          .filter((layer) => !layer.restricted && layer.level > 0)
-                          .map((layer) => `${layer.label} : ${LEVELS[layer.level].label}`)
-                          .join(" · ") || "aucune source"}
+                        {detail.layers.filter((layer) => !layer.restricted && layer.level > 0).map((layer) => `${layer.label} : ${LEVELS[layer.level].label}`).join(" · ") || "aucune source"}
                         {detail.layers.some((layer) => layer.restricted) ? " · restriction posée" : ""}
+                        {!eligible && !person.isSuperAdmin ? " · plafond refusé" : ""}
                       </span>
                     </div>
                     <GateThree gates={gates} />
@@ -239,34 +223,48 @@ function WhyTab({ person }) {
   );
 }
 
-// ─── Portée ─────────────────────────────────────────────────────────────────
 function ScopeTab({ person }) {
-  const policies = [
-    { key: "mes-programmes", label: "Mes programmes" },
-    { key: "mes-ventures", label: "Mes ventures" },
-    { key: "mes-cours", label: "Mes cours" },
-  ];
+  const { scopePolicies, actions } = usePerm();
+  const [results, setResults] = useState({});
+  const [busy, setBusy] = useState("");
+
+  const run = async (policy) => {
+    setBusy(policy);
+    try {
+      const data = await actions.scopeCheck(policy, person.id);
+      setResults((prev) => ({ ...prev, [policy]: data }));
+    } finally {
+      setBusy("");
+    }
+  };
+
   return (
     <div className="space-y-3">
-      <NoteBox>La portée ne décide pas « si » mais « sur quoi ». Un enregistrement vide n'est jamais une autorisation.</NoteBox>
+      <NoteBox>La portée ne décide pas « si » mais « sur quoi ». Elle est vérifiée en direct sur les enregistrements résolus du moteur.</NoteBox>
       <div className="overflow-hidden rounded-xl border border-[var(--border-primary)] bg-[var(--surface-1)]">
         <table className="w-full border-collapse text-left">
           <thead>
             <tr className="border-b border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
               <th className="px-4 py-3">Politique</th>
+              <th className="px-4 py-3">État</th>
               <th className="px-4 py-3">Résout aujourd'hui</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
-            {policies.map((policy) => {
-              const ids = scopeResolves(person.id, policy.key);
+            {scopePolicies.map((policy) => {
+              const result = results[policy.key];
               return (
                 <tr key={policy.key} className="border-b border-[var(--border-primary)]/60">
                   <td className="px-4 py-3 text-xs font-bold text-[var(--text-primary)]">{policy.label}</td>
+                  <td className="px-4 py-3 text-[10px] font-bold uppercase">
+                    {policy.implemented ? <span className="text-emerald-400">Implémentée</span> : <span className="text-amber-400">En attente — refuse toujours</span>}
+                  </td>
                   <td className="px-4 py-3 text-xs text-[var(--text-secondary)]">
-                    {ids.length === 0
-                      ? <span className="text-[var(--text-tertiary)]">Aucun enregistrement — rien n'est autorisé</span>
-                      : `${ids.length} · ${ids.join(", ")}`}
+                    {!result ? <span className="text-[var(--text-tertiary)]">—</span> : result.resolved_count === 0 ? <span className="text-[var(--text-tertiary)]">Aucun enregistrement — rien n'est autorisé</span> : `${result.resolved_count} · ${(result.resolved_ids || []).slice(0, 5).join(", ")}`}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <Btn size="sm" disabled={busy === policy.key} onClick={() => run(policy.key)}>Tester</Btn>
                   </td>
                 </tr>
               );
@@ -288,9 +286,9 @@ function HistoryTable({ entries }) {
         <tbody>
           {entries.map((entry) => (
             <tr key={entry.id} className="border-b border-[var(--border-primary)]/60">
-              <td className="px-4 py-2.5 font-mono text-[10px] text-[var(--text-tertiary)]">{entry.date}</td>
+              <td className="px-4 py-2.5 font-mono text-[10px] text-[var(--text-tertiary)]">{String(entry.date).slice(0, 16)}</td>
               <td className="px-4 py-2.5 text-xs font-bold text-[var(--text-primary)]">{entry.action}</td>
-              <td className="px-4 py-2.5 text-xs text-[var(--text-secondary)]">{entry.module}.{entry.capability}</td>
+              <td className="px-4 py-2.5 text-xs text-[var(--text-secondary)]">{entry.module || "—"}{entry.capability ? `.${entry.capability}` : ""}</td>
               <td className="px-4 py-2.5 text-xs text-[var(--text-secondary)]">{entry.from} → {entry.to}</td>
               <td className="px-4 py-2.5 text-[10px] text-[var(--text-tertiary)]">{entry.reason || "—"}</td>
             </tr>
@@ -301,13 +299,12 @@ function HistoryTable({ entries }) {
   );
 }
 
-// ─── Panneau d'action : diff, risque, motif ─────────────────────────────────
-function ActionPanel({ action, person, onClose }) {
+function ActionPanel({ action, person, actions, onClose }) {
   const [kind, setKind] = useState("Accorder");
   const [level, setLevel] = useState(3);
   const [reason, setReason] = useState("");
   const [confirmText, setConfirmText] = useState("");
-  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   if (!action) return null;
   const { moduleKey, capability } = action;
@@ -318,8 +315,23 @@ function ActionPanel({ action, person, onClose }) {
   const needsConfirm = risk === "critique";
   const valid = (!needsReason || reason.trim()) && (!needsConfirm || confirmText.trim().toUpperCase() === "CONFIRMER");
 
+  const submit = async () => {
+    setBusy(true);
+    try {
+      const apiAction = kind === "Accorder" ? "grant" : kind === "Retirer" ? "revoke" : "restrict";
+      const data = await actions.setCapability(person.id, apiAction, moduleKey, capability, kind === "Accorder" ? level : 0);
+      if (data?.success) notify("success", `Appliqué — ${capability} mis à jour. Consigné au journal.`);
+      else notify("error", data?.error || "L'action a échoué.");
+    } catch (error) {
+      notify("error", error.message || "L'action a échoué.");
+    } finally {
+      setBusy(false);
+      onClose();
+    }
+  };
+
   return (
-    <SidePanel open title={`${MODULE_BY_KEY[moduleKey].label} · ${capability}`} onClose={onClose}>
+    <SidePanel open title={`${moduleKey} · ${capability}`} onClose={onClose}>
       <NoteBox>{person.name}</NoteBox>
 
       <div className="grid grid-cols-2 gap-2">
@@ -360,37 +372,52 @@ function ActionPanel({ action, person, onClose }) {
         </Field>
       )}
 
-      {done && <NoteBox tone="warning">Action simulée : aucune donnée n'est écrite dans cette prévisualisation.</NoteBox>}
-
       <div className="flex justify-end gap-2">
         <Btn variant="ghost" onClick={onClose}>Annuler</Btn>
-        <Btn variant={risk === "critique" ? "danger" : "primary"} disabled={!valid} onClick={() => setDone(true)}>
-          {done ? "Appliqué (simulé)" : "Confirmer"}
-        </Btn>
+        <Btn variant={risk === "critique" ? "danger" : "primary"} disabled={!valid || busy} onClick={submit}>Confirmer</Btn>
       </div>
     </SidePanel>
   );
 }
 
-function ForceProfilePanel({ open, person, onClose }) {
-  const [profile, setProfile] = useState(person.profile === "—" ? "Participant" : person.profile);
+function ForceProfilePanel({ open, person, profiles, actions, onClose }) {
+  const [profileKey, setProfileKey] = useState(person.profileKey || "");
   const [reason, setReason] = useState("");
   const [confirmText, setConfirmText] = useState("");
+  const [busy, setBusy] = useState(false);
   const valid = reason.trim() && confirmText.trim().toUpperCase() === "CONFIRMER";
+  const currentLabel = profiles.find((profile) => profile.key === person.profileKey)?.label || person.profile || "—";
+  const nextLabel = profiles.find((profile) => profile.key === profileKey)?.label || "aucun";
+
+  const submit = async () => {
+    setBusy(true);
+    try {
+      const data = await actions.forceProfile(person.id, profileKey || null);
+      if (data?.success) notify("success", "Profil forcé mis à jour. Consigné au journal.");
+      else notify("error", data?.error || "L'action a échoué.");
+    } catch (error) {
+      notify("error", error.message || "L'action a échoué.");
+    } finally {
+      setBusy(false);
+      onClose();
+    }
+  };
 
   return (
     <SidePanel open={open} title="Forcer un profil" onClose={onClose}>
       <NoteBox tone="warning">
-        Le profil forcé remplace la fonction contextuelle de la personne. Action critique : motif et confirmation tapée.
+        Le profil forcé s'applique à la fiche de la personne et remplace son profil effectif. Action critique : motif et
+        confirmation tapée.
       </NoteBox>
       <Field label="Nouveau profil">
-        <select value={profile} onChange={(event) => setProfile(event.target.value)} className={`${INPUT_CLASS} w-full`}>
-          {["Mentor", "Participant", "Fondateur", "Facilitateur", "Staff studio"].map((value) => <option key={value}>{value}</option>)}
+        <select value={profileKey} onChange={(event) => setProfileKey(event.target.value)} className={`${INPUT_CLASS} w-full`}>
+          <option value="">Aucun (retirer le forçage)</option>
+          {profiles.map((profile) => <option key={profile.key} value={profile.key}>{profile.label}</option>)}
         </select>
       </Field>
       <div className="rounded-xl border border-[var(--border-primary)] bg-[var(--surface-2)] p-3">
         <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Avant → Après</p>
-        <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{person.profile} → <span className="text-[var(--brand-orange)]">{profile}</span></p>
+        <p className="mt-1 text-sm font-bold text-[var(--text-primary)]">{currentLabel} → <span className="text-[var(--brand-orange)]">{nextLabel}</span></p>
       </div>
       <Field label="Motif (obligatoire)">
         <textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} className={`${INPUT_CLASS} w-full`} />
@@ -400,7 +427,7 @@ function ForceProfilePanel({ open, person, onClose }) {
       </Field>
       <div className="flex justify-end gap-2">
         <Btn variant="ghost" onClick={onClose}>Annuler</Btn>
-        <Btn variant="danger" disabled={!valid} onClick={onClose}>Confirmer</Btn>
+        <Btn variant="danger" disabled={!valid || busy} onClick={submit}>Confirmer</Btn>
       </div>
     </SidePanel>
   );

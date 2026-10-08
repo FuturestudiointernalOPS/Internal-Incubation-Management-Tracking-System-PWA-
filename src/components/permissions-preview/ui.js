@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { CheckCircle2, Info, MinusCircle, X, XCircle } from "lucide-react";
-import { LEVELS } from "./data";
+import { LEVELS } from "./constants";
 
 /**
  * Composants partagés du Centre de permissions.

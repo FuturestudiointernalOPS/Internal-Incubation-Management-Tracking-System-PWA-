@@ -2,49 +2,57 @@
 
 /* eslint-disable react/no-unescaped-entities -- prototype UI is hardcoded French */
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { BookOpen, ChevronRight, Moon, Search, Shield, Sun } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
+import { BookOpen, ChevronRight, Loader2, Moon, Search, Shield, ShieldAlert, Sun } from "lucide-react";
 import { useTheme } from "@/lib/ThemeProvider";
-import { healthAlerts, PEOPLE, PERSON_BY_ID } from "@/components/permissions-preview/data";
 import { Btn, InfoTip, NoteBox } from "@/components/permissions-preview/ui";
-import { defer } from "@/components/permissions/effectUtils";
+import { PermissionsProvider, usePerm } from "@/components/permissions-preview/store";
 import Personnes from "@/components/permissions-preview/Personnes";
 import Profils from "@/components/permissions-preview/Profils";
 import Regles from "@/components/permissions-preview/Regles";
 import Journal from "@/components/permissions-preview/Journal";
 
 /**
- * CENTRE DE PERMISSIONS — PRÉVISUALISATION.
+ * CENTRE DE PERMISSIONS — prévisualisation branchée sur les données réelles.
  *
- * Banc d'essai de design isolé du centre en production : mêmes jetons de thème,
- * mêmes primitives, mais des données fictives. Il suit le moteur réel (trois
- * filtres, quatre sources, tout échoue vers le refus) pour que la maquette ne
- * mente jamais sur ce que le produit ferait.
+ * Aucune donnée fictive : chaque écran lit le moteur, et chaque action écrit là
+ * où le centre en production écrit. Le design reste celui de la maquette.
  */
 
 const DEFAULT_SUB = { personnes: "personnes", profils: "matrice", regles: "eligibilite", journal: "" };
 
 const NAV = [
-  { key: "personnes", label: "Personnes" },
+  { key: "personnes", label: "Personnes", icon: Shield },
   { key: "profils", label: "Profils" },
   { key: "regles", label: "Règles" },
   { key: "journal", label: "Journal" },
 ];
 
 export default function PermissionsPreviewPage() {
+  return (
+    <PermissionsProvider>
+      <Shell />
+    </PermissionsProvider>
+  );
+}
+
+function Shell() {
   const { resolvedTheme, toggleTheme } = useTheme();
+  const { loading, error, blocked, alerts, peopleById, people, actions } = usePerm();
   const [section, setSection] = useState("personnes");
   const [sub, setSub] = useState(DEFAULT_SUB.personnes);
   const [cid, setCid] = useState(null);
   const [findOpen, setFindOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
 
-  const alerts = useMemo(() => healthAlerts(), []);
-  const badgeCount = alerts.deadRights.length + alerts.pending.length + alerts.missingProfiles.length + alerts.expiring.length;
+  const badgeCount = alerts
+    ? alerts.deadRights.length + alerts.pending.length + alerts.missingProfiles.length + alerts.expiring.length
+    : 0;
 
-  // Lecture du lien profond au premier rendu.
   useEffect(() => {
-    defer(() => {
+    let alive = true;
+    const read = () => {
+      if (!alive) return;
       try {
         const params = new URLSearchParams(window.location.search);
         const nextSection = params.get("s");
@@ -53,14 +61,16 @@ export default function PermissionsPreviewPage() {
           setSub(params.get("t") || DEFAULT_SUB[nextSection]);
         }
         const nextCid = params.get("cid");
-        if (nextCid && PERSON_BY_ID[nextCid]) {
-          setSection("personnes");
-          setCid(nextCid);
-        }
+        if (nextCid) setCid(nextCid);
       } catch {
-        /* pas de lien profond — on reste sur la vue par défaut */
+        /* pas de lien profond */
       }
-    });
+    };
+    const timer = setTimeout(read, 0);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
   }, []);
 
   const syncUrl = useCallback((next) => {
@@ -72,7 +82,7 @@ export default function PermissionsPreviewPage() {
       else url.searchParams.delete("cid");
       window.history.replaceState(null, "", url);
     } catch {
-      /* cosmétique — l'état interne a déjà changé */
+      /* cosmétique */
     }
   }, []);
 
@@ -98,7 +108,6 @@ export default function PermissionsPreviewPage() {
 
   const go = useCallback((nextSection, nextSub) => goSection(nextSection, nextSub), [goSection]);
 
-  // Recherche globale — Cmd+K / Ctrl+K.
   useEffect(() => {
     const onKey = (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -111,10 +120,12 @@ export default function PermissionsPreviewPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const activePerson = cid && peopleById ? peopleById[cid] : null;
+  const effectiveCid = activePerson ? cid : null;
+
   return (
     <div className="min-h-screen bg-[var(--surface-3)] text-[var(--text-primary)]">
       <div className="mx-auto flex min-h-screen max-w-[1400px] flex-col lg:flex-row">
-        {/* Navigation latérale */}
         <aside className="shrink-0 border-b border-[var(--border-primary)] bg-[var(--surface-1)] p-3 lg:w-60 lg:border-b-0 lg:border-r lg:p-4">
           <div className="mb-3 flex items-center gap-2 px-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-orange/10">
@@ -122,7 +133,7 @@ export default function PermissionsPreviewPage() {
             </span>
             <div>
               <p className="text-sm font-black tracking-tight">Permissions</p>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">Prévisualisation</p>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">Données réelles</p>
             </div>
           </div>
           <nav aria-label="Sections" className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
@@ -150,6 +161,9 @@ export default function PermissionsPreviewPage() {
             <button onClick={() => setFindOpen(true)} className="flex w-full items-center gap-2 rounded-lg border border-[var(--border-primary)] px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60">
               <Search className="h-3.5 w-3.5" aria-hidden="true" /> Rechercher <span className="ml-auto rounded border border-[var(--border-primary)] px-1 py-0.5 text-[9px]">⌘K</span>
             </button>
+            <button onClick={actions.refresh} className="flex w-full items-center gap-2 rounded-lg border border-[var(--border-primary)] px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60">
+              <Loader2 className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} aria-hidden="true" /> Rafraîchir
+            </button>
             <button onClick={toggleTheme} className="flex w-full items-center gap-2 rounded-lg border border-[var(--border-primary)] px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60">
               {resolvedTheme === "dark" ? <Sun className="h-3.5 w-3.5" aria-hidden="true" /> : <Moon className="h-3.5 w-3.5" aria-hidden="true" />}
               Thème {resolvedTheme === "dark" ? "clair" : "sombre"}
@@ -157,7 +171,6 @@ export default function PermissionsPreviewPage() {
           </div>
         </aside>
 
-        {/* Contenu */}
         <main className="min-w-0 flex-1 p-4 lg:p-8">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)]">
@@ -170,10 +183,26 @@ export default function PermissionsPreviewPage() {
 
           {helpOpen && <HowItWorks />}
 
-          {section === "personnes" && <Personnes sub={sub} onSub={goSub} cid={cid} onOpenPerson={openPerson} />}
-          {section === "profils" && <Profils sub={sub} onSub={goSub} />}
-          {section === "regles" && <Regles sub={sub} onSub={goSub} />}
-          {section === "journal" && <Journal onOpenPerson={openPerson} go={go} />}
+          {loading && !people.length ? (
+            <div className="flex items-center justify-center py-24">
+              <Loader2 className="h-6 w-6 animate-spin text-[var(--brand-orange)]" aria-hidden="true" />
+            </div>
+          ) : error || blocked ? (
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-[var(--border-primary)] bg-[var(--surface-1)] p-10 text-center">
+              <ShieldAlert className="h-6 w-6 text-amber-400" aria-hidden="true" />
+              <p className="text-sm font-bold text-[var(--text-primary)]">{error || "Accès refusé."}</p>
+              <p className="text-xs text-[var(--text-secondary)]">
+                {blocked ? "Votre compte n'a pas la permission de voir la matrice des permissions." : "Réessayez dans un instant."}
+              </p>
+            </div>
+          ) : (
+            <>
+              {section === "personnes" && <Personnes sub={sub} onSub={goSub} cid={effectiveCid} onOpenPerson={openPerson} />}
+              {section === "profils" && <Profils sub={sub} onSub={goSub} />}
+              {section === "regles" && <Regles sub={sub} onSub={goSub} />}
+              {section === "journal" && <Journal onOpenPerson={openPerson} go={go} />}
+            </>
+          )}
         </main>
       </div>
 
@@ -182,7 +211,6 @@ export default function PermissionsPreviewPage() {
   );
 }
 
-// ─── Comment ça marche ? ────────────────────────────────────────────────────
 function HowItWorks() {
   return (
     <section className="mb-6 space-y-4 rounded-2xl border border-[var(--border-primary)] bg-[var(--surface-1)] p-5">
@@ -205,7 +233,7 @@ function HowItWorks() {
         <NoteBox>
           Les droits viennent de quatre sources : <strong>profil</strong> (le modèle de la fonction), <strong>groupe</strong>,{" "}
           <strong>droits personnels</strong>, <strong>moins les restrictions</strong>. On garde le niveau le plus élevé,
-          puis on retire les restrictions (une restriction supprime, elle ne diminue pas).
+          puis on retire les restrictions.
         </NoteBox>
         <NoteBox tone="warning">
           Niveaux : 0 Aucun · 1 Lire · 2 Créer · 3 Modifier · 4 Supprimer · 5 Complet. Le <strong>super administrateur</strong>{" "}
@@ -229,27 +257,21 @@ function HowItWorks() {
   );
 }
 
-// ─── Recherche globale (⌘K) ─────────────────────────────────────────────────
 function Finder({ onClose, goSection, openPerson }) {
+  const { people } = usePerm();
   const [query, setQuery] = useState("");
-  const people = PEOPLE.filter((person) => person.name.toLowerCase().includes(query.toLowerCase()));
+  const matches = people.filter((person) => person.name.toLowerCase().includes(query.toLowerCase()));
   const sections = NAV.filter((item) => item.label.toLowerCase().includes(query.toLowerCase()));
 
   return (
     <div className="fixed inset-0 z-[600] flex items-start justify-center bg-black/60 p-4 pt-24" onClick={onClose} role="presentation">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Recherche globale"
-        onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-lg overflow-hidden rounded-2xl border border-[var(--border-primary)] bg-[var(--surface-1)] shadow-2xl"
-      >
+      <div role="dialog" aria-modal="true" aria-label="Recherche globale" onClick={(event) => event.stopPropagation()} className="w-full max-w-lg overflow-hidden rounded-2xl border border-[var(--border-primary)] bg-[var(--surface-1)] shadow-2xl">
         <div className="flex items-center gap-2 border-b border-[var(--border-primary)] px-4 py-3">
           <Search className="h-4 w-4 text-[var(--text-tertiary)]" aria-hidden="true" />
           <input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher une personne, une section…" className="w-full bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]" />
         </div>
         <div className="max-h-80 overflow-y-auto p-2">
-          {people.map((person) => (
+          {matches.map((person) => (
             <button key={person.id} onClick={() => { openPerson(person.id); onClose(); }} className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60">
               <span className="text-xs font-bold text-[var(--text-primary)]">{person.name}</span>
               <span className="text-[10px] text-[var(--text-tertiary)]">{person.roleLabel} · Personne</span>
@@ -261,7 +283,7 @@ function Finder({ onClose, goSection, openPerson }) {
               <span className="text-[10px] text-[var(--text-tertiary)]">Section</span>
             </button>
           ))}
-          {people.length === 0 && sections.length === 0 && <p className="px-3 py-4 text-xs text-[var(--text-tertiary)]">Aucun résultat.</p>}
+          {matches.length === 0 && sections.length === 0 && <p className="px-3 py-4 text-xs text-[var(--text-tertiary)]">Aucun résultat.</p>}
         </div>
       </div>
     </div>
