@@ -172,6 +172,12 @@ export function ensurePermissionsSchema() {
         access_profile_id INTEGER NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       )`);
+      // Per-user override — required by contextReads / can(). The SQL migration
+      // access_profiles.sql adds this, but runtime bootstrap must self-heal too
+      // for staging DBs that got the tables without the contacts column.
+      await db.execute(
+        `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS access_profile_id INTEGER`,
+      );
       await db.execute(`CREATE INDEX IF NOT EXISTS idx_user_caps_lookup ON user_capabilities(user_cid, module, capability)`);
       await db.execute(`CREATE INDEX IF NOT EXISTS idx_user_restr_lookup ON user_capability_restrictions(user_cid, module, capability)`);
       return true;
