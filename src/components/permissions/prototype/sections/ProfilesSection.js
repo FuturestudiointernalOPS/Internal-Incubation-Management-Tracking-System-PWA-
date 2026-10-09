@@ -170,6 +170,7 @@ export default function ProfilesSection({ data, tab, openDrawer }) {
                   const locked = profileOverCeiling(profile, feature, {
                     roleDefaults,
                     eligibilityMatrix: data.eligibilityMatrix || {},
+                    profileEligibilityMatrix: data.profileEligibilityMatrix || {},
                   });
                   return (
                     <Cell key={feature} className="text-center">

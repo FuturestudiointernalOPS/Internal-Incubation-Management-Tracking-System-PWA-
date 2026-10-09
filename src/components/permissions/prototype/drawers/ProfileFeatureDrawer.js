@@ -39,6 +39,7 @@ export default function ProfileFeatureDrawer({ profile, feature, data, onClose, 
   const overCeiling = profileOverCeiling(profile, feature, {
     roleDefaults,
     eligibilityMatrix: data.eligibilityMatrix || {},
+    profileEligibilityMatrix: data.profileEligibilityMatrix || {},
   });
   const defaultRoles = rolesDefaultingTo(profile, roleDefaults);
   const dirty = JSON.stringify(draft) !== JSON.stringify(initial);

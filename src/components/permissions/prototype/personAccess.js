@@ -11,6 +11,7 @@
  */
 
 import { deriveUserCapState } from "../matrixHelpers/state";
+import { PROFILE_BASELINE_ROLES } from "@/models/authorization/profile-catalog";
 
 /** Feature eligibility is the outer gate: fail closed, Super Admin bypasses. */
 export function isFeatureEligible(ctx, feature) {
@@ -208,14 +209,45 @@ export function rolesDefaultingTo(profile, roleDefaults = {}) {
 }
 
 /**
+ * The eligibility rows as a PROFILE lookup: {profileKey: {feature: 1 | 0}}.
+ *
+ * The profile counterpart of `buildEligibilityMatrix`: since Phase D a profile
+ * IS an eligibility identity, so its own rows are the ceiling the server
+ * enforces when the profile's capabilities are saved.
+ */
+export function buildProfileEligibilityMatrix(rows = []) {
+  const matrix = {};
+  for (const row of rows || []) {
+    if (row.identity_type !== "profile") continue;
+    matrix[row.identity_value] = matrix[row.identity_value] || {};
+    matrix[row.identity_value][row.feature_key] = Number(row.eligible);
+  }
+  return matrix;
+}
+
+/**
  * Is a profile ABOVE the eligibility ceiling of a feature?
  *
- * The prototype's 🔒: a profile that still grants a feature whose ceiling the
- * role behind it no longer opens. A profile with no role default has no
- * ceiling to measure against and is never locked.
+ * A profile is its OWN ceiling since Phase D: when the eligibility matrix
+ * carries PROFILE rows for it, those are authoritative — the exact rows the
+ * server checks before accepting the profile's capabilities. A feature the
+ * profile has no row for is denied (missing rows fail closed), so it too reads
+ * as over the ceiling.
+ *
+ * Only a profile with NO ceiling of its own falls back to the legacy rule: the
+ * BASELINE roles it serves must all open the feature. A role-default key that
+ * is a contextual NAME (program_manager, participant, investor…) is a PROFILE
+ * now, never a role — it carries no role ceiling and must not read as a
+ * permanent lock.
  */
-export function profileOverCeiling(profile, feature, { roleDefaults = {}, eligibilityMatrix = {} } = {}) {
-  const roles = rolesDefaultingTo(profile, roleDefaults);
+export function profileOverCeiling(profile, feature, { roleDefaults = {}, eligibilityMatrix = {}, profileEligibilityMatrix = {} } = {}) {
+  const key = String(profile?.key ?? profile?.id ?? "");
+  const own = profileEligibilityMatrix[key];
+  if (own) return own[feature] !== 1;
+
+  const roles = rolesDefaultingTo(profile, roleDefaults).filter((role) =>
+    PROFILE_BASELINE_ROLES.includes(role),
+  );
   if (roles.length === 0) return false;
   return roles.some((role) => eligibilityMatrix[role]?.[feature] !== 1);
 }

@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { computeAlerts, journalKpis } from "./prototypeAlerts";
-import { buildEligibilityMatrix } from "./personAccess";
+import { buildEligibilityMatrix, buildProfileEligibilityMatrix } from "./personAccess";
 
 const AUDIT_PAGE_SIZE = 100;
 
@@ -39,6 +39,7 @@ const EMPTY = {
   features: [],
   eligibility: null,
   eligibilityMatrix: {},
+  profileEligibilityMatrix: {},
   canConfigure: false,
   contextRoles: [],
   contextRoleProfiles: [],
@@ -143,6 +144,7 @@ export default function usePrototypeData() {
               moduleToFeature: result?.moduleToFeature || {},
               features: result?.features || [],
               eligibilityMatrix: buildEligibilityMatrix(result?.rows || []),
+              profileEligibilityMatrix: buildProfileEligibilityMatrix(result?.rows || []),
               canConfigure: Boolean(result?.canConfigure),
             }),
           ),
