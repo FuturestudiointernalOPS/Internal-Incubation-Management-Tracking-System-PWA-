@@ -147,25 +147,11 @@ export default function VentureDetailView({ ctx }) {
                 </div>
               </div>
             </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => router.push(`/admin/ventures/${id}/notes`)}
-                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
-              >
-                <FileText className="w-3 h-3" /> {t("vadmin.detail.notes")}
-              </button>
-              <button
-                onClick={() => router.push(`/admin/ventures/${id}/projects`)}
-                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
-              >
-                <FolderKanban className="w-3 h-3" /> {t("vadmin.detail.journey")}
-              </button>
-            </div>
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 mt-8 border-b border-[var(--border-primary)] overflow-x-auto scrollbar-thin">
+          <div className="flex items-center gap-3 mt-8 border-b border-[var(--border-primary)]">
+          <div className="flex flex-1 min-w-0 gap-1 overflow-x-auto scrollbar-thin">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -188,6 +174,21 @@ export default function VentureDetailView({ ctx }) {
                 </button>
               );
             })}
+          </div>
+            <div className="flex shrink-0 gap-2 pb-2">
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/notes`)}
+                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2 whitespace-nowrap"
+              >
+                <FileText className="w-3 h-3" /> {t("vadmin.detail.notes")}
+              </button>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/projects`)}
+                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2 whitespace-nowrap"
+              >
+                <FolderKanban className="w-3 h-3" /> {t("vadmin.detail.journey")}
+              </button>
+            </div>
           </div>
         </div>
 
