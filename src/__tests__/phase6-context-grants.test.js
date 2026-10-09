@@ -13,7 +13,7 @@
 
 const mockState = {
   founderCids: new Set(), // cids with an ACTIVE founder relationship
-  registry: { profile_id: 7, profile_name: "Founder", is_active: 1 },
+  registry: { profile_key: "founder", profile_name: "Founder", is_active: 1 },
   registryMissing: false,
   profileCaps: [
     { module: "ventures", capability: "view", access_level: 1 },
@@ -29,6 +29,12 @@ function mockExecute(query) {
 
   if (sqlText.includes("CREATE TABLE") || sqlText.includes("CREATE INDEX")) return { rows: [] };
 
+  // Phase H — the profile ↔ role rule is enforced ("block"): the person is a
+  // baseline member, so the founder profile (open to member) fits.
+  if (sqlText.includes("SELECT role, profile_key FROM contacts")) {
+    return { rows: [{ role: "member", profile_key: null }] };
+  }
+
   if (sqlText.includes("FROM context_role_profiles")) {
     if (mockState.registryMissing) return { rows: [] };
     return {
@@ -37,7 +43,7 @@ function mockExecute(query) {
           id: 1,
           context: "venture",
           role_key: "founder",
-          profile_id: mockState.registry.profile_id,
+          profile_key: mockState.registry.profile_key,
           is_active: mockState.registry.is_active,
           profile_name: mockState.registry.profile_name,
         },
@@ -45,7 +51,7 @@ function mockExecute(query) {
     };
   }
 
-  if (sqlText.includes("FROM access_profile_capabilities")) {
+  if (sqlText.includes("FROM profile_capabilities")) {
     return { rows: mockState.profileCaps };
   }
 
@@ -173,7 +179,7 @@ function ours(cid, module, capability) {
 
 beforeEach(() => {
   mockState.founderCids = new Set();
-  mockState.registry = { profile_id: 7, profile_name: "Founder", is_active: 1 };
+  mockState.registry = { profile_key: "founder", profile_name: "Founder", is_active: 1 };
   mockState.registryMissing = false;
   mockState.userCaps = [];
   mockState.applied = [];
@@ -310,7 +316,7 @@ describe("syncContextGrantsForUser (apply / revoke)", () => {
     mockState.founderCids.add(CID);
     await syncContextGrantsForUser(CID);
 
-    mockState.registry = { profile_id: null, profile_name: null, is_active: 1 };
+    mockState.registry = { profile_key: null, profile_name: null, is_active: 1 };
     const result = await syncContextGrantsForUser(CID);
 
     expect(result.profile).toBe(null);

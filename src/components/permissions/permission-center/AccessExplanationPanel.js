@@ -21,13 +21,37 @@ export default function AccessExplanationPanel({ explanation, t }) {
   const [open, setOpen] = useState(false);
   const eligibility = explanation.eligibility || {};
   const sources = explanation.sources || {};
+  const activeProfiles = explanation.contextualProfiles || [];
+  const assignments = explanation.profileAssignments || [];
   const hasEligibility = Object.keys(eligibility).length > 0;
   const hasSources =
     (sources.profile && Object.keys(sources.profile).length > 0) ||
     (sources.groups && Object.keys(sources.groups).length > 0) ||
     (sources.grants && Object.keys(sources.grants).length > 0);
+  // Phase G — the contextual profiles and their assignment periods are part of
+  // "why does this person have access": they are what the eligibility rows above
+  // were written against.
+  const hasProfiles = activeProfiles.length > 0 || assignments.length > 0;
 
-  if (!hasEligibility && !hasSources) return null;
+  if (!hasEligibility && !hasSources && !hasProfiles) return null;
+
+  const SOURCE_LABEL_KEY = {
+    manual: "engineering.permissions.profileAssignmentsSourceManual",
+    automatic: "engineering.permissions.profileAssignmentsSourceAutomatic",
+  };
+  const STATUS_LABEL_KEY = {
+    active: "engineering.permissions.profileAssignmentsStatusActive",
+    ended: "engineering.permissions.profileAssignmentsStatusEnded",
+    revoked: "engineering.permissions.profileAssignmentsStatusRevoked",
+  };
+  const fmtDate = (value) =>
+    value ? new Date(value).toLocaleDateString() : null;
+  const periodOf = (row) =>
+    `${fmtDate(row.started_at)} → ${
+      row.ends_at
+        ? fmtDate(row.ends_at)
+        : t("engineering.permissions.profileAssignmentsOpenEnded")
+    }`;
 
   const sourceBlock = (labelKey, data) => {
     const entries = Object.entries(data || {}).filter(
@@ -124,12 +148,54 @@ export default function AccessExplanationPanel({ explanation, t }) {
               "engineering.permissions.explanationGrants",
               sources.grants,
             )}
-            {!hasSources && (
+            {!hasSources && !hasProfiles && (
               <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                 {t("engineering.permissions.explanationNone")}
               </p>
             )}
           </div>
+
+          {/* Phase G — the contextual profiles and the assignment periods that
+              produced them. */}
+          {hasProfiles && (
+            <div className="pt-3 space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+                {t("engineering.permissions.explanationProfiles")}
+              </p>
+              <p className="text-[10px] font-bold text-[var(--text-primary)]">
+                {activeProfiles.length > 0
+                  ? activeProfiles.join(", ")
+                  : t("engineering.permissions.explanationNoProfiles")}
+              </p>
+              {assignments.length > 0 && (
+                <div className="mt-1 space-y-1">
+                  {assignments.map((row) => (
+                    <div
+                      key={row.id}
+                      className="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg border border-[var(--border-primary)] bg-surface-2 px-2.5 py-1.5"
+                    >
+                      <span className="text-[10px] font-bold text-[var(--text-primary)]">
+                        {String(row.profile_key).replace(/_/g, " ")}
+                      </span>
+                      <span className="text-[10px] font-medium text-[var(--text-secondary)]">
+                        {row.context_type}
+                        {row.context_id ? ` · ${row.context_id}` : ""}
+                      </span>
+                      <span className="text-[10px] font-medium text-[var(--text-secondary)]">
+                        {periodOf(row)}
+                      </span>
+                      <span className="text-[10px] font-medium text-[var(--text-secondary)]">
+                        {t(SOURCE_LABEL_KEY[row.source] || SOURCE_LABEL_KEY.manual)}
+                      </span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                        {t(STATUS_LABEL_KEY[row.status] || STATUS_LABEL_KEY.ended)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

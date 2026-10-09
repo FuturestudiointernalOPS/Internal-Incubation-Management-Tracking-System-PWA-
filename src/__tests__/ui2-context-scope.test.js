@@ -76,17 +76,13 @@ describe("UI-2a — scope check verdict mapping", () => {
 });
 
 describe("UI-2a — screen wiring", () => {
-  test("the route renders the new Context & Scope screen (not the legacy center)", () => {
+  test("the retired Context & Scope route forwards to the new homes", () => {
     const src = read("src/app/admin/security/permissions/context-scope/page.js");
-    expect(src).toContain("ContextScopeView");
-    expect(src).not.toContain("PermissionCenter");
-  });
-
-  test("the screen composes the registry, the policy catalogue and the live check", () => {
-    const src = read("src/components/permissions/ContextScopeView.js");
-    expect(src).toContain("ContextRolesView");
-    expect(src).toContain("ScopePoliciesView");
-    expect(src).toContain("LiveCheckPanel");
+    expect(src).toContain("/profiles?sub=contextRoles");
+    expect(src).toContain("/eligibility?sub=scope");
+    expect(src).toContain("/audit");
+    // A pure forwarder: no shell, so this path can never render a navigation.
+    expect(src).not.toContain("PermissionShell");
   });
 
   test("the live check uses the real verification endpoint", () => {

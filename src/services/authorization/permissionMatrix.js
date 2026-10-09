@@ -28,6 +28,7 @@ import {
   getAuthorizationContext,
 } from "@/services/authorization/context";
 import { getUserEffectiveProfile } from "@/services/authorization/accessProfiles";
+import { listProfileAssignments } from "@/models/authorization/profileAssignmentsStore";
 import {
   getContactForEffectivePermissions,
   getCurrentSupervisor,
@@ -92,11 +93,11 @@ export async function buildPermissionTableUsers() {
 
   return contactsResult.rows.map((contact) => {
     let profile = null;
-    // Check explicit profile assignment
-    if (contact.access_profile_id && profileMap[contact.access_profile_id]) {
+    // Check explicit profile assignment (by profile KEY).
+    if (contact.profile_key && profileMap[contact.profile_key]) {
       profile = {
-        id: contact.access_profile_id,
-        name: profileMap[contact.access_profile_id].name,
+        id: contact.profile_key,
+        name: profileMap[contact.profile_key].name,
         source: "user",
       };
     }
@@ -121,6 +122,7 @@ export async function buildPermissionTableUsers() {
       role: contact.role,
       status: contact.status,
       access_profile: profile,
+      profile_key: contact.profile_key || null,
       groups,
       responsibilities: respMap[contact.cid] || [],
       created_at: contact.created_at,
@@ -182,6 +184,14 @@ export async function buildUserPermissionDetail(userCid) {
   // that produced it) + the raw capability inputs per module.
   const explanation = buildPermissionExplanation(authorizationContext);
 
+  // Phase G — the assignment registry, so the explanation shows the profile
+  // PERIODS that produced the active profiles (context, source, dates), not just
+  // the resulting keys. Best-effort: an un-migrated database has no registry.
+  let profileAssignments = [];
+  try {
+    profileAssignments = (await listProfileAssignments(userCid)).rows || [];
+  } catch (_) {}
+
   const grants = await listUserCapabilitiesForUser(userCid);
   const restrictions = await listUserCapabilityRestrictionsForUser(userCid);
   const effectiveProfile = await getUserEffectiveProfile(userCid, user.role);
@@ -201,13 +211,13 @@ export async function buildUserPermissionDetail(userCid) {
       email: user.email,
       role: user.role,
       status: user.status,
-      access_profile_id: user.access_profile_id,
+      profile_key: user.profile_key,
       supervisor_cid: supervisorCid,
     },
     groups,
     effectiveProfile,
     effectivePermissions: matrix,
-    explanation,
+    explanation: { ...explanation, profileAssignments },
     moduleToFeature: MODULE_TO_FEATURE,
     individualGrants: grants.rows,
     individualRestrictions: restrictions.rows,

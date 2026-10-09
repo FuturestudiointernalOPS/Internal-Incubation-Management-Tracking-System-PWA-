@@ -112,8 +112,12 @@ describe("lms module", () => {
   test("program_manager is eligible for the lms feature (PM surface is reachable)", () => {
     const {
   FEATURE_ELIGIBILITY_DEFAULTS,
+  FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
 } = require("@/models/authorization/eligibility");
-    expect(FEATURE_ELIGIBILITY_DEFAULTS.lms).toContain("program_manager");
+    // Phase H — program_manager is a PROFILE now, so its lms ceiling rides the
+    // profile identity.
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.lms).not.toContain("program_manager");
+    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.lms).toContain("program_manager");
   });
 
   // The seed grants lms.view to the Program Manager profile, but seeds never
@@ -136,12 +140,12 @@ describe("lms module", () => {
       typeof call[0] === "string" ? { sql: call[0], args: [] } : call[0],
     );
     const profileInserts = calls.filter((call) =>
-      call.sql.includes("INSERT INTO access_profile_capabilities"),
+      call.sql.includes("INSERT INTO profile_capabilities"),
     );
     expect(profileInserts).toHaveLength(1);
-    expect(profileInserts[0].args).toEqual([5, "lms", "view", 1]);
+    expect(profileInserts[0].args).toEqual(["program_manager", "lms", "view", 1]);
     expect(profileInserts[0].sql).toMatch(
-      /ON CONFLICT \(profile_id, module, capability\) DO NOTHING/,
+      /ON CONFLICT \(profile_key, module, capability\) DO NOTHING/,
     );
 
     const roleInserts = calls.filter((call) => call.sql.includes("INSERT INTO role_capabilities"));

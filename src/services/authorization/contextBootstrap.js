@@ -31,9 +31,9 @@ import {
   seedDefaultEligibility,
   seedLmsFeatureEligibility,
   seedVenturesMemberEligibility,
-  seedVenturesFounderEligibility,
-  seedTemplateCeilingEligibility,
   seedProgramAssignmentEligibility,
+  seedProfileEligibilityDefaults,
+  removeNonBaselineRoleEligibility,
 } from "@/models/authorization/eligibility";
 
 let eligibilitySeeded = false;
@@ -64,22 +64,6 @@ function ensureEligibilitySeeded() {
           "eligibility-ventures-member-v1",
           seedVenturesMemberEligibility,
         );
-        // Same gap for the founder baseline: `founder` was added to the ventures
-        // defaults after this database bootstrapped, so it needs its own
-        // catch-up (insert-only, separate marker).
-        await runAuthzMigration(
-          "eligibility-ventures-founder-v1",
-          seedVenturesFounderEligibility,
-        );
-        // The seeded default templates (Participant Default, Mentor) grant
-        // capabilities their own roles had no eligibility row for, which made
-        // those templates unsavable from the Permissions UI. Insert-only
-        // catch-up for the rows that were never configured on any database that
-        // bootstrapped before the two were reconciled.
-        await runAuthzMigration(
-          "eligibility-template-ceiling-v1",
-          seedTemplateCeilingEligibility,
-        );
         // Assignment-derived PROGRAM access (facilitator / program manager).
         // Same gap as the ventures/member row above: the ceiling must allow the
         // baseline identities these contextual roles resolve to, or the
@@ -87,6 +71,22 @@ function ensureEligibilitySeeded() {
         await runAuthzMigration(
           "eligibility-programs-assignment-v1",
           seedProgramAssignmentEligibility,
+        );
+        // Phase H — the PROFILE ceilings. The contextual values that used to be
+        // seeded as role rows are written as `identity_type = 'profile'` rows,
+        // insert-only, so an existing database gains the profile coverage.
+        await runAuthzMigration(
+          "eligibility-profile-defaults-v1",
+          seedProfileEligibilityDefaults,
+        );
+        // Baseline-only vocabulary: EVERY role row that is not a baseline
+        // identity is a leftover of the old role vocabulary (contextual
+        // functions + retired labels). Those functions are PROFILES now, so the
+        // role rows are deleted for good. Profile rows are untouched (they are
+        // the new ceiling); group rows are untouched. Runs ONCE per database.
+        await runAuthzMigration(
+          "eligibility-baseline-roles-only-v1",
+          removeNonBaselineRoleEligibility,
         );
       })()
         // A one-time seed is DATA work, and the authorization gate awaits this

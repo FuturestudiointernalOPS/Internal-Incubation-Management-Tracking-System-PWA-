@@ -3,6 +3,11 @@
 import { useState, useCallback } from "react";
 import { useApiMulti } from "@/lib/hooks/useApi";
 
+const INTEGRATION_ENDPOINTS = [
+  { key: "keys", url: "/api/api-keys", transform: (p) => p?.success ? p.keys || [] : [] },
+  { key: "webhooks", url: "/api/webhooks", transform: (p) => p?.success ? p.webhooks || [] : [] },
+];
+
 export function useIntegrationsState() {
   const [activeTab, setActiveTab] = useState("api_keys");
 
@@ -18,10 +23,9 @@ export function useIntegrationsState() {
 
   const [confirmAction, setConfirmAction] = useState(null);
 
-  const { data, loading, error, refresh } = useApiMulti([
-    { key: "keys", url: "/api/api-keys", transform: (p) => p?.success ? p.keys || [] : [] },
-    { key: "webhooks", url: "/api/webhooks", transform: (p) => p?.success ? p.webhooks || [] : [] },
-  ]);
+  // The module-scope list above is a stable identity, so the read is keyed on the
+  // addresses and a fresh array can never re-issue it.
+  const { data, loading, error, refresh } = useApiMulti(INTEGRATION_ENDPOINTS);
 
   const apiKeys = data.keys ?? [];
   const webhooks = data.webhooks ?? [];

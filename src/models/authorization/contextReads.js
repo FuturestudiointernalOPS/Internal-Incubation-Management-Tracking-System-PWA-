@@ -45,44 +45,60 @@ export function getUserCapabilityRestrictions(cid) {
 /** The person's profile override and their group fallback. */
 export function getContactAccessProfileAndGroup(cid) {
   return db.execute({
-    sql: "SELECT access_profile_id, group_name FROM contacts WHERE cid = ?",
+    sql: "SELECT profile_key, group_name FROM contacts WHERE cid = ?",
     args: [cid],
   });
 }
 
-/** An active access profile by id — used to validate a person's override. */
-export function getActiveAccessProfileById(profileId) {
+/**
+ * The BASE profile a person's override names — by PROFILE KEY.
+ *
+ * ONE statement on purpose: the resolver's wave count is pinned by
+ * `db-sequencing.test.js`.
+ *
+ * @returns rows shaped `{ profile_key, label }`
+ */
+export function resolveContactBaseProfile({ profileKey = null }) {
   return db.execute({
-    sql: "SELECT id, name FROM access_profiles WHERE id = ? AND is_active = 1",
-    args: [profileId],
+    sql: `SELECT p.key AS profile_key, p.label AS label
+          FROM profiles p
+          WHERE p.key = ? AND p.is_active = 1`,
+    args: [profileKey],
   });
 }
 
-/** A role's active default access profile. */
-export function getRoleDefaultAccessProfile(role) {
+/**
+ * The BASE profile a role defaults to — `role_profile_defaults`, by KEY. ONE
+ * statement for the same wave-count reason.
+ *
+ * @returns rows shaped `{ profile_key, label }`
+ */
+export function resolveRoleDefaultBaseProfile(role) {
   return db.execute({
-    sql: `SELECT ap.id, ap.name
-                FROM role_access_profile_defaults rpd
-                JOIN access_profiles ap ON ap.id = rpd.access_profile_id
-                WHERE rpd.role_name = ? AND ap.is_active = 1`,
+    sql: `SELECT rpd.profile_key AS profile_key, p.label AS label
+          FROM role_profile_defaults rpd
+          JOIN profiles p ON p.key = rpd.profile_key
+          WHERE rpd.role_name = ? AND p.is_active = 1`,
     args: [role],
   });
 }
 
 /**
- * The BASE capability rows for a person: the assigned profile's rows when there
- * is one, otherwise the legacy role rows. Exactly one statement runs.
+ * The BASE capability rows for a person: the resolved profile's rows when there
+ * is one, otherwise the identity's `role_capabilities` rows. Exactly one
+ * statement runs.
  */
-export function getBaseCapabilityRows({ profileId, role }) {
-  return profileId
-    ? db.execute({
-        sql: "SELECT module, capability, access_level FROM access_profile_capabilities WHERE profile_id = ?",
-        args: [profileId],
-      })
-    : db.execute({
-        sql: "SELECT module, capability, access_level FROM role_capabilities WHERE role = ?",
-        args: [role],
-      });
+export function getBaseCapabilityRows({ profileKey, role }) {
+  if (profileKey) {
+    return db.execute({
+      sql: "SELECT module, capability, access_level FROM profile_capabilities WHERE profile_key = ?",
+      args: [profileKey],
+    });
+  }
+  return db.execute({
+    sql: "SELECT module, capability, access_level FROM role_capabilities WHERE role = ?",
+    args: [role],
+  });
 }
 
 /**
@@ -100,68 +116,32 @@ export function getGroupCapabilityRows(groups) {
 }
 
 /**
- * Eligibility rows for a role, its groups and the CONTEXT roles it holds, in
- * one query. The placeholders keep the original `NULL` fallback for a person
- * with no groups.
+ * Eligibility rows for a role, its groups and its active PROFILES, in one query.
  *
- * `contextRoles` (venture founder / venture member, program participant,
- * facilitator…) belong here because the engine enforces a context role as a
- * ceiling too, and a person carries ONE stored role. Without them, a founder
- * whose stored role is `facilitator` would only ever be checked as a
- * facilitator and would be denied the Venture they founded — the bug this
- * parameter closes.
+ * The role/group branch is byte-identical to the statement that existed before
+ * profiles (the endpoint suites match on SQL text); the profile branch is added
+ * only when the person actually holds profiles, so an identity with none pays
+ * exactly the query it always did. Profile rows OR with the others, exactly like
+ * role and group rows (any allow; an explicit deny still wins in the decision).
  */
-export function getFeatureEligibilityRows(role, groups, contextRoles = []) {
+export function getFeatureEligibilityRows(role, groups, profiles = []) {
   const placeholders = groups.length ? groups.map(() => "?").join(",") : "NULL";
-  const identities = [role, ...contextRoles].filter(
-    (identity, index, all) => identity && all.indexOf(identity) === index,
-  );
-  const rolePlaceholders = identities.length ? identities.map(() => "?").join(",") : "NULL";
+  if (!profiles || profiles.length === 0) {
+    return db.execute({
+      sql: `SELECT feature_key, identity_type, identity_value, eligible
+            FROM feature_eligibility
+            WHERE (identity_type = 'role' AND identity_value = ?)
+               OR (identity_type = 'group' AND identity_value IN (${placeholders}))`,
+      args: [role, ...groups],
+    });
+  }
+  const profilePlaceholders = profiles.map(() => "?").join(",");
   return db.execute({
     sql: `SELECT feature_key, identity_type, identity_value, eligible
             FROM feature_eligibility
-            WHERE (identity_type = 'role' AND identity_value IN (${rolePlaceholders}))
-               OR (identity_type = 'group' AND identity_value IN (${placeholders}))`,
-    args: [...identities, ...groups],
+            WHERE (identity_type = 'role' AND identity_value = ?)
+               OR (identity_type = 'group' AND identity_value IN (${placeholders}))
+               OR (identity_type = 'profile' AND identity_value IN (${profilePlaceholders}))`,
+    args: [role, ...groups, ...profiles],
   });
-}
-
-/**
- * The CONTEXT roles this person holds right now — the eligibility identities
- * that are true of them because of a relationship, not because of their stored
- * role:
- *
- *   venture founder       → 'founder'   (venture_members.member_type)
- *   other venture member  → 'member'
- *   program enrollment    → 'participant'
- *   program assignment    → 'facilitator'
- *
- * Best-effort: a context that cannot be read contributes nothing rather than
- * breaking the whole resolution (the same tolerance the scope reads use).
- */
-export async function getContextEligibilityRoles(cid) {
-  if (!cid) return { rows: [] };
-  try {
-    return await db.execute({
-      sql: `SELECT DISTINCT role_key FROM (
-              SELECT 'founder' AS role_key FROM venture_members
-               WHERE (contact_id = ? OR user_cid = ?) AND removed_at IS NULL
-                 AND member_type = 'founder'
-              UNION
-              SELECT 'member' AS role_key FROM venture_members
-               WHERE (contact_id = ? OR user_cid = ?) AND removed_at IS NULL
-                 AND (member_type IS NULL OR member_type <> 'founder')
-              UNION
-              SELECT 'participant' AS role_key FROM participant_programs
-               WHERE participant_id = ?
-              UNION
-              SELECT 'facilitator' AS role_key FROM v2_program_staff
-               WHERE role = 'facilitator'
-                 AND (staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(?))
-            ) context_roles`,
-      args: [cid, cid, cid, cid, cid, cid, cid],
-    });
-  } catch (_) {
-    return { rows: [] };
-  }
 }

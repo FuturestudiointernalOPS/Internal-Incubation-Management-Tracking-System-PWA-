@@ -48,12 +48,12 @@ export async function getFacilitatorPermissionLevel(programId, assignment, capab
         found = true;
       }
     }
-    if (!found && assignment?.access_profile_id) {
-      // Fall back to the assignment's Access Profile template capabilities.
+    if (!found && assignment?.profile_key) {
+      // Fall back to the assignment's PROFILE capabilities (by key).
       // Profile rows are (module, capability, access_level); overrides use
       // "module.capability" dot keys — normalize both sides for the lookup.
       try {
-        const profRows = await listProfileCapabilities(assignment.access_profile_id);
+        const profRows = await listProfileCapabilities(assignment.profile_key);
         for (const row of profRows) {
           const dotKey = `${row.module}.${row.capability}`;
           if (dotKey === capability || row.capability === capability) {

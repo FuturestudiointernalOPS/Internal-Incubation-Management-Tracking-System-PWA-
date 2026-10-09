@@ -16,7 +16,6 @@
 import { crudCapabilities } from "@/components/permissions/matrixHelpers";
 import {
   ACCESS_LEVEL_KEYS,
-  ACCESS_SHORT,
   LEVELS_ORDER,
   LEVEL_CHIP_ACTIVE,
   LEVEL_CHIP_BASE,
@@ -58,6 +57,7 @@ export default function PersonFeatureSection({
         // capabilities live in the Advanced section below.
         const caps = crudCapabilities(mod.capabilities || []);
         if (caps.length === 0) return null;
+        const heldCaps = caps.filter((cap) => getEffectiveLevel(modKey, cap) > 0).length;
         const isExpanded = expandedModules[modKey] !== false;
         // Eligibility ceiling on the WRITE control only: the
         // server refuses a grant on an ineligible feature. The
@@ -86,12 +86,15 @@ export default function PersonFeatureSection({
                 ) : (
                   <ChevronRight className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
                 )}
-                <span className="text-xs font-black text-[var(--text-primary)] uppercase tracking-wider">
+                <span className="text-sm font-semibold text-[var(--text-primary)]">
                   {mod.name}
                 </span>
               </div>
-              <span className="text-[10px] font-medium text-[var(--text-secondary)]">
-                {t("engineering.permissions.capabilitiesCount", { count: caps.length })}
+              <span className="text-xs font-medium text-[var(--text-secondary)]">
+                {t("engineering.permissions.peopleMatrixModuleSummary", {
+                  held: heldCaps,
+                  total: caps.length,
+                })}
               </span>
             </button>
 
@@ -159,9 +162,11 @@ export default function PersonFeatureSection({
                                 from, so a chip is never clicked blind
                                 (a direct grant of a level the person
                                 already inherits changes nothing). */}
-                            <p className="mt-1 text-[9px] font-bold text-[var(--text-secondary)] opacity-80">
-                              {t("engineering.permissions.advancedCurrentState")}:{" "}
-                              {originText(modKey, cap)}
+                            <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] font-semibold text-[var(--text-secondary)]">
+                              <span className="rounded-md border border-[var(--border-primary)] bg-secondary/50 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider">
+                                {t("engineering.permissions.advancedCurrentState")}
+                              </span>
+                              <span className="min-w-0">{originText(modKey, cap)}</span>
                             </p>
                           </td>
 
@@ -228,7 +233,7 @@ export default function PersonFeatureSection({
                                           ),
                                         },
                                       )}
-                                      className={`${LEVEL_CHIP_BASE} ${
+                                      className={`${LEVEL_CHIP_BASE} !h-7 !w-auto !px-2.5 ${
                                         isActive
                                           ? origin === "granted"
                                             ? LEVEL_CHIP_ACTIVE[level]
@@ -236,7 +241,7 @@ export default function PersonFeatureSection({
                                           : LEVEL_CHIP_IDLE
                                       }`}
                                     >
-                                      {ACCESS_SHORT[level]}
+                                      {t(ACCESS_LEVEL_KEYS[level])}
                                     </button>
                                   );
                                 })}

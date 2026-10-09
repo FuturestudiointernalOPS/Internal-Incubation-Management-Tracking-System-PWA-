@@ -73,8 +73,14 @@ jest.mock("@/models/authorization", () => ({
   listPermissionAudits: jest.fn().mockImplementation(async () => ({
     rows: mockState.auditEntries,
   })),
-  getAccessProfileMeta: jest.fn().mockResolvedValue({ rows: [] }),
-  listAccessProfiles: jest.fn().mockImplementation(async () => ({ rows: mockState.profiles })),
+}));
+
+// The context-roles route reads its profile dropdown from the profiles
+// catalogue (profilesStore), not from the retired access_profiles layer.
+jest.mock("@/models/authorization/profilesStore", () => ({
+  ensureProfilesSchema: jest.fn().mockResolvedValue(true),
+  listProfiles: jest.fn().mockImplementation(async () => ({ rows: mockState.profiles })),
+  getProfileRow: jest.fn().mockResolvedValue({ rows: [] }),
 }));
 
 const mockRegistry = {
@@ -282,7 +288,7 @@ describe("context-roles GET — the holder-count N+1", () => {
   const registryRow = (context, roleKey) => ({
     context,
     role_key: roleKey,
-    profile_id: null,
+    profile_key: null,
     is_active: 1,
     notes: "",
   });
@@ -353,7 +359,7 @@ describe("context-roles GET — the holder-count N+1", () => {
   });
 
   test("the holder count rides alongside the row, never replacing it", async () => {
-    const row = { ...registryRow("venture", "founder"), profile_id: 4, notes: "keep" };
+    const row = { ...registryRow("venture", "founder"), profile_key: "mentor", notes: "keep" };
     mockState.registryRows = [row];
     mockState.holderCounts = { "venture:founder": 7 };
     const body = await (await contextRolesRoute.GET(getReq("", "context-roles"))).json();
@@ -361,9 +367,11 @@ describe("context-roles GET — the holder-count N+1", () => {
   });
 
   test("the response also carries the profile list and the context catalogue", async () => {
-    mockState.profiles = [{ id: 1, name: "Staff Default" }];
+    mockState.profiles = [{ key: "staff_default", label: "Staff Default", is_active: 1 }];
     const body = await (await contextRolesRoute.GET(getReq("", "context-roles"))).json();
-    expect(body.profiles).toEqual([{ id: 1, name: "Staff Default" }]);
+    expect(body.profiles).toEqual([
+      { key: "staff_default", label: "Staff Default", is_active: 1 },
+    ]);
     expect(body.contexts).toEqual(["program", "venture", "lms", "investor"]);
   });
 

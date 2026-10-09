@@ -1,5 +1,6 @@
 import db from "@/lib/db";
 import { ensurePermissionsSchema } from "@/models/authorization/bootstrap";
+import { profileKeyForAccessProfileName } from "@/models/authorization/profileTakeoverBackfill";
 
 /**
  * Authorization backfills — programs and ventures CRUD.
@@ -47,20 +48,14 @@ async function ensureProgramsBackfill() {
   await ensurePermissionsSchema();
 
   for (const [profileName, rows] of Object.entries(PROGRAMS_BACKFILL.profiles)) {
-    const profile =
-      (
-        await db.execute({
-          sql: "SELECT id FROM access_profiles WHERE name = ? AND is_active = 1",
-          args: [profileName],
-        })
-      ).rows[0] || null;
-    if (!profile) continue;
+    const key = profileKeyForAccessProfileName(profileName);
+    if (!key) continue;
     for (const [module, capability, level] of rows) {
       await db.execute({
-        sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
+        sql: `INSERT INTO profile_capabilities (profile_key, module, capability, access_level)
               VALUES (?, ?, ?, ?)
-              ON CONFLICT (profile_id, module, capability) DO NOTHING`,
-        args: [profile.id, module, capability, level],
+              ON CONFLICT (profile_key, module, capability) DO NOTHING`,
+        args: [key, module, capability, level],
       });
     }
   }
@@ -126,20 +121,14 @@ async function ensureVenturesBackfill() {
   }
 
   for (const [profileName, rows] of Object.entries(VENTURES_BACKFILL.profiles)) {
-    const profile =
-      (
-        await db.execute({
-          sql: "SELECT id FROM access_profiles WHERE name = ? AND is_active = 1",
-          args: [profileName],
-        })
-      ).rows[0] || null;
-    if (!profile) continue;
+    const key = profileKeyForAccessProfileName(profileName);
+    if (!key) continue;
     for (const [module, capability, level] of rows) {
       await db.execute({
-        sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
+        sql: `INSERT INTO profile_capabilities (profile_key, module, capability, access_level)
               VALUES (?, ?, ?, ?)
-              ON CONFLICT (profile_id, module, capability) DO NOTHING`,
-        args: [profile.id, module, capability, level],
+              ON CONFLICT (profile_key, module, capability) DO NOTHING`,
+        args: [key, module, capability, level],
       });
     }
   }
