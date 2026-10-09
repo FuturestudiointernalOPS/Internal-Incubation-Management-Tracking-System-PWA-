@@ -162,8 +162,71 @@ export default function VerificationProgress({
       </div>
       {/* Files whose category matches no configured document type. They are
           stored and reviewable, so they must stay visible — they are just
-          not attached to any slot above. */}
-      {unassignedDocs.length > 0 && (
+
+        {/* Contact verification */}
+        <div className="space-y-3">
+          <div className="mb-1">
+            <p className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">{t("vadmin.verification.contactVerification")}</p>
+            <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{t("vadmin.verification.contactVerificationHint")}</p>
+          </div>
+          <div className="space-y-1.5">
+            {documentTypes
+              .filter((documentType) => documentType.code === "email_verification" || documentType.code === "phone_verification")
+              .map((documentType) => {
+                const stepKey = documentType.code;
+                const item = getItemForCategory(stepKey);
+                const stepDocs = getDocsForCategory(stepKey);
+                const StepIcon = documentTypeIcon(stepKey);
+                const isUpload = isUploadDocumentType(documentType);
+                const previewDoc = stepDocs.find((d) => d.file_url_signed || /^https?:\/\//i.test(String(d.file_url || "")));
+                return (
+                  <div key={documentType.code} className="p-4 rounded-xl border border-white/5 bg-[rgba(255,255,255,0.02)]">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <StepIcon size={14} className="text-[var(--brand-orange)]" />
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">{documentTypeName(documentType, lang, t)}</span>
+                          <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-400" title={t("vadmin.verification.contactOnlyHint")}>{t("vadmin.verification.contactOnly")}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {item && <VerificationItemStatusBadge status={item.status} t={t} />}
+                        {item?.notes && (
+                          <span className="text-[10px] text-[var(--text-secondary)] max-w-[200px] truncate" title={item.notes}>{item.notes}</span>
+                        )}
+                      </div>
+                    </div>
+                    {documentType.description && (
+                      <p className="text-[10px] text-[var(--text-secondary)] mt-2 leading-relaxed">{documentType.description}</p>
+                    )}
+                    <div className="mt-3 space-y-2">
+                      {stepDocs.length === 0 && !isUpload && (
+                        <p className="text-[10px] text-[var(--text-secondary)]">{stepKey === "email_verification" ? t("vadmin.verification.emailNotVerifiedYet") : t("vadmin.verification.phoneNotVerifiedYet")}</p>
+                      )}
+                      {!isUpload && stepKey === "email_verification" && <p className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.verification.emailVerifiedViaLink")}</p>}
+                      {!isUpload && stepKey === "phone_verification" && <p className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.verification.phoneVerifiedViaSms")}</p>}
+                      {!isUpload && stepKey !== "email_verification" && stepKey !== "phone_verification" && (
+                        <p className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.verification.externalVerification")}</p>
+                      )}
+                      {stepDocs.map((documentEntry) => (
+                        <DataBankDocumentRow
+                          key={documentEntry.id}
+                          ventureId={id}
+                          doc={documentEntry}
+                          canUpload={false}
+                          onChanged={() => onReload(true)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+        {/* Files whose category matches no configured document type. They are
+            stored and reviewable, so they must stay visible — they are just
+            not attached to any slot above. */}
+        {unassignedDocs.length > 0 && (
         <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
           <h3 className="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-2">
             <FileText className="w-3 h-3" />
