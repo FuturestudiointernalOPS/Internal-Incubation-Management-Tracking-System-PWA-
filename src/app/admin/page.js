@@ -45,13 +45,12 @@ import {
   QuickActionsCard,
 } from "@/components/admin/dashboard-page/RisksSection";
 import TaskDetailDrawer from "@/components/admin/dashboard-page/TaskDetailDrawer";
-import GoogleCalendarConnect from "@/components/admin/dashboard-page/GoogleCalendarConnect";
 import { useAdminDashboardData } from "./hooks/useAdminDashboardData";
 import { useAdminWidgetData } from "./hooks/useAdminWidgetData";
 import { useAdminSections } from "./hooks/useAdminSections";
 import { useAdminActions } from "./hooks/useAdminActions";
 import { useAdminCalendar } from "./hooks/useAdminCalendar";
-import { useGoogleCalendar } from "./hooks/useGoogleCalendar";
+import { useGoogleCalendar } from "@/components/integrations/useGoogleCalendar";
 
 const ASSIGNMENTS_PER_PAGE = 5;
 
@@ -60,7 +59,7 @@ export default function AdminDashboard() {
   const { t, lang } = useI18n();
 
   const dashboardData = useAdminDashboardData({ router, t, lang });
-  const googleCalendar = useGoogleCalendar({ t });
+  const googleCalendar = useGoogleCalendar({ t, withEvents: true });
   const widgetData = useAdminWidgetData({ t, lang, externalItems: googleCalendar.events });
   const sections = useAdminSections();
   const actions = useAdminActions({ 
@@ -110,18 +109,9 @@ export default function AdminDashboard() {
           onSetStatus={calendar.onSetStatus}
           onCreateTask={calendar.onCreateTask}
           onCreateMeeting={calendar.onCreateMeeting}
-          headerAction={
-            <GoogleCalendarConnect
-              status={googleCalendar.status}
-              syncing={googleCalendar.syncing}
-              onConnect={googleCalendar.connect}
-              onSync={googleCalendar.syncNow}
-              onDisconnect={googleCalendar.disconnect}
-            />
-          }
           extraLegend={
             googleCalendar.status?.connected
-              ? [{ key: "google", label: t("admin.googleCalendar.legend"), color: "var(--stf-google)" }]
+              ? [{ key: "google", label: t("googleCalendar.legend"), color: "var(--stf-google)" }]
               : []
           }
         />

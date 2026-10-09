@@ -26,27 +26,33 @@ import {
 import {
   deleteAllImportedEvents,
   deleteConnectionData,
+  deleteEventLink,
   deleteImportedEvent,
   deleteTaskLink,
   ensureGoogleCalendarSchema,
   findConnectionByChannel,
   findConnectionByUser,
   listConnections,
+  listEventLinks,
   listImportedEvents,
   listSyncableTasksForUser,
   listTaskLinks,
   updateConnection,
   upsertConnection,
+  upsertEventLink,
   upsertImportedEvent,
   upsertTaskLink,
 } from "@/models/integrations/googleCalendar";
+import { getContactIdentityByCid } from "@/models/contacts/contactStore";
 import {
   FUTURE_STUDIO_CALENDAR_NAME,
   isPlatformEvent,
   normalizeGoogleEvent,
+  planEventSync,
   planTaskSync,
   toDashboardItem,
 } from "./mapping";
+import { listUserTimedEvents } from "./timedEvents";
 
 /**
  * Google Calendar integration — use cases (SERVICE layer).
@@ -178,6 +184,9 @@ async function resetCalendar(connection) {
   for (const link of await listTaskLinks(connection.user_id)) {
     await deleteTaskLink(connection.user_id, link.task_id);
   }
+  for (const link of await listEventLinks(connection.user_id)) {
+    await deleteEventLink(connection.user_id, link.source, link.source_id);
+  }
   await updateConnection(connection.user_id, {
     calendar_id: null,
     sync_token: null,
@@ -226,6 +235,52 @@ async function pushTasks(connection, accessToken) {
       if (!isGone(error)) throw error;
     }
     await deleteTaskLink(userId, taskId);
+    stats.deleted++;
+  }
+  return stats;
+}
+
+async function resolveUserRole(userId) {
+  const res = await getContactIdentityByCid(userId).catch(() => ({ rows: [] }));
+  return res.rows?.[0]?.role || null;
+}
+
+// ── Platform timed objects → Google (sessions, follow-ups) ───────────────────
+
+async function pushTimedEvents(connection, accessToken, role) {
+  const userId = connection.user_id;
+  const calendarId = connection.calendar_id;
+  const [events, links] = await Promise.all([
+    listUserTimedEvents({ userId, role }),
+    listEventLinks(userId),
+  ]);
+  const plan = planEventSync(events, links, { appUrl: resolveAppUrl() });
+  const stats = { created: 0, updated: 0, deleted: 0 };
+
+  for (const { event, body, fingerprint } of plan.creates) {
+    const created = await insertEvent(accessToken, calendarId, body);
+    await upsertEventLink(userId, event.source, event.sourceId, created.id, fingerprint);
+    stats.created++;
+  }
+  for (const { event, eventId, body, fingerprint } of plan.updates) {
+    try {
+      await patchEvent(accessToken, calendarId, eventId, body);
+      await upsertEventLink(userId, event.source, event.sourceId, eventId, fingerprint);
+    } catch (error) {
+      if (!isGone(error)) throw error;
+      // Deleted by hand in Google: recreate it.
+      const created = await insertEvent(accessToken, calendarId, body);
+      await upsertEventLink(userId, event.source, event.sourceId, created.id, fingerprint);
+    }
+    stats.updated++;
+  }
+  for (const { source, sourceId, eventId } of plan.deletes) {
+    try {
+      await deleteEvent(accessToken, calendarId, eventId);
+    } catch (error) {
+      if (!isGone(error)) throw error;
+    }
+    await deleteEventLink(userId, source, sourceId);
     stats.deleted++;
   }
   return stats;
@@ -324,10 +379,11 @@ async function ensureWatch(connection, accessToken) {
 
 // ── Sync orchestration ──────────────────────────────────────────────────────
 
-async function runSync(connection, { push = true } = {}) {
+async function runSync(connection, { push = true, role = null } = {}) {
   const accessToken = await getAccessToken(connection);
   await ensureCalendar(connection, accessToken);
   const pushed = push ? await pushTasks(connection, accessToken) : null;
+  const pushedEvents = push ? await pushTimedEvents(connection, accessToken, role) : null;
   const pulled = await pullEvents(connection, accessToken);
   let watching = false;
   try {
@@ -335,7 +391,7 @@ async function runSync(connection, { push = true } = {}) {
   } catch (error) {
     console.warn("[Google Calendar] watch channel not opened:", error.message);
   }
-  return { pushed, pulled, watching };
+  return { pushed, pushedEvents, pulled, watching };
 }
 
 /** Full two-way sync of one user. Returns { ok, ...stats } or { ok:false, error }. */
@@ -344,14 +400,15 @@ export function syncUser(userId, { push = true } = {}) {
     await ensureGoogleCalendarSchema();
     const connection = await findConnectionByUser(userId);
     if (!connection) return { ok: false, error: "notConnected" };
+    const role = await resolveUserRole(userId);
     try {
       let result;
       try {
-        result = await runSync(connection, { push });
+        result = await runSync(connection, { push, role });
       } catch (error) {
         if (!isGone(error) || !connection.calendar_id) throw error;
         await resetCalendar(connection);
-        result = await runSync(connection, { push });
+        result = await runSync(connection, { push, role });
       }
       await updateConnection(userId, { last_synced_at: new Date().toISOString(), last_error: null });
       return { ok: true, ...result };

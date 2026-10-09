@@ -67,6 +67,15 @@ export function ensureGoogleCalendarSchema() {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         PRIMARY KEY (user_id, google_event_id)
       )`);
+      await db.execute(`CREATE TABLE IF NOT EXISTS google_calendar_event_links (
+        user_id TEXT NOT NULL,
+        source TEXT NOT NULL,
+        source_id TEXT NOT NULL,
+        google_event_id TEXT NOT NULL,
+        fingerprint TEXT,
+        synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (user_id, source, source_id)
+      )`);
     })().catch((error) => {
       schemaReady = null;
       throw error;
@@ -151,6 +160,7 @@ export async function updateConnection(userId, fields) {
 /** Removes everything the integration stored for a user. */
 export async function deleteConnectionData(userId) {
   await db.execute({ sql: "DELETE FROM google_calendar_events WHERE user_id = ?", args: [userId] });
+  await db.execute({ sql: "DELETE FROM google_calendar_event_links WHERE user_id = ?", args: [userId] });
   await db.execute({ sql: "DELETE FROM google_calendar_task_links WHERE user_id = ?", args: [userId] });
   await db.execute({ sql: "DELETE FROM google_calendar_connections WHERE user_id = ?", args: [userId] });
 }
@@ -201,6 +211,35 @@ export async function deleteTaskLink(userId, taskId) {
   await db.execute({
     sql: "DELETE FROM google_calendar_task_links WHERE user_id = ? AND task_id = ?",
     args: [userId, taskId],
+  });
+}
+
+// ── Timed objects (sessions, follow-ups) → Google ──────────────────
+
+export async function listEventLinks(userId) {
+  const res = await db.execute({
+    sql: "SELECT source, source_id, google_event_id, fingerprint FROM google_calendar_event_links WHERE user_id = ?",
+    args: [userId],
+  });
+  return res.rows;
+}
+
+export async function upsertEventLink(userId, source, sourceId, googleEventId, fingerprint) {
+  await db.execute({
+    sql: `INSERT INTO google_calendar_event_links (user_id, source, source_id, google_event_id, fingerprint)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT (user_id, source, source_id) DO UPDATE SET
+            google_event_id = EXCLUDED.google_event_id,
+            fingerprint = EXCLUDED.fingerprint,
+            synced_at = NOW()`,
+    args: [userId, source, sourceId, googleEventId, fingerprint],
+  });
+}
+
+export async function deleteEventLink(userId, source, sourceId) {
+  await db.execute({
+    sql: "DELETE FROM google_calendar_event_links WHERE user_id = ? AND source = ? AND source_id = ?",
+    args: [userId, source, sourceId],
   });
 }
 

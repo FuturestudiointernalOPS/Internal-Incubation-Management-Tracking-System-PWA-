@@ -134,6 +134,69 @@ export function planTaskSync(tasks, links, options = {}) {
   return { creates, updates, deletes };
 }
 
+/**
+ * A timed platform object (a program session or a coaching follow-up) → the
+ * Google event body. Unlike a task this carries a real start and end instant, so
+ * it is a timed event (not all-day) and it shows as BUSY (a session occupies the
+ * person's time; a task does not).
+ *
+ * Instants are sent as UTC ISO strings: Google renders the instant in the
+ * calendar's own timezone, so no timezone maths is needed here and no day shifts.
+ */
+export function timedEventToGoogleEvent(event, { appUrl = "" } = {}) {
+  if (!event?.startsAt) return null;
+  const endsAt = event.endsAt || event.startsAt;
+  const lines = ["Future Studio · ImpactOS"];
+  if (event.description) lines.push("", String(event.description));
+  if (appUrl) lines.push("", appUrl);
+  return {
+    summary: event.title || "Event",
+    description: lines.join("\n"),
+    start: { dateTime: new Date(event.startsAt).toISOString() },
+    end: { dateTime: new Date(endsAt).toISOString() },
+    transparency: "opaque",
+    ...(event.location ? { location: event.location } : {}),
+    extendedProperties: {
+      private: {
+        fs_source: PLATFORM_MARKER,
+        fs_ref: eventKey(event.source, event.sourceId),
+      },
+    },
+  };
+}
+
+/** The stable identity of a timed source row across syncs: `<source>:<id>`. */
+export function eventKey(source, sourceId) {
+  return `${source}:${sourceId}`;
+}
+
+/**
+ * The timed-event twin of `planTaskSync`. `events` and `links` are keyed by
+ * `<source>:<id>`; unchanged events produce no Google call.
+ * Returns { creates, updates, deletes }.
+ */
+export function planEventSync(events, links, options = {}) {
+  const linkByKey = new Map(links.map((link) => [eventKey(link.source, link.source_id), link]));
+  const creates = [];
+  const updates = [];
+  const seen = new Set();
+  for (const event of events) {
+    const body = timedEventToGoogleEvent(event, options);
+    if (!body) continue;
+    const key = eventKey(event.source, event.sourceId);
+    seen.add(key);
+    const fingerprint = fingerprintEvent(body);
+    const link = linkByKey.get(key);
+    if (!link) creates.push({ event, body, fingerprint });
+    else if (link.fingerprint !== fingerprint)
+      updates.push({ event, eventId: link.google_event_id, body, fingerprint });
+  }
+  const deletes = links
+    .filter((link) => !seen.has(eventKey(link.source, link.source_id)))
+    .map((link) => ({ source: link.source, sourceId: link.source_id, eventId: link.google_event_id }));
+  return { creates, updates, deletes };
+}
+
 /** A stored Google event → the shape the dashboard calendar renders. */
 export function toDashboardItem(row) {
   const time =

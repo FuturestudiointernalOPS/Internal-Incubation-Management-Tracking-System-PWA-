@@ -1,12 +1,14 @@
-# Intégration Google Calendar — tableau de bord Super Admin
+# Intégration Google Calendar — tous les rôles
 
 Branche `google-calendar-sync` (créée depuis `dashboard_refactoring_front`), 2026-10-08.
+Ouverte à **tous les rôles et tous les utilisateurs** (branche `A`, 2026-10-09).
 
-Le Super Admin peut relier son compte Google depuis le calendrier du tableau de
-bord (`/admin`). Ses tâches Future Studio sont alors copiées dans son Google
-Calendar, et les événements qu'il ajoute côté Google **dans l'agenda Future
-Studio** apparaissent sur le tableau de bord. Ses rendez-vous personnels ne sont
-jamais lus.
+Chaque utilisateur connecté peut relier son compte Google, depuis la **carte
+« Google Calendar » de sa page profil** (ou depuis la barre d'outils du calendrier
+du tableau de bord admin). Ses tâches datées **et ses objets horaires** (sessions
+de programme, rendez-vous de coaching) sont copiés dans son Google Calendar, et
+les événements qu'il ajoute côté Google **dans l'agenda Future Studio**
+apparaissent sur le tableau de bord. Ses rendez-vous personnels ne sont jamais lus.
 
 ---
 
@@ -52,7 +54,9 @@ Migration : `src/migrations/050_google_calendar_sync.sql`. Le même schéma est 
 à l'exécution par `ensureGoogleCalendarSchema()` dans
 `src/models/integrations/googleCalendar.js`, sauf si
 `SKIP_RUNTIME_SCHEMA_MAINTENANCE=true` (dans ce cas, appliquer la migration à la main). Les
-changements sont purement additifs : 3 nouvelles tables, aucune table existante
+changements sont purement additifs : 4 nouvelles tables (`google_calendar_connections`,
+`google_calendar_task_links`, `google_calendar_events` et
+`google_calendar_event_links` pour les objets horaires), aucune table existante
 modifiée.
 
 ### `google_calendar_connections` — une ligne par utilisateur relié
@@ -117,14 +121,14 @@ L'architecture suit les couches MVC du projet (`docs/LAYER_SPLIT.md`) :
 
 | Méthode et route | Accès | Rôle |
 |---|---|---|
-| `GET /api/integrations/google-calendar` | super_admin | statut : `configured`, `connected`, `email`, `lastSyncedAt`, `lastError`, `realtime` |
-| `DELETE /api/integrations/google-calendar` | super_admin | déconnexion (stop du canal, révocation, effacement) |
-| `GET /api/integrations/google-calendar/connect` | super_admin | démarre OAuth2 : cookie `state` httpOnly (10 min), puis redirection vers Google |
-| `GET /api/integrations/google-calendar/callback` | super_admin | vérifie le `state`, échange le code, chiffre et stocke, crée l'agenda, lance la 1re synchro, redirige vers `/admin?gcal=<résultat>` |
-| `POST /api/integrations/google-calendar/sync` | super_admin | bouton « Synchroniser maintenant » ; avec `?ifStale=1`, ne fait rien si la dernière synchro a moins de 5 min (appel au chargement du tableau de bord) |
-| `GET /api/integrations/google-calendar/events` | super_admin | événements de l'agenda Future Studio, au format du calendrier du tableau de bord |
-| `POST /api/integrations/google-calendar/webhook` | Google (sans session) | notifications push ; authentifié par `X-Goog-Channel-Token` |
-| `GET` ou `POST /api/integrations/google-calendar/cron` | secret `CRON_SECRET` | synchro de toutes les connexions et renouvellement des canaux |
+| `GET /api/integrations/google-calendar` | utilisateur connecté | statut : `configured`, `connected`, `email`, `lastSyncedAt`, `lastError`, `realtime` |
+| `DELETE /api/integrations/google-calendar` | utilisateur connecté | déconnexion (stop du canal, révocation, effacement) |
+| `GET /api/integrations/google-calendar/connect` | utilisateur connecté | démarre OAuth2 : cookie `state` httpOnly (10 min) + cookie `next`, puis redirection vers Google |
+| `GET /api/integrations/google-calendar/callback` | utilisateur connecté | vérifie le `state`, échange le code, chiffre et stocke, crée l'agenda, lance la 1re synchro, redirige vers la **page d'origine** `?gcal=<résultat>` |
+| `POST /api/integrations/google-calendar/sync` | utilisateur connecté | bouton « Synchroniser maintenant » ; avec `?ifStale=1`, ne fait rien si la dernière synchro a moins de 5 min (appel au chargement) |
+| `GET /api/integrations/google-calendar/events` | utilisateur connecté | événements de l'agenda Future Studio, au format du calendrier du tableau de bord |
+| `POST /api/integrations/google-calendar/webhook` | Google (sans session) | notifications push ; authentifié par `X-Goog-Channel-Token`. **Doit figurer dans `publicApiPaths` de `src/proxy.js`** |
+| `GET` ou `POST /api/integrations/google-calendar/cron` | secret `CRON_SECRET` | synchro de toutes les connexions et renouvellement des canaux. **Doit figurer dans `publicApiPaths` de `src/proxy.js`** |
 
 ### Flux OAuth2
 
@@ -194,10 +198,10 @@ L'architecture suit les couches MVC du projet (`docs/LAYER_SPLIT.md`) :
 
 ## 4. Frontend
 
-**Emplacement du bouton** : dans la **barre d'outils du calendrier partagé**
-(`StaffCalendar`), à droite, à côté de Rechercher / Ajouter. C'est le calendrier
-qui se synchronise, donc le bouton est placé à côté de lui. L'en-tête de la page
-(« New Program ») reste réservé aux actions de création.
+**Emplacement du bouton** : **une seule fois, dans l'en-tête partagé**
+(`ShellHeader`), à côté du sélecteur de contexte. Le même contrôle sert donc
+**tous les rôles** ; le tableau de bord admin ne le répète plus dans sa barre
+d'outils (il ne garde que le flux d'événements et la légende).
 
 | État | Affichage |
 |---|---|
@@ -205,7 +209,7 @@ qui se synchronise, donc le bouton est placé à côté de lui. L'en-tête de la
 | non connecté | **« Intégrer son Google Calendar »** (FR) / « Connect Google Calendar » (EN) |
 | connecté | pastille bleu ciel + e-mail du compte, bouton ⟳ « Synchroniser maintenant », bouton « Déconnecter » (confirmation `useDialogs`, tone `danger`) |
 | accès révoqué | « Reconnecter Google Calendar » |
-| autre rôle que super_admin | rien (l'API répond 403, donc le composant ne s'affiche pas) |
+| tout rôle | voit le même contrôle dans l'en-tête (les événements Google ne s'affichent que sur le calendrier admin) |
 
 Les événements Google apparaissent dans le calendrier et dans le widget
 « Upcoming », en **bleu ciel**, avec une entrée « Google Calendar » dans la
@@ -213,8 +217,9 @@ légende. Un clic sur l'un d'eux ouvre l'événement dans Google Calendar (nouve
 onglet) au lieu du panneau de tâche.
 
 Fichiers :
-- `src/app/admin/hooks/useGoogleCalendar.js` — nouveau : statut, événements, connexion, synchro, déconnexion, message de retour d'OAuth.
-- `src/components/admin/dashboard-page/GoogleCalendarConnect.js` — nouveau : le contrôle.
+- `src/components/integrations/useGoogleCalendar.js` — hook **partagé** (déplacé depuis `src/app/admin/hooks/`) : statut, événements (optionnels), connexion, synchro, déconnexion, message de retour d'OAuth. L'annonce du retour OAuth est **unique** par chargement (en-tête et tableau de bord admin coexistent).
+- `src/components/integrations/GoogleCalendarConnect.js` — le contrôle compact, monté **une fois** dans l'en-tête partagé : visible par **tous les rôles**.
+- `src/components/layout/shell/ShellHeader.js` — affiche le contrôle ; le tableau de bord admin ne le répète plus dans sa barre d'outils.
 - `src/components/staff/StaffCalendar.js` — le calendrier partagé gagne 3 props **optionnelles** : `headerAction` (emplacement dans la barre d'outils), `extraLegend` (entrée « Google Calendar » dans la légende) et `onOpenExternal` (un élément hors plateforme ouvre Google, jamais le panneau). Sans elles, l'affichage des calendriers staff/participant est identique.
 - `src/components/staff/calendarModel.js` — `SOURCE_KIND` gagne `google: "meeting"` : une entrée Google se dessine comme un événement de calendrier.
 - `src/components/staff/staff.css` — les jetons `--stf-google*` et le style `.x-it.g` / `.x-ab.g`.
@@ -222,7 +227,7 @@ Fichiers :
 - `src/components/admin/dashboard-page/calendarEvents.js` — `googleEventsToEvents` : une entrée Google, un événement par jour.
 - `src/app/admin/hooks/useAdminWidgetData.js` — paramètre **optionnel** `externalItems` (vide par défaut), fusionné dans le widget « Upcoming ». Les compteurs de tâches ne changent pas.
 - `src/app/admin/page.js` — branchement, `selectCalendarItem` (widget) et `openCalendarExternal` (calendrier).
-- i18n : `admin.googleCalendar.*` dans `src/locales/{en,fr}/admin.json`.
+- i18n : domaine dédié `googleCalendar.*` dans `src/locales/{en,fr}/googleCalendar.json`.
 
 Les règles d'affichage du calendrier (ordre de création, pas de doublon, pas de
 compteur ×N) restent valables : le widget « Upcoming » passe par le même
@@ -311,10 +316,14 @@ Résultats :
 
 ## 7. Limites connues et suites possibles
 
-- Seul le **Super Admin** a le bouton pour l'instant (garde `super_admin` dans
-  les routes). Le service fonctionne déjà par utilisateur : pour l'ouvrir à
-  d'autres rôles, il suffit d'élargir les gardes et d'afficher le composant
-  sur leurs tableaux de bord.
+- Les routes acceptent **tout utilisateur connecté** et le contrôle est dans
+  l'**en-tête partagé** : visible par tous les rôles, sur toutes les pages.
+- Les **objets horaires** synchronisés sont les **sessions de programme**, les
+  **rendez-vous de coaching** et les **sessions de venture** (portée personnelle :
+  les affectations de la personne et ses sessions coachées, jamais « toutes les
+  ventures »). La durée d'une session vient de ses heures de début/fin ; à défaut,
+  +1 h. Un rendez-vous de coaching est copié sur +30 min (sa durée n'est pas
+  remontée).
 - Une nouvelle tâche part vers Google à la synchro suivante (chargement du
   tableau de bord, bouton ou cron), pas instantanément. On pourrait appeler
   `syncUser` après la création d'une tâche, mais cela toucherait au code des

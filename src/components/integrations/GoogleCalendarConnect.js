@@ -2,7 +2,7 @@
 
 import { AlertTriangle, CalendarPlus, RefreshCw, Unlink } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { cn } from "./constants";
+import { cn } from "@/components/admin/dashboard-page/constants";
 
 /**
  * The Google Calendar control in the dashboard calendar's header.
@@ -26,11 +26,11 @@ export default function GoogleCalendarConnect({ status, syncing, onConnect, onSy
       <button
         type="button"
         onClick={onConnect}
-        title={status.configured ? t("admin.googleCalendar.connectHint") : t("admin.googleCalendar.notConfiguredHint")}
+        title={status.configured ? t("googleCalendar.connectHint") : t("googleCalendar.notConfiguredHint")}
         className="btn btn-secondary gap-2 !py-1.5 !px-3 text-[11px]"
       >
         <CalendarPlus className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-        {t("admin.googleCalendar.connect")}
+        {t("googleCalendar.connect")}
       </button>
     );
   }
@@ -40,11 +40,11 @@ export default function GoogleCalendarConnect({ status, syncing, onConnect, onSy
       <button
         type="button"
         onClick={onConnect}
-        title={t("admin.googleCalendar.revokedHint")}
+        title={t("googleCalendar.revokedHint")}
         className="btn btn-secondary gap-2 !py-1.5 !px-3 text-[11px]"
       >
         <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-        {t("admin.googleCalendar.reconnect")}
+        {t("googleCalendar.reconnect")}
       </button>
     );
   }
@@ -54,17 +54,17 @@ export default function GoogleCalendarConnect({ status, syncing, onConnect, onSy
     <div className="flex items-center gap-1">
       <span
         className="hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[var(--surface-2)] text-[10px] font-bold text-[var(--text-secondary)] max-w-[200px]"
-        title={`${status.email || ""} · ${t("admin.googleCalendar.lastSync")}: ${lastSync}`}
+        title={`${status.email || ""} · ${t("googleCalendar.lastSync")}: ${lastSync}`}
       >
         <span className="w-2 h-2 rounded-full bg-sky-400 shrink-0" />
-        <span className="truncate">{status.email || t("admin.googleCalendar.connected")}</span>
+        <span className="truncate">{status.email || t("googleCalendar.connected")}</span>
       </span>
       <button
         type="button"
         onClick={onSync}
         disabled={syncing}
-        title={`${t("admin.googleCalendar.syncNow")} — ${t("admin.googleCalendar.lastSync")}: ${lastSync}`}
-        aria-label={t("admin.googleCalendar.syncNow")}
+        title={`${t("googleCalendar.syncNow")} — ${t("googleCalendar.lastSync")}: ${lastSync}`}
+        aria-label={t("googleCalendar.syncNow")}
         className="p-1.5 rounded-lg hover:bg-tertiary transition-all disabled:opacity-50"
       >
         <RefreshCw className={cn("w-4 h-4", syncing && "animate-spin")} />
@@ -72,8 +72,8 @@ export default function GoogleCalendarConnect({ status, syncing, onConnect, onSy
       <button
         type="button"
         onClick={onDisconnect}
-        title={t("admin.googleCalendar.disconnect")}
-        aria-label={t("admin.googleCalendar.disconnect")}
+        title={t("googleCalendar.disconnect")}
+        aria-label={t("googleCalendar.disconnect")}
         className="p-1.5 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)]"
       >
         <Unlink className="w-4 h-4" />
