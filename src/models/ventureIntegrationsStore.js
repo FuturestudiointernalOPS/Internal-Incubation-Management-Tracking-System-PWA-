@@ -1,8 +1,8 @@
 /**
- * Venture external integrations & public APIs — statements (REPOSITORY layer).
+ * Venture public APIs — statements (REPOSITORY layer).
  *
- * The data access behind `@/services/ventures/integrations`: the integration
- * providers/configs, the API keys and the webhooks with their delivery logs.
+ * The data access behind `@/services/ventures/integrations`: the API keys and
+ * the webhooks with their delivery logs.
  *
  * SQL is byte-identical to what used to sit inline in `src/lib/ventures.js`.
  *
@@ -11,52 +11,6 @@
  */
 
 import db from "@/lib/db";
-
-// ── Integrations ─────────────────────────────────────────────────────────────
-
-/** The available integration providers, by name. */
-export function selectIntegrationProviders() {
-  return db.execute({ sql: "SELECT * FROM integration_providers WHERE is_available=TRUE ORDER BY name" });
-}
-
-/** Integration configs with their provider info (optional filters). */
-export function selectIntegrations({ ventureId, provider, status, limit, offset } = {}) {
-  let sql = "SELECT ic.*, ip.name as provider_name, ip.description as provider_description, ip.icon as provider_icon FROM integration_configs ic LEFT JOIN integration_providers ip ON ic.provider=ip.provider_key WHERE 1=1";
-  const args = [];
-  if (ventureId) { sql += " AND ic.venture_id=?"; args.push(ventureId); }
-  if (provider) { sql += " AND ic.provider=?"; args.push(provider); }
-  if (status) { sql += " AND ic.status=?"; args.push(status); }
-  sql += " ORDER BY ic.created_at DESC LIMIT ? OFFSET ?"; args.push(limit, offset);
-  return db.execute({ sql, args });
-}
-
-/** The id of an available provider. */
-export function selectAvailableProvider(provider) {
-  return db.execute({ sql: "SELECT id FROM integration_providers WHERE provider_key=? AND is_available=TRUE", args: [provider] });
-}
-
-/** Insert one integration config, returning its id. */
-export function insertIntegration(provider, label, ventureId, configJson, createdBy) {
-  return db.execute({
-    sql: `INSERT INTO integration_configs (provider, label, venture_id, config, status, created_by) VALUES (?, ?, ?, ?::jsonb, 'connected', ?) RETURNING id`,
-    args: [provider, label, ventureId, configJson, createdBy],
-  });
-}
-
-/** Apply a computed SET list to an integration config. */
-export function updateIntegrationColumns(sets, args) {
-  return db.execute({ sql: `UPDATE integration_configs SET ${sets.join(",")} WHERE id=?`, args });
-}
-
-/** One integration config row. */
-export function selectIntegrationById(id) {
-  return db.execute({ sql: "SELECT * FROM integration_configs WHERE id=?", args: [id] });
-}
-
-/** Delete one integration config. */
-export function deleteIntegrationRow(id) {
-  return db.execute({ sql: "DELETE FROM integration_configs WHERE id=?", args: [id] });
-}
 
 // ── API keys ─────────────────────────────────────────────────────────────────
 

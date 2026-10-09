@@ -17,6 +17,19 @@ export function toDateStr(value) {
   }
 }
 
+/**
+ * A timestamp as the calendar needs it to place a block on the hour grid: an
+ * ISO string for a Date, the raw text otherwise (it is parsed by the browser, so
+ * a value written with an offset keeps its instant and a naive one keeps its
+ * wall-clock). Empty / unreadable → null, so the item is simply all-day.
+ */
+export function toInstant(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return null;
+  return value instanceof Date ? date.toISOString() : String(value);
+}
+
 /** All dates from start to end (inclusive). */
 export function dateRange(start, end) {
   const dates = [];

@@ -1,6 +1,5 @@
 /**
- * SUBMISSION_RECEIVED rules: acknowledge the submitter, sync the CRM contact,
- * and mirror the submission to Notion.
+ * SUBMISSION_RECEIVED rules: acknowledge the submitter and sync the CRM contact.
  */
 
 import { audit, notifyUser } from "@/models/platform/integrations";
@@ -85,22 +84,6 @@ export const submissionRules = [
           `Submitted "${runName}"`, "forms",
           ctx.submission.id, ctx.submission.submitter_id,
           { run_id: ctx.submission.run_id });
-      }
-    },
-  },
-
-  // ── Submission received → sync to Notion ──
-  {
-    event: PLATFORM_EVENTS.SUBMISSION_RECEIVED,
-    description: "Sync submission to Notion database (if configured)",
-    condition: (ctx) => ctx.submission?.status === "submitted",
-    action: async (ctx) => {
-      const { submission } = ctx;
-      try {
-        const { syncSubmission } = await import("@/models/integrations/notion/sync");
-        await syncSubmission(submission.id);
-      } catch (error) {
-        console.error("[Automation] Notion sync failed:", error.message);
       }
     },
   },

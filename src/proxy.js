@@ -20,6 +20,8 @@ import { NextResponse } from "next/server";
  *   - /register-staff
  *   - /register/* (a group/family registration link)
  *   - /join/* (a public group join link)
+ *   - /open/* (a reminder email's button: the route itself sends a signed-out
+ *     reader to login or registration, and a signed-in one to the Venture)
  *   - /verify/* (public certificate verification)
  *   - /api/contacts (POST - registration)
  *   - /api/public/* (group lookup + registration + public course catalogue)
@@ -33,6 +35,10 @@ import { NextResponse } from "next/server";
  *     the x-cron-secret shared secret is the credential, checked in-route. Every
  *     OTHER /api/reminders/* and /api/ventures/[id]/reminders route stays behind
  *     a session — only the sweep is reachable without one)
+ *   - /api/platform/scheduled-result-emails (a scheduler's call that releases
+ *     the result emails whose delay has elapsed: the scheduler has no session,
+ *     and the shared secret is the credential — every OTHER /api/platform/*
+ *     route stays behind a session)
  *   - /api/families (the ?registration_id= lookup is the public join path;
  *      every other branch requires a capability in-route)
  *   - /api/verify/* (public certificate verification)
@@ -53,6 +59,7 @@ const publicPaths = [
   "/register-staff",
   "/register",
   "/join",
+  "/open",
   "/verify",
   "/investor/setup-password",
   "/s",
@@ -75,12 +82,21 @@ const publicApiPaths = [
   "/api/public",
   "/api/webhooks/kkiapay",
   "/api/lms/checkout-reconcile",
+  // Google Calendar: the push webhook (Google holds no session; the channel
+  // token is the credential) and the scheduled sweep (a clock holds no session;
+  // the shared cron secret is the credential). Without these the requests are
+  // refused at the edge with 401 and never reach their own gate — the sweep
+  // would look configured and silently never run, and push notifications would
+  // be lost.
+  "/api/integrations/google-calendar/webhook",
+  "/api/integrations/google-calendar/cron",
   // The daily reminder sweep. A clock holds no session cookie, so without this
   // the request is refused at the edge with 401 and the route never runs — the
   // job would look "configured" and silently never send anything. The route's
   // own x-cron-secret gate is the credential; it answers 503 when no secret is
   // configured rather than degrading into an open send button.
   "/api/reminders/sweep",
+  "/api/platform/scheduled-result-emails",
   "/api/families",
   "/api/verify",
   "/api/venture-member-invites",

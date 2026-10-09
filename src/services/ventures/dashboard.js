@@ -32,6 +32,13 @@ import {
 } from "@/models/ventureWorkspace";
 
 /**
+ * How many Data bank documents count as a full set of filing evidence for the
+ * Investment Readiness widget. Beyond this the document signal stops growing —
+ * readiness should reward having filed, not having flooded.
+ */
+const READINESS_DOCUMENTS_TARGET = 3;
+
+/**
  * @param {object} args
  * @param {string} args.ventureParam      the route's venture id (code or UUID)
  * @param {boolean} args.isInternalViewer global Venture authority (super_admin)
@@ -186,6 +193,10 @@ export async function buildVentureDashboard({ ventureParam, isInternalViewer }) 
         categories: items,
         verified_count: items.filter((item) => item.status === "verified").length,
         total_count: items.length,
+        // How many files the Venture actually filed in its Data bank. Read here
+        // because `getOrCreateVerification` already loads them — the readiness
+        // score needs this number and no extra query is required.
+        document_count: verificationData.documents?.length || 0,
       };
     } catch { return null; }
   })();
@@ -247,19 +258,58 @@ export async function buildVentureDashboard({ ventureParam, isInternalViewer }) 
     } catch { return { coaches: [], advisors: [], coaching_sessions: 0, total: 0 }; }
   })();
 
-  // ── Investment Readiness (calculated from profile completeness + stage) ──
+  // ── Investment Readiness (from the Venture's real verification evidence) ──
+  //
+  // This used to be weighted on `startup_profiles` completion, but no screen ever
+  // writes that table — the wizard behind it has no caller, and
+  // `startup_profile_documents` stays empty. `profileScore` was therefore always
+  // 0, the score collapsed to `round(stageScore * 0.4)`, and the widget looked
+  // frozen (an `idea` Venture read 4% forever, with two milestones that could
+  // never clear). Both inputs now come from what the Venture actually has: how
+  // much of its verification is approved, and whether it filed any document.
+  //
+  // `milestones` are i18n KEYS with their interpolation params — the component
+  // runs them through `t()`, so French no longer shows hardcoded English.
   const investmentReadiness = (async () => {
     try {
-      const [venture, profile] = await Promise.all([ventureInfo, profileCompletion]);
+      const [venture, verificationData] = await Promise.all([ventureInfo, verification]);
       const stage = venture?.business_stage || "idea";
       const stageScores = { idea: 10, validation: 25, early_traction: 45, growth: 65, scaling: 85 };
       const stageScore = stageScores[stage] || 10;
-      const profileScore = profile?.percentage || 0;
-      const score = Math.min(Math.round((stageScore * 0.4) + (profileScore * 0.6)), 100);
+
+      const totalCategories = verificationData?.total_count || 0;
+      const verifiedCategories = verificationData?.verified_count || 0;
+      const pendingCategories = Math.max(totalCategories - verifiedCategories, 0);
+      const verificationProgress = totalCategories > 0 ? verifiedCategories / totalCategories : 0;
+
+      const documentCount = verificationData?.document_count || 0;
+      // Filing three documents counts as a full set; beyond that the evidence
+      // stops growing, so a prolific Venture cannot farm the score.
+      const documentEvidence = Math.min(documentCount, READINESS_DOCUMENTS_TARGET) / READINESS_DOCUMENTS_TARGET;
+      const evidenceScore = Math.round((verificationProgress * 60) + (documentEvidence * 40));
+
+      const score = Math.min(Math.round((stageScore * 0.4) + (evidenceScore * 0.6)), 100);
+
       const nextMilestones = [];
-      if (!profile?.is_submitted) nextMilestones.push("Complete Startup Profile");
-      if (!profile?.items?.[4]?.completed) nextMilestones.push("Upload Supporting Documents");
-      return { score, stage, stage_weight: stageScore, profile_weight: profileScore, next_milestones: nextMilestones };
+      if (documentCount === 0) {
+        nextMilestones.push({ key: "venture.dashboardReadiness.uploadDocuments" });
+      }
+      if (pendingCategories > 0) {
+        nextMilestones.push({
+          key: "venture.dashboardReadiness.completeVerification",
+          params: { count: pendingCategories },
+        });
+      }
+
+      return {
+        score,
+        stage,
+        stage_weight: stageScore,
+        evidence_weight: evidenceScore,
+        verification_progress: Math.round(verificationProgress * 100),
+        document_count: documentCount,
+        next_milestones: nextMilestones,
+      };
     } catch { return { score: 0, stage: "unknown", next_milestones: [] }; }
   })();
 

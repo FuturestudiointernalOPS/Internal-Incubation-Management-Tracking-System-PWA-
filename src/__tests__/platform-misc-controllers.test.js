@@ -35,13 +35,6 @@ const mockCalendar = {
 };
 jest.mock("@/models/integrations/calendar/sync", () => mockCalendar);
 
-const mockNotion = {
-  checkNotionHealth: jest.fn(() => ({ configured: false })),
-  syncSubmission: jest.fn(async () => ({ synced: 1 })),
-  syncAllSubmissions: jest.fn(async () => ({ submitted: 5 })),
-};
-jest.mock("@/models/integrations/notion/sync", () => mockNotion);
-
 const mockAi = {
   getEvaluationFrameworkByFormId: jest.fn(async () => ({ rows: [] })),
   upsertFormEvaluationFramework: jest.fn(async () => ({})),
@@ -77,7 +70,7 @@ jest.mock("@/lib/platform/runReportFileText", () => ({
 }));
 
 const { listNotifications, markNotificationsRead } = require("@/services/platform/notifications");
-const { runCalendarAction, getCalendarHealth, runNotionAction } = require("@/services/platform/integrations");
+const { runCalendarAction, getCalendarHealth } = require("@/services/platform/integrations");
 const { getInvestorRunReference } = require("@/services/platform/investorIntake");
 const {
   getEvaluationFramework,
@@ -93,8 +86,7 @@ const {
 beforeEach(() => {
   jest.clearAllMocks();
   mockForms.listPlatformNotifications.mockResolvedValue({ rows: [] });
-  mockCalendar.checkCalendarHealth.mockResolvedValue({ provider: "google", configured: true });
-  mockNotion.checkNotionHealth.mockReturnValue({ configured: false });
+  mockCalendar.checkCalendarHealth.mockResolvedValue({ provider: "microsoft", configured: true });
   mockAi.getEvaluationFrameworkByFormId.mockResolvedValue({ rows: [] });
   mockInvestorApplication.resolveInvestorRun.mockResolvedValue(null);
   mockFormRuns.getRunById.mockResolvedValue({ rows: [] });
@@ -130,7 +122,7 @@ describe("integrations", () => {
   test("calendar health returns the provider state", async () => {
     const { status, body } = await getCalendarHealth();
     expect(status).toBe(200);
-    expect(body).toMatchObject({ success: true, provider: "google" });
+    expect(body).toMatchObject({ success: true, provider: "microsoft" });
   });
 
   test("calendar sync without a runId is a 400", async () => {
@@ -148,12 +140,6 @@ describe("integrations", () => {
     const { status, body } = await runCalendarAction({ action: "wat" });
     expect(status).toBe(400);
     expect(body.error).toContain("wat");
-  });
-
-  test("notion sync requires a submissionId, sync-all does not", async () => {
-    expect((await runNotionAction({ action: "sync" })).status).toBe(400);
-    const { body } = await runNotionAction({ action: "sync-all" });
-    expect(body).toMatchObject({ success: true, submitted: 5 });
   });
 });
 

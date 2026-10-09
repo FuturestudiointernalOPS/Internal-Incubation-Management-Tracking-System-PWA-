@@ -7,32 +7,21 @@ export default function StandupFormHeader({
   weekInfo,
 }) {
   const { t } = useI18n();
+  const exists = history.some(
+    (entry) =>
+      entry.report_type === "standup" &&
+      entry.week_number === weekInfo.week &&
+      entry.year === weekInfo.year,
+  );
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="stf-head" style={{ alignItems: "center" }}>
       <div>
-        <h2 className="text-lg font-bold text-[var(--text-primary)]">
-          {t("reports.mondayStandup")}
-        </h2>
-        <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
-          {t("staff.opReport.manageWeeklyPlans")}
-        </p>
+        <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>{t("reports.mondayStandup")}</h2>
+        <p className="stf-sub" style={{ margin: "2px 0 0" }}>{t("staff.opReport.manageWeeklyPlans")}</p>
       </div>
-      <button
-        onClick={onOpenNewStandup}
-        className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-[10px] font-bold bg-[var(--brand-orange)] text-black hover:brightness-110 transition-all"
-      >
-        <>
-          <Plus className="w-4 h-4" />{" "}
-          {history.some(
-            (entry) =>
-              entry.report_type === "standup" &&
-              entry.week_number === weekInfo.week &&
-              entry.year === weekInfo.year,
-          )
-            ? t("staff.opReport.editStandup")
-            : t("staff.opReport.createNewStandup")}
-        </>
+      <button type="button" onClick={onOpenNewStandup} className="stf-btn pr">
+        <Plus size={15} /> {exists ? t("staff.opReport.editStandup") : t("staff.opReport.createNewStandup")}
       </button>
     </div>
   );

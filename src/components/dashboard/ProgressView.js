@@ -38,7 +38,7 @@ function MetricCard({ label, value, icon: Icon, color, subtitle }) {
       <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
         {label}
       </p>
-      <div className="w-full h-2 bg-white/10 rounded-full mt-3 overflow-hidden">
+      <div className="w-full h-2 bg-surface-3 rounded-full mt-3 overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-1000 ease-out"
           style={{
@@ -69,7 +69,7 @@ function MilestoneItem({ milestone }) {
     >
       <div
         className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-          milestone.achieved ? "bg-emerald-500/10" : "bg-white/5"
+          milestone.achieved ? "bg-emerald-500/10" : "bg-surface-2"
         }`}
       >
         {milestone.achieved ? (
@@ -129,7 +129,7 @@ function WeekHistoryBar({ week }) {
           <span className="text-[10px] font-bold text-[var(--text-secondary)] w-14">
             {t("participantMisc.progress.deliverables")}
           </span>
-          <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+          <div className="flex-1 h-1.5 bg-surface-3 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full bg-[var(--brand-orange)]"
               style={{ width: `${deliverablesPercent}%` }}
@@ -143,7 +143,7 @@ function WeekHistoryBar({ week }) {
           <span className="text-[10px] font-bold text-[var(--text-secondary)] w-14">
             {t("participantMisc.progress.attendance")}
           </span>
-          <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+          <div className="flex-1 h-1.5 bg-surface-3 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full bg-emerald-400"
               style={{ width: `${sessionsPercent}%` }}
@@ -163,7 +163,7 @@ function WeekHistoryBar({ week }) {
 function ProgressSkeleton() {
   return (
     <div className="space-y-6 animate-pulse">
-      <div className="h-8 w-48 bg-white/10 rounded" />
+      <div className="h-8 w-48 bg-surface-3 rounded" />
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {[...Array(5)].map((_, index) => (
           <div
@@ -172,7 +172,7 @@ function ProgressSkeleton() {
           />
         ))}
       </div>
-      <div className="h-6 w-32 bg-white/10 rounded" />
+      <div className="h-6 w-32 bg-surface-3 rounded" />
       {[...Array(3)].map((_, index) => (
         <div
           key={index}
@@ -225,7 +225,7 @@ export default function ProgressView({ programId: _filterProgramId }) {
         <p className="text-sm text-[var(--text-secondary)]">{error}</p>
         <button
           onClick={refresh}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-wide"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-[var(--text-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wide"
         >
           <RefreshCw className="w-3 h-3" /> {t("participantMisc.progress.retry")}
         </button>
@@ -278,7 +278,7 @@ export default function ProgressView({ programId: _filterProgramId }) {
           onClick={() => setSelectedProgram("all")}
           className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
             selectedProgram === "all"
-              ? "bg-[var(--brand-orange)] text-black"
+              ? "bg-[var(--brand-orange)] text-[var(--text-primary)]"
               : "bg-[var(--bg-tertiary)] text-[var(--text-secondary)]"
           }`}
         >
@@ -290,7 +290,7 @@ export default function ProgressView({ programId: _filterProgramId }) {
             onClick={() => setSelectedProgram(program.id)}
             className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
               selectedProgram === program.id
-                ? "bg-[var(--brand-orange)] text-black"
+                ? "bg-[var(--brand-orange)] text-[var(--text-primary)]"
                 : "bg-[var(--bg-tertiary)] text-[var(--text-secondary)]"
             }`}
           >
@@ -308,7 +308,7 @@ export default function ProgressView({ programId: _filterProgramId }) {
           color={{
             bg: "bg-brand-orange/10",
             text: "text-[var(--brand-orange)]",
-            hex: "#FF6600",
+            hex: "var(--brand-orange)",
           }}
           subtitle={
             activeProgram
@@ -329,7 +329,7 @@ export default function ProgressView({ programId: _filterProgramId }) {
           color={{
             bg: "bg-emerald-500/10",
             text: "text-emerald-400",
-            hex: "#34D399",
+            hex: "var(--chart-success)",
           }}
           subtitle={
             activeProgram
@@ -350,7 +350,7 @@ export default function ProgressView({ programId: _filterProgramId }) {
           color={{
             bg: "bg-blue-500/10",
             text: "text-blue-400",
-            hex: "#6366F1",
+            hex: "var(--chart-info)",
           }}
           subtitle={
             activeProgram
@@ -371,7 +371,7 @@ export default function ProgressView({ programId: _filterProgramId }) {
           color={{
             bg: "bg-purple-500/10",
             text: "text-purple-400",
-            hex: "#A855F7",
+            hex: "var(--chart-info)",
           }}
           subtitle={
             activeProgram
@@ -389,7 +389,7 @@ export default function ProgressView({ programId: _filterProgramId }) {
           color={{
             bg: "bg-amber-500/10",
             text: "text-amber-400",
-            hex: "#FBBF24",
+            hex: "var(--chart-warning)",
           }}
           subtitle={t("participantMisc.progress.submissionsCount", {
             count: data.totals.rituals,

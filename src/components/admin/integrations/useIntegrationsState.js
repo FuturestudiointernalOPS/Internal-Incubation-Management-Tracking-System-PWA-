@@ -1,22 +1,10 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { useApiMulti } from "@/lib/hooks/useApi";
 
-const INTEGRATION_ENDPOINTS = [
-  { key: "integrations", url: "/api/integrations", transform: (p) => p?.success ? p.integrations || [] : [] },
-  { key: "providers", url: "/api/integrations?type=providers", transform: (p) => p?.success ? p.providers || [] : [] },
-  { key: "keys", url: "/api/api-keys", transform: (p) => p?.success ? p.keys || [] : [] },
-  { key: "webhooks", url: "/api/webhooks", transform: (p) => p?.success ? p.webhooks || [] : [] },
-];
-
-const pickList = (field) => (payload) => (payload?.success ? payload[field] || [] : []);
-
 export function useIntegrationsState() {
-  const [activeTab, setActiveTab] = useState("integrations");
-  const [showAddIntegration, setShowAddIntegration] = useState(false);
-  const [newIntegration, setNewIntegration] = useState({ provider: "", label: "" });
+  const [activeTab, setActiveTab] = useState("api_keys");
 
   const [showAddKey, setShowAddKey] = useState(false);
   const [newKey, setNewKey] = useState({ name: "", description: "", scopes: [], expires_at: "" });
@@ -31,49 +19,15 @@ export function useIntegrationsState() {
   const [confirmAction, setConfirmAction] = useState(null);
 
   const { data, loading, error, refresh } = useApiMulti([
-    { key: "integrations", url: "/api/integrations", transform: (p) => p?.success ? p.integrations || [] : [] },
-    { key: "providers", url: "/api/integrations?type=providers", transform: (p) => p?.success ? p.providers || [] : [] },
     { key: "keys", url: "/api/api-keys", transform: (p) => p?.success ? p.keys || [] : [] },
     { key: "webhooks", url: "/api/webhooks", transform: (p) => p?.success ? p.webhooks || [] : [] },
   ]);
 
-  const integrations = data.integrations ?? [];
-  const providers = data.providers ?? [];
   const apiKeys = data.keys ?? [];
   const webhooks = data.webhooks ?? [];
 
   const refreshAll = useCallback(() => {
     refresh();
-  }, [refresh]);
-
-  const handleAddIntegration = useCallback(async () => {
-    try {
-      const response = await fetch("/api/integrations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: newIntegration.provider, label: newIntegration.label }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        setShowAddIntegration(false);
-        setNewIntegration({ provider: "", label: "" });
-        refresh();
-      }
-    } catch (error) {
-      console.error("Add integration error:", error);
-    }
-  }, [newIntegration, refresh]);
-
-  const handleRemoveIntegration = useCallback(async (id) => {
-    try {
-      const response = await fetch(`/api/integrations/${id}`, { method: "DELETE" });
-      const data = await response.json();
-      if (data.success) {
-        refresh();
-      }
-    } catch (error) {
-      console.error("Remove integration error:", error);
-    }
   }, [refresh]);
 
   const handleCreateApiKey = useCallback(async () => {
@@ -159,10 +113,6 @@ export function useIntegrationsState() {
   return {
     activeTab,
     setActiveTab,
-    showAddIntegration,
-    setShowAddIntegration,
-    newIntegration,
-    setNewIntegration,
     showAddKey,
     setShowAddKey,
     newKey,
@@ -181,20 +131,16 @@ export function useIntegrationsState() {
     setLogsLoading,
     confirmAction,
     setConfirmAction,
-    integrations,
-    providers,
     apiKeys,
     webhooks,
     loading,
     error,
     refresh: refreshAll,
-    handleAddIntegration,
-    handleRemoveIntegration,
     handleCreateApiKey,
     handleRevokeKey,
     handleCreateWebhook,
     handleDeleteWebhook,
     loadWebhookLogs,
-    copyToClipboard: (text) => navigator.clipboard.writeText(text).catch(() => {}),
+    copyToClipboard,
   };
 }

@@ -6,18 +6,14 @@
  */
 
 export default [
-// External Integrations & API tables (Enhancement 5.4)
-"CREATE TABLE IF NOT EXISTS integration_providers (id SERIAL PRIMARY KEY, provider_key TEXT NOT NULL UNIQUE, name TEXT NOT NULL, description TEXT, icon TEXT, is_available BOOLEAN DEFAULT TRUE, config_schema JSONB, created_at TIMESTAMP DEFAULT NOW())",
-"INSERT INTO integration_providers (provider_key, name, description, config_schema) SELECT 'google_calendar', 'Google Calendar', 'Sync events and availability with Google Calendar', '{\"type\":\"object\",\"properties\":{\"client_id\":{\"type\":\"string\"},\"client_secret\":{\"type\":\"string\"},\"redirect_uri\":{\"type\":\"string\"},\"calendar_id\":{\"type\":\"string\"}}}'::jsonb WHERE NOT EXISTS (SELECT 1 FROM integration_providers WHERE provider_key='google_calendar')",
-"INSERT INTO integration_providers (provider_key, name, description, config_schema) SELECT 'google_drive', 'Google Drive', 'Access and store documents in Google Drive', '{\"type\":\"object\",\"properties\":{\"client_id\":{\"type\":\"string\"},\"client_secret\":{\"type\":\"string\"},\"redirect_uri\":{\"type\":\"string\"}}}'::jsonb WHERE NOT EXISTS (SELECT 1 FROM integration_providers WHERE provider_key='google_drive')",
-"INSERT INTO integration_providers (provider_key, name, description, config_schema) SELECT 'microsoft_outlook', 'Microsoft Outlook', 'Sync email, calendar and contacts with Outlook', '{\"type\":\"object\",\"properties\":{\"tenant_id\":{\"type\":\"string\"},\"client_id\":{\"type\":\"string\"},\"client_secret\":{\"type\":\"string\"}}}'::jsonb WHERE NOT EXISTS (SELECT 1 FROM integration_providers WHERE provider_key='microsoft_outlook')",
-"INSERT INTO integration_providers (provider_key, name, description, config_schema) SELECT 'slack', 'Slack', 'Receive notifications and updates in Slack channels', '{\"type\":\"object\",\"properties\":{\"webhook_url\":{\"type\":\"string\"},\"channel\":{\"type\":\"string\"},\"bot_token\":{\"type\":\"string\"}}}'::jsonb WHERE NOT EXISTS (SELECT 1 FROM integration_providers WHERE provider_key='slack')",
-"INSERT INTO integration_providers (provider_key, name, description, config_schema) SELECT 'zoom', 'Zoom', 'Create and manage Zoom meetings', '{\"type\":\"object\",\"properties\":{\"client_id\":{\"type\":\"string\"},\"client_secret\":{\"type\":\"string\"},\"account_id\":{\"type\":\"string\"}}}'::jsonb WHERE NOT EXISTS (SELECT 1 FROM integration_providers WHERE provider_key='zoom')",
-"INSERT INTO integration_providers (provider_key, name, description, config_schema) SELECT 'microsoft_teams', 'Microsoft Teams', 'Collaborate and schedule meetings via Teams', '{\"type\":\"object\",\"properties\":{\"tenant_id\":{\"type\":\"string\"},\"client_id\":{\"type\":\"string\"},\"client_secret\":{\"type\":\"string\"}}}'::jsonb WHERE NOT EXISTS (SELECT 1 FROM integration_providers WHERE provider_key='microsoft_teams')",
-"CREATE TABLE IF NOT EXISTS integration_configs (id SERIAL PRIMARY KEY, provider TEXT NOT NULL, label TEXT, venture_id TEXT REFERENCES ventures(venture_id) ON DELETE CASCADE, config JSONB DEFAULT '{}'::jsonb, credentials_encrypted TEXT, status TEXT DEFAULT 'disconnected', last_sync_at TIMESTAMP, created_by TEXT, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW(), UNIQUE(venture_id, provider))",
-"CREATE INDEX IF NOT EXISTS idx_integration_configs_provider ON integration_configs(provider)",
-"CREATE INDEX IF NOT EXISTS idx_integration_configs_venture ON integration_configs(venture_id)",
-"CREATE INDEX IF NOT EXISTS idx_integration_configs_status ON integration_configs(status)",
+// Retired integration objects — idempotent drops that converge an EXISTING
+// database with the current shape. The service catalogue (integration_providers
+// / integration_configs) and the Notion sync (notion_page_id) are gone; these
+// statements remove them on the first self-heal and are no-ops afterwards.
+"DROP TABLE IF EXISTS integration_configs",
+"DROP TABLE IF EXISTS integration_providers",
+"ALTER TABLE platform_form_submissions DROP COLUMN IF EXISTS notion_page_id",
+// API keys & webhooks (Enhancement 5.4)
 "CREATE TABLE IF NOT EXISTS api_keys (id SERIAL PRIMARY KEY, key_id TEXT NOT NULL UNIQUE, key_hash TEXT NOT NULL, name TEXT NOT NULL, description TEXT, scopes JSONB DEFAULT '[]'::jsonb, created_by TEXT NOT NULL, expires_at TIMESTAMP, last_used_at TIMESTAMP, is_active BOOLEAN DEFAULT TRUE, allowed_ips JSONB DEFAULT '[]'::jsonb, rate_limit INTEGER DEFAULT 100, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())",
 "CREATE INDEX IF NOT EXISTS idx_api_keys_key_id ON api_keys(key_id)",
 "CREATE INDEX IF NOT EXISTS idx_api_keys_created_by ON api_keys(created_by)",

@@ -29,8 +29,7 @@
 - **DB `uuid` generation:** uses `gen_random_uuid()` via pgcrypto extension.
 - **Postgres parameter style:** `?` placeholders in code are translated to `$1, $2, …` by `db.execute()`.
 - **Force-dynamic:** session-only sections export `dynamic = "force-dynamic"` at their layout level (e.g. `admin/layout.js`, `facilitator/layout.js`, `platform/layout.js`, and the `*/messages` layouts). Never remove it where present — session-derived content must not be statically cached.
-- **Calendar integration:** Microsoft Graph API (client-credentials), with Google Calendar as a stub (`src/models/integrations/calendar/*`). The sync engine pushes Platform form-run deadlines to the external provider.
-- **Notion sync:** one-way push (ImpactOS → Notion) for Platform form submissions and runs.
+- **Calendar integration:** Microsoft Graph API (client-credentials) — the only provider (`src/models/integrations/calendar/*`). The sync engine pushes Platform form-run deadlines to the external calendar.
 - **Finance sync:** Google Sheets → ImpactOS via `src/lib/finance.js`, run with `npm run sync-finance`.
 - **File storage:** Supabase Storage (`src/lib/storage.js`) — public buckets for knowledge-bank files and task attachments, plus a private `deliverable-evidence` bucket read through short-lived signed URLs.
 - **Email:** Resend (primary) + the Gmail API via `googleapis` (`src/lib/email.js`, `src/lib/mailer.js`). Templates are rendered by the in-house template engine in `email.js`.

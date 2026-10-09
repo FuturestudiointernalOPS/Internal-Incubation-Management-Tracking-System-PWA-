@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React from "react";
 import { useI18n } from "@/lib/i18n";
 import {
   Layers,
@@ -18,7 +18,7 @@ import { useRouter } from "next/navigation";
 import DashboardHeader from "@/components/admin/dashboard-page/DashboardHeader";
 import StatCard from "@/components/admin/dashboard-page/StatCard";
 import SectionHeader from "@/components/admin/dashboard-page/SectionHeader";
-import CalendarPanel from "@/components/admin/dashboard-page/CalendarPanel";
+import StaffCalendar from "@/components/staff/StaffCalendar";
 import UpcomingWidget from "@/components/admin/dashboard-page/UpcomingWidget";
 import {
   TasksSummaryWidget,
@@ -45,15 +45,12 @@ import {
   QuickActionsCard,
 } from "@/components/admin/dashboard-page/RisksSection";
 import TaskDetailDrawer from "@/components/admin/dashboard-page/TaskDetailDrawer";
-import {
-  formatDate,
-  formatLabel,
-  getCalendarDays,
-} from "@/components/admin/dashboard-page/constants";
 import { useAdminDashboardData } from "./hooks/useAdminDashboardData";
 import { useAdminWidgetData } from "./hooks/useAdminWidgetData";
 import { useAdminSections } from "./hooks/useAdminSections";
 import { useAdminActions } from "./hooks/useAdminActions";
+import { useAdminCalendar } from "./hooks/useAdminCalendar";
+import { useGoogleCalendar } from "@/components/integrations/useGoogleCalendar";
 
 const ASSIGNMENTS_PER_PAGE = 5;
 
@@ -62,7 +59,8 @@ export default function AdminDashboard() {
   const { t, lang } = useI18n();
 
   const dashboardData = useAdminDashboardData({ router, t, lang });
-  const widgetData = useAdminWidgetData({ t, lang });
+  const googleCalendar = useGoogleCalendar({ t, withEvents: true });
+  const widgetData = useAdminWidgetData({ t, lang, externalItems: googleCalendar.events });
   const sections = useAdminSections();
   const actions = useAdminActions({ 
     tasks: widgetData.tasks, 
@@ -73,51 +71,55 @@ export default function AdminDashboard() {
     router 
   });
 
-  const now = new Date();
+  const calendar = useAdminCalendar({
+    tasks: widgetData.tasks,
+    assignments: widgetData.assignments,
+    fetchWidgetData: widgetData.fetchWidgetData,
+    externalItems: googleCalendar.events,
+  });
+
+  // A Google Calendar entry has no task drawer: it opens in Google instead.
+  const selectCalendarItem = (item) => {
+    if (item?.source === "google") {
+      if (item.html_link) window.open(item.html_link, "_blank", "noopener,noreferrer");
+      return;
+    }
+    widgetData.setSelectedTask(item);
+  };
+
+  // Same rule for the calendar's own items: a Google entry carries the link on
+  // its original row and opens in Google; a task opens its drawer.
+  const openCalendarExternal = (item) => {
+    const link = item?.raw?.html_link || item?.html_link;
+    if (link) window.open(link, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <>
-      <div className="space-y-10 pb-20 text-left">
+      <div className="stf text-left" style={{ paddingBottom: 80 }}>
         <DashboardHeader onNewProgram={() => router.push("/admin/programs/new")} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <CalendarPanel
-              year={widgetData.calYear}
-              month={widgetData.calMonth}
-              calendarDays={widgetData.calendarDays}
-              calendarTasks={widgetData.calendarTasks}
-              calendarSpans={widgetData.calendarSpans}
-              expandedDays={widgetData.expandedCalendarDays}
-              onPrevMonth={widgetData.handlePrevMonth}
-              onNextMonth={widgetData.handleNextMonth}
-              onToday={() => {
-                widgetData.setCalMonth(now.getMonth());
-                widgetData.setCalYear(now.getFullYear());
-              }}
-              onSelectTask={widgetData.setSelectedTask}
-              onExpandDay={(dateStr, open) =>
-                widgetData.setExpandedCalendarDays((prev) => ({ ...prev, [dateStr]: open }))
-              }
-            />
-          </div>
+        <StaffCalendar
+          events={calendar.events}
+          now={calendar.now}
+          loading={false}
+          onRangeChange={calendar.onRangeChange}
+          onOpenTask={(item) => widgetData.setSelectedTask(item.raw?.task || null)}
+          onOpenExternal={openCalendarExternal}
+          onSetStatus={calendar.onSetStatus}
+          onCreateTask={calendar.onCreateTask}
+          onCreateMeeting={calendar.onCreateMeeting}
+          extraLegend={
+            googleCalendar.status?.connected
+              ? [{ key: "google", label: t("googleCalendar.legend"), color: "var(--stf-google)" }]
+              : []
+          }
+        />
 
-          <div className="space-y-3">
-            <UpcomingWidget
-              calendarTasks={widgetData.calendarTasks}
-              onSelectTask={widgetData.setSelectedTask}
-            />
-
-            <TasksSummaryWidget
-              tasks={widgetData.tasks}
-              onOpen={() => router.push("/admin/tasks")}
-            />
-
-            <BlockersSummaryWidget
-              blockers={widgetData.activeBlockers}
-              onOpen={() => router.push("/admin/blockers")}
-            />
-          </div>
+        <div className="stf-grid g3">
+          <UpcomingWidget calendarTasks={widgetData.calendarTasks} onSelectTask={selectCalendarItem} />
+          <TasksSummaryWidget tasks={widgetData.tasks} onOpen={() => router.push("/admin/tasks")} />
+          <BlockersSummaryWidget blockers={widgetData.activeBlockers} onOpen={() => router.push("/admin/blockers")} />
         </div>
 
         <AssignmentsPanel
@@ -131,7 +133,7 @@ export default function AdminDashboard() {
           onPageChange={() => {}}
         />
 
-        <div className="space-y-6">
+        <div className="stf-sec">
           <SectionHeader
             number="A"
             title={t("admin.programOperations")}
@@ -147,7 +149,7 @@ export default function AdminDashboard() {
               </button>
             }
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="stf-grid c4">
             <StatCard
               title={t("admin.activePrograms")}
               value={dashboardData.stats.programs}
@@ -203,7 +205,7 @@ export default function AdminDashboard() {
           onOpen={(program) => router.push(`/admin/programs/${program.id}`)}
         />
 
-        <div className="space-y-6 pt-6 border-t border-[var(--border-primary)]">
+        <div className="stf-sec">
           <SectionHeader
             number="B"
             title={t("admin.internalOperations")}
@@ -219,7 +221,7 @@ export default function AdminDashboard() {
               </button>
             }
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="stf-grid g3">
             <StatCard
               title={t("admin.mondayStandups")}
               value={dashboardData.opStats.standups}
@@ -256,7 +258,7 @@ export default function AdminDashboard() {
 
         <InternalOpsNavCards onNavigate={(path) => router.push(path)} />
 
-        <div className="space-y-6 pt-6 border-t border-[var(--border-primary)]">
+        <div className="stf-sec">
           <SectionHeader
             number="C"
             title={t("admin.teamAccountability")}
@@ -295,7 +297,7 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        <div className="space-y-6 pt-6 border-t border-[var(--border-primary)]">
+        <div className="stf-sec">
           <SectionHeader
             number="D"
             title={t("admin.risksAndBlockers")}
@@ -303,7 +305,7 @@ export default function AdminDashboard() {
             icon={AlertTriangle}
             color="bg-rose-500/10 text-rose-500"
           />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="stf-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
             <LatestBlockersCard
               blockers={widgetData.activeBlockers}
               resolvingBlocker={widgetData.resolvingBlocker}
@@ -314,7 +316,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="space-y-6 pt-6 border-t border-[var(--border-primary)]">
+        <div className="stf-sec">
           <SectionHeader
             number="E"
             title={t("admin.historicalIntelligence")}

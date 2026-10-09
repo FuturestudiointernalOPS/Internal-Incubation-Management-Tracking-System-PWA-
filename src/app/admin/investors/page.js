@@ -7,7 +7,6 @@ import {
   Search, Loader2, Clock, Ban, Check, Copy, RefreshCw, X, UserPlus,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
@@ -206,79 +205,116 @@ export default function AdminInvestorsPage() {
             <p className="text-sm font-bold text-[var(--text-secondary)]">{t("investorAdmin.list.noInvestors")}</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {investors.map(inv => {
-              const StatusIcon = STATUS_ICONS[inv.approval_status]?.icon || Clock;
-              const statusColor = STATUS_ICONS[inv.approval_status]?.color || "text-slate-400";
-              return (
-                <AppCard key={inv.id} padding="md">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-brand-orange/10 border border-brand-orange/20 flex items-center justify-center">
-                        <Building2 className="w-5 h-5 text-[var(--brand-orange)]" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-[var(--text-primary)] hover:text-[var(--brand-orange)] cursor-pointer" onClick={() => setDetail(inv)}>
-                          {inv.organization_name || inv.name}
-                        </p>
-                        <p className="text-xs text-[var(--text-secondary)]">{inv.email}{inv.review_notes ? t("investorAdmin.list.hasReviewNotes") : ""}</p>
-                      </div>
-                      <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${statusColor} bg-opacity-10`}>
-                        <StatusIcon className="w-3 h-3" />
-                        {t(STATUS_LABELS[inv.approval_status])}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {inv.approval_status === "pending_review" && (
-                        <>
-                          <AppButton
-                            variant="primary"
-                            size="sm"
-                            icon={CheckCircle2}
-                            onClick={() => handleAction(inv.id, "approve")}
-                            disabled={acting === inv.id}
-                          >
-                            {t("investorAdmin.list.approve")}
-                          </AppButton>
-                          <AppButton
-                            variant="secondary"
-                            size="sm"
-                            icon={XCircle}
-                            onClick={() => handleAction(inv.id, "reject")}
-                            disabled={acting === inv.id}
-                            style={{ color: "var(--chart-danger)" }}
-                          >
-                            {t("investorAdmin.list.reject")}
-                          </AppButton>
-                        </>
-                      )}
-                      {inv.approval_status === "approved" && (
-                        <AppButton
-                          variant="secondary"
-                          size="sm"
-                          icon={Ban}
-                          onClick={() => handleAction(inv.id, "suspend")}
-                          disabled={acting === inv.id}
-                        >
-                          {t("investorAdmin.list.suspend")}
-                        </AppButton>
-                      )}
-                      {inv.approval_status === "suspended" && (
-                        <AppButton
-                          variant="primary"
-                          size="sm"
-                          icon={CheckCircle2}
-                          onClick={() => handleAction(inv.id, "approve")}
-                          disabled={acting === inv.id}
-                        >
-                          {t("investorAdmin.list.reactivate")}
-                        </AppButton>
-                      )}
-                    </div>
-                  </div>
-                </AppCard>
-              );
-            })}
+          <div className="card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+                    <th className="text-left px-5 py-3">{t("investorAdmin.list.name")}</th>
+                    <th className="text-left px-5 py-3">{t("investorAdmin.list.email")}</th>
+                    <th className="text-left px-5 py-3">{t("investorAdmin.list.status")}</th>
+                    <th className="text-left px-5 py-3">{t("investorAdmin.list.qualification")}</th>
+                    <th className="text-left px-5 py-3">{t("investorAdmin.list.completion")}</th>
+                    <th className="px-5 py-3" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {investors.map(inv => {
+                    const StatusIcon = STATUS_ICONS[inv.approval_status]?.icon || Clock;
+                    const statusColor = STATUS_ICONS[inv.approval_status]?.color || "text-slate-400";
+                    return (
+                      <tr
+                        key={inv.id}
+                        onClick={() => setDetail(inv)}
+                        className="border-b border-[var(--border-primary)]/50 cursor-pointer hover:bg-[var(--surface-3)]/50 transition-all group"
+                      >
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)] group-hover:scale-110 transition-transform">
+                              <Building2 className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--brand-orange)] transition-colors">
+                                {inv.organization_name || inv.name}
+                              </p>
+                              {inv.review_notes && (
+                                <p className="text-[10px] text-amber-400 font-medium">{t("investorAdmin.list.hasReviewNotes")}</p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3 text-[11px] text-[var(--text-secondary)] font-medium">
+                          {inv.email}
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase px-2 py-1 rounded ${statusColor} bg-opacity-10`}>
+                            <StatusIcon className="w-3 h-3" />
+                            {t(STATUS_LABELS[inv.approval_status])}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className="text-[9px] font-black uppercase px-2 py-1 rounded bg-[var(--surface-2)] text-[var(--text-secondary)]">
+                            {inv.qualification_status || "—"}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-[11px] text-[var(--text-secondary)] font-medium">
+                          {inv.profile_completion || 0}%
+                        </td>
+                        <td className="px-5 py-3 text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-2">
+                            {inv.approval_status === "pending_review" && (
+                              <>
+                                <AppButton
+                                  variant="primary"
+                                  size="sm"
+                                  icon={CheckCircle2}
+                                  onClick={() => handleAction(inv.id, "approve")}
+                                  disabled={acting === inv.id}
+                                >
+                                  {t("investorAdmin.list.approve")}
+                                </AppButton>
+                                <AppButton
+                                  variant="secondary"
+                                  size="sm"
+                                  icon={XCircle}
+                                  onClick={() => handleAction(inv.id, "reject")}
+                                  disabled={acting === inv.id}
+                                  style={{ color: "var(--chart-danger)" }}
+                                >
+                                  {t("investorAdmin.list.reject")}
+                                </AppButton>
+                              </>
+                            )}
+                            {inv.approval_status === "approved" && (
+                              <AppButton
+                                variant="secondary"
+                                size="sm"
+                                icon={Ban}
+                                onClick={() => handleAction(inv.id, "suspend")}
+                                disabled={acting === inv.id}
+                              >
+                                {t("investorAdmin.list.suspend")}
+                              </AppButton>
+                            )}
+                            {inv.approval_status === "suspended" && (
+                              <AppButton
+                                variant="primary"
+                                size="sm"
+                                icon={CheckCircle2}
+                                onClick={() => handleAction(inv.id, "approve")}
+                                disabled={acting === inv.id}
+                              >
+                                {t("investorAdmin.list.reactivate")}
+                              </AppButton>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

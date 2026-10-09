@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
+import { cacheGet, cacheSet, clearResponseCachePrefix, useApi } from "@/lib/hooks/useApi";
 import { DEFAULT_VENTURE_DOCUMENT_TYPES } from "@/lib/ventureDocumentTypeDefaults";
 import {
   VerificationLoading,
@@ -205,6 +205,9 @@ export default function VentureVerificationPage() {
         notify(`Verification ${reviewDecision}`);
         setShowReviewModal(false);
         setReviewNotes("");
+        // Global verdict also lands on the Venture's verification items, so the
+        // Investment screen must not serve a cached read of them.
+        clearResponseCachePrefix(`/api/ventures/${id}/`);
         fetchData(true);
       } else { notify(t((result.error || t("vadmin.verification.reviewFailed")) || "") || (result.error || t("vadmin.verification.reviewFailed")), "error"); }
     } catch { notify(t("vadmin.verification.networkError"), "error"); }
@@ -224,6 +227,10 @@ export default function VentureVerificationPage() {
       const result = await response.json();
       if (result.success) {
         notify(t("vadmin.verification.reviewedItem"));
+        // The Investment screen reads this same document status through the
+        // Venture's readiness rows. Without dropping the cached reads, it would
+        // keep showing the previous status until the 30s TTL expired.
+        clearResponseCachePrefix(`/api/ventures/${id}/`);
         fetchData(true);
       } else { notify(t((result.error || t("vadmin.verification.reviewFailed")) || "") || (result.error || t("vadmin.verification.reviewFailed")), "error"); }
     } catch { notify(t("vadmin.verification.networkError"), "error"); }
@@ -263,6 +270,13 @@ export default function VentureVerificationPage() {
   const getDocsForCategory = (category) => documents.filter((payload) => payload.category === category);
   const getItemForCategory = (category) => items.find((item) => item.category === category);
 
+  // Files the Data bank holds that no configured document type asks for. The
+  // list below walks the configured types, so such a file used to have no row
+  // anywhere — no View, no download, no history — purely because its category
+  // went unmatched. Listed apart at the end so nothing can go missing again.
+  const configuredCategories = new Set(documentTypes.map((documentType) => documentType.code));
+  const unassignedDocs = documents.filter((payload) => !configuredCategories.has(payload.category));
+
   return (
     <>
       <div className="space-y-8 pb-20">
@@ -289,6 +303,7 @@ export default function VentureVerificationPage() {
           lang={lang}
           getItemForCategory={getItemForCategory}
           getDocsForCategory={getDocsForCategory}
+          unassignedDocs={unassignedDocs}
           onUpload={handleUpload}
           onReviewItem={handleReviewItem}
           onReload={fetchData}

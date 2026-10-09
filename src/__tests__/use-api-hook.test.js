@@ -17,7 +17,14 @@
  */
 
 import { renderHook, waitFor } from "@testing-library/react";
-import { useApi, fetchJsonEnvelope, fetchJsonShared } from "@/lib/hooks/useApi";
+import {
+  useApi,
+  fetchJsonEnvelope,
+  fetchJsonShared,
+  cacheGet,
+  cacheSet,
+  clearResponseCachePrefix,
+} from "@/lib/hooks/useApi";
 
 function jsonResponse(body, status = 200) {
   return Promise.resolve({
@@ -314,5 +321,36 @@ describe("request options", () => {
     ]);
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * A review decision written on the verification screen lands in the same rows the
+ * Investment screen reads through a different endpoint. The shared GET cache is
+ * keyed on the exact URL, so without a targeted drop the second screen renders
+ * the previous status for a full TTL — which reads as the write having been lost.
+ */
+describe("clearResponseCachePrefix", () => {
+  const url = "/api/ventures/VNT-1/verification";
+
+  test("drops every cached read under the prefix, and leaves other Ventures alone", () => {
+    cacheSet(url, { a: 1 });
+    cacheSet("/api/ventures/VNT-1/verification/documents", { b: 2 });
+    cacheSet("/api/ventures/VNT-2/verification", { c: 3 });
+
+    clearResponseCachePrefix("/api/ventures/VNT-1/");
+
+    expect(cacheGet(url)).toBeNull();
+    expect(cacheGet("/api/ventures/VNT-1/verification/documents")).toBeNull();
+    // A different Venture's data is untouched.
+    expect(cacheGet("/api/ventures/VNT-2/verification")).toEqual({ c: 3 });
+  });
+
+  test("is a no-op for an empty prefix rather than wiping the whole cache", () => {
+    cacheSet("/api/ventures/VNT-1/verification", { a: 1 });
+
+    clearResponseCachePrefix("");
+
+    expect(cacheGet("/api/ventures/VNT-1/verification")).toEqual({ a: 1 });
   });
 });

@@ -1,0 +1,27 @@
+{
+  "googleCalendar": {
+    "connect": "Connect Google Calendar",
+    "connectHint": "Copy your ImpactOS tasks and appointments into a dedicated \"Future Studio\" calendar in your Google account. Your personal events are never read.",
+    "notConfiguredHint": "Google Calendar is not configured on this server yet (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_TOKEN_ENCRYPTION_KEY).",
+    "connected": "Google Calendar connected",
+    "reconnect": "Reconnect Google Calendar",
+    "revokedHint": "Access to Google Calendar was withdrawn. Reconnect to resume the sync.",
+    "syncNow": "Sync now",
+    "lastSync": "Last sync",
+    "syncFailed": "The Google Calendar sync failed. Try again in a moment.",
+    "disconnect": "Disconnect",
+    "disconnectConfirm": "Disconnect Google Calendar?",
+    "disconnectHint": "Access is revoked and the stored tokens are deleted. The \"Future Studio\" calendar stays in your Google account; you can delete it there.",
+    "legend": "Google Calendar",
+    "outcome": {
+      "connected": "Google Calendar connected. Your tasks and appointments are now in the \"Future Studio\" calendar of your Google account.",
+      "connectedSyncPending": "Google Calendar connected. The first sync did not finish; it will run again automatically.",
+      "denied": "Google Calendar connection cancelled.",
+      "failed": "Google Calendar connection failed. Please try again.",
+      "scopeDenied": "Calendar access was not granted, so nothing was connected.",
+      "notConfigured": "Google Calendar is not configured on this server yet."
+    },
+    "notConfiguredTitle": "Google Calendar is not set up yet",
+    "notConfiguredMessage": "An administrator must first add the Google OAuth settings to the server environment (see docs/GOOGLE_CALENDAR_SYNC.md §5). Missing:"
+  }
+}

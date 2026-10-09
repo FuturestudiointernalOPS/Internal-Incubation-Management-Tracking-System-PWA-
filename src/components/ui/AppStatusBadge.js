@@ -25,44 +25,46 @@ import { STATUS_CONFIG } from "@/lib/constants";
  */
 export default function AppStatusBadge({
   status,
+  label,
   variant = "pill",
   className = "",
   pulse = false,
 }) {
   const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
+  const displayLabel = label || statusConfig.label;
 
   if (variant === "dot") {
     return (
-      <span
+      <span data-status={status} data-status-variant={variant}
         className={`inline-block w-2 h-2 rounded-full ${pulse ? "animate-pulse" : ""} ${className}`}
         style={{ background: statusConfig.dot || statusConfig.color.replace("text-", "bg-") }}
-        title={statusConfig.label}
+        title={displayLabel}
       />
     );
   }
 
   if (variant === "minimal") {
     return (
-      <span
+      <span data-status={status} data-status-variant={variant}
         className={`text-[10px] font-bold ${statusConfig.color} ${className}`}
       >
-        {statusConfig.label}
+        {displayLabel}
       </span>
     );
   }
 
   // Pill (default)
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${statusConfig.bg} ${statusConfig.color} ${pulse ? "animate-pulse" : ""} ${className}`}
+    <span data-status={status} data-status-variant={variant}
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold ${statusConfig.bg} ${statusConfig.color} ${pulse ? "animate-pulse" : ""} ${className}`}
     >
       {statusConfig.dot && (
-        <span
+        <span data-status={status} data-status-variant={variant}
           className="w-1.5 h-1.5 rounded-full"
           style={{ background: statusConfig.dot }}
         />
       )}
-      {statusConfig.label}
+      {displayLabel}
     </span>
   );
 }

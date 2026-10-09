@@ -14,7 +14,7 @@ import { FROM_EMAIL, RESEND_API_KEY } from "./config";
 /**
  * Internal: sends email via Resend
  */
-export async function sendViaResend({ to, subject, html, fromName }) {
+export async function sendViaResend({ to, cc, subject, html, fromName }) {
   if (!RESEND_API_KEY) {
     console.warn("Resend not configured — skipping email to:", to, "subject:", subject);
     return { success: false, provider: "resend", note: "Resend API key not configured" };
@@ -27,6 +27,7 @@ export async function sendViaResend({ to, subject, html, fromName }) {
     const { data, error } = await resend.emails.send({
       from: fromName ? `${fromName} <${FROM_EMAIL}>` : FROM_EMAIL,
       to,
+      ...(Array.isArray(cc) && cc.length > 0 ? { cc } : {}),
       subject,
       html,
     });

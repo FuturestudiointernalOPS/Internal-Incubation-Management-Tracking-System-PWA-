@@ -132,17 +132,11 @@
 |---|---|---|
 | `src/lib/hooks/useApi.js` | useApi, useApiMulti | Custom React hooks for generic data fetching with caching and race condition prevention. |
 
-## lib/integrations/calendar
+## models/integrations/calendar
 
 | File | Exports | Purpose |
 |---|---|---|
-| `src/lib/integrations/calendar/sync.js` | syncRunDeadlines, unsyncRunDeadlines, syncAllRunDeadlines, checkCalendarHealth | Facade re-exporting the platform calendar sync model (`src/models/integrations/calendar/sync.js`): pushes Platform form-run deadlines to the external provider and stores the external ID, handling creation, updates, and deletion. |
-
-## lib/integrations/notion
-
-| File | Exports | Purpose |
-|---|---|---|
-| `src/lib/integrations/notion/sync.js` | syncSubmission, syncAllSubmissions, checkNotionHealth | One‑way sync engine (facade to `src/models/integrations/notion/sync.js`) that pushes Platform form submissions to Notion databases; keeps Notion boards up‑to‑date automatically without duplicate data entry. |
+| `src/models/integrations/calendar/sync.js` | syncRunDeadlines, unsyncRunDeadlines, syncAllRunDeadlines, checkCalendarHealth | Pushes Platform form-run deadlines to the external calendar (Microsoft Graph / Outlook / Teams) and stores the external ID, handling creation, updates, and deletion. |
 
 ## utils
 

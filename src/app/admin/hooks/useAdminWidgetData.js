@@ -4,7 +4,11 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { formatDate, getCalendarDays } from "@/components/admin/dashboard-page/constants";
 
-export function useAdminWidgetData({ t, lang }) {
+// `externalItems`: extra read-only calendar entries (events from the user's
+// "Future Studio" Google Calendar), merged into the calendar only.
+const NO_EXTERNAL_ITEMS = [];
+
+export function useAdminWidgetData({ t, lang, externalItems = NO_EXTERNAL_ITEMS }) {
   const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
   const [assignments, setAssignments] = useState([]);
@@ -138,7 +142,7 @@ export function useAdminWidgetData({ t, lang }) {
 
   const calendarSpans = useMemo(() => {
     const spans = {};
-    const allTasks = [...(tasks || []), ...(assignments || [])];
+    const allTasks = [...(tasks || []), ...(assignments || []), ...externalItems];
     allTasks.forEach((task) => {
       if (!task.start_date || !task.end_date) return;
       const start = new Date(task.start_date);
@@ -156,11 +160,11 @@ export function useAdminWidgetData({ t, lang }) {
       }
     });
     return spans;
-  }, [tasks, assignments]);
+  }, [tasks, assignments, externalItems]);
 
   const calendarTasks = useMemo(() => {
     const cal = {};
-    const allTasks = [...(tasks || []), ...(assignments || [])];
+    const allTasks = [...(tasks || []), ...(assignments || []), ...externalItems];
     const seen = new Set();
     const unique = allTasks.filter((task) => {
       if (seen.has(task.id)) return false;
@@ -203,7 +207,7 @@ export function useAdminWidgetData({ t, lang }) {
       }
     });
     return cal;
-  }, [tasks, assignments]);
+  }, [tasks, assignments, externalItems]);
 
   return {
     tasks,

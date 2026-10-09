@@ -2,70 +2,28 @@
 
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
-import { Award, Loader2 } from "lucide-react";
+import { formatLocaleDate } from "@/lib/constants";
+import AppCard from "@/components/ui/AppCard";
+import AppTable from "@/components/ui/AppTable";
+import AppStatusBadge from "@/components/ui/AppStatusBadge";
+import CertificateCard from "@/components/lms/CertificateCard";
+const pickCertificates = payload => payload?.success ? payload.certificates || [] : [];
+const pickCourses = payload => payload?.success ? payload.courses || [] : [];
 
-// Module scope on purpose: the hook keys its internal callback on this function,
-// so an inline arrow would give it a new identity on every render and refetch in
-// a loop.
-const pickCertificates = (payload) => (payload?.success ? payload.certificates || [] : []);
-
-/**
- * PARTICIPANT CERTIFICATES — certificates issued to the current user
- * (participant_programs with certificate_issued = true). Empty state when none.
- */
 export default function ParticipantCertificatesPage() {
-  const { t } = useI18n();
-  // The loader's work — painting from the cache first, discarding a stale
-  // response, and the background refresh — belongs to the hook, so this screen
-  // keeps no data state of its own and never sets state from an effect.
-  const { data: certificates, loading } = useApi(
-    "/api/participant/certificates",
-    { defaultValue: null, transform: pickCertificates },
-  );
-
-  const formatDate = (value) => (value ? new Date(value).toLocaleDateString() : "");
-
-  return (
-    <>
-      <div className="p-6 max-w-3xl mx-auto">
-        <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight">
-          {t("navigation.certificates")}
-        </h1>
-
-        <div className="mt-6 space-y-3">
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" />
-            </div>
-          ) : certificates && certificates.length > 0 ? (
-            certificates.map((certificate) => (
-              <div
-                key={certificate.program_id}
-                className="flex items-center gap-3 p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-tertiary)]"
-              >
-                <Award className="w-5 h-5 text-[var(--brand-orange)] shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-[11px] font-bold text-[var(--text-primary)]">
-                    {certificate.program_name}
-                  </p>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mt-1">
-                    {t("participant.certificateIssued")}
-                    {certificate.completed_at || certificate.accepted_at
-                      ? ` · ${formatDate(certificate.completed_at || certificate.accepted_at)}`
-                      : ""}
-                  </p>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-center py-16">
-              <p className="text-[11px] font-bold text-[var(--text-secondary)]">
-                {t("participant.certificatesEmpty")}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    </>
-  );
+  const { t, lang } = useI18n();
+  const { data: certificates, loading, error } = useApi("/api/participant/certificates", { defaultValue: [], transform: pickCertificates });
+  const { data: courses, loading: coursesLoading } = useApi("/api/lms/my-learning", { defaultValue: [], transform: pickCourses });
+  const issuedCourses = courses.filter(entry => entry.certificate);
+  return <div className="p-6 space-y-6 max-w-6xl mx-auto">
+    <header><h1 className="text-2xl font-bold text-[var(--text-primary)]">{t("navigation.certificates")}</h1><p className="mt-2 text-sm text-[var(--text-secondary)]">{t("participant.template.certificateHint")}</p></header>
+    <div className="grid grid-cols-2 gap-4">{[[t("participant.template.certificates"), certificates.length + issuedCourses.length], [t("participant.template.coursesInProgress"), courses.filter(entry => !entry.progress?.complete).length]].map(([label, count]) => <AppCard key={label} padding="sm"><p className="text-xs text-[var(--text-secondary)]">{label}</p><strong className="block mt-3 text-3xl font-bold font-mono text-[var(--text-primary)]">{loading || coursesLoading ? t("common.loading") : count}</strong></AppCard>)}</div>
+    {error && <p role="alert" className="text-sm text-[var(--text-secondary)]">{t("errors.networkError")}</p>}
+    <AppTable loading={loading} data={certificates.map(certificate => ({ ...certificate, id: certificate.program_id }))} emptyMessage={t("participant.certificatesEmpty")} columns={[
+      { key: "program_name", label: t("participant.template.certificateTitle") },
+      { key: "date", label: t("participant.template.issuedAt"), render: (_, certificate) => formatLocaleDate(certificate.completed_at || certificate.accepted_at, { day: "numeric", month: "long", year: "numeric" }, lang) },
+      { key: "status", label: t("participant.template.statusColumn"), render: () => <AppStatusBadge status="completed" label={t("participant.certificateIssued")} /> },
+    ]} />
+    {issuedCourses.length > 0 && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{issuedCourses.map(entry => <CertificateCard key={entry.certificate.id} certificate={entry.certificate} />)}</div>}
+  </div>;
 }

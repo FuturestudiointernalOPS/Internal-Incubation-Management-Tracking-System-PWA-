@@ -1,20 +1,17 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n";
-import { Plug, Key, Webhook, Plus, RefreshCw, AlertCircle, X, Loader2 } from "lucide-react";
+import { Plug, Key, Webhook, RefreshCw, AlertCircle, Loader2 } from "lucide-react";
 import { useIntegrationsState } from "@/components/admin/integrations/useIntegrationsState";
-import IntegrationsTab from "@/components/admin/integrations/IntegrationsTab";
 import ApiKeysTab from "@/components/admin/integrations/ApiKeysTab";
 import WebhooksTab from "@/components/admin/integrations/WebhooksTab";
-import AddIntegrationModal from "@/components/admin/integrations/AddIntegrationModal";
 import AddApiKeyModal from "@/components/admin/integrations/AddApiKeyModal";
 import AddWebhookModal from "@/components/admin/integrations/AddWebhookModal";
 import ConfirmDialog from "@/components/admin/integrations/ConfirmDialog";
 
 const tabs = [
-  { id: "integrations", label: "Integrations", icon: Plug },
-  { id: "api_keys", label: "API Keys", icon: Key },
-  { id: "webhooks", label: "Webhooks", icon: Webhook },
+  { id: "api_keys", label: "adminMisc.integrations.apiKeys", icon: Key },
+  { id: "webhooks", label: "adminMisc.integrations.webhooks", icon: Webhook },
 ];
 
 export default function IntegrationsPage() {
@@ -65,17 +62,6 @@ export default function IntegrationsPage() {
         </div>
       ) : (
         <>
-          {state.activeTab === "integrations" && (
-            <IntegrationsTab
-              integrations={state.integrations}
-              providers={state.providers}
-              onAddIntegration={() => state.setShowAddIntegration(true)}
-              onRemoveIntegration={state.handleRemoveIntegration}
-              refresh={state.refresh}
-              t={t}
-            />
-          )}
-
           {state.activeTab === "api_keys" && (
             <ApiKeysTab
               apiKeys={state.apiKeys}
@@ -108,17 +94,6 @@ export default function IntegrationsPage() {
         </>
       )}
 
-      <AddIntegrationModal
-        isOpen={state.showAddIntegration}
-        onClose={() => state.setShowAddIntegration(false)}
-        onSubmit={state.handleAddIntegration}
-        isSubmitting={false}
-        form={state.newIntegration}
-        setForm={state.setNewIntegration}
-        providers={state.providers}
-        t={t}
-      />
-
       <AddApiKeyModal
         isOpen={state.showAddKey}
         onClose={() => state.setShowAddKey(false)}
@@ -143,8 +118,7 @@ export default function IntegrationsPage() {
         isOpen={!!state.confirmAction}
         onClose={() => state.setConfirmAction(null)}
         onConfirm={() => {
-          if (state.confirmAction?.type === "remove_integration") state.handleRemoveIntegration(state.confirmAction.id);
-          else if (state.confirmAction?.type === "revoke_key") state.handleRevokeKey(state.confirmAction.keyId);
+          if (state.confirmAction?.type === "revoke_key") state.handleRevokeKey(state.confirmAction.keyId);
           else if (state.confirmAction?.type === "delete_webhook") state.handleDeleteWebhook(state.confirmAction.id);
           state.setConfirmAction(null);
         }}

@@ -203,17 +203,24 @@ export async function listSubmissionsForOpenRuns() {
 }
 
 /**
- * Approved submissions whose result email has not gone out yet, together with
- * the settings the delay is read from (the run's and its form's).
+ * Submissions whose result email has not gone out yet, together with the
+ * settings the delay is read from (the run's and its form's).
+ *
+ * The report does NOT wait for an approval: any submitted form whose run
+ * scheduled a result goes out once its delay has elapsed. The only gates left
+ * are structural — the submission must have been submitted (a draft has no
+ * report to send), the run must not be a draft or cancelled one, and no result
+ * email may ever have been marked 'sent' for it.
  *
  * The automatic send is time-based per RUN, so the decision cannot be taken by
  * SQL alone: this query narrows the field to the submissions that COULD be due
- * (approved, submitted, no result email ever marked 'sent' for them), and the
- * caller applies each run's delay. A submission with no sent result row is the
+ * (submitted, no result email ever marked 'sent' for them), and the caller
+ * applies each run's delay. A submission with no sent result row is the
  * only candidate — the sent row is the idempotency sentinel, so a second pass
- * can never resend.
+ * can never resend. A submission whose evaluation does not exist yet cannot
+ * produce a report; that send is refused and simply retried on the next pass.
  */
-export async function listApprovedSubmissionsAwaitingResultEmail() {
+export async function listSubmissionsAwaitingResultEmail() {
   return db.execute({
     sql: `SELECT ps.id, ps.run_id, ps.submitter_id, ps.submitted_at, ps.updated_at,
                  r.name AS run_name, r.settings AS run_settings,
@@ -221,8 +228,7 @@ export async function listApprovedSubmissionsAwaitingResultEmail() {
           FROM platform_form_submissions ps
           JOIN platform_form_runs r ON r.id = ps.run_id
           JOIN platform_forms f ON f.id = r.form_id
-          WHERE ps.status = 'approved'
-            AND ps.submitted_at IS NOT NULL
+          WHERE ps.submitted_at IS NOT NULL
             AND COALESCE(r.status, '') NOT IN ('draft', 'cancelled')
             AND NOT EXISTS (
               SELECT 1 FROM platform_email_log el

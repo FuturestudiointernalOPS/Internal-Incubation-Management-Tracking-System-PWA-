@@ -81,6 +81,7 @@ const NAV_KEY_MAP = {
   lms: "navigation.lms",
   lms_courses: "navigation.lmsCourses",
   learning: "navigation.learning",
+  rituals: "navigation.rituals",
 };
 
 function tnav(key) {

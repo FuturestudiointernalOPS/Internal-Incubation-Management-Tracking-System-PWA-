@@ -90,9 +90,13 @@ describe("readResultDelayMinutes — the single entry the editors write", () => 
 });
 
 describe("the dispatcher — one sender, time-based, idempotent by construction", () => {
-  test("only the approved, not-yet-sent submissions are candidates", () => {
-    expect(MODEL_SRC).toMatch(/ps\.status = 'approved'/);
+  test("submitted, not-yet-sent submissions are candidates — approval is NOT required", () => {
+    // A report no longer waits for an approval: any submitted form whose run
+    // scheduled a result goes out on its delay. The only gates left are
+    // structural (submitted, run not a draft/cancelled one).
+    expect(MODEL_SRC).not.toMatch(/ps\.status = 'approved'/);
     expect(MODEL_SRC).toMatch(/ps\.submitted_at IS NOT NULL/);
+    expect(MODEL_SRC).toMatch(/NOT IN \('draft', 'cancelled'\)/);
     // The sent row is the sentinel: once it exists, the submission is out of
     // the candidate set, so a second sweep can never resend.
     expect(MODEL_SRC).toMatch(/el\.email_type = 'result' AND el\.status = 'sent'/);
@@ -114,7 +118,7 @@ describe("the dispatcher — one sender, time-based, idempotent by construction"
   test("the log table exists before the candidate query reads it", () => {
     const dispatchStart = SERVICE_SRC.indexOf("async function dispatchScheduledResultEmails");
     const ensure = SERVICE_SRC.indexOf("await ensureEmailLogTable();", dispatchStart);
-    const query = SERVICE_SRC.indexOf("await listApprovedSubmissionsAwaitingResultEmail();", dispatchStart);
+    const query = SERVICE_SRC.indexOf("await listSubmissionsAwaitingResultEmail();", dispatchStart);
     expect(ensure).toBeGreaterThan(dispatchStart);
     expect(query).toBeGreaterThan(ensure);
   });
@@ -130,13 +134,16 @@ describe("the dispatcher — one sender, time-based, idempotent by construction"
   });
 
   test("a timer is a convenience, not the only way a result leaves", () => {
-    // Opening a run sweeps: the read asks for it (GET handler), and the approval flow
+    // Opening a run sweeps: the read asks for it (GET handler), and the decision flow
     // asks for it too (service) — the service is HTTP-free, so the controller
     // injects `scheduleResultSweep` rather than letting the service import it.
     const GET_SRC = readSurface("src/app/api/platform/form-runs/handlers/get.js");
     const REVIEW_SRC = readSurface("src/app/api/platform/form-runs/handlers/post/review.js");
     expect(GET_SRC).toMatch(/scheduleResultSweep\(id\);/);
     expect(SERVICE_SRC).toMatch(/scheduleResultSweep\(submissionRunResult\.rows\[0\]\.run_id\);/);
+    // A report no longer waits for an approval: the decision flow sweeps on EVERY
+    // decision, so a rejected or revision decision picks a due result up too.
+    expect(SERVICE_SRC).not.toMatch(/if \(decision === "approved"\) \{\s*scheduleResultSweep/);
     expect(REVIEW_SRC).toMatch(/scheduleResultSweep,\n\s*\}\);/);
   });
 });

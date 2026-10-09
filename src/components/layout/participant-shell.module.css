@@ -1,0 +1,117 @@
+.shell {
+  --brand-orange: #FF6600;
+  --brand-blue: #000060;
+  --participant-accent-end: #FF8433;
+  --participant-on-accent: #FFFFFF;
+  --bg-primary: #F4F5FC;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #ECEEFB;
+  --surface-1: #FFFFFF;
+  --surface-2: #ECEEFB;
+  --surface-3: #ECEEFB;
+  --text-primary: #000060;
+  --text-secondary: #5A5A9C;
+  --text-tertiary: #5A5A9C;
+  --border-primary: #D6D8F0;
+  --border-secondary: #D6D8F0;
+  --border-primary-rgb: 214 216 240;
+  --chart-info: #8F8FE8;
+  --chart-warning: #B9B9EE;
+  --chart-success: #2DD4A0;
+  --chart-danger: #FF5470;
+  --participant-pending: #9A9AD0;
+  --radius-md: 14px;
+  --radius-sm: 12px;
+  --participant-hero-start: #000060;
+  --participant-hero-middle: #000060;
+  --participant-hero-end: #00002C;
+  --participant-on-hero: #FFFFFF;
+  --participant-on-hero-secondary: #A6A6D8;
+}
+:global(html[data-theme="dark"]) .shell {
+  --bg-primary: #00002C;
+  --bg-secondary: #06063F;
+  --bg-tertiary: #0D0D58;
+  --surface-1: #06063F;
+  --surface-2: #0D0D58;
+  --surface-3: #0D0D58;
+  --text-primary: #FFFFFF;
+  --text-secondary: #A6A6D8;
+  --text-tertiary: #A6A6D8;
+  --border-primary: #1A1A72;
+  --border-secondary: #1A1A72;
+  --border-primary-rgb: 26 26 114;
+}
+.shell > div > header { height: 64px; }
+.shell > div > main { padding: 24px 28px 50px; }
+.shell nav a, .shell nav button { padding: 8px 10px; font-size: 13px; }
+.shell [data-nav-children] { margin-left: 18px; padding-left: 0; border-left: 1px solid var(--border-primary); }
+.shell [data-nav-active="true"] {
+  color: var(--brand-orange);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--brand-orange) 14%, transparent), transparent);
+  border: 0;
+  box-shadow: inset 3px 0 var(--brand-orange);
+}
+.shell [data-nav-active="true"] svg { color: inherit; }
+.shell [data-nav-children] [data-nav-kind="link"][data-nav-active="true"] {
+  background: var(--brand-orange);
+  color: var(--participant-on-accent);
+  box-shadow: none;
+}
+.shell > aside[data-collapsed="true"] { padding: 8px; }
+.shell > aside[data-collapsed="true"] nav a,
+.shell > aside[data-collapsed="true"] nav button { justify-content: center; }
+.shell > aside[data-collapsed="true"] > div:last-child button,
+.shell > aside[data-collapsed="true"] > div:last-child a { justify-content: center; padding-left: 8px; padding-right: 8px; }
+.shell button[data-variant="primary"] {
+  background: linear-gradient(135deg, var(--brand-orange), var(--participant-accent-end)) !important;
+  color: var(--participant-on-accent) !important;
+}
+.shell select, .shell [role="combobox"], .shell [data-select-trigger] {
+  background: var(--surface-1) !important;
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+  font-size: 13px;
+  width: 100%;
+  color: var(--text-primary);
+}
+.shell select:focus, .shell [role="combobox"]:focus,
+.shell [role="combobox"][aria-expanded="true"],
+.shell [data-select-trigger]:focus, .shell [data-select-trigger][aria-expanded="true"] {
+  border-color: var(--brand-orange) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-orange) 16%, transparent);
+}
+.shell [data-status="in_progress"] { --participant-status: var(--chart-info); }
+.shell [data-status="pending"] { --participant-status: var(--participant-pending); }
+.shell [data-status="carried_over"] { --participant-status: var(--chart-warning); }
+.shell [data-status="completed"] { --participant-status: var(--chart-success); }
+.shell [data-status="blocked"], .shell [data-status="critical"] { --participant-status: var(--chart-danger); }
+.shell [data-status] { color: var(--participant-status, var(--participant-pending)); background: color-mix(in srgb, var(--participant-status, var(--participant-pending)) 12%, transparent); }
+.shell [data-status] > span, .shell [data-status-variant="dot"] { background: var(--participant-status, var(--participant-pending)) !important; }
+@media(max-width: 760px) { .shell > div > main { padding: 16px; } }
+.shell button:global(.bg-\[var\(--brand-orange\)\]) { background: linear-gradient(135deg, var(--brand-orange), var(--participant-accent-end)); color: var(--participant-on-accent); }
+.shell :global(.text-amber-400) { color: var(--participant-pending); }
+.shell :global(.text-blue-400) { color: var(--chart-info); }
+.shell :global(.text-purple-400) { color: var(--chart-warning); }
+.shell :global(.text-emerald-400) { color: var(--chart-success); }
+.shell :global(.text-rose-400), .shell :global(.text-rose-500) { color: var(--chart-danger); }
+.shell :global(.bg-purple-500\/10) { background: color-mix(in srgb, var(--chart-warning) 10%, transparent); }
+.shell :global(.bg-blue-500\/10) { background: color-mix(in srgb, var(--chart-info) 10%, transparent); }
+.shell :global(.bg-amber-500\/10) { background: color-mix(in srgb, var(--participant-pending) 10%, transparent); }
+
+.shell [data-mobile-sidebar] { animation: participantDrawerIn 180ms ease-out; }
+@keyframes participantDrawerIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) { .shell [data-mobile-sidebar] { animation: none; } }
+
+.shell [data-nav-active="true"]:hover { color: var(--brand-orange); }
+.shell [data-nav-children] [data-nav-kind="link"][data-nav-active="true"]:hover { color: var(--participant-on-accent); background: var(--brand-orange); }
+
+.shell [data-select-panel] { background: var(--surface-1); border: 1px solid var(--border-primary); border-radius: 12px; font-size: 13px; }
+.shell [data-select-panel] button { font-size: 13px; }
+
+.shell [data-sidebar-brand] { gap: 12px; padding-inline: 0; margin-top: 8px; margin-bottom: 28px; }
+.shell [data-sidebar-wordmark] { display: flex; flex-direction: column; color: var(--text-primary); font-size: 13px; font-weight: 800; line-height: 15px; }
+.shell [data-sidebar-wordmark] span:last-child { color: var(--brand-orange); font-size: 9px; letter-spacing: 2px; line-height: 14px; }
+.shell [data-sidebar-collapse] { flex-shrink: 0; width: 30px; height: 30px; border: 1px solid var(--border-primary); border-radius: 9px; background: var(--bg-secondary); }
+.shell [data-sidebar-collapse]:hover { color: var(--brand-orange); border-color: var(--brand-orange); background: var(--surface-2); }

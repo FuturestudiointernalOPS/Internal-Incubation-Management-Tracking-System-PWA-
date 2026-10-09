@@ -24,7 +24,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { getActivePathIds } from "./navigation";
-import { buildAccessNav } from "@/lib/masterNavigation";
+import { buildAccessNav, hasCapability } from "@/lib/masterNavigation";
 import { useApi } from "@/lib/hooks/useApi";
 
 // Resolve icon names from the master navigation module into components.
@@ -95,6 +95,7 @@ export function useDashboardNavigation({
   const [menuToggles, setMenuToggles] = useState({ key: null, map: {} });
 
   const activeRole = shellRole(user.role, role);
+  const canReadMessages = hasCapability(effectiveCaps, "messaging", "view");
   const sessionRole = shellRole(user.role, role);
 
   // "My Learning" only appears once the learner actually holds a course
@@ -156,6 +157,8 @@ export function useDashboardNavigation({
         items.push({ id: "programs", name: "MY PROGRAMS", icon: Briefcase, href: "/participant/dashboard" });
         items.push({ id: "certificates", name: "MY CERTIFICATES", icon: FileText, href: "/participant/certificates" });
       }
+      if (activeRole !== "team") items.push({ id: "announcements", name: "ANNOUNCEMENTS", icon: Bell, href: "/participant/announcements" });
+      if (canReadMessages && activeRole !== "team") items.push({ id: "messages", name: "MESSAGES", icon: MessageSquare, href: "/participant/messages" });
       if (rel.isVentureMember) {
         // A founder's venture door sits with their program doors (the founder
         // nav contract reads Dashboard → Programs → Ventures → Timeline),
@@ -251,6 +254,7 @@ export function useDashboardNavigation({
     pmPrograms,
     hasLmsEnrollments,
     effectiveCaps,
+    canReadMessages,
     ventureAssignCount,
     relationships,
   ]);
@@ -278,10 +282,7 @@ export function useDashboardNavigation({
     return next;
   }, [activePathKey, menuToggles]);
 
-  // Accordion toggle: opening one section closes the other click-opened ones,
-  // except sections on the active path (they stay as context). Defined AFTER
-  // activePathIds — referencing it in the dependency array before its
-  // declaration would hit the const temporal dead zone (build crash).
+  // Toggle one section; several can stay open together.
   const toggleMenu = useCallback(
     (id) => {
       if (!id) return;
@@ -291,16 +292,12 @@ export function useDashboardNavigation({
           map[id] = false;
           return { key: activePathKey, map };
         }
-        // Opening one section closes the other hand-opened ones, except the
-        // sections on the active path — they stay as context.
-        for (const key of Object.keys(map)) {
-          if (key !== id && !activePathIds.has(key)) delete map[key];
-        }
+        // Several groups may be open at once.
         map[id] = true;
         return { key: activePathKey, map };
       });
     },
-    [activePathKey, activePathIds, openMenus],
+    [activePathKey, openMenus],
   );
 
   return { navItems, activePathIds, openMenus, toggleMenu, activeRole };

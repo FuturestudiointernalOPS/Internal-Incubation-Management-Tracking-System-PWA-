@@ -51,6 +51,7 @@ export const PATCH = createHandler(async (req, { params }) => {
         verification_method: body.verification_method,
         sort_order: body.sort_order,
         is_active: body.is_active,
+        is_readiness: body.is_readiness,
       },
     });
     return NextResponse.json({ success: true });

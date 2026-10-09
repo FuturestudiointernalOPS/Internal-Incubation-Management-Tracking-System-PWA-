@@ -168,3 +168,18 @@ export async function createDueReminderNotification(recipientId, title, message)
     args: [recipientId, title, message],
   });
 }
+
+/** Full announcement history, restricted to the signed-in recipient. */
+export async function getParticipantAnnouncementHistory(recipientId) {
+  return db.execute({
+    sql: "SELECT * FROM v2_notifications WHERE recipient_id = ? AND type = 'announcement' ORDER BY created_at DESC, id DESC",
+    args: [recipientId],
+  });
+}
+
+export async function markNotificationUnread(notificationId) {
+  return db.execute({
+    sql: "UPDATE v2_notifications SET is_read = 0, read_at = NULL WHERE id = ?",
+    args: [notificationId],
+  });
+}

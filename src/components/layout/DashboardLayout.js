@@ -4,6 +4,7 @@ import ShellHeader from "@/components/layout/shell/ShellHeader";
 import { SidebarContent } from "@/components/layout/shell/SidebarContent";
 
 import ShellBanners from "./shell/ShellBanners";
+import participantStyles from "./participant-shell.module.css";
 
 import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import {
@@ -34,6 +35,35 @@ const NOTIFICATIONS_PREVIEW = 3;
 
 
 
+const COLLAPSE_KEY = "impactos_participant_sidebar_collapsed";
+const collapseListeners = new Set();
+let collapseFallback = false;
+function readParticipantCollapse() {
+  try { return localStorage.getItem(COLLAPSE_KEY) === "true"; } catch { return collapseFallback; }
+}
+function subscribeParticipantCollapse(listener) {
+  collapseListeners.add(listener);
+  window.addEventListener("storage", listener);
+  return () => { collapseListeners.delete(listener); window.removeEventListener("storage", listener); };
+}
+function writeParticipantCollapse(value) {
+  const next = typeof value === "function" ? value(readParticipantCollapse()) : value;
+  collapseFallback = next;
+  try { localStorage.setItem(COLLAPSE_KEY, String(next)); } catch { /* Storage may be unavailable. */ }
+  collapseListeners.forEach(listener => listener());
+}
+let legacyCollapseFallback = false;
+function readLegacyCollapse() {
+  try { return localStorage.getItem("sidebar-collapsed") === "1"; } catch { return legacyCollapseFallback; }
+}
+function setLegacyCollapsed(value) {
+  const next = typeof value === "function" ? value(readLegacyCollapse()) : value;
+  legacyCollapseFallback = next;
+  try { localStorage.setItem("sidebar-collapsed", next ? "1" : "0"); } catch { /* Storage may be unavailable. */ }
+  collapseListeners.forEach(listener => listener());
+}
+const expandedServerSnapshot = () => false;
+
 // ─── The identity the shell paints with ─────────────────────────────────────
 //
 // It comes from the shared session store: the session this shell has already
@@ -55,12 +85,16 @@ function getShellUserServerSnapshot() {
 
 
 function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidth = false }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const legacyCollapsed = useSyncExternalStore(subscribeParticipantCollapse, readLegacyCollapse, expandedServerSnapshot);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const { lang, t, switchLang } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
+  const participantSurface = pathname?.startsWith("/participant");
+  const participantCollapsed = useSyncExternalStore(subscribeParticipantCollapse, readParticipantCollapse, expandedServerSnapshot);
+  const collapsed = participantSurface ? participantCollapsed : legacyCollapsed;
+  const setCollapsed = participantSurface ? writeParticipantCollapse : setLegacyCollapsed;
 
   const { permissions: effectiveCaps } = usePermissions();
 
@@ -392,9 +426,10 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
 
   return (
     <AppErrorBoundary>
-      <div className="flex h-screen w-full overflow-hidden bg-primary text-[var(--text-primary)]">
+      <div className={`flex h-screen w-full overflow-hidden bg-primary text-[var(--text-primary)] ${participantSurface ? participantStyles.shell : ""}`}>
         <aside
-          style={{ width: collapsed ? 64 : 260 }}
+          style={{ width: collapsed ? 76 : 260 }}
+          data-collapsed={collapsed}
           className="hidden md:flex flex-col h-screen sticky top-0 bg-secondary border-r border-[var(--border-primary)] p-4 overflow-hidden min-h-0 z-[100] transition-[width] duration-150"
         >
           <SidebarContent {...commonProps} />
@@ -406,8 +441,8 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
               onClick={() => setMobileMenuOpen(false)}
               className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             />
-            <aside className="absolute inset-y-0 left-0 w-64 flex flex-col overflow-hidden bg-secondary p-6 border-r border-[var(--border-primary)]">
-              <SidebarContent {...commonProps} />
+            <aside data-mobile-sidebar className="absolute inset-y-0 left-0 w-64 flex flex-col overflow-hidden bg-secondary p-6 border-r border-[var(--border-primary)]">
+              <SidebarContent {...commonProps} collapsed={false} mobile />
             </aside>
           </div>
         )}
@@ -437,9 +472,9 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
             setMobileMenuOpen={setMobileMenuOpen}
           />
 
-          <main className="flex-1 p-6 lg:p-10 overflow-y-auto bg-primary">
+          <main className="app-page flex-1 p-6 lg:p-10 overflow-y-auto bg-primary">
             <ShellBanners
-              pinnedAnnouncements={pinnedAnnouncements}
+              pinnedAnnouncements={participantSurface ? [] : pinnedAnnouncements}
               pendingInvites={pendingInvites}
               pendingAssignments={pendingAssignments}
               onOpenAnnouncements={() => router.push("/admin/announcements")}

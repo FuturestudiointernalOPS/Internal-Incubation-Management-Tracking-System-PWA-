@@ -18,7 +18,6 @@ import {
   countQueueStatistics,
   countVenturesForHealth,
   countNotificationsForHealth,
-  countConnectedIntegrations,
   insertHealthCheck,
   selectLatestHealthCheck,
   selectHealthCheckHistory,
@@ -98,10 +97,6 @@ export async function runHealthChecks() {
     checkComponent("notifications", async () => {
       const result = await countNotificationsForHealth().catch(() => ({ rows: [{ c: 0 }] }));
       return { ok: true, message: `Notifications: ${result.rows[0]?.c || 0} total`, details: { total: parseInt(result.rows[0]?.c || 0) } };
-    }),
-    checkComponent("integrations", async () => {
-      const result = await countConnectedIntegrations().catch(() => ({ rows: [{ c: 0 }] }));
-      return { ok: true, message: `${result.rows[0]?.c || 0} integrations connected`, details: { connected: parseInt(result.rows[0]?.c || 0) } };
     }),
   ]);
 

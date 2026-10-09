@@ -95,6 +95,16 @@ export default function DocumentTypeList({
                       {t(documentType.required !== false ? "common.required" : "common.optional")}
                     </span>
                   )}
+                  {/* Storage-only documents are listed in the Data bank but
+                      leave the readiness percentage alone. */}
+                  {documentType.is_readiness === false && (
+                    <span
+                      className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-[var(--surface-3)] text-[var(--text-secondary)]"
+                      title={t("venture.documentTypes.readinessHint")}
+                    >
+                      {t("venture.documentTypes.readinessNoBadge")}
+                    </span>
+                  )}
                 </div>
               </div>
 

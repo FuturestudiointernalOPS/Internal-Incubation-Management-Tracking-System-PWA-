@@ -43,14 +43,15 @@ export default function AppSelect({
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
           className={`
-            w-full rounded-md py-3 px-4 pr-10 text-sm font-medium outline-none
+            w-full rounded-xl py-3 px-4 pr-10 text-[13px] font-medium outline-none
             appearance-none cursor-pointer transition-all border
+            focus:!border-[var(--brand-orange)] focus:shadow-[0_0_0_3px_rgb(255_102_0/0.18)]
             ${Icon ? "pl-12" : ""}
             ${error ? "border-rose-500" : ""}
             ${className}
           `}
           style={{
-            background: "var(--bg-primary)",
+            background: "var(--surface-1)",
             borderColor: error ? undefined : "var(--border-primary)",
             color: "var(--text-primary)",
           }}

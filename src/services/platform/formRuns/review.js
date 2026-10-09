@@ -203,12 +203,12 @@ export async function processReviewInternal({
     }
 
     // A result whose scheduled time has already passed goes out as soon as the
-    // reviewer decides — no need to reopen the run for it to be picked up.
-    // The sweep honours the run's delay and is idempotent, so it is safe to ask
-    // on every decision (a delay of 0 asks for nothing).
-    if (decision === "approved") {
-      scheduleResultSweep(submissionRunResult.rows[0].run_id);
-    }
+    // reviewer decides — no need to reopen the run for it to be picked up. A
+    // report no longer waits for an approval, so this fires on EVERY decision
+    // (approve, reject, revision), not just an approval. The sweep honours the
+    // run's delay and is idempotent, so it is safe to ask every time (a delay of
+    // 0 asks for nothing).
+    scheduleResultSweep(submissionRunResult.rows[0].run_id);
   }
 
   return { ok: true, submission: result.rows[0], result_pdf: resultPdf };

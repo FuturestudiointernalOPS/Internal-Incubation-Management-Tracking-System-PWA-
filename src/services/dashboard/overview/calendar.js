@@ -7,7 +7,7 @@
  * events one row each. No SQL, no HTTP.
  */
 
-import { toDateStr, dateRange } from "./dates";
+import { toDateStr, dateRange, toInstant } from "./dates";
 
 /**
  * The calendar rows of the overview, in the order the sources are read.
@@ -107,6 +107,7 @@ export function buildOverviewCalendar({
       status: "scheduled",
       related_id: sessionRow.id,
       project_id: sessionRow.program_id,
+      starts_at: toInstant(sessionRow.start_at),
     });
   }
 
@@ -126,6 +127,7 @@ export function buildOverviewCalendar({
       project_id: null,
       description: sessionRow.coach_name ? `Coach: ${sessionRow.coach_name}` : null,
       milestone_ref: sessionRow.milestone_ref || null,
+      starts_at: toInstant(sessionRow.start_time),
     });
   }
 
@@ -152,6 +154,9 @@ export function buildOverviewCalendar({
       source: "event",
       status: "scheduled",
       related_id: calendarEvent.id,
+      starts_at: toInstant(calendarEvent.start_time),
+      ends_at: toInstant(calendarEvent.end_time),
+      location: calendarEvent.location || null,
     });
   }
 

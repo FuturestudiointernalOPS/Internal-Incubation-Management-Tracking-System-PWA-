@@ -66,7 +66,7 @@ export default function MetricsColumn({ id, data, widgetState, refreshWidget, ve
               {data.investment_readiness.next_milestones.map((milestone, index) => (
                 <div key={index} className="flex items-center gap-2 text-[10px] text-[var(--text-secondary)]">
                   <Target className="w-3 h-3 text-[var(--brand-orange)] shrink-0" />
-                  {milestone}
+                  {t(milestone.key, milestone.params)}
                 </div>
               ))}
             </div>

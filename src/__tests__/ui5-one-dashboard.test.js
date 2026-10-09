@@ -30,9 +30,14 @@ const NAV_HOOK = "src/components/layout/shell/useDashboardNavigation.js";
 
 describe("one dashboard — the calendar page is the only dashboard", () => {
   test("the staff dashboard renders the calendar dashboard, with no cards", () => {
-    const src = read("src/app/staff/page.js");
-    expect(src).toContain("UnifiedDashboard");
-    expect(src).not.toContain("ContextCards");
+    // The page renders the staff dashboard, whose centrepiece is the calendar;
+    // contexts stay out of it (they are doors in the sidebar).
+    const page = read("src/app/staff/page.js");
+    const dashboard = read("src/components/staff/StaffDashboard.js");
+    expect(page).toContain("StaffDashboard");
+    expect(dashboard).toContain("StaffCalendar");
+    expect(page).not.toContain("ContextCards");
+    expect(dashboard).not.toContain("ContextCards");
   });
 
   test("the retired context-card row is deleted, not kept around", () => {

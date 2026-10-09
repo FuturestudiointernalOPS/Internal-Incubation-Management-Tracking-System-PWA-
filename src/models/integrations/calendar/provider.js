@@ -6,7 +6,6 @@
  *
  * Currently supported:
  *   - Microsoft Graph API (Outlook / Teams calendar)
- *   - Google Calendar API (stub — ready for future migration)
  */
 
 export class CalendarProvider {
@@ -64,12 +63,9 @@ export async function getCalendarProvider() {
   if (provider === "microsoft") {
     const { MicrosoftCalendarProvider } = await import("./microsoft");
     _instance = new MicrosoftCalendarProvider();
-  } else if (provider === "google") {
-    const { GoogleCalendarProvider } = await import("./google");
-    _instance = new GoogleCalendarProvider();
   } else {
     throw new Error(
-      `Unknown calendar provider: "${provider}". Use "microsoft" or "google".`,
+      `Unknown calendar provider: "${provider}". Use "microsoft".`,
     );
   }
 
@@ -77,18 +73,11 @@ export async function getCalendarProvider() {
 }
 
 /**
- * Environment variables required per provider:
+ * Environment variables required:
  *
- * ── Microsoft Graph ────────────────────
  *   CALENDAR_PROVIDER=microsoft
  *   AZURE_TENANT_ID=your-tenant-id
  *   AZURE_CLIENT_ID=your-client-id
  *   AZURE_CLIENT_SECRET=your-client-secret
  *   CALENDAR_USER_EMAIL=calendar@company.com  (the shared/mailbox whose calendar to write to)
- *
- * ── Google Calendar ────────────────────
- *   CALENDAR_PROVIDER=google
- *   GOOGLE_SERVICE_ACCOUNT_EMAIL=...
- *   GOOGLE_PRIVATE_KEY=...
- *   GOOGLE_CALENDAR_ID=...
  */

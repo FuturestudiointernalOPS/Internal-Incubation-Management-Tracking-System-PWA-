@@ -28,7 +28,7 @@
  *               the FK-safe builder save, the investor-intake guard)
  *   collections.js — the Collections CRUD (list + tree, slug, audit)
  *   notifications.js — the user notification list + mark-read
- *   integrations.js — the calendar/Notion health probes and sync actions
+ *   integrations.js — the calendar health probe and sync actions
  *   investorIntake.js — the Investor Run reference + public URL
  *   evaluationConfig.js — a form's AI evaluation framework read/save/remove
  *   reportFiles.js — a Run's report-file attach/read/detach

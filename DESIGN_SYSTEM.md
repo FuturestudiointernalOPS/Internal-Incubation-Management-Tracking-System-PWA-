@@ -162,6 +162,7 @@ import AppLinkCard from "@/components/ui/AppLinkCard"; // dashboard card that op
 import AppButton from "@/components/ui/AppButton";
 import AppModal from "@/components/ui/AppModal";
 import AppMenu from "@/components/ui/AppMenu";
+import AppSplitMenu from "@/components/ui/AppSplitMenu"; // split action button — the action on show, a chevron for the others
 import AppTabs from "@/components/ui/AppTabs";
 
 // Forms
@@ -389,6 +390,7 @@ src/
 │       ├── AppInput.js
 │       ├── AppModal.js
 │       ├── AppMenu.js           ← Row-action menu (⋯) — grouped items, danger items
+│       ├── AppSplitMenu.js      ← Split action button — the action on show + a chevron for the other actions
 │       ├── AppPagination.js     ← Pagination with page numbers or compact
 │       ├── AppSelect.js
 │       ├── AppStatusBadge.js    ← Status badge using shared STATUS_CONFIG
@@ -437,3 +439,28 @@ src/
 `NewMessageButton` sont dans `src/components/messaging/chat/` ; ils reçoivent les
 valeurs et actions du parent et n'ajoutent aucun conteneur DOM. Ces blocs restent
 propres à leur surface, tandis que les composants UI génériques restent dans `ui/`.
+
+### Participant HTML reference
+
+The participant portal follows `participant-page.html`: a welcome banner,
+compact metric cards, a command calendar, attention lists, announcements, and
+a Learning section. The dashboard omits Rituals and Shortcuts. Its sentence-case typography
+and navy/orange palette are scoped to participant routes by
+`participant.module.css` and `participant-shell.module.css`; other sections keep
+their existing theme. Colors are always expressed through theme variables.
+
+`ParticipantCommandCalendar` in `src/components/ui/` provides month, week and day
+views, search, task-status filtering, task/meeting toggles and personal reminders.
+Only locally created reminders/meetings can be changed or removed. Official
+program events link to existing program or assignment routes. Personal additions
+remain in component memory until leaving or reloading the page, as in the HTML.
+
+`AppStatusBadge` accepts an optional translated `label`; its existing status
+configuration and callers remain compatible.
+
+Participant shell uses the specified navy/orange palette in `participant-shell.module.css`.
+Desktop collapse is persisted with `impactos_participant_sidebar_collapsed` and uses a 76px rail; mobile always renders expanded labels. Participant groups toggle independently, and collapsed group clicks expand the rail. `AppButton` exposes `data-variant` and `AppStatusBadge` exposes `data-status`/`data-status-variant` so scoped themes can style them without changing other sections. Participant selects use card surfaces, 12px corners and orange focus rings.
+
+Participant active group styling uses `data-nav-kind="group"`; only active nested links use the solid orange surface. SearchableSelect exposes `data-select-trigger` and `aria-expanded` so the participant select theme applies to searchable dropdowns, with labels associated to the trigger. The participant brand header displays Future Studio / ImpactOS beside the logo and an outlined collapse control.
+
+Participant announcements now live at `/participant/announcements`, sourced from the complete announcement notification history for the session recipient. Read/unread changes persist through the notification API; categorisation and personal pins are stored per recipient on the current browser. Uncategorized notifications default to Programme. The participant sidebar omits Assignments, Progress, Rituals and Follow-ups while their routes remain accessible. The home page links to the announcement hub.

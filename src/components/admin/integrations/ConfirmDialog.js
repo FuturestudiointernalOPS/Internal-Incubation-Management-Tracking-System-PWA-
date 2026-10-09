@@ -17,18 +17,6 @@ export default function ConfirmDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl w-full max-w-md m-4" onClick={(event) => event.stopPropagation()}>
         <div className="p-6">
-          {action.type === "remove_integration" && (
-            <>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-red-500/10 rounded-xl"><AlertCircle size={24} className="text-red-400" /></div>
-                <div><h3 className="text-lg font-black tracking-tight">Remove Integration</h3><p className="text-sm text-[var(--text-secondary)]">Are you sure you want to disconnect {action.name}? This action cannot be undone.</p></div>
-              </div>
-              <div className="flex gap-3">
-                <button onClick={onClose} className="flex-1 px-4 py-2.5 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-sm hover:bg-[var(--surface-2)]">Cancel</button>
-                <button onClick={onConfirm} className="flex-1 px-4 py-2.5 bg-red-500 rounded-lg text-sm font-medium hover:bg-red-600">Remove</button>
-              </div>
-            </>
-          )}
           {action.type === "revoke_key" && (
             <>
               <div className="flex items-center gap-3 mb-4">

@@ -46,6 +46,7 @@ import enStaffMisc from "@/locales/en/staffMisc.json";
 import enRootMisc from "@/locales/en/rootMisc.json";
 import enLms from "@/locales/en/lms.json";
 import enMembership from "@/locales/en/membership.json";
+import enGoogleCalendar from "@/locales/en/googleCalendar.json";
 
 // ─── Deep merge: recursively merges objects ───
 // IMPORTANT: If the target already holds an object for a given key,
@@ -114,6 +115,7 @@ export const EN = [
   enRootMisc,
   enLms,
   enMembership,
+  enGoogleCalendar,
 ].reduce((merged, module) => deepMerge(merged, module), {});
 
 // Languages that HAVE arrived. `en` is there from the start; the others are
@@ -164,6 +166,7 @@ const LOADERS = {
       import("@/locales/fr/rootMisc.json"),
       import("@/locales/fr/lms.json"),
       import("@/locales/fr/membership.json"),
+      import("@/locales/fr/googleCalendar.json"),
     ]),
 };
 

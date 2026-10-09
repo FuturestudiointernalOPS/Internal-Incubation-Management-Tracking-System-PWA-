@@ -25,7 +25,7 @@ export const STATUS_COLORS = {
 export const COMPONENT_ICONS = {
   app: Activity, database: Database, cache: Zap, queue: Layers,
   email: FileText, storage: HardDrive, search: Terminal,
-  notifications: Activity, integrations: Activity,
+  notifications: Activity,
 };
 
 export const COMPONENT_KEYS = {
@@ -37,7 +37,6 @@ export const COMPONENT_KEYS = {
   storage: "adminMisc.system.componentStorage",
   search: "adminMisc.system.componentSearch",
   notifications: "adminMisc.system.componentNotifications",
-  integrations: "adminMisc.system.componentIntegrations",
 };
 
 export const STATUS_KEYS = {
