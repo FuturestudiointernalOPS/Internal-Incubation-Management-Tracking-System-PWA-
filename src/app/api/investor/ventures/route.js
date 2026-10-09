@@ -12,11 +12,14 @@ import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/
  * Advanced venture search with filters for investors.
  *
  * Query params:
- *   search    — text search (name, founder, industry, description)
+ *   search    — text search (name, description, industry)
  *   industry  — comma-separated industries
  *   country   — comma-separated countries
  *   stage     — business stage (Pre-Seed, Seed, Series A, etc.)
- *   funding_min / funding_max — funding requirement range
+ *
+ * The list IS the platform's Venture directory (see
+ * `@/models/investor/venturesAndUpdates`), not the incubation programmes it
+ * used to read.
  */
 
 export async function GET(req) {
@@ -30,17 +33,15 @@ export async function GET(req) {
     const industry = searchParams.get("industry") || "";
     const country = searchParams.get("country") || "";
     const stage = searchParams.get("stage") || "";
-    const fundingMin = searchParams.get("funding_min") || "";
-    const fundingMax = searchParams.get("funding_max") || "";
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = parseInt(searchParams.get("offset") || "0");
 
     // Count total
-    const countResult = await countInvestorVentureSearch({ search, industry, country, stage, fundingMin, fundingMax });
+    const countResult = await countInvestorVentureSearch({ search, industry, country, stage });
     const total = parseInt(countResult.rows[0]?.total || 0);
 
     // Final query
-    const result = await searchInvestorVentures({ search, industry, country, stage, fundingMin, fundingMax, limit, offset });
+    const result = await searchInvestorVentures({ search, industry, country, stage, limit, offset });
 
     // For each venture, get KPIs if available
     const ventures = result.rows.map(venture => ({
