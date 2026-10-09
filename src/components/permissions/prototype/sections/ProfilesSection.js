@@ -9,8 +9,11 @@
  * governance screen owns it.
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n";
+import AppButton from "@/components/ui/AppButton";
+import { useDialogs } from "@/components/ui/DialogProvider";
+import { notify } from "@/lib/notify";
 import { deriveProfileBadges } from "../../profileBadges";
 import {
   profileFeatureCaps,
@@ -26,7 +29,9 @@ import {
   Note,
   Pill,
   PrototypeTable,
+  Toolbar,
 } from "../prototypeUi";
+import RederiveDrawer from "../drawers/RederiveDrawer";
 
 const BADGE_KEY = {
   roleDefault: "profileBadge_roleDefault",
@@ -34,8 +39,30 @@ const BADGE_KEY = {
   superAdmin: "profileBadge_superAdmin",
 };
 
+/** The server's refusal, in words the administrator can act on. */
+function deleteBlockedMessage(json, t) {
+  if (json?.error === "profile_in_use_role_default") {
+    return t("engineering.permissions.profileDeleteBlockedRoleDefault", {
+      roles: (json.roles || []).join(", "),
+    });
+  }
+  if (json?.error === "profile_in_use_assignments") {
+    return t("engineering.permissions.profileDeleteBlockedAssignments", {
+      count: json.assignedCount ?? 0,
+    });
+  }
+  if (json?.error === "profile_in_use_context") {
+    return t("engineering.permissions.profileDeleteBlockedContext", {
+      count: json.contextCount ?? 0,
+    });
+  }
+  return json?.error || t("engineering.permissions.profileDeleteFailed");
+}
+
 export default function ProfilesSection({ data, tab, openDrawer }) {
   const { t } = useI18n();
+  const { confirm } = useDialogs();
+  const [rederive, setRederive] = useState(false);
   const { profiles = [], roleDefaults = {} } = data;
 
   const features = useMemo(() => {
@@ -44,7 +71,40 @@ export default function ProfilesSection({ data, tab, openDrawer }) {
     return [...list].sort((a, b) => a.localeCompare(b));
   }, [data.features, data.moduleToFeature]);
 
-  if (tab === "contextRoles") return <ContextRolesTab data={data} />;
+  const deleteProfile = async (profile) => {
+    const label = profile.label || profile.key;
+    const accepted = await confirm({
+      title: t("engineering.permissions.profilesDeleteTitle"),
+      message: t("engineering.permissions.profilesDeleteConfirm", { label }),
+      tone: "danger",
+      confirmLabel: t("common.delete"),
+      cancelLabel: t("common.cancel"),
+    });
+    if (!accepted) return;
+    try {
+      const response = await fetch(
+        `/api/engineering/permissions/profiles?key=${encodeURIComponent(profile.key)}`,
+        { method: "DELETE" },
+      );
+      const json = await response.json().catch(() => null);
+      if (!json?.success) throw new Error(deleteBlockedMessage(json, t));
+      notify("success", t("engineering.permissions.profileDeleted", { label }));
+      data.refresh?.("profiles");
+      data.refresh?.("audit");
+    } catch (error) {
+      notify("error", error.message || t("engineering.permissions.profileDeleteFailed"));
+    }
+  };
+
+  if (tab === "contextRoles")
+    return (
+      <ContextRolesTab
+        data={data}
+        rederive={rederive}
+        onRederive={() => setRederive(true)}
+        onCloseRederive={() => setRederive(false)}
+      />
+    );
 
   const activeCount = profiles.filter((profile) => Number(profile.is_active) !== 0).length;
   const defaultCount = Object.keys(roleDefaults).length;
@@ -66,11 +126,12 @@ export default function ProfilesSection({ data, tab, openDrawer }) {
             {features.map((feature) => (
               <HeadCell key={feature}>{feature}</HeadCell>
             ))}
+            <HeadCell />
           </tr>
         </thead>
         <tbody>
           {profiles.length === 0 && (
-            <EmptyRow colSpan={features.length + 1} label={t("common.noResults")} />
+            <EmptyRow colSpan={features.length + 2} label={t("common.noResults")} />
           )}
           {profiles.map((profile) => {
             const roles = rolesDefaultingTo(profile, roleDefaults);
@@ -122,6 +183,11 @@ export default function ProfilesSection({ data, tab, openDrawer }) {
                     </Cell>
                   );
                 })}
+                <Cell className="text-right">
+                  <AppButton variant="danger" onClick={() => deleteProfile(profile)}>
+                    {t("common.delete")}
+                  </AppButton>
+                </Cell>
               </tr>
             );
           })}
@@ -133,7 +199,7 @@ export default function ProfilesSection({ data, tab, openDrawer }) {
 
 /* ---------------------------------------------------------- contextRoles -- */
 
-function ContextRolesTab({ data }) {
+function ContextRolesTab({ data, rederive, onRederive, onCloseRederive }) {
   const { t } = useI18n();
   const rows = data.contextRoles || [];
   const empty = t("engineering.permissions.prototype.emptyValue");
@@ -141,6 +207,14 @@ function ContextRolesTab({ data }) {
   return (
     <>
       <Note>{t("engineering.permissions.prototype.contextRolesHint")}</Note>
+      <Toolbar>
+        <p className="flex-1 text-sm text-[var(--text-secondary)]">
+          {t("engineering.permissions.prototype.contextRederiveHint")}
+        </p>
+        <AppButton variant="secondary" onClick={onRederive}>
+          {t("engineering.permissions.prototype.rederiveOpen")}
+        </AppButton>
+      </Toolbar>
       <PrototypeTable minWidth="40rem">
         <thead>
           <tr>
@@ -174,6 +248,8 @@ function ContextRolesTab({ data }) {
           ))}
         </tbody>
       </PrototypeTable>
+
+      {rederive && <RederiveDrawer onClose={onCloseRederive} onDone={() => data.refresh?.("all")} />}
     </>
   );
 }

@@ -153,7 +153,7 @@ function PeopleTab({ data, onOpenPerson, openDrawer }) {
 
 function GroupsTab({ data, openDrawer }) {
   const { t } = useI18n();
-  const { contacts = [], groupDefaults = [] } = data;
+  const { contacts = [], groupDefaults = [], eligibilityMatrix = {}, features = [] } = data;
 
   const groups = useMemo(() => {
     const byName = {};
@@ -165,13 +165,20 @@ function GroupsTab({ data, openDrawer }) {
       if (contact.role) byName[name].roles.add(contact.role);
     }
     return Object.values(byName)
-      .map((group) => ({
-        ...group,
-        capabilities: groupDefaults.filter((row) => row.group_name === group.name).length,
-        roles: [...group.roles],
-      }))
+      .map((group) => {
+        const roles = [...group.roles];
+        const eligible = features.filter((feature) =>
+          roles.some((role) => eligibilityMatrix[role]?.[feature] === 1),
+        );
+        return {
+          ...group,
+          capabilities: groupDefaults.filter((row) => row.group_name === group.name).length,
+          roles,
+          eligible,
+        };
+      })
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [contacts, groupDefaults]);
+  }, [contacts, groupDefaults, eligibilityMatrix, features]);
 
   return (
     <>
@@ -183,16 +190,18 @@ function GroupsTab({ data, openDrawer }) {
             <HeadCell>{t("engineering.permissions.prototype.members")}</HeadCell>
             <HeadCell>{t("engineering.permissions.prototype.role")}</HeadCell>
             <HeadCell>{t("engineering.permissions.prototype.capabilities")}</HeadCell>
+            <HeadCell>{t("engineering.permissions.prototype.eligibility")}</HeadCell>
           </tr>
         </thead>
         <tbody>
-          {groups.length === 0 && <EmptyRow colSpan={4} label={t("common.noResults")} />}
+          {groups.length === 0 && <EmptyRow colSpan={5} label={t("common.noResults")} />}
           {groups.map((group) => (
             <ClickRow key={group.name} onClick={() => openDrawer({ kind: "group", group: group.name })}>
               <Cell className="font-bold">{group.name}</Cell>
               <Cell>{group.members}</Cell>
               <Cell>{group.roles.join(", ") || t("engineering.permissions.prototype.emptyValue")}</Cell>
               <Cell>{group.capabilities}</Cell>
+              <Cell>{group.eligible.join(", ") || t("engineering.permissions.prototype.emptyValue")}</Cell>
             </ClickRow>
           ))}
         </tbody>

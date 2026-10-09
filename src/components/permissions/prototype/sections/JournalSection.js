@@ -46,6 +46,32 @@ export default function JournalSection({ data, onGoTo, refresh }) {
     );
   }, [data.audit, query]);
 
+  const exportCsv = () => {
+    const cell = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+    const header = ["date", "actor", "target", "action", "details"].map((column) =>
+      t(`engineering.permissions.prototype.${column}`),
+    );
+    const rows = entries.map((entry) =>
+      [
+        entry.created_at ? new Date(entry.created_at).toLocaleString() : "",
+        entry.actor_name || "",
+        entry.target_name || "",
+        entry.action || "",
+        entry.details || entry.reason || "",
+      ]
+        .map(cell)
+        .join(","),
+    );
+    const csv = [header.map(cell).join(","), ...rows].join("\r\n");
+    const url = URL.createObjectURL(new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "permission-journal.csv";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+
   return (
     <>
       <KpiRow>
@@ -65,6 +91,9 @@ export default function JournalSection({ data, onGoTo, refresh }) {
         />
         <AppButton variant="secondary" onClick={() => refresh("audit")}>
           {t("common.refresh")}
+        </AppButton>
+        <AppButton variant="secondary" onClick={exportCsv}>
+          {t("engineering.permissions.prototype.exportCsv")}
         </AppButton>
         <AppButton variant="secondary" onClick={() => setRederive(true)}>
           {t("engineering.permissions.prototype.rederiveOpen")}

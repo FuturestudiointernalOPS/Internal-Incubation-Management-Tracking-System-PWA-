@@ -184,7 +184,9 @@
         "unchanged": "Unchanged",
         "whyNote": "The three gates: what the ceiling allows, what the person holds, where it applies.",
         "wouldLose": "{count} people would lose rights",
-        "impactTemplate": "{name} still grants {role} · {feature}: {capabilities}"
+        "impactTemplate": "{name} still grants {role} · {feature}: {capabilities}",
+        "contextRederiveHint": "Re-derive rights from the contextual links — recompute the assignments and apply the gaps.",
+        "exportCsv": "Export CSV"
       },
       "pageSubtitle": "Who can do what, and where it applies — four places, in the order you would ask.",
       "navPeople": "People",

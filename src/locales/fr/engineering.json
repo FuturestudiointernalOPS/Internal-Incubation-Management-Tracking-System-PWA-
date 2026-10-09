@@ -184,7 +184,9 @@
         "unchanged": "Inchangé",
         "whyNote": "Les trois portes : ce que le plafond autorise, ce que la personne détient, où cela s'applique.",
         "wouldLose": "{count} personnes perdraient des droits",
-        "impactTemplate": "{name} accorde encore {role} · {feature} : {capabilities}"
+        "impactTemplate": "{name} accorde encore {role} · {feature} : {capabilities}",
+        "contextRederiveHint": "Re-dériver les droits depuis les liens contextuels — recalculer les attributions et appliquer les écarts.",
+        "exportCsv": "Exporter CSV"
       },
       "pageSubtitle": "Qui peut faire quoi, et où cela s'applique — quatre endroits, dans l'ordre des questions.",
       "navPeople": "Personnes",
