@@ -6,6 +6,7 @@ import AppButton from "@/components/ui/AppButton";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
+import CrmActivityPanel from "@/components/ui/CrmActivityPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -130,6 +131,9 @@ export default function CrmLeadDetailPage({ params }) {
           </div>
         </div>
       </div>
+
+      {/* Activities + Next Action */}
+      <CrmActivityPanel leadId={lead.id} />
     </div>
   );
 }

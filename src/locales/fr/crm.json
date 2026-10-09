@@ -608,7 +608,47 @@
       "subtitle": "Configurez et examinez les flux d'étapes.",
       "noPipelines": "Aucun pipeline configuré.",
       "inactive": "Inactif"
+    },
+    "activities": {
+      "title": "Activités",
+      "subtitle": "Suivez les appels, réunions, e-mails et notes sur tous les enregistrements CRM.",
+      "addActivity": "Ajouter une activité",
+      "editActivity": "Modifier l'activité",
+      "noActivities": "Aucune activité pour le moment.",
+      "noActivitiesHint": "Enregistrez un appel, une note, une réunion ou une tâche pour commencer.",
+      "nextAction": "Prochaine action",
+      "noNextAction": "Aucune prochaine action définie.",
+      "showAll": "Afficher les {count} activités",
+      "titleRequired": "Le titre de l'activité est requis.",
+      "notFound": "Activité introuvable.",
+      "confirmDelete": "Supprimer cette activité ? Cette action est irréversible.",
+      "filterAll": "Tous les types",
+      "typeLabel": "Type",
+      "titleLabel": "Titre",
+      "titlePlaceholder": "Que s'est-il passé ou que doit-il se passer ?",
+      "dateLabel": "Date",
+      "outcomeLabel": "Résultat",
+      "descriptionLabel": "Notes",
+      "descriptionPlaceholder": "Ajoutez du contexte, des prochaines étapes ou des détails...",
+      "types": {
+        "call":      "Appel",
+        "email":     "E-mail",
+        "meeting":   "Réunion",
+        "note":      "Note",
+        "follow_up": "Suivi",
+        "task":      "Tâche",
+        "other":     "Autre"
+      },
+      "outcomes": {
+        "none":        "Aucun résultat",
+        "positive":    "Positif",
+        "neutral":     "Neutre",
+        "negative":    "Négatif",
+        "no_response": "Sans réponse",
+        "rescheduled": "Reprogrammé",
+        "completed":   "Terminé",
+        "sent":        "Envoyé"
+      }
     }
   }
 }
-

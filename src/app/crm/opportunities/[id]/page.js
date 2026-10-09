@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
+import CrmActivityPanel from "@/components/ui/CrmActivityPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -245,6 +246,9 @@ export default function CrmOpportunityDetailPage({ params }) {
           </div>
         </div>
       </div>
+
+      {/* Activities + Next Action */}
+      <CrmActivityPanel opportunityId={opp.id} contactCid={opp.contact_cid ?? undefined} />
     </div>
   );
 }

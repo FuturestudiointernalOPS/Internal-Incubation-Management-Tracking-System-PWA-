@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Users, FileText, MessageSquare, ShieldAlert, Clock, Shield, TrendingUp, Settings } from "lucide-react";
+import { Users, FileText, MessageSquare, ShieldAlert, Clock, Shield, TrendingUp, Settings, Activity } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
@@ -94,6 +94,13 @@ export default function CrmWorkspace() {
         icon: TrendingUp,
         title: t("crm.opportunities.title"),
         subtitle: t("crm.opportunities.subtitle"),
+      },
+      {
+        key: "activities",
+        href: "/crm/activities",
+        icon: Activity,
+        title: t("crm.activities.title"),
+        subtitle: t("crm.activities.subtitle"),
       },
       {
         key: "pipelines",

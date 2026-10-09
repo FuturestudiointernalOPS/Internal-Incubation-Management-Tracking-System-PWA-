@@ -608,6 +608,47 @@
       "subtitle": "Configure and review stage workflows.",
       "noPipelines": "No pipelines configured.",
       "inactive": "Inactive"
+    },
+    "activities": {
+      "title": "Activities",
+      "subtitle": "Track calls, meetings, emails, and notes across all CRM records.",
+      "addActivity": "Add Activity",
+      "editActivity": "Edit Activity",
+      "noActivities": "No activities yet.",
+      "noActivitiesHint": "Record a call, note, meeting, or task to start building the relationship history.",
+      "nextAction": "Next Action",
+      "noNextAction": "No next action set.",
+      "showAll": "Show all {count} activities",
+      "titleRequired": "Activity title is required.",
+      "notFound": "Activity not found.",
+      "confirmDelete": "Delete this activity? This cannot be undone.",
+      "filterAll": "All Types",
+      "typeLabel": "Type",
+      "titleLabel": "Title",
+      "titlePlaceholder": "What happened or what needs to happen?",
+      "dateLabel": "Date",
+      "outcomeLabel": "Outcome",
+      "descriptionLabel": "Notes",
+      "descriptionPlaceholder": "Add context, next steps, or details...",
+      "types": {
+        "call":      "Call",
+        "email":     "Email",
+        "meeting":   "Meeting",
+        "note":      "Note",
+        "follow_up": "Follow-Up",
+        "task":      "Task",
+        "other":     "Other"
+      },
+      "outcomes": {
+        "none":        "No Outcome",
+        "positive":    "Positive",
+        "neutral":     "Neutral",
+        "negative":    "Negative",
+        "no_response": "No Response",
+        "rescheduled": "Rescheduled",
+        "completed":   "Completed",
+        "sent":        "Sent"
+      }
     }
   }
 }
