@@ -129,7 +129,7 @@ export async function createProgramFromTemplate(
           (id, name, description, concept_note, vision, objectives, program_type, visibility,
            language, duration_weeks, grading_mode,
            feedback_enabled, materials, start_date, end_date, assigned_pm_id, status, template_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Planned', ?)`,
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Planned', ?)`,
     args: [
       newId,
       name,
