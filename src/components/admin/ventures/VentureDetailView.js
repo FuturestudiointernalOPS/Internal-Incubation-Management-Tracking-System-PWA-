@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -28,6 +29,7 @@ import VentureDashboard from "@/components/ventures/VentureDashboard";
 import VentureWizardTab from "./VentureWizardTab";
 import VentureTeamTab from "./VentureTeamTab";
 import VentureActivityTab from "./VentureActivityTab";
+import AddLeadManagerModal from "./AddLeadManagerModal";
 
 const WIZARD_STEPS = [
   { step: 1, name: "vadmin.detail.startupIdentity", icon: Building2 },
@@ -56,6 +58,10 @@ export default function VentureDetailView({ ctx }) {
     t,
     venture,
   } = ctx;
+
+  // The header's "Staff" button opens this: bind a Lead Manager from here,
+  // without leaving the Venture.
+  const [showLeadManager, setShowLeadManager] = useState(false);
 
   if (loading) {
     return (
@@ -151,7 +157,7 @@ export default function VentureDetailView({ ctx }) {
               {/* Staff assignment: who manages/coaches this Venture and at what
                   scope — where a staff member is bound as Lead Manager. */}
               <button
-                onClick={() => router.push(`/admin/ventures/${id}/permissions?role=lead_manager`)}
+                onClick={() => setShowLeadManager(true)}
                 className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
                 title={t("vadmin.detail.staffTitle")}
               >
@@ -406,6 +412,13 @@ export default function VentureDetailView({ ctx }) {
         )}
 
       </div>
+
+      {showLeadManager && (
+        <AddLeadManagerModal
+          onClose={() => setShowLeadManager(false)}
+          ventureId={id}
+        />
+      )}
     </>
   );
 }
