@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Users, FileText, MessageSquare, ShieldAlert, Clock, Shield } from "lucide-react";
+import { Users, FileText, MessageSquare, ShieldAlert, Clock, Shield, TrendingUp, Settings, Activity, Filter } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
@@ -72,7 +72,7 @@ export default function CrmWorkspace() {
     },
   ];
 
-  if (has("contacts", "view")) {
+  if (has("crm", "view")) {
     cards.push(
       {
         key: "people",
@@ -80,6 +80,55 @@ export default function CrmWorkspace() {
         icon: Users,
         title: t("crm.overview.allPeople"),
         subtitle: t("crm.directory.subtitle"),
+      },
+      {
+        key: "leads",
+        href: "/crm/leads",
+        icon: FileText,
+        title: t("crm.leads.title"),
+        subtitle: t("crm.leads.subtitle"),
+      },
+      {
+        key: "opportunities",
+        href: "/crm/opportunities",
+        icon: TrendingUp,
+        title: t("crm.opportunities.title"),
+        subtitle: t("crm.opportunities.subtitle"),
+      },
+      {
+        key: "activities",
+        href: "/crm/activities",
+        icon: Activity,
+        title: t("crm.activities.title"),
+        subtitle: t("crm.activities.subtitle"),
+      },
+      {
+        key: "pipelines",
+        href: "/crm/pipelines",
+        icon: Settings,
+        title: t("crm.pipelines.title"),
+        subtitle: t("crm.pipelines.subtitle"),
+      },
+      {
+        key: "segments",
+        href: "/crm/segments",
+        icon: Filter,
+        title: t("crm.intelligence.segments.title"),
+        subtitle: t("crm.intelligence.segments.subtitle"),
+      },
+      {
+        key: "automations",
+        href: "/crm/automations",
+        icon: Settings,
+        title: t("crm.intelligence.automations.title"),
+        subtitle: t("crm.intelligence.automations.subtitle"),
+      },
+      {
+        key: "organizations",
+        href: "/crm/organizations",
+        icon: Shield,
+        title: t("crm.organizations.title"),
+        subtitle: t("crm.organizations.subtitle"),
       },
       {
         key: "timeline",
@@ -98,6 +147,7 @@ export default function CrmWorkspace() {
       icon: Shield,
       title: t("membership.page.title"),
       subtitle: t("membership.page.subtitle"),
+
     });
   }
 

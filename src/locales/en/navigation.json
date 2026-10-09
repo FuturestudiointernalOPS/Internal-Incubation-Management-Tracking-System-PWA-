@@ -88,6 +88,8 @@
     "crmDashboard": "CRM Dashboard",
     "crmTimeline": "CRM Timeline",
     "crmDuplicates": "CRM Duplicates",
+    "crmOrganizations": "CRM Organizations",
+    "crmLeads": "CRM Leads",
     "pendingUsers": "Pending Approvals",
     "bulkUpload": "Bulk Import",
     "intelligence": "Intelligence",

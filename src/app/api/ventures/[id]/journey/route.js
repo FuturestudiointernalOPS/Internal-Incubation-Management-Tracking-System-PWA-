@@ -80,12 +80,15 @@ export async function GET(req, { params }) {
     if (viewer) {
       const planAccess = await resolvePlanAccess(id, viewer);
       if (planAccess.ok) {
-        const [canCreate, canEdit, canManage] = await Promise.all([
+        const [canCreate, canEdit, canManage, canDelete] = await Promise.all([
           allowsPlanAction(planAccess, "create"),
           allowsPlanAction(planAccess, "edit"),
           allowsPlanAction(planAccess, "manage"),
+          allowsPlanAction(planAccess, "delete"),
         ]);
-        access = { create: canCreate, edit: canEdit, manage: canManage };
+        // `delete` is Super Admin only (see operatingPlans): the panel hides the
+        // permanent-delete controls when it is false and offers archive instead.
+        access = { create: canCreate, edit: canEdit, manage: canManage, delete: canDelete };
       }
     }
 

@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
  * Body: { ids: [stageId...] }
  *
  * Permanent delete of whole journeys (stage + its milestone/task structure).
+ * SUPER ADMIN ONLY — a delegated manager may archive, never destroy.
  * A journey with filed work is BLOCKED and reported back — archive it instead.
  * Filed work is engagement (submissions, staff reviews, deliverables that have
  * been worked on); pristine tracker-import deliverable rows are plan structure
@@ -24,9 +25,11 @@ export async function POST(req, { params }) {
 
     const access = await resolvePlanAccess(id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    if (!(await allowsPlanAction(access, "manage"))) {
+    // SUPER ADMIN ONLY. Permanent deletion is never delegated — everyone else
+    // archives (POST /journey/archive), and the UI hides the destroy controls.
+    if (!(await allowsPlanAction(access, "delete"))) {
       return NextResponse.json(
-        { success: false, error: "Your assignment does not allow managing this Venture's journey." },
+        { success: false, error: "Only a Super Admin can permanently delete a journey. Archive it instead." },
         { status: 403 },
       );
     }

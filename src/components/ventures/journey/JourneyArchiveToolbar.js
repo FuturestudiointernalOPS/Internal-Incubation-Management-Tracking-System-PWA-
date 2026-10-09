@@ -14,6 +14,9 @@ import {
  * Journey archive toolbar: Active / Archived views, select all, and the
  * bulk archive / delete of the selected journeys.
  *
+ * Permanent deletion is Super Admin only (`canDelete`, from the server's
+ * `access.delete`): everyone else sees archive/restore and no destroy button.
+ *
  * Moved verbatim out of JourneyManagerPanel: every prop carries the panel
  * value of the same name (state, setter, handler or loop value), so the markup
  * and its behaviour are unchanged. The panel keeps all state and all writes.
@@ -25,6 +28,7 @@ export default function JourneyArchiveToolbar({
   askArchiveSelected,
   askDeleteSelected,
   bulkBusy,
+  canDelete,
   selectedStageIds,
   setSelectedStageIds,
   setViewArchived,
@@ -65,14 +69,16 @@ export default function JourneyArchiveToolbar({
             {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Archive className="w-3.5 h-3.5" />}
             {t("venture.manager.archiveSelectedJourneys", { n: selectedStageIds.size })}
           </button>
-          <button
-            onClick={askDeleteSelected}
-            disabled={bulkBusy}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25 disabled:opacity-40"
-          >
-            {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-            {t("venture.manager.deleteSelectedJourneys", { n: selectedStageIds.size })}
-          </button>
+          {canDelete && (
+            <button
+              onClick={askDeleteSelected}
+              disabled={bulkBusy}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25 disabled:opacity-40"
+            >
+              {bulkBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+              {t("venture.manager.deleteSelectedJourneys", { n: selectedStageIds.size })}
+            </button>
+          )}
         </>
       )}
     </div>

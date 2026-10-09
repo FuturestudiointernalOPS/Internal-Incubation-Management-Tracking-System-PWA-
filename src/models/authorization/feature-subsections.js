@@ -27,6 +27,8 @@ export const FEATURE_SUBSECTIONS = {
   crm: [
     { id: "crm_dashboard", labelKey: "navigation.crmDashboard" },
     { id: "all_contacts", labelKey: "navigation.contacts", module: "contacts" },
+    { id: "crm_organizations", labelKey: "navigation.crmOrganizations", module: "crm" },
+    { id: "crm_leads", labelKey: "navigation.crmLeads" },
     { id: "crm_membership", labelKey: "navigation.membership" },
     { id: "crm_timeline", labelKey: "navigation.crmTimeline" },
     { id: "crm_duplicates", labelKey: "navigation.crmDuplicates", module: "duplicates" },
