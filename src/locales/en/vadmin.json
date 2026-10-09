@@ -1076,7 +1076,11 @@
       "readinessDocuments": "Documents for Readiness",
       "readinessDocumentsHint": "These count toward the readiness percentage.",
       "contactVerification": "Contact Verification",
-      "contactVerificationHint": "Email and phone verification do not affect the readiness score."
+      "contactVerificationHint": "Email and phone verification do not affect the readiness score.",
+      "countsForReadiness": "Counts for readiness",
+      "countsForReadinessHint": "Approving increases readiness %",
+      "contactOnly": "Contact only",
+      "contactOnlyHint": "Does not affect readiness score"
     },
     "register": {
       "successTitle": "Startup Registered Successfully!",

@@ -1076,7 +1076,11 @@
       "readinessDocuments": "Documents de préparation (Readiness)",
       "readinessDocumentsHint": "Ces documents comptent pour le pourcentage de préparation.",
       "contactVerification": "Vérification des coordonnées & contacts",
-      "contactVerificationHint": "La vérification de l’e-mail et du téléphone n’impacte pas le score de préparation."
+      "contactVerificationHint": "La vérification de l’e-mail et du téléphone n’impacte pas le score de préparation.",
+      "countsForReadiness": "Compte pour le readiness",
+      "countsForReadinessHint": "L’approbation augmente le % de readiness",
+      "contactOnly": "Contacts uniquement",
+      "contactOnlyHint": "N’impacte pas le score de readiness"
     },
     "register": {
       "successTitle": "Startup enregistrée avec succès !",
