@@ -221,10 +221,10 @@ export default function DataBankPanel({ ventureId, canReview = false }) {
                     <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text-primary)]">
                       {documentTypeName(documentType, lang, t)}
                     </span>
-                      {(documentType.code !== "email_verification" && documentType.code !== "phone_verification") && (
+                      {((documentType.required === true && documentType.is_readiness !== false)) && (
                         <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400" title={t("vadmin.verification.countsForReadinessHint")}>{t("vadmin.verification.countsForReadiness")}</span>
                       )}
-                      {(documentType.code === "email_verification" || documentType.code === "phone_verification") && (
+                      {(!(documentType.required === true && documentType.is_readiness !== false)) && (
                         <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-400" title={t("vadmin.verification.contactOnlyHint")}>{t("vadmin.verification.contactOnly")}</span>
                       )}
                   </div>

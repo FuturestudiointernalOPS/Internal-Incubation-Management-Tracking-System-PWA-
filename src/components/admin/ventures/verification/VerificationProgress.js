@@ -29,7 +29,7 @@ export default function VerificationProgress({
             <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{t("vadmin.verification.readinessDocumentsHint")}</p>
           </div>
           {documentTypes
-            .filter((documentType) => documentType.code !== "email_verification" && documentType.code !== "phone_verification")
+            .filter((documentType) => documentType.required === true && documentType.is_readiness !== false)
             .map((documentType) => {
           const stepKey = documentType.code;
           const item = getItemForCategory(stepKey);
@@ -171,7 +171,7 @@ export default function VerificationProgress({
           </div>
           <div className="space-y-1.5">
             {documentTypes
-              .filter((documentType) => documentType.code === "email_verification" || documentType.code === "phone_verification")
+              .filter((documentType) => !(documentType.required === true && documentType.is_readiness !== false))
               .map((documentType) => {
                 const stepKey = documentType.code;
                 const item = getItemForCategory(stepKey);
