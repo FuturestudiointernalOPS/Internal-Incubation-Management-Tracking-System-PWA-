@@ -85,7 +85,6 @@ describe("CSRF-1 — state-changing GET routes are same-origin only", () => {
   test("the guard is wired into every state-changing GET route", () => {
     for (const file of [
       "src/app/api/engineering/permissions/seed/route.js",
-      "src/app/api/engineering/permissions/seed-access-profiles/route.js",
       "src/app/api/engineering/permissions/sync-context-grants/route.js",
       "src/app/api/engineering/permissions/context-roles/route.js",
       "src/app/api/platform/seed/founder-assessment/route.js",

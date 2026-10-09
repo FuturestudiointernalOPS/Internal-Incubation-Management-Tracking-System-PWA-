@@ -27,16 +27,16 @@ export function listUserResponsibilitiesForTable() {
               WHERE r.is_active = 1`);
 }
 
-/** GET users=true — active access profiles. */
+/** GET users=true — active profiles (key + label). */
 export function listActiveAccessProfiles() {
-  return runSafeQuery("SELECT id, name, description FROM access_profiles WHERE is_active = 1");
+  return runSafeQuery("SELECT key AS id, label AS name FROM profiles WHERE is_active = 1");
 }
 
-/** GET users=true — role-to-profile defaults (profile id form). */
+/** GET users=true — role-to-profile defaults (profile KEY form). */
 export function listRoleAccessProfileDefaultsForTable() {
-  return runSafeQuery(`SELECT rpd.role_name, ap.id as profile_id, ap.name as profile_name
-              FROM role_access_profile_defaults rpd
-              JOIN access_profiles ap ON ap.id = rpd.access_profile_id`);
+  return runSafeQuery(`SELECT rpd.role_name, rpd.profile_key as profile_id, p.label as profile_name
+              FROM role_profile_defaults rpd
+              JOIN profiles p ON p.key = rpd.profile_key`);
 }
 
 /** GET users=true — a user's individual capability grants. */
@@ -78,23 +78,23 @@ export function listGroupCapabilitiesForGroup(group) {
 /** GET users=true — all contacts for the permission table, by name. */
 export async function listPermissionTableContacts() {
   return db.execute({
-    sql: "SELECT cid, name, email, role, status, access_profile_id, group_name, created_at FROM contacts ORDER BY name ASC",
+    sql: "SELECT cid, name, email, role, status, profile_key, group_name, created_at FROM contacts ORDER BY name ASC",
   });
 }
 
-/** GET modules payload — all profile definitions, by name. */
+/** GET modules payload — all profile definitions, by label. */
 export async function listAccessProfileDefinitions() {
   return db.execute({
-    sql: "SELECT id, name, description, is_active FROM access_profiles ORDER BY name",
+    sql: "SELECT key AS id, label AS name, context, is_active FROM profiles ORDER BY label",
   });
 }
 
 /** GET modules payload — role → profile default mappings. */
 export async function getRoleDefaultProfileMappings() {
   return db.execute({
-    sql: `SELECT rpd.role_name, ap.id as profile_id, ap.name as profile_name
-                FROM role_access_profile_defaults rpd
-                JOIN access_profiles ap ON ap.id = rpd.access_profile_id`,
+    sql: `SELECT rpd.role_name, rpd.profile_key as profile_id, p.label as profile_name
+                FROM role_profile_defaults rpd
+                JOIN profiles p ON p.key = rpd.profile_key`,
   });
 }
 
@@ -260,14 +260,6 @@ export async function getGroupDefaultCapability(groupName, module, capability) {
   });
 }
 
-/** PUT set_access_profile — point the contact at a profile override. */
-export async function setUserAccessProfile(profileId, userCid) {
-  return db.execute({
-    sql: "UPDATE contacts SET access_profile_id = ? WHERE cid = ?",
-    args: [profileId, userCid],
-  });
-}
-
 /** PUT set_role — change the contact's role. */
 export async function setUserRole(role, userCid) {
   return db.execute({
@@ -402,50 +394,5 @@ export async function listPermissionAudits(whereSql, args) {
               LIMIT ? OFFSET ?`,
     args,
   });
-}
-
-/**
- * Phase 3 — impact preview: how many contacts resolve to one access profile.
- * Mirrors the resolver's profile resolution (user override → role default):
- * direct = contacts.access_profile_id = P; roleDefault = profile-less
- * contacts whose stored role maps to P via role_access_profile_defaults.
- *
- * contextBindings counts context_role_profiles rows pointing at P — a MAPPING
- * count, not people, so it is deliberately kept out of `total` (which stays
- * direct + roleDefault). contextRoles carries "<context>:<role_key>" strings
- * for those rows so callers can say exactly which mappings are in the way.
- */
-export async function getProfileImpactCounts(profileId) {
-  const [directRes, roleRes, contextRes] = await Promise.all([
-    db.execute({
-      sql: "SELECT COUNT(*) AS n FROM contacts WHERE access_profile_id = ? AND deleted_at IS NULL AND archived_at IS NULL",
-      args: [profileId],
-    }),
-    db.execute({
-      sql: `SELECT COUNT(*) AS n FROM contacts c
-            WHERE c.access_profile_id IS NULL AND c.deleted_at IS NULL AND c.archived_at IS NULL
-              AND EXISTS (SELECT 1 FROM role_access_profile_defaults rpd
-                          WHERE rpd.access_profile_id = ? AND LOWER(rpd.role_name) = LOWER(c.role))`,
-      args: [profileId],
-    }),
-    db.execute({
-      sql: `SELECT context, role_key FROM context_role_profiles
-            WHERE profile_id = ? ORDER BY context, role_key`,
-      args: [profileId],
-    }),
-  ]);
-  const direct = Number(directRes.rows[0]?.n || 0);
-  const roleDefault = Number(roleRes.rows[0]?.n || 0);
-  const contextRoles = (contextRes.rows || []).map(
-    (row) => `${row.context}:${row.role_key}`,
-  );
-  return {
-    profile_id: profileId,
-    direct,
-    roleDefault,
-    total: direct + roleDefault,
-    contextBindings: contextRoles.length,
-    contextRoles,
-  };
 }
 

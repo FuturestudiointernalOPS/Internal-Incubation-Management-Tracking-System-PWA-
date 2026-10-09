@@ -67,9 +67,10 @@ describe("sidebar additions — the doors live in the sidebar", () => {
   });
 
   test("participants already carry their own additions in the nav", () => {
-    // Programs + Learning are part of the participant surface…
-    expect(ROLE_ACCESS.participant.top).toContain("learning");
-    expect(ROLE_ACCESS.participant.top).toContain("programs");
+    // The participant surface is relationship-driven: the doors live in the
+    // personal sidebar branch, not in a role mask (Phase H removed the mask).
+    expect(src).toContain('name: "MY PROGRAMS"');
+    expect(src).toContain('href: "/participant/dashboard"');
     // …and a venture member gets the ventures door (opens their ventures).
     expect(src).toContain('name: "MY VENTURES", icon: Rocket, href: "/participant/ventures"');
   });
@@ -89,15 +90,11 @@ describe("sidebar additions — the doors live in the sidebar", () => {
   });
 
   test("the founder surface orders its doors like the founder nav contract", () => {
-    // The founder contract is Dashboard → Programs → Ventures → Timeline.
-    // The personal sidebar must agree, so a founder's venture door is not
-    // buried after every participant item.
-    expect(ROLE_ACCESS.founder.top).toEqual([
-      "dashboard",
-      "programs",
-      "ventures",
-      "timeline",
-    ]);
+    // The founder contract is Dashboard → Programs → Ventures → Timeline. The
+    // personal branch enforces it by splicing the venture door after the program
+    // doors; Phase H removed the founder role mask, so this branch is the ONLY
+    // source of that ordering.
+    expect(ROLE_ACCESS.founder).toBeUndefined();
     expect(src).toContain("rel.isFounder");
     expect(src).toContain('items.splice(progIndex === -1 ? 1 : progIndex + 2, 0, ventureDoor)');
     // Non-founders keep the additive arrangement (door last, never removed).

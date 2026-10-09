@@ -27,7 +27,7 @@ jest.mock("@/lib/db", () => ({
       if (String(sql).includes("FROM access_profiles WHERE id")) {
         return { rows: [{ id: 99, name: "Some Profile" }] };
       }
-      if (String(sql).includes("JOIN access_profile_capabilities")) {
+      if (String(sql).includes("JOIN profile_capabilities")) {
         return { rows: mockTemplateImpacts };
       }
       if (String(sql).includes("DELETE FROM role_access_profile_defaults")) {
@@ -65,6 +65,12 @@ jest.mock("@/models/authorization/bootstrap", () => ({
 }));
 jest.mock("@/services/authorization/accessProfiles", () => ({
   getUserEffectiveProfile: jest.fn().mockResolvedValue(null),
+}));
+jest.mock("@/models/authorization/profilesStore", () => ({
+  ensureProfilesSchema: jest.fn().mockResolvedValue(true),
+  listProfiles: jest.fn().mockResolvedValue({
+    rows: [{ key: "founder" }, { key: "participant" }],
+  }),
 }));
 
 let mockAuthzDecision = null; // null = granted (route proceeds)
@@ -106,13 +112,11 @@ jest.mock("@/models/authorization/index", () => ({
 
 const { requireAuthorization, invalidateAllAuthorizationContexts, getAuthorizationContext } =
   require("@/models/authorization/index");
-// The role-defaults eligibility boundary now lives in the accessProfileWrites
-// service, which reads assertTemplateCapsEligible straight from the
-// eligibilityAdmin service — so the stub must intercept that module too.
-const { assertTemplateCapsEligible } = require("@/services/authorization/eligibilityAdmin");
+// The role-defaults eligibility boundary moved to its own route suite
+// (profile-role-defaults-api.test.js) when the access-profile routes were
+// retired; this suite keeps the eligibility + permissions matrix contracts.
 const { logPermissionAudit } = require("@/models/authorization/accessQueries");
 const eligibilityRoute = require("@/app/api/engineering/permissions/eligibility/route");
-const roleDefaultsRoute = require("@/app/api/access-profiles/role-defaults/route");
 const permissionsRoute = require("@/app/api/engineering/permissions/route");
 
 const jsonReq = (body, method = "PUT", url = "http://localhost/api/x") =>
@@ -256,90 +260,18 @@ describe("PUT eligibility — C2 template impact confirmation", () => {
     expect(res.status).toBe(200);
   });
 
-  test("group downgrades are not template-bound — no confirmation", async () => {
+  test("profile downgrades are not template-bound — no confirmation", async () => {
     mockTemplateImpacts = [TEMPLATE_ROW];
     const res = await eligibilityRoute.PUT(
-      jsonReq({ changes: [{ feature_key: "finance", identity_type: "group", identity_value: "Future Studio", eligible: 0 }] }),
+      jsonReq({ changes: [{ feature_key: "finance", identity_type: "profile", identity_value: "founder", eligible: 0 }] }),
     );
     expect(res.status).toBe(200);
   });
 });
 
-describe("PUT /api/access-profiles/role-defaults — eligibility boundary", () => {
-  test("requires permissions.assign_capabilities", async () => {
-    await roleDefaultsRoute.PUT(jsonReq({ role_name: "staff", profile_id: 2 }));
-    expect(requireAuthorization).toHaveBeenCalledWith("permissions", "assign_capabilities");
-  });
-
-  test("rejects a default profile that grants ineligible capabilities", async () => {
-    assertTemplateCapsEligible.mockResolvedValueOnce({
-      valid: false,
-      violations: [{ module: "finance", capability: "view", feature: "finance" }],
-    });
-    const res = await roleDefaultsRoute.PUT(jsonReq({ role_name: "mentor", profile_id: 99 }));
-    expect([400, 403]).toContain(res.status);
-    expect(mockExecutedQueries.some((query) => query.includes("INSERT INTO role_access_profile_defaults"))).toBe(false);
-  });
-});
-
-describe("DELETE /api/access-profiles/role-defaults — remove a role default", () => {
-  const delReq = (query) =>
-    new Request(`http://localhost/api/access-profiles/role-defaults?${query}`, {
-      method: "DELETE",
-    });
-  const deleteSql = () =>
-    mockExecutedQueries.find((query) =>
-      query.includes("DELETE FROM role_access_profile_defaults"),
-    );
-
-  test("requires permissions.assign_capabilities (no removal when unauthorized)", async () => {
-    mockAuthzDecision = new Response(JSON.stringify({ success: false, error: "x" }), {
-      status: 403,
-      headers: { "Content-Type": "application/json" },
-    });
-    const res = await roleDefaultsRoute.DELETE(delReq("role_name=staff&profile_id=2"));
-    expect(requireAuthorization).toHaveBeenCalledWith("permissions", "assign_capabilities");
-    expect(res.status).toBe(403);
-    expect(deleteSql()).toBeUndefined();
-  });
-
-  test("removes the mapping, scoped to role_name AND profile_id", async () => {
-    const res = await roleDefaultsRoute.DELETE(delReq("role_name=staff&profile_id=2"));
-    const body = await res.json();
-    expect(res.status).toBe(200);
-    expect(body).toEqual({ success: true, removed: 1 });
-    // The DELETE is scoped, so a stale UI can never drop another profile's default.
-    expect(deleteSql()).toContain("role_name = ?");
-    expect(deleteSql()).toContain("access_profile_id = ?");
-  });
-
-  test("a real removal is audited and invalidates the authorization cache", async () => {
-    await roleDefaultsRoute.DELETE(delReq("role_name=staff&profile_id=2"));
-    expect(logPermissionAudit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: "role_default_changed",
-        targetName: "role:staff",
-      }),
-    );
-    expect(invalidateAllAuthorizationContexts).toHaveBeenCalled();
-  });
-
-  test("no matching mapping → success but no audit and no cache invalidation", async () => {
-    mockRoleDefaultRowsAffected = 0;
-    const res = await roleDefaultsRoute.DELETE(delReq("role_name=ghost&profile_id=2"));
-    const body = await res.json();
-    expect(res.status).toBe(200);
-    expect(body).toEqual({ success: true, removed: 0 });
-    expect(logPermissionAudit).not.toHaveBeenCalled();
-    expect(invalidateAllAuthorizationContexts).not.toHaveBeenCalled();
-  });
-
-  test("missing role_name or profile_id → 400 with no query", async () => {
-    for (const query of ["role_name=staff", "profile_id=2", ""]) {
-      const res = await roleDefaultsRoute.DELETE(delReq(query));
-      expect(res.status).toBe(400);
-    }
-    expect(deleteSql()).toBeUndefined();
+describe("PUT /api/engineering/permissions — the matrix route is still wired", () => {
+  test("the route module exports its handlers", () => {
+    expect(typeof permissionsRoute.GET).toBe("function");
   });
 });
 

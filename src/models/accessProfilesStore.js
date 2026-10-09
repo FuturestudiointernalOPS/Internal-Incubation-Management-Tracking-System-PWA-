@@ -1,9 +1,9 @@
 /**
  * Access profiles + responsibilities — statements (REPOSITORY layer).
  *
- * The data access behind `@/services/authorization/accessProfiles`: the effective
- * access-profile resolution chain, the profile capabilities and the
- * responsibilities catalogue / user assignments.
+ * The data access behind `@/services/authorization/accessProfiles`: the profile
+ * resolution (now by profile KEY, via `contextReads`) and the responsibilities
+ * catalogue / user assignments.
  *
  * SQL is byte-identical to what used to sit inline in `src/lib/auth.js`. These
  * functions were relocated — NOT merged with the parallel implementations in
@@ -15,43 +15,6 @@
  */
 
 import db from "@/lib/db";
-
-// ── Access profiles ──────────────────────────────────────────────────────────
-
-/** A user's explicit access-profile id, if set. */
-export function selectUserAccessProfileId(userCid) {
-  return db.execute({
-    sql: "SELECT access_profile_id FROM contacts WHERE cid = ?",
-    args: [userCid],
-  });
-}
-
-/** One active access profile's id + name. */
-export function selectActiveAccessProfileById(profileId) {
-  return db.execute({
-    sql: "SELECT id, name FROM access_profiles WHERE id = ? AND is_active = 1",
-    args: [profileId],
-  });
-}
-
-/** The default access profile of a role. */
-export function selectRoleDefaultAccessProfile(roleName) {
-  return db.execute({
-    sql: `SELECT ap.id, ap.name
-          FROM role_access_profile_defaults rpd
-          JOIN access_profiles ap ON ap.id = rpd.access_profile_id
-          WHERE rpd.role_name = ? AND ap.is_active = 1`,
-    args: [roleName],
-  });
-}
-
-/** The capability rows of an access profile. */
-export function selectAccessProfileCapabilityRows(profileId) {
-  return db.execute({
-    sql: "SELECT module, capability, access_level FROM access_profile_capabilities WHERE profile_id = ?",
-    args: [profileId],
-  });
-}
 
 // ── Responsibilities ─────────────────────────────────────────────────────────
 

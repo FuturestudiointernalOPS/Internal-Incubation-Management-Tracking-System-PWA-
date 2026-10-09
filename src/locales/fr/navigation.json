@@ -88,6 +88,8 @@
     "crmDashboard": "Tableau de bord CRM",
     "crmTimeline": "Chronologie CRM",
     "crmDuplicates": "Doublons CRM",
+    "crmOrganizations": "Organisations CRM",
+    "crmLeads": "Pistes CRM",
     "pendingUsers": "Approbations en attente",
     "bulkUpload": "Import en masse",
     "intelligence": "Renseignement",

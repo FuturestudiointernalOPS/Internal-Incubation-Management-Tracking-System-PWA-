@@ -25,6 +25,7 @@
 
 import { assertTemplateCapsEligible } from "@/services/authorization/eligibilityAdmin";
 import { getUserGroupNames } from "@/models/authorization";
+import { listActiveProfileKeys } from "@/models/authorization/profileAssignmentsStore";
 
 /**
  * Separation of duties.
@@ -41,17 +42,26 @@ export function isSelfAssignment(session, userCid) {
 /**
  * Eligibility boundary for an assignment: the profile must not grant
  * capabilities the TARGET person is not eligible for. The person's identity is
- * their role plus their group names.
+ * their role, their group names, and (Phase D) the profiles they hold.
  *
  * @returns {Promise<{valid: boolean, violations: Array}>}
  */
-export async function assertAssignmentEligible(user, userCid, profileId) {
+export async function assertAssignmentEligible(user, userCid, target = {}) {
+  // The profile is named by its KEY (profiles takeover).
+  const profileKey = target?.profileKey ?? null;
   const groups = (await getUserGroupNames(userCid)).rows.map((row) => row.group_name);
-  return assertTemplateCapsEligible({
-    role: user?.role,
-    groups,
-    profileId,
-  });
+  let profiles = [];
+  try {
+    profiles = ((await listActiveProfileKeys(userCid)).rows || []).map((row) =>
+      String(row.profile_key),
+    );
+  } catch {
+    // A missing registry table reads as "no profile" — never a failed write.
+    profiles = [];
+  }
+  const args = { role: user?.role, groups, profiles };
+  if (profileKey) args.profileKey = profileKey;
+  return assertTemplateCapsEligible(args);
 }
 
 const capKey = (cap) => `${cap.module}:${cap.capability}`;

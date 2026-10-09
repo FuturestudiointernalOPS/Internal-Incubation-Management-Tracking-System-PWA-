@@ -57,7 +57,6 @@ const FIXTURE = {
       subItems: [
         { id: "all_ventures", href: "/admin/ventures", subItems: null },
         { id: "venture_projects", href: "/admin/ventures/projects", subItems: null },
-        { id: "journey_reports", href: "/admin/journey-reports", subItems: null },
       ],
     },
     {
@@ -135,23 +134,20 @@ const FIXTURE = {
     },
   ],
 
+  // Phase H — program_manager / facilitator / investor have no role mask any
+  // more either: a profile is not a role, so they normalize to their baseline
+  // surface (staff for the staff-only profile, member otherwise).
   program_manager: [
-    { id: "dashboard", href: "/pm", subItems: null },
+    { id: "dashboard", href: "/staff", subItems: null },
+    { id: "weekly_ops", href: "/staff/op-report", subItems: null },
     { id: "programs", href: "/pm/programs", subItems: null },
+    { id: "my_projects", href: "/staff/projects", subItems: null },
     {
       id: "communication",
       href: null,
       subItems: [
-        { id: "groups", href: "/pm/communications/contacts", subItems: null },
-        { id: "messages", href: "/pm/messages", subItems: null },
-      ],
-    },
-    {
-      id: "reports",
-      href: null,
-      subItems: [
-        { id: "internal_reports", href: "/staff/op-report", subItems: null },
-        { id: "my_projects", href: "/staff/projects", subItems: null },
+        { id: "messages", href: "/staff/messages", subItems: null },
+        { id: "forms", href: "/platform", subItems: null },
       ],
     },
   ],
@@ -171,40 +167,22 @@ const FIXTURE = {
     },
   ],
 
-  facilitator: [
-    { id: "dashboard", href: "/facilitator", subItems: null },
-    { id: "my_programs", href: "/facilitator/programs", subItems: null },
-    { id: "reviews", href: "/facilitator/reviews", subItems: null },
-    { id: "profile", href: "/facilitator/profile", subItems: null },
-  ],
+  facilitator: [{ id: "dashboard", href: "/participant", subItems: null }],
 
   member: [{ id: "dashboard", href: "/participant", subItems: null }],
 
-  participant: [
-    { id: "dashboard", href: "/participant", subItems: null },
-    { id: "learning", href: "/participant/learning", subItems: null },
-    { id: "programs", href: "/participant/dashboard", subItems: null },
-    { id: "certificates", href: "/participant/certificates", subItems: null },
-  ],
+  // Phase H — participant / founder have no role mask any more: their surfaces
+  // are relationship-driven, so the mask projects to the member baseline.
+  participant: [{ id: "dashboard", href: "/participant", subItems: null }],
 
-  founder: [
-    { id: "dashboard", href: "/participant", subItems: null },
-    { id: "programs", href: "/participant/dashboard", subItems: null },
-    { id: "ventures", href: "/participant/ventures", subItems: null },
-    { id: "timeline", href: "/participant/profile#timeline", subItems: null },
-  ],
+  founder: [{ id: "dashboard", href: "/participant", subItems: null }],
 
   team: [
     { id: "dashboard", href: "/team", subItems: null },
     { id: "programs", href: "/team", subItems: null },
   ],
 
-  investor: [
-    { id: "dashboard", href: "/investor/dashboard", subItems: null },
-    { id: "portfolio", href: "/investor/portfolio", subItems: null },
-    { id: "activity", href: "/investor/history", subItems: null },
-    { id: "profile", href: "/investor/profile", subItems: null },
-  ],
+  investor: [{ id: "dashboard", href: "/participant", subItems: null }],
 
   finance: [
     { id: "dashboard", href: "/finance", subItems: null },
@@ -299,8 +277,8 @@ describe("Master navigation — role projections", () => {
 
     // Same master node consumed by multiple roles (no per-role copies):
     // "messages" is a communication child for super_admin/pm and top-level
-    // for staff/developer; "programs" is a section for super_admin and a
-    // leaf for staff/participant/founder; "forms" is shared too.
+    // for staff; "programs" is a section for super_admin and a leaf for staff;
+    // "forms" is shared too.
     const findIn = (items, id) => {
       for (const item of items || []) {
         if (item.id === id) return item;
@@ -315,8 +293,6 @@ describe("Master navigation — role projections", () => {
       ["program_manager", "messages"],
       ["super_admin", "programs"],
       ["staff", "programs"],
-      ["participant", "programs"],
-      ["founder", "programs"],
       ["super_admin", "forms"],
       ["crm", "forms"],
     ];

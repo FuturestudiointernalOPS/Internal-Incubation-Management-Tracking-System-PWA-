@@ -4,7 +4,7 @@ import { getSession } from "@/server/auth/session";
 import { logPermissionAudit } from "@/models/authorization/accessQueries";
 import { requireAuthorization } from "@/models/authorization/index";
 import { requireSameOrigin } from "@/lib/requestOrigin";
-import { getAccessProfileMeta, listAccessProfiles } from "@/models/authorization";
+import { ensureProfilesSchema, listProfiles, getProfileRow } from "@/models/authorization/profilesStore";
 import {
   CONTEXT_ROLE_CONTEXTS,
   ensureContextRoleProfilesSchema,
@@ -45,7 +45,13 @@ export async function GET(req) {
 
     const seeded = await seedContextRoleProfiles();
     const rolesResult = await listContextRoleProfiles();
-    const profilesResult = await listAccessProfiles();
+    await ensureProfilesSchema();
+    const profilesResult = await listProfiles();
+    const profiles = (profilesResult.rows || []).map((row) => ({
+      key: row.key,
+      label: row.label || row.key,
+      is_active: Number(row.is_active) === 1 ? 1 : 0,
+    }));
 
     // ONE statement for the whole registry: counting row by row sent a query
     // per context role (seven for the seeded catalogue) on every screen open.
@@ -63,7 +69,7 @@ export async function GET(req) {
       success: true,
       contexts: CONTEXT_ROLE_CONTEXTS,
       roles,
-      profiles: profilesResult.rows,
+      profiles,
       seeded,
     });
   } catch (error) {
@@ -83,7 +89,7 @@ export async function PUT(req) {
     await initDb();
     const session = await getSession();
     const body = await req.json();
-    const { context, role_key, profile_id, is_active, notes, reason } = body;
+    const { context, role_key, profile_key, is_active, notes, reason } = body;
 
     if (!isValidContextRoleContext(context) || !isValidContextRoleKey(role_key)) {
       return NextResponse.json(
@@ -95,30 +101,22 @@ export async function PUT(req) {
       );
     }
 
-    const rawProfileId =
-      profile_id === null || profile_id === undefined || profile_id === ""
+    const rawProfileKey =
+      profile_key === null || profile_key === undefined || profile_key === ""
         ? null
-        : Number(profile_id);
-    if (
-      rawProfileId !== null &&
-      (!Number.isInteger(rawProfileId) || rawProfileId <= 0)
-    ) {
-      return NextResponse.json(
-        { success: false, error: "profile_id must be a positive integer or null" },
-        { status: 400 },
-      );
-    }
+        : String(profile_key);
 
     let profileName = null;
-    if (rawProfileId !== null) {
-      const profileResult = await getAccessProfileMeta(rawProfileId);
+    if (rawProfileKey !== null) {
+      await ensureProfilesSchema();
+      const profileResult = await getProfileRow(rawProfileKey);
       if (profileResult.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Profile not found" },
           { status: 400 },
         );
       }
-      profileName = profileResult.rows[0].name;
+      profileName = profileResult.rows[0].label || rawProfileKey;
     }
 
     const isActive = is_active === undefined ? true : Boolean(is_active);
@@ -128,7 +126,7 @@ export async function PUT(req) {
     await upsertContextRoleProfile({
       context,
       roleKey: role_key,
-      profileId: rawProfileId,
+      profileKey: rawProfileKey,
       isActive,
       notes: notesText,
     });
@@ -158,7 +156,7 @@ export async function PUT(req) {
       mapping: {
         context,
         role_key,
-        profile_id: rawProfileId,
+        profile_key: rawProfileKey,
         profile_name: profileName,
         is_active: isActive ? 1 : 0,
         notes: notesText,

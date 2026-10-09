@@ -200,7 +200,7 @@ describe("GET /api/ventures/[id]/journey — staff keep the whole roadmap unseal
     expect(data.success).toBe(true);
     expect(data.stages.length).toBe(3);
     expect(data.stages.map((stage) => stage.sealed)).toEqual([false, false, false]);
-    expect(data.access).toEqual({ create: true, edit: true, manage: true });
+    expect(data.access).toEqual({ create: true, edit: true, manage: true, delete: true });
 
     const future = milestoneById(stageById(data, "s2"), "m3");
     expect(future.sealed).toBe(false);

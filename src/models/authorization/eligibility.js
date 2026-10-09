@@ -21,19 +21,24 @@
  */
 
 import db from "@/lib/db";
-import { FEATURE_ELIGIBILITY_DEFAULTS } from "./eligibility-defaults";
+import { BASELINE_IDENTITIES } from "@/lib/identity";
+import {
+  FEATURE_ELIGIBILITY_DEFAULTS,
+  FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
+} from "./eligibility-defaults";
 
-export { FEATURE_ELIGIBILITY_DEFAULTS };
+export { FEATURE_ELIGIBILITY_DEFAULTS, FEATURE_ELIGIBILITY_PROFILE_DEFAULTS };
 export { FEATURE_ORDER } from "./eligibility-defaults";
 
 // Capability module → feature key. Features ARE the dashboard sections; the
 // modules are their sub-sections. The resolver authorizes against capability
 // modules (PERMISSION_MODULES); eligibility is expressed per feature.
 export const MODULE_TO_FEATURE = {
-  // CRM — people data
+  // CRM — people data + the CRM records layer
   contacts: "crm",
   duplicates: "crm",
   bulk_upload: "crm",
+  crm: "crm",
   // Communication
   messaging: "communication",
   internal_comms: "communication",
@@ -101,26 +106,34 @@ export function ensureEligibilitySchema() {
 }
 
 /**
- * Insert seed rows for one feature. Idempotent: existing rows (including
+ * Insert seed rows of ONE identity kind. Idempotent: existing rows (including
  * admin edits and explicit empty lists) are never touched.
  */
-async function seedFeatureRows(featureKey, roles) {
+async function seedIdentityRows(featureKey, identityType, values) {
   try {
     await ensureEligibilitySchema();
-    for (const role of roles || []) {
+    for (const value of values || []) {
       await db.execute({
         sql: `INSERT INTO feature_eligibility
                 (feature_key, identity_type, identity_value, eligible)
-              VALUES (?, 'role', ?, 1)
+              VALUES (?, ?, ?, 1)
               ON CONFLICT (feature_key, identity_type, identity_value)
               DO NOTHING`,
-        args: [featureKey, role],
+        args: [featureKey, identityType, value],
       });
     }
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
   }
+}
+
+/**
+ * Insert seed rows for one feature's ROLE identities. Idempotent: existing rows
+ * (including admin edits and explicit empty lists) are never touched.
+ */
+async function seedFeatureRows(featureKey, roles) {
+  return seedIdentityRows(featureKey, "role", roles);
 }
 
 /**
@@ -132,6 +145,24 @@ export async function seedDefaultEligibility() {
     FEATURE_ELIGIBILITY_DEFAULTS,
   )) {
     const result = await seedFeatureRows(featureKey, roles);
+    if (!result.success) return result;
+  }
+  return { success: true };
+}
+
+/**
+ * Phase H — seed the PROFILE ceilings. The contextual values that used to sit
+ * in `FEATURE_ELIGIBILITY_DEFAULTS` are written as `identity_type = 'profile'`
+ * rows, so the coverage follows the profile the person HOLDS instead of a role
+ * the account no longer carries. Insert-only, own marker: an administrator's
+ * decision is never overwritten, and existing databases keep their legacy role
+ * rows untouched (nothing is deleted, so nobody loses access).
+ */
+export async function seedProfileEligibilityDefaults() {
+  for (const [featureKey, profiles] of Object.entries(
+    FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
+  )) {
+    const result = await seedIdentityRows(featureKey, "profile", profiles);
     if (!result.success) return result;
   }
   return { success: true };
@@ -158,48 +189,27 @@ export async function seedVenturesMemberEligibility() {
 }
 
 /**
- * Catch-up for databases whose eligibility bootstrap already ran BEFORE
- * `founder` was added to FEATURE_ELIGIBILITY_DEFAULTS.ventures. The bootstrap
- * seed runs once per database, so an existing database never picks up a new
- * default on its own — the same gap `seedVenturesMemberEligibility` closes for
- * the member baseline. A founder is the Venture's own operator: without this
- * row every venture route fails closed for them. Insert-only, own marker, so an
- * administrator's decision is never overwritten.
- */
-export async function seedVenturesFounderEligibility() {
-  return seedFeatureRows("ventures", ["founder"]);
-}
-
-/**
- * Catch-up for databases whose eligibility bootstrap ran BEFORE the seeded
- * default templates were reconciled with their roles' ceilings.
+ * One-time cleanup: the eligibility matrix is BASELINE roles + PROFILES only.
  *
- * The bootstrap seed runs once per database, so an existing database never
- * picks up a later default on its own — the same gap the two seeders above
- * close. That gap had a real cost here: `seedDefaultAccessProfiles` creates the
- * Participant Default / Mentor templates carrying messaging + `projects.view`
- * caps, while those roles had no eligibility row for the `communication` /
- * `operations` features. The ceiling check validates the WHOLE template, so
- * those role-default templates could never be saved from the Permissions UI
- * ("Template contains capabilities the identity is not eligible for").
+ * Every `identity_type = 'role'` row whose value is not a baseline identity
+ * (`super_admin` / `staff` / `member`) is a leftover of the older role
+ * vocabulary: the contextual functions (`participant`, `founder`,
+ * `program_manager`, …) and retired labels (`mentor`, `team`, `teacher`, …).
+ * Those functions live on PROFILES now, so those role rows are dead weight the
+ * engine only ever consulted for accounts that no longer carry the label.
  *
- * Insert-only, own marker: an administrator's decision is never overwritten,
- * and only rows that were never configured are added. MIRRORS the additions in
- * FEATURE_ELIGIBILITY_DEFAULTS (same features, same roles) — that file is what
- * a fresh database gets.
+ * DELETES ROLE ROWS ONLY: profile rows are the new ceiling and are untouched,
+ * group rows are untouched. Runs ONCE per database through the migration marker
+ * `eligibility-baseline-roles-only-v1`; a fresh database has nothing to delete.
  */
-export const TEMPLATE_CEILING_ROWS = {
-  communication: ["participant", "mentor", "investor"],
-  operations: ["participant", "mentor", "investor"],
-  programs: ["mentor", "investor"],
-};
-
-export async function seedTemplateCeilingEligibility() {
-  for (const [featureKey, roles] of Object.entries(TEMPLATE_CEILING_ROWS)) {
-    const result = await seedFeatureRows(featureKey, roles);
-    if (!result.success) return result;
-  }
-  return { success: true };
+export function removeNonBaselineRoleEligibility() {
+  const placeholders = BASELINE_IDENTITIES.map(() => "?").join(",");
+  return db.execute({
+    sql: `DELETE FROM feature_eligibility
+          WHERE identity_type = 'role'
+            AND identity_value NOT IN (${placeholders})`,
+    args: [...BASELINE_IDENTITIES],
+  });
 }
 
 /**
@@ -216,7 +226,7 @@ export async function seedTemplateCeilingEligibility() {
  * an explicit deny — is never overwritten. MIRRORS FEATURE_ELIGIBILITY_DEFAULTS.programs.
  */
 export const PROGRAM_ASSIGNMENT_ROWS = {
-  programs: ["facilitator", "member"],
+  programs: ["member"],
 };
 
 export async function seedProgramAssignmentEligibility() {

@@ -1,24 +1,40 @@
 "use client";
 
-import React from "react";
-import { useI18n } from "@/lib/i18n";
-import PermissionShell, { useSubTab } from "@/components/permissions/PermissionShell";
-import ContextScopeView from "@/components/permissions/ContextScopeView";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { PERMISSION_BASE } from "@/components/permissions/permissionNav";
 
 /**
- * PHASE UI-1/UI-5 — Where it applies.
- * Sub-tabs: the context-role registry, the memberships review and the scope
- * policy catalogue with the live verification bench.
+ * Retired "Where it applies" door.
+ *
+ * The door is gone (five doors, one nav each). This route stays only so old
+ * bookmarks and deep links do not 404: each former sub-tab forwards to the
+ * question it now belongs to.
+ *
+ *   roles       → Profiles → Context roles
+ *   policies    → Rules    → Scope policies
+ *   memberships → History  (membership health heads the log)
+ *
+ * Nothing is rendered here; the shell is never mounted on this path.
  */
-export default function PermissionContextScopePage() {
-  const { t } = useI18n();
-  const [subTab, setSubTab] = useSubTab("roles");
-  return (
-    <PermissionShell active="context" sub={subTab} onSubChange={setSubTab}>
-      <p className="mb-4 text-xs font-medium text-[var(--text-secondary)]">
-        {t("engineering.permissions.questionWhere")}
-      </p>
-      <ContextScopeView sub={subTab} />
-    </PermissionShell>
-  );
+const TARGET_BY_SUB = {
+  roles: `${PERMISSION_BASE}/profiles?sub=contextRoles`,
+  policies: `${PERMISSION_BASE}/eligibility?sub=scope`,
+  memberships: `${PERMISSION_BASE}/audit`,
+};
+
+export default function PermissionContextScopeRedirectPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    let subTab = "roles";
+    try {
+      subTab = new URLSearchParams(window.location.search).get("sub") || "roles";
+    } catch {
+      /* malformed URL — fall through to the context roles */
+    }
+    router.replace(TARGET_BY_SUB[subTab] || TARGET_BY_SUB.roles);
+  }, [router]);
+
+  return null;
 }

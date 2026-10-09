@@ -11,14 +11,12 @@ import { deriveMembershipStatus } from "@/lib/membership-ui";
 
 /*
  * Memberships (formerly the "Governance" / "Advanced" door). Exported because
- * Phase 2 retired that door: the screen now lives under Context & Scope, next
- * to the context-role registry it reads its data from. Exported rather than
- * moved to keep that change reviewable; Phase 3 is where the file move
- * actually happened, and it happened here. The shim keeps re-exporting this
- * name because `ContextScopeView.js` imports it from `./PermissionCenter`,
- * and that file is outside the corridor this phase is allowed to touch.
+ * Phase 2 retired that door, and re-homed again when the Context & Scope door
+ * was retired: the memberships health now heads the History screen, beside the
+ * log it summarizes. The shim keeps re-exporting this name so old importers and
+ * the History route can reach it from `./PermissionCenter`.
  */
-export default function GovernanceView() {
+export default function GovernanceView({ hideRecent = false } = {}) {
   const { t } = useI18n();
   const [memberships, setMemberships] = useState(null);
   const [protectedMap, setProtectedMap] = useState({});
@@ -31,7 +29,7 @@ export default function GovernanceView() {
     const urls = [
       "/api/org-membership",
       "/api/engineering/permissions/audit?pageSize=10",
-      "/api/access-profiles",
+      "/api/engineering/permissions/profiles",
     ];
     const apply = (memData, audData, profData) => {
       if (cancelled) return;
@@ -40,7 +38,7 @@ export default function GovernanceView() {
         setProtectedMap(memData.protected || {});
       }
       if (audData.success) setRecent(audData.entries || []);
-      if (profData.success) setRoleDefaults(profData.roleDefaults || {});
+      if (profData.success) setRoleDefaults(profData.role_defaults || {});
     };
     (async () => {
       try {
@@ -88,7 +86,10 @@ export default function GovernanceView() {
     .map(([name]) => name);
   const defaultProfiles = Object.entries(roleDefaults).map(([role, defaultsEntry]) => ({
     role,
-    profileName: defaultsEntry?.profileName || defaultsEntry?.profileId,
+    profileName:
+      typeof defaultsEntry === "string"
+        ? defaultsEntry
+        : defaultsEntry?.profileName || defaultsEntry?.profileId,
   }));
 
   const statCard = (label, value, tone) => (
@@ -123,6 +124,7 @@ export default function GovernanceView() {
           </div>
 
           {/* Recent permission changes */}
+          {!hideRecent && (
           <div className="space-y-2">
             <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
               {t("engineering.permissions.governanceRecent")}
@@ -166,6 +168,7 @@ export default function GovernanceView() {
               </div>
             )}
           </div>
+          )}
 
           {/* Protected configuration */}
           <div className="space-y-2">

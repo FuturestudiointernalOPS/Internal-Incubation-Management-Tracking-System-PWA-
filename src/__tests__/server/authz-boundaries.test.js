@@ -150,16 +150,16 @@ describe("getFacilitatorPermissionLevel", () => {
     expect(mockExecute).not.toHaveBeenCalled();
   });
 
-  it("falls back to the assignment's access profile", async () => {
+  it("falls back to the assignment's profile", async () => {
     serveDb([
       [
-        "FROM access_profile_capabilities",
+        "FROM profile_capabilities",
         { rows: [{ module: "sessions", capability: "conduct", access_level: 2 }] },
       ],
     ]);
 
     await expect(
-      authz.getFacilitatorPermissionLevel("7", { access_profile_id: 5 }, "sessions.conduct"),
+      authz.getFacilitatorPermissionLevel("7", { profile_key: "facilitator" }, "sessions.conduct"),
     ).resolves.toBe(2);
   });
 

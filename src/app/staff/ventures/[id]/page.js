@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useDialogs } from "@/components/ui/DialogProvider";
@@ -15,6 +15,8 @@ import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
 import DocumentTypeManager from "@/components/ventures/DocumentTypeManager";
 import DataBankPanel from "@/components/ventures/DataBankPanel";
+
+const TAB_IDS = new Set(["overview", "journey", "tasks", "sessions", "notes", "dataBank", "plan", "documents"]);
 
 /**
  * Staff → Ventures → [Venture] — staff workspace (Phase 3).
@@ -47,6 +49,7 @@ const TABS = [
 export default function StaffVentureWorkspace() {
   const { id } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { t } = useI18n();
   const { prompt } = useDialogs();
 
@@ -74,7 +77,15 @@ export default function StaffVentureWorkspace() {
   const [taskTitleById, setTaskTitleById] = useState({});
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [activeTab, setActiveTab] = useState("overview");
+  const tabFromUrl = String(searchParams?.get("tab") || "");
+  const activeTab = TAB_IDS.has(tabFromUrl) ? tabFromUrl : "overview";
+  const isLeadManager = myRoles.some((role) => role.responsibility_code === "lead_manager");
+
+  const selectTab = (tabId) => {
+    const params = new URLSearchParams(searchParams?.toString?.() || "");
+    params.set("tab", tabId);
+    router.replace(`/staff/ventures/${id}?${params.toString()}`, { scroll: false });
+  };
 
   // Attention: submissions awaiting this staff member's review (Coach view).
   const loadReviewQueue = useCallback(async () => {
@@ -207,6 +218,12 @@ export default function StaffVentureWorkspace() {
         ]}
       />
 
+      {isLeadManager ? (
+        <p className="text-[10px] text-[var(--text-secondary)] rounded-lg border border-[var(--border-primary)] bg-[var(--surface-1)] px-3 py-2">
+          {t("staff.leadHome.workspaceHint")}
+        </p>
+      ) : null}
+
       {/* Tabs — same bar as the Super Admin venture hub, for consistency */}
       <div className="flex gap-1 border-b border-[var(--border-primary)] overflow-x-auto scrollbar-thin">
         {TABS.map((tab) => {
@@ -215,7 +232,7 @@ export default function StaffVentureWorkspace() {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => selectTab(tab.id)}
               className={`px-5 py-3 text-[9px] font-black uppercase tracking-widest flex items-center gap-2 transition-all border-b-2 whitespace-nowrap ${
                 isActive
                   ? "border-[var(--brand-orange)] text-[var(--brand-orange)]"

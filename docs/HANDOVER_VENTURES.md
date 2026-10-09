@@ -175,7 +175,7 @@ deliberately does not accumulate briefs.
 
 ## 2.4 Data bank (formerly Verification)
 
-The area is now labelled **Data bank** in both languages:
+The area is labelled **Data bank** in both languages:
 
 | Key | English | French |
 |---|---|---|
@@ -186,16 +186,40 @@ The area is now labelled **Data bank** in both languages:
 | `vadmin.detail.openVerification` | Open Data bank | Ouvrir la banque de données |
 | `vadmin.dashboard.noVerificationData` | No data bank records | Aucune donnée dans la banque de données |
 
-This is a **label change only**. The route, the table, the API and every
-identifier still say `verification`, because renaming them would be a migration
-with no user-visible benefit.
+The **labels** changed. The route, the table, the API and every identifier still
+say `verification`, because renaming them would be a migration with no
+user-visible benefit. Do not rename them opportunistically.
 
-**Still pending, by decision:** what a Data bank *rule* is. The step names
-(`Business Registration`, `Founder Identity`, …), the statuses (`Draft`,
-`Pending Review`, `Verified`, `Rejected`) and the review workflow are untouched
-and still say "verification". Defining what constitutes verification — and
-therefore what the Data bank actually holds — remains **product work, not a
-coding task**. Do not guess it.
+### What the Data bank actually holds (built — no longer pending)
+
+The documents a Venture is asked for are a **per-Venture list**, not six hardcoded
+categories. A Super Admin, or that Venture's Lead Manager, defines them at:
+
+```
+/admin/ventures/<venture>/document-types
+/staff/ventures/<venture>/document-types
+```
+
+Rules that matter if you touch any of it:
+
+- **`venture_id` is the Venture's public code (`VNT-…`)** — the same value
+  `venture_verifications.venture_id` holds, so the whole Data bank is keyed the
+  same way.
+- **The codes are the contract.** `venture_verification_items.category` and
+  `venture_verification_documents.category` reference them. **A type is retired
+  with `is_active = FALSE`, never by renaming its code** — renaming silently
+  orphans every document filed under it.
+- **There is no seed, on purpose.** Each Venture's six built-in types are created
+  the first time its list is needed. Seeding in the migration would have to guess
+  which Ventures exist and would create them all at once.
+- Model: `src/models/ventureDocumentTypes.js` ·
+  migration: `src/migrations/048_venture_document_types.sql` (idempotent; the app
+  also creates the table on first use).
+
+**Still open:** the *review workflow* around those documents — the step names
+(`Business Registration`, `Founder Identity`, …) and the statuses (`Draft`,
+`Pending Review`, `Verified`, `Rejected`). The document **types** are now
+Venture-defined; the **review process** has not been redefined to match.
 
 ---
 
@@ -352,7 +376,7 @@ src/app/api/ventures/[id]/
   my-access/route.js          ← what the current viewer may do (read back)
 
 src/lib/
-  ventureMilestoneEngine.js   ← ★ START HERE  (325 lines, self-documenting header)
+  ventureMilestoneEngine.js   ← ★ START HERE  (468 lines, self-documenting header)
   ventureVisibility.js        ← the seal (map vs work)
   venturePermissions.js       ← the matrix, defaults, and the boot corrections
   ventureJourneys.js          ← stages
@@ -365,6 +389,50 @@ src/lib/
 **The single best entry-point file is `src/lib/ventureMilestoneEngine.js`.** Its
 header explains the progression model, and it contains the authority helper
 (`canManageMilestones`) that the rest of the feature imitates.
+
+### How a milestone's status is decided
+
+A milestone's own status is now **derived from the work inside it**, by
+`deriveMilestoneStatusFromDeliverables` + `syncMilestoneStatusFromDeliverables`.
+Before this, the milestone vocabulary was only half written — a Venture could see
+an approved deliverable, a 67% bar and "Not Started" on the same row.
+
+Precedence, most actionable first:
+
+```
+every deliverable approved      → completed
+any deliverable sent back       → changes_requested   (the founder must act)
+any deliverable awaiting review → under_review
+anything started                → in_progress
+nothing started                 → not_started
+```
+
+Two lines it will never cross, quoted from the code:
+
+- **a `locked` milestone is unreleased planning** — the work inside it cannot be
+  what releases it. This is what keeps the seal (§1.3) intact on the automatic path.
+- **a `completed` milestone is the manager's decision already taken** — later
+  evidence never reopens it.
+
+Closing still keeps its **authority**: the sync only completes a milestone for an
+actor who may complete milestones. See §5.1 #1 for the manual path, which does
+**not** have that protection.
+
+### What was retired — don't go looking for it
+
+The venture **intake / registration / run** flow was deliberately removed. These
+no longer exist, and nothing should be built on them:
+
+```
+/admin/ventures/register              page (deleted)
+platform/venture-invitations/*        API  (deleted)
+platform/venture-run/*                API  (deleted)
+platform/seed/venture-application     API  (deleted)
+ventureIntake.js · venturePipeline.js · ventureInvitations.js   models (deleted)
+```
+
+A Venture is created through the surviving paths only. The **Data bank replaced**
+the old hardcoded verification categories (§2.4).
 
 ### Where the seal is enforced
 
@@ -443,12 +511,27 @@ no UI at all.
 
 ## 5.1 Do these first
 
-**1 — Milestone *unlocking* is not gated.** *(the one real hole)*
+**1 — Milestone *unlocking* is not gated.** *(the one real hole — still open)*
 Completing a milestone is Lead-Manager-only. **Setting `locked → not_started` is
 not** — anyone who passes `requireVentureScopedAccess({ capability: "edit" })`
-can release work the manager deliberately held back. The existing test asserts
-this as intended ("non-completion transitions stay open"), so the test must change
-with the behaviour.
+can release work the manager deliberately held back.
+
+```js
+// src/app/api/ventures/[id]/milestones/route.js  ~L145 — still no gate
+if (status !== undefined) { updates.push("status = ?"); args.push(status); }
+```
+
+**Half of this was closed** when `syncMilestoneStatusFromDeliverables` landed: its
+header is explicit that *"a `locked` milestone is unreleased planning; the work
+inside it cannot be what releases it"*, so the **automatic** path is safe. The
+**manual** PATCH above was left open, so the hole survives — only the door beside
+it was locked.
+
+Fix: gate any transition that changes **release state** (`locked` → anything) the
+same way completion is gated, or restrict all `status` writes to
+`isMilestoneLeadAuthority`. The existing test asserts the current behaviour as
+intended (*"non-completion transitions stay open"*), so **the test must change
+with it**.
 *Open question to settle first:* does `ventures.edit` reach founders? The matrix
 only covers staff responsibilities, so that is a **database** question, not a code
 one — check `my-access` as a founder.
@@ -468,23 +551,31 @@ auto-deploys).
 
 **4 — Finish the seal's UI half.** The API sends `sealed: true/false`; the
 components already render locked *stages* (opacity, 🔒, locked chip) but the
-milestone cards do not yet read the flag. Also: `JourneyPlaybookTabs.js` ~L352
-carries a now-false comment ("locked milestones are already filtered out"), and
-its `firstOpenId` lookup should skip `locked` rows:
+milestone cards do not yet read the flag. The stale comment that said *"locked
+milestones are already filtered out"* has since been removed — but the code it
+described was not changed, so this is still live:
 
 ```js
-// src/components/ventures/workspace/tabs/JourneyPlaybookTabs.js ~L356
-find((x) => x.status !== "completed" && x.status !== "locked")
+// src/components/ventures/workspace/tabs/JourneyPlaybookTabs.js ~L361
+// picks the FIRST non-completed milestone — which can now be a sealed one
+find((candidateMilestone) => candidateMilestone.status !== "completed")
+// should be:
+find((candidateMilestone) =>
+  candidateMilestone.status !== "completed" && candidateMilestone.status !== "locked")
 ```
 
-The server refuses a bad booking either way (`assertBookableMilestone`), so this
-is polish, not a hole.
+That lookup decides which milestone offers the **book-session** button. If a
+sealed milestone is ordered first it can be offered, and the server then refuses
+the booking — the founder sees a button that always fails. Cosmetic, not a hole
+(`assertBookableMilestone` is the real gate), but worth the one line.
 
 **5 — Session delete.** Members can **delete** a session today. A cancelled
 session keeps its history; a deleted one does not. Recommendation: make
 `delete_session` manager-only and let founders cancel instead.
 
-**6 — Data bank rules.** See §2.4 — a **product decision**, not a coding task.
+**6 — Data bank review workflow.** The document *types* are built (§2.4); the
+review process around them is not. That part is a **product decision**, not a
+coding task.
 
 ## 5.3 Later, and by explicit decision
 

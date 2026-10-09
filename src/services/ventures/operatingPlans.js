@@ -11,8 +11,11 @@
  *  - GLOBAL roles (super_admin): full access.
  *  - Delegated staff: require an active assignment. Cell-level action checks
  *    read the configurable matrix (defaults + per-venture overrides). Write
- *    actions (create/edit/manage/delete) additionally require a venture-wide
+ *    actions (create/edit/manage) additionally require a venture-wide
  *    assignment, so a scoped GTM Coach can view/comment but never author.
+ *  - `delete`: SUPER ADMIN ONLY. Permanent deletion is never delegated — an
+ *    assignment may archive and restore, but never destroy. The matrix has no
+ *    say on it (see allowsPlanAction).
  *
  * Every statement lives in `@/models/ventureOperatingPlanStore`; nothing here
  * runs SQL. This module used to be re-exported through the `@/lib/ventureOperatingPlans` facade;
@@ -80,11 +83,15 @@ async function cellAllows(responsibilityCode, action) {
 /**
  * Whether the user may perform `action` on operating plans.
  * view/comment: any assignment with the cell allowed.
- * create/edit/manage/delete: cell allowed AND venture-wide assignment.
+ * create/edit/manage: cell allowed AND venture-wide assignment.
+ * delete: SUPER ADMIN ONLY — never delegated, no matrix cell consulted.
  */
 export async function allowsPlanAction(access, action) {
   if (access.global) return true;
-  const writeActions = ["create", "edit", "manage", "delete"];
+  // Permanent deletion is a Super Admin act: an assignment may archive and
+  // restore, but not destroy. The matrix has no say here.
+  if (action === "delete") return false;
+  const writeActions = ["create", "edit", "manage"];
   for (const assignment of access.assignments) {
     const cellOk = await cellAllows(assignment.responsibility_code, action);
     if (!cellOk) continue;

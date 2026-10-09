@@ -21,7 +21,17 @@ import { useI18n } from "@/lib/i18n";
 import { FEATURE_ORDER } from "@/models/authorization/eligibility-defaults";
 
 
-export default function PersonAccessScreen({ cid = null }) {
+export default function PersonAccessScreen({
+  cid = null,
+  // The access-profile override dialog is opened from the profiles bar (the
+  // screen above owns that signal); this editor still owns the flow itself.
+  // Aliased to local bindings: the wiring contract requires every `ctx` key to
+  // be a name DECLARED in this function body, and destructured params are not.
+  overrideOpen: overrideOpenProp = false,
+  onOverrideClose: onOverrideCloseProp = null,
+}) {
+  const overrideOpen = overrideOpenProp;
+  const onOverrideClose = onOverrideCloseProp;
   const { t, lang } = useI18n();
   const { confirm } = useDialogs();
   const [selectedUser, setSelectedUser] = useState(null);
@@ -38,7 +48,6 @@ export default function PersonAccessScreen({ cid = null }) {
   // CONFIRMED, never blocked — see ./RiskConfirmDialog.
   const [riskGate, setRiskGate] = useState(null);
   const [whyTarget, setWhyTarget] = useState(null); // { module, capability } for the explanation modal
-  const [showAssignForm, setShowAssignForm] = useState(false);
   const [assignProfileId, setAssignProfileId] = useState("");
   const [assignProfiles, setAssignProfiles] = useState([]);
   const [assignMsg, setAssignMsg] = useState("");
@@ -125,7 +134,6 @@ export default function PersonAccessScreen({ cid = null }) {
     setLoadingPerms(true);
     setActionMsg("");
     setActionError("");
-    setShowAssignForm(false); // reset the profile-override card for the new user
     setAssignMsg("");
     setAssignErr("");
     setLoadError("");
@@ -165,44 +173,51 @@ export default function PersonAccessScreen({ cid = null }) {
     defer(() => selectUser({ cid }));
   }, [cid, selectUser]);
 
-  const loadAssignProfiles = async () => {
+  const loadAssignProfiles = useCallback(async () => {
     try {
-      const res = await fetch("/api/access-profiles");
+      const res = await fetch("/api/engineering/permissions/profiles");
       const data = await res.json();
-      if (data.success) setAssignProfiles(data.profiles || []);
+      if (data.success) {
+        setAssignProfiles(
+          (data.profiles || []).map((row) => ({
+            id: row.key,
+            name: row.label || (row.label_key ? t(row.label_key) : row.key),
+            is_active: Number(row.is_active) === 1,
+          })),
+        );
+      }
     } catch (error) {
       console.error("Failed to load profiles", error);
     }
-  };
+  }, [t]);
 
   /**
    * Assign or remove the selected user's profile override (empty = remove).
    *
    * Assigning a profile REPLACES the person's base capabilities — the resolver
-   * reads access_profile_capabilities INSTEAD OF role_capabilities — so a
+   * reads the profile's capabilities INSTEAD OF role_capabilities — so a
    * thinner (or empty) profile silently removes access. The server answers 409
    * with the exact diff; we show it and only re-send with `confirm` once the
    * admin accepts the loss.
    */
-  const saveProfileOverride = async (profileId, options = {}) => {
+  const saveProfileOverride = async (profileKey, options = {}) => {
     if (!selectedUser) return;
     setAssignBusy(true);
     setAssignMsg("");
     setAssignErr("");
     try {
-      const res = await fetch("/api/access-profiles/assign", {
+      const res = await fetch("/api/engineering/permissions/profile-override", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_cid: selectedUser.cid,
-          profile_id: profileId,
+          profile_key: profileKey || null,
           ...(options.confirm ? { confirm: true } : {}),
         }),
       });
       const data = await res.json();
       if (data.success) {
         setAssignMsg(t(data.message || "") || data.message);
-        setShowAssignForm(false);
         setAssignProfileId("");
         selectUser(selectedUser); // refresh the effective profile + matrix
       } else if (res.status === 409 && data.requiresConfirmation) {
@@ -246,7 +261,7 @@ export default function PersonAccessScreen({ cid = null }) {
           setAssignErr(t("engineering.permissions.assignCancelled"));
           return;
         }
-        return await saveProfileOverride(profileId, { confirm: true });
+        return await saveProfileOverride(profileKey, { confirm: true });
       } else {
         setAssignErr(t((data.error || t("engineering.permissions.failedToAssign")) || "") || (data.error || t("engineering.permissions.failedToAssign")));
       }
@@ -480,9 +495,9 @@ export default function PersonAccessScreen({ cid = null }) {
     setAssignProfileId,
     setExpandedModules,
     setRiskGate,
-    setShowAssignForm,
     setWhyTarget,
-    showAssignForm,
+    onOverrideClose,
+    overrideOpen,
     t,
     userPerms,
     whyTarget,

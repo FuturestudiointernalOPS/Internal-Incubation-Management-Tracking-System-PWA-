@@ -1,5 +1,6 @@
 import db from "@/lib/db";
 import { ensurePermissionsSchema } from "@/models/authorization/bootstrap";
+import { profileKeyForAccessProfileName } from "@/models/authorization/profileTakeoverBackfill";
 
 // ─── Messaging: FINAL MVP POLICY (internal-only) ────────────────────────────
 // Decision: Messaging is a Future Studio internal-operations feature.
@@ -25,11 +26,11 @@ async function ensureLmsCapabilityRetirement() {
   const retired = ["publish", "enroll", "assign"];
   const placeholders = retired.map(() => "?").join(",");
   for (const table of [
-    "access_profile_capabilities",
     "role_capabilities",
     "group_capabilities",
     "user_capabilities",
     "user_capability_restrictions",
+    "profile_capabilities",
   ]) {
     await db.execute({
       sql: `DELETE FROM ${table} WHERE module = ? AND capability IN (${placeholders})`,
@@ -65,20 +66,14 @@ export async function ensureLmsViewBackfill() {
   await ensurePermissionsSchema();
 
   for (const [profileName, rows] of Object.entries(LMS_VIEW_BACKFILL.profiles)) {
-    const profile =
-      (
-        await db.execute({
-          sql: "SELECT id FROM access_profiles WHERE name = ? AND is_active = 1",
-          args: [profileName],
-        })
-      ).rows[0] || null;
-    if (!profile) continue;
+    const key = profileKeyForAccessProfileName(profileName);
+    if (!key) continue;
     for (const [module, capability, level] of rows) {
       await db.execute({
-        sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
+        sql: `INSERT INTO profile_capabilities (profile_key, module, capability, access_level)
               VALUES (?, ?, ?, ?)
-              ON CONFLICT (profile_id, module, capability) DO NOTHING`,
-        args: [profile.id, module, capability, level],
+              ON CONFLICT (profile_key, module, capability) DO NOTHING`,
+        args: [key, module, capability, level],
       });
     }
   }
@@ -187,106 +182,6 @@ export async function ensureCommunicationFeatureBackfill() {
             DO NOTHING`,
       args: [role],
     });
-  }
-}
-
-// ─── Retired roles cleanup: `developer` / `admin` ───────────────────────────
-// The `developer` role (with its "Developer"/"Developer Intern" templates) and
-// the retired `admin` role were removed from the product: no session resolves to
-// them any more, their dashboards are gone, and `engineering.manage_developers`
-// left the capability catalog. Their rows are therefore inert — this ONE-TIME
-// migration removes them so the Permissions UI and the catalog stop advertising
-// control nobody can hold.
-//
-// Safety:
-//   - Only rows keyed by the retired identities, their templates, or the retired
-//     `engineering.manage_developers` capability are touched.
-//   - GROUP eligibility rows are NEVER deleted (sacred, like eligibility-policy-3).
-//   - Per-user profile assignments to the retired templates are cleared FIRST, so
-//     no contact keeps a dangling `access_profile_id`.
-//   - The audit write is best-effort: a missing audit table never blocks it (and
-//     never leaves the migration un-recorded, which would retry forever).
-
-const RETIRED_ROLE_NAMES = ["developer", "admin"];
-const RETIRED_PROFILE_NAMES = ["Developer", "Developer Intern"];
-
-// Every table that can carry a (module, capability) row. The retired
-// `manage_developers` capability is stripped from all of them; the retired roles
-// are stripped from the role-keyed ones only (per-user and per-group grants on
-// OTHER capabilities are never touched).
-const CAPABILITY_TABLES = [
-  "role_capabilities",
-  "group_capabilities",
-  "user_capabilities",
-  "user_capability_restrictions",
-  "access_profile_capabilities",
-  "responsibility_capability_grants",
-];
-
-const sqlList = (values) => values.map((value) => `'${value}'`).join(", ");
-
-export async function ensureRetiredRoleCleanup() {
-  await ensurePermissionsSchema();
-
-  // 1. No contact may keep pointing at a template that is about to disappear.
-  await db.execute(
-    `UPDATE contacts SET access_profile_id = NULL
-      WHERE access_profile_id IN (
-        SELECT id FROM access_profiles WHERE name IN (${sqlList(RETIRED_PROFILE_NAMES)})
-      )`,
-  );
-
-  // 2. The retired templates and their capabilities.
-  await db.execute(
-    `DELETE FROM access_profile_capabilities
-      WHERE profile_id IN (
-        SELECT id FROM access_profiles WHERE name IN (${sqlList(RETIRED_PROFILE_NAMES)})
-      )`,
-  );
-  await db.execute(
-    `DELETE FROM access_profiles WHERE name IN (${sqlList(RETIRED_PROFILE_NAMES)})`,
-  );
-
-  // 3. The retired roles' profile defaults, legacy fallback rows and eligibility
-  //    rows (role rows only — group rows stay untouched).
-  await db.execute(
-    `DELETE FROM role_access_profile_defaults
-      WHERE role_name IN (${sqlList(RETIRED_ROLE_NAMES)})`,
-  );
-  await db.execute(
-    `DELETE FROM role_capabilities WHERE role IN (${sqlList(RETIRED_ROLE_NAMES)})`,
-  );
-  await db.execute(
-    `DELETE FROM feature_eligibility
-      WHERE identity_type = 'role' AND identity_value IN (${sqlList(RETIRED_ROLE_NAMES)})`,
-  );
-
-  // 4. The retired `engineering.manage_developers` capability, everywhere it may
-  //    have been granted (profiles, roles, groups, people, restrictions).
-  for (const table of CAPABILITY_TABLES) {
-    await db.execute(
-      `DELETE FROM ${table} WHERE module = 'engineering' AND capability = 'manage_developers'`,
-    );
-  }
-
-  // 5. Best-effort audit trail.
-  try {
-    await db.execute({
-      sql: `INSERT INTO permission_audit_log
-              (actor_cid, actor_name, target_cid, target_name, action, details)
-            VALUES ('system','system','system','system','eligibility_changed',?)`,
-      args: [
-        "Retired roles cleanup: removed the `developer`/`admin` roles and the " +
-          "`Developer`/`Developer Intern` templates (their capabilities, role " +
-          "defaults, eligibility rows, per-user profile assignments and the " +
-          "`engineering.manage_developers` capability).",
-      ],
-    });
-  } catch (error) {
-    console.warn(
-      "[Authz] retired-role cleanup audit write skipped:",
-      error.message,
-    );
   }
 }
 

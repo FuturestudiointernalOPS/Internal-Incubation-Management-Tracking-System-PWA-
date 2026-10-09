@@ -78,6 +78,7 @@ export async function getProgramAssignment(programId, userCid, userEmail = null)
       title: row.title || row.role || "assignment",
       permissions: row.capability_overrides || row.permissions || {},
       access_profile_id: row.access_profile_id || null,
+      profile_key: row.profile_key || null,
       scope: row.scope || { type: "program" },
       status: row.status || "active",
       assigned_by: row.assigned_by || null,
@@ -280,18 +281,18 @@ export async function isProjectMember(projectId, userCid) {
 }
 
 /**
- * Capability rows of an Access Profile template.
+ * Capability rows of a PROFILE, by KEY.
  *
  * A failure here returns an empty list ON PURPOSE: the caller then falls back to
  * the program default, which is what it did while this query was inline. Throwing
  * would deny a facilitator whose profile merely failed to load.
  */
-export async function listProfileCapabilities(profileId) {
+export async function listProfileCapabilities(profileKey) {
   try {
     await initDb();
     const res = await db.execute({
-      sql: "SELECT module, capability, access_level FROM access_profile_capabilities WHERE profile_id = ?",
-      args: [profileId],
+      sql: "SELECT module, capability, access_level FROM profile_capabilities WHERE profile_key = ?",
+      args: [profileKey],
     });
     return res.rows || [];
   } catch {

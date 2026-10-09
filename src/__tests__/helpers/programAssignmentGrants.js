@@ -25,11 +25,15 @@ function resetState() {
     assignments: [],
     managedProgramIds: [],
     programDefaults: {}, // program_id → object
-    profileCaps: [], // rows for access_profile_capabilities
+    profileCaps: [], // rows for profile_capabilities
     registry: null, // context_role_profiles row
     userCaps: [],
     applied: [],
     profileCapsQueriedFor: [],
+    // Phase H — the profile ↔ role rule is enforced ("block"): the person's
+    // baseline role must be one the profile is open to. Facilitator is open to
+    // member; the program_manager fixture overrides this to "staff".
+    contactRole: "member",
   });
 }
 
@@ -39,6 +43,11 @@ async function mockExecute(query) {
 
   // Schema self-healing
   if (/^\s*(CREATE TABLE|CREATE INDEX)/i.test(sqlText)) return { rows: [] };
+
+  // Baseline role (Phase H — the profile ↔ role rule reads it).
+  if (sqlText.includes("SELECT role, profile_key FROM contacts")) {
+    return { rows: [{ role: mockState.contactRole }] };
+  }
 
   // Registry mapping (program manager)
   if (sqlText.includes("FROM context_role_profiles")) {
@@ -67,7 +76,7 @@ async function mockExecute(query) {
         program_id: id,
         role_key: "program_manager",
         permissions: null,
-        access_profile_id: null,
+        profile_key: null,
         end_date: null,
         status: "Active",
         is_archived: 0,
@@ -75,8 +84,9 @@ async function mockExecute(query) {
     };
   }
 
-  // Profile capabilities (registry path + assignment profile path)
-  if (sqlText.includes("FROM access_profile_capabilities")) {
+  // Profile capabilities — the registry path AND the assignment-override path
+  // both read `profile_capabilities` by KEY now.
+  if (sqlText.includes("FROM profile_capabilities")) {
     mockState.profileCapsQueriedFor.push(args);
     return { rows: mockState.profileCaps };
   }
@@ -205,7 +215,7 @@ function assignment(programId, permissions, extra = {}) {
     program_id: programId,
     role_key: "facilitator",
     permissions: permissions ? JSON.stringify(permissions) : null,
-    access_profile_id: null,
+    profile_key: null,
     ...extra,
   };
 }
