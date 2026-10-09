@@ -101,6 +101,7 @@ export async function sendTrackedEmail({ submission_id, contact_cid, email_type,
  */
 export async function sendManualMessage({
   to,
+  cc,
   name,
   subject,
   body,
@@ -129,6 +130,7 @@ export async function sendManualMessage({
     sendFn: () =>
       sendEmail({
         to,
+        cc,
         subject: personalizedSubject,
         html,
         provider: "gmail",

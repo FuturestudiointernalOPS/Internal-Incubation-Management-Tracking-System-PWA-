@@ -51,6 +51,9 @@ function labelRow(label, value, { bold = false } = {}) {
  * @param {number} [input.daysLeft]        — days until the date the rule watched
  * @param {string} [input.watchedDate]     — the date the rule watched
  * @param {string} [input.sentBy]          — a person's name, for a manual send
+ * @param {boolean} [input.hasAccount=true] — whether the recipient can sign in;
+ *                                          false sends a signed-out click to
+ *                                          registration instead of the login page
  * @param {string} [input.contact_cid]
  */
 export async function sendVentureReminderEmail({
@@ -62,6 +65,7 @@ export async function sendVentureReminderEmail({
   daysLeft = null,
   watchedDate = null,
   sentBy = null,
+  hasAccount = true,
   contact_cid = null,
 }) {
   const venue = ventureName || "your Venture";
@@ -79,6 +83,13 @@ export async function sendVentureReminderEmail({
     : "needs your attention";
   const subjectPrefix = trigger === "start" ? "Starting soon" : trigger === "finish" ? "Due soon" : "Reminder";
   const subject = `${subjectPrefix}: ${item.ref ? `${item.ref} ` : ""}${title} — ${when}`;
+
+  // The button goes through /open, which decides at CLICK time: a signed-in
+  // reader lands on the Venture, a signed-out one on the login page — or on
+  // registration when this address had no account when the email was sent.
+  const openUrl = ventureCode
+    ? `${APP_URL}/open/venture/${encodeURIComponent(ventureCode)}${hasAccount ? "" : "?signup=1"}`
+    : null;
 
   const context = [item.journey?.name, item.milestone?.title].filter(Boolean).join("  ›  ");
   const manualLine = sentBy
@@ -114,8 +125,9 @@ export async function sendVentureReminderEmail({
               </table>
 
               ${
-                ventureCode
-                  ? `<a href="${APP_URL}/admin/ventures/projects/${encodeURIComponent(ventureCode)}" style="display: inline-block; background: #ff6600; color: #020617; text-decoration: none; font-weight: 700; font-size: 13px; padding: 12px 20px; border-radius: 10px;">Open in ImpactOS</a>`
+                openUrl
+                  ? `<a href="${openUrl}" style="display: inline-block; background: #ff6600; color: #020617; text-decoration: none; font-weight: 700; font-size: 13px; padding: 12px 20px; border-radius: 10px;">Open in ImpactOS</a>
+                     ${hasAccount ? "" : `<p style="color: #64748b; font-size: 12px; margin: 12px 0 0;">You do not have an ImpactOS account yet — the button takes you to registration.</p>`}`
                   : ""
               }
             </td></tr>
