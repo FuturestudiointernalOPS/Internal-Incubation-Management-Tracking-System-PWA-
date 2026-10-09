@@ -17,7 +17,9 @@ import { FROM_EMAIL, RESEND_API_KEY } from "./config";
 export async function sendViaResend({ to, cc, subject, html, fromName }) {
   if (!RESEND_API_KEY) {
     console.warn("Resend not configured — skipping email to:", to, "subject:", subject);
-    return { success: false, provider: "resend", note: "Resend API key not configured" };
+    // `error` (not only `note`) so sendEmail / the reminder engine surface the
+    // real reason instead of collapsing to a generic "Email send failed".
+    return { success: false, provider: "resend", error: "Resend API key not configured", note: "Resend API key not configured" };
   }
 
   try {
