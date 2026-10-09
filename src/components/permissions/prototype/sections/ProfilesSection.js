@@ -119,6 +119,15 @@ export default function ProfilesSection({ data, tab, openDrawer }) {
 
       <Note>{t("engineering.permissions.prototype.matrixNote")}</Note>
 
+      <Toolbar>
+        <p className="flex-1 text-sm text-[var(--text-secondary)]">
+          {t("engineering.permissions.profilesCreateHint")}
+        </p>
+        <AppButton onClick={() => openDrawer({ kind: "createProfile" })}>
+          {t("engineering.permissions.profilesCreateToggle")}
+        </AppButton>
+      </Toolbar>
+
       <PrototypeTable minWidth="52rem">
         <thead>
           <tr>

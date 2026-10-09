@@ -30,6 +30,9 @@ const EMPTY = {
   profiles: [],
   profileCapsById: {},
   roleDefaults: {},
+  // The profile catalogue's own vocabularies (create-form context + baseline roles).
+  contexts: [],
+  baselineRoles: [],
   catalog: {},
   groupDefaults: [],
   moduleToFeature: {},
@@ -111,7 +114,14 @@ export default function usePrototypeData() {
                 profileName: byKey[key]?.name || key,
               };
             }
-            patch({ profiles, profileCapsById, roleDefaults });
+            patch({
+              profiles,
+              profileCapsById,
+              roleDefaults,
+              // The create form's vocabularies travel with the catalogue read.
+              contexts: result?.contexts || [],
+              baselineRoles: result?.baseline_roles || [],
+            });
           }),
         );
       }
