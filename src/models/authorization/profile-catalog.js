@@ -1,18 +1,26 @@
 /**
  * ImpactOS — Authorization Foundation: PROFILE CATALOGUE (PURE MODULE).
  *
- * Phase A of docs/ROADMAP_ROLES_PROFILES_ACCESS.md.
- *
  * A PROFILE is the contextual function someone occupies (Participant of a
  * program, Founder of a venture, Facilitator of a program…) as opposed to the
  * BASELINE role on `contacts.role` (super_admin / staff / member), which is the
  * person's platform identity. A person holds ONE baseline role and any number
  * of profiles, each in its own context.
  *
+ * THE DATABASE IS THE SOURCE OF TRUTH. Profiles are DYNAMIC: they are stored in
+ * the `profiles` table and created / edited / deleted from the profiles screen.
+ * This module holds only:
+ *   - the fixed VOCABULARIES (contexts, baseline roles, the enforcement switch,
+ *     the key SHAPE) — enums the code needs, not a list of profiles; and
+ *   - an initial SEED (`PROFILE_CATALOG`) that fills a fresh database once.
+ * Nothing at runtime reads the catalogue to decide which profiles exist: the
+ * eligibility screen, the validation and the restriction lookup all read the
+ * `profiles` table (see `profilesStore.listProfiles`).
+ *
  * No database import — safe to share with client components and tests, exactly
- * like `eligibility-defaults.js`. The `profiles` table mirrors these rows; the
- * seed inserts them with ON CONFLICT DO NOTHING, so an administrator's edit of
- * `allowed_roles` / `is_active` / `notes` always wins.
+ * like `eligibility-defaults.js`. The seed inserts with ON CONFLICT DO NOTHING,
+ * so an administrator's edit of `allowed_roles` / `is_active` / `notes` — or a
+ * profile they created — always wins.
  *
  * Labels are i18n KEYS, never stored text: every user-visible string must go
  * through `t()` (see AGENTS.md §1), and the capability catalogue follows the
@@ -52,9 +60,11 @@ export const PROFILE_ROLE_ENFORCEMENT = "block";
 export const PROFILE_BASELINE_ROLES = ["super_admin", "staff", "member"];
 
 /**
- * The agreed catalogue (Product brief: "Système de rôles, profils et accès").
- * `allowedRoles` is the INITIAL value stored in the table; administrators edit
- * it from the Profiles screen afterwards. The seed never overwrites an edit.
+ * The initial SEED (bootstrap). `allowedRoles` is the value inserted into the
+ * `profiles` table the first time; administrators edit it — and add or remove
+ * profiles — from the Profiles screen afterwards. The seed is insert-only, so it
+ * never overwrites an edit, and it is NOT read at runtime to decide which
+ * profiles exist.
  */
 export const PROFILE_CATALOG = [
   {
@@ -102,6 +112,18 @@ export const PROFILE_CATALOG = [
 ];
 
 export const PROFILE_KEYS = PROFILE_CATALOG.map((profile) => profile.key);
+
+/**
+ * A profile key is a FREE identifier (profiles are DYNAMIC): lowercase letters,
+ * digits and underscores, 2-64 chars, starting with a letter. `isValidProfileKey`
+ * checks the *seeded* catalogue; this checks the SHAPE, which is what any
+ * profile created from the profiles screen must satisfy.
+ */
+export const PROFILE_KEY_PATTERN = /^[a-z][a-z0-9_]{1,63}$/;
+
+export function isValidProfileKeyShape(key) {
+  return PROFILE_KEY_PATTERN.test(String(key ?? ""));
+}
 
 /** The catalogue entry for a key, or null when the key is unknown. */
 export function getProfileDefinition(key) {

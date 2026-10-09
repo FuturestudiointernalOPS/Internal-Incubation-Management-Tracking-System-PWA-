@@ -41,6 +41,7 @@ jest.mock("@/models/authorization/bootstrap", () => {
 jest.mock("@/services/authorization/accessProfiles", () => ({ getUserEffectiveProfile: mockElig.authMock().getUserEffectiveProfile }));
 jest.mock("@/models/authorization", () => mockElig.authorizationModelMock());
 jest.mock("@/models/authorization/profileCapabilitiesStore", () => mockElig.profileCapabilitiesStoreMock());
+jest.mock("@/models/authorization/profilesStore", () => mockElig.profilesStoreMock());
 
 const { authorize: authorizeContextModule } = require("@/services/authorization/context");
 const { requireAuthorization } = require("@/server/authz/responses");
@@ -177,5 +178,11 @@ describe("GET — the identity vocabulary is baseline roles + profiles only", ()
   test("the identity kinds are role and profile", async () => {
     const body = await (await route.GET()).json();
     expect(body.identityTypes).toEqual(["role", "profile"]);
+  });
+
+  test("profiles come from the DB catalogue, never a hardcoded list", async () => {
+    mockState.profiles = [{ key: "zulu_profile" }, { key: "alpha_profile" }];
+    const body = await (await route.GET()).json();
+    expect(body.profiles).toEqual(["alpha_profile", "zulu_profile"]);
   });
 });

@@ -36,6 +36,7 @@ jest.mock("@/models/authorization/bootstrap", () => {
 jest.mock("@/services/authorization/accessProfiles", () => ({ getUserEffectiveProfile: mockElig.authMock().getUserEffectiveProfile }));
 jest.mock("@/models/authorization", () => mockElig.authorizationModelMock());
 jest.mock("@/models/authorization/profileCapabilitiesStore", () => mockElig.profileCapabilitiesStoreMock());
+jest.mock("@/models/authorization/profilesStore", () => mockElig.profilesStoreMock());
 
 const {
   requireAuthorization,
@@ -62,6 +63,9 @@ const FEATURE = FEATURE_KEYS[0];
 beforeEach(() => {
   resetState();
   jest.clearAllMocks();
+  // The eligible profiles come from the DB; the suite configures two so a
+  // `profile` change validates.
+  mockState.profiles = [{ key: "founder" }, { key: "participant" }, { key: "program_manager" }];
 });
 
 const jsonReq = (body) =>

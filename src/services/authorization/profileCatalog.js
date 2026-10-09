@@ -28,6 +28,7 @@ import {
   getProfileDefinition,
   isValidProfileContext,
   isValidProfileKey,
+  isValidProfileKeyShape,
 } from "@/models/authorization/profile-catalog";
 import { ensureProfilesSchema, getProfileRow } from "@/models/authorization/profilesStore";
 import { getContactBaseState } from "@/models/authorization/baseCapabilityReads";
@@ -41,6 +42,7 @@ export {
   getProfileDefinition,
   isValidProfileContext,
   isValidProfileKey,
+  isValidProfileKeyShape,
 };
 
 /**
@@ -58,18 +60,6 @@ export function normalizeAllowedRoles(value) {
     }
   }
   return [];
-}
-
-/**
- * A profile key is a free identifier (profiles are DYNAMIC since the takeover):
- * lowercase, digits and underscores. It is the stable identity of the profile,
- * so it is validated by SHAPE — the fixed catalogue is no longer the vocabulary.
- */
-export const PROFILE_KEY_PATTERN = /^[a-z][a-z0-9_]{1,63}$/;
-
-/** True when a value is a well-formed profile key. */
-export function isValidProfileKeyShape(key) {
-  return PROFILE_KEY_PATTERN.test(String(key ?? ""));
 }
 
 /**
@@ -203,37 +193,31 @@ export function profileKeyForContextRole(context, roleKey) {
 
 /**
  * The role restriction to apply for a profile KEY: the administrator's stored
- * row when the catalogue table exists, the catalogue definition otherwise. A
- * read failure is soft — the catalogue is the fallback, never a crash, because
- * both control points run on hot paths.
+ * row. Profiles are DYNAMIC, so the database is the only source — a profile the
+ * catalogue does not name still gets its restriction, and an unknown key simply
+ * has none. A read failure is soft (no restriction) so a hot path never crashes.
  *
  * @returns {Promise<{key: string, allowedRoles: string[], isActive: boolean}|null>}
  */
 export async function loadProfileRestriction(profileKey) {
-  const definition = getProfileDefinition(profileKey);
-  if (!definition) return null;
+  if (!profileKey) return null;
   try {
     await ensureProfilesSchema();
     const res = await getProfileRow(profileKey);
     const row = res?.rows?.[0];
-    if (row) {
-      return {
-        key: definition.key,
-        allowedRoles: normalizeAllowedRoles(row.allowed_roles),
-        isActive: profileIsActive(row),
-      };
-    }
+    if (!row) return null; // unknown profile — nothing to enforce
+    return {
+      key: row.key,
+      allowedRoles: normalizeAllowedRoles(row.allowed_roles),
+      isActive: profileIsActive(row),
+    };
   } catch (error) {
     console.warn(
-      `[Authz] loadProfileRestriction(${profileKey}) fell back to the catalogue:`,
+      `[Authz] loadProfileRestriction(${profileKey}) read failed:`,
       error.message,
     );
+    return null;
   }
-  return {
-    key: definition.key,
-    allowedRoles: [...definition.allowedRoles],
-    isActive: true,
-  };
 }
 
 /** The baseline role on `contacts.role` for a cid, or null when unknown. */

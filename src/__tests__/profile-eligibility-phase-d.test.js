@@ -71,9 +71,20 @@ describe("the two identity kinds", () => {
     });
   });
 
-  test("refuses an unknown profile", () => {
+  test("refuses a profile that does not exist (when the DB list is given)", () => {
+    const result = validateEligibilityChanges(
+      [
+        { feature_key: "ventures", identity_type: "profile", identity_value: "ghost", eligible: 1 },
+      ],
+      ["founder"],
+    );
+    expect(result.valid).toBe(false);
+    expect(result.errors.join(" ")).toContain("unknown profile");
+  });
+
+  test("refuses an ill-formed profile key even without the DB list", () => {
     const result = validateEligibilityChanges([
-      { feature_key: "ventures", identity_type: "profile", identity_value: "ghost", eligible: 1 },
+      { feature_key: "ventures", identity_type: "profile", identity_value: "Ghost Key!", eligible: 1 },
     ]);
     expect(result.valid).toBe(false);
     expect(result.errors.join(" ")).toContain("unknown profile");

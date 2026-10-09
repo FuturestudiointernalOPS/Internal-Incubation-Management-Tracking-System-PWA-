@@ -24,7 +24,7 @@
 
 import { MODULE_TO_FEATURE, FEATURE_ELIGIBILITY_DEFAULTS } from "@/models/authorization/eligibility";
 import { FEATURE_ORDER } from "@/models/authorization/eligibility-defaults";
-import { PROFILE_KEYS } from "@/models/authorization/profile-catalog";
+import { isValidProfileKeyShape } from "@/models/authorization/profile-catalog";
 import { evaluateEligibility } from "./eligibility";
 import { getFeatureEligibilityRows } from "@/models/authorization/contextReads";
 import {
@@ -142,11 +142,14 @@ export function validateCapabilitiesWithinEligibility(caps, eligibility) {
  * Validate + normalize an eligibility change batch.
  *
  * @param {Array<{feature_key, identity_type, identity_value, eligible}>} changes
+ * @param {string[]|null} [profileKeys]  the profile keys that EXIST (read from
+ *   the DB by the caller). When provided, a `profile` change must name one of
+ *   them; when omitted, the key is validated by SHAPE only.
  * @returns {{valid: boolean, errors: string[], normalized: Array}}
  *   normalized entries are {feature_key, identity_type, identity_value, eligible}
  *   where eligible is 0|1|null (null → delete the row).
  */
-export function validateEligibilityChanges(changes) {
+export function validateEligibilityChanges(changes, profileKeys = null) {
   const errors = [];
   const normalized = [];
   if (!Array.isArray(changes) || changes.length === 0) {
@@ -174,9 +177,18 @@ export function validateEligibilityChanges(changes) {
       errors.push(`unknown role: ${identityValue}`);
       continue;
     }
-    if (identityType === "profile" && !PROFILE_KEYS.includes(identityValue)) {
-      errors.push(`unknown profile: ${identityValue}`);
-      continue;
+    if (identityType === "profile") {
+      // Profiles are DYNAMIC: the key is validated by shape, and — when the
+      // caller passes the DB list — it must name a profile that exists.
+      const wellFormed = isValidProfileKeyShape(identityValue);
+      const known =
+        profileKeys === null || profileKeys === undefined
+          ? wellFormed
+          : wellFormed && profileKeys.includes(identityValue);
+      if (!known) {
+        errors.push(`unknown profile: ${identityValue}`);
+        continue;
+      }
     }
     if (eligible !== 0 && eligible !== 1 && eligible !== null) {
       errors.push(`invalid eligible value for ${featureKey}/${identityType}/${identityValue}: ${eligible}`);

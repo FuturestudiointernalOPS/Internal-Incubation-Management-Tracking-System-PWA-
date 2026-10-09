@@ -66,6 +66,12 @@ jest.mock("@/models/authorization/bootstrap", () => ({
 jest.mock("@/services/authorization/accessProfiles", () => ({
   getUserEffectiveProfile: jest.fn().mockResolvedValue(null),
 }));
+jest.mock("@/models/authorization/profilesStore", () => ({
+  ensureProfilesSchema: jest.fn().mockResolvedValue(true),
+  listProfiles: jest.fn().mockResolvedValue({
+    rows: [{ key: "founder" }, { key: "participant" }],
+  }),
+}));
 
 let mockAuthzDecision = null; // null = granted (route proceeds)
 // The eligibility route's canConfigure decision moved into the service, which

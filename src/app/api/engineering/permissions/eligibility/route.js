@@ -27,7 +27,7 @@ import {
   deleteEligibilityRow,
   upsertEligibilityRow,
 } from "@/models/authorization";
-import { PROFILE_KEYS } from "@/models/authorization/profile-catalog";
+import { listProfiles, ensureProfilesSchema } from "@/models/authorization/profilesStore";
 
 export const dynamic = "force-dynamic";
 
@@ -68,6 +68,15 @@ export async function GET() {
 
     const rows = await fetchAllRows();
 
+    // The profiles come from the DATABASE (the catalogue table is the source of
+    // truth), never from a hardcoded list: a profile created, renamed or deleted
+    // from the profiles screen is offered here on the next read.
+    await ensureProfilesSchema();
+    const profilesRes = await listProfiles();
+    const profiles = (profilesRes.rows || [])
+      .map((row) => row.key)
+      .sort();
+
     return NextResponse.json({
       success: true,
       features: FEATURE_KEYS,
@@ -79,9 +88,8 @@ export async function GET() {
       // contextual function is a PROFILE (see `profiles` below), never a role.
       roles: ELIGIBILITY_IDENTITIES,
       identityGroups: ELIGIBILITY_IDENTITY_GROUPS,
-      // The profile keys a ceiling can be written against. The identity editor
-      // and the matrix offer them as the second identity kind.
-      profiles: PROFILE_KEYS,
+      // The profile keys a ceiling can be written against — read from the DB.
+      profiles,
       rows,
       canConfigure: !!canConfigure,
     });
@@ -104,8 +112,15 @@ export async function PUT(req) {
     if (authError) return authError;
 
     const body = await req.json().catch(() => null);
+
+    // Validate against the profiles that EXIST: a ceiling may only name a role
+    // of the baseline or a profile the database holds.
+    const profilesRes = await listProfiles();
+    const profileKeys = (profilesRes.rows || []).map((row) => row.key);
+
     const { valid, errors, normalized } = validateEligibilityChanges(
       body?.changes,
+      profileKeys,
     );
     if (!valid) {
       return NextResponse.json(
