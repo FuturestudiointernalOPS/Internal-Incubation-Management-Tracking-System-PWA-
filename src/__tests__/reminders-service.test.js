@@ -10,6 +10,7 @@
 jest.mock("@/models/ventureAssigneeEmails", () => ({
   selectAssigneeEmails: jest.fn(async () => ({ rows: [] })),
   selectContactEmailsByCids: jest.fn(async () => ({ rows: [] })),
+  selectContactCidByEmail: jest.fn(async () => ({ rows: [] })),
 }));
 
 jest.mock("@/models/ventureReminders", () => ({
@@ -23,9 +24,17 @@ jest.mock("@/lib/email", () => ({
   sendVentureReminderEmail: (...args) => mockSend(...args),
 }));
 
-const { selectAssigneeEmails, selectContactEmailsByCids } = require("@/models/ventureAssigneeEmails");
+const {
+  selectAssigneeEmails,
+  selectContactCidByEmail,
+  selectContactEmailsByCids,
+} = require("@/models/ventureAssigneeEmails");
 const { insertReminderLog, markReminderFailed, markReminderSent } = require("@/models/ventureReminders");
-const { resolveWorkItemRecipients, splitReachable } = require("@/services/reminders/recipients");
+const {
+  hasPlatformAccount,
+  resolveWorkItemRecipients,
+  splitReachable,
+} = require("@/services/reminders/recipients");
 const {
   daysUntil,
   dueReminders,
@@ -60,6 +69,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   selectAssigneeEmails.mockResolvedValue({ rows: [] });
   selectContactEmailsByCids.mockResolvedValue({ rows: [] });
+  selectContactCidByEmail.mockResolvedValue({ rows: [] });
   insertReminderLog.mockResolvedValue({ rows: [{ id: 1 }] });
   mockSend.mockResolvedValue({ success: true });
 });
@@ -359,5 +369,31 @@ describe("sending claims the reminder before it sends", () => {
 
     const outcome = await sendManualReminder({ ventureCode: "VNT-1", ventureName: "KoraHome", item: ITEM });
     expect(outcome.sent).toBe(2);
+  });
+});
+
+describe("where the email's button leads", () => {
+  test("an address read from a contact record is an account, with no lookup", async () => {
+    expect(await hasPlatformAccount({ email: "a@example.com", source: "contact" })).toBe(true);
+    expect(selectContactCidByEmail).not.toHaveBeenCalled();
+  });
+
+  test("an address typed by hand is an account only when a contact holds it", async () => {
+    expect(await hasPlatformAccount({ email: "amina@example.com", source: "on_file" })).toBe(false);
+
+    selectContactCidByEmail.mockResolvedValue({ rows: [{ cid: "USR_A" }] });
+    expect(await hasPlatformAccount({ email: "Amina@Example.com", source: "on_file" })).toBe(true);
+    expect(selectContactCidByEmail).toHaveBeenLastCalledWith("amina@example.com");
+  });
+
+  test("a failed lookup sends the reader to the login page, not to registration", async () => {
+    selectContactCidByEmail.mockRejectedValue(new Error("db down"));
+    expect(await hasPlatformAccount({ email: "amina@example.com", source: "on_file" })).toBe(true);
+  });
+
+  test("the send tells the email whether its reader has an account", async () => {
+    selectAssigneeEmails.mockResolvedValue({ rows: [{ display_name: "Amina", email: "amina@example.com" }] });
+    await sendManualReminder({ ventureCode: "VNT-1", ventureName: "Acme", item: ITEM });
+    expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({ to: "amina@example.com", hasAccount: false }));
   });
 });

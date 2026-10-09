@@ -3,6 +3,8 @@
 import { Sun, Moon, Monitor, Bell, ChevronRight, ChevronDown, Menu } from "lucide-react";
 import { tnav, navCrumb } from "./navigation";
 import ContextSwitcher from "@/components/layout/ContextSwitcher";
+import { useGoogleCalendar } from "@/components/integrations/useGoogleCalendar";
+import GoogleCalendarConnect from "@/components/integrations/GoogleCalendarConnect";
 
 export default function ShellHeader({
   pathname,
@@ -27,6 +29,8 @@ export default function ShellHeader({
   setPendingAssignments,
   setMobileMenuOpen,
 }) {
+  // Every role can connect its own Google Calendar from here (one place, all users).
+  const googleCalendar = useGoogleCalendar({ t });
   return (
 <header className="h-20 flex items-center px-4 lg:px-6 border-b border-[var(--border-primary)] bg-secondary/80 backdrop-blur-xl sticky top-0 z-[100]">
             <div className="absolute inset-0 bg-gradient-to-r from-brand-orange/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -39,8 +43,16 @@ export default function ShellHeader({
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4 ml-auto relative z-10">
+              {/* Google Calendar — connect / sync / disconnect, for every role */}
+              <GoogleCalendarConnect
+                status={googleCalendar.status}
+                syncing={googleCalendar.syncing}
+                onConnect={googleCalendar.connect}
+                onSync={googleCalendar.syncNow}
+                onDisconnect={googleCalendar.disconnect}
+              />
               {/* Context Switcher — navigate between legitimate contexts (Phase 2C) */}
-              <ContextSwitcher />
+              {!pathname?.startsWith("/participant") && <ContextSwitcher />}
               {/* Theme Selector */}
               <div className="relative hidden sm:block">
                 <button
@@ -165,7 +177,7 @@ export default function ShellHeader({
                                 setShowNotifications(false);
                               }
                               if (notification.type === "announcement" && ["participant", "member", "founder"].includes(user?.role)) {
-                                router.push("/participant#announcements");
+                                router.push("/participant/announcements");
                                 setShowNotifications(false);
                               }
                               if (notification.type === "message") {

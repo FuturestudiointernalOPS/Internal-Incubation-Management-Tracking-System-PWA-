@@ -33,7 +33,7 @@ function encodeMailHeader(value) {
 
 /** Build a raw MIME message for the Gmail API. Supports optional file
  * attachments (multipart/mixed) — used for PDF result documents. */
-function buildGmailRawMessage({ to, subject, html, attachments, fromName }) {
+export function buildGmailRawMessage({ to, cc, subject, html, attachments, fromName }) {
   const plainText = (html || "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")
     .replace(/<[^>]+>/g, " ")
@@ -46,6 +46,7 @@ function buildGmailRawMessage({ to, subject, html, attachments, fromName }) {
     `From: ${fromName || GMAIL_SENDER_NAME} <${GMAIL_SENDER_EMAIL}>`,
     `Reply-To: ${GMAIL_SENDER_EMAIL}`,
     `To: ${to}`,
+    ...(Array.isArray(cc) && cc.length > 0 ? [`Cc: ${cc.join(", ")}`] : []),
     `Subject: ${encodeMailHeader(subject)}`,
     "MIME-Version: 1.0",
   ].join("\n");
@@ -95,7 +96,7 @@ function buildGmailRawMessage({ to, subject, html, attachments, fromName }) {
 }
 
 /** Send one email through the Google Workspace (Gmail API) transport. */
-export async function sendViaGmail({ to, subject, html, attachments, fromName }) {
+export async function sendViaGmail({ to, cc, subject, html, attachments, fromName }) {
   if (!gmailCredentialsAvailable()) {
     console.warn("[Gmail] Credentials not configured — skipping Gmail send to:", to);
     // `error` (not only `note`) so sendEmail / the reminder engine surface the
@@ -113,7 +114,7 @@ export async function sendViaGmail({ to, subject, html, attachments, fromName })
     auth.setCredentials({ refresh_token: GMAIL_REFRESH_TOKEN });
 
     const gmail = google.gmail({ version: "v1", auth });
-    const raw = buildGmailRawMessage({ to, subject, html, attachments, fromName });
+    const raw = buildGmailRawMessage({ to, cc, subject, html, attachments, fromName });
     const sendRes = await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
 
     return { success: true, provider: "gmail", data: { id: sendRes.data?.id || null } };

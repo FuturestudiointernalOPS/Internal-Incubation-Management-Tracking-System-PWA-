@@ -29,7 +29,7 @@ import {
   markReminderSent,
 } from "@/models/ventureReminders";
 import { reminderKey } from "./rules";
-import { normalizeEmail, resolveWorkItemRecipients, splitReachable } from "./recipients";
+import { hasPlatformAccount, normalizeEmail, resolveWorkItemRecipients, splitReachable } from "./recipients";
 
 /** Send one reminder to one recipient, claiming it in the log first. */
 async function deliverOne({
@@ -86,6 +86,7 @@ async function deliverOne({
     daysLeft: daysLeft === null || daysLeft === undefined ? null : daysLeft,
     watchedDate,
     sentBy,
+    hasAccount: await hasPlatformAccount(recipient),
     contact_cid: recipient.cid || null,
   });
 

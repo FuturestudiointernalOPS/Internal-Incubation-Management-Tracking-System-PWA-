@@ -205,7 +205,7 @@ export function messagingActions({
     );
   };
 
-  const sendManualMessages = async () => {
+  const sendManualMessages = async (ccAddresses = "") => {
     if (!selectedRun || selectedIds.length === 0 || messageSending) return;
     if (!messageSubject.trim() || !messageBody.trim()) {
       notify(t("platformMisc.runs.messageSubjectBodyRequired"));
@@ -222,11 +222,16 @@ export function messagingActions({
           submission_ids: selectedIds,
           subject: messageSubject,
           body: messageBody,
+          cc: ccAddresses,
         }),
       });
       const data = await response.json();
       if (data.success) {
         setMessageResult(data);
+      } else if (data.error === "invalid_cc_addresses") {
+        notify(t("platformMisc.runs.messageCcInvalid"));
+      } else if (data.error === "too_many_cc_addresses") {
+        notify(t("platformMisc.runs.messageCcTooMany"));
       } else {
         notify(data.error || t("platformMisc.runs.messageSendFailed"));
       }

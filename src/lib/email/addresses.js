@@ -34,6 +34,28 @@ export function isPlaceholderEmail(email) {
   return false;
 }
 
+/** Parse a comma-, semicolon-, or newline-separated email address list. */
+export function parseEmailAddressList(value) {
+  const entries = (Array.isArray(value) ? value : [value])
+    .flatMap((entry) => String(entry || "").split(/[,;\n]+/))
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+  const emails = [];
+  const invalid = [];
+  const seen = new Set();
+
+  for (const email of entries) {
+    if (!/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(email) || isPlaceholderEmail(email)) {
+      invalid.push(email);
+    } else if (!seen.has(email)) {
+      seen.add(email);
+      emails.push(email);
+    }
+  }
+
+  return { emails, invalid };
+}
+
 /**
  * Resolve the real applicant email for a submission:
  *   1. a real email answer from the form response (label-aware: Email,

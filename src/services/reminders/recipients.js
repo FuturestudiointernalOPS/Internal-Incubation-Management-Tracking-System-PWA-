@@ -19,7 +19,11 @@
  * Reads through `@/models/**`, runs no SQL, speaks no HTTP.
  */
 
-import { selectAssigneeEmails, selectContactEmailsByCids } from "@/models/ventureAssigneeEmails";
+import {
+  selectAssigneeEmails,
+  selectContactCidByEmail,
+  selectContactEmailsByCids,
+} from "@/models/ventureAssigneeEmails";
 
 /** Deliberately simple: one @, something either side, a dot in the domain. */
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -142,4 +146,27 @@ export function splitReachable(recipients = []) {
     reachable: recipients.filter((entry) => entry.email),
     unreachable: recipients.filter((entry) => !entry.email),
   };
+}
+
+/**
+ * Whether a recipient can sign in to ImpactOS — it decides where the email's
+ * button leads: the login page for someone with an account, registration for
+ * someone without one.
+ *
+ * An address read from a contact record is an account by definition. An address
+ * typed by hand may still belong to someone who registered since, so it is
+ * looked up. A failed lookup answers "account": the login page is the safer
+ * guess, since a sign-up form would file a duplicate request for someone who is
+ * already registered.
+ */
+export async function hasPlatformAccount(recipient = {}) {
+  if (recipient.source === "contact") return true;
+  const email = normalizeEmail(recipient.email);
+  if (!email) return false;
+  try {
+    const found = await selectContactCidByEmail(email);
+    return Boolean(found?.rows?.length);
+  } catch {
+    return true;
+  }
 }

@@ -69,3 +69,20 @@ export function selectContactEmailsByCids(cids = []) {
     args: list,
   });
 }
+
+/**
+ * The contact that already holds an address, if any.
+ *
+ * Answers "does this address belong to someone who can sign in?" for a
+ * reminder sent to an address typed by hand: the button in the email sends a
+ * known address to the login page and an unknown one to registration.
+ */
+export function selectContactCidByEmail(email) {
+  return db.execute({
+    sql: `SELECT cid
+          FROM contacts
+          WHERE LOWER(TRIM(email)) = LOWER(TRIM(?)) AND deleted = 0 AND deleted_at IS NULL
+          LIMIT 1`,
+    args: [String(email ?? "")],
+  });
+}

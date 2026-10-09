@@ -58,7 +58,7 @@ export async function getCalendarPrograms(programTableScopeSql, programScopeArgs
 /** Calendar source — sessions with dates, scoped the same way as programs. */
 export async function getCalendarSessions(programScopeSql, programScopeArgs) {
   return db.execute({
-    sql: `SELECT s.id, s.title, s.start_at, s.type, s.teacher_id, s.program_id, p.name AS program_name
+    sql: `SELECT s.id, s.title, s.start_at, s.start_time, s.end_time, s.type, s.teacher_id, s.program_id, p.name AS program_name
               FROM v2_sessions s
               LEFT JOIN v2_programs p ON s.program_id = p.id AND (p.is_archived IS NULL OR p.is_archived = 0)
               WHERE s.start_at IS NOT NULL${programScopeSql}`,
