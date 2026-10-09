@@ -7,7 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 
 /**
- * Admin → Ventures → [Venture] → Journey ("Project" tab of the Venture hub)
+ * Admin → Ventures → [Venture] → Journey ("Journey" tab of the Venture hub)
  * Super Admin surface for the Venture's staff-defined journey — and nothing
  * else. The Venture's work items have their own page: `/projects`.
  */

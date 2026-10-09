@@ -15,7 +15,7 @@ const pickVenture = (payload) => (payload?.success ? payload.venture || null : n
  *
  * The Venture's work — milestones, activities, deliverables — and nothing else.
  * The Journey itself (stages, templates, change history) is edited on the
- * `/journey` page, reached from the hub's "Project" tab.
+ * `/journey` page, reached from the hub's "Journey" tab.
  */
 export default function VentureProjectsPage() {
   const params = useParams();
