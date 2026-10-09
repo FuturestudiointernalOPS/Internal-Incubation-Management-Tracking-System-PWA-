@@ -148,6 +148,15 @@ export default function VentureDetailView({ ctx }) {
             </div>
 
             <div className="flex gap-3">
+              {/* Staff assignment: who manages/coaches this Venture and at what
+                  scope — where a staff member is bound as Lead Manager. */}
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/permissions?role=lead_manager`)}
+                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
+                title={t("vadmin.detail.staffTitle")}
+              >
+                <Users className="w-3 h-3" /> {t("vadmin.detail.staff")}
+              </button>
               <button
                 onClick={() => router.push(`/admin/ventures/${id}/notes`)}
                 className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"

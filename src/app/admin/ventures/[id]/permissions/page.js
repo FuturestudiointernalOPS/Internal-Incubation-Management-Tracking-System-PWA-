@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2, Users, Trash2, UserPlus, Save, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
@@ -22,6 +22,10 @@ const STAFF_ROLES = new Set([
 export default function VentureStaffAssignmentsPage() {
   const { id } = useParams();
   const router = useRouter();
+  // Coming from the Venture header's "Staff" button (?role=lead_manager) the
+  // form is pre-aimed at that responsibility and opened straight away, so the
+  // button adds a Lead Manager in one step.
+  const requestedResponsibility = useSearchParams().get("role") || "";
   const { t } = useI18n();
 
   const [venture, setVenture] = useState(null);
@@ -31,13 +35,13 @@ export default function VentureStaffAssignmentsPage() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
 
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(Boolean(requestedResponsibility));
   const [saving, setSaving] = useState(false);
   const [contactQ, setContactQ] = useState("");
   const [contactResults, setContactResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [picked, setPicked] = useState(null);
-  const [form, setForm] = useState({ responsibility_code: "", scope_type: "venture_wide", scope_ref: "" });
+  const [form, setForm] = useState({ responsibility_code: requestedResponsibility, scope_type: "venture_wide", scope_ref: "" });
 
   const notify = (message, type = "success") => {
     setToast({ msg: message, type });
