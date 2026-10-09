@@ -92,7 +92,7 @@ export default function VentureDetailView({ ctx }) {
 
   const TABS = [
     { id: "dashboard", label: "vadmin.detail.dashboard", icon: Rocket },
-    { id: "journey", label: "vadmin.detail.journey", icon: Route },
+    { id: "journey", label: "vadmin.detail.journeyTab", icon: Route },
     { id: "investment", label: "vadmin.detail.investmentReadiness", icon: TrendingUp },
     { id: "timeline", label: "vadmin.detail.timeline", icon: BarChart3 },
     { id: "reports", label: "vadmin.detail.reports", icon: FileText },
