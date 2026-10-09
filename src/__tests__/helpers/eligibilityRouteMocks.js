@@ -148,6 +148,9 @@ function authorizationModelMock() {
 // list — so the route's profile catalogue is stubbed here.
 function profileCapabilitiesStoreMock() {
   return {
+    // The eligibility read ensures the profile-capability schema before listing
+    // the catalogue (that ALTER is what adds `profiles.label`).
+    ensureProfileCapabilitiesSchema: jest.fn().mockResolvedValue(true),
     listRoleProfileDefaults: jest.fn().mockImplementation(async () => ({
       rows: mockState.roleDefaults,
     })),
