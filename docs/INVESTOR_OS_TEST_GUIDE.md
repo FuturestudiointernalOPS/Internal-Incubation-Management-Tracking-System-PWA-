@@ -274,9 +274,8 @@ Créer I2, I3 et I4 via le **lien de candidature** (formulaire de la plateforme)
 | Onglet | Route | Fonction |
 |---|---|---|
 | INVESTOR MANAGEMENT | `/admin/investors` | Approuver / rejeter / suspendre, copier le lien d'inscription |
-| DASHBOARD | `/admin/investors/dashboard` | Analyse exécutive |
+| DASHBOARD | `/admin/investors/dashboard` | Analyse exécutive + activité des investisseurs (l'ancien onglet OVERVIEW y est fusionné ; `/admin/investors/overview` redirige) |
 | REVIEW | `/admin/investors/review` | Revue de qualification |
-| OVERVIEW | `/admin/investors/overview` | Activité et suivi due diligence |
 | CAMPAIGNS | `/admin/investors/campaigns` | Gestion des campagnes de levée |
 | RELATIONSHIPS | `/admin/investors/relationships` | Espaces, réunions, due diligence |
 

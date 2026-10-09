@@ -66,7 +66,6 @@ const FIXTURE = {
         { id: "investors_manage", href: "/admin/investors", subItems: null },
         { id: "investors_dashboard", href: "/admin/investors/dashboard", subItems: null },
         { id: "investors_review", href: "/admin/investors/review", subItems: null },
-        { id: "investors_overview", href: "/admin/investors/overview", subItems: null },
         { id: "investors_campaigns", href: "/admin/investors/campaigns", subItems: null },
         { id: "investors_relationships", href: "/admin/investors/relationships", subItems: null },
       ],

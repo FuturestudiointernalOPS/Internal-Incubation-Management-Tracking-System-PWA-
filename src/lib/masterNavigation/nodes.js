@@ -78,7 +78,6 @@ export const MASTER_NAVIGATION = [
       { id: "investors_manage", name: "INVESTOR MANAGEMENT", href: "/admin/investors" },
       { id: "investors_dashboard", name: "DASHBOARD", href: "/admin/investors/dashboard" },
       { id: "investors_review", name: "REVIEW", href: "/admin/investors/review" },
-      { id: "investors_overview", name: "OVERVIEW", href: "/admin/investors/overview" },
       { id: "investors_campaigns", name: "CAMPAIGNS", href: "/admin/investors/campaigns" },
       { id: "investors_relationships", name: "RELATIONSHIPS", href: "/admin/investors/relationships" },
     ],

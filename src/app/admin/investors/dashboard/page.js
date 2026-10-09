@@ -1,196 +1,218 @@
 "use client";
 
-import { TrendingUp, DollarSign, Users, Target, BarChart3, Megaphone, Activity, Briefcase, Loader2 } from "lucide-react";
-import AppCard from "@/components/ui/AppCard";
+import { useRouter } from "next/navigation";
+import { Activity, BarChart3, Briefcase, DollarSign, Loader2, Megaphone, Shield, TrendingUp, UserCheck, Users } from "lucide-react";
 import AppLinkCard from "@/components/ui/AppLinkCard";
+import KpiCard from "@/components/ui/KpiCard";
+import SectionHead from "@/components/ui/SectionHead";
+import InvestorActivity from "@/components/admin/investors/InvestorActivity";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 
-const STAGE_COLORS = { interested: "bg-slate-500/10 text-slate-400", watching: "bg-blue-500/10 text-blue-400", meeting_requested: "bg-amber-500/10 text-amber-400", due_diligence: "bg-purple-500/10 text-purple-400", negotiation: "bg-orange-500/10 text-orange-400", invested: "bg-emerald-500/10 text-emerald-400", declined: "bg-rose-500/10 text-rose-400" };
+const STAGE_TONE = { interested: "", watching: "b", meeting_requested: "w", due_diligence: "b", negotiation: "o", invested: "g", declined: "r" };
 
-// Module scope on purpose: the hook keys its internal callback on this function,
-// so an inline arrow would give it a new identity on every render and refetch in
-// a loop.
+// Module scope on purpose: the hook keys its internal callback on these
+// functions and values, so inline ones would get a new identity on every render
+// and refetch in a loop.
 const pickExecutiveDashboard = (payload) => (payload?.success ? payload : null);
+const EMPTY_ACTIVITY = { workspaces: [], pipelines: [], stats: {}, requests: [] };
+const pickActivity = (payload) =>
+  payload?.success
+    ? { workspaces: payload.workspaces || [], pipelines: payload.pipelines || [], stats: payload.stats || {}, requests: payload.requests || [] }
+    : EMPTY_ACTIVITY;
 
 // Where each card of this dashboard leads. A card navigates only when
 // `isDeveloped` is true; otherwise it nudges on click and stays put. Flip the
 // flag (and set `redirectTo`) the day the target page ships.
 const CARD_LINKS = {
   verifiedInvestors: { isDeveloped: true, redirectTo: "/admin/investors?status=approved" },
+  pendingInvestors: { isDeveloped: true, redirectTo: "/admin/investors?status=pending" },
   activeCampaigns: { isDeveloped: true, redirectTo: "/admin/investors/campaigns?status=active" },
-  totalCommitted: { isDeveloped: false, redirectTo: null }, // no investment-decisions page yet
-  investedDeals: { isDeveloped: false, redirectTo: null }, // no "invested" pipeline view yet
   fundraising: { isDeveloped: true, redirectTo: "/admin/investors/campaigns" },
   relationships: { isDeveloped: true, redirectTo: "/admin/investors/relationships" },
-  pipeline: { isDeveloped: true, redirectTo: "/admin/investors/overview" },
+  pipeline: { isDeveloped: true, redirectTo: "/admin/investors/relationships" },
   campaignPerformance: { isDeveloped: true, redirectTo: "/admin/investors/campaigns" },
   sectorDemand: { isDeveloped: false, redirectTo: null }, // no sector analytics page yet
   topInvestors: { isDeveloped: true, redirectTo: "/admin/investors" },
 };
 
-export default function ExecutiveDashboardPage() {
+const thousands = (value) => `$${((value || 0) / 1000).toFixed(0)}K`;
+
+/**
+ * INVESTORS — the one dashboard: what investors are doing now (due diligence,
+ * introduction requests, live pipelines, information requests — the former
+ * Overview) above the executive picture (investors, fundraising, relationships,
+ * pipeline funnel, campaigns, sectors — the former Dashboard).
+ *
+ * Reads:   GET /api/investor/executive-dashboard
+ *          GET /api/investor/admin-overview
+ * Read-only.
+ */
+export default function InvestorsDashboardPage() {
   const { t } = useI18n();
-  const STAGE_LABELS = { interested: t("investorAdmin.dashboard.stageInterested"), watching: t("investorAdmin.dashboard.stageWatching"), meeting_requested: t("investorAdmin.dashboard.stageIntroRequested"), due_diligence: t("investorAdmin.dashboard.stageDueDiligence"), negotiation: t("investorAdmin.dashboard.stageNegotiation"), invested: t("investorAdmin.dashboard.invested"), declined: t("investorAdmin.dashboard.stageDeclined") };
-  // The loader's work — painting from the cache first, discarding a stale
-  // response, the background refresh — belongs to the hook, so the screen keeps
-  // no data state of its own and never sets state from an effect.
-  const { data, loading } = useApi("/api/investor/executive-dashboard", {
-    transform: pickExecutiveDashboard,
-  });
+  const router = useRouter();
+  const stageLabels = {
+    interested: t("investorAdmin.dashboard.stageInterested"),
+    watching: t("investorAdmin.dashboard.stageWatching"),
+    meeting_requested: t("investorAdmin.dashboard.stageIntroRequested"),
+    due_diligence: t("investorAdmin.dashboard.stageDueDiligence"),
+    negotiation: t("investorAdmin.dashboard.stageNegotiation"),
+    invested: t("investorAdmin.dashboard.invested"),
+    declined: t("investorAdmin.dashboard.stageDeclined"),
+  };
 
-  if (loading) return <><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>;
+  const executive = useApi("/api/investor/executive-dashboard", { transform: pickExecutiveDashboard });
+  const activity = useApi("/api/investor/admin-overview", { defaultValue: EMPTY_ACTIVITY, transform: pickActivity });
 
-  const dashboard = data || {};
+  if (executive.loading && activity.loading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" />
+      </div>
+    );
+  }
+
+  const dashboard = executive.data || {};
   const investorStats = dashboard.investors || {};
   const ventureStats = dashboard.ventures || {};
   const fundraisingStats = dashboard.fundraising || {};
   const relationshipStats = dashboard.relationships || {};
+  const pipeline = dashboard.pipeline || [];
+  const pipelineMax = Math.max(1, ...pipeline.map((stage) => stage.count));
+  const pipelineTotal = pipeline.reduce((sum, stage) => sum + stage.count, 0);
+  const stats = activity.data.stats;
+  const go = (key) => (CARD_LINKS[key].isDeveloped ? () => router.push(CARD_LINKS[key].redirectTo) : undefined);
+
+  const stat = (label, value) => (
+    <div className="stf-card" style={{ padding: 12, background: "var(--surface-2)" }}>
+      <div className="stf-k">{label}</div>
+      <div style={{ fontSize: 15, fontWeight: 800, marginTop: 4 }}>{value}</div>
+    </div>
+  );
 
   return (
-    <>
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+    <div className="stf" style={{ paddingBottom: 60 }}>
+      <div className="stf-head">
         <div>
-          <h1 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter">{t("investorAdmin.dashboard.title")}</h1>
-          <p className="text-xs text-[var(--text-secondary)] mt-1">{t("investorAdmin.dashboard.subtitle")}</p>
+          <h1 className="stf-title">{t("investorAdmin.dashboard.title")}</h1>
+          <p className="stf-sub">{t("investorAdmin.dashboard.subtitle")}</p>
         </div>
+      </div>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { id: "verifiedInvestors", label: t("investorAdmin.dashboard.verifiedInvestors"), value: investorStats.total_verified || 0, icon: Users, color: "text-blue-400" },
-            { id: "activeCampaigns", label: t("investorAdmin.dashboard.activeCampaigns"), value: ventureStats.active_campaigns || 0, icon: Megaphone, color: "text-amber-400" },
-            { id: "totalCommitted", label: t("investorAdmin.dashboard.totalCommitted"), value: `$${((fundraisingStats.total_committed || 0) / 1000).toFixed(0)}K`, icon: DollarSign, color: "text-emerald-400" },
-            { id: "investedDeals", label: t("investorAdmin.dashboard.investedDeals"), value: relationshipStats.total_invested || 0, icon: Target, color: "text-[var(--brand-orange)]" },
-          ].map((kpi) => (
-            <AppLinkCard key={kpi.id} padding="md" ariaLabel={kpi.label} {...CARD_LINKS[kpi.id]}>
-              <div className="flex items-center gap-3">
-                <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
-                <div>
-                  <p className="text-2xl font-black text-[var(--text-primary)]">{kpi.value}</p>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{kpi.label}</p>
-                </div>
-              </div>
-            </AppLinkCard>
-          ))}
-        </div>
+      {/* Figures */}
+      <div className="stf-grid">
+        <KpiCard label={t("investorAdmin.dashboard.verifiedInvestors")} value={investorStats.total_verified || 0} icon={Users} onClick={go("verifiedInvestors")} />
+        <KpiCard label={t("investorAdmin.overview.pending")} value={stats.pending_investors || 0} icon={UserCheck} onClick={go("pendingInvestors")} />
+        <KpiCard label={t("investorAdmin.overview.activeDd")} value={stats.active_dd || 0} icon={Shield} />
+        <KpiCard label={t("investorAdmin.dashboard.activeCampaigns")} value={ventureStats.active_campaigns || 0} icon={Megaphone} onClick={go("activeCampaigns")} />
+        <KpiCard label={t("investorAdmin.dashboard.totalCommitted")} value={thousands(fundraisingStats.total_committed)} icon={DollarSign} />
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Fundraising KPIs */}
-          <AppLinkCard padding="lg" {...CARD_LINKS.fundraising}>
-            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><DollarSign className="w-4 h-4 text-emerald-400" /> {t("investorAdmin.dashboard.fundraising")}</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                [t("investorAdmin.dashboard.capitalSought"), `$${((fundraisingStats.total_sought || 0) / 1000).toFixed(0)}K`],
-                [t("investorAdmin.dashboard.capitalRaised"), `$${((fundraisingStats.total_raised || 0) / 1000).toFixed(0)}K`],
-                [t("investorAdmin.dashboard.capitalCommitted"), `$${((fundraisingStats.total_committed || 0) / 1000).toFixed(0)}K`],
-                [t("investorAdmin.dashboard.conversionRate"), fundraisingStats.total_sought > 0 ? `${Math.round((fundraisingStats.total_committed / fundraisingStats.total_sought) * 100)}%` : "—"],
-              ].map(([label, value], i) => (
-                <div key={i} className="p-3 rounded-xl bg-[var(--surface-2)]">
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{label}</p>
-                  <p className="text-sm font-black text-[var(--text-primary)] mt-1">{value}</p>
-                </div>
-              ))}
+      {/* A — what investors are doing now */}
+      <section className="stf-sec">
+        <SectionHead letter="A" tone="o" icon={Activity} title={t("investorAdmin.overview.investorActivity")} />
+        <InvestorActivity workspaces={activity.data.workspaces} pipelines={activity.data.pipelines} requests={activity.data.requests} />
+      </section>
+
+      {/* B — the executive picture */}
+      <section className="stf-sec">
+        <SectionHead letter="B" tone="b" icon={BarChart3} title={t("investorAdmin.dashboard.executiveSection")} subtitle={t("investorAdmin.dashboard.subtitle")} />
+
+        <div className="stf-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+          <AppLinkCard padding="md" {...CARD_LINKS.fundraising}>
+            <h3 className="stf-card-title"><DollarSign size={15} /> {t("investorAdmin.dashboard.fundraising")}</h3>
+            <div className="stf-grid" style={{ gridTemplateColumns: "1fr 1fr", marginBottom: 0 }}>
+              {stat(t("investorAdmin.dashboard.capitalSought"), thousands(fundraisingStats.total_sought))}
+              {stat(t("investorAdmin.dashboard.capitalRaised"), thousands(fundraisingStats.total_raised))}
+              {stat(t("investorAdmin.dashboard.capitalCommitted"), thousands(fundraisingStats.total_committed))}
+              {stat(t("investorAdmin.dashboard.conversionRate"), fundraisingStats.total_sought > 0 ? `${Math.round((fundraisingStats.total_committed / fundraisingStats.total_sought) * 100)}%` : "—")}
             </div>
           </AppLinkCard>
 
-          {/* Relationships */}
-          <AppLinkCard padding="lg" {...CARD_LINKS.relationships}>
-            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><Briefcase className="w-4 h-4 text-purple-400" /> {t("investorAdmin.dashboard.relationships")}</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                [t("investorAdmin.dashboard.active"), relationshipStats.active_relationships || 0],
-                [t("investorAdmin.dashboard.meetingsDone"), relationshipStats.meetings_completed || 0],
-                [t("investorAdmin.dashboard.invested"), relationshipStats.total_invested || 0],
-                [t("investorAdmin.dashboard.pipelineTotal"), (dashboard.pipeline || []).reduce((sum, stage) => sum + stage.count, 0)],
-              ].map(([label, value], i) => (
-                <div key={i} className="p-3 rounded-xl bg-[var(--surface-2)]">
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{label}</p>
-                  <p className="text-sm font-black text-[var(--text-primary)] mt-1">{value}</p>
-                </div>
-              ))}
+          <AppLinkCard padding="md" {...CARD_LINKS.relationships}>
+            <h3 className="stf-card-title"><Briefcase size={15} /> {t("investorAdmin.dashboard.relationships")}</h3>
+            <div className="stf-grid" style={{ gridTemplateColumns: "1fr 1fr", marginBottom: 0 }}>
+              {stat(t("investorAdmin.dashboard.active"), relationshipStats.active_relationships || 0)}
+              {stat(t("investorAdmin.dashboard.meetingsDone"), relationshipStats.meetings_completed || 0)}
+              {stat(t("investorAdmin.dashboard.invested"), relationshipStats.total_invested || 0)}
+              {stat(t("investorAdmin.dashboard.pipelineTotal"), pipelineTotal)}
             </div>
           </AppLinkCard>
         </div>
 
-        {/* Pipeline Funnel */}
-        <AppLinkCard padding="lg" {...CARD_LINKS.pipeline}>
-          <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4 text-[var(--brand-orange)]" /> {t("investorAdmin.dashboard.investmentPipeline")}</h3>
-          <div className="flex flex-wrap gap-2">
-            {(dashboard.pipeline || []).map(stage => (
-              <div key={stage.stage} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--surface-2)]">
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${STAGE_COLORS[stage.stage] || "bg-slate-500/10 text-slate-400"}`}>{STAGE_LABELS[stage.stage] || stage.stage}</span>
-                <span className="text-sm font-black text-[var(--text-primary)]">{stage.count}</span>
-              </div>
-            ))}
-            {(dashboard.pipeline || []).length === 0 && <p className="text-xs text-[var(--text-tertiary)]">{t("investorAdmin.dashboard.noPipelineActivity")}</p>}
-          </div>
-        </AppLinkCard>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Campaign Performance */}
-          <AppLinkCard padding="lg" {...CARD_LINKS.campaignPerformance}>
-            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-emerald-400" /> {t("investorAdmin.dashboard.campaignPerformance")}</h3>
-            {(dashboard.campaignPerformance || []).length === 0 ? (
-              <p className="text-xs text-[var(--text-tertiary)]">{t("investorAdmin.dashboard.noActiveCampaigns")}</p>
-            ) : (
-              <div className="space-y-2">
-                {(dashboard.campaignPerformance || []).map((campaign, i) => (
-                  <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-[var(--surface-2)]">
-                    <div className="flex-1 mr-3">
-                      <p className="text-[10px] font-bold text-[var(--text-primary)]">{campaign.venture_name}</p>
-                      <p className="text-[10px] text-[var(--text-tertiary)]">{campaign.industry || "—"}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 h-1.5 bg-[var(--surface-3)] rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, campaign.pct || 0)}%` }} />
-                      </div>
-                      <span className="text-[10px] font-black text-[var(--text-primary)] w-8 text-right">{campaign.pct || 0}%</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </AppLinkCard>
-
-          {/* Sector Demand */}
-          <AppLinkCard padding="lg" {...CARD_LINKS.sectorDemand}>
-            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><Activity className="w-4 h-4 text-blue-400" /> {t("investorAdmin.dashboard.sectorDemand")}</h3>
-            {(dashboard.sectorDemand || []).length === 0 ? (
-              <p className="text-xs text-[var(--text-tertiary)]">{t("investorAdmin.dashboard.noData")}</p>
-            ) : (
-              <div className="space-y-2">
-                {(dashboard.sectorDemand || []).map((sector, i) => (
-                  <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-[var(--surface-2)]">
-                    <span className="text-[10px] font-bold text-[var(--text-primary)]">{sector.industry || t("investorAdmin.dashboard.unknown")}</span>
-                    <span className="text-[10px] font-black text-[var(--brand-orange)]">{t("investorAdmin.dashboard.interestCount", { count: sector.interest_count })}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </AppLinkCard>
-        </div>
-
-        {/* Top Investors */}
-        <AppLinkCard padding="lg" {...CARD_LINKS.topInvestors}>
-          <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><Users className="w-4 h-4 text-amber-400" /> {t("investorAdmin.dashboard.topInvestors")}</h3>
-          {(dashboard.topInvestors || []).length === 0 ? (
-            <p className="text-xs text-[var(--text-tertiary)]">{t("investorAdmin.dashboard.noInvestorActivity")}</p>
+        <AppLinkCard padding="md" {...CARD_LINKS.pipeline}>
+          <h3 className="stf-card-title"><BarChart3 size={15} /> {t("investorAdmin.dashboard.investmentPipeline")}</h3>
+          {pipeline.length === 0 ? (
+            <p className="stf-small">{t("investorAdmin.dashboard.noPipelineActivity")}</p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {(dashboard.topInvestors || []).map((investor, i) => (
-                <AppCard key={i} padding="md">
-                  <p className="text-sm font-bold text-[var(--text-primary)]">{investor.organization_name || investor.name}</p>
-                  <div className="flex gap-3 mt-2 text-[10px]">
-                    <span className="text-[var(--text-secondary)]">{t("investorAdmin.dashboard.pipelineLabel")}: <b className="text-[var(--text-primary)]">{investor.pipeline_count}</b></span>
-                    <span className="text-[var(--text-secondary)]">{t("investorAdmin.dashboard.invested")}: <b className="text-emerald-400">{investor.invested_count}</b></span>
-                  </div>
-                </AppCard>
+            <div style={{ display: "grid", gap: 10 }}>
+              {pipeline.map((stage) => (
+                <div key={stage.stage} style={{ display: "grid", gridTemplateColumns: "150px 1fr 36px", alignItems: "center", gap: 12 }}>
+                  <span className={`stf-tag ${STAGE_TONE[stage.stage] || ""}`} style={{ justifySelf: "start" }}>{stageLabels[stage.stage] || stage.stage}</span>
+                  <div className="stf-bar-prog" style={{ margin: 0 }}><i style={{ width: `${(stage.count / pipelineMax) * 100}%` }} /></div>
+                  <b style={{ textAlign: "right", fontSize: 13 }}>{stage.count}</b>
+                </div>
               ))}
             </div>
           )}
         </AppLinkCard>
-      </div>
-    </>
+
+        <div className="stf-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", marginTop: 16 }}>
+          <AppLinkCard padding="md" {...CARD_LINKS.campaignPerformance}>
+            <h3 className="stf-card-title"><TrendingUp size={15} /> {t("investorAdmin.dashboard.campaignPerformance")}</h3>
+            {(dashboard.campaignPerformance || []).length === 0 ? (
+              <p className="stf-small">{t("investorAdmin.dashboard.noActiveCampaigns")}</p>
+            ) : (
+              <div style={{ display: "grid", gap: 10 }}>
+                {dashboard.campaignPerformance.map((campaign, index) => (
+                  <div key={index}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                      <b>{campaign.venture_name}</b>
+                      <b>{campaign.pct || 0}%</b>
+                    </div>
+                    <div className="stf-small" style={{ marginTop: 0 }}>{campaign.industry || "—"}</div>
+                    <div className="stf-bar-prog"><i style={{ width: `${Math.min(100, campaign.pct || 0)}%` }} /></div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </AppLinkCard>
+
+          <AppLinkCard padding="md" {...CARD_LINKS.sectorDemand}>
+            <h3 className="stf-card-title"><Activity size={15} /> {t("investorAdmin.dashboard.sectorDemand")}</h3>
+            {(dashboard.sectorDemand || []).length === 0 ? (
+              <p className="stf-small">{t("investorAdmin.dashboard.noData")}</p>
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                {dashboard.sectorDemand.map((sector, index) => (
+                  <div key={index} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                    <b>{sector.industry || t("investorAdmin.dashboard.unknown")}</b>
+                    <span className="stf-tag o">{t("investorAdmin.dashboard.interestCount", { count: sector.interest_count })}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </AppLinkCard>
+        </div>
+
+        <AppLinkCard padding="md" {...CARD_LINKS.topInvestors} className="mt-4">
+          <h3 className="stf-card-title"><Users size={15} /> {t("investorAdmin.dashboard.topInvestors")}</h3>
+          {(dashboard.topInvestors || []).length === 0 ? (
+            <p className="stf-small">{t("investorAdmin.dashboard.noInvestorActivity")}</p>
+          ) : (
+            <div className="stf-grid" style={{ marginBottom: 0 }}>
+              {dashboard.topInvestors.map((investor, index) => (
+                <div key={index} className="stf-card" style={{ padding: 12, background: "var(--surface-2)" }}>
+                  <b style={{ fontSize: 13 }}>{investor.organization_name || investor.name}</b>
+                  <div className="stf-small">
+                    {t("investorAdmin.dashboard.pipelineLabel")}: <b>{investor.pipeline_count}</b> · {t("investorAdmin.dashboard.invested")}: <b style={{ color: "var(--stf-done)" }}>{investor.invested_count}</b>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </AppLinkCard>
+      </section>
+    </div>
   );
 }

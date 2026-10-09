@@ -130,7 +130,7 @@ export async function addOrUpdatePipeline({ ventureId, stage, notes, amount, ses
           organization_name: investorInfo.organization_name,
           venture_name: investorInfo.venture_name,
           notes,
-          link: "/admin/investors/overview",
+          link: "/admin/investors/dashboard",
         });
       }
 
@@ -192,7 +192,7 @@ export async function addOrUpdatePipeline({ ventureId, stage, notes, amount, ses
           organization_name: investorInfo.organization_name,
           venture_name: investorInfo.venture_name,
           investment_amount: investedAmount,
-          link: "/admin/investors/overview",
+          link: "/admin/investors/dashboard",
         });
       }
 

@@ -77,7 +77,8 @@
       "stageIntroRequested": "Intro Requested",
       "stageDueDiligence": "Due Diligence",
       "stageNegotiation": "Negotiation",
-      "stageDeclined": "Declined"
+      "stageDeclined": "Declined",
+      "executiveSection": "Executive overview"
     },
     "list": {
       "title": "Investor Management",
