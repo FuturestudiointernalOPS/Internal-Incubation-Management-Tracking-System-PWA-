@@ -18,7 +18,7 @@ import { Cell, EmptyRow, HeadCell, Kpi, KpiRow, Pill, PrototypeTable } from "../
 
 export default function GroupDrawer({ group, data, onClose, onOpenPerson }) {
   const { t } = useI18n();
-  const { groupDefaults = [], eligibilityMatrix = {}, moduleToFeature = {}, features = [] } = data;
+  const { groupDefaults = [], eligibilityMatrix = {}, moduleToFeature = {}, features = [], roleDefaults = {} } = data;
   const [members, setMembers] = useState(null);
 
   useEffect(() => {
@@ -97,7 +97,7 @@ export default function GroupDrawer({ group, data, onClose, onOpenPerson }) {
             >
               <Cell className="font-bold">{contact.name || contact.email || contact.cid}</Cell>
               <Cell>{contact.role || t("engineering.permissions.prototype.emptyValue")}</Cell>
-              <Cell>{contact.access_profile_id ? `#${contact.access_profile_id}` : t("engineering.permissions.prototype.emptyValue")}</Cell>
+              <Cell>{roleDefaults[contact.role]?.profileName || t("engineering.permissions.prototype.emptyValue")}</Cell>
             </tr>
           ))}
         </tbody>

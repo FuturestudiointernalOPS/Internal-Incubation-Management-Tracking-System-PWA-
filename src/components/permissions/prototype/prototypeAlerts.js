@@ -42,9 +42,13 @@ export function computeAlerts(bundle = {}) {
   // that actually have people are worth a warning — a ceiling nobody sits
   // under is configuration, not an incident.
   for (const profile of profiles) {
-    const caps = profileCapsById[profile.id] || {};
+    const caps = profileCapsById[profile.key ?? profile.id] || {};
     const roles = Object.entries(roleDefaults)
-      .filter(([, value]) => String(value?.profileId ?? value?.profile_id) === String(profile.id))
+      .filter(
+        ([, value]) =>
+          String(value?.profileKey ?? value?.profileId ?? value?.profile_id) ===
+          String(profile.key ?? profile.id),
+      )
       .map(([role]) => role);
     for (const role of roles) {
       if (!peopleByRole[role]) continue;
@@ -57,7 +61,7 @@ export function computeAlerts(bundle = {}) {
           section: "rules",
           tab: "eligibility",
           key: "engineering.permissions.prototype.alerts.deadRights",
-          params: { role, feature, profile: profile.name },
+          params: { role, feature, profile: profile.name || profile.label || profile.key },
         });
         break; // one alert per role+profile is enough to open the door
       }
@@ -66,7 +70,7 @@ export function computeAlerts(bundle = {}) {
 
   // 2 — A contextual link with no profile behind it: the mapping exists, the
   // profile column is empty, so nobody can tell what that link grants.
-  const gaps = (contextRoles || []).filter((row) => !row.profile_id && row.is_active !== 0);
+  const gaps = (contextRoles || []).filter((row) => !row.profile_key && row.is_active !== 0);
   if (gaps.length > 0) {
     alerts.push({
       id: "context-role-gaps",

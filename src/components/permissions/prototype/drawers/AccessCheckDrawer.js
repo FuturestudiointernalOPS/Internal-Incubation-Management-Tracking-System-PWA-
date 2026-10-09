@@ -14,8 +14,8 @@ import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import AppDrawer from "@/components/ui/AppDrawer";
 import AppButton from "@/components/ui/AppButton";
-import { CONTROL_CLASS, Field, Gate, Pill } from "./prototypeUi";
-import { buildRightRows, gatesForRow, levelLabel } from "./personAccess";
+import { CONTROL_CLASS, Field, Gate, Pill, levelLabel } from "../prototypeUi";
+import { buildRightRows, gatesForRow } from "../personAccess";
 
 /** Every capability of the catalog, as one flat list of options. */
 function capabilityOptions(catalog = {}) {

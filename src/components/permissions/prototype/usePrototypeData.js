@@ -44,16 +44,6 @@ const EMPTY = {
   responsibilities: [],
 };
 
-/** Profile capabilities as {module: {capability: level}}. */
-function capabilitiesById(capabilityRows = []) {
-  const map = {};
-  for (const row of capabilityRows) {
-    map[row.module] = map[row.module] || {};
-    map[row.module][row.capability] = Number(row.access_level || 1);
-  }
-  return map;
-}
-
 export default function usePrototypeData() {
   const [data, setData] = useState(EMPTY);
   const [loading, setLoading] = useState(true);
@@ -91,23 +81,37 @@ export default function usePrototypeData() {
       }
       if (part === "all" || part === "profiles") {
         reads.push(
-          getJson("/api/access-profiles").then(async (result) => {
-            const profiles = result?.success ? result.profiles || [] : [];
+          getJson("/api/engineering/permissions/profiles").then(async (result) => {
+            const profiles = (result?.profiles || []).map((profile) => ({
+              ...profile,
+              // The catalogue names a profile by KEY and LABEL; every screen
+              // below reads one display name.
+              name: profile.label || profile.key,
+            }));
             const caps = await Promise.all(
               profiles.map((profile) =>
-                getJson(`/api/access-profiles?id=${encodeURIComponent(profile.id)}`).catch(() => null),
+                getJson(
+                  `/api/engineering/permissions/profiles?key=${encodeURIComponent(profile.key)}`,
+                ).catch(() => null),
               ),
             );
             const profileCapsById = {};
             profiles.forEach((profile, index) => {
               const single = caps[index];
-              if (single?.success) profileCapsById[profile.id] = capabilitiesById(single.capabilities);
+              if (single?.success) {
+                profileCapsById[profile.key] = single.profile?.capabilities || {};
+              }
             });
-            patch({
-              profiles,
-              profileCapsById,
-              roleDefaults: result?.success ? result.roleDefaults || {} : {},
-            });
+            // role_defaults is role → profile KEY; the screens want the name too.
+            const byKey = Object.fromEntries(profiles.map((profile) => [profile.key, profile]));
+            const roleDefaults = {};
+            for (const [role, key] of Object.entries(result?.role_defaults || {})) {
+              roleDefaults[role] = {
+                profileKey: key,
+                profileName: byKey[key]?.name || key,
+              };
+            }
+            patch({ profiles, profileCapsById, roleDefaults });
           }),
         );
       }

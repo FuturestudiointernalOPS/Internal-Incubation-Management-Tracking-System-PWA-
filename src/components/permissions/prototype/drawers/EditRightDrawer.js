@@ -16,8 +16,8 @@ import { useI18n } from "@/lib/i18n";
 import AppDrawer from "@/components/ui/AppDrawer";
 import AppButton from "@/components/ui/AppButton";
 import { notify } from "@/lib/notify";
-import { CONTROL_CLASS, Field, Pill } from "../prototypeUi";
-import { changeRisk, levelLabel } from "../personAccess";
+import { CONTROL_CLASS, Field, Pill, levelLabel } from "../prototypeUi";
+import { changeRisk } from "../personAccess";
 
 const RISK_TONE = { normal: "ok", high: "warn", critical: "crit" };
 
@@ -154,7 +154,7 @@ export default function EditRightDrawer({ person, row, onClose, onSaved }) {
           {before} → <b>{after}</b>
         </p>
         <p className="mt-2 flex items-center gap-2">
-          <span className="text-[var(--text-secondary)]">{t("engineering.permissions.prototype.risk")}:</span>
+          <span className="text-[var(--text-secondary)]">{t("engineering.permissions.prototype.riskLabel")}:</span>
           <Pill tone={RISK_TONE[risk]}>{t(`engineering.permissions.prototype.risk.${risk}`)}</Pill>
         </p>
         {needsReason && (

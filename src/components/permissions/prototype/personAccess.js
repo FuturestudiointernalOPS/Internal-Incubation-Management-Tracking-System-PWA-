@@ -198,8 +198,12 @@ export function profileGrantsFeature(profileCaps = {}, feature, moduleToFeature 
  * @returns {string[]}
  */
 export function rolesDefaultingTo(profile, roleDefaults = {}) {
+  const identity = String(profile?.key ?? profile?.id ?? "");
   return Object.entries(roleDefaults)
-    .filter(([, value]) => String(value?.profileId ?? value?.profile_id) === String(profile?.id))
+    .filter(
+      ([, value]) =>
+        String(value?.profileKey ?? value?.profileId ?? value?.profile_id) === identity,
+    )
     .map(([role]) => role);
 }
 

@@ -7,7 +7,7 @@
  * data, no i18n keys of its own (the caller passes translated strings).
  */
 
-import { ACCESS_LEVEL_KEYS } from "./levelChips";
+import { ACCESS_LEVEL_KEYS } from "../levelChips";
 
 export function PrototypeTable({ children, minWidth = "42rem" }) {
   return (
@@ -91,24 +91,28 @@ export function Toolbar({ children }) {
   return <div className="mb-3 flex flex-wrap items-center gap-2">{children}</div>;
 }
 
-export function Tabs({ items, value, onChange }) {
+/**
+ * Tab bar. `items` is `[{key, label}]`, `value` the current key — the caller
+ * owns the labels (the centre translates its own).
+ */
+export function Tabs({ items = [], value, onChange }) {
   return (
     <div role="tablist" className="mb-4 flex flex-wrap gap-1 border-b border-[var(--border-primary)]">
       {items.map((item) => {
-        const active = item === value;
+        const active = item.key === value;
         return (
           <button
-            key={item}
+            key={item.key}
             role="tab"
             aria-selected={active}
-            onClick={() => onChange(item)}
+            onClick={() => onChange(item.key)}
             className={`shrink-0 border-b-2 px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 ${
               active
                 ? "border-[var(--brand-orange)] text-[var(--brand-orange)]"
                 : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
-            {item}
+            {item.label}
           </button>
         );
       })}

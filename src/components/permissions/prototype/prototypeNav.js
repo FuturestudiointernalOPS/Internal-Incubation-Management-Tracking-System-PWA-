@@ -25,11 +25,27 @@ export const PROTOTYPE_TABS = {
   journal: [],
 };
 
+/**
+ * A person's own detail tabs (opened by clicking a row) — the same prototype
+ * vocabulary, kept next to the section tabs it belongs with.
+ */
+export const PERSON_TABS = ["rights", "why", "scope", "responsibilities", "history"];
+
 export function sectionTabs(section) {
   return PROTOTYPE_TABS[section] || [];
 }
-
 /** The tab a section opens on ("" for the tab-less journal). */
 export function firstTab(section) {
   return sectionTabs(section)[0] || "";
 }
+
+/**
+ * Route door → prototype section, the same mapping the route contract test
+ * locks: the centre's four questions live behind the four existing doors.
+ */
+export const NAV_KEY_TO_SECTION = {
+  people: "people",
+  templates: "profiles",
+  rules: "rules",
+  history: "journal",
+};
