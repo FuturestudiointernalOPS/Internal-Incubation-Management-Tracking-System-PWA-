@@ -975,7 +975,6 @@
       "dependencyBlocked": "Bloquée par {names}",
       "dependencyRefused": "Cette tâche est retenue par une dépendance et ne peut pas avancer pour le moment.",
       "edit": "Modifier la tâche",
-      "titleRequired": "Titre requis",
       "saveFailed": "Impossible d'enregistrer la tâche",
       "updated": "Tâche mise à jour",
       "created": "Tâche créée"
@@ -1073,7 +1072,11 @@
       "reviewNotesPlaceholder": "Ajouter des notes ou des motifs de révision...",
       "cancel": "Annuler",
       "processing": "Traitement...",
-      "submitReview": "Soumettre la révision"
+      "submitReview": "Soumettre la révision",
+      "readinessDocuments": "Documents de préparation (Readiness)",
+      "readinessDocumentsHint": "Ces documents comptent pour le pourcentage de préparation.",
+      "contactVerification": "Vérification des coordonnées & contacts",
+      "contactVerificationHint": "La vérification de l’e-mail et du téléphone n’impacte pas le score de préparation."
     },
     "register": {
       "successTitle": "Startup enregistrée avec succès !",

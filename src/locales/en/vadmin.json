@@ -975,7 +975,6 @@
       "dependencyBlocked": "Blocked by {names}",
       "dependencyRefused": "This task is held by a dependency and cannot move forward yet.",
       "edit": "Edit task",
-      "titleRequired": "Title required",
       "saveFailed": "Could not save the task",
       "updated": "Task updated",
       "created": "Task created"
@@ -1073,7 +1072,11 @@
       "reviewNotesPlaceholder": "Add review notes or reasons...",
       "cancel": "Cancel",
       "processing": "Processing...",
-      "submitReview": "Submit Review"
+      "submitReview": "Submit Review",
+      "readinessDocuments": "Documents for Readiness",
+      "readinessDocumentsHint": "These count toward the readiness percentage.",
+      "contactVerification": "Contact Verification",
+      "contactVerificationHint": "Email and phone verification do not affect the readiness score."
     },
     "register": {
       "successTitle": "Startup Registered Successfully!",
