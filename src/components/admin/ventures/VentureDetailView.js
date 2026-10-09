@@ -13,6 +13,7 @@ import {
   Edit3,
   ExternalLink,
   FileText,
+  FolderKanban,
   Layers,
   Loader2,
   Rocket,
@@ -155,10 +156,10 @@ export default function VentureDetailView({ ctx }) {
                 <FileText className="w-3 h-3" /> {t("vadmin.detail.notes")}
               </button>
               <button
-                onClick={() => router.push(`/admin/ventures/${id}/journey`)}
+                onClick={() => router.push(`/admin/ventures/${id}/projects`)}
                 className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
               >
-                <Route className="w-3 h-3" /> {t("vadmin.detail.journey")}
+                <FolderKanban className="w-3 h-3" /> {t("vadmin.detail.journey")}
               </button>
             </div>
           </div>

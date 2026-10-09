@@ -1,7 +1,16 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarClock,
+  CalendarDays,
+  CheckCircle2,
+  Layers,
+  ListChecks,
+  Search,
+  SlidersHorizontal,
+} from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import { statusLabel, statusChipClass } from "@/lib/ventureStatuses";
@@ -10,6 +19,8 @@ import AppInput from "@/components/ui/AppInput";
 import AppSelect from "@/components/ui/AppSelect";
 import AppButton from "@/components/ui/AppButton";
 import AppEmptyState from "@/components/ui/AppEmptyState";
+import KpiCard from "@/components/ui/KpiCard";
+import SectionHead from "@/components/ui/SectionHead";
 import WorkItemDetailModal from "./WorkItemDetailModal";
 import { formatDay } from "./projectFormat";
 
@@ -55,12 +66,31 @@ export default function ProjectsWorkItemsView({ ventureId }) {
   const summary = data?.summary || { total: 0, today: 0, upcoming: 0, overdue: 0, completed: 0 };
 
   const buckets = [
-    { id: ANY, label: t("venture.projects.filterAll"), count: summary.total },
-    { id: "today", label: t("time.today"), count: summary.today },
-    { id: "upcoming", label: t("time.upcoming"), count: summary.upcoming },
-    { id: "overdue", label: t("status.overdue"), count: summary.overdue },
-    { id: "completed", label: t("status.completed"), count: summary.completed },
+    { id: ANY, label: t("venture.projects.allWork"), count: summary.total, icon: Layers },
+    { id: "today", label: t("time.today"), count: summary.today, icon: CalendarClock },
+    { id: "upcoming", label: t("time.upcoming"), count: summary.upcoming, icon: CalendarDays },
+    { id: "overdue", label: t("status.overdue"), count: summary.overdue, icon: AlertTriangle },
+    { id: "completed", label: t("status.completed"), count: summary.completed, icon: CheckCircle2 },
   ];
+
+  const hasFilters =
+    bucket !== ANY ||
+    owner !== ANY ||
+    supporting !== ANY ||
+    journey !== ANY ||
+    milestone !== ANY ||
+    status !== ANY ||
+    search.trim() !== "";
+
+  const clearFilters = () => {
+    setBucket(ANY);
+    setOwner(ANY);
+    setSupporting(ANY);
+    setJourney(ANY);
+    setMilestone(ANY);
+    setStatus(ANY);
+    setSearch("");
+  };
 
   const filtered = useMemo(() => {
     // Read the list INSIDE the memo: `data?.items || []` would be a new array on
@@ -98,79 +128,64 @@ export default function ProjectsWorkItemsView({ ventureId }) {
     ...values.map((value) => ({ value, label: value })),
   ];
 
+  // Five columns, each answering one question: what, who, when, in what state,
+  // and where in the Journey. Related facts share a cell so a row reads at a glance.
   const columns = [
     {
       key: "title",
       label: t("venture.projects.work"),
       render: (_value, item) => (
-        <div className="min-w-[240px] max-w-[420px]">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {item.ref && (
-              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-[var(--surface-2)] text-[var(--brand-orange)] shrink-0">
-                {item.ref}
-              </span>
-            )}
-            <span className="font-semibold text-[var(--text-primary)] break-words">{item.title}</span>
+        <div className="min-w-[260px] max-w-[440px]">
+          <div className="flex items-center gap-1.5 flex-wrap mb-1">
+            <span className="stf-tag">{t(`venture.projects.kind.${item.kind}`)}</span>
+            {item.ref && <span className="stf-tag o">{item.ref}</span>}
           </div>
+          <p className="font-semibold text-[var(--text-primary)] break-words leading-snug">{item.title}</p>
           {item.deliverable && item.deliverable !== item.title && (
-            <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5 line-clamp-1">{item.deliverable}</p>
+            <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5 line-clamp-1">{item.deliverable}</p>
           )}
         </div>
       ),
     },
     {
-      key: "kind",
-      label: t("venture.projects.type"),
-      render: (_value, item) => (
-        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] whitespace-nowrap">
-          {t(`venture.projects.kind.${item.kind}`)}
-        </span>
-      ),
-    },
-    {
       key: "owner",
-      label: t("venture.manager.milestoneOwner"),
-      render: (_value, item) =>
-        item.owner ? (
-          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-            <span className="text-[var(--text-primary)]">{item.owner.name}</span>
-            {item.owner.external && (
-              <span className="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--surface-2)] text-[var(--text-tertiary)]">
-                {t("venture.personField.external")}
-              </span>
-            )}
-          </span>
-        ) : (
-          <span className="text-[var(--text-tertiary)]">—</span>
-        ),
-    },
-    {
-      key: "supporting",
-      label: t("venture.manager.supporting"),
+      label: t("venture.projects.people"),
       render: (_value, item) => (
-        <span className="text-[var(--text-secondary)] whitespace-nowrap">
-          {item.supporting || <span className="text-[var(--text-tertiary)]">—</span>}
-        </span>
-      ),
-    },
-    {
-      key: "start",
-      label: t("venture.manager.startDate"),
-      render: (_value, item) => (
-        <span className="text-[var(--text-secondary)] whitespace-nowrap">
-          {item.start ? formatDay(item.start, lang) : "—"}
-        </span>
+        <div className="min-w-[150px]">
+          {item.owner ? (
+            <p className="inline-flex items-center gap-1.5 whitespace-nowrap">
+              <span className="font-semibold text-[var(--text-primary)]">{item.owner.name}</span>
+              {item.owner.external && (
+                <span className="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-[var(--surface-2)] text-[var(--text-tertiary)]">
+                  {t("venture.personField.external")}
+                </span>
+              )}
+            </p>
+          ) : (
+            <p className="text-[var(--text-tertiary)]">{t("venture.projects.unassigned")}</p>
+          )}
+          {item.supporting && (
+            <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+              {t("venture.projects.withSupport", { names: item.supporting })}
+            </p>
+          )}
+        </div>
       ),
     },
     {
       key: "finish",
-      label: t("venture.manager.finishDate"),
+      label: t("venture.projects.dates"),
       render: (_value, item) => (
-        <span
-          className={`whitespace-nowrap ${item.bucket === "overdue" ? "text-rose-400 font-semibold" : "text-[var(--text-secondary)]"}`}
-        >
-          {item.finish ? formatDay(item.finish, lang) : "—"}
-        </span>
+        <div className="whitespace-nowrap text-[12px] leading-relaxed">
+          <p className="text-[var(--text-secondary)]">
+            <span className="text-[var(--text-tertiary)]">{t("venture.projects.startShort")} </span>
+            {item.start ? formatDay(item.start, lang) : "—"}
+          </p>
+          <p className={item.bucket === "overdue" ? "text-rose-400 font-semibold" : "text-[var(--text-primary)]"}>
+            <span className="text-[var(--text-tertiary)] font-normal">{t("venture.projects.finishShort")} </span>
+            {item.finish ? formatDay(item.finish, lang) : "—"}
+          </p>
+        </div>
       ),
     },
     {
@@ -185,102 +200,108 @@ export default function ProjectsWorkItemsView({ ventureId }) {
       ),
     },
     {
-      key: "journey",
-      label: t("venture.projects.journey"),
-      render: (_value, item) => (
-        <span className="text-[var(--text-secondary)] whitespace-nowrap">
-          {item.journey?.name || <span className="text-[var(--text-tertiary)]">—</span>}
-        </span>
-      ),
-    },
-    {
       key: "milestone",
-      label: t("venture.projects.milestone"),
-      render: (_value, item) => (
-        <span className="text-[var(--text-secondary)]">
-          {item.milestone?.title || <span className="text-[var(--text-tertiary)]">—</span>}
-        </span>
-      ),
+      label: t("venture.projects.placement"),
+      render: (_value, item) =>
+        item.journey?.name || item.milestone?.title ? (
+          <div className="min-w-[160px] max-w-[260px]">
+            {item.journey?.name && <p className="text-[var(--text-secondary)] text-[12px]">{item.journey.name}</p>}
+            {item.milestone?.title && (
+              <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5 line-clamp-2">{item.milestone.title}</p>
+            )}
+          </div>
+        ) : (
+          <span className="text-[var(--text-tertiary)]">—</span>
+        ),
     },
   ];
 
   return (
-    <div className="space-y-4">
-      {/* WHAT NEEDS ATTENTION — the buckets, with their counts, before the detail. */}
-      <div className="flex flex-wrap items-center gap-2">
-        {buckets.map((entry) => {
-          const active = bucket === entry.id;
-          return (
-            <button
-              key={entry.id}
-              type="button"
-              onClick={() => setBucket(entry.id)}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors ${
-                active
-                  ? "bg-[var(--brand-orange)] text-black border-transparent"
-                  : "text-[var(--text-secondary)] border-[var(--border-primary)] hover:text-[var(--text-primary)]"
-              }`}
-            >
-              {entry.label}
-              <span className={`ml-1.5 ${active ? "text-black/60" : "text-[var(--text-tertiary)]"}`}>{entry.count}</span>
-            </button>
-          );
-        })}
+    <div>
+      {/* WHAT NEEDS ATTENTION — each bucket is a figure, and a click filters on it. */}
+      <div className="stf-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+        {buckets.map((entry) => (
+          <KpiCard
+            key={entry.id}
+            label={entry.label}
+            value={entry.count}
+            icon={entry.icon}
+            loading={loading}
+            active={bucket === entry.id}
+            onClick={() => setBucket(entry.id)}
+          />
+        ))}
       </div>
 
       {/* FILTERS — every option is drawn from the loaded work, never hardcoded. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-        <AppInput
-          label={t("common.search")}
-          icon={Search}
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder={t("venture.projects.searchPlaceholder")}
-        />
-        <AppSelect
-          label={t("venture.manager.milestoneOwner")}
-          value={owner}
-          onChange={(event) => setOwner(event.target.value)}
-          options={selectOptions(options.owners || [], t("venture.projects.anyOption"))}
-        />
-        <AppSelect
-          label={t("venture.manager.supporting")}
-          value={supporting}
-          onChange={(event) => setSupporting(event.target.value)}
-          options={selectOptions(options.supporting || [], t("venture.projects.anyOption"))}
-        />
-        <AppSelect
-          label={t("venture.projects.journey")}
-          value={journey}
-          onChange={(event) => setJourney(event.target.value)}
-          options={[
-            { value: ANY, label: t("venture.projects.anyOption") },
-            ...(options.journeys || []).map((entry) => ({ value: String(entry.id), label: entry.name })),
-          ]}
-        />
-        <AppSelect
-          label={t("venture.projects.milestone")}
-          value={milestone}
-          onChange={(event) => setMilestone(event.target.value)}
-          options={[
-            { value: ANY, label: t("venture.projects.anyOption") },
-            ...(options.milestones || []).map((entry) => ({ value: String(entry.id), label: entry.title })),
-          ]}
-        />
-        <AppSelect
-          label={t("venture.projects.status")}
-          value={status}
-          onChange={(event) => setStatus(event.target.value)}
-          options={[
-            { value: ANY, label: t("venture.projects.anyOption") },
-            ...(options.statuses || []).map((entry) => ({ value: entry.id, label: t(entry.key) })),
-          ]}
-        />
+      <div className="stf-card" style={{ marginBottom: 16 }}>
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <p className="stf-k flex items-center gap-1.5">
+            <SlidersHorizontal size={13} /> {t("venture.projects.filters")}
+          </p>
+          {hasFilters && (
+            <button type="button" className="stf-link-btn" onClick={clearFilters}>
+              {t("venture.projects.clearFilters")}
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="sm:col-span-2 lg:col-span-3">
+            <AppInput
+              label={t("common.search")}
+              icon={Search}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={t("venture.projects.searchPlaceholder")}
+            />
+          </div>
+          <AppSelect
+            label={t("venture.manager.milestoneOwner")}
+            value={owner}
+            onChange={(event) => setOwner(event.target.value)}
+            options={selectOptions(options.owners || [], t("venture.projects.anyOption"))}
+          />
+          <AppSelect
+            label={t("venture.manager.supporting")}
+            value={supporting}
+            onChange={(event) => setSupporting(event.target.value)}
+            options={selectOptions(options.supporting || [], t("venture.projects.anyOption"))}
+          />
+          <AppSelect
+            label={t("venture.projects.status")}
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+            options={[
+              { value: ANY, label: t("venture.projects.anyOption") },
+              ...(options.statuses || []).map((entry) => ({ value: entry.id, label: t(entry.key) })),
+            ]}
+          />
+          <AppSelect
+            label={t("venture.projects.journey")}
+            value={journey}
+            onChange={(event) => setJourney(event.target.value)}
+            options={[
+              { value: ANY, label: t("venture.projects.anyOption") },
+              ...(options.journeys || []).map((entry) => ({ value: String(entry.id), label: entry.name })),
+            ]}
+          />
+          <AppSelect
+            label={t("venture.projects.milestone")}
+            value={milestone}
+            onChange={(event) => setMilestone(event.target.value)}
+            options={[
+              { value: ANY, label: t("venture.projects.anyOption") },
+              ...(options.milestones || []).map((entry) => ({ value: String(entry.id), label: entry.title })),
+            ]}
+          />
+        </div>
       </div>
 
-      <p className="text-[10px] text-[var(--text-tertiary)]">
-        {t("venture.projects.itemCount", { count: filtered.length, total: summary.total })}
-      </p>
+      <SectionHead
+        icon={ListChecks}
+        title={t("venture.projects.workItems")}
+        subtitle={t("venture.projects.itemCount", { count: filtered.length, total: summary.total })}
+      />
 
       {error ? (
         <AppEmptyState
