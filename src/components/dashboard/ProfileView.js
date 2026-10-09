@@ -7,7 +7,6 @@ import { getCountries, getLanguages, resolveCountryCode } from "@/lib/profile-op
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import ProfileViewContent from "./profile-view/ProfileViewContent";
-import GoogleCalendarCard from "@/components/integrations/GoogleCalendarCard";
 
 // ─── Read shapers (module scope: built once, never per render) ──────
 const pickAltEmails = (payload) =>
@@ -428,12 +427,5 @@ export default function ProfileView({ participant = false }) {
     participant,
   };
 
-  return (
-    <>
-      <div className="mb-6">
-        <GoogleCalendarCard />
-      </div>
-      <ProfileViewContent ctx={ctx} />
-    </>
-  );
+  return <ProfileViewContent ctx={ctx} />;
 }

@@ -10,7 +10,6 @@ import { useSafeBack } from "@/lib/useSafeBack";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
-import GoogleCalendarCard from "@/components/integrations/GoogleCalendarCard";
 import { useApi } from "@/lib/hooks/useApi";
 
 // ─── Read shaping (module scope: built once, never per render) ───────────
@@ -172,8 +171,6 @@ export default function InvestorProfilePage() {
             </p>
           </div>
         </div>
-
-        <GoogleCalendarCard />
 
         {/* TABS */}
         <div className="flex gap-1 border-b border-[var(--border-primary)]">

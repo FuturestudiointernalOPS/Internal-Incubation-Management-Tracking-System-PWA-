@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDialogs } from "@/components/ui/DialogProvider";
 
@@ -17,6 +17,11 @@ const OUTCOME_KEYS = {
   scopeDenied: "scopeDenied",
   notConfigured: "notConfigured",
 };
+
+// The OAuth outcome is announced ONCE per page load, even though the hook is
+// mounted by both the shell and (on /admin) the dashboard — two instances must
+// not raise two notices for one round-trip.
+let outcomeAnnounced = false;
 
 /**
  * A user's Google Calendar connection. Shared by every role.
@@ -36,7 +41,6 @@ export function useGoogleCalendar({ t, withEvents = false } = {}) {
   const [status, setStatus] = useState(null); // null = loading or not reachable
   const [events, setEvents] = useState([]);
   const [syncing, setSyncing] = useState(false);
-  const announced = useRef(false);
 
   const loadEvents = useCallback(async () => {
     try {
@@ -93,19 +97,19 @@ export function useGoogleCalendar({ t, withEvents = false } = {}) {
   useEffect(() => {
     // Read once from the URL (no useSearchParams: it would need a Suspense boundary).
     const outcome = new URLSearchParams(window.location.search).get("gcal");
-    if (!outcome || announced.current) return;
-    announced.current = true;
+    if (!outcome || outcomeAnnounced) return;
+    outcomeAnnounced = true;
     const key = OUTCOME_KEYS[outcome] || "failed";
     router.replace(window.location.pathname, { scroll: false });
-    alert({ message: t(`admin.googleCalendar.outcome.${key}`) });
+    alert({ message: t(`googleCalendar.outcome.${key}`) });
   }, [router, alert, t]);
 
   const connect = useCallback(async () => {
     if (status && !status.configured) {
       // Not set up on this server: say what is missing instead of failing silently.
       await alert({
-        title: t("admin.googleCalendar.notConfiguredTitle"),
-        message: t("admin.googleCalendar.notConfiguredMessage"),
+        title: t("googleCalendar.notConfiguredTitle"),
+        message: t("googleCalendar.notConfiguredMessage"),
         hint: (status.missing || []).join(", "),
       });
       return;
@@ -119,16 +123,16 @@ export function useGoogleCalendar({ t, withEvents = false } = {}) {
   const syncNow = useCallback(async () => {
     const data = await runSync();
     if (!data?.success) {
-      await alert({ message: t("admin.googleCalendar.syncFailed") });
+      await alert({ message: t("googleCalendar.syncFailed") });
     }
   }, [runSync, alert, t]);
 
   const disconnect = useCallback(async () => {
     const ok = await confirm({
-      message: t("admin.googleCalendar.disconnectConfirm"),
-      hint: t("admin.googleCalendar.disconnectHint"),
+      message: t("googleCalendar.disconnectConfirm"),
+      hint: t("googleCalendar.disconnectHint"),
       tone: "danger",
-      confirmLabel: t("admin.googleCalendar.disconnect"),
+      confirmLabel: t("googleCalendar.disconnect"),
     });
     if (!ok) return;
     await fetch(BASE, { method: "DELETE" });
