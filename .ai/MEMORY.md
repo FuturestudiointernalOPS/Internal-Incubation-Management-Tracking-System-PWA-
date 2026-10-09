@@ -16,7 +16,7 @@
 
 ## Reusable Facts
 
-- **Baseline identities (`contacts.role`):** `super_admin` | `staff` | `member`. Everything else — `program_manager`, `participant`, `facilitator`, `investor`, `founder`, `mentor`, `team`, … — is a CONTEXTUAL **profile** (catalogue `profiles`, held in `profile_assignments`), never a global identity. Phase H (docs/ROADMAP_ROLES_PROFILES_ACCESS.md) aligns any legacy `contacts.role` value onto a baseline and enforces the profile ↔ role rule (`PROFILE_ROLE_ENFORCEMENT = "block"`). The `teacher` and `developer` personas were removed from the product.
+- **Baseline identities (`contacts.role`):** `super_admin` | `staff` | `member`. Everything else — `program_manager`, `participant`, `facilitator`, `investor`, `founder`, `mentor`, `team`, … — is a CONTEXTUAL **profile** (catalogue `profiles`, held in `profile_assignments`), never a global identity. The legacy `contacts.role` values are aligned onto a baseline and the profile ↔ role rule is enforced (`PROFILE_ROLE_ENFORCEMENT = "block"`). The `teacher` and `developer` personas were removed from the product.
 - **Session cookie:** `impactos_session`, constant `SESSION_COOKIE_NAME` in `src/lib/auth.js`. 24h default, extendable via "remember me" flag.
 - **Task statuses:** `pending | in_progress | completed | blocked | cancelled`. Enforced by `STATUS_CONFIG` in `src/lib/constants.js`.
 - **Task priorities:** `Critical | High | Medium | Low`.

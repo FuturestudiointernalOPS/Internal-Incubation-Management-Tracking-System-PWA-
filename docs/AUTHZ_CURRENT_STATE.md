@@ -3,8 +3,8 @@
 > **Note.** This map predates the profiles takeover. The access-profile layer it
 > describes (`access_profiles` + `access_profile_capabilities` +
 > `role_access_profile_defaults`, and the `access_profile_id` columns) has since
-> been retired and dropped — see `PROFILES_TAKEOVER_MIGRATION.md`. Scripts this
-> document cites (`sync_permission_config_from_staging.sql`, …) no longer exist.
+> been retired and dropped. Scripts this document cites
+> (`sync_permission_config_from_staging.sql`, …) no longer exist.
 
 > Status: audit (Phase 1–3) + correctness pass (Phase 4) committed.
 > This document is the **current-state map** for the permission system. It records
@@ -14,7 +14,7 @@
 > Companion documents (per-phase detail): `PHASE5_SCOPE_ENGINE.md`,
 > `PHASE5B_VENTURE_PILOT.md`, `PHASE5C_STRICT_MODE.md`,
 > `PHASE6_CONTEXT_GRANT_APPLICATION.md`, `PHASE3_LMS_RETIRED_GOVERNANCE.md`,
-> `IDENTITY_*.md`, `ROADMAP_ROLES_PROFILES_ACCESS.md`, `PRODUCTION_TEST.md`.
+> `IDENTITY_*.md`, `PRODUCTION_TEST.md`.
 
 ---
 
@@ -95,7 +95,7 @@ maps onto the existing role values; assigning a contextual responsibility must
 **never** rewrite `contacts.role`. Where a route still keys behaviour on the
 role *label* rather than the relationship, that is treated as a defect (§4).
 
-### Profiles (roadmap `ROADMAP_ROLES_PROFILES_ACCESS.md`)
+### Profiles
 
 A **profile** is the contextual function a person occupies (Participant of a
 program, Founder of a venture, Facilitator, Program Manager…), distinct from the

@@ -4,8 +4,7 @@
  * The global identity column may only hold one of the three BASELINE values
  * (super_admin / staff / member); every other value the survey finds is
  * contextual and already described by a relationship row and a profile card.
- * This script performs the "opération de données" of Phase H
- * (docs/ROADMAP_ROLES_PROFILES_ACCESS.md §10):
+ * This script performs the "opération de données" of the legacy-role cleanup:
  *
  *   node scripts/align-legacy-roles.mjs            # dry run — the "relevé"
  *   node scripts/align-legacy-roles.mjs --apply    # rewrite role values to member
