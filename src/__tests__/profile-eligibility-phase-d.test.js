@@ -54,9 +54,9 @@ beforeEach(() => {
 
 // ── Vocabulary ───────────────────────────────────────────────────────────────
 
-describe("the third identity kind", () => {
-  test("IDENTITY_TYPES is role, group and profile", () => {
-    expect(IDENTITY_TYPES).toEqual(["role", "group", "profile"]);
+describe("the two identity kinds", () => {
+  test("IDENTITY_TYPES is role and profile", () => {
+    expect(IDENTITY_TYPES).toEqual(["role", "profile"]);
   });
 
   test("accepts a ceiling written against a known profile", () => {

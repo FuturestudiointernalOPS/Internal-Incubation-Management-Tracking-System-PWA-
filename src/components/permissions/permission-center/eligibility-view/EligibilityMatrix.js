@@ -19,7 +19,6 @@ export default function EligibilityMatrix({
   data,
   matrixRoles,
   matrixProfiles,
-  isDatabaseRole,
   stateFor,
   setIdentityType,
   setIdentityValue,
@@ -31,9 +30,7 @@ export default function EligibilityMatrix({
     ...(matrixRoles || []).map((value) => ({
       kind: "role",
       value,
-      tag: isDatabaseRole(value)
-        ? t("engineering.permissions.databaseRoleTag")
-        : null,
+      tag: null,
     })),
     ...(matrixProfiles || []).map((value) => ({
       kind: "profile",

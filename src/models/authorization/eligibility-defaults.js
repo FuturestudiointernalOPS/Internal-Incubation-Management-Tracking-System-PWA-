@@ -11,16 +11,16 @@
  * FEATURES = the dashboard sections (CRM, Communication, Programs, …). Their
  * modules are the sub-sections (see MODULE_TO_FEATURE).
  *
- * TWO allowlists, split by IDENTITY KIND (Phase H vocabulary cleanup):
+ * TWO allowlists, split by IDENTITY KIND:
  *
- *   - `FEATURE_ELIGIBILITY_DEFAULTS` — the BASELINE roles and the remaining
- *     non-profile values (`mentor`, `team`). This is the role vocabulary; every
- *     entry is a label the person's account can carry.
- *   - `FEATURE_ELIGIBILITY_PROFILE_DEFAULTS` — the CONTEXTUAL profiles
- *     (`program_manager`, `participant`, `investor`, `founder`, `facilitator`).
+ *   - `FEATURE_ELIGIBILITY_DEFAULTS` — the BASELINE roles only (`super_admin`,
+ *     `staff`, `member`). These are the only labels a person's account carries.
+ *   - `FEATURE_ELIGIBILITY_PROFILE_DEFAULTS` — every CONTEXTUAL function
+ *     (`program_manager`, `participant`, `investor`, `founder`, `facilitator`, …).
  *     A profile lives in its catalogue and on the person's assignment cards, so
  *     its ceiling is written against `identity_type = 'profile'`, never against
- *     a role the account does not carry.
+ *     a role the account does not carry. The legacy role labels (`mentor`,
+ *     `team`, …) are gone: their function is a profile now.
  *
  * These only fill rows that have never been configured (ON CONFLICT DO
  * NOTHING) — admin edits are never overwritten.
@@ -46,32 +46,31 @@ export const FEATURE_ORDER = [
 ];
 
 /**
- * The BASELINE-role ceilings. Only identities the account itself can carry:
- * `super_admin`, `staff`, `member`, plus the two non-profile legacy labels that
- * still own a seeded template (`mentor`, `team`). A contextual function is NOT
- * here — it is a profile (see `FEATURE_ELIGIBILITY_PROFILE_DEFAULTS`).
+ * The BASELINE-role ceilings. Only the three identities the account itself can
+ * carry: `super_admin`, `staff`, `member`. Every contextual function is a
+ * profile (see `FEATURE_ELIGIBILITY_PROFILE_DEFAULTS`); legacy role labels
+ * (`mentor`, `team`, …) are gone from this list.
  */
 export const FEATURE_ELIGIBILITY_DEFAULTS = {
   // CRM — people, contacts, duplicates, bulk import
   crm: ["super_admin", "staff"],
-  // Communication — messaging, announcements, forms. `mentor` owns the Mentor
-  // template, whose caps include messaging: a role must be eligible for every
-  // feature its own template grants, or the whole template fails the ceiling
-  // check and can never be saved.
-  communication: ["super_admin", "staff", "mentor"],
+  // Communication — messaging, announcements, forms. The contextual functions
+  // that read messaging (mentor) are PROFILES now, so their ceiling rides the
+  // profile identity (see FEATURE_ELIGIBILITY_PROFILE_DEFAULTS). Only the
+  // baseline roles remain on the role list.
+  communication: ["super_admin", "staff"],
   // Programs — programs, participants, submissions (facilitator module).
-  // `member` is the baseline the assignment-derived model resolves to; `mentor`
-  // reads program progress (same template invariant as `communication`).
-  programs: ["super_admin", "staff", "mentor", "member"],
+  // `member` is the baseline the assignment-derived model resolves to.
+  programs: ["super_admin", "staff", "member"],
   // Ventures — incubated businesses. `member` carries the venture context.
   ventures: ["super_admin", "staff", "member"],
   // Investors — investor relations
   investors: ["super_admin", "staff"],
   // Finance — budgets, reports
   finance: ["super_admin", "staff"],
-  // Operations — projects, tasks, blockers, standups, retros.
-  // `team` and `mentor` own templates carrying `projects.view`.
-  operations: ["super_admin", "staff", "team", "mentor"],
+  // Operations — projects, tasks, blockers, standups, retros. The templates that
+  // carried `projects.view` (team / mentor) are PROFILES now.
+  operations: ["super_admin", "staff"],
   // Reports — reports and analytics
   reports: ["super_admin", "staff"],
   // Knowledge — knowledge base

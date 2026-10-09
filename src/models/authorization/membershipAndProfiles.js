@@ -107,6 +107,15 @@ export async function getRoleEligibilityRows(role) {
   });
 }
 
+/** feature_eligibility rows for a PROFILE identity (the profile's own ceiling). */
+export async function getProfileEligibilityRows(profileKey) {
+  return db.execute({
+    sql: `SELECT feature_key, eligible FROM feature_eligibility
+          WHERE identity_type = 'profile' AND identity_value = ?`,
+    args: [profileKey],
+  });
+}
+
 /**
  * Every role identity that actually has eligibility rows in this database.
  * Used by the Permissions UI so a role the engine enforces is never invisible

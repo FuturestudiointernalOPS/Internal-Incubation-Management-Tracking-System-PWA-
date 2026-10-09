@@ -248,10 +248,9 @@ describe("bootstrap — eligibility is seeded once per process", () => {
       "eligibility-bootstrap-seed",
       "eligibility-lms-bootstrap-v2",
       "eligibility-ventures-member-v1",
-      "eligibility-ventures-founder-v1",
-      "eligibility-template-ceiling-v1",
       "eligibility-programs-assignment-v1",
       "eligibility-profile-defaults-v1",
+      "eligibility-baseline-roles-only-v1",
     ]);
   });
 

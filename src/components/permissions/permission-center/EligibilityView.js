@@ -3,14 +3,12 @@
 /**
  * ELIGIBILITY VIEW — extracted from `PermissionCenter.js`.
  *
- * The access review matrix: one row per feature per role, each cell a tri-state
- * verdict (allowed / restricted / blocked) with the reason behind it. Two
- * identity vocabularies meet here and the distinction is load-bearing — the
- * matrix rows are built from `matrixRoles`, which EXCLUDES context roles,
- * because a context role is not a person and cannot hold a verdict. Context
- * roles stay selectable in the identity editor instead, where they carry the
- * `contextRoleTag` badge. Collapsing the two would let the matrix render rows
- * that can never be assigned, or hide roles an admin still needs to grant.
+ * The access review matrix: one row per feature per identity (the three
+ * BASELINE roles and the profiles), each cell a tri-state verdict (allowed /
+ * denied / unset) that opens the identity editor on tap. The identity editor
+ * offers exactly two kinds — the baseline role on the account and the
+ * contextual PROFILE a person holds; every contextual function (Participant,
+ * Facilitator, Investor, Founder, …) is a profile, never a role.
  *
  * Split out verbatim, behaviour identical.
  */
@@ -103,19 +101,10 @@ export default function EligibilityView() {
     });
   }, [identityType, identityValue, data]);
 
-  // Roles the database actually carries that the curated identity list omits
-  // (mentor, teacher, program_manager…). They are enforceable
-  // ceilings, so they must be selectable here — this is the front-end remedy
-  // for a refused template save.
-  const extraRoles = data?.extraRoles || [];
-
+  // The identity editor offers exactly the two kinds: the three baseline roles
+  // and the profile keys a ceiling can be written against.
   const identities =
-    identityType === "role"
-      ? [...new Set([...(data?.roles || []), ...extraRoles])]
-      : identityType === "group"
-        ? data?.groups || []
-        : // Phase D — the profile keys a ceiling can be written against.
-          data?.profiles || [];
+    identityType === "role" ? data?.roles || [] : data?.profiles || [];
   const canConfigure = !!data?.canConfigure;
   const selected = identityValue || null;
 
@@ -209,21 +198,10 @@ export default function EligibilityView() {
     );
   }
 
-  // Eligibility manages BASELINE identities. Context roles (participant,
-  // facilitator, investor, founder) are ceilings too, but they are held per
-  // relationship, so they are NOT rows of the matrix — they stay selectable in
-  // the identity editor, where they are tagged as context roles.
-  const contextRoles = new Set(data?.identityGroups?.contextRoles || []);
-  // Baseline identities first, then the roles this database carries that the
-  // curated list omits. Both are rows of the matrix: an enforced ceiling must
-  // never be invisible to the administrator who has to configure it. Phase D
-  // adds the profile rows the same way.
-  const matrixRoles = [
-    ...(data?.roles || []).filter((role) => !contextRoles.has(role)),
-    ...(data?.extraRoles || []).filter((role) => !contextRoles.has(role)),
-  ];
+  // Eligibility manages BASELINE roles and PROFILES. The role rows are the three
+  // baseline identities; every contextual function is a profile row.
+  const matrixRoles = data?.roles || [];
   const matrixProfiles = data?.profiles || [];
-  const isDatabaseRole = (role) => (data?.extraRoles || []).includes(role);
 
   // One lookup for both presentations (table on md+, cards below) so the two
   // can never disagree about what a cell shows. `kind` is the identity_type
@@ -271,7 +249,6 @@ export default function EligibilityView() {
           data={data}
           matrixRoles={matrixRoles}
           matrixProfiles={matrixProfiles}
-          isDatabaseRole={isDatabaseRole}
           stateFor={stateFor}
           setIdentityType={setIdentityType}
           setIdentityValue={setIdentityValue}
@@ -298,20 +275,8 @@ export default function EligibilityView() {
               <p className="text-[10px] font-black uppercase tracking-wider text-[var(--text-primary)]">
                 {identityType === "role"
                   ? t("engineering.permissions.eligibilityRole")
-                  : identityType === "group"
-                    ? t("engineering.permissions.eligibilityGroup")
-                    : t("engineering.permissions.eligibilityProfile")}
+                  : t("engineering.permissions.eligibilityProfile")}
                 : {selected}
-                {identityType === "role" && contextRoles.has(selected) && (
-                  <span className="ml-2 text-[8px] font-black uppercase tracking-widest text-teal-400">
-                    {t("engineering.permissions.contextRoleTag")}
-                  </span>
-                )}
-                {identityType === "role" && isDatabaseRole(selected) && (
-                  <span className="ml-2 text-[8px] font-black uppercase tracking-widest text-teal-400">
-                    {t("engineering.permissions.databaseRoleTag")}
-                  </span>
-                )}
               </p>
               <div className="flex items-center gap-2 flex-wrap">
                 {message && (

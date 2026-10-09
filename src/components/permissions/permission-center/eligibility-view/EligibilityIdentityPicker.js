@@ -14,7 +14,6 @@
 /** One switch button per identity kind, labelled through i18n. */
 const IDENTITY_TYPE_LABEL_KEYS = {
   role: "engineering.permissions.eligibilityRole",
-  group: "engineering.permissions.eligibilityGroup",
   profile: "engineering.permissions.eligibilityProfile",
 };
 
@@ -33,7 +32,7 @@ export default function EligibilityIdentityPicker({
           {t("engineering.permissions.eligibilityIdentityType")}
         </p>
         <div className="flex gap-1 bg-secondary rounded-xl p-1 border border-[var(--border-primary)] w-fit">
-          {["role", "group", "profile"].map((type) => (
+          {["role", "profile"].map((type) => (
             <button
               key={type}
               onClick={() => {

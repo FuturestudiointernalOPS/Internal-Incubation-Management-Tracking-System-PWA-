@@ -16,7 +16,7 @@ import {
   listProfileCapabilityCounts as listProfileCapabilityCountsRows,
   listRolesUsingProfileDefault,
 } from "@/models/authorization/profileCapabilitiesStore";
-import { getRoleEligibilityRows } from "@/models/authorization";
+import { getRoleEligibilityRows, getProfileEligibilityRows } from "@/models/authorization";
 import { MODULE_TO_FEATURE } from "@/models/authorization/eligibility";
 import { evaluateEligibility } from "./eligibility";
 import { validateCapabilitiesWithinEligibility } from "./eligibilityAdmin";
@@ -106,33 +106,57 @@ export async function deleteProfileCapabilities(profileKey) {
   await clearProfileCapabilities(profileKey);
 }
 
-/** Per-feature eligibility map for a role (fail closed on missing rows). */
-async function eligibilityForRole(role) {
-  const result = await getRoleEligibilityRows(role);
+/** Per-feature eligibility map from a set of rows (fail closed on missing rows). */
+function eligibilityFromRows(rows) {
   const eligibilityMap = {};
   for (const feature of Object.values(MODULE_TO_FEATURE)) {
-    eligibilityMap[feature] = evaluateEligibility(result.rows, feature);
+    eligibilityMap[feature] = evaluateEligibility(rows, feature);
   }
   return eligibilityMap;
 }
 
+/** Per-feature eligibility map for a role, plus whether it has any rows. */
+async function eligibilityForRole(role) {
+  const result = await getRoleEligibilityRows(role);
+  const rows = result.rows || [];
+  return { eligibility: eligibilityFromRows(rows), hasRows: rows.length > 0 };
+}
+
 /**
- * The eligibility boundary for a PROFILE's capabilities: when the profile is the
- * default for role(s), none of those roles may receive a capability whose
- * feature they are not eligible for (`ELIGIBLE ≠ GRANTED`, fail closed). Mirrors
- * `assertCapsEligibleForProfile` (the access-profile path). A profile with no
- * role default is unconstrained.
+ * The eligibility boundary for a PROFILE's capabilities.
+ *
+ * Profiles ARE the ceiling: a contextual function is eligible through the
+ * profile it holds, so the profile's OWN eligibility rows are authoritative. A
+ * profile may not grant a capability whose feature the profile is not eligible
+ * for (`ELIGIBLE ≠ GRANTED`, fail closed).
+ *
+ * When the profile has NO eligibility rows of its own (a global or ad-hoc
+ * profile the ceiling table does not name), the legacy rule applies: the roles
+ * it is the default for must all be eligible. A role that carries NO eligibility
+ * rows at all imposes no ceiling — it is skipped, so a profile bound to an
+ * unconfigured (or retired) role can still be saved. A profile with neither its
+ * own rows nor any configured role default is unconstrained.
  *
  * @returns {Promise<{valid: boolean, violations: Array, role: string|null}>}
  */
 export async function assertCapsEligibleForProfileKey(capabilities, profileKey) {
+  const normalized = normalizeCapabilities(capabilities);
+
+  const ownRows = await getProfileEligibilityRows(profileKey);
+  if ((ownRows.rows || []).length > 0) {
+    const { valid, violations } = validateCapabilitiesWithinEligibility(
+      normalized,
+      eligibilityFromRows(ownRows.rows),
+    );
+    return { valid, violations, role: null };
+  }
+
   const rolesRes = await listRolesUsingProfileDefault(profileKey);
   const roles = (rolesRes.rows || []).map((row) => row.role_name);
-  if (roles.length === 0) return { valid: true, violations: [], role: null };
 
-  const normalized = normalizeCapabilities(capabilities);
   for (const role of roles) {
-    const eligibility = await eligibilityForRole(role);
+    const { eligibility, hasRows } = await eligibilityForRole(role);
+    if (!hasRows) continue; // no ceiling configured for this role
     const { valid, violations } = validateCapabilitiesWithinEligibility(
       normalized,
       eligibility,

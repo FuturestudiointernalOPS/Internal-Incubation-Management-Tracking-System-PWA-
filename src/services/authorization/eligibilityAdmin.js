@@ -50,27 +50,13 @@ export const FEATURE_KEYS = [
 ];
 
 /**
- * The three identity kinds a ceiling may be written against. `profile`
- * (Phase D) is the contextual function a person HOLDS — distinct from the role
- * on their account — so a rule can say "Member WITH the Founder profile" and
- * distinguish it from a plain Member. It is an eligibility identity, never
- * confused with a role.
+ * The identity kinds a ceiling may be written against: the BASELINE role on the
+ * account (`role`) and the contextual function a person HOLDS (`profile`). A
+ * rule can therefore say "Member WITH the Founder profile" and distinguish it
+ * from a plain Member. Nothing else is configurable.
  */
-export const IDENTITY_TYPES = ["role", "group", "profile"];
+export const IDENTITY_TYPES = ["role", "profile"];
 
-/**
- * The agreed eligibility-matrix identities — the ONLY identities the
- * Permission UI shows/configures, split into baseline identities and context
- * roles (see BASELINE_IDENTITIES / CONTEXT_ROLES below). Functions
- * (program_manager, ...) are deliberately NOT eligibility
- * identities — they are profiles/assignments layered on Staff. ROLE_CATALOG
- * remains the full technical catalog (used by the gate-validation tests); this
- * list is the UI-facing subset.
- *
- * The split matters: a person keeps ONE baseline identity and holds context
- * roles additively (Founder of Venture X, Participant in Program A) — the two
- * are different things that happen to share one enforcement table.
- */
 /**
  * The baseline identities — the person's relationship with the PLATFORM.
  * If someone stops participating in a program or a venture, this does not
@@ -81,11 +67,11 @@ export const BASELINE_IDENTITIES = ["super_admin", "staff", "member"];
 /**
  * Context roles — what someone IS inside a program, a venture or an investment.
  *
- * They are ceilings too (the engine enforces them the same way), but they must
- * not be mistaken for identities: a person holds them PER CONTEXT, additively,
- * and keeps their baseline identity throughout. Founder = venture membership
- * (venture_own scope), participant = program enrollment, never a platform-wide
- * identity and never an automatic participant surface.
+ * They are ceilings too, but they are no longer roles on the account: each one
+ * is a PROFILE in the catalogue (`src/models/authorization/profile-catalog.js`),
+ * held per relationship and additively, while the person keeps their baseline
+ * identity throughout. Kept here as the named set; these are NOT eligibility
+ * role values.
  */
 export const CONTEXT_ROLES = [
   "participant",
@@ -95,20 +81,15 @@ export const CONTEXT_ROLES = [
 ];
 
 /**
- * The agreed eligibility-matrix identities — the ONLY values the Permission UI
- * shows/configures. Functions (program_manager, ...)
- * are deliberately NOT here: they are profiles/assignments layered on Staff.
- * ROLE_CATALOG remains the full technical catalog (gate validation).
+ * The ONLY role values the Permission UI shows/configures: the three baseline
+ * identities. Every contextual function is a PROFILE (its own identity kind),
+ * so the role list carries nothing else.
  */
-export const ELIGIBILITY_IDENTITIES = [
-  ...BASELINE_IDENTITIES,
-  ...CONTEXT_ROLES,
-];
+export const ELIGIBILITY_IDENTITIES = [...BASELINE_IDENTITIES];
 
-/** The two groups, so the UI can label the matrix honestly (UI-4c). */
+/** The role identities, grouped so the UI can label the matrix. */
 export const ELIGIBILITY_IDENTITY_GROUPS = {
   identities: BASELINE_IDENTITIES,
-  contextRoles: CONTEXT_ROLES,
 };
 
 /** Canonical role catalog: every role referenced by seeds/config plus the
@@ -187,6 +168,10 @@ export function validateEligibilityChanges(changes) {
     }
     if (!identityValue) {
       errors.push("empty identity_value");
+      continue;
+    }
+    if (identityType === "role" && !BASELINE_IDENTITIES.includes(identityValue)) {
+      errors.push(`unknown role: ${identityValue}`);
       continue;
     }
     if (identityType === "profile" && !PROFILE_KEYS.includes(identityValue)) {

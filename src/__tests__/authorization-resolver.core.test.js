@@ -411,14 +411,13 @@ describe("communication feature (Messages + Announcements)", () => {
   FEATURE_ELIGIBILITY_DEFAULTS,
   FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
 } = require("@/models/authorization/eligibility");
-    // The ROLE list keeps `mentor` (it owns the Mentor template, whose caps
-    // include messaging). participant / investor / program_manager are PROFILES
-    // (Phase H): their ceiling rides the profile identity, so a person is
-    // eligible through the profile they hold, not through a role label.
+    // The ROLE list is the baseline roles only. The contextual functions that
+    // read messaging (mentor → the Mentor/Investor profile) are PROFILES: their
+    // ceiling rides the profile identity, so a person is eligible through the
+    // profile they hold, not through a role label.
     expect(FEATURE_ELIGIBILITY_DEFAULTS.communication).toEqual([
       "super_admin",
       "staff",
-      "mentor",
     ]);
     expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.communication).toEqual([
       "program_manager",

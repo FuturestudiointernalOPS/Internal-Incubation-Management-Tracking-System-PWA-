@@ -21,6 +21,7 @@
  */
 
 import db from "@/lib/db";
+import { BASELINE_IDENTITIES } from "@/lib/identity";
 import {
   FEATURE_ELIGIBILITY_DEFAULTS,
   FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
@@ -187,48 +188,27 @@ export async function seedVenturesMemberEligibility() {
 }
 
 /**
- * Catch-up for databases whose eligibility bootstrap already ran BEFORE
- * `founder` was added to FEATURE_ELIGIBILITY_DEFAULTS.ventures. The bootstrap
- * seed runs once per database, so an existing database never picks up a new
- * default on its own — the same gap `seedVenturesMemberEligibility` closes for
- * the member baseline. A founder is the Venture's own operator: without this
- * row every venture route fails closed for them. Insert-only, own marker, so an
- * administrator's decision is never overwritten.
- */
-export async function seedVenturesFounderEligibility() {
-  return seedFeatureRows("ventures", ["founder"]);
-}
-
-/**
- * Catch-up for databases whose eligibility bootstrap ran BEFORE the seeded
- * default templates were reconciled with their roles' ceilings.
+ * One-time cleanup: the eligibility matrix is BASELINE roles + PROFILES only.
  *
- * The bootstrap seed runs once per database, so an existing database never
- * picks up a later default on its own — the same gap the two seeders above
- * close. That gap had a real cost here: `seedDefaultAccessProfiles` creates the
- * Participant Default / Mentor templates carrying messaging + `projects.view`
- * caps, while those roles had no eligibility row for the `communication` /
- * `operations` features. The ceiling check validates the WHOLE template, so
- * those role-default templates could never be saved from the Permissions UI
- * ("Template contains capabilities the identity is not eligible for").
+ * Every `identity_type = 'role'` row whose value is not a baseline identity
+ * (`super_admin` / `staff` / `member`) is a leftover of the older role
+ * vocabulary: the contextual functions (`participant`, `founder`,
+ * `program_manager`, …) and retired labels (`mentor`, `team`, `teacher`, …).
+ * Those functions live on PROFILES now, so those role rows are dead weight the
+ * engine only ever consulted for accounts that no longer carry the label.
  *
- * Insert-only, own marker: an administrator's decision is never overwritten,
- * and only rows that were never configured are added. MIRRORS the additions in
- * FEATURE_ELIGIBILITY_DEFAULTS (same features, same roles) — that file is what
- * a fresh database gets.
+ * DELETES ROLE ROWS ONLY: profile rows are the new ceiling and are untouched,
+ * group rows are untouched. Runs ONCE per database through the migration marker
+ * `eligibility-baseline-roles-only-v1`; a fresh database has nothing to delete.
  */
-export const TEMPLATE_CEILING_ROWS = {
-  communication: ["mentor"],
-  operations: ["mentor"],
-  programs: ["mentor"],
-};
-
-export async function seedTemplateCeilingEligibility() {
-  for (const [featureKey, roles] of Object.entries(TEMPLATE_CEILING_ROWS)) {
-    const result = await seedFeatureRows(featureKey, roles);
-    if (!result.success) return result;
-  }
-  return { success: true };
+export function removeNonBaselineRoleEligibility() {
+  const placeholders = BASELINE_IDENTITIES.map(() => "?").join(",");
+  return db.execute({
+    sql: `DELETE FROM feature_eligibility
+          WHERE identity_type = 'role'
+            AND identity_value NOT IN (${placeholders})`,
+    args: [...BASELINE_IDENTITIES],
+  });
 }
 
 /**

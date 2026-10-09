@@ -254,10 +254,10 @@ describe("PUT eligibility — C2 template impact confirmation", () => {
     expect(res.status).toBe(200);
   });
 
-  test("group downgrades are not template-bound — no confirmation", async () => {
+  test("profile downgrades are not template-bound — no confirmation", async () => {
     mockTemplateImpacts = [TEMPLATE_ROW];
     const res = await eligibilityRoute.PUT(
-      jsonReq({ changes: [{ feature_key: "finance", identity_type: "group", identity_value: "Future Studio", eligible: 0 }] }),
+      jsonReq({ changes: [{ feature_key: "finance", identity_type: "profile", identity_value: "founder", eligible: 0 }] }),
     );
     expect(res.status).toBe(200);
   });

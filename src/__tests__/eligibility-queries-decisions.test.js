@@ -7,10 +7,10 @@
  * Why this file exists: `permissions-admin-api.test.js` covers the HTTP
  * boundary of this route (gate, upsert, unset, C2 409), but it mocks
  * `@/lib/authorization` WITHOUT `ELIGIBILITY_IDENTITIES` and
- * `ELIGIBILITY_IDENTITY_GROUPS`. Both are `undefined` there, so `roles`,
- * `identityGroups` and `extraRoles` have never been exercised — the three GET
- * decisions extracted here. Everything asserted is read from the REAL service
- * constants so the derivation is pinned against them.
+ * `ELIGIBILITY_IDENTITY_GROUPS`. Both are `undefined` there, so `roles` and
+ * `identityGroups` have never been exercised — the GET decisions extracted
+ * here. Everything asserted is read from the REAL service constants so the
+ * passthrough is pinned against them.
  *
  * The model layer is mocked (not the SQL) so the WHERE-free reads and the
  * previous-value read stay observable as calls. The wiring lives in
@@ -55,11 +55,7 @@ const {
 } = require("@/services/authorization/eligibilityAdmin");
 const {
   listFeatureEligibilityRows,
-  listEligibilityRoleIdentities,
 } = require("@/models/authorization");
-const {
-  listRoleProfileDefaults,
-} = require("@/models/authorization/profileCapabilitiesStore");
 const { getSession } = require("@/server/auth/session");
 const route = require("@/app/api/engineering/permissions/eligibility/route");
 
@@ -140,11 +136,12 @@ describe("GET — roles / identityGroups: the agreed list is passed through, not
     expect(body.roles).not.toContain("program_manager");
   });
 
-  test("identityGroups is passed through so the UI can label baseline vs context", async () => {
+  test("identityGroups carries the baseline identities", async () => {
     const body = await (await route.GET()).json();
     expect(body.identityGroups).toEqual(ELIGIBILITY_IDENTITY_GROUPS);
     expect(body.identityGroups.identities).toContain("staff");
-    expect(body.identityGroups.contextRoles).toContain("founder");
+    // Contextual functions are profiles now, never role identities.
+    expect(body.identityGroups.contextRoles).toBeUndefined();
   });
 
   test("features / identityTypes / moduleToFeature are the engine's own vocabulary", async () => {
@@ -164,78 +161,21 @@ describe("GET — roles / identityGroups: the agreed list is passed through, not
   });
 });
 
-describe("GET — extraRoles: derived from the DATA, never a new allowlist", () => {
-  test("roles found in the DB but absent from the agreed list are surfaced", async () => {
-    mockState.eligibilityRoles = [
-      { identity_value: "program_manager" },
-      { identity_value: "mentor" },
-    ];
-    mockState.roleDefaults = [{ role_name: "teacher" }];
-
+describe("GET — the identity vocabulary is baseline roles + profiles only", () => {
+  test("roles is exactly the three baseline identities", async () => {
     const body = await (await route.GET()).json();
-    expect(body.extraRoles).toEqual(["mentor", "program_manager", "teacher"]);
+    expect(body.roles).toEqual(["super_admin", "staff", "member"]);
+    expect(body.roles).toEqual(ELIGIBILITY_IDENTITIES);
   });
 
-  test("an agreed identity is never re-listed as an extra role", async () => {
-    mockState.eligibilityRoles = [{ identity_value: "staff" }, { identity_value: "mentor" }];
-    mockState.roleDefaults = [{ role_name: "super_admin" }, { role_name: "teacher" }];
-
+  test("no roles-from-the-database are surfaced any more", async () => {
     const body = await (await route.GET()).json();
-    expect(body.extraRoles).toEqual(["mentor", "teacher"]);
-    for (const identity of body.extraRoles) {
-      expect(ELIGIBILITY_IDENTITIES).not.toContain(identity);
-    }
+    expect(body.extraRoles).toBeUndefined();
+    expect(body.groups).toBeUndefined();
   });
 
-  test("both sources are unioned and deduplicated, not concatenated", async () => {
-    mockState.eligibilityRoles = [{ identity_value: "mentor" }, { identity_value: "teacher" }];
-    mockState.roleDefaults = [{ role_name: "mentor" }, { role_name: "teacher" }];
-
+  test("the identity kinds are role and profile", async () => {
     const body = await (await route.GET()).json();
-    expect(body.extraRoles).toEqual(["mentor", "teacher"]);
-  });
-
-  test("blank identities are dropped and the result is sorted", async () => {
-    mockState.eligibilityRoles = [{ identity_value: null }, { identity_value: "" }, { identity_value: "zebra" }];
-    mockState.roleDefaults = [{ role_name: "Alpha" }, { role_name: null }, { role_name: "mentor" }];
-
-    const body = await (await route.GET()).json();
-    expect(body.extraRoles).toEqual(["Alpha", "mentor", "zebra"]);
-  });
-
-  test("an empty database yields no extra roles", async () => {
-    const body = await (await route.GET()).json();
-    expect(body.extraRoles).toEqual([]);
-  });
-
-  test("extraRoles only reflects what the engine enforces: both reads always run", async () => {
-    mockState.eligibilityRoles = [{ identity_value: "mentor" }];
-    await route.GET();
-    // Both sources are read even when the first is empty: the union is the
-    // point, so a role granted only by a template still shows up.
-    expect(listEligibilityRoleIdentities).toHaveBeenCalledTimes(1);
-    expect(listRoleProfileDefaults).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("GET — groups: user_groups + contacts.group_name fallback, deduplicated", () => {
-  test("both sources are merged, deduplicated and sorted", async () => {
-    mockState.userGroups = [{ group_name: "TEAM A" }, { group_name: "TEAM B" }];
-    mockState.contactGroups = [{ group_name: "TEAM B" }, { group_name: "TEAM C" }];
-
-    const body = await (await route.GET()).json();
-    expect(body.groups).toEqual(["TEAM A", "TEAM B", "TEAM C"]);
-  });
-
-  test("a group present only on a contact is still offered (the fallback)", async () => {
-    mockState.userGroups = [];
-    mockState.contactGroups = [{ group_name: "ORPHAN GROUP" }];
-    const body = await (await route.GET()).json();
-    expect(body.groups).toEqual(["ORPHAN GROUP"]);
-  });
-
-  test("no group sources yields an empty list, never undefined", async () => {
-    const body = await (await route.GET()).json();
-    expect(body.groups).toEqual([]);
+    expect(body.identityTypes).toEqual(["role", "profile"]);
   });
 });

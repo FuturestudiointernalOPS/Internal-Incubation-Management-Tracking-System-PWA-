@@ -181,16 +181,16 @@ describe("UI-4c — getContactContexts", () => {
   });
 });
 
-describe("UI-4c — identities and context roles stay one set split in two", () => {
-  test("the groups do not overlap and cover the full identity list", () => {
+describe("UI-4c — the role identities are the baseline roles only", () => {
+  test("contextual functions are profiles, never role identities", () => {
     expect(BASELINE_IDENTITIES).toEqual(["super_admin", "staff", "member"]);
     expect(CONTEXT_ROLES).toEqual(["participant", "facilitator", "investor", "founder"]);
-    for (const ident of BASELINE_IDENTITIES) expect(CONTEXT_ROLES).not.toContain(ident);
-    expect([...BASELINE_IDENTITIES, ...CONTEXT_ROLES]).toEqual(ELIGIBILITY_IDENTITIES);
-    expect(ELIGIBILITY_IDENTITY_GROUPS).toEqual({
-      identities: BASELINE_IDENTITIES,
-      contextRoles: CONTEXT_ROLES,
-    });
+    // The role identities are exactly the baseline roles.
+    expect(ELIGIBILITY_IDENTITIES).toEqual(BASELINE_IDENTITIES);
+    expect(ELIGIBILITY_IDENTITY_GROUPS).toEqual({ identities: BASELINE_IDENTITIES });
+    // Every contextual function is a PROFILE in the catalogue instead.
+    const { PROFILE_KEYS } = require("@/models/authorization/profile-catalog");
+    for (const role of CONTEXT_ROLES) expect(PROFILE_KEYS).toContain(role);
   });
 });
 
@@ -221,15 +221,15 @@ describe("UI-4c — the screens use them", () => {
     expect(src).toContain("peopleContextsPartial");
   });
 
-  test("the eligibility matrix lists baseline identities, not context roles", () => {
+  test("the eligibility matrix lists baseline roles and profiles", () => {
     // Pinned to the file that owns the behaviour: EligibilityView was extracted
     // out of PermissionCenter.js, so reading the shim would pass vacuously.
     const center = read("src/components/permissions/permission-center/EligibilityView.js");
-    // Matrix rows exclude context roles...
+    // The matrix rows are the baseline roles + the profiles.
     expect(center).toContain("matrixRoles");
-    expect(center).toContain("!contextRoles.has(role)");
-    // ...which stay selectable in the identity editor, tagged as context roles.
-    expect(center).toContain("contextRoleTag");
+    expect(center).toContain("matrixProfiles");
+    // No database-found role rows any more.
+    expect(center).not.toContain("extraRoles");
   });
 
   test("every new string exists in English and French", () => {

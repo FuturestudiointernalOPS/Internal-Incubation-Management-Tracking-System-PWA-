@@ -2,8 +2,7 @@
  * ELIGIBILITY CONFIGURATION DECISIONS (SERVICE layer).
  *
  * `src/app/api/engineering/permissions/eligibility/route.js` decided who may
- * configure the eligibility matrix, which roles to surface beyond the agreed
- * list, which groups to offer, whether a downgrade strands template-granted
+ * configure the eligibility matrix, whether a downgrade strands template-granted
  * capabilities (the C2 probe), how a change becomes an upsert or a delete,
  * and what the audit trail says. Those decisions move here.
  *
@@ -12,12 +11,6 @@
  *     only view_matrix still receives the whole catalog, and the flag tells the
  *     UI which writes to grey out. It is coerced to a real boolean, so the JSON
  *     never carries null/undefined.
- *   - `extraRoles` is derived from the DATA (identity rows ∪ role defaults),
- *     never from a new allowlist, so a ceiling the engine already enforces can
- *     never become invisible — that is exactly how Staff Default became
- *     unsavable. Agreed identities are subtracted, blanks dropped, sorted.
- *   - `groups` is the union of `user_groups` and the `contacts.group_name`
- *     fallback, deduplicated and sorted.
  *   - C2: an eligibility DOWNGRADE (0 or unset) can strand capabilities that
  *     role-default TEMPLATES still grant. Nothing is deleted automatically —
  *     the first attempt reports the impacted templates and waits for an
@@ -29,7 +22,6 @@
  */
 
 import { authorize } from "./context";
-import { ELIGIBILITY_IDENTITIES } from "./eligibilityAdmin";
 
 /**
  * Whether the caller may CONFIGURE eligibility. A soft flag, not a gate.
@@ -39,43 +31,6 @@ import { ELIGIBILITY_IDENTITIES } from "./eligibilityAdmin";
  */
 export function resolveCanConfigure(authorizationContext) {
   return !!authorize(authorizationContext, "permissions", "configure_eligibility");
-}
-
-/**
- * The group names the eligibility matrix should offer: `user_groups` plus the
- * legacy `contacts.group_name` fallback, deduplicated and sorted.
- *
- * @param {Array<{group_name: string}>} userGroupRows
- * @param {Array<{group_name: string}>} contactGroupRows
- * @returns {string[]}
- */
-export function deriveEligibleGroupNames(userGroupRows, contactGroupRows) {
-  return [
-    ...new Set(
-      [...(userGroupRows || []), ...(contactGroupRows || [])].map((row) => row.group_name),
-    ),
-  ].sort();
-}
-
-/**
- * The roles this database enforces that the agreed identity list does not
- * carry — the resolver consults them, so the administrator must be able to see
- * and configure those ceilings from the eligibility screen.
- *
- * @param {Array<{identity_value: string}>} eligibilityRoleRows
- * @param {Array<{role_name: string}>} roleDefaultRows
- * @returns {string[]} sorted, blanks dropped, agreed identities subtracted
- */
-export function deriveExtraRoles(eligibilityRoleRows, roleDefaultRows) {
-  const agreed = new Set(ELIGIBILITY_IDENTITIES);
-  return [
-    ...new Set([
-      ...(eligibilityRoleRows || []).map((row) => row.identity_value),
-      ...(roleDefaultRows || []).map((row) => row.role_name),
-    ]),
-  ]
-    .filter((identity) => identity && !agreed.has(identity))
-    .sort();
 }
 
 /**

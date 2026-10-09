@@ -16,8 +16,6 @@ import {
 } from "@/models/authorization/index";
 import {
   resolveCanConfigure,
-  deriveEligibleGroupNames,
-  deriveExtraRoles,
   selectTemplateImpactCandidates,
   collectTemplateImpacts,
   resolveEligibilityWrite,
@@ -25,14 +23,10 @@ import {
 } from "@/services/authorization/eligibilityConfiguration";
 import {
   listFeatureEligibilityRows,
-  listDistinctUserGroupNames,
-  listDistinctContactGroupNames,
-  listEligibilityRoleIdentities,
   getEligibilityRow,
   deleteEligibilityRow,
   upsertEligibilityRow,
 } from "@/models/authorization";
-import { listRoleProfileDefaults } from "@/models/authorization/profileCapabilitiesStore";
 import { PROFILE_KEYS } from "@/models/authorization/profile-catalog";
 
 export const dynamic = "force-dynamic";
@@ -74,29 +68,6 @@ export async function GET() {
 
     const rows = await fetchAllRows();
 
-    // Distinct groups from user_groups + contacts.group_name fallback.
-    const groupResults = await Promise.all([
-      listDistinctUserGroupNames(),
-      listDistinctContactGroupNames(),
-    ]);
-    const groups = deriveEligibleGroupNames(groupResults[0].rows, groupResults[1].rows);
-
-    // Roles the resolver actually consults that are NOT in the curated identity
-    // list (mentor, teacher, program_manager…). The administrator
-    // must be able to see and configure those ceilings from THIS screen —
-    // otherwise a refused template save has no front-end remedy, which is
-    // exactly how Staff Default became unsavable. Derived from the data, never a
-    // new allowlist: nothing becomes configurable that the engine does not
-    // already enforce.
-    const [eligibilityRolesResult, roleDefaultsResult] = await Promise.all([
-      listEligibilityRoleIdentities(),
-      listRoleProfileDefaults(),
-    ]);
-    const extraRoles = deriveExtraRoles(
-      eligibilityRolesResult.rows,
-      roleDefaultsResult.rows,
-    );
-
     return NextResponse.json({
       success: true,
       features: FEATURE_KEYS,
@@ -104,20 +75,12 @@ export async function GET() {
       // Capability module → feature key, so the UI can filter which modules
       // are relevant for a role based on its eligibility.
       moduleToFeature: MODULE_TO_FEATURE,
-      // Agreed eligibility identities only (functions like program_manager are
-      // not eligibility identities). ROLE_CATALOG stays
-      // the full technical catalog for gate validation.
+      // The role identities: the three BASELINE identities only. Every
+      // contextual function is a PROFILE (see `profiles` below), never a role.
       roles: ELIGIBILITY_IDENTITIES,
-      // Roles found in this database that the agreed list does not carry. The
-      // UI renders them as a third, clearly-labelled group so no enforced
-      // ceiling is invisible.
-      extraRoles,
-      // The honest split (UI-4c): baseline identities vs the context roles that
-      // share the same ceiling table. The UI labels them, never conflates them.
       identityGroups: ELIGIBILITY_IDENTITY_GROUPS,
-      groups,
-      // Phase D — the profile keys a ceiling can be written against. The
-      // identity editor and the matrix offer them as a third identity kind.
+      // The profile keys a ceiling can be written against. The identity editor
+      // and the matrix offer them as the second identity kind.
       profiles: PROFILE_KEYS,
       rows,
       canConfigure: !!canConfigure,

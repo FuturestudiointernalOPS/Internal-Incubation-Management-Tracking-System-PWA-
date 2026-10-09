@@ -80,13 +80,13 @@ describe("tasks module (Phase 7)", () => {
     expect(MODULE_TO_FEATURE.tasks).toBe("operations");
   });
 
-  test("operations eligibility defaults cover the tasks allowlist incl. team", () => {
+  test("operations eligibility defaults are the baseline roles only", () => {
     const {
   FEATURE_ELIGIBILITY_DEFAULTS,
   FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
 } = require("@/models/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.operations).toEqual(
-      expect.arrayContaining(["super_admin", "staff", "team"]),
+      expect.arrayContaining(["super_admin", "staff"]),
     );
     // Phase H — program_manager / participant / investor are PROFILES now.
     for (const profile of ["program_manager", "participant", "investor"]) {
@@ -341,7 +341,6 @@ describe("messaging module (communication feature)", () => {
     expect(FEATURE_ELIGIBILITY_DEFAULTS.communication).toEqual([
       "super_admin",
       "staff",
-      "mentor",
     ]);
     expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.communication).toEqual([
       "program_manager",
