@@ -14,3 +14,4 @@ export * from "./pipelines";
 export * from "./opportunities";
 export * from "./stageHistory";
 export * from "./activities";
+export * from "./intelligence";

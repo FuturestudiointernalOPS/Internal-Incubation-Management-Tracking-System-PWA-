@@ -107,7 +107,8 @@ export async function updateCrmLead(id, updates) {
   // Use a dynamic update builder for partial updates
   const allowedFields = [
     'title', 'contact_cid', 'organization_id', 'owner_cid', 'lead_type', 
-    'status', 'qualification_state', 'source', 'description', 'notes', 
+    'status', 'qualification_state', 'qualification_date', 'qualification_reason', 
+    'qualification_notes', 'score', 'source', 'description', 'notes', 
     'is_converted', 'converted_at'
   ];
   

@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import CrmActivityPanel from "@/components/ui/CrmActivityPanel";
+import CrmScorePanel from "@/components/ui/CrmScorePanel";
 
 export const dynamic = "force-dynamic";
 
@@ -131,6 +132,9 @@ export default function CrmLeadDetailPage({ params }) {
           </div>
         </div>
       </div>
+
+      {/* Intelligence / Scoring */}
+      <CrmScorePanel lead={lead} onUpdate={setLead} />
 
       {/* Activities + Next Action */}
       <CrmActivityPanel leadId={lead.id} />

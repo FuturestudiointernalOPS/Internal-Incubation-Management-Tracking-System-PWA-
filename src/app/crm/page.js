@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Users, FileText, MessageSquare, ShieldAlert, Clock, Shield, TrendingUp, Settings, Activity } from "lucide-react";
+import { Users, FileText, MessageSquare, ShieldAlert, Clock, Shield, TrendingUp, Settings, Activity, Filter } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
@@ -108,6 +108,20 @@ export default function CrmWorkspace() {
         icon: Settings,
         title: t("crm.pipelines.title"),
         subtitle: t("crm.pipelines.subtitle"),
+      },
+      {
+        key: "segments",
+        href: "/crm/segments",
+        icon: Filter,
+        title: t("crm.intelligence.segments.title"),
+        subtitle: t("crm.intelligence.segments.subtitle"),
+      },
+      {
+        key: "automations",
+        href: "/crm/automations",
+        icon: Settings,
+        title: t("crm.intelligence.automations.title"),
+        subtitle: t("crm.intelligence.automations.subtitle"),
       },
       {
         key: "organizations",
