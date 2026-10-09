@@ -79,6 +79,14 @@ const publicApiPaths = [
   "/api/public",
   "/api/webhooks/kkiapay",
   "/api/lms/checkout-reconcile",
+  // Google Calendar: the push webhook (Google holds no session; the channel
+  // token is the credential) and the scheduled sweep (a clock holds no session;
+  // the shared cron secret is the credential). Without these the requests are
+  // refused at the edge with 401 and never reach their own gate — the sweep
+  // would look configured and silently never run, and push notifications would
+  // be lost.
+  "/api/integrations/google-calendar/webhook",
+  "/api/integrations/google-calendar/cron",
   // The daily reminder sweep. A clock holds no session cookie, so without this
   // the request is refused at the edge with 401 and the route never runs — the
   // job would look "configured" and silently never send anything. The route's
