@@ -149,36 +149,10 @@ export default function VentureDetailView({ ctx }) {
 
             <div className="flex gap-3">
               <button
-                onClick={() => router.push(`/admin/ventures/${id}/edit`)}
-                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
-              >
-                <Edit3 className="w-3 h-3" /> {t("vadmin.detail.edit")}
-              </button>
-              <button
-                onClick={() => router.push(`/admin/ventures/permissions`)}
-                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
-                title={t("vadmin.detail.permissionsTitle")}
-              >
-                <Shield className="w-3 h-3" /> {t("vadmin.detail.permissions")}
-              </button>
-              <button
-                onClick={() => router.push(`/admin/ventures/${id}/permissions`)}
-                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
-                title={t("vadmin.detail.staffTitle")}
-              >
-                <Users className="w-3 h-3" /> {t("vadmin.detail.staff")}
-              </button>
-              <button
                 onClick={() => router.push(`/admin/ventures/${id}/notes`)}
                 className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
               >
                 <FileText className="w-3 h-3" /> {t("vadmin.detail.notes")}
-              </button>
-              <button
-                onClick={() => router.push(`/admin/ventures/${id}/operating-plan`)}
-                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
-              >
-                <Target className="w-3 h-3" /> {t("vadmin.detail.operatingPlan")}
               </button>
               <button
                 onClick={() => router.push(`/admin/ventures/${id}/journey`)}

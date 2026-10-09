@@ -120,10 +120,7 @@ export default function TasksTable({
                 <td className="p-4">
                   <span className="text-sm font-bold text-indigo-500">
                     {task.project_id
-                      ? projectMap[task.project_id] ||
-                        t("adminMisc.tasks.projectNumber", {
-                          id: task.project_id,
-                        })
+                      ? projectMap[task.project_id] || "—"
                       : t("adminMisc.tasks.independent")}
                   </span>
                 </td>
