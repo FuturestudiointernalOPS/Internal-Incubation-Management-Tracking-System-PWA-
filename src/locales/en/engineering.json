@@ -22,6 +22,7 @@
           "scope": "Scope",
           "history": "History",
           "rights": "Rights",
+          "profiles": "Profiles",
           "why": "Why"
         },
         "intro": {
@@ -978,6 +979,7 @@
       "profileAssignmentsAssigned": "Profile assigned.",
       "profileAssignmentsClosed": "Profile period closed.",
       "profileAssignmentsAssignFailed": "Could not assign the profile.",
+      "profileAssignmentsAlreadyActive": "This profile is already active for this person.",
       "profileAssignmentsCloseFailed": "Could not close the profile period.",
       "profileAssignmentsSelectProfile": "— Select a profile —",
       "profileAssignmentsOpenEnded": "Open-ended",

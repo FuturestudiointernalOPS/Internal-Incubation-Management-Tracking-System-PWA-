@@ -22,6 +22,7 @@
           "scope": "Portée",
           "history": "Historique",
           "rights": "Droits",
+          "profiles": "Profils",
           "why": "Pourquoi"
         },
         "intro": {
@@ -978,6 +979,7 @@
       "profileAssignmentsAssigned": "Profil attribué.",
       "profileAssignmentsClosed": "Période de profil clôturée.",
       "profileAssignmentsAssignFailed": "Impossible d'attribuer le profil.",
+      "profileAssignmentsAlreadyActive": "Ce profil est déjà actif pour cette personne.",
       "profileAssignmentsCloseFailed": "Impossible de clôturer la période de profil.",
       "profileAssignmentsSelectProfile": "— Sélectionnez un profil —",
       "profileAssignmentsOpenEnded": "Sans date de fin",

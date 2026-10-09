@@ -29,7 +29,7 @@ export const PROTOTYPE_TABS = {
  * A person's own detail tabs (opened by clicking a row) — the same prototype
  * vocabulary, kept next to the section tabs it belongs with.
  */
-export const PERSON_TABS = ["rights", "why", "scope", "responsibilities", "history"];
+export const PERSON_TABS = ["rights", "profiles", "why", "scope", "responsibilities", "history"];
 
 export function sectionTabs(section) {
   return PROTOTYPE_TABS[section] || [];

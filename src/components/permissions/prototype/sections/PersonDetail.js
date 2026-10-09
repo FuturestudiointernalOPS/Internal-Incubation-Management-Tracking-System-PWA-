@@ -17,6 +17,7 @@ import AppButton from "@/components/ui/AppButton";
 import { defer } from "../../effectUtils";
 import { buildRightRows, countRights, gatesForRow } from "../personAccess";
 import { PERSON_TABS } from "../prototypeNav";
+import PersonProfiles from "../PersonProfiles";
 import {
   Cell,
   EmptyRow,
@@ -50,6 +51,9 @@ export default function PersonDetail({ person, data, revision = 0, onBack, openD
   const [responsibilities, setResponsibilities] = useState([]);
   const [scopeRecords, setScopeRecords] = useState(0);
   const [loading, setLoading] = useState(true);
+  // Bumped after a profile assignment changes — the resolver's answer for this
+  // person (their eligibility) may now differ, so it is re-read.
+  const [profileRevision, setProfileRevision] = useState(0);
 
   const cid = person.cid;
 
@@ -74,7 +78,7 @@ export default function PersonDetail({ person, data, revision = 0, onBack, openD
     return () => {
       active = false;
     };
-  }, [cid, revision]);
+  }, [cid, revision, profileRevision]);
 
   const rows = context
     ? buildRightRows({
@@ -124,6 +128,14 @@ export default function PersonDetail({ person, data, revision = 0, onBack, openD
 
       {loading && <Note>{t("common.loading")}</Note>}
       {!loading && !context && <Note>{t("engineering.permissions.prototype.personLoadFailed")}</Note>}
+
+      {tab === "profiles" && (
+        <PersonProfiles
+          cid={cid}
+          data={data}
+          onChanged={() => setProfileRevision((value) => value + 1)}
+        />
+      )}
 
       {context && tab === "rights" && (
         <PrototypeTable minWidth="46rem">
