@@ -21,8 +21,16 @@ export default function VerificationProgress({
   return (
     <div className="card">
       <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4">{t("vadmin.verification.progress")}</h3>
-      <div className="space-y-3">
-        {documentTypes.map((documentType) => {
+      <div className="space-y-6">
+        {/* Readiness documents */}
+        <div className="space-y-3">
+          <div className="mb-1">
+            <p className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">{t("vadmin.verification.readinessDocuments")}</p>
+            <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{t("vadmin.verification.readinessDocumentsHint")}</p>
+          </div>
+          {documentTypes
+            .filter((documentType) => documentType.code !== "email_verification" && documentType.code !== "phone_verification")
+            .map((documentType) => {
           const stepKey = documentType.code;
           const item = getItemForCategory(stepKey);
           const stepDocs = getDocsForCategory(stepKey);
@@ -149,9 +157,9 @@ export default function VerificationProgress({
               )}
             </div>
           );
-        })}
+          })}
+        </div>
       </div>
-
       {/* Files whose category matches no configured document type. They are
           stored and reviewable, so they must stay visible — they are just
           not attached to any slot above. */}
