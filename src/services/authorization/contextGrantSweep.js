@@ -82,7 +82,7 @@ export async function syncAllContextGrants(
 
     // Phase F — people whose relationship ENDED keep (or need) a residual read,
     // so they must be re-evaluated even once they leave the active set.
-    const profileKey = profileKeyForContextRole(context, roleKey);
+    const profileKey = await profileKeyForContextRole(context, roleKey);
     if (profileKey) {
       const endedRes = await listEndedAssignmentContacts(context, profileKey);
       for (const row of endedRes.rows || []) if (row.cid) cids.add(String(row.cid));

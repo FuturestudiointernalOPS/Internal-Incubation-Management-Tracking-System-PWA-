@@ -63,8 +63,24 @@ function mockExecute(query) {
     };
   }
 
-  // Phase B's registry read: empty → the catalogue default is used.
-  if (sqlText.includes("FROM profiles")) return { rows: [] };
+  // The profiles table is the SOURCE of truth: the founder profile exists, lives
+  // in context `venture`, and is open to the member baseline.
+  if (sqlText.includes("FROM profiles")) {
+    if (String(args[0]) === "founder") {
+      return {
+        rows: [
+          {
+            key: "founder",
+            context: "venture",
+            allowed_roles: JSON.stringify(["member"]),
+            is_active: 1,
+            notes: "",
+          },
+        ],
+      };
+    }
+    return { rows: [] };
+  }
 
   // Phase H — the profile ↔ role rule is enforced ("block"): the founder is a
   // baseline member, so the founder profile (open to member) fits.

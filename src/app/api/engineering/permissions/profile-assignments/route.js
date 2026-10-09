@@ -14,7 +14,7 @@ import {
   insertProfileAssignment,
   closeProfileAssignment,
 } from "@/models/authorization/profileAssignmentsStore";
-import { listProfiles } from "@/models/authorization/profilesStore";
+import { listProfiles, getProfileRow } from "@/models/authorization/profilesStore";
 import {
   CLOSE_ACTIONS,
   validateProfileAssignment,
@@ -97,7 +97,14 @@ export async function POST(req) {
     const session = await getSession();
     const body = await req.json();
 
-    const check = validateProfileAssignment(body);
+    // The profile is validated against the DATABASE: read its row and hand it to
+    // the validator, so a profile created from the profiles screen is accepted.
+    const profileKey = String(body.profile_key ?? body.profileKey ?? "");
+    const profileRow = profileKey
+      ? (await getProfileRow(profileKey)).rows?.[0] || null
+      : null;
+
+    const check = validateProfileAssignment(body, profileRow);
     if (!check.valid) {
       return NextResponse.json(
         { success: false, error: check.errors.join("; ") },

@@ -264,15 +264,21 @@ describe("evaluateProfileRoleFit", () => {
 });
 
 describe("profileKeyForContextRole", () => {
-  test("maps the supported couples to their profile key", () => {
-    expect(profileKeyForContextRole("venture", "founder")).toBe("founder");
-    expect(profileKeyForContextRole("program", "facilitator")).toBe("facilitator");
-    expect(profileKeyForContextRole("program", "program_manager")).toBe("program_manager");
+  test("maps the supported couples to their profile key", async () => {
+    mockState.profileRows = [
+      profileRow("founder", "venture", ["member"]),
+      profileRow("facilitator", "program", ["staff", "member"]),
+      profileRow("program_manager", "program", ["staff"]),
+    ];
+    await expect(profileKeyForContextRole("venture", "founder")).resolves.toBe("founder");
+    await expect(profileKeyForContextRole("program", "facilitator")).resolves.toBe("facilitator");
+    await expect(profileKeyForContextRole("program", "program_manager")).resolves.toBe("program_manager");
   });
 
-  test("a couple whose context does not match the profile is not a profile", () => {
-    expect(profileKeyForContextRole("lms", "founder")).toBe(null);
-    expect(profileKeyForContextRole("venture", "ghost")).toBe(null);
+  test("a couple whose context does not match the profile is not a profile", async () => {
+    mockState.profileRows = [profileRow("founder", "venture", ["member"])];
+    await expect(profileKeyForContextRole("lms", "founder")).resolves.toBe(null);
+    await expect(profileKeyForContextRole("venture", "ghost")).resolves.toBe(null);
   });
 });
 

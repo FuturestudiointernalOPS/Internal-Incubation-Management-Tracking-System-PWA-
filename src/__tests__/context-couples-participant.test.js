@@ -95,8 +95,17 @@ afterEach(() => {
 // ── 1. The profile key ───────────────────────────────────────────────────────
 
 describe("profileKeyForContextRole — participant", () => {
-  test("maps the program/participant couple to the participant profile", () => {
-    expect(profileKeyForContextRole("program", "participant")).toBe("participant");
+  test("maps the program/participant couple to the participant profile", async () => {
+    mockDbExecute.mockImplementation(async (query) => {
+      const sql = typeof query === "string" ? query : query?.sql || "";
+      if (sql.includes("FROM profiles")) {
+        return {
+          rows: [{ key: "participant", context: "program", allowed_roles: "[]", is_active: 1 }],
+        };
+      }
+      return { rows: [] };
+    });
+    await expect(profileKeyForContextRole("program", "participant")).resolves.toBe("participant");
   });
 });
 

@@ -15,10 +15,6 @@
 import { readFileSync } from "node:fs";
 import pg from "pg";
 import { BASELINE_IDENTITIES } from "../src/lib/identity.js";
-import {
-  PROFILE_KEYS,
-  baselineRoleForProfile,
-} from "../src/models/authorization/profile-catalog.js";
 
 const readDatabaseUrl = (file) => {
   try {
@@ -45,18 +41,14 @@ if (!databaseUrl) {
 
 const apply = process.argv.includes("--apply");
 
-const classify = (role) => {
-  const value = String(role ?? "").trim();
-  if (!value) return "empty";
-  if (BASELINE_IDENTITIES.includes(value)) return "baseline";
-  if (PROFILE_KEYS.includes(value)) return "profile";
-  return "retired";
+const parseAllowedRoles = (raw) => {
+  try {
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
 };
-
-// The baseline a legacy value aligns onto: a staff-only profile (program_manager,
-// venture_manager) must become baseline `staff` so the profile rule keeps it
-// open to the person; everything else becomes the member default.
-const targetFor = (role) => baselineRoleForProfile(String(role ?? "")) || "member";
 
 const pool = new pg.Pool({
   connectionString: databaseUrl,
@@ -66,6 +58,31 @@ const pool = new pg.Pool({
 
 try {
   await pool.query("SELECT 1");
+
+  // The profiles come from the DATABASE, so a profile added/renamed/removed from
+  // the profiles screen is recognised without any hardcoded list.
+  const { rows: profileRows } = await pool.query("SELECT key, allowed_roles FROM profiles");
+  const profileRoleMap = new Map(
+    profileRows.map((row) => [String(row.key), parseAllowedRoles(row.allowed_roles)]),
+  );
+
+  const classify = (role) => {
+    const value = String(role ?? "").trim();
+    if (!value) return "empty";
+    if (BASELINE_IDENTITIES.includes(value)) return "baseline";
+    return profileRoleMap.has(value) ? "profile" : "retired";
+  };
+
+  // A staff-only profile (program_manager, venture_manager) must become baseline
+  // `staff` so the profile rule keeps it open to the person; everything else
+  // becomes the member default.
+  const targetFor = (role) => {
+    const allowed = profileRoleMap.get(String(role ?? "")) || [];
+    if (allowed.includes("member")) return "member";
+    if (allowed.includes("staff")) return "staff";
+    return "member";
+  };
+
   const { rows } = await pool.query(
     `SELECT role, COUNT(*)::int AS count
        FROM contacts

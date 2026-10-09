@@ -24,6 +24,7 @@ const mockState = {
 
 function mockExecute(query) {
   const sql = typeof query === "string" ? query : query.sql || "";
+  const args = typeof query === "string" ? [] : query.args || [];
 
   if (/^\s*(CREATE TABLE|CREATE INDEX)/i.test(sql)) return { rows: [] };
 
@@ -56,7 +57,11 @@ function mockExecute(query) {
   if (sql.includes("UPDATE profile_assignments")) {
     return { rows: [], rowsAffected: mockState.updateAffected };
   }
-  if (sql.includes("FROM profiles")) return { rows: mockState.profiles };
+  if (sql.includes("FROM profiles")) {
+    const key = args[0];
+    if (key === undefined || key === null) return { rows: mockState.profiles };
+    return { rows: mockState.profiles.filter((row) => row.key === String(key)) };
+  }
 
   return { rows: [] };
 }
@@ -162,8 +167,10 @@ describe("isAssignmentActive", () => {
 });
 
 describe("validateProfileAssignment", () => {
-  test("accepts a known profile and defaults the context from the catalogue", () => {
-    const result = validateProfileAssignment({ cid: "C1", profile_key: "founder" });
+  const FOUNDER_ROW = { key: "founder", context: "venture" };
+
+  test("accepts a known profile and defaults the context from the DB row", () => {
+    const result = validateProfileAssignment({ cid: "C1", profile_key: "founder" }, FOUNDER_ROW);
     expect(result.valid).toBe(true);
     expect(result.normalized).toMatchObject({
       contactCid: "C1",
@@ -173,40 +180,50 @@ describe("validateProfileAssignment", () => {
     });
   });
 
-  test("refuses an unknown profile", () => {
-    const result = validateProfileAssignment({ cid: "C1", profile_key: "ghost" });
+  test("refuses an unknown profile (no DB row)", () => {
+    const result = validateProfileAssignment({ cid: "C1", profile_key: "ghost" }, null);
     expect(result.valid).toBe(false);
     expect(result.errors.join(" ")).toContain("unknown profile");
   });
 
   test("refuses a context that does not match the profile", () => {
-    const result = validateProfileAssignment({
-      cid: "C1",
-      profile_key: "founder",
-      context_type: "program",
-    });
+    const result = validateProfileAssignment(
+      {
+        cid: "C1",
+        profile_key: "founder",
+        context_type: "program",
+      },
+      FOUNDER_ROW,
+    );
     expect(result.valid).toBe(false);
     expect(result.errors.join(" ")).toContain("does not match");
   });
 
   test("refuses an end before the start", () => {
-    const result = validateProfileAssignment({
-      cid: "C1",
-      profile_key: "founder",
-      started_at: "2026-06-01",
-      ends_at: "2026-01-01",
-    });
+    const result = validateProfileAssignment(
+      {
+        cid: "C1",
+        profile_key: "founder",
+        started_at: "2026-06-01",
+        ends_at: "2026-01-01",
+      },
+      FOUNDER_ROW,
+    );
     expect(result.valid).toBe(false);
     expect(result.errors.join(" ")).toContain("ends_at must be at or after");
   });
 
   test("refuses an invalid date and an unknown source", () => {
-    expect(validateProfileAssignment({ cid: "C1", profile_key: "founder", ends_at: "nope" }).valid).toBe(false);
-    expect(validateProfileAssignment({ cid: "C1", profile_key: "founder", source: "guessed" }).valid).toBe(false);
+    expect(
+      validateProfileAssignment({ cid: "C1", profile_key: "founder", ends_at: "nope" }, FOUNDER_ROW).valid,
+    ).toBe(false);
+    expect(
+      validateProfileAssignment({ cid: "C1", profile_key: "founder", source: "guessed" }, FOUNDER_ROW).valid,
+    ).toBe(false);
   });
 
   test("requires the person's id", () => {
-    expect(validateProfileAssignment({ profile_key: "founder" }).valid).toBe(false);
+    expect(validateProfileAssignment({ profile_key: "founder" }, FOUNDER_ROW).valid).toBe(false);
   });
 
   test("the two sources are exactly manual and automatic", () => {
@@ -334,6 +351,7 @@ describe("GET/POST/PATCH /api/engineering/permissions/profile-assignments", () =
     const route = loadRoute();
     const { requireAuthorization } = require("@/models/authorization/index");
     mockState.activeFound = []; // nothing active → allowed
+    mockState.profiles = [{ key: "founder", context: "venture", is_active: 1 }];
 
     const res = await route.POST(
       jsonReq("POST", { cid: "C1", profile_key: "founder", reason: "pilot" }),
@@ -352,6 +370,7 @@ describe("GET/POST/PATCH /api/engineering/permissions/profile-assignments", () =
   test("POST refuses a duplicate ACTIVE period with 409 and writes nothing", async () => {
     const route = loadRoute();
     mockState.activeFound = [{ id: 7 }];
+    mockState.profiles = [{ key: "founder", context: "venture", is_active: 1 }];
 
     const res = await route.POST(jsonReq("POST", { cid: "C1", profile_key: "founder" }));
 

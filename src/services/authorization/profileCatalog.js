@@ -179,16 +179,29 @@ export function evaluateProfileRoleFit(profile, role) {
 }
 
 /**
- * The profile a (context, roleKey) pair names, or null when the pair carries no
- * profile. The automatic reconcile speaks in `(context, roleKey)` and the three
- * supported couples (`venture:founder`, `program:facilitator`,
- * `program:program_manager`) are exactly the profile keys, so the mapping is
- * the catalogue's own context.
+ * The profile a (context, roleKey) couple names, or null when the pair carries
+ * no profile. The couples are a product decision in code
+ * (`SUPPORTED_CONTEXT_ROLES`), but WHICH profiles exist — and in which context
+ * they live — is the DATABASE's answer: the profile row is read by key and its
+ * `context` must match. A profile that was deleted, or never created, is null.
  */
-export function profileKeyForContextRole(context, roleKey) {
-  const definition = getProfileDefinition(roleKey);
-  if (!definition) return null;
-  return definition.context === String(context || "") ? definition.key : null;
+export async function profileKeyForContextRole(context, roleKey) {
+  const key = String(roleKey ?? "");
+  if (!key) return null;
+  try {
+    await ensureProfilesSchema();
+    const row = (await getProfileRow(key)).rows?.[0];
+    if (!row) return null;
+    return String(row.context ?? "") === String(context ?? "")
+      ? String(row.key)
+      : null;
+  } catch (error) {
+    console.warn(
+      `[Authz] profileKeyForContextRole(${context}, ${key}) read failed:`,
+      error.message,
+    );
+    return null;
+  }
 }
 
 /**

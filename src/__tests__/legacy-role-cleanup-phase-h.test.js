@@ -49,6 +49,17 @@ const {
   alignLegacyRoles,
 } = require("@/services/authorization/legacyRoleCleanup");
 
+// The profile ceilings the DB would hold (read by surveyLegacyRoles at runtime).
+const PROFILE_ROLE_MAP = new Map([
+  ["founder", ["member"]],
+  ["participant", ["member"]],
+  ["facilitator", ["staff", "member"]],
+  ["investor", ["member"]],
+  ["learner", ["member"]],
+  ["program_manager", ["staff"]],
+  ["venture_manager", ["staff"]],
+]);
+
 const sqlOf = (call) => {
   const first = call[0];
   return typeof first === "string" ? first : String(first?.sql || "");
@@ -71,55 +82,58 @@ afterEach(() => {
 
 describe("classifyRoleValue", () => {
   test("the three baseline identities are baseline", () => {
-    expect(classifyRoleValue("member")).toBe("baseline");
-    expect(classifyRoleValue("staff")).toBe("baseline");
-    expect(classifyRoleValue("super_admin")).toBe("baseline");
+    expect(classifyRoleValue("member", PROFILE_ROLE_MAP)).toBe("baseline");
+    expect(classifyRoleValue("staff", PROFILE_ROLE_MAP)).toBe("baseline");
+    expect(classifyRoleValue("super_admin", PROFILE_ROLE_MAP)).toBe("baseline");
   });
 
-  test("a catalogue profile is a profile value", () => {
-    expect(classifyRoleValue("founder")).toBe("profile");
-    expect(classifyRoleValue("program_manager")).toBe("profile");
+  test("a profile the DB holds is a profile value", () => {
+    expect(classifyRoleValue("founder", PROFILE_ROLE_MAP)).toBe("profile");
+    expect(classifyRoleValue("program_manager", PROFILE_ROLE_MAP)).toBe("profile");
   });
 
   test("anything else is retired, and an empty value is its own defect", () => {
-    expect(classifyRoleValue("mentor")).toBe("retired");
-    expect(classifyRoleValue("team")).toBe("retired");
-    expect(classifyRoleValue("")).toBe("empty");
-    expect(classifyRoleValue(null)).toBe("empty");
+    expect(classifyRoleValue("mentor", PROFILE_ROLE_MAP)).toBe("retired");
+    expect(classifyRoleValue("team", PROFILE_ROLE_MAP)).toBe("retired");
+    expect(classifyRoleValue("", PROFILE_ROLE_MAP)).toBe("empty");
+    expect(classifyRoleValue(null, PROFILE_ROLE_MAP)).toBe("empty");
   });
 
   test("isLegacyRoleValue is exactly 'not baseline and not empty'", () => {
-    expect(isLegacyRoleValue("member")).toBe(false);
-    expect(isLegacyRoleValue("")).toBe(false);
-    expect(isLegacyRoleValue("founder")).toBe(true);
-    expect(isLegacyRoleValue("mentor")).toBe(true);
+    expect(isLegacyRoleValue("member", PROFILE_ROLE_MAP)).toBe(false);
+    expect(isLegacyRoleValue("", PROFILE_ROLE_MAP)).toBe(false);
+    expect(isLegacyRoleValue("founder", PROFILE_ROLE_MAP)).toBe(true);
+    expect(isLegacyRoleValue("mentor", PROFILE_ROLE_MAP)).toBe(true);
   });
 });
 
 describe("targetBaselineForRole — the alignment preserves the profile fit", () => {
   test("a staff-only profile aligns onto staff", () => {
-    expect(targetBaselineForRole("program_manager")).toBe("staff");
-    expect(targetBaselineForRole("venture_manager")).toBe("staff");
+    expect(targetBaselineForRole("program_manager", PROFILE_ROLE_MAP)).toBe("staff");
+    expect(targetBaselineForRole("venture_manager", PROFILE_ROLE_MAP)).toBe("staff");
   });
 
   test("member-open profiles and retired labels align onto member", () => {
-    expect(targetBaselineForRole("founder")).toBe("member");
-    expect(targetBaselineForRole("participant")).toBe("member");
-    expect(targetBaselineForRole("facilitator")).toBe("member");
-    expect(targetBaselineForRole("mentor")).toBe("member");
+    expect(targetBaselineForRole("founder", PROFILE_ROLE_MAP)).toBe("member");
+    expect(targetBaselineForRole("participant", PROFILE_ROLE_MAP)).toBe("member");
+    expect(targetBaselineForRole("facilitator", PROFILE_ROLE_MAP)).toBe("member");
+    expect(targetBaselineForRole("mentor", PROFILE_ROLE_MAP)).toBe("member");
     expect(DEFAULT_BASELINE_ROLE).toBe("member");
   });
 });
 
 describe("buildLegacyRoleReport", () => {
   test("splits baseline from legacy, totals both, and is unsafe while a legacy value remains", () => {
-    const report = buildLegacyRoleReport([
-      { role: "member", count: 10 },
-      { role: "staff", count: 2 },
-      { role: "super_admin", count: 1 },
-      { role: "founder", count: 3 },
-      { role: "mentor", count: 1 },
-    ]);
+    const report = buildLegacyRoleReport(
+      [
+        { role: "member", count: 10 },
+        { role: "staff", count: 2 },
+        { role: "super_admin", count: 1 },
+        { role: "founder", count: 3 },
+        { role: "mentor", count: 1 },
+      ],
+      PROFILE_ROLE_MAP,
+    );
 
     expect(report.baseline.map((entry) => entry.role)).toEqual([
       "member",
@@ -134,10 +148,13 @@ describe("buildLegacyRoleReport", () => {
   });
 
   test("safe is true only when no account carries a legacy value", () => {
-    const report = buildLegacyRoleReport([
-      { role: "member", count: 10 },
-      { role: "staff", count: 2 },
-    ]);
+    const report = buildLegacyRoleReport(
+      [
+        { role: "member", count: 10 },
+        { role: "staff", count: 2 },
+      ],
+      PROFILE_ROLE_MAP,
+    );
     expect(report.legacy).toEqual([]);
     expect(report.totalLegacy).toBe(0);
     expect(report.safe).toBe(true);
@@ -157,6 +174,15 @@ const ROLE_COUNTS = [
 function mockSurvey() {
   mockExecute.mockImplementation(async (arg) => {
     const sql = typeof arg === "string" ? arg : String(arg?.sql || "");
+    if (/FROM profiles/i.test(sql)) {
+      // The profile catalogue, read from the DATABASE.
+      return {
+        rows: [
+          { key: "founder", context: "venture", allowed_roles: JSON.stringify(["member"]) },
+          { key: "program_manager", context: "program", allowed_roles: JSON.stringify(["staff"]) },
+        ],
+      };
+    }
     if (/SELECT role, COUNT\(\*\)::int AS count/i.test(sql)) {
       return { rows: ROLE_COUNTS };
     }

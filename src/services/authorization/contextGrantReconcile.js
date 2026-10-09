@@ -111,7 +111,7 @@ export async function syncContextGrantsForUser(
     // justifying relationship does, so the check runs beside `sourceIds`. In the
     // DEFAULT "warn" mode it is REPORTED and changes nothing; only "block"
     // (Phase H) refuses, before any write, so nothing is applied or revoked.
-    const profileKey = profileKeyForContextRole(context, roleKey);
+    const profileKey = await profileKeyForContextRole(context, roleKey);
     const profileRoleGap = sourceIds.length
       ? await buildProfileRoleGap({ profileKey, cid })
       : null;

@@ -12,7 +12,30 @@
 
 jest.mock("@/lib/db", () => ({
   __esModule: true,
-  default: { execute: jest.fn(async () => ({ rows: [] })) },
+  default: {
+    execute: jest.fn(async (query) => {
+      const sql = typeof query === "string" ? query : query?.sql || "";
+      const args = typeof query === "string" ? [] : query?.args || [];
+      if (sql.includes("FROM profiles")) {
+        const contexts = {
+          investor: "investor",
+          learner: "lms",
+          venture_manager: "venture",
+          founder: "venture",
+          participant: "program",
+          facilitator: "program",
+          program_manager: "program",
+        };
+        const key = String(args[0]);
+        return {
+          rows: contexts[key]
+            ? [{ key, context: contexts[key], allowed_roles: "[]", is_active: 1 }]
+            : [],
+        };
+      }
+      return { rows: [] };
+    }),
+  },
   initDb: jest.fn(async () => {}),
 }));
 
@@ -79,10 +102,10 @@ afterEach(() => {
 // ── 1. The profile key each couple maps to ───────────────────────────────────
 
 describe("profileKeyForContextRole — the new couples speak in profile keys", () => {
-  test("investor, learner and venture_manager map to their catalogue profile", () => {
-    expect(profileKeyForContextRole("investor", "investor")).toBe("investor");
-    expect(profileKeyForContextRole("lms", "learner")).toBe("learner");
-    expect(profileKeyForContextRole("venture", "venture_manager")).toBe("venture_manager");
+  test("investor, learner and venture_manager map to their catalogue profile", async () => {
+    await expect(profileKeyForContextRole("investor", "investor")).resolves.toBe("investor");
+    await expect(profileKeyForContextRole("lms", "learner")).resolves.toBe("learner");
+    await expect(profileKeyForContextRole("venture", "venture_manager")).resolves.toBe("venture_manager");
   });
 });
 

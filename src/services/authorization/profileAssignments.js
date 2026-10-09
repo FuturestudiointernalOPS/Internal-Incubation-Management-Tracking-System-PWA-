@@ -15,15 +15,11 @@
  *   - THE REGISTRY DESCRIBES, IT DOES NOT DECIDE. Nothing here grants or removes
  *     access; the phases that consume it (D, E, F) own that.
  *
- * Pure except for reading the catalogue definition to check a profile's context.
- * Imports NOTHING from the database.
+ * Pure; the caller passes the profile row it read from the DATABASE (which is
+ * the source of truth for which profiles exist and in which context).
  */
 
-import {
-  PROFILE_CONTEXTS,
-  getProfileDefinition,
-  isValidProfileKey,
-} from "@/models/authorization/profile-catalog";
+import { PROFILE_CONTEXTS } from "@/models/authorization/profile-catalog";
 
 export const ASSIGNMENT_STATUSES = ["active", "ended", "revoked"];
 export const ASSIGNMENT_SOURCES = ["manual", "automatic"];
@@ -106,32 +102,35 @@ export function isAssignmentActive(row, nowIso = new Date().toISOString()) {
  *
  * @param {object} input
  * @param {string} input.cid  the person (accepted as `cid` or `contact_cid`)
- * @param {string} input.profile_key  a catalogue key
+ * @param {string} input.profile_key  the profile KEY
  * @param {string} [input.context_type]  defaults to the profile's own context
  * @param {string} [input.context_id]
  * @param {string|Date} [input.started_at]
  * @param {string|Date} [input.ends_at]
  * @param {string} [input.source]  "manual" (default) | "automatic"
+ * @param {{key: string, context: string}|null} [profileRow]  the profile row read
+ *   from the DATABASE. A missing row is an unknown profile; its `context` is the
+ *   source of truth (so a profile created from the profiles screen is accepted).
  * @returns {{valid: boolean, errors: string[], normalized: object}}
  */
-export function validateProfileAssignment(input = {}) {
+export function validateProfileAssignment(input = {}, profileRow = null) {
   const errors = [];
 
   const contactCid = String(input.cid ?? input.contact_cid ?? "").trim();
   if (!contactCid) errors.push("cid is required");
 
   const profileKey = String(input.profile_key ?? input.profileKey ?? "");
-  if (!isValidProfileKey(profileKey)) errors.push(`unknown profile: ${profileKey}`);
+  if (!profileRow) errors.push(`unknown profile: ${profileKey}`);
 
-  const definition = getProfileDefinition(profileKey);
+  const profileContext = profileRow?.context ? String(profileRow.context) : null;
   // The context defaults to the profile's own context; a caller that supplies
   // one must supply the matching one — a founder is never a program context.
   const contextType = String(
-    input.context_type ?? input.contextType ?? definition?.context ?? "",
+    input.context_type ?? input.contextType ?? profileContext ?? "",
   );
   if (!PROFILE_CONTEXTS.includes(contextType)) {
     errors.push(`unknown context: ${contextType}`);
-  } else if (definition && definition.context !== contextType) {
+  } else if (profileContext && profileContext !== contextType) {
     errors.push(`context "${contextType}" does not match profile "${profileKey}"`);
   }
 

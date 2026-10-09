@@ -110,7 +110,7 @@ export async function syncContextGrantsHistory(
 ) {
   const empty = { applied: [], revoked: [], contextIds: [] };
   if (!cid || !context || !roleKey) return empty;
-  const key = profileKey || profileKeyForContextRole(context, roleKey);
+  const key = profileKey || (await profileKeyForContextRole(context, roleKey));
   if (!key) return empty; // unknown couple — nothing to bound a read to
 
   try {

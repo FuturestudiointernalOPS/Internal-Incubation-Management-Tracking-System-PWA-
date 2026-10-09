@@ -29,7 +29,6 @@ import {
 } from "@/models/responsibilities";
 import {
   buildProfileRoleGap,
-  isValidProfileKey,
   profileRoleGateDecision,
 } from "./profileCatalog";
 
@@ -128,7 +127,10 @@ export function formatBaseAccessNote(verb, modules) {
  * @returns {Promise<{profile, role, reason}|null>} the écart, or null
  */
 export async function buildResponsibilityProfileGap({ userCid, responsibilityKey }) {
-  if (!userCid || !isValidProfileKey(responsibilityKey)) return null;
+  // No hardcoded catalogue guard: `buildProfileRoleGap` reads the profile from
+  // the DATABASE, so a responsibility key that names no profile simply yields no
+  // gap — and a dynamically created profile is covered like any other.
+  if (!userCid || !responsibilityKey) return null;
   try {
     return await buildProfileRoleGap({ profileKey: responsibilityKey, cid: userCid });
   } catch (error) {
