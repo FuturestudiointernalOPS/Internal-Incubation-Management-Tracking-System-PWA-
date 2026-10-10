@@ -50,8 +50,8 @@ export default function StandupHistoryTable({
               .map((report) => {
                 const weekTasks = tasks.filter(
                   (task) =>
-                    task.created_week === report.week_number &&
-                    task.created_year === report.year &&
+                    Number(task.created_week) === Number(report.week_number) &&
+                    Number(task.created_year) === Number(report.year) &&
                     !task.parent_task_id, // subtasks are counted via the parent
                 );
                 const taskCount = weekTasks.reduce(
@@ -140,8 +140,8 @@ export default function StandupHistoryTable({
                               </div>
                               {tasks.filter(
                                 (task) =>
-                                  task.created_week === report.week_number &&
-                                  task.created_year === report.year,
+                                  Number(task.created_week) === Number(report.week_number) &&
+                                  Number(task.created_year) === Number(report.year),
                               ).length === 0 ? (
                                 <p className="text-[11px] text-[var(--text-secondary)] text-center py-4">
                                   {t("reports.noTasksFound")}
@@ -173,9 +173,10 @@ export default function StandupHistoryTable({
                                         {(() => {
                                           const weekTasks = tasks.filter(
                                             (task) =>
-                                              task.created_week ===
-                                                report.week_number &&
-                                              task.created_year === report.year,
+                                              Number(task.created_week) ===
+                                                Number(report.week_number) &&
+                                              Number(task.created_year) ===
+                                                Number(report.year),
                                           );
                                           const mainTasks = weekTasks.filter(
                                             (task) => !task.parent_task_id,
@@ -298,10 +299,10 @@ export default function StandupHistoryTable({
                                                   {formatDate(task.end_date)}
                                                 </td>
                                                 <td className="px-3 py-2.5">
-                                                  {activeBlockers.length > 0 ? (
+                                                  {activeBlockers.length > 0 || task.status === "blocked" ? (
                                                     <span className="flex items-center gap-1 text-[10px] text-rose-400">
                                                       <Shield className="w-3 h-3" />
-                                                      {activeBlockers.length}
+                                                      {Math.max(activeBlockers.length, 1)}
                                                     </span>
                                                   ) : (
                                                     <span className="text-[10px] text-[var(--text-secondary)]">
