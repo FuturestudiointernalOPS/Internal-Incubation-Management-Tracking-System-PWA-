@@ -169,8 +169,16 @@ export function evaluateProfileRoleFit(profile, role) {
     return { allowed: false, reason: "profile-inactive" };
   }
 
-  const baselineRole = String(role ?? "");
-  if (baselineRole === "super_admin") return { allowed: true, reason: "ok" };
+  const rawRole = String(role ?? "");
+  if (rawRole === "super_admin") return { allowed: true, reason: "ok" };
+
+  // A legacy value still on `contacts.role` (e.g. `applicant`, which the join
+  // and self-registration flows keep writing) reads as the `member` baseline —
+  // the same target scripts/align-legacy-roles.mjs rewrites it to. Without this
+  // a newly enrolled participant is refused the Participant profile, and with
+  // it messaging. An absent role still fails closed.
+  const baselineRole =
+    rawRole && !PROFILE_BASELINE_ROLES.includes(rawRole) ? "member" : rawRole;
 
   if (!profileAllowedRoles(profile).includes(baselineRole)) {
     return { allowed: false, reason: "role-not-allowed" };

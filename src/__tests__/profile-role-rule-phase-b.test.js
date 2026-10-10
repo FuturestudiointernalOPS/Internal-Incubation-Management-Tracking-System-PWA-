@@ -256,6 +256,17 @@ describe("evaluateProfileRoleFit", () => {
     });
   });
 
+  test("a legacy role value reads as the member baseline", () => {
+    // `applicant` is still written by the join / self-registration flows.
+    expect(evaluateProfileRoleFit({ allowedRoles: ["member"] }, "applicant")).toEqual({
+      allowed: true,
+      reason: "ok",
+    });
+    expect(evaluateProfileRoleFit({ allowedRoles: ["staff"] }, "applicant").reason).toBe(
+      "role-not-allowed",
+    );
+  });
+
   test("an unknown/absent role fails closed", () => {
     expect(evaluateProfileRoleFit({ allowedRoles: ["member"] }, null).reason).toBe(
       "role-not-allowed",
@@ -308,6 +319,17 @@ describe("syncContextGrantsForUser — the profile ↔ role écart", () => {
   test("a member founder (profile allows member) has no écart", async () => {
     mockState.founderCids.add(CID);
     mockState.contacts[CID] = { role: "member" };
+    mockState.profileRows = [profileRow("founder", "venture", ["member"])];
+
+    const result = await syncContextGrantsForUser(CID, { context: "venture", roleKey: "founder" });
+
+    expect(result.success).toBe(true);
+    expect(result.profileRoleGap).toBeNull();
+  });
+
+  test("a legacy `applicant` (fresh sign-up) is not refused a member profile", async () => {
+    mockState.founderCids.add(CID);
+    mockState.contacts[CID] = { role: "applicant" };
     mockState.profileRows = [profileRow("founder", "venture", ["member"])];
 
     const result = await syncContextGrantsForUser(CID, { context: "venture", roleKey: "founder" });

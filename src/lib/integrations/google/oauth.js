@@ -28,12 +28,19 @@ export const GOOGLE_CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/calendar.app.created",
 ];
 
+// A value pasted into a hosting dashboard often carries a trailing newline,
+// spaces or wrapping quotes; Google then answers `401 invalid_client` ("The
+// OAuth client was not found") for an id that is otherwise correct.
+function readEnv(name) {
+  return String(process.env[name] || "").trim().replace(/^(["'])(.*)\1$/, "$2").trim();
+}
+
 export function getGoogleOAuthConfig() {
   return {
-    clientId: process.env.GOOGLE_CLIENT_ID || "",
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+    clientId: readEnv("GOOGLE_CLIENT_ID"),
+    clientSecret: readEnv("GOOGLE_CLIENT_SECRET"),
     redirectUri:
-      process.env.GOOGLE_REDIRECT_URI ||
+      readEnv("GOOGLE_REDIRECT_URI") ||
       `${resolveAppUrl()}/api/integrations/google-calendar/callback`,
   };
 }
