@@ -30,14 +30,14 @@ export default function TaskRow(props) {
     mode,
     userId,
     projects,
-    updatingTasks,
+    updatingTasks = {},
     readOnly,
     effectiveWeekInfo,
     moveTask,
     updateStatus,
     openSubTask,
     openComments,
-    commentsByTask,
+    commentsByTask = {},
     loadingComments,
     newComment,
     setNewComment,
@@ -61,7 +61,6 @@ export default function TaskRow(props) {
     onTasksChange,
     notify,
     t,
-    ...rest
   } = props;
 
   const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.pending;
@@ -141,7 +140,7 @@ export default function TaskRow(props) {
       {!isSub && task.subtasks?.length > 0 && (
         <div className="mt-1 ml-4 pl-3 border-l-2 border-indigo-500/20 space-y-0.5">
           {task.subtasks.map((subtask) => (
-              <TaskRow key={subtask.id} {...rest} task={subtask} isSub />
+              <TaskRow key={subtask.id} {...props} task={subtask} isSub />
             ))}
         </div>
       )}
