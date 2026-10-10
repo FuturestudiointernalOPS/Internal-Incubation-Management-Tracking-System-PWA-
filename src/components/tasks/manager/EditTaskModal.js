@@ -140,9 +140,17 @@ export default function EditTaskModal({
               <input
                 type="date"
                 value={editForm.start_date}
-                onChange={(event) =>
-                  setEditForm((previousForm) => ({ ...previousForm, start_date: event.target.value }))
-                }
+                onChange={(event) => {
+                  const newStart = event.target.value;
+                  setEditForm((previousForm) => ({
+                    ...previousForm,
+                    start_date: newStart,
+                    due_date:
+                      previousForm.due_date && newStart && previousForm.due_date < newStart
+                        ? newStart
+                        : previousForm.due_date,
+                  }));
+                }}
                 min={(() => {
                   if (
                     !editTaskModal.created_week ||
