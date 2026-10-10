@@ -95,6 +95,15 @@ export const PROFILE_CATALOGUE_SEED = [
     messaging: { view: 1, send: 2 },
     contacts: { view: 1 },
   } },
+  // Phase 7 (D6) — the DEDICATED course-management profile. Nobody holds it by
+  // default (only the Super Admin, by bypass). Assigning it to a staff member is
+  // the ONLY way to grant course management — publish/unpublish, enrol, create
+  // assessments, revoke certificates, attach resources — WITHOUT granting it to
+  // all staff. It carries the single course-management right (`lms.edit`, which
+  // also covers archive, assessment/thumbnail/resource deletion, assumed).
+  { key: "course_manager", label: "Course Manager", context: "staff", allowedRoles: ["staff"], capabilities: {
+    lms: { view: 1, edit: 3 },
+  } },
   { key: "finance_assistant", label: "Finance Assistant", context: "staff", allowedRoles: ["staff"], capabilities: {
     finance: { view: 1, create: 2, edit: 3 },
     reports: { view: 1 },

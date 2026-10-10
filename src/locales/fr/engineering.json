@@ -981,6 +981,7 @@
       "profileFacilitator": "Facilitateur",
       "profileProgramManager": "Gestionnaire de programme",
       "profileVentureManager": "Gestionnaire de venture",
+      "profileCourseManager": "Gestionnaire de cours",
       "profilePanelTitle": "Profils",
       "profilePanelHint": "Ce que cette personne est, par contexte. Choisissez un profil pour voir les sections qu'il peut ouvrir ; ouvrez « Profils détenus » pour tout l'historique.",
       "profilePanelSelectPrompt": "Choisissez un profil pour voir ce qu'il ouvre.",

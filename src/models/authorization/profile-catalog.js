@@ -109,6 +109,15 @@ export const PROFILE_CATALOG = [
     context: "venture",
     allowedRoles: ["staff"],
   },
+  // Phase 7 (D6) — the dedicated course-management profile (staff-only). Nobody
+  // holds it by default; it is assigned manually to the staff member who manages
+  // courses. See docs/permissions/phase-7-d6-course-manager-profile.md.
+  {
+    key: "course_manager",
+    labelKey: "engineering.permissions.profileCourseManager",
+    context: "staff",
+    allowedRoles: ["staff"],
+  },
 ];
 
 export const PROFILE_KEYS = PROFILE_CATALOG.map((profile) => profile.key);
