@@ -3,8 +3,8 @@
  *
  * Cut out of src/app/staff/op-report/page.js as-is: no state of its own, no
  * React. The page keeps every state value and every read, and passes the
- * 16 names this module reads into blockerModalActions().
  */
+import { clearResponseCachePrefix } from "@/lib/hooks/useApi";
 
 export function blockerModalActions({
   addBlockerToRow,
@@ -36,6 +36,8 @@ export function blockerModalActions({
           resolved_by: user?.cid || user?.id,
         }),
       });
+      clearResponseCachePrefix("/api/blockers");
+      clearResponseCachePrefix("/api/tasks");
       refreshTasks();
     } else {
       resolveBlocker(blockerModal, blocker.id);
@@ -66,6 +68,8 @@ export function blockerModalActions({
       setNewBlockerPriority("medium");
       setNewBlockerRefUrl("");
       setNewBlockerNotes("");
+      clearResponseCachePrefix("/api/blockers");
+      clearResponseCachePrefix("/api/tasks");
       refreshTasks();
     } else {
       addBlockerToRow(blockerModal, newBlockerTitle.trim());
