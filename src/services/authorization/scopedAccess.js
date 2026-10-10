@@ -49,17 +49,17 @@ import {
  * c3a — the ENGINE scope policy a scoped `resource` maps to, for the shadow
  * comparison. Resources with no engine policy (project) are simply not probed.
  *
- * ALIGNMENT (Phase 5 c3b) — the policy must be the one the ROUTE GUARD actually
- * enforces, or the shadow compares two different things:
- *   - program → `program_staffed` : `src/lib/programScopedAccess.js` calls
- *     `isWithinScope("program_staffed", …)` for program writes. (It is NOT
- *     `program_assigned`, which adds learner enrollment — right for reading a
- *     program, wrong for changing it.)
- *   - venture → `venture_own`     : `src/lib/ventureScopedAccess.js`.
+ * ALIGNMENT (Phase 5 c3b) — `program` → **`program_managed`**: the perimeter
+ * retained for the eventual switch is the PROFILE basis (the `program_manager`
+ * profile assignment), not a staff table. The shadow therefore measures the
+ * legacy ad-hoc decision against the policy that would REPLACE it. The route
+ * guard still enforces `program_staffed` today (see programScopedAccess) — the
+ * switch is a separate, measured step.
+ *   - venture → `venture_own` : `src/lib/ventureScopedAccess.js`.
  * Exported so a guard test can lock this alignment.
  */
 export const SHADOW_SCOPE_POLICY = {
-  program: "program_staffed",
+  program: "program_managed",
   venture: "venture_own",
 };
 

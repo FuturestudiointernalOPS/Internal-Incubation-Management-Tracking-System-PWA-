@@ -38,6 +38,7 @@ import {
   getVentureOwnScopeIds,
   getProgramAssignedScopeIds,
   getProgramStaffedScopeIds,
+  getProgramManagedScopeIds,
   getLearningOwnScopeIds,
   getVentureManagedHistoryScopeIds,
   getProgramManagedHistoryScopeIds,
@@ -74,6 +75,10 @@ export async function resolveScopeIds(policyKey, userCid, { email = null } = {})
       // being attached must never authorise changing it.
       case "program_staffed":
         return await getProgramStaffedScopeIds(userCid, email);
+      // PROFILE-BASED program perimeter: the programs where this person holds the
+      // `program_manager` profile (assigned on staff assignment, or granted).
+      case "program_managed":
+        return await getProgramManagedScopeIds(userCid);
       case "learning_own":
         return await getLearningOwnScopeIds(userCid);
       // Phase F — the residual read: the contexts a former manager consulted.

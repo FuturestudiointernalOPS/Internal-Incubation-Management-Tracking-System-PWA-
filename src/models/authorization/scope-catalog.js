@@ -19,6 +19,7 @@ export const SCOPE_POLICY_KEYS = [
   "venture_own",
   "program_assigned",
   "program_staffed",
+  "program_managed",
   "learning_own",
   "venture_managed_history",
   "program_managed_history",
@@ -57,6 +58,17 @@ export const SCOPE_POLICIES = {
     implemented: true,
     source:
       "v2_program_staff (any assigned role, email-tolerant) + v2_programs.assigned_pm_id (named manager)",
+  },
+  // PROFILE-BASED program perimeter (the direction retained for Phase 5): the
+  // person holds the `program_manager` profile for that program. Being assigned
+  // to a program gives the staff that profile; the same profile can be granted
+  // to anyone else — so the perimeter follows the GRANT, not the staff table.
+  program_managed: {
+    key: "program_managed",
+    resource: "program",
+    implemented: true,
+    source:
+      "profile_assignments active (context 'program', profile_key 'program_manager', period valid)",
   },
   learning_own: {
     key: "learning_own",

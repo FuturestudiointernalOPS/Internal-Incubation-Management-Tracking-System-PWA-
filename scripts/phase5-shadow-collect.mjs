@@ -1,22 +1,17 @@
 /**
  * PHASE 5 c3b — SHADOW SCOPE COLLECTION (READ-ONLY).
  *
- * Compares, for every person with a relationship, the AD-HOC scope verdict
- * (`resolveContextAssignment`, used by `decide`) with the ENGINE scope policy
- * (`isWithinScope` : program_assigned / venture_own), and reports the
- * divergences that a shadow deployment is meant to surface.
+ * Compares, for every person with a relationship, three PROGRAM perimeters and
+ * the VENTURE perimeter, and reports what a switch to the PROFILE basis would
+ * change:
+ *
+ *   program — ad-hoc   : `resolveContextAssignment` (v2_program_staff + contact_roles)
+ *           — staffed  : `program_staffed` (v2_program_staff + assigned_pm_id)  ← guard TODAY
+ *           — managed  : `program_managed` (active program_manager PROFILE)     ← TARGET
+ *   venture — ad-hoc   : venture_members
+ *           — own      : `venture_own` (venture_members + venture_staff_assignments)
  *
  * It performs SELECTs ONLY — no write, no migration, no configuration change.
- *
- * The statements are byte-faithful to the two verdicts:
- *   - engine side   : src/models/authorization/scopeReads.js
- *                     (getProgramStaffedScopeIds, getVentureOwnScopeIds)
- *                     — the policies the ROUTES enforce (program_staffed,
- *                     venture_own), NOT program_assigned (see scopedAccess.js
- *                     SHADOW_SCOPE_POLICY and phase5-shadow-collection.md §4).
- *   - ad-hoc side   : src/models/authorization/contextAssignmentReads.js
- *                     (getProgramStaffAssignmentRows, getContactRoleAssignmentRows,
- *                      getVentureMembershipRows)
  *
  * Run: node scripts/phase5-shadow-collect.mjs
  * Connection: DATABASE_URL from .env.local (this workstation = staging).
@@ -54,23 +49,19 @@ const pool = new pg.Pool({
 });
 
 const q = async (sql, args = []) => (await pool.query(sql, args)).rows;
-
 const toSet = (rows, key) =>
   new Set(rows.map((r) => String(r[key])).filter((v) => v && v !== "null"));
-
 const diff = (a, b) => [...a].filter((x) => !b.has(x));
-
-const isEmail = (value) => typeof value === "string" && value.includes("@");
 
 async function main() {
   console.log("[shadow] connected (read-only)\n");
 
-  // 1. Candidate people — every identity that appears in a relationship source.
   const candidateRows = await q(`
     SELECT DISTINCT who FROM (
       SELECT staff_id AS who FROM v2_program_staff
       UNION SELECT contact_cid FROM contact_roles WHERE context_type = 'program'
       UNION SELECT participant_id FROM participant_programs
+      UNION SELECT contact_cid FROM profile_assignments
       UNION SELECT user_cid FROM venture_members WHERE removed_at IS NULL
       UNION SELECT contact_id FROM venture_members WHERE removed_at IS NULL
       UNION SELECT staff_contact_id FROM venture_staff_assignments WHERE status = 'active'
@@ -79,7 +70,6 @@ async function main() {
   `);
   const candidates = candidateRows.map((r) => String(r.who));
 
-  // Resolve cid -> email so the email branch of every statement is exercised.
   const contactRows = candidates.length
     ? await q("SELECT cid, email FROM contacts WHERE cid::text = ANY($1::text[])", [candidates])
     : [];
@@ -87,12 +77,8 @@ async function main() {
 
   const people = [];
   for (const who of candidates) {
-    if (emailByCid.has(who)) {
-      people.push({ cid: who, email: emailByCid.get(who) || who });
-    } else if (isEmail(who)) {
-      // A raw email with no contact row: the email branch is the only match.
-      people.push({ cid: who, email: who });
-    }
+    if (emailByCid.has(who)) people.push({ cid: who, email: emailByCid.get(who) || who });
+    else if (who.includes("@")) people.push({ cid: who, email: who });
   }
 
   const findings = [];
@@ -102,22 +88,10 @@ async function main() {
     byKey[key].count += 1;
     byKey[key][direction] += 1;
   };
+  const switchImpact = { programLosesWrite: [], programGainsWrite: [] };
 
   for (const { cid, email } of people) {
-    // ---- PROGRAM ----
-    // Engine side = the policy the ROUTES enforce (`program_staffed`), NOT
-    // `program_assigned` (which adds learner enrollment — see scope-catalog.js).
-    const engineProgram = toSet(
-      await q(
-        `SELECT DISTINCT CAST(program_id AS TEXT) AS id FROM v2_program_staff
-           WHERE staff_id = $1 OR LOWER(TRIM(staff_id)) = LOWER($2)
-         UNION
-         SELECT DISTINCT CAST(id AS TEXT) AS id FROM v2_programs
-           WHERE CAST(assigned_pm_id AS TEXT) = $1`,
-        [cid, email],
-      ),
-      "id",
-    );
+    // ---- PROGRAM : ad-hoc | staffed (guard) | managed (target profile) ----
     const adhocProgram = toSet(
       await q(
         `SELECT DISTINCT CAST(program_id AS TEXT) AS id FROM v2_program_staff
@@ -129,17 +103,53 @@ async function main() {
       ),
       "id",
     );
-    for (const id of diff(adhocProgram, engineProgram)) {
-      findings.push({ key: "program:program_staffed", cid, contextId: id, legacyAllowed: true, engineAllowed: false });
-      bump("program:program_staffed", "legacyAllowEngineDeny");
-    }
-    for (const id of diff(engineProgram, adhocProgram)) {
-      findings.push({ key: "program:program_staffed", cid, contextId: id, legacyAllowed: false, engineAllowed: true });
-      bump("program:program_staffed", "legacyDenyEngineAllow");
-    }
+    const staffedProgram = toSet(
+      await q(
+        `SELECT DISTINCT CAST(program_id AS TEXT) AS id FROM v2_program_staff
+           WHERE staff_id = $1 OR LOWER(TRIM(staff_id)) = LOWER($2)
+         UNION
+         SELECT DISTINCT CAST(id AS TEXT) AS id FROM v2_programs
+           WHERE CAST(assigned_pm_id AS TEXT) = $1`,
+        [cid, email],
+      ),
+      "id",
+    );
+    const managedProgram = toSet(
+      await q(
+        `SELECT DISTINCT CAST(context_id AS TEXT) AS id FROM profile_assignments
+           WHERE contact_cid = $1 AND context_type = 'program'
+             AND profile_key = 'program_manager' AND status = 'active'
+             AND (started_at IS NULL OR started_at <= NOW())
+             AND (ends_at IS NULL OR ends_at > NOW())
+             AND context_id IS NOT NULL`,
+        [cid],
+      ),
+      "id",
+    );
 
-    // ---- VENTURE ----
-    const engineVenture = toSet(
+    // Shadow: legacy ad-hoc vs the TARGET policy (program_managed).
+    for (const id of diff(adhocProgram, managedProgram)) {
+      findings.push({ key: "program:ad_hoc_vs_managed", cid, contextId: id, legacyAllowed: true, engineAllowed: false });
+      bump("program:ad_hoc_vs_managed", "legacyAllowEngineDeny");
+    }
+    for (const id of diff(managedProgram, adhocProgram)) {
+      findings.push({ key: "program:ad_hoc_vs_managed", cid, contextId: id, legacyAllowed: false, engineAllowed: true });
+      bump("program:ad_hoc_vs_managed", "legacyDenyEngineAllow");
+    }
+    // Switch impact: guard TODAY (program_staffed) vs TARGET (program_managed).
+    for (const id of diff(staffedProgram, managedProgram)) switchImpact.programLosesWrite.push({ cid, contextId: id });
+    for (const id of diff(managedProgram, staffedProgram)) switchImpact.programGainsWrite.push({ cid, contextId: id });
+
+    // ---- VENTURE : ad-hoc | own ----
+    const ventureMembers = toSet(
+      await q(
+        `SELECT DISTINCT CAST(venture_id AS TEXT) AS id FROM venture_members
+           WHERE (user_cid = $1 OR contact_id = $1) AND removed_at IS NULL`,
+        [cid],
+      ),
+      "id",
+    );
+    const ventureOwn = toSet(
       await q(
         `SELECT DISTINCT CAST(venture_id AS TEXT) AS id FROM venture_members
            WHERE (user_cid = $1 OR contact_id = $1) AND removed_at IS NULL
@@ -150,29 +160,26 @@ async function main() {
       ),
       "id",
     );
-    const adhocVenture = toSet(
-      await q(
-        `SELECT DISTINCT CAST(venture_id AS TEXT) AS id FROM venture_members
-           WHERE (user_cid = $1 OR contact_id = $1) AND removed_at IS NULL`,
-        [cid],
-      ),
-      "id",
-    );
-    for (const id of diff(adhocVenture, engineVenture)) {
+    for (const id of diff(ventureMembers, ventureOwn)) {
       findings.push({ key: "venture:venture_own", cid, contextId: id, legacyAllowed: true, engineAllowed: false });
       bump("venture:venture_own", "legacyAllowEngineDeny");
     }
-    for (const id of diff(engineVenture, adhocVenture)) {
+    for (const id of diff(ventureOwn, ventureMembers)) {
       findings.push({ key: "venture:venture_own", cid, contextId: id, legacyAllowed: false, engineAllowed: true });
       bump("venture:venture_own", "legacyDenyEngineAllow");
     }
   }
 
   const report = {
-    enabled: true, // the collection IS the measurement
+    enabled: true,
     peopleProbed: people.length,
     total: findings.length,
     byKey,
+    switchImpact: {
+      programLosesWrite: switchImpact.programLosesWrite.length,
+      programGainsWrite: switchImpact.programGainsWrite.length,
+      detail: switchImpact,
+    },
     recent: findings.slice(0, 100),
   };
   console.log(JSON.stringify(report, null, 2));

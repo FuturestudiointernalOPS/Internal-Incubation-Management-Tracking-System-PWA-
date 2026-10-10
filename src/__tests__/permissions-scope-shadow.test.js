@@ -74,7 +74,7 @@ describe("c3a — mode ombre sur la portée", () => {
     expect(mockShadowCheck).toHaveBeenCalledWith({
       legacyAllowed: true,
       engineAllowed: false,
-      meta: { resource: "program", contextId: "P1", cid: "U1", policy: "program_staffed" },
+      meta: { resource: "program", contextId: "P1", cid: "U1", policy: "program_managed" },
     });
   });
 
@@ -87,7 +87,7 @@ describe("c3a — mode ombre sur la portée", () => {
     expect(mockShadowCheck).toHaveBeenCalledWith({
       legacyAllowed: false,
       engineAllowed: false,
-      meta: { resource: "program", contextId: "P1", cid: "U1", policy: "program_staffed" },
+      meta: { resource: "program", contextId: "P1", cid: "U1", policy: "program_managed" },
     });
   });
 
@@ -102,10 +102,10 @@ describe("c3a — mode ombre sur la portée", () => {
 });
 
 describe("alignement du mode ombre sur la policy DES GARDES", () => {
-  test("program → program_staffed, venture → venture_own", () => {
-    // Le mode ombre doit comparer la policy que les routes exécutent, sinon il
-    // oppose deux grandeurs différentes (voir phase5-shadow-collection.md §4).
-    expect(SHADOW_SCOPE_POLICY.program).toBe("program_staffed");
+  test("program → program_managed (cible profil), venture → venture_own", () => {
+    // Le mode ombre mesure la decision ad hoc contre la policy qui la REMPLACERA
+    // (le profil program_manager), pas contre la garde encore en place.
+    expect(SHADOW_SCOPE_POLICY.program).toBe("program_managed");
     expect(SHADOW_SCOPE_POLICY.venture).toBe("venture_own");
   });
 });

@@ -66,9 +66,9 @@ Issues de la première collecte ombre (`phase5-shadow-collection.md`) :
 
 | # | Décision | Défaut proposé |
 |---|---|---|
-| S1 | Policy de portée **programme** : `program_staffed` (gardes actuelles) **ou** `program_assigned` (mode ombre) | **`program_staffed`** (c'est ce que les routes exécutent aujourd'hui) ; aligner alors `SHADOW_SCOPE_POLICY.program` |
+| S1 | **Portée PROGRAMME** : adopter la base **PROFIL** (`program_manager`) et supprimer `program_assigned` + `program_staffed` ? | **Oui, après backfill** — effet mesuré : 1 facilitateur perd l'écriture (voir `phase5-shadow-collection.md`). La garde reste `program_staffed` tant que ce n'est pas tranché. |
 | S2 | Le **staff de venture** (`venture_staff_assignments`) est-il dans `venture_own` ? | **Oui** (moteur) — à confirmer |
-| S3 | Un **participant** (`participant_programs`) est-il « assigné » au programme ? | **À trancher** (le moteur dit oui, l'ad hoc non) |
+| S3 | Un **participant** (`participant_programs`) est-il « assigné » au programme (lecture) ? | **À trancher** |
 
 ## 4. Dette technique / gardes
 

@@ -1,91 +1,93 @@
-# Phase 5 c3b — Collecte en mode ombre : résultats de la première mesure
+# Phase 5 c3b — Collecte en mode ombre : résultats et décision
 
 > **Mesure en LECTURE SEULE** sur la base accessible via `.env.local`
 > (staging, 2026-10-10). Aucune écriture, aucune migration, aucune configuration.
 > Outil : `node scripts/phase5-shadow-collect.mjs`.
 > **Aucune bascule n'est engagée** par ce document.
-> Mise à jour : **policy program alignée** sur celle des gardes
-> (`program_staffed`, voir §4) et re-mesure.
 
-## 1. Méthode
+## 1. Objet de la décision
 
-Le script compare, pour chaque personne ayant une relation, les deux verdicts
-qu'oppose le mode ombre :
+Le périmètre PROGRAMME est aujourd'hui exprimé par **deux policies de tables** :
 
-- **ad hoc** (ce que `decide` utilise aujourd'hui) : `resolveContextAssignment`
-  — `src/models/authorization/contextAssignmentReads.js` ;
-- **moteur** (la policy que les **gardes de route** appliquent) : `isWithinScope`
-  — `src/models/authorization/scopeReads.js` : `program_staffed` et
-  `venture_own`.
-
-Statements copiés **au mot près** des modèles (colonnes : `v2_program_staff`,
-`v2_programs.assigned_pm_id`, `contact_roles`, `venture_members`,
-`venture_staff_assignments`).
-
-## 2. Résultat (après alignement de la policy)
-
-```
-peopleProbed : 6
-total        : 3 divergences
-  program:program_staffed  count 1  legacyAllowEngineDeny 0  legacyDenyEngineAllow 1
-  venture:venture_own      count 2  legacyAllowEngineDeny 0  legacyDenyEngineAllow 2
-```
-
-Les 3 divergences vont **toutes dans le même sens** : le contrôle ad hoc
-**refuse** là où le moteur (la garde de route) **autorise**.
-
-| # | Policy | Personne | Ressource | Cause |
-|---|---|---|---|---|
-| 1 | `program_staffed` | `USR_2342F36BA5F0` | programme `b700f1a8-…` | La personne est le **manager nommé** (`v2_programs.assigned_pm_id`) mais l'ad hoc ne lit pas cette source. |
-| 2 | `venture_own` | `USR_E7D5C835B2A1` | venture `VNT-651CED8E` | **Staff de venture** (`venture_staff_assignments`) non lu par l'ad hoc. |
-| 3 | `venture_own` | `USR_58C499684A4B` | venture `VNT-651CED8E` | Idem. |
-
-**Cause racine** : l'ad hoc (`resolveContextAssignment`) est **plus étroit** que
-les policies des gardes —
-- `program_staffed` = `v2_program_staff` **∪ `v2_programs.assigned_pm_id`** ; l'ad hoc = `v2_program_staff` ∪ `contact_roles` (pas de manager nommé) ;
-- `venture_own` = `venture_members` **∪ `venture_staff_assignments`** ; l'ad hoc = `venture_members` seulement.
-
-## 3. Ce que la bascule changerait (à ne pas subir)
-
-Migrer ces couples vers le moteur **élargirait** l'accès ; mais ici c'est
-l'inverse de la measure initiale : passer les routes sur **`decide` (ad hoc)**
-**restreindrait** l'accès (le manager nommé et le staff de venture perdraient
-leur programme/venture). Autrement dit, `decide`, tel qu'écrit, **n'est pas
-équivalent** à la garde de route : il manque des sources.
-
-## 4. Alignement du mode ombre (FAIT)
-
-Le mode ombre de `decide` comparait la policy **`program_assigned`**, alors que
-les gardes de route appliquent **`program_staffed`**
-(`src/lib/programScopedAccess.js:111`). Le mode ombre comparait donc deux
-grandeurs différentes pour les programmes.
-
-**Correction** : `SHADOW_SCOPE_POLICY.program` passe à **`program_staffed`**
-(`src/services/authorization/scopedAccess.js`), aligné sur le venture
-(`venture_own`, déjà correct). Un test verrouille l'alignement
-(`permissions-scope-shadow.test.js`).
-
-Effet mesuré : la fausse divergence « participant » a disparu ; la vraie
-divergence « manager nommé » est apparue.
-
-## 5. Réserve d'échantillon
-
-Le jeu de données staging est **minuscule** (`contacts` = 10 ; `contact_roles` = 3 ;
-`participant_programs` = 1 ; `venture_members` = 1 ; `venture_staff_assignments` = 2).
-La mesure **valide la mécanique** mais **n'est pas représentative** : la campagne
-doit tourner sur un environnement peuplé.
-
-## 6. Décisions requises (bloquantes)
-
-| # | Décision | Défaut proposé |
+| Policy | Source | Usage |
 |---|---|---|
-| S1 | `decide` doit-il inclure le **manager nommé** (`assigned_pm_id`) et le **staff de venture** (`venture_staff_assignments`) pour être équivalent à la garde ? | **Oui** — sinon `decide` restreint l'accès à la bascule. |
-| S2 | Le **staff de venture** est-il dans `venture_own` ? | **Oui** (le moteur/garde) — à confirmer. |
-| S3 | Autres écarts ad hoc ↔ garde (participants, `contact_roles`) : lesquels sont voulus ? | À trancher |
+| `program_assigned` | `v2_program_staff` ∪ `participant_programs` | lecture |
+| `program_staffed` | `v2_program_staff` ∪ `v2_programs.assigned_pm_id` | **écriture** (garde `programScopedAccess`, ~18 routes) |
 
-## 7. État et suite
+La direction retenue : remplacer ces deux policies par **une seule base
+PROFIL** — `program_managed` = « la personne détient le profil `program_manager`
+pour ce programme ». Un staff assigné à un programme reçoit ce profil ; le même
+profil peut être attribué à quelqu'un d'autre.
 
-- ✅ Mécanique de collecte opérationnelle (`scripts/phase5-shadow-collect.mjs`), read-only.
-- ✅ Mode ombre **aligné** sur la policy des gardes (§4).
-- ⛔ **Bascule NON engagée** : divergences expliquées mais non tranchées (S1–S3).
-- **Prochaine action minimale** : trancher S1–S3, puis étendre `decide`/l'ad hoc aux sources manquantes, puis re-mesurer sur un environnement représentatif.
+## 2. Mesure (ad hoc vs cible profil)
+
+```
+peopleProbed : 7
+program:ad_hoc_vs_managed  2 divergences  (1 adhoc-allow/cible-deny, 1 adhoc-deny/cible-allow)
+venture:venture_own        2 divergences  (2 adhoc-deny/moteur-allow)
+
+switchImpact (garde actuelle program_staffed  →  cible program_managed)
+  programLosesWrite : 1
+  programGainsWrite : 0
+```
+
+Détail du **seul** effet de bascule identifié :
+
+| Perte d'écriture | Personne | Programme | Pourquoi |
+|---|---|---|---|
+| 1 | `christelle.fagbehouro@epitech.eu` | `b700f1a8-…` | Présente dans `v2_program_staff` (facilitatrice) mais **sans profil `program_manager`** → sous la base profil, elle n'a plus la portée d'écriture. |
+
+À l'inverse, `USR_2342F36BA5F0` (détenteur du profil `program_manager`) est
+aujourd'hui **non reconnu** par l'ad hoc et par `program_assigned`, et **gagnerait**
+la portée sous la base profil.
+
+## 3. Ce que dit la mesure
+
+1. La base PROFIL **reconnaît bien** le manager (`USR_2342F36BA5F0`).
+2. La bascule **retire** la portée d'écriture à un **facilitateur** de
+   `v2_program_staff` qui n'a pas le profil `program_manager`.
+3. La bascule **n'accorde rien de nouveau** sur cet échantillon (`gainsWrite = 0`).
+
+## 4. Décision à prendre (S1) — c'est LE point bloquant de la Phase 5
+
+**Adopter la base profil `program_manager` comme seule portée programme ?**
+
+- **Oui** → supprimer `program_assigned` et `program_staffed` ; la garde
+  `programScopedAccess` passe de `program_staffed` à `program_managed`. **Effet
+  connu** : tout membre de `v2_program_staff` **sans** profil `program_manager`
+  (facilitateurs, assistants) perd la portée d'écriture sur les ~18 routes
+  protégées. Il faut donc, **avant** la bascule :
+  - confirmer que **seul le manager écrit** sur un programme (ou attribuer le
+    profil aux facilitateurs qui doivent continuer), et
+  - **vérifier le remplissage** du registre `profile_assignments` pour les
+    programmes existants (backfill) — sinon des managers historiques perdent
+    aussi l'accès.
+- **Non** → garder `program_staffed` pour l'écriture et réserver `program_managed`
+  à un usage plus étroit (ex. une action « pilotage » distincte).
+
+**Défaut recommandé** : **Oui, mais après backfill et validation**, car la
+contraction de l'écriture est un incident opérationnel (facilitateurs bloqués),
+pas un gain de sécurité.
+
+## 5. Décisions liées
+
+- **S2** — venture : `venture_own` inclut `venture_staff_assignments` (le staff de
+  venture) que l'ad hoc ignore → bascule `decide` **retirerait** l'accès au staff
+  de venture. Confirmer le périmètre voulu.
+- **S3** — participants : `program_assigned` (lecture) inclut l'inscription ; le
+  retrait de cette policy change l'affichage des contextes. À trancher.
+
+## 6. Réserve d'échantillon
+
+Staging est **minuscule** (`contacts` = 10 ; `profile_assignments` = 4). La mesure
+prouve la mécanique et **chiffre l'effet de bascule**, mais la décision S1 doit
+être confirmée sur un environnement peuplé.
+
+## 7. État
+
+- ✅ Prédicat PROFIL livré (`program_managed` : reader + catalogue + moteur), **additif** — la garde reste `program_staffed` (aucune bascule).
+- ✅ Mode ombre pointé sur la cible (`SHADOW_SCOPE_POLICY.program = program_managed`).
+- ✅ Collecte re-mesurée (ci-dessus).
+- ⛔ **Suppression des deux policies NON exécutée** : c'est la bascule, elle
+  contracte l'écriture de ~18 routes et dépend du remplissage du registre —
+  protocole « mesurer avant de changer ».
