@@ -163,7 +163,9 @@ export function standupActions({
     // Load tasks for that week into taskRows
     const weekTasks = tasks.filter(
       (task) =>
-        ["archived", "completed"].includes(task.status) && !task.parent_task_id,
+        Number(task.created_week) === Number(report.week_number) &&
+        Number(task.created_year) === Number(report.year) &&
+        !task.parent_task_id,
     );
     const allTaskRows = [];
     for (const task of weekTasks) {
