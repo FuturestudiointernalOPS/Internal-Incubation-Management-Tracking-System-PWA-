@@ -39,12 +39,17 @@ jest.mock("@/services/authorization/profileCatalog", () => ({
   profileKeyForContextRole: jest.fn(),
 }));
 
+jest.mock("@/models/authorization/historicalAccessReads", () => ({
+  getSystemSettingValue: jest.fn(),
+}));
+
 const {
   readingCapabilitiesForContext,
   endedContextIds,
   syncContextGrantsHistory,
 } = require("@/services/authorization/contextGrantHistory");
 const assignments = require("@/models/authorization/profileAssignmentsStore");
+const settings = require("@/models/authorization/historicalAccessReads");
 const { profileKeyForContextRole } = require("@/services/authorization/profileCatalog");
 const {
   SCOPE_POLICIES,
@@ -67,6 +72,8 @@ beforeEach(() => {
   }
   assignments.listEndedAutomaticAssignments.mockReset();
   assignments.ensureProfileAssignmentsSchema.mockResolvedValue(true);
+  settings.getSystemSettingValue.mockReset();
+  settings.getSystemSettingValue.mockResolvedValue({ rows: [] });
   profileKeyForContextRole.mockReset();
   profileKeyForContextRole.mockImplementation((_context, roleKey) => `${roleKey}`);
   jest.spyOn(console, "warn").mockImplementation(() => {});
@@ -116,7 +123,7 @@ describe("endedContextIds", () => {
 describe("syncContextGrantsHistory — apply / idempotent / withdraw", () => {
   test("applies the residual read with its own stamp and provenance namespace", async () => {
     assignments.listEndedAutomaticAssignments.mockResolvedValue({
-      rows: [{ context_id: "P1" }],
+      rows: [{ context_id: "P1", ended_at: "2026-01-15T00:00:00.000Z", ends_at: null }],
     });
     mockGetUserCapabilityRows.mockResolvedValue({ rows: [] });
     mockGetContextAppliedGrantRows.mockResolvedValue({ rows: [] });
@@ -135,7 +142,8 @@ describe("syncContextGrantsHistory — apply / idempotent / withdraw", () => {
         capability: "view",
         level: 1,
         sentinel: "hist:program:program_manager",
-        expiresAt: null,
+        // D3 — end of responsibility (2026-01-15) + default 6 months.
+        expiresAt: "2026-07-15T00:00:00.000Z",
       }),
     );
     expect(mockUpsertContextAppliedGrant).toHaveBeenCalledWith(
@@ -145,6 +153,23 @@ describe("syncContextGrantsHistory — apply / idempotent / withdraw", () => {
         roleKey: "history:program_manager",
         mode: "historical",
       }),
+    );
+  });
+
+  test("a configured retention is honored (D3 — Super-Admin setting)", async () => {
+    settings.getSystemSettingValue.mockResolvedValue({ rows: [{ setting_value: "12:days" }] });
+    assignments.listEndedAutomaticAssignments.mockResolvedValue({
+      rows: [{ context_id: "P1", ends_at: "2026-03-01T00:00:00.000Z" }],
+    });
+    mockGetUserCapabilityRows.mockResolvedValue({ rows: [] });
+    mockGetContextAppliedGrantRows.mockResolvedValue({ rows: [] });
+
+    await syncContextGrantsHistory("C1", { context: "program", roleKey: "program_manager" });
+
+    // 2026-03-01 + 12 days.
+    expect(mockUpsertUserCapability).toHaveBeenCalledWith(
+      "C1",
+      expect.objectContaining({ expiresAt: "2026-03-13T00:00:00.000Z" }),
     );
   });
 
