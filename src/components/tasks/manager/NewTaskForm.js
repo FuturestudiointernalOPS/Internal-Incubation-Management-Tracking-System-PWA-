@@ -238,9 +238,17 @@ export default function NewTaskForm({
         <input
           type="date"
           value={form.start_date}
-          onChange={(event) =>
-            setForm((previousForm) => ({ ...previousForm, start_date: event.target.value }))
-          }
+          onChange={(event) => {
+            const newStart = event.target.value;
+            setForm((previousForm) => ({
+              ...previousForm,
+              start_date: newStart,
+              due_date:
+                previousForm.due_date && newStart && previousForm.due_date < newStart
+                  ? newStart
+                  : previousForm.due_date,
+            }));
+          }}
           min={(() => {
             const today = new Date().toISOString().split("T")[0];
             return today;
