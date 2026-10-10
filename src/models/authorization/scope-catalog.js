@@ -23,7 +23,6 @@ export const SCOPE_POLICY_KEYS = [
   "learning_own",
   "venture_managed_history",
   "program_managed_history",
-  "team_own",
 ];
 
 /**
@@ -92,12 +91,6 @@ export const SCOPE_POLICIES = {
     implemented: true,
     source:
       "profile_assignments ended (automatic, context program) UNION contact_roles is_current = false (context program)",
-  },
-  team_own: {
-    key: "team_own",
-    resource: "team",
-    implemented: false,
-    source: "pending — v2_teams mapping not resolved yet",
   },
 };
 

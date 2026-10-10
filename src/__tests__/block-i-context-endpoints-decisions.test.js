@@ -228,7 +228,7 @@ describe("user-context — the projection is the resolver's, unchanged", () => {
     const body = await (await userContextRoute.GET(ctxReq("?cid=C1"))).json();
     expect(body.scope).toEqual({
       engine: "implemented",
-      note: "venture_own · program_assigned · learning_own (team_own pending)",
+      note: "venture_own · program_assigned · learning_own",
     });
   });
 

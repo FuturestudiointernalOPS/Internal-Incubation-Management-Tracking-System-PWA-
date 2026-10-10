@@ -42,7 +42,7 @@ const SOURCE_COLUMNS = [
 
 /** The fixed note the screen shows about the scope engine's state. */
 export const SCOPE_ENGINE_NOTE =
-  "venture_own · program_assigned · learning_own (team_own pending)";
+  "venture_own · program_assigned · learning_own";
 
 /**
  * The read-only projection of one person's authorization context.

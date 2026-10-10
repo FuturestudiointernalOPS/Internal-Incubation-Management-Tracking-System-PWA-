@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ShieldCheck, ShieldAlert } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { isScopePolicyImplemented } from "@/models/authorization/scope-catalog";
 
@@ -31,7 +31,6 @@ const ROWS = [
     icon: ShieldCheck,
   },
   { policyKey: "learning_own", i18nKey: "rowLearning", icon: ShieldCheck },
-  { policyKey: "team_own", i18nKey: "rowTeam", icon: ShieldAlert },
 ];
 
 export default function ScopePoliciesView() {
