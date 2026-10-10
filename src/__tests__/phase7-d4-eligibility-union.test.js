@@ -48,6 +48,9 @@ const {
 const {
   resolveAuthorizationContext,
 } = require("@/services/authorization/context");
+const {
+  buildPermissionExplanation,
+} = require("@/services/authorization/contextDecisions");
 
 const ROLE_DENY = {
   feature_key: "ventures",
@@ -122,5 +125,35 @@ describe("D4 — le contexte du résolveur expose verdict + avertissement", () =
     });
     expect(ctx.eligibility.ventures).toBe(true);
     expect(ctx.eligibilityWarnings.ventures).toBeUndefined();
+  });
+});
+
+describe("D4 — l'explication « pourquoi » porte l'avertissement de section", () => {
+  test("profil ouvre / rôle refuse → openedByProfile: true", () => {
+    const explanation = buildPermissionExplanation({
+      isSuperAdmin: false,
+      eligibilityRows: [ROLE_DENY, PROFILE_ALLOW],
+      baseCaps: {},
+      groupCaps: {},
+      grants: {},
+    });
+    expect(explanation.eligibility.ventures).toMatchObject({
+      eligible: true,
+      openedByProfile: true,
+    });
+  });
+
+  test("rôle autorise → openedByProfile: false", () => {
+    const explanation = buildPermissionExplanation({
+      isSuperAdmin: false,
+      eligibilityRows: [ROLE_ALLOW],
+      baseCaps: {},
+      groupCaps: {},
+      grants: {},
+    });
+    expect(explanation.eligibility.ventures).toMatchObject({
+      eligible: true,
+      openedByProfile: false,
+    });
   });
 });

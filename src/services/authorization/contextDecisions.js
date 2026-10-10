@@ -19,7 +19,7 @@
 
 import { MODULE_TO_FEATURE } from "@/models/authorization/eligibility";
 import { PERMISSION_MODULES } from "@/server/authz/capabilities";
-import { evaluateEligibility } from "./eligibility";
+import { explainEligibility } from "./eligibility";
 
 // ─── Authorization decision ─────────────────────────────────────────────────
 
@@ -163,8 +163,13 @@ export function buildPermissionExplanation(ctx) {
     const rows = (ctx.eligibilityRows || []).filter(
       (row) => row.feature_key === featureKey,
     );
+    const verdict = explainEligibility(rows, featureKey);
     eligibility[featureKey] = {
-      eligible: evaluateEligibility(rows, featureKey),
+      eligible: verdict.eligible,
+      // D4 — a section opened by a PROFILE despite the role's explicit deny: the
+      // explanation carries the SECTION warning beside the verdict, so the
+      // "why" screen never contradicts the enforced union decision.
+      openedByProfile: verdict.openedByProfile,
       sources: rows.map((row) => ({
         identity_type: row.identity_type,
         identity_value: row.identity_value,

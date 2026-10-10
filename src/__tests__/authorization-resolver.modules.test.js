@@ -398,6 +398,7 @@ describe("buildPermissionExplanation (who has access + why)", () => {
     const explanation = buildPermissionExplanation(ctx);
     expect(explanation.eligibility.finance).toEqual({
       eligible: true,
+      openedByProfile: false,
       sources: [{ identity_type: "role", identity_value: "staff", eligible: 1 }],
     });
     expect(explanation.eligibility.crm.eligible).toBe(false); // no rows → not eligible
