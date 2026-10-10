@@ -62,6 +62,7 @@ import {
   parseHistoricalRetention,
 } from "./historicalAccess";
 import { getSystemSettingValue } from "@/models/authorization/historicalAccessReads";
+import { getHistoricalRevocation } from "@/models/authorization/historicalAccessRevocationsStore";
 
 /** The dashboard feature each persona context belongs to. */
 const CONTEXT_TO_FEATURE = {
@@ -149,12 +150,19 @@ export async function syncContextGrantsHistory(
       contextType: context,
     });
     const contextIds = endedContextIds(endedRes?.rows || []);
-    // No ended card → no residual: reopening the relationship withdraws it.
-    const desired = contextIds.length ? readingCapabilitiesForContext(context) : {};
+    // D3 2/2 — an administrator REVOKED the residual for this context: no read is
+    // derived, and anything already written is withdrawn (the provenance rows
+    // become the plan's `toRevoke` list, so the deletion stays sentinel-guarded).
+    const revokedRes = await getHistoricalRevocation(cid, context);
+    const isRevoked = (revokedRes?.rows || []).length > 0;
+    // No ended card (or a revocation) → no residual: reopening the relationship,
+    // or a revocation, is what withdraws it.
+    const applying = !isRevoked && contextIds.length > 0;
+    const desired = applying ? readingCapabilitiesForContext(context) : {};
     // D3 — the residual expires `retention` AFTER the end of responsibility.
     // Anchored on the ended cards' stored dates, so the reconcile stays
     // idempotent (a `now`-based expiry would re-date the row on every pass).
-    const expiresAt = contextIds.length
+    const expiresAt = applying
       ? historicalExpiryFor(endedRes?.rows || [], await readHistoricalRetention())
       : null;
 
@@ -168,8 +176,9 @@ export async function syncContextGrantsHistory(
       provenance: provenanceRes?.rows || [],
       sentinel,
       // D3 — when there IS a residual, its expiry is managed so a retention
-      // change re-dates it; with no ended card there is nothing to manage.
-      expiresAt: contextIds.length ? expiresAt : undefined,
+      // change re-dates it; with no ended card (or a revocation) there is
+      // nothing to manage.
+      expiresAt: applying ? expiresAt : undefined,
     });
 
     const applied = [];
@@ -202,7 +211,7 @@ export async function syncContextGrantsHistory(
 
     // Keep the justifying context list fresh when nothing else changed, and
     // re-date the expiry (a retention change must move the residual's end).
-    if (contextIds.length && applied.length === 0 && revoked.length === 0) {
+    if (applying && applied.length === 0 && revoked.length === 0) {
       await refreshContextAppliedGrantSource(cid, context, provenanceKey, contextIds.join(","));
       await refreshUserCapabilityExpiry(cid, sentinel, expiresAt);
     }

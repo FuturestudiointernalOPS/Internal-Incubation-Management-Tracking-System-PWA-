@@ -43,6 +43,11 @@ jest.mock("@/models/authorization/historicalAccessReads", () => ({
   getSystemSettingValue: jest.fn(),
 }));
 
+const mockGetHistoricalRevocation = jest.fn();
+jest.mock("@/models/authorization/historicalAccessRevocationsStore", () => ({
+  getHistoricalRevocation: (...args) => mockGetHistoricalRevocation(...args),
+}));
+
 const {
   readingCapabilitiesForContext,
   endedContextIds,
@@ -74,6 +79,9 @@ beforeEach(() => {
   assignments.ensureProfileAssignmentsSchema.mockResolvedValue(true);
   settings.getSystemSettingValue.mockReset();
   settings.getSystemSettingValue.mockResolvedValue({ rows: [] });
+  // No revocation by default (Phase F behaviour); a D3 test opts in.
+  mockGetHistoricalRevocation.mockReset();
+  mockGetHistoricalRevocation.mockResolvedValue({ rows: [] });
   profileKeyForContextRole.mockReset();
   profileKeyForContextRole.mockImplementation((_context, roleKey) => `${roleKey}`);
   jest.spyOn(console, "warn").mockImplementation(() => {});
@@ -245,6 +253,51 @@ describe("syncContextGrantsHistory — apply / idempotent / withdraw", () => {
 
     expect(report).toEqual({ applied: [], revoked: [], contextIds: [] });
     expect(mockUpsertUserCapability).not.toHaveBeenCalled();
+  });
+});
+
+describe("D3 2/2 — a revocation withdraws the residual and blocks re-application", () => {
+  test("revoked: no residual is derived, and an existing read is withdrawn", async () => {
+    mockGetHistoricalRevocation.mockResolvedValue({ rows: [{ id: 1, context: "program" }] });
+    assignments.listEndedAutomaticAssignments.mockResolvedValue({
+      rows: [{ context_id: "P1", ended_at: "2026-01-15T00:00:00.000Z", ends_at: null }],
+    });
+    mockGetUserCapabilityRows.mockResolvedValue({ rows: [] });
+    mockGetContextAppliedGrantRows.mockResolvedValue({
+      rows: [{ module: "programs", capability: "view" }],
+    });
+
+    const report = await syncContextGrantsHistory("C1", {
+      context: "program",
+      roleKey: "program_manager",
+    });
+
+    expect(report.applied).toEqual([]);
+    expect(report.revoked).toEqual(["programs.view"]);
+    expect(mockUpsertUserCapability).not.toHaveBeenCalled();
+    expect(mockDeleteUserCapability).toHaveBeenCalledWith(
+      "C1",
+      "programs",
+      "view",
+      "hist:program:program_manager",
+    );
+  });
+
+  test("not revoked: the same ended card applies the residual (control)", async () => {
+    mockGetHistoricalRevocation.mockResolvedValue({ rows: [] });
+    assignments.listEndedAutomaticAssignments.mockResolvedValue({
+      rows: [{ context_id: "P1", ended_at: "2026-01-15T00:00:00.000Z", ends_at: null }],
+    });
+    mockGetUserCapabilityRows.mockResolvedValue({ rows: [] });
+    mockGetContextAppliedGrantRows.mockResolvedValue({ rows: [] });
+
+    const report = await syncContextGrantsHistory("C1", {
+      context: "program",
+      roleKey: "program_manager",
+    });
+
+    expect(report.applied).toEqual(["programs.view"]);
+    expect(report.revoked).toEqual([]);
   });
 });
 
