@@ -240,6 +240,15 @@ capacité plus forte que la sienne, tant que B est éligible.
 **Verdict : PARTIEL** — journalisé sur le chemin du « Permission Center »,
 **non journalisé** sur le chemin `PUT /api/contacts`.
 
+> **CORRIGÉ (Phase 9, §12.1 — 2026-10-10).** Le chemin standard `PUT /api/contacts`
+> écrit désormais une entrée `role_changed` (avant/après) quand le rôle GLOBAL
+> change réellement et que l'appelant peut attribuer un rôle
+> (`recordRoleChangeAudit`, `services/contacts/update.js`, appelée par
+> `app/api/contacts/route.js`). L'entrée a la **même forme** que celle du
+> Permission Center, donc l'historique se lit de la même façon quel que soit
+> l'écran. Une écriture sans changement ne produit aucune trace. Tests :
+> `contacts-role-audit.test.js`.
+
 ### Journalisé
 
 `src/services/authorization/permissionWrites.js:235-253` (`action === "set_role"`)
