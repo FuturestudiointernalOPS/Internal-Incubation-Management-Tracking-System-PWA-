@@ -60,6 +60,16 @@ Les décisions sont **arbitrées** (voir `phase-1-synthese.md`) ; ce qui suit es
 - **D8** — sous-questions (lecture du catalogue par un responsable, séquencement, multi-programmes).
 - **D3** — titulaire du droit de révocation : défaut super admin.
 
+## 3bis. Décisions produit/techniques requises (Phase 5)
+
+Issues de la première collecte ombre (`phase5-shadow-collection.md`) :
+
+| # | Décision | Défaut proposé |
+|---|---|---|
+| S1 | Policy de portée **programme** : `program_staffed` (gardes actuelles) **ou** `program_assigned` (mode ombre) | **`program_staffed`** (c'est ce que les routes exécutent aujourd'hui) ; aligner alors `SHADOW_SCOPE_POLICY.program` |
+| S2 | Le **staff de venture** (`venture_staff_assignments`) est-il dans `venture_own` ? | **Oui** (moteur) — à confirmer |
+| S3 | Un **participant** (`participant_programs`) est-il « assigné » au programme ? | **À trancher** (le moteur dit oui, l'ad hoc non) |
+
 ## 4. Dette technique / gardes
 
 | ID | Objet | État |
@@ -115,5 +125,5 @@ Objectif (spec §11) : **une seule décision, au même endroit, côté serveur**
 | c1 | **Raisons** de la décision scoped (`evaluateScopedAccess` : missing_resource / unauthenticated / super_admin / capacité / out_of_scope / granted / system_failure) | ✅ |
 | c2 | Point d'entrée **unique** `decide(...)` (comportement inchangé) | ✅ — `decide` (global ou scopé) ; `evaluateScopedAccess` **délègue**. **Convergence partielle assumée** : `evaluateAuthorization` reste la **primitive de capacité** que `decide` compose (le faire déléguer casserait le contrat de moquage de tests existants). |
 | c3a | **Mode ombre sur la portée** (dans `decide` : `isWithinScope` vs ad-hoc, sans changer l'issue) | ✅ |
-| c3b | **Bascule mesurée** de la portée vers le moteur | 🟡 **Mécanique prête**, exécution **gated ops** : le rapport de divergences (`GET /api/engineering/permissions/shadow-report`, reset `DELETE`) et le [runbook](runbook-phase5-shadow.md) sont livrés ; il reste à activer `AUTHZ_SHADOW_MODE=1` en staging, collecter, analyser, basculer |
+| c3b | **Bascule mesurée** de la portée vers le moteur | 🟠 **Collecte 1 mesurée** (read-only, staging) → 3 divergences **expliquées** (participants de programme ; staff de venture), **non tranchées** ; + réserve (policy programme `program_assigned` ≠ `program_staffed` des gardes). Voir [phase5-shadow-collection.md](phase5-shadow-collection.md). Décisions S1–S3 requises. |
 | c3c | **Lots de migration** de l'inventaire A (10–20 contrôles/lot) | ⬜ **gated ops** : mesure ombre par lot avant bascule (voir runbook) |
