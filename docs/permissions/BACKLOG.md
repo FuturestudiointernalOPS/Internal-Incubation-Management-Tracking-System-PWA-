@@ -15,7 +15,7 @@
 | 4 | Renforcer le moteur central | 🟡 **Clôturée** (sous-lots 1–5 ; critère partiel — voir `PHASE4-CLOSURE.md`) |
 | 5 | Migration des contrôles par rôle + portée dans le moteur | ⬜ **Prochaine** |
 | 6 | Couverture des actions | 🟡 **En cours** — tâche 1 : portée « soi-même » (~32 routes déclarées, 5 tranches) ; tâche 2 : **30 routes `OUVERTE_ASSUMEE` déclarées** avec justification + ratchet ; tâche 3 : les 2 `A_PROTEGER` neutralisées (phase 3) |
-| 7 | Implémentation des décisions produit | 🟡 **Partielle** — **D7 fait** (`phase-7-d7-animation-rights.md`), **D9 fait** (retrait de la portée `team_own`), **D6 fait** (profil `course_manager`), **D3 (expiration) fait** (`phase-7-d3-historical-retention.md`), **D4 fait** (union des identités + avertissement de section, `phase-7-d4-eligibility-union.md`) ; **D3 (révocation/écran)**, D1, D2, D5/D8 restent |
+| 7 | Implémentation des décisions produit | 🟡 **Partielle** — **D7 fait** (`phase-7-d7-animation-rights.md`), **D9 fait** (retrait de la portée `team_own`), **D6 fait** (profil `course_manager`), **D3 (expiration) fait** (`phase-7-d3-historical-retention.md`), **D4 fait** (union des identités + avertissement de section, `phase-7-d4-eligibility-union.md`), **D2 fait** (`phase-7-d2-historical-account.md`) ; **D3 (révocation/écran)**, D1, D5/D8 restent |
 | 8 | Affectations et identité | 🟡 **Partielle** — tâche 3 (compatibilité rôle ↔ profil sur les chemins manuels) faite ; le reste (migrations, déclencheurs) à planifier |
 | 9 | Administration et vocabulaire | ⬜ À planifier |
 | 10 | Vérification finale (arrêt humain) | ⬜ À planifier |
@@ -51,7 +51,7 @@ Les décisions sont **arbitrées** (voir `phase-1-synthese.md`) ; ce qui suit es
 | D6 | Droit unique de gestion des cours via un **profil dédié** | ✅ **Fait (Phase 7)** — profil `course_manager` (staff only, `lms.view`+`lms.edit`), seed + catalogue + i18n ; personne ne le détient par défaut ; test `phase7-d6-course-manager-profile.test.js` | — |
 | D5 / D8 | Portée = **programme(s) assigné(s)** ; fin du « tout le portefeuille » par défaut | ⬜ Non | 5 → 7 |
 | D1 | Lecture historique **en consultation seule**, participants inclus, programme **et** venture | ⬜ Non | 7 |
-| D2 | Départ/désactivation → **perte des droits**, historique conserve sans accès | 🟡 Partiel — **porte du compte** implémentée (sous-lot 1) ; la partie « lecture historique » reste | 4 → 7 |
+| D2 | Départ/désactivation → **perte des droits**, historique conserve sans accès | ✅ **Fait (Phase 7)** — porte du compte (Phase 4) **confirmée pour la lecture historique** : compte non `active` → refus, résidu compris ; test `phase7-d2-historical-account-gate.test.js` (`phase-7-d2-historical-account.md`) | — |
 | D3 | Trace **révocable** + **durée configurable** (défaut 6 mois), par le super admin | 🟡 **Partielle** — **expiration faite** (durée configurable via `system_settings.historical_access_retention`, défaut 6 mois, ancrée sur la fin de responsabilité ; enforcement automatique ; tests) ; **révocation + écran de retrait à faire** | 7 |
 
 ### Points résiduels **acceptés tels quels** (aucune action bloquante)
