@@ -81,6 +81,7 @@ export function listActiveProfileKeys(cid) {
           WHERE contact_cid = ?
             AND status = 'active'
             AND (ends_at IS NULL OR ends_at > NOW())
+            AND (started_at IS NULL OR started_at <= NOW())
           ORDER BY profile_key`,
     args: [String(cid)],
   });
@@ -96,7 +97,8 @@ export function countActiveAssignmentsForProfileKey(profileKey) {
     sql: `SELECT COUNT(DISTINCT contact_cid)::int AS n
           FROM profile_assignments
           WHERE profile_key = ? AND status = 'active'
-            AND (ends_at IS NULL OR ends_at > NOW())`,
+            AND (ends_at IS NULL OR ends_at > NOW())
+            AND (started_at IS NULL OR started_at <= NOW())`,
     args: [String(profileKey)],
   });
 }
@@ -133,6 +135,7 @@ export function listActiveAutomaticAssignments({ contactCid, profileKey, context
             AND context_type = ?
             AND source = 'automatic'
             AND status = 'active'
+            AND (started_at IS NULL OR started_at <= NOW())
           ORDER BY started_at DESC, id DESC`,
     args: [String(contactCid), String(profileKey), String(contextType)],
   });
@@ -169,6 +172,7 @@ export function findActiveAssignment({
             AND context_id IS NOT DISTINCT FROM ?
             AND status = 'active'
             AND (ends_at IS NULL OR ends_at > NOW())
+            AND (started_at IS NULL OR started_at <= NOW())
           LIMIT 1`,
     args: [
       String(contactCid),

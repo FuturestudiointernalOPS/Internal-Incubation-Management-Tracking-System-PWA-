@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/server/auth/session";
+import db from "@/lib/db";
 import { logVentureActivity } from "@/services/ventures/activity";
 import { getFounderById, updateFounderRole, removeFounder, canManageFounders } from "@/services/ventures/founders";
+import { checkVentureMemberViewAccess } from "@/models/ventureMemberAccess";
 
 /**
  * GET /api/ventures/[id]/founders/[founderId]
@@ -12,6 +14,22 @@ import { getFounderById, updateFounderRole, removeFounder, canManageFounders } f
 export const GET = createHandler(
   async (req, { params }) => {
     const { id, founderId } = await params;
+
+    // IDOR-FOUNDER-1: a founder record is venture-scoped — the caller must
+    // have access to the Venture (super_admin, an active membership, or an
+    // active staff assignment). Before this, any authenticated user could read
+    // any founder by id. 404 (not 403) so existence is not confirmed, matching
+    // the sibling members route.
+    const session = await getSession();
+    const canView = await checkVentureMemberViewAccess(
+      db,
+      id,
+      session?.role || "",
+      session?.cid || "",
+    );
+    if (!canView) {
+      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    }
 
     const founder = await getFounderById(parseInt(founderId));
     if (!founder || founder.venture_id !== id) {

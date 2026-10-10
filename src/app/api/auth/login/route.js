@@ -7,7 +7,8 @@ import {
   getEffectiveGroupsForUser,
 } from "@/services/authorization/membership";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
-import { verifyPassword } from "@/server/auth/password";
+import { verifyPassword, verifyPasswordOrUpgradeLegacy } from "@/server/auth/password";
+import { updateContactPasswordHashByCid } from "@/models/authFlows/passwordReset";
 import {
   getContactByEmailOrId,
   getTeamByUsernameForLogin,
@@ -143,14 +144,12 @@ export const POST = withRequestContext(async function POST(req) {
     // --- CRYPTOGRAPHIC VERIFICATION ---
     // If it was a Family login, password was already checked
     if (!isFamilyLogin) {
-      const isHashed = user.password && user.password.startsWith("$2");
-      let isMatch = false;
-
-      if (isHashed) {
-        isMatch = await verifyPassword(cleanPassword, user.password);
-      } else {
-        isMatch = cleanPassword === user.password;
-      }
+      // SECRET-1: a bcrypt hash is verified normally; a legacy clear-text row
+      // is accepted ONCE and upgraded to a hash so the clear value does not
+      // survive another login.
+      const isMatch = await verifyPasswordOrUpgradeLegacy(cleanPassword, user.password, {
+        upgrade: (hashed) => updateContactPasswordHashByCid(hashed, user.cid || user.id),
+      });
 
       if (!isMatch) {
         logger.warn("auth_login_failed", {

@@ -10,8 +10,10 @@
  *   And     no session is ever created on a failure
  *   And     the attempt is audited, with a reason, never with the password
  *
- * The route is at 0% coverage otherwise; this is the highest-risk untested
- * surface in the application.
+ * Credential checking now goes through `verifyPasswordOrUpgradeLegacy` (SECRET-1):
+ * a bcrypt hash is verified normally, and a legacy clear-text row is accepted
+ * once and upgraded to a hash. The unknown-account timing equaliser still calls
+ * `verifyPassword` directly.
  */
 
 jest.mock("@/lib/db", () => ({
@@ -43,6 +45,11 @@ jest.mock("@/services/authorization/membership", () => ({
 
 jest.mock("@/server/auth/password", () => ({
   verifyPassword: jest.fn(async () => false),
+  verifyPasswordOrUpgradeLegacy: jest.fn(async () => false),
+}));
+
+jest.mock("@/models/authFlows/passwordReset", () => ({
+  updateContactPasswordHashByCid: jest.fn(async () => {}),
 }));
 
 jest.mock("@/models/authFlows", () => ({
@@ -63,7 +70,7 @@ jest.mock("@/lib/loginAudit", () => ({ auditLoginAttempt: jest.fn(async () => {}
 const { POST } = require("@/app/api/auth/login/route");
 const { createSession } = require("@/server/auth/session");
 const { setSessionCookieOnResponse } = require("@/server/auth/cookies");
-const { verifyPassword } = require("@/server/auth/password");
+const { verifyPassword, verifyPasswordOrUpgradeLegacy } = require("@/server/auth/password");
 const { enforceRateLimit } = require("@/lib/rate-limit");
 const { auditLoginAttempt } = require("@/lib/loginAudit");
 const authFlows = require("@/models/authFlows");
@@ -90,6 +97,7 @@ beforeEach(() => {
   process.env.LOG_LEVEL = "silent";
   jest.clearAllMocks();
   verifyPassword.mockResolvedValue(false);
+  verifyPasswordOrUpgradeLegacy.mockResolvedValue(false);
   enforceRateLimit.mockReturnValue(null);
   authFlows.getContactByEmailOrId.mockResolvedValue({ rows: [] });
   authFlows.getTeamByUsernameForLogin.mockResolvedValue({ rows: [] });
@@ -130,7 +138,7 @@ describe("account does not exist", () => {
 describe("wrong password", () => {
   test("answers the same generic 401 and starts no session", async () => {
     authFlows.getContactByEmailOrId.mockResolvedValue({ rows: [activeUser()] });
-    verifyPassword.mockResolvedValue(false);
+    verifyPasswordOrUpgradeLegacy.mockResolvedValue(false);
 
     const res = await POST(signIn({ email: "user@example.com", password: "nope" }));
     const body = await res.json();
@@ -153,7 +161,7 @@ describe("account standing gates", () => {
     ["suspended", 403],
   ])("a %s account is refused with %i and no session", async (status, expected) => {
     authFlows.getContactByEmailOrId.mockResolvedValue({ rows: [activeUser({ status })] });
-    verifyPassword.mockResolvedValue(true);
+    verifyPasswordOrUpgradeLegacy.mockResolvedValue(true);
 
     const res = await POST(signIn({ email: "user@example.com", password: "correct" }));
 
@@ -169,7 +177,7 @@ describe("account standing gates", () => {
     authFlows.getContactByEmailOrId.mockResolvedValue({
       rows: [activeUser({ archived_at: "2024-01-01" })],
     });
-    verifyPassword.mockResolvedValue(true);
+    verifyPasswordOrUpgradeLegacy.mockResolvedValue(true);
 
     const res = await POST(signIn({ email: "user@example.com", password: "correct" }));
 
@@ -181,7 +189,7 @@ describe("account standing gates", () => {
 describe("successful sign-in", () => {
   test("creates a session, sets the cookie, and audits the success", async () => {
     authFlows.getContactByEmailOrId.mockResolvedValue({ rows: [activeUser()] });
-    verifyPassword.mockResolvedValue(true);
+    verifyPasswordOrUpgradeLegacy.mockResolvedValue(true);
 
     const res = await POST(signIn({ email: "user@example.com", password: "correct" }));
     const body = await res.json();
@@ -198,15 +206,23 @@ describe("successful sign-in", () => {
     );
   });
 
-  test("a legacy plaintext password still authenticates", async () => {
+  test("a legacy plaintext password still authenticates — through the upgrading seam", async () => {
     authFlows.getContactByEmailOrId.mockResolvedValue({
       rows: [activeUser({ password: "legacy-plain" })],
     });
+    verifyPasswordOrUpgradeLegacy.mockResolvedValue(true);
 
     const res = await POST(signIn({ email: "user@example.com", password: "legacy-plain" }));
 
     expect(res.status).toBe(200);
-    expect(verifyPassword).not.toHaveBeenCalled();
+    // SECRET-1: the credential check goes through the upgrading seam, which
+    // persists a hash for a legacy row (the upgrade itself is unit-tested in
+    // server/auth-password.test.js).
+    expect(verifyPasswordOrUpgradeLegacy).toHaveBeenCalledWith(
+      "legacy-plain",
+      "legacy-plain",
+      expect.objectContaining({ upgrade: expect.any(Function) }),
+    );
     expect(createSession).toHaveBeenCalled();
   });
 });
@@ -229,7 +245,7 @@ describe("rate limiting", () => {
 describe("session creation fails", () => {
   test("the route never reports success without a session", async () => {
     authFlows.getContactByEmailOrId.mockResolvedValue({ rows: [activeUser()] });
-    verifyPassword.mockResolvedValue(true);
+    verifyPasswordOrUpgradeLegacy.mockResolvedValue(true);
     createSession.mockRejectedValueOnce(new Error("pool exhausted"));
 
     const res = await POST(signIn({ email: "user@example.com", password: "correct" }));
