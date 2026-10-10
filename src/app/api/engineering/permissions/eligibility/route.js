@@ -21,6 +21,7 @@ import {
   resolveEligibilityWrite,
   formatEligibilityAuditDetails,
 } from "@/services/authorization/eligibilityConfiguration";
+import { findOpenCeilingsWithoutRights } from "@/services/authorization/eligibilityAdmin";
 import {
   listFeatureEligibilityRows,
   getEligibilityRow,
@@ -28,6 +29,7 @@ import {
   upsertEligibilityRow,
 } from "@/models/authorization";
 import { listProfiles, ensureProfilesSchema } from "@/models/authorization/profilesStore";
+import { listProfileCapabilities } from "@/models/authorization/profileCapabilitiesStore";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +58,47 @@ async function fetchAllRows() {
   return result.rows;
 }
 
+/**
+ * §12.3 — the OPEN CEILINGS WITH NO RIGHT, per PROFILE.
+ *
+ * A profile eligible for a feature but holding NO capability of it is a ceiling
+ * that opens onto nothing. The pure detector decides; this only feeds it each
+ * profile's OWN eligibility rows and capabilities. Best-effort: a read failure
+ * yields no alert (the screen keeps working), never a 500.
+ */
+async function collectCeilingAlerts(rows, profileKeys) {
+  const alerts = [];
+  for (const profileKey of profileKeys) {
+    try {
+      const eligibility = {};
+      for (const row of rows) {
+        if (row.identity_type !== "profile") continue;
+        if (String(row.identity_value) !== String(profileKey)) continue;
+        if (Number(row.eligible) === 1) eligibility[row.feature_key] = true;
+      }
+      if (Object.keys(eligibility).length === 0) continue;
+
+      const capsRes = await listProfileCapabilities(profileKey);
+      const capabilities = {};
+      for (const cap of capsRes.rows || []) {
+        capabilities[cap.module] = capabilities[cap.module] || {};
+        capabilities[cap.module][cap.capability] = Number(cap.access_level) || 0;
+      }
+      for (const finding of findOpenCeilingsWithoutRights({ eligibility, capabilities })) {
+        alerts.push({
+          identityType: "profile",
+          identityValue: profileKey,
+          feature: finding.feature,
+          modules: finding.modules,
+        });
+      }
+    } catch (error) {
+      console.warn(`[eligibility] ceiling alert failed for ${profileKey}:`, error.message);
+    }
+  }
+  return alerts;
+}
+
 export async function GET() {
   try {
     await initDb();
@@ -77,6 +120,10 @@ export async function GET() {
       .map((row) => row.key)
       .sort();
 
+    // §12.3 — configuration alerts: a profile eligible for a feature but holding
+    // none of its rights.
+    const ceilingAlerts = await collectCeilingAlerts(rows, profiles);
+
     return NextResponse.json({
       success: true,
       features: FEATURE_KEYS,
@@ -92,6 +139,7 @@ export async function GET() {
       profiles,
       rows,
       canConfigure: !!canConfigure,
+      ceilingAlerts,
     });
   } catch (error) {
     console.error("[eligibility] GET error:", error.message);

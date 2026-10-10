@@ -26,6 +26,8 @@
  */
 
 import { restrictionsToJson } from "./context";
+import { explainAuthorization } from "./contextDecisions";
+import { PERMISSION_MODULES } from "@/server/authz/capabilities";
 
 /**
  * Which resolver inputs feed the Permission Center's source columns.
@@ -42,6 +44,32 @@ const SOURCE_COLUMNS = [
 /** The fixed note the screen shows about the scope engine's state. */
 export const SCOPE_ENGINE_NOTE =
   "venture_own · program_assigned · learning_own (team_own pending)";
+
+/**
+ * The ENGINE's own verdict for every catalogue capability (spec §12.4).
+ *
+ * The screen must show the reason the ENGINE returns — including the reason for
+ * a refusal — and never a value computed apart. This runs the very
+ * `explainAuthorization` the route guards use, so the boolean and the reason the
+ * administrator reads are exactly the decision that was enforced.
+ *
+ * @param {object} authorizationContext as returned by resolveAuthorizationContext
+ * @returns {{[module: string]: {[capability: string]: {allowed: boolean, reason: string}}}}
+ */
+export function buildContextDecisions(authorizationContext) {
+  const decisions = {};
+  for (const [module, definition] of Object.entries(PERMISSION_MODULES)) {
+    decisions[module] = {};
+    for (const capability of definition.capabilities) {
+      const decision = explainAuthorization(authorizationContext, module, capability, 1);
+      decisions[module][capability] = {
+        allowed: decision.allowed,
+        reason: decision.reason,
+      };
+    }
+  }
+  return decisions;
+}
 
 /**
  * The read-only projection of one person's authorization context.
@@ -69,6 +97,9 @@ export function projectUserContext(cid, authorizationContext, contextData) {
     eligibility: authorizationContext.eligibility,
     sources,
     effective: authorizationContext.effective,
+    // §12.4 — the engine's own verdict + reason per capability, so the screen
+    // displays the ENFORCED reason (refusals included), not a re-derivation.
+    decisions: buildContextDecisions(authorizationContext),
     contexts: contextData.contexts,
     contextsUnavailable: contextData.unavailable,
     scope: {

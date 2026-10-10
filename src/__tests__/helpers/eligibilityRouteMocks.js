@@ -35,6 +35,7 @@ const mockState = {
   canConfigure: true,
   auditEntries: [],
   findTemplatesGrantingFeature: [],
+  profileCapabilitiesByKey: {},
 };
 
 function resetState() {
@@ -56,6 +57,7 @@ function resetState() {
   canConfigure: true,
   auditEntries: [],
   findTemplatesGrantingFeature: [],
+  profileCapabilitiesByKey: {},
   });
 }
 
@@ -150,6 +152,9 @@ function profileCapabilitiesStoreMock() {
   return {
     listRoleProfileDefaults: jest.fn().mockImplementation(async () => ({
       rows: mockState.roleDefaults,
+    })),
+    listProfileCapabilities: jest.fn().mockImplementation(async (key) => ({
+      rows: mockState.profileCapabilitiesByKey[key] || [],
     })),
   };
 }

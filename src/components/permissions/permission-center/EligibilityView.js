@@ -256,7 +256,11 @@ export default function EligibilityView() {
         />
       )}
 
-      <EligibilityNotices t={t} canConfigure={canConfigure} />
+      <EligibilityNotices
+        t={t}
+        canConfigure={canConfigure}
+        alerts={data?.ceilingAlerts || []}
+      />
 
       {/* Identity selector */}
       <EligibilityIdentityPicker

@@ -6,7 +6,7 @@ import EffectiveBadge from "../ui/EffectiveBadge";
 import SourceGlyph from "./SourceGlyph";
 import {
   deriveUserCapState,
-  deriveDenialReason,
+  resolveDenialReason,
   describeCapOrigins,
 } from "../matrixHelpers";
 import { capabilityLabel } from "@/models/authorization/capability-catalog";
@@ -69,7 +69,10 @@ export default function PeopleMatrix({
   // capability any source layer holds when the catalogue has none.
   const capsFor = (module) => moduleCaps(module, ctx.sources);
 
-  const reasonFor = (state) => deriveDenialReason(state);
+  // §12.4 — the ENGINE's reason (from the server projection) wins over the
+  // UI-derived one, so the screen never contradicts the enforced decision.
+  const reasonFor = (module, capability, state) =>
+    resolveDenialReason(state, ctx?.decisions?.[module]?.[capability]?.reason);
 
   /** Human module name, from the shared labels, else the raw key prettified. */
   const moduleLabel = (module) => {
@@ -387,7 +390,7 @@ export default function PeopleMatrix({
                         cap,
                         eligibleFor(module.module),
                       );
-                      const reason = reasonFor(state);
+                      const reason = reasonFor(module.module, cap, state);
                       return (
                         <tr
                           key={`${module.module}.${cap}`}
@@ -518,7 +521,7 @@ export default function PeopleMatrix({
                     cap,
                     eligibleFor(module.module),
                   );
-                  const reason = reasonFor(state);
+                  const reason = reasonFor(module.module, cap, state);
                   return (
                     <div
                       key={`${module.module}.${cap}`}
