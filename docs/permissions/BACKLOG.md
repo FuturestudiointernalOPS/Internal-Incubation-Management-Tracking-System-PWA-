@@ -14,7 +14,7 @@
 | 3 | Urgences de sécurité | 🟡 **Partielle** — 5/9 corrigées ; reste ci-dessous (base/config/décision) |
 | 4 | Renforcer le moteur central | 🟡 **Clôturée** (sous-lots 1–5 ; critère partiel — voir `PHASE4-CLOSURE.md`) |
 | 5 | Migration des contrôles par rôle + portée dans le moteur | ⬜ **Prochaine** |
-| 6 | Couverture des actions | ⬜ À planifier |
+| 6 | Couverture des actions | 🟡 **En cours** — tâche 1 (déclaration « personnelle légitime » + test de portée « soi-même ») démarrée sur la famille `me/*` + `profile/*` (5 routes, ratchet) ; reste les autres familles |
 | 7 | Implémentation des décisions produit | ⬜ À planifier |
 | 8 | Affectations et identité | 🟡 **Partielle** — tâche 3 (compatibilité rôle ↔ profil sur les chemins manuels) faite ; le reste (migrations, déclencheurs) à planifier |
 | 9 | Administration et vocabulaire | ⬜ À planifier |
@@ -70,6 +70,8 @@ Les décisions sont **arbitrées** (voir `phase-1-synthese.md`) ; ce qui suit es
 | `ROLE-AUDIT-1` | Historique des changements de rôle global (§12.1) : le chemin `PUT /api/contacts` écrivait `role` sans **aucune** entrée d'audit | ✅ **Fait** — `recordRoleChangeAudit` (même forme que le Permission Center) sur un vrai changement ; tests : `contacts-role-audit.test.js` |
 | `WHY-ENGINE-1` | §12.4 — l'écran Personnes doit afficher la **raison du moteur** (refus compris), jamais une valeur calculée à part | ✅ **Fait** — `buildContextDecisions` (projection du contexte) expose la décision d'`explainAuthorization` par capacité ; `EffectiveBadge`/`resolveDenialReason` préfèrent la raison du moteur ; tests : `phase9-why-engine-reason.test.js` |
 | `CEILING-ALERT-1` | §12.3 — alerte « plafond ouvert sans droit » (détecteur présent mais non affiché) | ✅ **Fait** — le GET d'éligibilité expose `ceilingAlerts` (détecteur pur, par profil) ; `EligibilityNotices` l'affiche ; tests : `phase9-eligibility-ceiling-alerts.test.js` |
+| `SELF-SCOPE-1` | Phase 6, tâche 1 — déclaration `PERSONNELLE_LEGITIME` + test de portée « soi-même » | 🟡 **Tranche 1** — famille `me/*` + `profile/*` (5 routes) : déclaration (`helpers/selfScopedDeclaration.js`), tests comportementaux (cible = `session.cid`, jamais un `cid` du corps) et ratchet sur les préfixes ; tests : `phase6-self-scope.test.js`. Autres familles (participant/*, notifications/*, tasks, lms apprenant…) à traiter par tranche |
+| `SHADOW-COLLECT-1` | Phase 5 c3b — rendre les divergences du mode ombre exploitables | ✅ **Fait** — collecte agrégée (`getShadowReport`/`resetShadowReport`), endpoint `shadow-report` (view_matrix + same-origin), runbook `runbook-phase5-shadow.md` ; exécution staging = ops |
 | `SNAP-1` | Divergence outils↔disque : les `fichier:ligne` des inventaires A/C/D/G doivent être **revérifiés au terminal** avant toute correction | ✅ **Fait** — comptages confirmés au terminal (83/108/219/81/21/10/3/1/40 ; seul M3 : 218→219) — voir `inventaire-00-cartographie.md` §8.1 |
 | `SPEC-1` | Scénarios §15 testés au niveau **service/pur**, pas bout-en-bout HTTP | ⬜ Approfondir si nécessaire |
 | `REFS-1` | Le libellé « corrompu » de la Phase 0 n'existe pas sur le disque (instantané obsolète) — constat **retiré** | ✅ Traité |
