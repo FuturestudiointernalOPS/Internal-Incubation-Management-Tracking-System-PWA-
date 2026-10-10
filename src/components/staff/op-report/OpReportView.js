@@ -62,6 +62,7 @@ export default function OpReportView({
           now={now}
           reportType={reportType}
           weekInfo={weekInfo}
+          tasks={ctx.tasks}
         />
 
         <ReportContent ctx={ctx} />
