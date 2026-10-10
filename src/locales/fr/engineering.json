@@ -798,6 +798,8 @@
       "eligibilityCeilingAlertItem": "{identity} — {feature}",
       "eligibilityUnassignableTitle": "Profils qu'aucun rôle ne peut détenir",
       "eligibilityUnassignableHint": "Ces profils sont actifs mais ne listent aucun rôle de base : personne ne peut se les voir attribuer.",
+      "eligibilityRightAlertTitle": "Droits sur un plafond fermé",
+      "eligibilityRightAlertHint": "Ces profils détiennent un droit d'une fonctionnalité explicitement fermée pour eux — le droit ne peut jamais s'appliquer.",
       "openActionsIntro": "Actions d'API sans décision de permission, chacune déclarée et justifiée. Lecture seule — la liste ne change que volontairement.",
       "openActionsSelfScoped": "Personnelles (portée soi-même)",
       "openActionsSelfScopedHint": "Ouvertes à tout utilisateur connecté ; la cible est toujours l'appelant lui-même.",

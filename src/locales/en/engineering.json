@@ -798,6 +798,8 @@
       "eligibilityCeilingAlertItem": "{identity} — {feature}",
       "eligibilityUnassignableTitle": "Profiles no role can hold",
       "eligibilityUnassignableHint": "These profiles are active but list no baseline role, so nobody can be assigned them.",
+      "eligibilityRightAlertTitle": "Rights on a closed ceiling",
+      "eligibilityRightAlertHint": "These profiles hold a right of a feature that is explicitly closed for them — the right can never apply.",
       "openActionsIntro": "API actions that carry no permission decision, each declared and justified. Read-only — the list only changes deliberately.",
       "openActionsSelfScoped": "Personal (self-scoped)",
       "openActionsSelfScopedHint": "Open to any connected user; the target is always the caller themselves.",
