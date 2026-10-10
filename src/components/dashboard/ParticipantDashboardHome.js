@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
 import { useApi } from "@/lib/hooks/useApi";
@@ -29,10 +30,13 @@ function Metric({ label, value, icon }) {
 
 export default function ParticipantDashboardHome() {
   const { t, lang } = useI18n();
+  const { user, role } = useSessionUser();
+  const { data: relationships } = useApi(user && role !== "investor" ? "/api/me/relationships" : null, { defaultValue: null });
+  const showParticipantBlocks = Boolean(user && role !== "investor" && relationships?.success && !relationships.isInvestor);
   const { data: home, loading, error, refresh } = useApi("/api/participant/home", { defaultValue: EMPTY_HOME, transform: pickHome });
   const data = home.payload;
-  const { data: assignments, loading: assignmentsLoading } = useApi(data?.primaryProgram?.id ? `/api/participant/assignments?program_id=${encodeURIComponent(data.primaryProgram.id)}` : null, { defaultValue: null, transform: pickAssignments });
-  const { data: courses, error: courseError } = useApi(data ? "/api/lms/my-learning" : null, { defaultValue: [], transform: pickCourses });
+  const { data: assignments, loading: assignmentsLoading } = useApi(showParticipantBlocks && data?.primaryProgram?.id ? `/api/participant/assignments?program_id=${encodeURIComponent(data.primaryProgram.id)}` : null, { defaultValue: null, transform: pickAssignments });
+  const { data: courses, error: courseError } = useApi(showParticipantBlocks && data ? "/api/lms/my-learning" : null, { defaultValue: [], transform: pickCourses });
   const [addRequest, setAddRequest] = useState(0);
   if (loading && !data) return <div className="space-y-5"><Skeleton className="h-36 w-full" /><Skeleton className="h-96 w-full" /></div>;
   if (error || !data) return <AppCard><p className="text-sm text-[var(--text-secondary)]">{t("participantMisc.dashboardHome.failedToLoad")}</p><AppButton className="mt-3" icon={RefreshCw} onClick={refresh}>{t("common.retry")}</AppButton></AppCard>;
@@ -57,12 +61,12 @@ export default function ParticipantDashboardHome() {
     />
     <div className="stf-grid c4"><Metric label={t("participant.programCompletion")} value={`${metrics.programCompletion || 0}%`} icon={TrendingUp} /><Metric label={t("participant.attendance")} value={`${metrics.attendanceRate || 0}%`} icon={Check} /><Metric label={t("participant.template.approvedAssignments")} value={assignmentsLoading ? t("common.loading") : assignments ? `${assignments.filter(item => item.submission?.status === "approved").length} / ${assignments.length}` : t("participant.template.notAvailable")} icon={FileText} /><Metric label={t("participant.kpiAchievement")} value={`${metrics.kpiCompletion || 0}%`} icon={TrendingUp} /></div>
     <ParticipantCommandCalendar events={calendarEvents} addRequest={addRequest} />
-    <AppCard><h2 className="text-sm font-bold text-[var(--text-primary)]">{t("participant.yourProgress")}</h2><div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mt-4">{[["program", metrics.programCompletion || 0], ["assignments", metrics.assignmentCompletion || 0], ["attendance", metrics.attendanceRate || 0], ["courses", lessonCompletion]].map(([key, value]) => <div key={key}><div className="flex justify-between text-xs text-[var(--text-secondary)]"><span>{t(`participant.template.progressLabels.${key}`)}</span><span>{value === null ? t("participant.template.notAvailable") : `${value}%`}</span></div><div className="mt-2 h-1.5 rounded-full bg-surface-3 overflow-hidden"><div className="h-full participant-progress-fill" style={{ width: `${Math.min(100, Math.max(0, value || 0))}%` }} /></div></div>)}</div></AppCard>
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">{attention(overdue, t("participant.overdue"), AlertCircle, "var(--chart-danger)")}{attention(dueSoon, t("participant.dueSoon"), Clock, "var(--chart-warning)")}{attention(pending, t("participant.pending"), FileText, "var(--chart-info)", true)}</div>
+    {showParticipantBlocks && <AppCard><h2 className="text-sm font-bold text-[var(--text-primary)]">{t("participant.yourProgress")}</h2><div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mt-4">{[["program", metrics.programCompletion || 0], ["assignments", metrics.assignmentCompletion || 0], ["attendance", metrics.attendanceRate || 0], ["courses", lessonCompletion]].map(([key, value]) => <div key={key}><div className="flex justify-between text-xs text-[var(--text-secondary)]"><span>{t(`participant.template.progressLabels.${key}`)}</span><span>{value === null ? t("participant.template.notAvailable") : `${value}%`}</span></div><div className="mt-2 h-1.5 rounded-full bg-surface-3 overflow-hidden"><div className="h-full participant-progress-fill" style={{ width: `${Math.min(100, Math.max(0, value || 0))}%` }} /></div></div> )}</div></AppCard>}
+    {showParticipantBlocks && <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">{attention(overdue, t("participant.overdue"), AlertCircle, "var(--chart-danger)")}{attention(dueSoon, t("participant.dueSoon"), Clock, "var(--chart-warning)")}{attention(pending, t("participant.pending"), FileText, "var(--chart-info)", true)}</div>}
     <AppCard><Link href="/participant/announcements" className="flex items-center justify-between gap-3 text-sm font-bold text-[var(--brand-orange)]"><span>{t("participant.announcements")}</span><span>{t("participant.announcementHub.open")}</span></Link></AppCard>
-    <section><SectionHeader letter="A" title={t("navigation.learning")} description={t("participant.template.learningHint")} href="/participant/learning" action={t("participant.template.allCourses")} /><div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {showParticipantBlocks && <section><SectionHeader letter="A" title={t("navigation.learning")} description={t("participant.template.learningHint")} href="/participant/learning" action={t("participant.template.allCourses")} /><div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <AppCard><h3 className="text-sm font-bold text-[var(--text-primary)]">{t("participant.template.courses")}</h3><div className="mt-3 space-y-2">{courses.length ? courses.slice(0, 4).map(course => <Link key={course.id} href={`/participant/learning/${course.id}`} className="flex items-center gap-3 rounded-lg border border-[var(--border-primary)] p-3 hover:bg-surface-2"><GraduationCap className="h-4 w-4 text-[var(--brand-orange)]" /><div><p className="text-sm font-bold text-[var(--text-primary)]">{course.title}</p><p className="mt-1 text-xs text-[var(--text-secondary)]">{t("participant.template.lessonCount", { completed: course.progress?.completedLessons || 0, total: course.progress?.totalLessons || 0 })}</p></div></Link>) : <p className="py-5 text-xs text-[var(--text-secondary)]">{t(courseError ? "errors.networkError" : "participant.template.noCourses")}</p>}</div></AppCard>
       <AppCard><h3 className="text-sm font-bold text-[var(--text-primary)]">{t("participant.template.nextSessions")}</h3><div className="mt-3 divide-y divide-[var(--border-primary)]">{nextSessions.length ? nextSessions.map(session => <Link key={session.id} href={`/participant/${session.programId}?session=${encodeURIComponent(session.id)}#session-${session.id}`} className="block py-3"><p className="text-sm font-bold text-[var(--text-primary)]">{session.title}</p><p className="mt-1 text-xs text-[var(--text-secondary)]">{formatLocaleDate(session.date, { day: "numeric", month: "short" }, lang)}{session.time ? ` · ${session.time.slice(0, 5)}` : ""}</p></Link>) : <p className="py-5 text-xs text-[var(--text-secondary)]">{t("participant.template.noSessions")}</p>}</div></AppCard>
-    </div></section>
+    </div></section>}
   </div>;
 }

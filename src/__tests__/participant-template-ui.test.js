@@ -9,6 +9,9 @@ jest.mock("@/lib/i18n", () => ({ useI18n: () => ({ lang: "en", t: (key, paramete
 } }) }));
 jest.mock("@/components/ui/DialogProvider", () => ({ useDialogs: () => ({ confirm: jest.fn().mockResolvedValue(true), alert: jest.fn() }) }));
 jest.mock("@/lib/PermissionProvider", () => ({ usePermissions: () => ({ can: () => false }) }));
+let mockRole = "participant";
+let mockInvestor = false;
+jest.mock("@/lib/hooks/useSessionUser", () => ({ useSessionUser: () => ({ user: { cid: "P1", role: mockRole }, role: mockRole }) }));
 const mockHome = {
   success: true, participant: { cid: "P1", name: "Amina Koné" },
   primaryProgram: { id: "program1", name: "Come UP", currentWeek: 2, durationWeeks: 12, metrics: { programCompletion: 25, attendanceRate: 50, assignmentCompletion: 20, kpiCompletion: 30 } },
@@ -18,7 +21,7 @@ const mockHome = {
 const mockCourses = [{ course: { id: "course1", title: "Real course" }, progress: { percent: 50, completedLessons: 2, totalLessons: 4 } }];
 jest.mock("@/lib/hooks/useApi", () => ({
   useApi: (url, options) => {
-    const payload = url === "/api/participant/home" ? mockHome : { success: true, courses: mockCourses };
+    const payload = url === "/api/me/relationships" ? { success: true, isInvestor: mockInvestor } : url === "/api/participant/home" ? mockHome : { success: true, courses: mockCourses };
     return { data: options.transform ? options.transform(payload) : payload, loading: false, error: null, refresh: jest.fn() };
   },
   useApiMulti: () => ({ data: {}, loading: false, error: null }),
@@ -26,7 +29,7 @@ jest.mock("@/lib/hooks/useApi", () => ({
 const { default: ParticipantCommandCalendar, calendarRange, placeCalendarItems } = require("@/components/ui/ParticipantCommandCalendar");
 const ParticipantDashboardHome = require("@/components/dashboard/ParticipantDashboardHome").default;
 
-beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(new Date("2026-10-08T12:00:00Z")); });
+beforeEach(() => { mockRole = "participant"; mockInvestor = false; jest.useFakeTimers(); jest.setSystemTime(new Date("2026-10-08T12:00:00Z")); });
 afterEach(() => { cleanup(); jest.useRealTimers(); });
 
 test("month starts from its own month even when the first day is a Sunday", () => {
@@ -74,4 +77,18 @@ test("dashboard keeps course links and omits the removed shortcut and ritual sec
   expect(screen.queryByRole("heading", { name: /Shortcuts|My rituals/ })).toBeNull();
   expect(screen.queryByRole("link", { name: /Messages/ })).toBeNull();
   expect(screen.queryByText("Your weekly recap")).toBeNull();
+});
+
+ test.each([["investor", false], ["member", true]])("investor account %s does not see participant learning, progress or attention blocks", (role, investor) => {
+  mockRole = role; mockInvestor = investor;
+  render(<ParticipantDashboardHome />);
+  expect(screen.queryByRole("link", { name: /All my courses/i })).toBeNull();
+  expect(screen.queryByRole("heading", { name: /My Learning|Your Progress|Overdue|Due Soon|Pending/i })).toBeNull();
+  expect(screen.getByRole("link", { name: /View all announcements/i })).toBeTruthy();
+});
+ test("participant keeps progress, attention and learning blocks", () => {
+  render(<ParticipantDashboardHome />);
+  expect(screen.getByRole("heading", { name: "Your Progress" })).toBeTruthy();
+  expect(screen.getByRole("heading", { name: /Overdue/i })).toBeTruthy();
+  expect(screen.getByRole("link", { name: /All my courses/i })).toBeTruthy();
 });
