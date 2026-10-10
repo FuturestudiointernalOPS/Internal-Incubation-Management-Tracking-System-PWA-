@@ -64,8 +64,8 @@ export default function RetroHistoryTable({
                 const weekKey = report.week_number + "-" + report.year;
                 const weekTasks = tasks.filter(
                   (task) =>
-                    task.created_week === report.week_number &&
-                    task.created_year === report.year &&
+                    Number(task.created_week) === Number(report.week_number) &&
+                    Number(task.created_year) === Number(report.year) &&
                     !task.parent_task_id, // exclude sub-tasks (rendered inside parent)
                 );
                 const totalTasks = weekTasks.reduce(
@@ -265,7 +265,7 @@ export default function RetroHistoryTable({
                                                         "carried_over") && (
                                                       <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded ml-2">
                                                         <Shield className="w-2.5 h-2.5" />{" "}
-                                                        Carryover
+                                                        {t("status.carryover")}
                                                       </span>
                                                     )}
                                                     {task.subtasks?.length >
@@ -348,15 +348,19 @@ export default function RetroHistoryTable({
                                                     <span className="text-rose-400 font-medium flex items-center gap-1">
                                                       <Shield className="w-3 h-3" />
                                                       {activeBlockers.length}{" "}
-                                                      Blocker
                                                       {activeBlockers.length > 1
-                                                        ? "s"
-                                                        : ""}
+                                                        ? t("staff.table.blockers")
+                                                        : t("staff.table.blocker")}
+                                                    </span>
+                                                  ) : task.status === "blocked" ? (
+                                                    <span className="text-rose-400 font-medium flex items-center gap-1">
+                                                      <Shield className="w-3 h-3" />
+                                                      1 {t("staff.table.blocker")}
                                                     </span>
                                                   ) : (
                                                     <span className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1">
                                                       <Shield className="w-3 h-3" />
-                                                      Add Blocker
+                                                      {t("staff.opReport.addBlockerButton")}
                                                     </span>
                                                   )}
                                                 </button>
@@ -378,31 +382,31 @@ export default function RetroHistoryTable({
                                                     value="pending"
                                                     className="bg-primary text-slate-400"
                                                   >
-                                                    Not Started
+                                                    {t("status.notStarted")}
                                                   </option>
                                                   <option
                                                     value="in_progress"
                                                     className="bg-primary text-blue-400"
                                                   >
-                                                    In Progress
+                                                    {t("status.inProgress")}
                                                   </option>
                                                   <option
                                                     value="blocked"
                                                     className="bg-primary text-rose-400"
                                                   >
-                                                    Blocked
+                                                    {t("status.blocked")}
                                                   </option>
                                                   <option
                                                     value="carried_over"
                                                     className="bg-primary text-amber-400"
                                                   >
-                                                    Carried Over
+                                                    {t("status.carriedOver")}
                                                   </option>
                                                   <option
                                                     value="completed"
                                                     className="bg-primary text-emerald-400"
                                                   >
-                                                    Completed
+                                                    {t("status.completed")}
                                                   </option>
                                                 </select>
                                               </td>
