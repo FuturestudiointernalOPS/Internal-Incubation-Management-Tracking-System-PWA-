@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { verifyPassword } from "@/server/auth/password";
+import { verifyPassword, verifyPasswordOrUpgradeLegacy } from "@/server/auth/password";
+import { updateContactPasswordHashByCid } from "@/models/authFlows/passwordReset";
 import { createSession } from "@/server/auth/session";
 import { setSessionCookieOnResponse } from "@/server/auth/cookies";
 import { resolveLanding, landingNeedsRelationships } from "@/models/platform/roles";
@@ -20,6 +21,16 @@ import {
   recordContactLoginActivity,
 } from "@/models/authFlows";
 import { auditLoginAttempt } from "@/lib/loginAudit";
+
+// AUTH-ENUM-SESSIONLOGIN-1 — this route is the sister of auth/login and must
+// hide account existence the same way: one generic message for every credential
+// failure, and a bcrypt comparison paid on the UNKNOWN-account path too so the
+// two answers take comparable time.
+const INVALID_CREDENTIALS = "Invalid credentials.";
+
+// A valid bcrypt hash of a throwaway string; never matches a real password.
+const TIMING_EQUALIZER_HASH =
+  "$2b$10$fn1mJNjkFvAK/0ZRjg3mI.ESbkl87xtv22wPOzYPxjK6yAg0gcv3.";
 
 export async function POST(req) {
   try {
@@ -97,6 +108,9 @@ export async function POST(req) {
     }
 
     if (!user) {
+      // Pay the same bcrypt cost as the wrong-password path below, so account
+      // existence is not revealed by response time (AUTH-ENUM-SESSIONLOGIN-1).
+      await verifyPassword(cleanPassword, TIMING_EQUALIZER_HASH);
       await auditLoginAttempt(req, {
         identifier: cleanEmail,
         action: "login_failed",
@@ -104,21 +118,19 @@ export async function POST(req) {
         failureReason: "invalid_credentials",
       });
       return NextResponse.json(
-        { success: false, error: "Invalid credentials." },
+        { success: false, error: INVALID_CREDENTIALS },
         { status: 401 },
       );
     }
 
     // --- 4. PASSWORD VERIFICATION ---
     if (!isFamilyLogin) {
-      const isHashed = user.password && user.password.startsWith("$2");
-      let isMatch = false;
-
-      if (isHashed) {
-        isMatch = await verifyPassword(cleanPassword, user.password);
-      } else {
-        isMatch = cleanPassword === user.password;
-      }
+      // SECRET-1: a bcrypt hash is verified normally; a legacy clear-text row
+      // is accepted ONCE and upgraded to a hash so the clear value does not
+      // survive another login.
+      const isMatch = await verifyPasswordOrUpgradeLegacy(cleanPassword, user.password, {
+        upgrade: (hashed) => updateContactPasswordHashByCid(hashed, user.cid || user.id),
+      });
 
       if (!isMatch) {
         await auditLoginAttempt(req, {
@@ -129,7 +141,7 @@ export async function POST(req) {
           failureReason: "invalid_credentials",
         });
         return NextResponse.json(
-          { success: false, error: "Invalid credentials." },
+          { success: false, error: INVALID_CREDENTIALS },
           { status: 401 },
         );
       }
