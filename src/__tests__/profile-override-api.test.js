@@ -12,6 +12,7 @@ const mockState = {
   session: { cid: "SA-1", name: "Super Admin" },
   contact: null, // { cid, name, role, profile_key }
   profile: null, // { key, label } — the profile being assigned
+  profileRow: null, // { key, allowed_roles, is_active } — for the role gate
   roleCaps: [],
   newCaps: [],
   eligibility: { valid: true, violations: [] },
@@ -20,6 +21,9 @@ const mockState = {
 
 function mockRows(sql) {
   if (/^\s*(CREATE TABLE|CREATE INDEX)/i.test(sql)) return { rows: [] };
+  // getProfileRow — the profile's allowed_roles, read by the profile ↔ role gate.
+  if (sql.includes("allowed_roles") && sql.includes("FROM profiles"))
+    return { rows: mockState.profileRow ? [mockState.profileRow] : [] };
   if (sql.includes("SELECT cid, name, role, profile_key FROM contacts"))
     return { rows: mockState.contact ? [mockState.contact] : [] };
   if (sql.includes("SELECT role, profile_key FROM contacts"))
@@ -81,6 +85,7 @@ beforeEach(() => {
     session: { cid: "SA-1", name: "Super Admin" },
     contact: { cid: "U-2", name: "Target", role: "member", profile_key: null },
     profile: { key: "founder", label: "Founder" },
+    profileRow: { key: "founder", allowed_roles: ["member"], is_active: 1 },
     roleCaps: [],
     newCaps: [],
     eligibility: { valid: true, violations: [] },
@@ -137,6 +142,29 @@ test("a wider profile applies without confirmation", async () => {
   mockState.roleCaps = [];
   mockState.newCaps = [{ module: "ventures", capability: "view", access_level: 1 }];
   const res = await route.PUT(putReq({ user_cid: "U-2", profile_key: "founder" }));
+  expect(res.status).toBe(200);
+  expect(sawAssign()).toBe(true);
+});
+
+test("a profile the target's role is not allowed to hold → 409, no write (§3.3)", async () => {
+  mockState.contact = { cid: "U-2", name: "Target", role: "staff", profile_key: null };
+  mockState.profileRow = { key: "founder", allowed_roles: ["member"], is_active: 1 };
+
+  const res = await route.PUT(putReq({ user_cid: "U-2", profile_key: "founder" }));
+  const body = await res.json();
+
+  expect(res.status).toBe(409);
+  expect(body.profile_role_gap).toMatchObject({ profile: "founder", role: "staff" });
+  expect(sawAssign()).toBe(false);
+});
+
+test("a profile open to the target's role passes the gate and applies", async () => {
+  mockState.contact = { cid: "U-2", name: "Target", role: "member", profile_key: null };
+  mockState.profileRow = { key: "founder", allowed_roles: ["member"], is_active: 1 };
+  mockState.newCaps = [{ module: "ventures", capability: "view", access_level: 1 }];
+
+  const res = await route.PUT(putReq({ user_cid: "U-2", profile_key: "founder" }));
+
   expect(res.status).toBe(200);
   expect(sawAssign()).toBe(true);
 });
