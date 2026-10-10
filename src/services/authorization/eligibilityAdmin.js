@@ -139,6 +139,34 @@ export function validateCapabilitiesWithinEligibility(caps, eligibility) {
 }
 
 /**
+ * §12.3 — detect an OPEN CEILING WITH NO RIGHT: a feature is eligible for an
+ * identity, yet NO capability of that feature is granted to it. The inverse of
+ * `validateCapabilitiesWithinEligibility` (which catches a right on a closed
+ * ceiling): this one catches a ceiling that opens onto nothing.
+ *
+ * Pure: the caller supplies the eligibility map and the capability matrix.
+ *
+ * @param {Object} eligibility  {feature: boolean}
+ * @param {Object} capabilities {module: {capability: level}}
+ * @returns {Array<{feature: string, modules: string[]}>}
+ */
+export function findOpenCeilingsWithoutRights({ eligibility, capabilities } = {}) {
+  const findings = [];
+  for (const [feature, eligible] of Object.entries(eligibility || {})) {
+    if (eligible !== true) continue;
+    const modules = Object.entries(MODULE_TO_FEATURE)
+      .filter(([, mappedFeature]) => mappedFeature === feature)
+      .map(([module]) => module);
+    const hasAnyRight = modules.some((module) => {
+      const caps = capabilities?.[module] || {};
+      return Object.values(caps).some((level) => Number(level) > 0);
+    });
+    if (!hasAnyRight) findings.push({ feature, modules });
+  }
+  return findings;
+}
+
+/**
  * Validate + normalize an eligibility change batch.
  *
  * @param {Array<{feature_key, identity_type, identity_value, eligible}>} changes

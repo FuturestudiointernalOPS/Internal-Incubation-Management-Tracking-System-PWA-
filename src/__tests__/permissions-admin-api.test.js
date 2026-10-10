@@ -18,6 +18,10 @@ let mockTemplateImpacts = [];
 let mockPriorGrantLevel = null;
 let mockPriorBlockExists = false;
 let mockPriorGroupLevel = null;
+// Eligibility rows the §5.3 boundary reads for role/group default writes.
+let mockEligibilityRows = [
+  { feature_key: "finance", identity_type: "group", identity_value: "Development", eligible: 1 },
+];
 
 jest.mock("@/lib/db", () => ({
   __esModule: true,
@@ -43,6 +47,9 @@ jest.mock("@/lib/db", () => ({
       }
       if (String(sql).includes("FROM group_capabilities WHERE group_name")) {
         return { rows: mockPriorGroupLevel === null ? [] : [{ access_level: mockPriorGroupLevel }] };
+      }
+      if (String(sql).includes("FROM feature_eligibility")) {
+        return { rows: mockEligibilityRows };
       }
       return { rows: [] };
     }),
@@ -404,5 +411,121 @@ describe("PUT /api/engineering/permissions — audit trail records the change", 
         details: "Group: Development",
       }),
     );
+  });
+
+  test("a group-default change for a NON-eligible group is refused (§5.3)", async () => {
+    mockEligibilityRows = [];
+    mockPriorGroupLevel = null;
+    const res = await permissionsRoute.PUT(
+      jsonReq({
+        action: "set_group_default",
+        user_cid: "USER_X",
+        group_name: "Development",
+        module: "finance",
+        capability: "view",
+        access_level: 2,
+      }),
+    );
+    expect(res.status).toBe(403);
+    expect(
+      mockExecutedQueries.some((query) => query.includes("INSERT INTO group_capabilities")),
+    ).toBe(false);
+  });
+
+  test("a role-default change for a NON-eligible role is refused (§5.3)", async () => {
+    mockEligibilityRows = [];
+    const res = await permissionsRoute.PUT(
+      jsonReq({
+        action: "set_role_default",
+        user_cid: "USER_X",
+        role: "member",
+        module: "finance",
+        capability: "view",
+        access_level: 2,
+      }),
+    );
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("§13 — anti-escalade (séparation des devoirs)", () => {
+  const { getSession } = require("@/server/auth/session");
+
+  test("un gestionnaire ne peut pas s'octroyer un droit (grant sur soi-même) → 403", async () => {
+    getSession.mockResolvedValueOnce({ cid: "USER_X", name: "Self", role: "staff" });
+    const res = await permissionsRoute.PUT(
+      jsonReq({
+        action: "grant",
+        user_cid: "USER_X",
+        module: "finance",
+        capability: "view",
+        access_level: 3,
+      }),
+    );
+    expect(res.status).toBe(403);
+  });
+
+  test("attribuer le rôle super_admin via set_role est refusé hors super admin → 403", async () => {
+    getSession.mockResolvedValueOnce({ cid: "PM-1", name: "Manager", role: "staff" });
+    const res = await permissionsRoute.PUT(
+      jsonReq({
+        action: "set_role",
+        user_cid: "OTHER-1",
+        role: "super_admin",
+        module: "finance",
+        capability: "view",
+      }),
+    );
+    expect(res.status).toBe(403);
+  });
+
+  test("un super admin garde le droit d'attribuer super_admin via set_role", async () => {
+    getSession.mockResolvedValueOnce({ cid: "SA-1", name: "Super Admin", role: "super_admin" });
+    const res = await permissionsRoute.PUT(
+      jsonReq({
+        action: "set_role",
+        user_cid: "OTHER-1",
+        role: "super_admin",
+        module: "finance",
+        capability: "view",
+      }),
+    );
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("§5.3 — réévaluation après un défaut de rôle/groupe", () => {
+  const { invalidateAllAuthorizationContexts, invalidateAuthorizationContext } =
+    require("@/models/authorization/index");
+
+  test("un défaut de groupe réévalue TOUS les contextes (pas seulement la cible)", async () => {
+    mockEligibilityRows = [
+      { feature_key: "finance", identity_type: "group", identity_value: "Development", eligible: 1 },
+    ];
+    invalidateAllAuthorizationContexts.mockClear();
+    const res = await permissionsRoute.PUT(
+      jsonReq({
+        action: "set_group_default",
+        user_cid: "USER_X",
+        group_name: "Development",
+        module: "finance",
+        capability: "view",
+        access_level: 2,
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(invalidateAllAuthorizationContexts).toHaveBeenCalled();
+  });
+
+  test("un octroi individuel ne réévalue que la cible", async () => {
+    getAuthorizationContext.mockResolvedValueOnce({ isSuperAdmin: true, eligibility: {} });
+    invalidateAllAuthorizationContexts.mockClear();
+    invalidateAuthorizationContext.mockClear();
+    const res = await permissionsRoute.PUT(
+      jsonReq({ action: "grant", user_cid: "USER_X", module: "finance", capability: "view", access_level: 2 }),
+    );
+    expect(res.status).toBe(200);
+    expect(invalidateAuthorizationContext).toHaveBeenCalledWith("USER_X");
+    expect(invalidateAllAuthorizationContexts).not.toHaveBeenCalled();
   });
 });

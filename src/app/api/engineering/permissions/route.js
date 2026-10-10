@@ -5,6 +5,20 @@ import { ensurePermissionsSchema } from "@/models/authorization/bootstrap";
 import { requireAuthorization } from "@/models/authorization/index";
 import { preparePermissionReads, readPermissionMatrix } from "@/services/authorization/permissionMatrix";
 import { applyPermissionChange } from "@/services/authorization/permissionWrites";
+import { isSelfAssignment } from "@/services/authorization/profileAssignment";
+
+/**
+ * §13 (séparation des devoirs) — actions that change a PERSON's own access and
+ * must never be applied to the caller themselves.
+ */
+const SELF_SENSITIVE_ACTIONS = new Set([
+  "grant",
+  "revoke",
+  "restrict",
+  "unrestrict",
+  "set_role",
+  "set_status",
+]);
 
 /**
  * GET /api/engineering/permissions
@@ -83,6 +97,28 @@ export async function PUT(req) {
     // HTTP boundary.
     if (
       (action === "promote_super_admin" || action === "remove_super_admin") &&
+      session.role !== "super_admin"
+    ) {
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
+    }
+
+    // §13 — separation of duties: nobody changes their OWN access through this
+    // admin route (self-escalation). The context targets a PERSON.
+    if (SELF_SENSITIVE_ACTIONS.has(action) && isSelfAssignment(session, user_cid)) {
+      return NextResponse.json(
+        { success: false, error: "You cannot change your own access." },
+        { status: 403 },
+      );
+    }
+
+    // §13 — only a super admin may assign the super_admin role. Without this,
+    // `set_role` would bypass the promote_super_admin gate just above.
+    if (
+      action === "set_role" &&
+      String(body.role || "") === "super_admin" &&
       session.role !== "super_admin"
     ) {
       return NextResponse.json(

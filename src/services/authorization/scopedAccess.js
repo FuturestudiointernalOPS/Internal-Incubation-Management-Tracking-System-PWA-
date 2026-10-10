@@ -35,12 +35,24 @@
 import { initDb } from "@/lib/db";
 import { getSession } from "@/server/auth/session";
 import { getAuthorizationContext, evaluateAuthorization } from "./context";
+import { AUTHZ_REASONS } from "./contextDecisions";
+import { isWithinScope } from "./scope";
+import { shadowCheck, shadowEnabled } from "./shadow";
 import {
   getProgramStaffAssignmentRows,
   getContactRoleAssignmentRows,
   getProjectMembershipRows,
   getVentureMembershipRows,
 } from "@/models/authorization/contextAssignmentReads";
+
+/**
+ * c3a — the ENGINE scope policy a scoped `resource` maps to, for the shadow
+ * comparison. Resources with no engine policy (project) are simply not probed.
+ */
+const SHADOW_SCOPE_POLICY = {
+  program: "program_assigned",
+  venture: "venture_own",
+};
 
 /**
  * Resolve a person's assignment to a specific resource.
@@ -87,32 +99,51 @@ async function resolveVentureAssignment(contextId, userCid) {
 }
 
 /**
- * Route helper — the same decision as before, without building the HTTP answer.
- * Returns a decision the HTTP boundary turns into a response
- * (`@/server/authz/responses.requireScopedAccess`).
+ * THE SINGLE DECISION ENTRY (Phase 5 — convergence toward one API).
  *
- * @param {{resource: "program"|"project"|"venture", contextId: string|number,
- *          module: string, capability: string, minLevel?: number}} params
- * @returns {Promise<{allowed: boolean, status: number, errorKey: string|null}>}
+ * One function answers "may this caller do this, to this?": GLOBAL when no
+ * `resource` is given, RESOURCE-SCOPED otherwise. It composes the capability
+ * primitive (`evaluateAuthorization`, which already carries a `reason`) with the
+ * context-assignment step, and always returns
+ * `{ allowed, status, errorKey, reason }`.
+ *
+ * `evaluateScopedAccess` delegates here, so the scoped behavior is unchanged.
+ *
+ * @param {{module: string, capability: string, minLevel?: number,
+ *          resource?: "program"|"project"|"venture"|null,
+ *          contextId?: string|number|null}} params
  */
-export async function evaluateScopedAccess({ resource, contextId, module, capability, minLevel = 1 }) {
+export async function decide({ module, capability, minLevel = 1, resource = null, contextId = null } = {}) {
+  // GLOBAL path — nothing to scope to: the capability primitive decides.
+  if (!resource) {
+    return evaluateAuthorization(module, capability, minLevel);
+  }
+
+  // SCOPED path.
   try {
     if (!contextId) {
-      return { allowed: false, status: 403, errorKey: "errors.insufficientPermissions" };
+      // An action that cannot be attributed to a resource cannot be scope-checked.
+      return {
+        allowed: false,
+        status: 403,
+        errorKey: "errors.insufficientPermissions",
+        reason: "missing_resource",
+      };
     }
     const session = await getSession();
     if (!session) {
-      return { allowed: false, status: 401, errorKey: "errors.authRequired" };
+      return { allowed: false, status: 401, errorKey: "errors.authRequired", reason: "unauthenticated" };
     }
 
     // Super Admin bypass — existing resolver semantics.
     const authorizationContext = await getAuthorizationContext(session);
     if (authorizationContext?.isSuperAdmin) {
-      return { allowed: true, status: 200, errorKey: null };
+      return { allowed: true, status: 200, errorKey: null, reason: AUTHZ_REASONS.SUPER_ADMIN };
     }
 
     // CAPABILITY — the resolver decides (eligibility, default/individual
-    // access, restrictions). Never bypassed by an assignment.
+    // access, restrictions). Never bypassed by an assignment. The decision
+    // already carries its own `reason` (spec §11).
     const capabilityDecision = await evaluateAuthorization(module, capability, minLevel);
     if (!capabilityDecision.allowed) return capabilityDecision;
 
@@ -123,12 +154,58 @@ export async function evaluateScopedAccess({ resource, contextId, module, capabi
       userCid: session.cid,
       userEmail: session.email,
     });
-    if (!resolved) {
-      return { allowed: false, status: 403, errorKey: "errors.insufficientPermissions" };
+    const adhocAllowed = Boolean(resolved);
+
+    // c3a — SHADOW: compare the ad-hoc scope with the ENGINE's scope policy,
+    // WITHOUT changing the outcome (gated by AUTHZ_SHADOW_MODE, inert by
+    // default). This measures the divergence before any switch.
+    if (shadowEnabled()) {
+      const policy = SHADOW_SCOPE_POLICY[resource];
+      if (policy) {
+        try {
+          const engineAllowed = await isWithinScope(policy, session.cid, contextId, {
+            email: session.email,
+          });
+          shadowCheck({
+            legacyAllowed: adhocAllowed,
+            engineAllowed,
+            meta: { resource, contextId, cid: session.cid, policy },
+          });
+        } catch {
+          // The shadow probe never affects the decision.
+        }
+      }
     }
-    return { allowed: true, status: 200, errorKey: null };
+
+    if (!adhocAllowed) {
+      return {
+        allowed: false,
+        status: 403,
+        errorKey: "errors.insufficientPermissions",
+        reason: "out_of_scope",
+      };
+    }
+    return { allowed: true, status: 200, errorKey: null, reason: AUTHZ_REASONS.GRANTED };
   } catch (error) {
-    console.error("[evaluateScopedAccess] error:", error?.message);
-    return { allowed: false, status: 500, errorKey: "errors.authzSystemFailure" };
+    console.error("[decide] error:", error?.message);
+    return {
+      allowed: false,
+      status: 500,
+      errorKey: "errors.authzSystemFailure",
+      reason: "system_failure",
+    };
   }
+}
+
+/**
+ * Route helper — resource-scoped decision, delegating to `decide`.
+ * Returns a decision the HTTP boundary turns into a response
+ * (`@/server/authz/responses.requireScopedAccess`).
+ *
+ * @param {{resource: "program"|"project"|"venture", contextId: string|number,
+ *          module: string, capability: string, minLevel?: number}} params
+ * @returns {Promise<{allowed: boolean, status: number, errorKey: string|null, reason: string}>}
+ */
+export async function evaluateScopedAccess(params) {
+  return decide(params);
 }

@@ -20,8 +20,11 @@ import { logPermissionAudit } from "@/models/authorization/accessQueries";
 import {
   getAuthorizationContext,
   invalidateAuthorizationContext,
+  invalidateAllAuthorizationContexts,
   MODULE_TO_FEATURE,
 } from "@/models/authorization/index";
+import { getFeatureEligibilityRows } from "@/models/authorization/contextReads";
+import { evaluateEligibility } from "./eligibility";
 import {
   contactExistsById,
   demoteContactFromSuperAdmin,
@@ -44,6 +47,15 @@ import {
   setUserStatus,
   unrestrictUserCapability,
 } from "@/models/authorization";
+
+/**
+ * Is this identity (role and/or group) eligible for `featureKey`?
+ * Fail-closed: a missing eligibility row is NOT eligible (spec §5.3).
+ */
+async function isIdentityEligibleFor({ role = "", groups = [], profiles = [] }, featureKey) {
+  const res = await getFeatureEligibilityRows(role, groups, profiles);
+  return evaluateEligibility(res.rows, featureKey) === true;
+}
 
 /**
  * Apply one permission change and record it on the audit trail.
@@ -98,25 +110,58 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
     return { status: 400, body: { success: false, error: "module and capability are required" } };
   }
 
-  // ── Hard eligibility boundary on capability ASSIGNMENT ──
-  // A grant must respect the target's feature eligibility. Attempting to assign
-  // a capability to a user who is not eligible for the feature (e.g. Finance to
-  // a Mentor) is REJECTED here — the backend is the boundary, not the frontend
-  // dropdown. (Super Admin targets are always eligible by bypass.)
+  // ── Hard eligibility boundary on capability ASSIGNMENT (§5.3) ──
+  // A capability may never be assigned for a feature the recipient identity is
+  // NOT eligible for — this holds for an individual grant, a ROLE default and a
+  // GROUP default alike (the backend is the boundary, not a frontend dropdown).
+  // (Super Admin targets/roles are always eligible by bypass.)
   const featureKey = MODULE_TO_FEATURE[module];
-  if (action === "grant" && featureKey) {
-    const targetAuthorization = await getAuthorizationContext({ cid: userCid, role: targetRole });
-    const targetEligible =
-      targetAuthorization?.isSuperAdmin ||
-      targetAuthorization?.eligibility?.[featureKey] === true;
-    if (!targetEligible) {
-      return {
-        status: 403,
-        body: {
-          success: false,
-          error: `Target user is not eligible for this feature (${featureKey}). Assignment rejected.`,
-        },
-      };
+  if (featureKey) {
+    if (action === "grant") {
+      const targetAuthorization = await getAuthorizationContext({ cid: userCid, role: targetRole });
+      const targetEligible =
+        targetAuthorization?.isSuperAdmin ||
+        targetAuthorization?.eligibility?.[featureKey] === true;
+      if (!targetEligible) {
+        return {
+          status: 403,
+          body: {
+            success: false,
+            error: `Target user is not eligible for this feature (${featureKey}). Assignment rejected.`,
+          },
+        };
+      }
+    } else if (action === "set_role_default" && payload?.role !== "super_admin") {
+      const eligible = await isIdentityEligibleFor(
+        { role: String(payload?.role || ""), groups: [] },
+        featureKey,
+      );
+      if (!eligible) {
+        return {
+          status: 403,
+          body: {
+            success: false,
+            error: `Role "${payload?.role}" is not eligible for this feature (${featureKey}). Assignment rejected.`,
+          },
+        };
+      }
+    } else if (action === "set_group_default") {
+      // A group identity is judged on its OWN eligibility rows (the role branch
+      // matches nothing here), so an eligible group is allowed and a
+      // non-eligible one is refused.
+      const eligible = await isIdentityEligibleFor(
+        { role: "", groups: [String(payload?.group_name || "")] },
+        featureKey,
+      );
+      if (!eligible) {
+        return {
+          status: 403,
+          body: {
+            success: false,
+            error: `Group "${payload?.group_name}" is not eligible for this feature (${featureKey}). Assignment rejected.`,
+          },
+        };
+      }
     }
   }
 
@@ -311,6 +356,13 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
       return { status: 400, body: { success: false, error: `Unknown action: ${action}` } };
   }
 
-  invalidateAuthorizationContext(userCid);
+  // §5.3 — réévaluation. A ROLE / GROUP default changes the effective rights of
+  // MANY users, so EVERY cached context is dropped; any other action concerns
+  // only the target person.
+  if (action === "set_role_default" || action === "set_group_default") {
+    invalidateAllAuthorizationContexts();
+  } else {
+    invalidateAuthorizationContext(userCid);
+  }
   return { status: 200, body: { success: true } };
 }

@@ -127,6 +127,9 @@ export async function resolveAuthorizationContext({ cid, role, profiles }) {
       cid,
       role,
       isSuperAdmin: true,
+      // Super Admin bypasses the account gate as well (spec §11 is enforced by
+      // the sign-in route for this identity; see BACKLOG for the open point).
+      accountStatus: null,
       groups: [],
       profiles: [],
       profile: null,
@@ -209,6 +212,9 @@ export async function resolveAuthorizationContext({ cid, role, profiles }) {
     cid,
     role,
     isSuperAdmin: false,
+    // Spec §11 — the account gate: `contacts.status`, read in the same wave as
+    // the profile override. `null` when no contact row exists (behaviour kept).
+    accountStatus: contact.status ?? null,
     groups,
     profiles: effectiveProfiles,
     profile: { profileId, profileName, profileSource, profileKey },

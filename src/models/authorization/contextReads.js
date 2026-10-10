@@ -42,10 +42,10 @@ export function getUserCapabilityRestrictions(cid) {
   });
 }
 
-/** The person's profile override and their group fallback. */
+/** The person's profile override, their group fallback, and their account status. */
 export function getContactAccessProfileAndGroup(cid) {
   return db.execute({
-    sql: "SELECT profile_key, group_name FROM contacts WHERE cid = ?",
+    sql: "SELECT profile_key, group_name, status FROM contacts WHERE cid = ?",
     args: [cid],
   });
 }
