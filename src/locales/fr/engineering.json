@@ -702,6 +702,7 @@
       "whyRestrictionPrecedence": "Les restrictions priment sur toutes les autres sources",
       "whyContext": "Contexte / Affectation",
       "whyContextPlaceholder": "non applicable / pas encore implémenté",
+      "whyReason": "Raison (moteur)",
       "whyFinal": "Résultat final",
       "tabMemberships": "Adhésions",
       "tabScopePolicies": "Politiques de portée",

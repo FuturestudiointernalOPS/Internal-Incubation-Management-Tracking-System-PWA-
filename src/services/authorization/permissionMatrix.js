@@ -24,6 +24,7 @@ import {
 } from "@/models/authorization/bootstrap";
 import {
   buildPermissionExplanation,
+  buildContextDecisions,
   effectivePermissionsFromContext,
   getAuthorizationContext,
 } from "@/services/authorization/context";
@@ -183,6 +184,10 @@ export async function buildUserPermissionDetail(userCid) {
   // "Who has access and why": per-feature eligibility (with the identity rows
   // that produced it) + the raw capability inputs per module.
   const explanation = buildPermissionExplanation(authorizationContext);
+  // §12.4 — the ENGINE verdict + reason per capability, so the person-access
+  // screen displays the ENFORCED reason (refusals included), never a value
+  // re-derived apart.
+  const decisions = buildContextDecisions(authorizationContext);
 
   // Phase G — the assignment registry, so the explanation shows the profile
   // PERIODS that produced the active profiles (context, source, dates), not just
@@ -218,6 +223,7 @@ export async function buildUserPermissionDetail(userCid) {
     effectiveProfile,
     effectivePermissions: matrix,
     explanation: { ...explanation, profileAssignments },
+    decisions,
     moduleToFeature: MODULE_TO_FEATURE,
     individualGrants: grants.rows,
     individualRestrictions: restrictions.rows,

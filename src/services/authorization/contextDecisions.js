@@ -18,6 +18,7 @@
  */
 
 import { MODULE_TO_FEATURE } from "@/models/authorization/eligibility";
+import { PERMISSION_MODULES } from "@/server/authz/capabilities";
 import { evaluateEligibility } from "./eligibility";
 
 // ─── Authorization decision ─────────────────────────────────────────────────
@@ -99,6 +100,26 @@ export function explainAuthorization(ctx, module, capability, minLevel = 1) {
  */
 export function authorize(ctx, module, capability, minLevel = 1) {
   return explainAuthorization(ctx, module, capability, minLevel).allowed;
+}
+
+/**
+ * The ENGINE's verdict for EVERY catalogue capability (spec §12.4). Runs the very
+ * `explainAuthorization` the route guards use, so a screen that displays these
+ * reasons can never contradict the enforced decision — refusals included.
+ *
+ * @param {object} ctx the resolved authorization context
+ * @returns {{[module: string]: {[capability: string]: {allowed: boolean, reason: string}}}}
+ */
+export function buildContextDecisions(ctx) {
+  const decisions = {};
+  for (const [module, definition] of Object.entries(PERMISSION_MODULES)) {
+    decisions[module] = {};
+    for (const capability of definition.capabilities) {
+      const decision = explainAuthorization(ctx, module, capability, 1);
+      decisions[module][capability] = { allowed: decision.allowed, reason: decision.reason };
+    }
+  }
+  return decisions;
 }
 
 /** Effective permission matrix ({module:{capability:level}}) for UI display. */

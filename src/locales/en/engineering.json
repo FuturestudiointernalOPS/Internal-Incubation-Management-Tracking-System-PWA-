@@ -702,6 +702,7 @@
       "whyRestrictionPrecedence": "Restrictions override every other source",
       "whyContext": "Context / Assignment",
       "whyContextPlaceholder": "not applicable / not yet implemented",
+      "whyReason": "Reason (engine)",
       "whyFinal": "Final Result",
       "tabMemberships": "Memberships",
       "tabScopePolicies": "Scope Policies",

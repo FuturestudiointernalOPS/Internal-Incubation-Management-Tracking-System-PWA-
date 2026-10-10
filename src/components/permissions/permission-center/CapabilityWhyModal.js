@@ -19,6 +19,18 @@ import { capabilityLabel } from "@/models/authorization/capability-catalog";
 import { deriveMembershipStatus } from "@/lib/membership-ui";
 import { X } from "lucide-react";
 
+/** §12.4 — the engine's reason enum → the copy key the modal shows. */
+const REASON_KEY = {
+  granted: "engineering.permissions.whyAllowed",
+  super_admin: "engineering.permissions.whyAllowed",
+  account_not_active: "engineering.permissions.effectiveReasonAccountNotActive",
+  not_eligible: "engineering.permissions.effectiveReasonNotEligible",
+  blocked: "engineering.permissions.effectiveReasonRestriction",
+  missing_permission: "engineering.permissions.effectiveReasonNoSource",
+  insufficient_level: "engineering.permissions.effectiveReasonInsufficientLevel",
+  invalid_input: "engineering.permissions.whyDenied",
+};
+
 export default function CapabilityWhyModal({ userPerms, module, capability, t, lang, onClose }) {
   const [memberships, setMemberships] = useState(null);
   const cid = userPerms?.user?.cid;
@@ -50,7 +62,10 @@ export default function CapabilityWhyModal({ userPerms, module, capability, t, l
     (restriction) => restriction.module === module && restriction.capability === capability,
   );
   const effective = userPerms.effectivePermissions?.[module]?.[capability] || 0;
-  const allowed = effective > 0;
+  // §12.4 — the ENGINE's own verdict/reason when available; the local effective
+  // level is only a fallback.
+  const decision = userPerms.decisions?.[module]?.[capability];
+  const allowed = decision ? decision.allowed : effective > 0;
   const profile = userPerms.effectiveProfile;
 
   const levelLabel = (lvl) =>
@@ -231,6 +246,15 @@ export default function CapabilityWhyModal({ userPerms, module, capability, t, l
           {/* Context / Assignment — deferred layer */}
           <div className="py-2">
             {row(t("engineering.permissions.whyContext"), t("engineering.permissions.whyContextPlaceholder"))}
+          </div>
+
+          {/* Reason (engine, §12.4) */}
+          <div className="py-2">
+            {row(
+              t("engineering.permissions.whyReason"),
+              decision ? t(REASON_KEY[decision.reason] || "engineering.permissions.whyNone") : t("engineering.permissions.whyNone"),
+              allowed ? undefined : "text-red-400",
+            )}
           </div>
 
           {/* Final result */}

@@ -9,8 +9,10 @@
  */
 
 const { projectUserContext } = require("@/services/authorization/userContextProjection");
-const { explainAuthorization } = require("@/services/authorization/contextDecisions");
+const { explainAuthorization, buildContextDecisions } = require("@/services/authorization/contextDecisions");
 const { PERMISSION_MODULES } = require("@/server/authz/capabilities");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const baseContext = () => ({
   isSuperAdmin: false,
@@ -69,4 +71,30 @@ test("un compte inactif refuse AVANT l'éligibilité (§11), raison dédiée", (
     allowed: false,
     reason: "account_not_active",
   });
+});
+
+test("buildContextDecisions (2e écran) est la même décision que le moteur", () => {
+  const context = baseContext();
+  const decisions = buildContextDecisions(context);
+
+  for (const [module, definition] of Object.entries(PERMISSION_MODULES)) {
+    for (const capability of definition.capabilities) {
+      const expected = explainAuthorization(context, module, capability, 1);
+      expect(decisions[module][capability]).toEqual({
+        allowed: expected.allowed,
+        reason: expected.reason,
+      });
+    }
+  }
+});
+
+test("les deux écrans « pourquoi » consomment la décision du moteur", () => {
+  const ROOT = path.resolve(__dirname, "..", "..");
+  const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
+  // Le détail d'une personne expose `decisions`.
+  expect(read("src/services/authorization/permissionMatrix.js")).toMatch(/buildContextDecisions/);
+  // Le modal « pourquoi » de l'écran person-access le préfère au calcul local.
+  expect(read("src/components/permissions/permission-center/CapabilityWhyModal.js")).toMatch(
+    /userPerms\.decisions/,
+  );
 });
