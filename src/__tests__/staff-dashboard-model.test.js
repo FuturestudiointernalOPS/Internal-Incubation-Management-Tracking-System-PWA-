@@ -94,6 +94,21 @@ describe("operationTotals", () => {
     expect(operationTotals([])).toEqual({ standups: 0, retros: 0, blockers: 0, blockerRate: 0 });
     expect(operationTotals(null).standups).toBe(0);
   });
+
+  test("factors in tasks with blocked status or active blockers", () => {
+    const reports = [
+      report("standup", 40),
+      report("standup", 41),
+      report("retro", 40),
+    ];
+    const tasks = [
+      { id: 1, status: "blocked" },
+      { id: 2, status: "completed" },
+      { id: 3, status: "in_progress", blockers: [{ status: "active" }] },
+    ];
+    const totals = operationTotals(reports, tasks);
+    expect(totals.blockers).toBe(2);
+  });
 });
 
 describe("todayTasks", () => {
