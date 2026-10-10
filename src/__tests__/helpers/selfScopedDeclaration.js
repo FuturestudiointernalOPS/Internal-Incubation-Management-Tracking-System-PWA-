@@ -78,6 +78,62 @@ const SELF_SCOPED_ROUTES = [
     scope: "session.cid",
     reason: "Standups de l'appelant ; `recordStandup` reçoit `cid: session.cid`.",
   },
+  // Lectures self-service du participant (hors `full-state` et `submissions`,
+  // qui portent une décision déléguée et ne sont donc PAS déclarées ici).
+  {
+    file: "src/app/api/participant/announcements/route.js",
+    methods: ["GET"],
+    scope: "session.cid",
+    reason: "Annonces visibles par l'appelant.",
+  },
+  {
+    file: "src/app/api/participant/assignments/route.js",
+    methods: ["GET", "POST"],
+    scope: "session.cid",
+    reason: "Soumissions d'assignation de l'appelant (`getSessionCid` → `session?.cid`).",
+  },
+  {
+    file: "src/app/api/participant/certificates/route.js",
+    methods: ["GET"],
+    scope: "session.cid",
+    reason: "Certificats de l'appelant.",
+  },
+  {
+    file: "src/app/api/participant/followups/route.js",
+    methods: ["GET"],
+    scope: "session.cid",
+    reason: "Rappels de suivi de l'appelant.",
+  },
+  {
+    file: "src/app/api/participant/home/route.js",
+    methods: ["GET"],
+    scope: "session.cid",
+    reason: "Tableau de bord de l'appelant.",
+  },
+  {
+    file: "src/app/api/participant/programs/route.js",
+    methods: ["GET"],
+    scope: "session.cid",
+    reason: "Programmes de l'appelant.",
+  },
+  {
+    file: "src/app/api/participant/programs/[id]/route.js",
+    methods: ["GET"],
+    scope: "session.cid",
+    reason: "Un programme de l'appelant (`id` identify le PROGRAMME, le porteur reste `session.cid`).",
+  },
+  {
+    file: "src/app/api/participant/progress/route.js",
+    methods: ["GET"],
+    scope: "session.cid",
+    reason: "Progression de l'appelant.",
+  },
+  {
+    file: "src/app/api/participant/timeline/route.js",
+    methods: ["GET"],
+    scope: "session.cid",
+    reason: "Chronologie de l'appelant.",
+  },
 ];
 
 /** Les préfixes d'API dont CHAQUE route doit être déclarée ci-dessus. */
