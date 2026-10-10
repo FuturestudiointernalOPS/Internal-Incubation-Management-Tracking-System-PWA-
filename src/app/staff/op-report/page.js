@@ -127,7 +127,7 @@ function StaffOpReport() {
     [userId],
   );
   const { data: taskAnswers, refresh: refreshTasks } =
-    useApiMulti(taskEndpoints);
+    useApiMulti(taskEndpoints, { deps: [userId] });
   const tasks = useMemo(
     () => mergeTasks(taskAnswers, TASK_STATUSES),
     [taskAnswers],
@@ -309,7 +309,11 @@ function StaffOpReport() {
   // deciding whether to call its loader, and addressed on the person and the week
   // so a change of either re-reads.
   const summaryOn = reportType === "summary" && Boolean(userCid);
-  const { data: summaryTasks, loading: summaryTasksLoading } = useApi(
+  const {
+    data: summaryTasks,
+    loading: summaryTasksLoading,
+    refresh: refreshSummaryTasks,
+  } = useApi(
     summaryOn
       ? `/api/tasks?user_id=${userCid}&week=${weekInfo.week}&year=${weekInfo.year}&sort=oldest`
       : null,
@@ -319,7 +323,11 @@ function StaffOpReport() {
       deps: [userCid, summaryOn, weekInfo.week, weekInfo.year],
     },
   );
-  const { data: summaryBlockers, loading: summaryBlockersLoading } = useApi(
+  const {
+    data: summaryBlockers,
+    loading: summaryBlockersLoading,
+    refresh: refreshSummaryBlockers,
+  } = useApi(
     summaryOn ? `/api/blockers?user_id=${userCid}` : null,
     {
       defaultValue: EMPTY_LIST,
@@ -343,6 +351,12 @@ function StaffOpReport() {
 
   // ─── TASK ROW MANAGEMENT ───
 
+  const handleRefreshAllTasks = useCallback(() => {
+    refreshTasks();
+    refreshSummaryTasks();
+    refreshSummaryBlockers();
+  }, [refreshTasks, refreshSummaryTasks, refreshSummaryBlockers]);
+
   // ─── THE SCREEN'S OTHER HALF ───
   // Every state value and every read stays here; the writes live in ./actions
   // (one factory per concern), the two useCallback handlers that must stay
@@ -361,7 +375,7 @@ function StaffOpReport() {
     history,
     refreshHistory,
     assignedProjects,
-    refreshTasks,
+    refreshTasks: handleRefreshAllTasks,
     tasks,
     saving,
     setSaving,
@@ -468,6 +482,10 @@ function StaffOpReport() {
     ...weekActionsResult,
     ...values,
   };
+
+  if (!userId) {
+    return <OpReportLoading />;
+  }
 
   return (
     <OpReportView
