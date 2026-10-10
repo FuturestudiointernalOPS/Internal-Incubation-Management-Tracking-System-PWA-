@@ -59,14 +59,19 @@ export default function TaskCreationModal({
             <input
               type="date"
               value={newTaskForm.start_date}
-              onChange={(event) =>
-                onFieldChange("start_date", event.target.value)
-              }
+              onChange={(event) => {
+                const val = event.target.value;
+                onFieldChange("start_date", val);
+                if (newTaskForm.due_date && val && newTaskForm.due_date < val) {
+                  onFieldChange("due_date", val);
+                }
+              }}
               className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold text-[var(--text-primary)] outline-none"
             />
             <input
               type="date"
               value={newTaskForm.due_date}
+              min={newTaskForm.start_date || undefined}
               onChange={(event) =>
                 onFieldChange("due_date", event.target.value)
               }
