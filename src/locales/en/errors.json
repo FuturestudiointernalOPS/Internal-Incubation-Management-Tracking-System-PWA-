@@ -26,6 +26,7 @@
     "authSystemFailure": "Authentication system failure.",
     "authzSystemFailure": "Authorization system failure.",
     "crossSiteRequestBlocked": "This action must be triggered from within the application.",
-    "notFound": "Not found."
+    "notFound": "Not found.",
+    "dueDateBeforeStartDate": "Due date cannot be before start date."
   }
 }
