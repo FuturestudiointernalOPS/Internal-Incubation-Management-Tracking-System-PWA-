@@ -134,6 +134,45 @@ const SELF_SCOPED_ROUTES = [
     scope: "session.cid",
     reason: "Chronologie de l'appelant.",
   },
+  // Google Calendar — le calendrier de l'utilisateur (hors `cron` et `webhook`,
+  // gardés par secret/jeton, et hors `connect`, flux OAuth sans donnée propre).
+  {
+    file: "src/app/api/integrations/google-calendar/callback/route.js",
+    methods: ["GET"],
+    scope: "session.cid",
+    reason: "Retour OAuth : `completeConnect` reçoit `userId: session.cid`.",
+  },
+  {
+    file: "src/app/api/integrations/google-calendar/route.js",
+    methods: ["GET", "DELETE"],
+    scope: "session.cid",
+    reason: "Statut de connexion et déconnexion du calendrier de l'appelant.",
+  },
+  {
+    file: "src/app/api/integrations/google-calendar/events/route.js",
+    methods: ["GET"],
+    scope: "session.cid",
+    reason: "Événements affichés pour l'appelant.",
+  },
+  {
+    file: "src/app/api/integrations/google-calendar/sync/route.js",
+    methods: ["POST"],
+    scope: "session.cid",
+    reason: "Synchronisation manuelle du calendrier de l'appelant.",
+  },
+  // Auth self-service : la session et la langue de l'appelant.
+  {
+    file: "src/app/api/auth/session/route.js",
+    methods: ["GET"],
+    scope: "session.cid",
+    reason: "Renvoie la session de l'appelant.",
+  },
+  {
+    file: "src/app/api/auth/language/route.js",
+    methods: ["PUT"],
+    scope: "session.cid",
+    reason: "Change la langue de l'appelant (`session.cid`).",
+  },
 ];
 
 /** Les préfixes d'API dont CHAQUE route doit être déclarée ci-dessus. */
