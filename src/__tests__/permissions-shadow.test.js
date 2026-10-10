@@ -11,6 +11,8 @@ const {
   compareDecisions,
   shadowCheck,
   shadowEnabled,
+  getShadowReport,
+  resetShadowReport,
 } = require("@/services/authorization/shadow");
 
 const ORIGINAL = process.env.AUTHZ_SHADOW_MODE;
@@ -18,6 +20,7 @@ const ORIGINAL = process.env.AUTHZ_SHADOW_MODE;
 beforeEach(() => {
   jest.clearAllMocks();
   delete process.env.AUTHZ_SHADOW_MODE;
+  resetShadowReport();
 });
 afterAll(() => {
   if (ORIGINAL === undefined) delete process.env.AUTHZ_SHADOW_MODE;
@@ -80,5 +83,50 @@ describe("shadowCheck (gated par AUTHZ_SHADOW_MODE)", () => {
     process.env.AUTHZ_SHADOW_MODE = "1";
     expect(shadowCheck({ legacyAllowed: true, engineAllowed: true })).toBeNull();
     expect(logger.warn).not.toHaveBeenCalled();
+  });
+});
+
+describe("collecte des divergences (getShadowReport)", () => {
+  test("désactivé : rien n'est enregistré", () => {
+    shadowCheck({ legacyAllowed: false, engineAllowed: true, meta: { module: "crm" } });
+    const report = getShadowReport();
+    expect(report.enabled).toBe(false);
+    expect(report.total).toBe(0);
+    expect(report.recent).toEqual([]);
+  });
+
+  test("activé : agrège par ressource:policy et conserve la DIRECTION du trou", () => {
+    process.env.AUTHZ_SHADOW_MODE = "1";
+    shadowCheck({
+      legacyAllowed: true,
+      engineAllowed: false,
+      meta: { resource: "program", policy: "program_assigned", contextId: "P1" },
+    });
+    shadowCheck({
+      legacyAllowed: false,
+      engineAllowed: true,
+      meta: { resource: "program", policy: "program_assigned", contextId: "P2" },
+    });
+
+    const report = getShadowReport();
+    expect(report.enabled).toBe(true);
+    expect(report.total).toBe(2);
+    expect(report.byKey["program:program_assigned"]).toEqual({
+      count: 2,
+      legacyAllowEngineDeny: 1,
+      legacyDenyEngineAllow: 1,
+    });
+    expect(report.recent).toHaveLength(2);
+    expect(report.recent[0]).toMatchObject({ key: "program:program_assigned", contextId: "P1" });
+  });
+
+  test("resetShadowReport vide le tampon", () => {
+    process.env.AUTHZ_SHADOW_MODE = "1";
+    shadowCheck({ legacyAllowed: true, engineAllowed: false, meta: {} });
+    expect(getShadowReport().total).toBe(1);
+    resetShadowReport();
+    const report = getShadowReport();
+    expect(report.total).toBe(0);
+    expect(report.byKey).toEqual({});
   });
 });

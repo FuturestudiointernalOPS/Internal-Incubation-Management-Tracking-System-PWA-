@@ -113,5 +113,5 @@ Objectif (spec §11) : **une seule décision, au même endroit, côté serveur**
 | c1 | **Raisons** de la décision scoped (`evaluateScopedAccess` : missing_resource / unauthenticated / super_admin / capacité / out_of_scope / granted / system_failure) | ✅ |
 | c2 | Point d'entrée **unique** `decide(...)` (comportement inchangé) | ✅ — `decide` (global ou scopé) ; `evaluateScopedAccess` **délègue**. **Convergence partielle assumée** : `evaluateAuthorization` reste la **primitive de capacité** que `decide` compose (le faire déléguer casserait le contrat de moquage de tests existants). |
 | c3a | **Mode ombre sur la portée** (dans `decide` : `isWithinScope` vs ad-hoc, sans changer l'issue) | ✅ |
-| c3b | **Bascule mesurée** de la portée vers le moteur | ⬜ **gated ops** : activer `AUTHZ_SHADOW_MODE=1` en staging, collecter les divergences, les analyser, puis basculer |
-| c3c | **Lots de migration** de l'inventaire A (10–20 contrôles/lot) | ⬜ **gated ops** : mesure ombre par lot avant bascule |
+| c3b | **Bascule mesurée** de la portée vers le moteur | 🟡 **Mécanique prête**, exécution **gated ops** : le rapport de divergences (`GET /api/engineering/permissions/shadow-report`, reset `DELETE`) et le [runbook](runbook-phase5-shadow.md) sont livrés ; il reste à activer `AUTHZ_SHADOW_MODE=1` en staging, collecter, analyser, basculer |
+| c3c | **Lots de migration** de l'inventaire A (10–20 contrôles/lot) | ⬜ **gated ops** : mesure ombre par lot avant bascule (voir runbook) |
