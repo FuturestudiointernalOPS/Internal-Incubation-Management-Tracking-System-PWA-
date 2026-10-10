@@ -55,11 +55,17 @@ export function regularity(record, now) {
 }
 
 /** Totals for the "my operations" block, over every report the person has. */
-export function operationTotals(reports) {
+export function operationTotals(reports, tasks = []) {
   const submitted = (reports || []).filter(isSubmitted);
   const standups = submitted.filter((report) => report.report_type === "standup");
   const retros = submitted.filter((report) => report.report_type === "retro");
-  const withBlockers = standups.filter((report) => Boolean(report.has_blockers)).length;
+  const reportBlockers = standups.filter((report) => Boolean(report.has_blockers)).length;
+  const taskBlockers = (tasks || []).filter(
+    (task) =>
+      task.status === "blocked" ||
+      task.blockers?.some((b) => b.status === "active"),
+  ).length;
+  const withBlockers = Math.max(reportBlockers, taskBlockers);
   return {
     standups: standups.length,
     retros: retros.length,
