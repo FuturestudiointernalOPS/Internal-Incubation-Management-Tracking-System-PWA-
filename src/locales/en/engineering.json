@@ -796,6 +796,8 @@
       "eligibilityCeilingAlertTitle": "Open ceilings with no right",
       "eligibilityCeilingAlertHint": "These profiles are eligible for a feature yet hold no right of it — the ceiling opens onto nothing.",
       "eligibilityCeilingAlertItem": "{identity} — {feature}",
+      "eligibilityUnassignableTitle": "Profiles no role can hold",
+      "eligibilityUnassignableHint": "These profiles are active but list no baseline role, so nobody can be assigned them.",
       "openActionsIntro": "API actions that carry no permission decision, each declared and justified. Read-only — the list only changes deliberately.",
       "openActionsSelfScoped": "Personal (self-scoped)",
       "openActionsSelfScopedHint": "Open to any connected user; the target is always the caller themselves.",

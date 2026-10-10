@@ -796,6 +796,8 @@
       "eligibilityCeilingAlertTitle": "Plafonds ouverts sans droit",
       "eligibilityCeilingAlertHint": "Ces profils sont éligibles à une fonctionnalité mais ne détiennent aucun de ses droits — le plafond n'ouvre sur rien.",
       "eligibilityCeilingAlertItem": "{identity} — {feature}",
+      "eligibilityUnassignableTitle": "Profils qu'aucun rôle ne peut détenir",
+      "eligibilityUnassignableHint": "Ces profils sont actifs mais ne listent aucun rôle de base : personne ne peut se les voir attribuer.",
       "openActionsIntro": "Actions d'API sans décision de permission, chacune déclarée et justifiée. Lecture seule — la liste ne change que volontairement.",
       "openActionsSelfScoped": "Personnelles (portée soi-même)",
       "openActionsSelfScopedHint": "Ouvertes à tout utilisateur connecté ; la cible est toujours l'appelant lui-même.",

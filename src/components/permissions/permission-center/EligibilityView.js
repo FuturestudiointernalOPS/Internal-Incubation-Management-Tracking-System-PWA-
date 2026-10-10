@@ -260,6 +260,7 @@ export default function EligibilityView() {
         t={t}
         canConfigure={canConfigure}
         alerts={data?.ceilingAlerts || []}
+        unassignable={data?.unassignableProfiles || []}
       />
 
       {/* Identity selector */}

@@ -86,3 +86,29 @@ test("un plafond FERMÉ (eligible=0) n'alerte jamais", async () => {
 
   expect(body.ceilingAlerts).toEqual([]);
 });
+
+test("un profil actif sans rôle de base est signalé comme inassignable", async () => {
+  mockState.profiles = [
+    { key: "dead", allowed_roles: [] },
+    { key: "staff_default", allowed_roles: ["staff"] },
+  ];
+
+  const body = await (await route.GET()).json();
+
+  expect(body.unassignableProfiles).toEqual([{ key: "dead" }]);
+});
+
+describe("findUnassignableProfiles (pur)", () => {
+  const { findUnassignableProfiles } = require("@/services/authorization/eligibilityAdmin");
+
+  test("détecte un allowed_roles vide (tableau, JSON ou null)", () => {
+    expect(findUnassignableProfiles([{ key: "a", allowed_roles: [] }])).toEqual([{ key: "a" }]);
+    expect(findUnassignableProfiles([{ key: "b", allowed_roles: "[]" }])).toEqual([{ key: "b" }]);
+    expect(findUnassignableProfiles([{ key: "c", allowed_roles: null }])).toEqual([{ key: "c" }]);
+  });
+
+  test("ne signale pas un profil avec au moins un rôle", () => {
+    expect(findUnassignableProfiles([{ key: "a", allowed_roles: ["staff"] }])).toEqual([]);
+    expect(findUnassignableProfiles([{ key: "a", allowed_roles: '["member"]' }])).toEqual([]);
+  });
+});

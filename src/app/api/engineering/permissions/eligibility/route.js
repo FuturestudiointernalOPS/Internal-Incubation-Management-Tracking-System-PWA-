@@ -21,7 +21,7 @@ import {
   resolveEligibilityWrite,
   formatEligibilityAuditDetails,
 } from "@/services/authorization/eligibilityConfiguration";
-import { findOpenCeilingsWithoutRights } from "@/services/authorization/eligibilityAdmin";
+import { findOpenCeilingsWithoutRights, findUnassignableProfiles } from "@/services/authorization/eligibilityAdmin";
 import {
   listFeatureEligibilityRows,
   getEligibilityRow,
@@ -121,8 +121,9 @@ export async function GET() {
       .sort();
 
     // §12.3 — configuration alerts: a profile eligible for a feature but holding
-    // none of its rights.
+    // none of its rights, and a profile no baseline role may hold.
     const ceilingAlerts = await collectCeilingAlerts(rows, profiles);
+    const unassignableProfiles = findUnassignableProfiles(profilesRes.rows || []);
 
     return NextResponse.json({
       success: true,
@@ -140,6 +141,7 @@ export async function GET() {
       rows,
       canConfigure: !!canConfigure,
       ceilingAlerts,
+      unassignableProfiles,
     });
   } catch (error) {
     console.error("[eligibility] GET error:", error.message);

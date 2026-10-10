@@ -91,3 +91,12 @@ prouve la mécanique et **chiffre l'effet de bascule**, mais la décision S1 doi
 - ⛔ **Suppression des deux policies NON exécutée** : c'est la bascule, elle
   contracte l'écriture de ~18 routes et dépend du remplissage du registre —
   protocole « mesurer avant de changer ».
+
+## 8. Direction confirmée (2026-10-10)
+
+Le produit a tranché **S1** : **seul le manager écrit**, et la portée suit le
+**profil** — attribuer à quelqu'un d'autre un profil porteur des droits
+ d'écriture étend naturellement l'écriture. La base PROFIL est donc la bonne ;
+la suppression des deux policies est un **lot de bascule** à exécuter après le
+**backfill** du registre `profile_assignments` (sinon des managers historiques
+perdent aussi l'accès).

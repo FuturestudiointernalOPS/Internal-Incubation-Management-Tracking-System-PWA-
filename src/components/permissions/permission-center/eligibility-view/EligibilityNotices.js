@@ -13,7 +13,7 @@
 
 import { Info } from "lucide-react";
 
-export default function EligibilityNotices({ t, canConfigure, alerts = [] }) {
+export default function EligibilityNotices({ t, canConfigure, alerts = [], unassignable = [] }) {
   return (
     <>
       <div className="flex items-start gap-2 p-3 rounded-xl bg-brand-orange/5 border border-brand-orange/20">
@@ -42,6 +42,25 @@ export default function EligibilityNotices({ t, canConfigure, alerts = [] }) {
                   identity: alert.identityValue,
                   feature: alert.feature,
                 })}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* §12.3 — configuration alert: a profile no baseline role may hold. */}
+      {unassignable.length > 0 && (
+        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-1">
+          <p className="text-[10px] font-black uppercase tracking-wider text-amber-400">
+            {t("engineering.permissions.eligibilityUnassignableTitle")}
+          </p>
+          <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+            {t("engineering.permissions.eligibilityUnassignableHint")}
+          </p>
+          <ul className="space-y-0.5">
+            {unassignable.map((entry) => (
+              <li key={entry.key} className="text-[10px] font-bold text-[var(--text-primary)]">
+                {entry.key}
               </li>
             ))}
           </ul>

@@ -167,6 +167,37 @@ export function findOpenCeilingsWithoutRights({ eligibility, capabilities } = {}
 }
 
 /**
+ * §12.3 — detect a PROFILE WITH NO COMPATIBLE ROLE ("profil sans rôle
+ * compatible"): the profile's `allowed_roles` is EMPTY, so no baseline role may
+ * ever hold it — it is unassignable by construction. `[]` is a real state
+ * ("explicitly nobody"), distinct from "not configured".
+ *
+ * Pure: the caller supplies the profile rows read from the DB.
+ *
+ * @param {Array<{key?: string, allowed_roles?: unknown}>} profileRows
+ * @returns {Array<{key: string}>}
+ */
+export function findUnassignableProfiles(profileRows = []) {
+  const findings = [];
+  for (const row of profileRows || []) {
+    if (!row || row.key === undefined || row.key === null) continue;
+    const raw = row.allowed_roles;
+    let roles = [];
+    if (Array.isArray(raw)) roles = raw;
+    else if (typeof raw === "string" && raw.trim()) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) roles = parsed;
+      } catch {
+        roles = [];
+      }
+    }
+    if (roles.filter(Boolean).length === 0) findings.push({ key: String(row.key) });
+  }
+  return findings;
+}
+
+/**
  * Validate + normalize an eligibility change batch.
  *
  * @param {Array<{feature_key, identity_type, identity_value, eligible}>} changes
