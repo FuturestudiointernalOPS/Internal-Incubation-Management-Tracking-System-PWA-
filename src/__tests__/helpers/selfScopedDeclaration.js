@@ -173,6 +173,55 @@ const SELF_SCOPED_ROUTES = [
     scope: "session.cid",
     reason: "Change la langue de l'appelant (`session.cid`).",
   },
+  // LMS — expérience APPRENANT (hors gestion de cours, gardée par `lms.edit`).
+  {
+    file: "src/app/api/lms/my-learning/route.js",
+    methods: ["GET"],
+    scope: "session.cid",
+    reason: "Catalogue d'apprentissage de l'appelant.",
+  },
+  {
+    file: "src/app/api/lms/courses/[id]/learn/route.js",
+    methods: ["GET"],
+    scope: "session.cid",
+    reason: "Contenu d'un cours pour l'appelant (`getLearnerCourse(id, session.cid)`).",
+  },
+  {
+    file: "src/app/api/lms/lessons/[id]/complete/route.js",
+    methods: ["POST"],
+    scope: "session.cid",
+    reason: "Marque une leçon terminée pour l'appelant (`completeLesson(id, session.cid)`).",
+  },
+  {
+    file: "src/app/api/lms/assessments/[id]/take/route.js",
+    methods: ["GET"],
+    scope: "session.cid",
+    reason: "Évaluation à passer pour l'appelant (`getAssessmentForTake(id, session.cid)`).",
+  },
+  {
+    file: "src/app/api/lms/assessments/[id]/submit/route.js",
+    methods: ["POST"],
+    scope: "session.cid",
+    reason: "Remise d'évaluation par l'appelant (`submitAssessment(id, session.cid, …)`).",
+  },
+  {
+    file: "src/app/api/lms/certificates/route.js",
+    methods: ["GET"],
+    scope: "session.cid",
+    reason: "Certificats de l'appelant (`getCertificatesForLearner(session.cid)`).",
+  },
+  {
+    file: "src/app/api/lms/certificates/[id]/route.js",
+    methods: ["GET"],
+    scope: "session.cid",
+    reason: "Un certificat de l'appelant (`getLearnerCertificate(id, session.cid)`).",
+  },
+  {
+    file: "src/app/api/lms/certificates/[id]/download/route.js",
+    methods: ["GET"],
+    scope: "session.cid",
+    reason: "Téléchargement d'un certificat de l'appelant (`getLearnerCertificate(id, session.cid)`).",
+  },
 ];
 
 /** Les préfixes d'API dont CHAQUE route doit être déclarée ci-dessus. */
