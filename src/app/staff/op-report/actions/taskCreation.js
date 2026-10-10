@@ -22,6 +22,14 @@ export function taskCreationActions({
   // Create a new task immediately via the existing tasks API, then refresh.
   const handleCreateNewTask = async () => {
     if (!newTaskForm.name.trim()) return;
+    if (
+      newTaskForm.start_date &&
+      newTaskForm.due_date &&
+      newTaskForm.due_date < newTaskForm.start_date
+    ) {
+      notify(t("errors.dueDateBeforeStartDate"), "error");
+      return;
+    }
     setCreatingTask(true);
     try {
       const week = weekInfo || getCurrentWeek();
