@@ -234,19 +234,16 @@ export const CAPABILITY_CATALOG = {
   facilitator: {
     name: "Program Facilitator",
     risk: "medium",
+    // Phase 7 (D7) — six rights that were never consulted by a decision were
+    // retired (participants.manage, assignments.review, sessions.record,
+    // progress.view, groups.view, groups.manage).
     capabilities: {
       "participants.view": { label: "View Participants", risk: "medium", description: "See program participants" },
-      "participants.manage": { label: "Manage Participants", risk: "high", description: "Manage program participants" },
       "attendance.view": { label: "View Attendance", risk: "low", description: "See attendance" },
       "attendance.record": { label: "Record Attendance", risk: "medium", description: "Record attendance" },
       "assignments.view": { label: "View Assignments", risk: "low", description: "See assignments" },
-      "assignments.review": { label: "Review Assignments", risk: "medium", description: "Review submissions" },
       "assignments.grade": { label: "Grade Assignments", risk: "high", description: "Grade submissions" },
       "sessions.conduct": { label: "Conduct Sessions", risk: "medium", description: "Run sessions" },
-      "sessions.record": { label: "Record Sessions", risk: "medium", description: "Record session data" },
-      "progress.view": { label: "View Progress", risk: "low", description: "See participant progress" },
-      "groups.view": { label: "View Groups", risk: "low", description: "See program groups" },
-      "groups.manage": { label: "Manage Groups", risk: "medium", description: "Manage program groups" },
       "reviews.submit": { label: "Submit Reviews", risk: "medium", description: "Submit reviews" },
     },
   },

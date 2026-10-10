@@ -13,19 +13,18 @@
 
 export const FACILITATOR_CAPABILITY_KEYS = [
   "participants.view",
-  "participants.manage",
   "attendance.view",
   "attendance.record",
   "assignments.view",
-  "assignments.review",
   "assignments.grade",
   "sessions.conduct",
-  "sessions.record",
-  "progress.view",
-  "groups.view",
-  "groups.manage",
-  // Was declared in PERMISSION_MODULES + the catalog but missing here, so the
-  // PM UI could never render it and "full facilitator access" never granted it.
+  // Retained: `reviews.submit` is CONSULTED (api/facilitator-reviews POST), so
+  // it is a real right. Six keys used to sit above it — participants.manage,
+  // assignments.review, sessions.record, progress.view, groups.view,
+  // groups.manage — granted "on paper" but whose level was NEVER read by any
+  // decision. They were retired (product decision D7, Phase 7): a right nothing
+  // enforces is a false right, and the spec forbids a latent MANAGE that opens
+  // other actions. See docs/permissions/phase-7-d7-animation-rights.md.
   "reviews.submit",
 ];
 

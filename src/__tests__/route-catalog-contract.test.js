@@ -109,17 +109,11 @@ const ALLOWED_UNROUTED = new Set([
   // facilitator.* — enforced through program-scoped facilitator
   // authorization (program/team context), not catalog-module literal guards.
   "facilitator.participants.view",
-  "facilitator.participants.manage",
   "facilitator.attendance.view",
   "facilitator.attendance.record",
   "facilitator.assignments.view",
-  "facilitator.assignments.review",
   "facilitator.assignments.grade",
   "facilitator.sessions.conduct",
-  "facilitator.sessions.record",
-  "facilitator.progress.view",
-  "facilitator.groups.view",
-  "facilitator.groups.manage",
   "facilitator.reviews.submit",
 ]);
 

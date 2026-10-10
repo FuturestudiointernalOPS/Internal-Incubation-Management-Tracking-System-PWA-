@@ -32,7 +32,7 @@ beforeEach(() => resetState());
 
 describe("planContextGrantChanges — expiry is part of the comparison", () => {
   const desired = {
-    "facilitator.groups.view": { module: "facilitator", capability: "groups.view", level: 1 },
+    "facilitator.attendance.view": { module: "facilitator", capability: "attendance.view", level: 1 },
   };
 
   test("a row whose level AND expiry already match is left alone", () => {
@@ -41,7 +41,7 @@ describe("planContextGrantChanges — expiry is part of the comparison", () => {
       existing: [
         {
           module: "facilitator",
-          capability: "groups.view",
+          capability: "attendance.view",
           access_level: 1,
           granted_by: FACILITATOR_SENTINEL,
           expires_at: "2026-06-30",
@@ -59,7 +59,7 @@ describe("planContextGrantChanges — expiry is part of the comparison", () => {
       existing: [
         {
           module: "facilitator",
-          capability: "groups.view",
+          capability: "attendance.view",
           access_level: 1,
           granted_by: FACILITATOR_SENTINEL,
           expires_at: "2026-06-30",
@@ -78,7 +78,7 @@ describe("planContextGrantChanges — expiry is part of the comparison", () => {
       existing: [
         {
           module: "facilitator",
-          capability: "groups.view",
+          capability: "attendance.view",
           access_level: 1,
           granted_by: "USER_SA",
           expires_at: null,

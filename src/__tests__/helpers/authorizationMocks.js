@@ -43,17 +43,11 @@ const PERMISSION_MODULES = {
     facilitator: {
       capabilities: [
         "participants.view",
-        "participants.manage",
         "attendance.view",
         "attendance.record",
         "assignments.view",
-        "assignments.review",
         "assignments.grade",
         "sessions.conduct",
-        "sessions.record",
-        "progress.view",
-        "groups.view",
-        "groups.manage",
         "reviews.submit",
       ],
     },

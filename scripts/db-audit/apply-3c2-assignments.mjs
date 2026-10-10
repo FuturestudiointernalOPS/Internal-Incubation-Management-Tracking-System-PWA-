@@ -43,13 +43,14 @@ const FACILITATORS = [
 ];
 const JOSIAS_CID = "USER_6B8031C5115";
 
-// Matches buildFullFacilitatorPermissions() exactly.
+// Phase 7 (D7) — the consulted facilitator vocabulary only (the six rights
+// whose level no decision ever read were retired).
 const FULL_FACILITATOR_PERMS = {
-  "participants.view": 1, "participants.manage": 2,
+  "participants.view": 1,
   "attendance.view": 1,   "attendance.record": 2,
-  "assignments.view": 1,  "assignments.review": 2, "assignments.grade": 2,
-  "sessions.conduct": 2,  "sessions.record": 2,
-  "progress.view": 1,     "groups.view": 1,         "groups.manage": 2,
+  "assignments.view": 1,  "assignments.grade": 2,
+  "sessions.conduct": 2,
+  "reviews.submit": 2,
 };
 
 const client = new pg.Client({

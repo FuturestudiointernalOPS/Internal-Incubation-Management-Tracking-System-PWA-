@@ -108,19 +108,17 @@ export const PERMISSION_MODULES = {
   },
   facilitator: {
     name: "Program Facilitator",
+    // Phase 7 (D7) — the six rights whose level was never consulted by any
+    // decision were retired (participants.manage, assignments.review,
+    // sessions.record, progress.view, groups.view, groups.manage). Only the
+    // CONSULTED remainder stays declared.
     capabilities: [
       "participants.view",
-      "participants.manage",
       "attendance.view",
       "attendance.record",
       "assignments.view",
-      "assignments.review",
       "assignments.grade",
       "sessions.conduct",
-      "sessions.record",
-      "progress.view",
-      "groups.view",
-      "groups.manage",
       "reviews.submit",
     ],
   },
