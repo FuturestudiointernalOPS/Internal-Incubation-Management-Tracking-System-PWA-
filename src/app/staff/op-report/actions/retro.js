@@ -3,8 +3,8 @@
  *
  * Cut out of src/app/staff/op-report/page.js as-is: no state of its own, no
  * React. The page keeps every state value and every read, and passes the
- * 8 names this module reads into retroActions().
  */
+import { clearResponseCachePrefix } from "@/lib/hooks/useApi";
 
 export function retroActions({
   notify,
@@ -72,6 +72,7 @@ export function retroActions({
         if (data.success === false && data.hasActiveBlockers) {
           notify(t("staff.opReport.blockerActive"), "error");
         } else {
+          clearResponseCachePrefix("/api/tasks");
           refreshTasks();
         }
       }
@@ -115,6 +116,7 @@ export function retroActions({
       if (subtaskData.success === false && subtaskData.hasActiveBlockers) {
         notify(t("staff.opReport.blockerActive"), "error");
       } else {
+        clearResponseCachePrefix("/api/tasks");
         refreshTasks();
       }
     } catch (error) {
@@ -151,7 +153,14 @@ export function retroActions({
           status: newStatus,
         }),
       });
+      clearResponseCachePrefix("/api/tasks");
       refreshTasks();
+      if (newStatus === "blocked") {
+        setBlockerModal({
+          type: "api",
+          taskId: task.id,
+        });
+      }
     } catch (err) {
       console.error(err);
     } finally {
