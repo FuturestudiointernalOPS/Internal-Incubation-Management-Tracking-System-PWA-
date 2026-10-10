@@ -21,7 +21,7 @@ import {
   resolveEligibilityWrite,
   formatEligibilityAuditDetails,
 } from "@/services/authorization/eligibilityConfiguration";
-import { findOpenCeilingsWithoutRights, findUnassignableProfiles } from "@/services/authorization/eligibilityAdmin";
+import { findOpenCeilingsWithoutRights, findRightsOnClosedCeiling, findUnassignableProfiles } from "@/services/authorization/eligibilityAdmin";
 import {
   listFeatureEligibilityRows,
   getEligibilityRow,
@@ -59,24 +59,26 @@ async function fetchAllRows() {
 }
 
 /**
- * §12.3 — the OPEN CEILINGS WITH NO RIGHT, per PROFILE.
+ * §12.3 — the per-PROFILE configuration alerts:
+ *   - OPEN CEILING WITH NO RIGHT: eligible, yet no capability of the feature;
+ *   - RIGHT ON A CLOSED CEILING: an explicit deny row, yet a capability held.
  *
- * A profile eligible for a feature but holding NO capability of it is a ceiling
- * that opens onto nothing. The pure detector decides; this only feeds it each
- * profile's OWN eligibility rows and capabilities. Best-effort: a read failure
- * yields no alert (the screen keeps working), never a 500.
+ * The pure detectors decide; this only feeds them each profile's OWN rows and
+ * capabilities. Best-effort: a read failure yields no alert, never a 500.
  */
-async function collectCeilingAlerts(rows, profileKeys) {
-  const alerts = [];
+async function collectProfileAlerts(rows, profileKeys) {
+  const ceilingAlerts = [];
+  const rightAlerts = [];
   for (const profileKey of profileKeys) {
     try {
-      const eligibility = {};
+      const openEligibility = {};
+      const closedEligibility = {};
       for (const row of rows) {
         if (row.identity_type !== "profile") continue;
         if (String(row.identity_value) !== String(profileKey)) continue;
-        if (Number(row.eligible) === 1) eligibility[row.feature_key] = true;
+        if (Number(row.eligible) === 1) openEligibility[row.feature_key] = true;
+        else if (Number(row.eligible) === 0) closedEligibility[row.feature_key] = true;
       }
-      if (Object.keys(eligibility).length === 0) continue;
 
       const capsRes = await listProfileCapabilities(profileKey);
       const capabilities = {};
@@ -84,19 +86,33 @@ async function collectCeilingAlerts(rows, profileKeys) {
         capabilities[cap.module] = capabilities[cap.module] || {};
         capabilities[cap.module][cap.capability] = Number(cap.access_level) || 0;
       }
-      for (const finding of findOpenCeilingsWithoutRights({ eligibility, capabilities })) {
-        alerts.push({
-          identityType: "profile",
-          identityValue: profileKey,
-          feature: finding.feature,
-          modules: finding.modules,
-        });
+
+      if (Object.keys(openEligibility).length > 0) {
+        for (const finding of findOpenCeilingsWithoutRights({ eligibility: openEligibility, capabilities })) {
+          ceilingAlerts.push({
+            identityType: "profile",
+            identityValue: profileKey,
+            feature: finding.feature,
+            modules: finding.modules,
+          });
+        }
+      }
+      if (Object.keys(closedEligibility).length > 0) {
+        for (const finding of findRightsOnClosedCeiling({ closedEligibility, capabilities })) {
+          rightAlerts.push({
+            identityType: "profile",
+            identityValue: profileKey,
+            feature: finding.feature,
+            module: finding.module,
+            capabilities: finding.capabilities,
+          });
+        }
       }
     } catch (error) {
-      console.warn(`[eligibility] ceiling alert failed for ${profileKey}:`, error.message);
+      console.warn(`[eligibility] profile alert failed for ${profileKey}:`, error.message);
     }
   }
-  return alerts;
+  return { ceilingAlerts, rightAlerts };
 }
 
 export async function GET() {
@@ -120,9 +136,9 @@ export async function GET() {
       .map((row) => row.key)
       .sort();
 
-    // §12.3 — configuration alerts: a profile eligible for a feature but holding
-    // none of its rights, and a profile no baseline role may hold.
-    const ceilingAlerts = await collectCeilingAlerts(rows, profiles);
+    // §12.3 — configuration alerts: profiles whose ceiling and rights disagree,
+    // and a profile no baseline role may hold.
+    const { ceilingAlerts, rightAlerts } = await collectProfileAlerts(rows, profiles);
     const unassignableProfiles = findUnassignableProfiles(profilesRes.rows || []);
 
     return NextResponse.json({
@@ -141,6 +157,7 @@ export async function GET() {
       rows,
       canConfigure: !!canConfigure,
       ceilingAlerts,
+      rightAlerts,
       unassignableProfiles,
     });
   } catch (error) {

@@ -52,22 +52,22 @@ const eligibleProfileRow = (profileKey, featureKey) => ({
 
 test("un profil éligible SANS droit déclenche une alerte", async () => {
   mockState.profiles = [{ key: "alpha" }];
-  mockState.rows = [eligibleProfileRow("alpha", "crm")];
+  mockState.rows = [eligibleProfileRow("alpha", "finance")];
   mockState.profileCapabilitiesByKey = { alpha: [] };
 
   const body = await (await route.GET()).json();
 
   expect(body.ceilingAlerts).toEqual([
-    expect.objectContaining({ identityType: "profile", identityValue: "alpha", feature: "crm" }),
+    expect.objectContaining({ identityType: "profile", identityValue: "alpha", feature: "finance" }),
   ]);
 });
 
 test("un profil éligible AVEC un droit de la fonctionnalité n'alerte pas", async () => {
   mockState.profiles = [{ key: "alpha" }];
-  mockState.rows = [eligibleProfileRow("alpha", "crm")];
-  // A crm-module right (contacts → feature crm) closes the ceiling.
+  mockState.rows = [eligibleProfileRow("alpha", "finance")];
+  // A finance-module right closes the ceiling.
   mockState.profileCapabilitiesByKey = {
-    alpha: [{ module: "contacts", capability: "view", access_level: 1 }],
+    alpha: [{ module: "finance", capability: "view", access_level: 1 }],
   };
 
   const body = await (await route.GET()).json();
@@ -78,7 +78,7 @@ test("un profil éligible AVEC un droit de la fonctionnalité n'alerte pas", asy
 test("un plafond FERMÉ (eligible=0) n'alerte jamais", async () => {
   mockState.profiles = [{ key: "alpha" }];
   mockState.rows = [
-    { ...eligibleProfileRow("alpha", "crm"), eligible: 0 },
+    { ...eligibleProfileRow("alpha", "finance"), eligible: 0 },
   ];
   mockState.profileCapabilitiesByKey = { alpha: [] };
 
@@ -96,6 +96,46 @@ test("un profil actif sans rôle de base est signalé comme inassignable", async
   const body = await (await route.GET()).json();
 
   expect(body.unassignableProfiles).toEqual([{ key: "dead" }]);
+});
+
+test("un droit détenu sur un plafond explicitement fermé est signalé", async () => {
+  mockState.profiles = [{ key: "alpha" }];
+  // Explicit DENY row for finance on this profile…
+  mockState.rows = [{ feature_key: "finance", identity_type: "profile", identity_value: "alpha", eligible: 0 }];
+  // …yet the profile grants a finance-module right.
+  mockState.profileCapabilitiesByKey = {
+    alpha: [{ module: "finance", capability: "view", access_level: 1 }],
+  };
+
+  const body = await (await route.GET()).json();
+
+  expect(body.rightAlerts).toEqual([
+    expect.objectContaining({ identityType: "profile", identityValue: "alpha", feature: "finance", module: "finance" }),
+  ]);
+});
+
+describe("findRightsOnClosedCeiling (pur)", () => {
+  const { findRightsOnClosedCeiling } = require("@/services/authorization/eligibilityAdmin");
+
+  test("signale un droit sur une fonctionnalité explicitement fermée", () => {
+    const findings = findRightsOnClosedCeiling({
+      closedEligibility: { finance: true },
+      capabilities: { finance: { view: 1 } },
+    });
+    expect(findings).toEqual([{ feature: "finance", module: "finance", capabilities: ["view"] }]);
+  });
+
+  test("une ligne MANQUANTE n'est pas une violation (héritage possible)", () => {
+    expect(
+      findRightsOnClosedCeiling({ closedEligibility: {}, capabilities: { finance: { view: 1 } } }),
+    ).toEqual([]);
+  });
+
+  test("un plafond fermé SANS droit est conforme", () => {
+    expect(
+      findRightsOnClosedCeiling({ closedEligibility: { finance: true }, capabilities: { finance: {} } }),
+    ).toEqual([]);
+  });
 });
 
 describe("findUnassignableProfiles (pur)", () => {

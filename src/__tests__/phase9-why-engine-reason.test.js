@@ -17,13 +17,13 @@ const path = require("node:path");
 const baseContext = () => ({
   isSuperAdmin: false,
   role: "staff",
-  // Only CRM is open: every other feature is NOT eligible (fail-closed).
-  eligibility: { crm: true },
+  // Only FINANCE is open: every other feature is NOT eligible (fail-closed).
+  eligibility: { finance: true },
   restrictions: new Set(),
   grants: {},
-  baseCaps: { crm: { view: 2 } },
+  baseCaps: { finance: { view: 2 } },
   groupCaps: {},
-  effective: { crm: { view: 2 } },
+  effective: { finance: { view: 2 } },
   accountStatus: "active",
   profile: { id: 3, name: "Staff Default" },
   groups: ["TEAM A"],
@@ -49,13 +49,13 @@ test("chaque capacité porte la décision ET la raison du moteur", () => {
 
 test("un droit détenu est « granted »", () => {
   const payload = project();
-  expect(payload.decisions.crm.view).toEqual({ allowed: true, reason: "granted" });
+  expect(payload.decisions.finance.view).toEqual({ allowed: true, reason: "granted" });
 });
 
 test("un refus porte la RAISON du moteur (non éligible), pas un libellé dérivé", () => {
   const payload = project();
-  const financeCap = PERMISSION_MODULES.finance.capabilities[0];
-  expect(payload.decisions.finance[financeCap]).toEqual({
+  const programsCap = PERMISSION_MODULES.programs.capabilities[0];
+  expect(payload.decisions.programs[programsCap]).toEqual({
     allowed: false,
     reason: "not_eligible",
   });
@@ -66,8 +66,8 @@ test("un compte inactif refuse AVANT l'éligibilité (§11), raison dédiée", (
   context.accountStatus = "suspended";
   const payload = project(context);
 
-  const crmCap = PERMISSION_MODULES.crm.capabilities[0];
-  expect(payload.decisions.crm[crmCap]).toEqual({
+  const financeCap = PERMISSION_MODULES.finance.capabilities[0];
+  expect(payload.decisions.finance[financeCap]).toEqual({
     allowed: false,
     reason: "account_not_active",
   });
