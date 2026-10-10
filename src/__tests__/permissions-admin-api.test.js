@@ -3,7 +3,7 @@
  * (Phase 6 §24): eligibility read/write + unset, profile role-default
  * eligibility enforcement, and individual grant eligibility rejection.
  *
- * The resolver semantics (deny wins, restriction > grant, SA bypass) are
+ * The resolver semantics (D4 union, restriction > grant, SA bypass) are
  * unit-tested in authorization-resolver.test.js — these tests cover the
  * HTTP boundary and the server-side validation wiring.
  */

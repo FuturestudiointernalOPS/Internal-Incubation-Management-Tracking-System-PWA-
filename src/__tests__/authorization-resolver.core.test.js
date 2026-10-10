@@ -138,12 +138,15 @@ describe("evaluateEligibility", () => {
     expect(evaluateEligibility(rows, "finance")).toBe(false);
   });
 
-  test("an explicit deny wins over an allow", () => {
+  // D4 (spec §16.2/§5.3) — the verdict is the UNION of the identities: one allow
+  // opens the section. An identity's `eligible = 0` is a refusal FOR THAT
+  // IDENTITY, never a global veto over another identity's allow.
+  test("D4 union: one allow opens the section, an identity deny does not veto it", () => {
     const rows = [
       { feature_key: "finance", eligible: 1 },
       { feature_key: "finance", eligible: 0 },
     ];
-    expect(evaluateEligibility(rows, "finance")).toBe(false);
+    expect(evaluateEligibility(rows, "finance")).toBe(true);
   });
 
   test("ignores rows for other features", () => {

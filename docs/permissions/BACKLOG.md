@@ -15,7 +15,7 @@
 | 4 | Renforcer le moteur central | 🟡 **Clôturée** (sous-lots 1–5 ; critère partiel — voir `PHASE4-CLOSURE.md`) |
 | 5 | Migration des contrôles par rôle + portée dans le moteur | ⬜ **Prochaine** |
 | 6 | Couverture des actions | 🟡 **En cours** — tâche 1 : portée « soi-même » (~32 routes déclarées, 5 tranches) ; tâche 2 : **30 routes `OUVERTE_ASSUMEE` déclarées** avec justification + ratchet ; tâche 3 : les 2 `A_PROTEGER` neutralisées (phase 3) |
-| 7 | Implémentation des décisions produit | 🟡 **Partielle** — **D7 fait** (`phase-7-d7-animation-rights.md`), **D9 fait** (retrait de la portée `team_own`), **D6 fait** (profil `course_manager`), **D3 (expiration) fait** (`phase-7-d3-historical-retention.md`) ; **D3 (révocation/écran)**, D1, D2, D5/D8 restent |
+| 7 | Implémentation des décisions produit | 🟡 **Partielle** — **D7 fait** (`phase-7-d7-animation-rights.md`), **D9 fait** (retrait de la portée `team_own`), **D6 fait** (profil `course_manager`), **D3 (expiration) fait** (`phase-7-d3-historical-retention.md`), **D4 fait** (union des identités + avertissement de section, `phase-7-d4-eligibility-union.md`) ; **D3 (révocation/écran)**, D1, D2, D5/D8 restent |
 | 8 | Affectations et identité | 🟡 **Partielle** — tâche 3 (compatibilité rôle ↔ profil sur les chemins manuels) faite ; le reste (migrations, déclencheurs) à planifier |
 | 9 | Administration et vocabulaire | ⬜ À planifier |
 | 10 | Vérification finale (arrêt humain) | ⬜ À planifier |
@@ -44,7 +44,7 @@ Les décisions sont **arbitrées** (voir `phase-1-synthese.md`) ; ce qui suit es
 
 | # | Décision retenue | Implémenté ? | Phase cible |
 |---|---|---|---|
-| D4 | Union : un profil éligible ouvre la section malgré le refus du rôle, **avertissement de section** | ⬜ Non (le code applique « le refus explicite l'emporte ») | 4 → 7 |
+| D4 | Union : un profil éligible ouvre la section malgré le refus du rôle, **avertissement de section** | ✅ **Fait (Phase 7)** — `evaluateEligibility` = union + `explainEligibility.openedByProfile` ; `eligibilityWarnings` exposé par le contexte ; tests `phase7-d4-eligibility-union.test.js` ; 2 tests de comportement mis à jour. **Corollaire** : merge des clés (`MIN`/`LEAST`) à aligner = lot séparé | — |
 | D10 | Blocage = **droit en entier** | ✅ Conforme au code (rien à changer) | — |
 | D7 | **Retirer** les 6 droits d'animation non consultés ; `reviews.submit` conservé | ✅ **Fait (lot 1 Phase 7)** — retirés des 3 déclarations + 2 listes UI ; octrois mécanisme **auto-révoqués** au prochain réconciliateur ; test `phase7-d7-animation-rights.test.js` ; résiduels : octrois **manuels** (balayage humain), « manage » hors animation (reporté) | — |
 | D9 | **Retirer** la portée « équipe » du vocabulaire | ✅ **Fait (Phase 7)** — `team_own` retiré de `SCOPE_POLICY_KEYS`/`SCOPE_POLICIES`, note du centre des permissions, vue Scope Policies ; tests mis à jour | — |

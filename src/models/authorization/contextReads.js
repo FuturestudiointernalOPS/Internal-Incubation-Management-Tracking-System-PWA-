@@ -122,7 +122,8 @@ export function getGroupCapabilityRows(groups) {
  * profiles (the endpoint suites match on SQL text); the profile branch is added
  * only when the person actually holds profiles, so an identity with none pays
  * exactly the query it always did. Profile rows OR with the others, exactly like
- * role and group rows (any allow; an explicit deny still wins in the decision).
+ * role and group rows (D4 union: any allow opens the section; an identity's
+ * explicit deny never cancels another identity's allow).
  */
 export function getFeatureEligibilityRows(role, groups, profiles = []) {
   const placeholders = groups.length ? groups.map(() => "?").join(",") : "NULL";

@@ -30,7 +30,7 @@
 import { initDb } from "@/lib/db";
 import { PERMISSION_MODULES, ACCESS_LEVELS } from "@/server/authz/capabilities";
 import { MODULE_TO_FEATURE } from "@/models/authorization/eligibility";
-import { evaluateEligibility } from "./eligibility";
+import { explainEligibility } from "./eligibility";
 import { ensureCapabilityBackfills } from "@/models/authorization/backfill";
 import { getEffectiveGroupsForUser } from "./membership";
 import {
@@ -135,6 +135,9 @@ export async function resolveAuthorizationContext({ cid, role, profiles }) {
       profile: null,
       eligibility: null,
       eligibilityRows: [],
+      // D4 — sections a PROFILE opens despite the role's explicit deny. Super
+      // Admin bypasses eligibility, so it can never have a section warning.
+      eligibilityWarnings: {},
       baseCaps: saMatrix,
       groupCaps: {},
       effective: mergeEffectiveCapabilities(saMatrix, {}, grants, restrictions),
@@ -200,9 +203,19 @@ export async function resolveAuthorizationContext({ cid, role, profiles }) {
   const baseCaps = rowsToCaps(capsRes.rows);
   const groupCaps = rowsToCaps(groupCapsRes.rows);
 
+  // D4 — the eligibility verdict is the UNION of the person's identities. The
+  // very same pass records the one divergence the arbitrage flags: a section a
+  // PROFILE opens while the ROLE explicitly denies it (a SECTION warning, never
+  // a refusal). The verdict and its justification come from one pure function,
+  // so they can never drift apart.
   const eligibility = {};
+  const eligibilityWarnings = {};
   for (const featureKey of new Set(Object.values(MODULE_TO_FEATURE))) {
-    eligibility[featureKey] = evaluateEligibility(eligRes.rows, featureKey);
+    const verdict = explainEligibility(eligRes.rows, featureKey);
+    eligibility[featureKey] = verdict.eligible;
+    if (verdict.openedByProfile) {
+      eligibilityWarnings[featureKey] = "opened_by_profile";
+    }
   }
 
   // 7. Effective capabilities (V2 merge semantics).
@@ -219,6 +232,7 @@ export async function resolveAuthorizationContext({ cid, role, profiles }) {
     profiles: effectiveProfiles,
     profile: { profileId, profileName, profileSource, profileKey },
     eligibility,
+    eligibilityWarnings,
     eligibilityRows: eligRes.rows,
     baseCaps,
     groupCaps,

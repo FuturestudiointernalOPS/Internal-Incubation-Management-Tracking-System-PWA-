@@ -12,7 +12,9 @@
  *   rows that have never been configured, then the Permissions UI owns the
  *   configuration. Nothing at boot ever overwrites an administrator's edit.
  * - Missing rows = NOT eligible (fail closed).
- * - An explicit `eligible = 0` row wins over any `eligible = 1` row.
+ * - D4 — UNION of the identities: as soon as ONE identity allows the feature the
+ *   section is open; an `eligible = 0` on one identity never vetoes another
+ *   identity's allow (see `evaluateEligibility`).
  * - Super Admin bypasses eligibility entirely (preserved V2 behavior).
  *
  * Layer (see docs/LAYER_SPLIT.md): this module is the REPOSITORY — the schema,
