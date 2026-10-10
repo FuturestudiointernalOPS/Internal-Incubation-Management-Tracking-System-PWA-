@@ -126,6 +126,14 @@ export default function AccessExplanationPanel({ explanation, t }) {
                             )
                             .join(", ")}`}
                       </p>
+                      {/* D4 — the section is OPEN (union) but a PROFILE opened it
+                          while the ROLE explicitly denies it: a SECTION warning,
+                          never a refusal. */}
+                      {info.openedByProfile && (
+                        <p className="text-[10px] font-bold text-amber-400 mt-0.5">
+                          {t("engineering.permissions.eligibilityOpenedByProfile")}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))}

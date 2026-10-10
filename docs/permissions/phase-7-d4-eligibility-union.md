@@ -12,6 +12,8 @@
 |---|---|
 | `src/services/authorization/eligibility.js` | `evaluateEligibility` devient une **union** : un seul `eligible = 1` ouvre la section ; un `eligible = 0` ne neutralise plus l'allow d'une autre identité. Nouvelle fonction pure `explainEligibility` (même verdict + `openedByProfile`). |
 | `src/services/authorization/contextResolver.js` | Le contexte expose `eligibilityWarnings` : la section ouverte par un profil **malgré le refus explicite du rôle** (`opened_by_profile`). |
+| `src/services/authorization/contextDecisions.js` | `buildPermissionExplanation` (surface « pourquoi ») reporte `openedByProfile` à côté du verdict. |
+| `src/components/permissions/permission-center/AccessExplanationPanel.js` | L'avertissement de SECTION est **affiché** dans le panneau « pourquoi » (clé i18n en/fr `eligibilityOpenedByProfile`). |
 | Commentaires alignés | `models/authorization/eligibility.js`, `models/authorization/contextReads.js`, `models/authorization/featureKeyAlignmentStore.js` (référence à l'ancienne précédence corrigée). |
 
 ## Ce qui ne change PAS
