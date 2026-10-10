@@ -1,14 +1,17 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ChevronDown,
   ChevronRight,
   Loader2,
   PlayCircle,
   RefreshCw,
+  ShieldOff,
+  Undo2,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useDialogs } from "@/components/ui/DialogProvider";
 import { SCOPE_POLICIES } from "@/models/authorization/scope-catalog";
 import { describeScopeCheck } from "./scopeCheckHelpers";
 import Badge from "./ui/Badge";
@@ -36,6 +39,7 @@ import Badge from "./ui/Badge";
 export default function PersonScopePanel({
   policies = [],
   contexts = [],
+  cid = null,
   checkPolicy,
   onRefresh,
   refreshing = false,
@@ -46,6 +50,12 @@ export default function PersonScopePanel({
   // One probe per policy, kept separately so opening a second policy never
   // discards the answer of the first.
   const [probes, setProbes] = useState({});
+  // D3 2/2 — the RETIREMENT of the residual read: the revocation state of each
+  // retained historical context, and the action that retires / restores one.
+  const { confirm } = useDialogs();
+  const [revocations, setRevocations] = useState(null);
+  const [retiring, setRetiring] = useState("");
+  const [retireError, setRetireError] = useState("");
 
   /** id → label, from the contexts the user-context read already returned. */
   const labelsByPolicy = {};
@@ -59,9 +69,92 @@ export default function PersonScopePanel({
   // person who held it (venture_managed_history / program_managed_history).
   // Saying so here is what stops "no current profile" being misread as "no
   // access at all" — the access is retained through the relationship's history.
-  const retainedPolicies = policies.filter(
-    (entry) => /_managed_history$/.test(entry.policy) && (entry.count ?? 0) > 0,
-  );
+  // The CONTEXT (program / venture) is what an administrator retires.
+  const retainedContexts = useMemo(() => {
+    const set = new Set();
+    for (const entry of policies) {
+      if (!/_managed_history$/.test(entry.policy)) continue;
+      if ((entry.count ?? 0) <= 0) continue;
+      set.add(entry.policy.replace(/_managed_history$/, ""));
+    }
+    return [...set];
+  }, [policies]);
+
+  // The revocations already recorded for this person (D3 2/2), so a retired
+  // context shows as retired instead of offering to retire it again.
+  useEffect(() => {
+    // No person selected (or no retained history): nothing to read, and the
+    // panel stays read-only. The component remounts per person (key), so no
+    // stale revocation state can survive a change of person.
+    if (!cid || retainedContexts.length === 0) return undefined;
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/engineering/permissions/historical-access?cid=${encodeURIComponent(cid)}`,
+        );
+        const data = await res.json();
+        if (!active) return;
+        const map = {};
+        for (const row of data?.revocations || []) map[row.context] = row;
+        setRevocations(map);
+      } catch {
+        if (active) setRevocations({});
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [cid, retainedContexts]);
+
+  const toggleRevocation = async (context, isRevoked) => {
+    setRetireError("");
+    const ok = await confirm({
+      message: t(
+        isRevoked
+          ? "engineering.permissions.historyRestoreConfirm"
+          : "engineering.permissions.historyRetireConfirm",
+        { context },
+      ),
+      tone: isRevoked ? undefined : "danger",
+    });
+    if (!ok) return;
+    setRetiring(context);
+    try {
+      const base = "/api/engineering/permissions/historical-access";
+      const res = await fetch(
+        isRevoked
+          ? `${base}?cid=${encodeURIComponent(cid)}&context=${encodeURIComponent(context)}`
+          : base,
+        isRevoked
+          ? { method: "DELETE" }
+          : {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ cid, context }),
+            },
+      );
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        throw new Error(
+          data?.error || t("engineering.permissions.historyActionFailed"),
+        );
+      }
+      setRevocations((prev) => {
+        const next = { ...(prev || {}) };
+        if (isRevoked) delete next[context];
+        else next[context] = { context };
+        return next;
+      });
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      setRetireError(
+        error?.message || t("engineering.permissions.historyActionFailed"),
+      );
+    } finally {
+      setRetiring("");
+    }
+  };
 
   const setProbe = (policy, patch) =>
     setProbes((prev) => ({ ...prev, [policy]: { ...prev[policy], ...patch } }));
@@ -287,14 +380,57 @@ export default function PersonScopePanel({
         </div>
       )}
 
-      {retainedPolicies.length > 0 && (
-        <div className="rounded-lg border border-[var(--border-primary)] bg-secondary/30 p-2.5">
+      {retainedContexts.length > 0 && (
+        <div className="rounded-lg border border-[var(--border-primary)] bg-secondary/30 p-2.5 space-y-2">
           <p className="text-xs font-semibold text-[var(--text-primary)]">
             {t("engineering.permissions.accessScopeHistoryTitle")}
           </p>
           <p className="text-xs text-[var(--text-secondary)]">
             {t("engineering.permissions.accessScopeHistoryNote")}
           </p>
+          <div className="space-y-1.5">
+            {retainedContexts.map((context) => {
+              const isRevoked = Boolean(revocations && revocations[context]);
+              const busy = retiring === context;
+              return (
+                <div
+                  key={context}
+                  className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border-primary)] bg-primary/60 px-2.5 py-1.5"
+                >
+                  <span className="text-[10px] font-mono text-[var(--text-primary)]">
+                    {context}
+                  </span>
+                  {isRevoked && (
+                    <Badge variant="pending">
+                      {t("engineering.permissions.historyRevokedBadge")}
+                    </Badge>
+                  )}
+                  {cid && (
+                    <button
+                      type="button"
+                      onClick={() => toggleRevocation(context, isRevoked)}
+                      disabled={busy}
+                      className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-primary)] px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 disabled:opacity-40"
+                    >
+                      {busy ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : isRevoked ? (
+                        <Undo2 className="h-3 w-3" />
+                      ) : (
+                        <ShieldOff className="h-3 w-3" />
+                      )}
+                      {isRevoked
+                        ? t("engineering.permissions.historyRestoreAction")
+                        : t("engineering.permissions.historyRetireAction")}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {retireError && (
+            <p className="text-[10px] font-bold text-red-400">{retireError}</p>
+          )}
         </div>
       )}
 

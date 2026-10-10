@@ -36,8 +36,20 @@
   **retire** le résidu et **bloque sa ré-application** ; contrôle sans révocation.
 - Suite complète : **406 suites / 7576 tests**, 0 échec. Lint : 0 erreur.
 
+## Écran de retrait (UI)
+
+Le panneau de portée d'une personne (`PersonScopePanel`, écran **Personnes**)
+liste, pour chaque **contexte historique retenu** (programme / venture), l'action
+**Retirer** — ou **Rétablir** quand le contexte est déjà révoqué (badge « retiré »).
+Le clic passe par `useDialogs` (confirmation, ton `danger` à la révocation), appelle
+l'API puis rafraîchit la portée. Sans personne sélectionnée, le panneau reste en
+lecture seule. PeopleView transmet l'identifiant de la personne.
+
 ## Reste / suite
 
-- **Écran de retrait** (UI) : câbler l'API dans le Permission Center.
-- La table est créée par **auto-guérison** à la première utilisation — **aucun
-  accès base** n'a été pris pendant ce lot ; à vérifier en préproduction.
+- **Rien de bloquant** pour D3. La table est créée par **auto-guérison** à la
+  première utilisation — **aucun accès base** n'a été pris pendant ce lot ; à
+  vérifier en préproduction.
+- Vérifier en préproduction que l'écran reflète bien l'état après révocation
+  (le compteur de portée `*_managed_history` reste, car il découle de la relation
+  terminée — c'est le **badge retiré** et le bouton Rétablir qui portent l'état).

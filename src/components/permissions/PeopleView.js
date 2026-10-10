@@ -526,6 +526,7 @@ export default function PeopleView({
                   key={`scope-${selected.cid}`}
                   policies={scope}
                   contexts={ctx.contexts || []}
+                  cid={selected.cid}
                   checkPolicy={runScopeCheck}
                   onRefresh={refreshScope}
                   refreshing={scopeBusy}

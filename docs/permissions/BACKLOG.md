@@ -52,7 +52,7 @@ Les décisions sont **arbitrées** (voir `phase-1-synthese.md`) ; ce qui suit es
 | D5 / D8 | Portée = **programme(s) assigné(s)** ; fin du « tout le portefeuille » par défaut | ⬜ Non | 5 → 7 |
 | D1 | Lecture historique **en consultation seule**, participants inclus, programme **et** venture | ⬜ Non | 7 |
 | D2 | Départ/désactivation → **perte des droits**, historique conserve sans accès | ✅ **Fait (Phase 7)** — porte du compte (Phase 4) **confirmée pour la lecture historique** : compte non `active` → refus, résidu compris ; test `phase7-d2-historical-account-gate.test.js` (`phase-7-d2-historical-account.md`) | — |
-| D3 | Trace **révocable** + **durée configurable** (défaut 6 mois), par le super admin | ✅ **Fait (Phase 7)** — **expiration** (durée configurable via `system_settings.historical_access_retention`) **et révocation persistée** (registre + API `historical-access` + réconciliateur qui la respecte ; `phase-7-d3-revocation.md`) ; **écran de retrait** : câblage UI restant | — |
+| D3 | Trace **révocable** + **durée configurable** (défaut 6 mois), par le super admin | ✅ **Fait (Phase 7)** — **expiration** (durée configurable via `system_settings.historical_access_retention`) **et révocation persistée** (registre + API `historical-access` + réconciliateur qui la respecte) + **écran de retrait** (`PersonScopePanel`) ; `phase-7-d3-revocation.md` | — |
 
 ### Points résiduels **acceptés tels quels** (aucune action bloquante)
 - **D6** — nom du profil : défaut retenu « Gestionnaire de cours ».
