@@ -21,7 +21,7 @@ export const PROTOTYPE_SECTIONS = ["people", "profiles", "rules", "journal"];
 export const PROTOTYPE_TABS = {
   people: ["people", "groups", "administrators", "context"],
   profiles: ["matrix", "contextRoles"],
-  rules: ["eligibility", "responsibilities", "scope"],
+  rules: ["eligibility", "responsibilities", "scope", "openActions"],
   journal: [],
 };
 

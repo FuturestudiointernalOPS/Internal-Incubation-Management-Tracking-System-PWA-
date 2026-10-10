@@ -53,7 +53,7 @@ const mePermissionsRoute = require("@/app/api/me/permissions/route");
 const {
   SELF_SCOPED_ROUTES,
   SELF_SCOPED_PREFIXES,
-} = require("./helpers/selfScopedDeclaration");
+} = require("@/services/authorization/actionDeclarations");
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const SESSION = { cid: "SELF-CID", token: "tok", role: "member", email: "me@x.test" };

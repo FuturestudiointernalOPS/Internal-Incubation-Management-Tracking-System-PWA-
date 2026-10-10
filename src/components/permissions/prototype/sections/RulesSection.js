@@ -19,6 +19,7 @@ import { useI18n } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { SCOPE_POLICIES } from "@/models/authorization/scope-catalog";
 import ImpactPreviewDrawer from "../drawers/ImpactPreviewDrawer";
+import OpenActionsTab from "./OpenActionsTab";
 import { nextEligibilityState } from "../personAccess";
 import {
   Cell,
@@ -34,6 +35,7 @@ import {
 export default function RulesSection({ data, tab, refresh }) {
   if (tab === "responsibilities") return <ResponsibilitiesTab data={data} />;
   if (tab === "scope") return <ScopeTab />;
+  if (tab === "openActions") return <OpenActionsTab />;
   return <EligibilityTab data={data} refresh={refresh} />;
 }
 

@@ -17,7 +17,8 @@ const {
   OPEN_ASSUMED_ROUTES,
   DECISION_MECHANISMS,
   SECRET_MECHANISMS,
-} = require("./helpers/openAssumedDeclaration");
+  OPEN_ASSUMED_KINDS,
+} = require("@/services/authorization/actionDeclarations");
 
 const ROOT = path.join(__dirname, "..", "..");
 const API_ROOT = path.join(ROOT, "src", "app", "api");
@@ -79,7 +80,7 @@ describe("OUVERTE_ASSUMEE — déclarations (Phase 6, tâche 2)", () => {
   });
 
   test("chaque déclaration porte un type connu et une justification écrite", () => {
-    const kinds = new Set(["public-intake", "auth-flow", "token", "cron", "webhook", "probe"]);
+    const kinds = new Set(OPEN_ASSUMED_KINDS);
     for (const entry of OPEN_ASSUMED_ROUTES) {
       expect(kinds.has(entry.kind)).toBe(true);
       expect(typeof entry.reason).toBe("string");
