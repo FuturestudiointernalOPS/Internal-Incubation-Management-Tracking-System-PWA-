@@ -364,6 +364,16 @@ n'est écrit **dans la même transaction** que la relation métier ; deux d'entr
 eux (participant, learner) n'ont même pas d'appel *inline* et ne sont résolus
 que par le reconcile « à la connexion » / le balayage planifié.
 
+> **CORRECTIF PARTIEL (Phase 8, tâche 2 — 2026-10-10).** Les deux déclencheurs
+> **PARTICIPANT** et **LEARNER** ont désormais un appel **inline** best-effort :
+> `assignParticipantToProgramsService` / `removeParticipantFromProgramService`
+> (`services/programs/participantPrograms.js`) et `enrollLearner`
+> (`services/lms/learning/enrollments.js`) réconcilient le couple
+> (`program`,`participant`) / (`lms`,`learner`) juste après l'écriture métier.
+> Le patron reste **best-effort** (un échec est journalisé, jamais propagé) et
+> **sans transaction englobante** — la transaction « même que la relation
+> métier » reste ouverte. Tests : `phase8-automatic-triggers.test.js`.
+
 ### La liste d'activation (source unique)
 
 `src/services/authorization/contextGrantPlan.js:27-44`
@@ -484,6 +494,10 @@ Aucun `BEGIN`/`COMMIT` ni transaction englobante : le reconcile est appelé
 profil correspondant qu'au prochain reconcile de la personne (connexion, à TTL
 5 min, voir `src/services/authorization/contextGrantOnConnect.js:27-37`) ou au
 prochain balayage — jamais dans la transaction d'inscription.
+
+> **PARTIELLEMENT CORRIGÉ** : PARTICIPANT et LEARNER ne dépendent plus du seul
+> reconcile de connexion/balayage — ils sont déclenchés **inline** (voir
+> l'encadré en tête de section). La **transaction** unique reste à faire.
 
 ---
 

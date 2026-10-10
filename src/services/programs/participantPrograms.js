@@ -21,6 +21,34 @@ import {
   insertWithdrawalTimeline,
 } from "@/models/participantPortal";
 
+/**
+ * Phase 8 — the PARTICIPANT trigger, made INLINE (spec §8.2).
+ *
+ * Being added to a program, or removed from it, is the business relation that
+ * justifies the `participant` profile in the program context. Until now that
+ * trigger had no inline call at all: the card was only resolved at the person's
+ * next connect (5-minute TTL) or the scheduled sweep, so a fresh acceptance did
+ * not take effect immediately.
+ *
+ * Best-effort by contract, exactly like the facilitator / program-manager
+ * triggers: a reconcile failure is logged and NEVER fails the acceptance (the
+ * relationship is already recorded; the sweep is the safety net).
+ */
+async function reconcileParticipantContextGrants(cid) {
+  if (!cid) return;
+  try {
+    const { syncContextGrantsForUser } = await import(
+      "@/services/authorization/contextGrants"
+    );
+    await syncContextGrantsForUser(cid, { context: "program", roleKey: "participant" });
+  } catch (error) {
+    console.error(
+      `[participant-programs] participant access reconcile failed for ${cid}:`,
+      error.message,
+    );
+  }
+}
+
 export async function getParticipantProgramsService({ participantId, programId }) {
   const authError = await requireAuth();
   if (authError) return { isAuthError: true, response: authError };
@@ -100,6 +128,11 @@ export async function assignParticipantToProgramsService({ participant_id, progr
     }
   }
 
+  // The participant card follows the membership — inline, once per person.
+  if (results.length > 0) {
+    await reconcileParticipantContextGrants(participant_id);
+  }
+
   return { success: true, assigned: results, errors };
 }
 
@@ -123,6 +156,9 @@ export async function removeParticipantFromProgramService({ participant_id, prog
   try {
     await insertWithdrawalTimeline(participant_id, program_id);
   } catch (_) {}
+
+  // Removing the last membership closes the participant card (inline).
+  await reconcileParticipantContextGrants(participant_id);
 
   return { success: true, rowsAffected: result.rowsAffected };
 }
