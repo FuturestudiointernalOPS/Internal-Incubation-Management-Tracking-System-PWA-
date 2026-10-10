@@ -5,8 +5,8 @@ import { getWeekNumber } from "./dates";
 
 export default function SummaryWeekCard({
   lang,
-  summaryBlockers,
-  summaryTasks,
+  summaryBlockers = [],
+  summaryTasks = [],
   weekInfo,
 }) {
   const { t } = useI18n();
@@ -16,15 +16,24 @@ export default function SummaryWeekCard({
     (task) => task.status === "completed",
   ).length;
   const carriedOver = summaryTasks.filter(
-    (task) => task.status === "carried_over",
+    (task) => task.status === "carried_over" || Boolean(task.carried_over_from_task_id),
   ).length;
-  const blockersCreated = summaryBlockers.length;
+
+  const blockedTasksWithoutBlockerRecord = summaryTasks.filter(
+    (task) =>
+      task.status === "blocked" &&
+      !summaryBlockers.some(
+        (blocker) => blocker.task_id === task.id && blocker.status === "active",
+      ),
+  ).length;
+
+  const blockersCreated = summaryBlockers.length + blockedTasksWithoutBlockerRecord;
   const blockersResolved = summaryBlockers.filter(
     (blocker) => blocker.status === "resolved",
   ).length;
-  const activeBlockers = summaryBlockers.filter(
-    (blocker) => blocker.status === "active",
-  ).length;
+  const activeBlockers =
+    summaryBlockers.filter((blocker) => blocker.status === "active").length +
+    blockedTasksWithoutBlockerRecord;
   const projectsCount = new Set(
     summaryTasks
       .filter((task) => task.project_id)
