@@ -10,7 +10,10 @@
  *
  * The statements are byte-faithful to the two verdicts:
  *   - engine side   : src/models/authorization/scopeReads.js
- *                     (getProgramAssignedScopeIds, getVentureOwnScopeIds)
+ *                     (getProgramStaffedScopeIds, getVentureOwnScopeIds)
+ *                     — the policies the ROUTES enforce (program_staffed,
+ *                     venture_own), NOT program_assigned (see scopedAccess.js
+ *                     SHADOW_SCOPE_POLICY and phase5-shadow-collection.md §4).
  *   - ad-hoc side   : src/models/authorization/contextAssignmentReads.js
  *                     (getProgramStaffAssignmentRows, getContactRoleAssignmentRows,
  *                      getVentureMembershipRows)
@@ -102,13 +105,15 @@ async function main() {
 
   for (const { cid, email } of people) {
     // ---- PROGRAM ----
+    // Engine side = the policy the ROUTES enforce (`program_staffed`), NOT
+    // `program_assigned` (which adds learner enrollment — see scope-catalog.js).
     const engineProgram = toSet(
       await q(
         `SELECT DISTINCT CAST(program_id AS TEXT) AS id FROM v2_program_staff
            WHERE staff_id = $1 OR LOWER(TRIM(staff_id)) = LOWER($2)
          UNION
-         SELECT DISTINCT CAST(program_id AS TEXT) AS id FROM participant_programs
-           WHERE participant_id = $1`,
+         SELECT DISTINCT CAST(id AS TEXT) AS id FROM v2_programs
+           WHERE CAST(assigned_pm_id AS TEXT) = $1`,
         [cid, email],
       ),
       "id",
@@ -125,12 +130,12 @@ async function main() {
       "id",
     );
     for (const id of diff(adhocProgram, engineProgram)) {
-      findings.push({ key: "program:program_assigned", cid, contextId: id, legacyAllowed: true, engineAllowed: false });
-      bump("program:program_assigned", "legacyAllowEngineDeny");
+      findings.push({ key: "program:program_staffed", cid, contextId: id, legacyAllowed: true, engineAllowed: false });
+      bump("program:program_staffed", "legacyAllowEngineDeny");
     }
     for (const id of diff(engineProgram, adhocProgram)) {
-      findings.push({ key: "program:program_assigned", cid, contextId: id, legacyAllowed: false, engineAllowed: true });
-      bump("program:program_assigned", "legacyDenyEngineAllow");
+      findings.push({ key: "program:program_staffed", cid, contextId: id, legacyAllowed: false, engineAllowed: true });
+      bump("program:program_staffed", "legacyDenyEngineAllow");
     }
 
     // ---- VENTURE ----

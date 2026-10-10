@@ -37,7 +37,7 @@ jest.mock("@/services/authorization/shadow", () => ({
   shadowCheck: (...args) => mockShadowCheck(...args),
 }));
 
-const { decide } = require("@/services/authorization/scopedAccess");
+const { decide, SHADOW_SCOPE_POLICY } = require("@/services/authorization/scopedAccess");
 
 const params = {
   module: "programs",
@@ -74,7 +74,7 @@ describe("c3a — mode ombre sur la portée", () => {
     expect(mockShadowCheck).toHaveBeenCalledWith({
       legacyAllowed: true,
       engineAllowed: false,
-      meta: { resource: "program", contextId: "P1", cid: "U1", policy: "program_assigned" },
+      meta: { resource: "program", contextId: "P1", cid: "U1", policy: "program_staffed" },
     });
   });
 
@@ -87,7 +87,7 @@ describe("c3a — mode ombre sur la portée", () => {
     expect(mockShadowCheck).toHaveBeenCalledWith({
       legacyAllowed: false,
       engineAllowed: false,
-      meta: { resource: "program", contextId: "P1", cid: "U1", policy: "program_assigned" },
+      meta: { resource: "program", contextId: "P1", cid: "U1", policy: "program_staffed" },
     });
   });
 
@@ -98,5 +98,14 @@ describe("c3a — mode ombre sur la portée", () => {
     const d = await decide(params);
     expect(d.allowed).toBe(true);
     expect(mockShadowCheck).not.toHaveBeenCalled();
+  });
+});
+
+describe("alignement du mode ombre sur la policy DES GARDES", () => {
+  test("program → program_staffed, venture → venture_own", () => {
+    // Le mode ombre doit comparer la policy que les routes exécutent, sinon il
+    // oppose deux grandeurs différentes (voir phase5-shadow-collection.md §4).
+    expect(SHADOW_SCOPE_POLICY.program).toBe("program_staffed");
+    expect(SHADOW_SCOPE_POLICY.venture).toBe("venture_own");
   });
 });
