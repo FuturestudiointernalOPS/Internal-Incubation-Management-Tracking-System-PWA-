@@ -10,9 +10,9 @@ import { operationTotals, recentWeeks, regularity, weekRecord } from "@/componen
  * Everything is derived from the report history the page already reads
  * (`/api/op-reports?user_id=…`); nothing is fetched here.
  */
-export default function WeeklyOverview({ history, now, reportType, weekInfo, existingReport }) {
+export default function WeeklyOverview({ history, now, reportType, weekInfo, existingReport, tasks = [] }) {
   const { t } = useI18n();
-  const totals = operationTotals(history);
+  const totals = operationTotals(history, tasks);
   const standing = regularity(recentWeeks(now).map((week) => weekRecord(history, week)), now);
   const tone = { regular: "g", at_risk: "w", inactive: "r" }[standing];
   const submitted = existingReport?.status === "submitted";
