@@ -12,6 +12,10 @@
  * fait échouer le test. La liste est un cliquet — on l'ajoute sciemment, jamais
  * par réflexe.
  *
+ * Les familles NON uniformes (ex. `participant/*`, dont certaines routes portent
+ * une décision déléguée) sont déclarées **route par route**, jamais par préfixe :
+ * chaque entrée doit être justifiée individuellement.
+ *
  * `scope` documente la contrainte vérifiée par les tests comportementaux :
  * la route doit résoudre sa cible depuis `session.cid`, jamais depuis le corps ou
  * la requête.
@@ -49,6 +53,30 @@ const SELF_SCOPED_ROUTES = [
     methods: ["GET"],
     scope: "session.cid",
     reason: "Relations (programmes/ventures) de l'appelant.",
+  },
+  {
+    file: "src/app/api/participant/rituals/checkin/route.js",
+    methods: ["GET", "POST"],
+    scope: "session.cid",
+    reason: "Check-ins hebdomadaires de l'appelant ; `recordCheckin` reçoit `cid: session.cid`.",
+  },
+  {
+    file: "src/app/api/participant/rituals/reflect/route.js",
+    methods: ["GET", "POST"],
+    scope: "session.cid",
+    reason: "Réflexions de l'appelant ; `recordReflection` reçoit `cid: session.cid`.",
+  },
+  {
+    file: "src/app/api/participant/rituals/retro/route.js",
+    methods: ["GET", "POST"],
+    scope: "session.cid",
+    reason: "Rétros de l'appelant ; `recordRetro` reçoit `cid: session.cid`.",
+  },
+  {
+    file: "src/app/api/participant/rituals/standup/route.js",
+    methods: ["GET", "POST"],
+    scope: "session.cid",
+    reason: "Standups de l'appelant ; `recordStandup` reçoit `cid: session.cid`.",
   },
 ];
 

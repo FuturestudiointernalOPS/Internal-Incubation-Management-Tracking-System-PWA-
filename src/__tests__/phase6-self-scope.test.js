@@ -125,6 +125,18 @@ describe("me/permissions — la matrice est celle de l'appelant", () => {
 });
 
 describe("déclaration — lock de forme et ratchet", () => {
+  const walkRoutes = (dir) => {
+    const out = [];
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) out.push(...walkRoutes(full));
+      else if (entry.name === "route.js") {
+        out.push(path.relative(ROOT, full).split(path.sep).join("/"));
+      }
+    }
+    return out;
+  };
+
   test("chaque route déclarée résout sa cible depuis session.cid", () => {
     for (const entry of SELF_SCOPED_ROUTES) {
       const src = fs.readFileSync(path.join(ROOT, entry.file), "utf8");
@@ -132,28 +144,21 @@ describe("déclaration — lock de forme et ratchet", () => {
     }
   });
 
-  test("aucune entrée périmée, et aucune route me/ ou profile/ non déclarée", () => {
+  test("aucune route des préfixes surveillés n'est non déclarée", () => {
     const declared = new Set(SELF_SCOPED_ROUTES.map((entry) => entry.file));
-
-    const walk = (dir) => {
-      const out = [];
-      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        const full = path.join(dir, entry.name);
-        if (entry.isDirectory()) out.push(...walk(full));
-        else if (entry.name === "route.js") out.push(path.relative(ROOT, full).split(path.sep).join("/"));
-      }
-      return out;
-    };
-
     const inScope = [];
     for (const prefix of SELF_SCOPED_PREFIXES) {
       const abs = path.join(ROOT, prefix);
-      if (fs.existsSync(abs)) inScope.push(...walk(abs));
+      if (fs.existsSync(abs)) inScope.push(...walkRoutes(abs));
     }
-
     const undeclared = inScope.filter((rel) => !declared.has(rel)).sort();
-    const stale = [...declared].filter((rel) => !inScope.includes(rel)).sort();
+    expect(undeclared).toEqual([]);
+  });
 
-    expect({ undeclared, stale }).toEqual({ undeclared: [], stale: [] });
+  test("aucune entrée de déclaration périmée (fichier absent)", () => {
+    const stale = SELF_SCOPED_ROUTES.map((entry) => entry.file)
+      .filter((rel) => !fs.existsSync(path.join(ROOT, rel)))
+      .sort();
+    expect(stale).toEqual([]);
   });
 });
