@@ -91,10 +91,14 @@ Issues de la première collecte ombre (`phase5-shadow-collection.md`) :
 
 ## 5. Tâches opérationnelles (à exécuter par un humain, hors agent)
 
-1. **Snapshot** de la base de production **avant** toute migration.
+> **Lecture seule faite** (staging, via `.env.local`) — voir
+> `inventaire-verifications-db.md` et `scripts/db-audit/permissions-state-check.sql`.
+> Les écritures ci-dessous restent à autoriser.
+
+1. **Snapshot** de la base concernée **avant** toute migration.
 2. **Migration des mots de passe** : `node scripts/hash-legacy-passwords.mjs --apply --backup=/secure/pw.tsv` — puis vérifier `0` ligne héritée, puis sécuriser/supprimer la sauvegarde.
 3. **`npm audit`** (lecture seule) pour statuer sur `DEP-1`.
-4. **Relevé des identités héritées** sur une copie hors production (`contacts.role`), pour confirmer le nettoyage d'identité.
+4. **Relevé des identités héritées** — ✅ **fait (lecture seule, staging)** : `applicant` ×3 reste à migrer (Phase 8) ; voir `inventaire-verifications-db.md`.
 
 ## 6. Éléments reportés à la Phase 4 (moteur central)
 
