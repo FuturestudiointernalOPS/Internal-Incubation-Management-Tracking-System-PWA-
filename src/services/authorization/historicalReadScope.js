@@ -70,3 +70,26 @@ export async function historicalContextIdsForFeature(cid, feature) {
   const ids = await resolveScopeIds(policy, cid);
   return Array.isArray(ids) ? ids.map(String) : [];
 }
+
+/**
+ * Read-only historical access to ONE venture (D1, spec §10.1–10.4): the person's
+ * only venture read is the residual AND this venture is one they formerly
+ * managed. READ ONLY — a caller must never use it to authorise a write.
+ *
+ * The scope resolves venture CODES (like the other venture policies), while the
+ * address may carry the internal UUID: the code is resolved once when the raw
+ * value does not match.
+ */
+export async function hasHistoricalVentureAccess(cid, ventureIdOrCode) {
+  if (!cid || !ventureIdOrCode) return false;
+  if (!(await readIsHistoricalOnly(cid, "ventures"))) return false;
+  const codes = await historicalContextIdsForFeature(cid, "ventures");
+  if (codes.includes(String(ventureIdOrCode))) return true;
+  try {
+    const { getVentureFacts } = await import("@/services/ventures/accessFacts");
+    const facts = await getVentureFacts(ventureIdOrCode);
+    return Boolean(facts?.code) && codes.includes(String(facts.code));
+  } catch {
+    return false;
+  }
+}

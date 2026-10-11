@@ -23,6 +23,29 @@
 | `src/services/authorization/historicalReadScope.js` (**nouveau**) | `readIsHistoricalOnly(cid, feature)` : vrai **ssi toutes** les lignes vivantes du droit de lecture viennent du résidu (`hist:`). Un droit réel (profil, groupe, individuel) → **faux** (accès normal). Échec de lecture, ligne absente ou date illisible → **faux** (neutre — ne borne jamais à tort). `historicalContextIdsForFeature` : les anciens contextes (portée historique). |
 | `src/app/api/programs/route.js` | Un **lecteur historique seul** est **borné** à ses anciens programmes ; `?id=` hors de son historique → **403**. Un rôle de gestion (`super_admin`/`program_manager`) garde le répertoire. |
 | `src/services/programs/programV2.js` | `getV2ProgramDirectory` accepte `programIds` (bornage). |
+| `src/services/authorization/historicalReadScope.js` (suite) | `hasHistoricalVentureAccess(cid, venture)` : accès **lecture seule** à **UNE** venture anciennement gérée (code ou UUID résolu). |
+| `src/app/api/ventures/[id]/documents/route.js` | un ancien gestionnaire lit les **documents** de son ancienne venture — **non privés** uniquement (`getVisibilityStatuses(..., historyOnly)`). |
+| `src/app/api/ventures/[id]/reports/route.js` | un ancien gestionnaire lit les **rapports** de son ancienne venture (le garde `isStaffActorForVenture` est réservé aux ACTIFS). |
+
+## D1 (b) — documents et rapports
+
+**Constat** : il n'existe **pas** de module « documents » ; les documents et
+rapports d'un programme/venture sont **subordonnés** à leurs modules
+(`programs` / `ventures` : `ventures/[id]/documents`, `ventures/[id]/reports`).
+Le module global `reports` (`op-reports`, `pm/export`, `retros`, `standups`,
+`run-export`) est **autre chose** : l'ajouter au résidu **élargirait** l'accès à
+un reporting global **non borné**. Il n'est donc **pas** inclus.
+
+**Conséquence** : le résidu n'a **aucun** module à ajouter ; les documents/rapports
+sont couverts par `programs.view`/`ventures.view` **+ la borne**. Pour les
+**ventures**, la lecture est **câblée** (lecture seule) : un ancien gestionnaire
+ouvre les documents et rapports de **ses** anciennes ventures, jamais les autres.
+**Aucune écriture** n'est ouverte (les handlers POST/PUT/DELETE gardent le garde
+d'origine).
+
+**Nuance retenue** (ajustable) : un lecteur historique ne voit que les documents
+**non privés** — l'alternative (tous les statuts) serait un élargissement non
+demandé.
 
 ## Effet / direction
 
@@ -41,9 +64,8 @@ change de rien. Le résidu reste **lecture seule** (`view`, niveau 1).
 
 ## Reste / suite
 
-- **Ventures** : le répertoire borne **déjà** par rôle (staff/pm = affectations ;
-  membres = adhésion) → **pas de sur-lecture** côté venture ; aligner la lecture
-  historique des ventures (voir leurs anciennes ventures) reste à faire.
-- **Contenu (option b)** : participants / documents / rapports — à confirmer par
-  le produit avant tout élargissement.
+- **Contenu** : participants — non traités (les participants d'un programme/venture
+  vivent sous leurs modules ; à confirmer s'il faut un accès dédié).
+- **Nuances produit** (ajustables) : visibilité des documents pour un lecteur
+  historique ; périmètre exact des rapports (productivité/tâches).
 - À **mesurer en préproduction** (aucun accès base pris dans ce lot).

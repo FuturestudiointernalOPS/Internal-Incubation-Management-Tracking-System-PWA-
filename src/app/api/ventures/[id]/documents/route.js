@@ -2,6 +2,8 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import { getSession } from "@/server/auth/session";
+import { hasHistoricalVentureAccess } from "@/services/authorization/historicalReadScope";
 import { notifyVentureFounders } from "@/services/ventures/activity";
 import { listDocuments, getDocument, uploadDocument, updateDocument, deleteDocument, createShareLink, revokeShare, getAccessLogs, getDocumentShares } from "@/services/ventures/documents";
 import {
@@ -31,7 +33,9 @@ async function resolveVentureCode(idOrCode) {
 }
 
 // Returns which approval_statuses a user is allowed to see
-async function getVisibilityStatuses(dbId, session) {
+async function getVisibilityStatuses(dbId, session, historyOnly = false) {
+  // D1 — an ex-manager's historical read is bounded: NON-private documents only.
+  if (historyOnly) return ["pending_review", "approved", "shared_with_investor"];
   // Super admins, staff, program managers see everything
   if (PRIVILEGED.includes(session.role)) return null;
   // Founders see everything
@@ -48,13 +52,23 @@ async function getVisibilityStatuses(dbId, session) {
 
 export async function GET(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ROLES); if (authError) return authError;
-    const { id } = await params; const { session } = await requireVentureAccess(id);
+    const { id } = await params;
+    let { session } = await requireVentureAccess(id);
+    // D1 — an ex-manager keeps a READ-ONLY consultation of the Venture they ran.
+    let historyOnly = false;
+    if (!session) {
+      const viewer = await getSession();
+      if (viewer && (await hasHistoricalVentureAccess(viewer.cid, id))) {
+        session = viewer;
+        historyOnly = true;
+      }
+    }
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const searchParams = new URL(req.url).searchParams;
     const type = searchParams.get("type") || "list";
-    const visibility = await getVisibilityStatuses(dbId, session);
+    const visibility = await getVisibilityStatuses(dbId, session, historyOnly);
     if (type === "list") {
       const documentList = await listDocuments(dbId, {
         category: searchParams.get("category"), isPitchDeck: searchParams.get("pitch_deck") === "true" ? true : searchParams.get("pitch_deck") === "false" ? false : undefined,

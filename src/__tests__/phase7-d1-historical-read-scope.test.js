@@ -29,9 +29,16 @@ jest.mock("@/server/authz/guards", () => ({
   assertNoParticipantFacilitatorConflict: jest.fn(),
 }));
 
+// The venture-history helper resolves a UUID to the code via this service; mock it
+// so the tests never reach a database.
+jest.mock("@/services/ventures/accessFacts", () => ({
+  getVentureFacts: jest.fn(async () => null),
+}));
+
 const {
   readIsHistoricalOnly,
   historicalContextIdsForFeature,
+  hasHistoricalVentureAccess,
 } = require("@/services/authorization/historicalReadScope");
 const { getV2ProgramDirectory } = require("@/services/programs/programV2");
 
@@ -89,6 +96,35 @@ describe("historicalContextIdsForFeature", () => {
   test("aucune portée historique → tableau vide", async () => {
     mockResolveScopeIds.mockResolvedValue(null);
     await expect(historicalContextIdsForFeature("C1", "programs")).resolves.toEqual([]);
+  });
+});
+
+describe("hasHistoricalVentureAccess — lecture seule d'une ancienne venture", () => {
+  const residualVenture = {
+    module: "ventures",
+    capability: "view",
+    access_level: 1,
+    granted_by: "hist:venture:venture_manager",
+    expires_at: null,
+  };
+
+  test("la venture anciennement gérée est accessible", async () => {
+    mockGetUserCapabilityRows.mockResolvedValue({ rows: [residualVenture] });
+    mockResolveScopeIds.mockResolvedValue(["VNT-1"]);
+    await expect(hasHistoricalVentureAccess("C1", "VNT-1")).resolves.toBe(true);
+  });
+
+  test("une AUTRE venture est refusée", async () => {
+    mockGetUserCapabilityRows.mockResolvedValue({ rows: [residualVenture] });
+    mockResolveScopeIds.mockResolvedValue(["VNT-1"]);
+    await expect(hasHistoricalVentureAccess("C1", "VNT-9")).resolves.toBe(false);
+  });
+
+  test("un droit RÉEL de venture → pas d'accès historique", async () => {
+    mockGetUserCapabilityRows.mockResolvedValue({
+      rows: [{ ...residualVenture, granted_by: "staff" }],
+    });
+    await expect(hasHistoricalVentureAccess("C1", "VNT-1")).resolves.toBe(false);
   });
 });
 

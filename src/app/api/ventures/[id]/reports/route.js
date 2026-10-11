@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { getSession } from "@/server/auth/session";
+import { hasHistoricalVentureAccess } from "@/services/authorization/historicalReadScope";
 import { getVentureAnalytics, getMilestonesReport, getTasksReport, getTeamProductivity, getExportData } from "@/services/ventures/analytics";
 
 /**
@@ -8,9 +10,19 @@ import { getVentureAnalytics, getMilestonesReport, getTasksReport, getTeamProduc
  */
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id);
+  let { session } = await requireVentureAccess(id);
+  // D1 — an ex-manager keeps a READ-ONLY consultation of the Venture they ran
+  // (documents and reports). It never authorises a write: only GET reaches here.
+  let historyOnly = false;
+  if (!session) {
+    const viewer = await getSession();
+    if (viewer && (await hasHistoricalVentureAccess(viewer.cid, id))) {
+      session = viewer;
+      historyOnly = true;
+    }
+  }
   if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-  if (!(await isStaffActorForVenture(id, session))) {
+  if (!historyOnly && !(await isStaffActorForVenture(id, session))) {
     return NextResponse.json({ success: false, error: "This operation requires staff access to the Venture." }, { status: 403 });
   }
   const searchParams = new URL(req.url).searchParams;
