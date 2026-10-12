@@ -35,6 +35,8 @@ jest.mock("@/models/authorization/bootstrap", () => {
 });
 jest.mock("@/services/authorization/accessProfiles", () => ({ getUserEffectiveProfile: mockElig.authMock().getUserEffectiveProfile }));
 jest.mock("@/models/authorization", () => mockElig.authorizationModelMock());
+jest.mock("@/models/authorization/profileCapabilitiesStore", () => mockElig.profileCapabilitiesStoreMock());
+jest.mock("@/models/authorization/profilesStore", () => mockElig.profilesStoreMock());
 
 const {
   requireAuthorization,
@@ -61,6 +63,9 @@ const FEATURE = FEATURE_KEYS[0];
 beforeEach(() => {
   resetState();
   jest.clearAllMocks();
+  // The eligible profiles come from the DB; the suite configures two so a
+  // `profile` change validates.
+  mockState.profiles = [{ key: "founder" }, { key: "participant" }, { key: "program_manager" }];
 });
 
 const jsonReq = (body) =>
@@ -160,7 +165,7 @@ describe("PUT — the write itself: 1 upserts, null deletes", () => {
         changes: [
           { feature_key: FEATURE, identity_type: "role", identity_value: "staff", eligible: 1 },
           { feature_key: FEATURE, identity_type: "role", identity_value: "member", eligible: 0 },
-          { feature_key: FEATURE, identity_type: "group", identity_value: "TEAM A", eligible: null },
+          { feature_key: FEATURE, identity_type: "profile", identity_value: "founder", eligible: null },
         ],
       }),
     );
@@ -192,10 +197,10 @@ describe("PUT — the audit trail says what the value became", () => {
     expect(mockState.auditEntries[0].details).toBe(`${FEATURE} role:staff unset → unset`);
   });
 
-  test("a group change is audited with its own identity_type", async () => {
-    await route.PUT(jsonReq({ changes: [{ feature_key: FEATURE, identity_type: "group", identity_value: "TEAM A", eligible: 0 }] }));
-    expect(mockState.auditEntries[0].targetName).toBe("group:TEAM A");
-    expect(mockState.auditEntries[0].details).toContain("group:TEAM A");
+  test("a profile change is audited with its own identity_type", async () => {
+    await route.PUT(jsonReq({ changes: [{ feature_key: FEATURE, identity_type: "profile", identity_value: "founder", eligible: 0 }] }));
+    expect(mockState.auditEntries[0].targetName).toBe("profile:founder");
+    expect(mockState.auditEntries[0].details).toContain("profile:founder");
   });
 });
 
@@ -215,7 +220,7 @@ describe("PUT — C2: a DOWNGRADE that templates still grant is reported, never 
         changes: [
           { feature_key: FEATURE, identity_type: "role", identity_value: "staff", eligible: 1 },
           downgrade("member"),
-          downgrade("TEAM A", "group"),
+          downgrade("founder", "profile"),
         ],
       }),
     );
@@ -308,7 +313,7 @@ describe("PUT — C2: a DOWNGRADE that templates still grant is reported, never 
     mockState.templateImpactsByRole = { staff: [{ id: 7, name: "Staff Default", module: "crm", capability: "view" }] };
 
     const res = await route.PUT(
-      jsonReq({ changes: [downgrade("staff"), downgrade("mentor", "role")] }),
+      jsonReq({ changes: [downgrade("staff"), downgrade("member")] }),
     );
     expect(res.status).toBe(409);
     const body = await res.json();
@@ -316,9 +321,9 @@ describe("PUT — C2: a DOWNGRADE that templates still grant is reported, never 
     expect(body.impacts[0].role).toBe("staff");
   });
 
-  test("a group downgrade is never probed (templates are role defaults)", async () => {
+  test("a profile downgrade is never probed (templates are role defaults)", async () => {
     mockState.templateImpactsByRole = { staff: [{ id: 7, name: "Staff Default", module: "crm", capability: "view" }] };
-    const res = await route.PUT(jsonReq({ changes: [downgrade("TEAM A", "group")] }));
+    const res = await route.PUT(jsonReq({ changes: [downgrade("founder", "profile")] }));
     expect(res.status).toBe(200);
     expect(mockState.findTemplatesGrantingFeature).toHaveLength(0);
   });
@@ -337,7 +342,7 @@ describe("PUT — C2: a DOWNGRADE that templates still grant is reported, never 
   mockState.fallbackTemplateImpacts = [];
     await route.PUT(
       jsonReq({
-        changes: [downgrade("staff"), downgrade("member"), downgrade("mentor", "role")],
+        changes: [downgrade("staff"), downgrade("member"), downgrade("super_admin")],
         confirm: false,
       }),
     );

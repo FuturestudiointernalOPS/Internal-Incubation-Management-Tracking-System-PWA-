@@ -29,6 +29,7 @@
  */
 
 import db from "@/lib/db";
+import { profileKeyForAccessProfileName } from "./profileTakeoverBackfill";
 
 let contextRoleProfilesSchemaPromise = null;
 
@@ -80,9 +81,16 @@ export const CONTEXT_ROLE_SEED = [
   {
     context: "lms",
     role_key: "learner",
-    profile_name: null,
+    profile_name: "Learner",
     notes:
-      "Learning access is enrollment-derived (lms_enrollments) today; a learner profile mapping is pending review.",
+      "Enrollment-derived: anyone with access to a course is a learner. Phase E maps it to the 'Learner' template (lms.view), scoped by learning_own.",
+  },
+  {
+    context: "venture",
+    role_key: "venture_manager",
+    profile_name: "Venture Manager",
+    notes:
+      "Phase E: the LEAD MANAGER of a venture (venture_staff_assignments.responsibility_code = 'lead_manager'). The 'Venture Manager' template carries ventures.view + ventures.edit, scoped by venture_own.",
   },
   {
     context: "investor",
@@ -106,9 +114,9 @@ export function isValidContextRoleKey(roleKey) {
  * Idempotent runtime self-healing for the registry table (same pattern as
  * ensureEligibilitySchema — no migration required, fail-soft on error).
  *
- * No FK to access_profiles on purpose: the table must be creatable even when
- * profiles are not seeded yet, and a dangling profile_id degrades to an
- * unmapped row on read. Writes validate profile existence in the controller.
+ * No FK to `profiles` on purpose: the table must be creatable even when profiles
+ * are not seeded yet, and a dangling profile_key degrades to an unmapped row on
+ * read. Writes validate profile existence in the controller.
  */
 export function ensureContextRoleProfilesSchema() {
   if (!contextRoleProfilesSchemaPromise) {
@@ -118,6 +126,7 @@ export function ensureContextRoleProfilesSchema() {
         context TEXT NOT NULL,
         role_key TEXT NOT NULL,
         profile_id INTEGER,
+        profile_key TEXT,
         is_active INTEGER NOT NULL DEFAULT 1,
         notes TEXT DEFAULT '',
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -148,20 +157,15 @@ export async function seedContextRoleProfiles() {
   try {
     await ensureContextRoleProfilesSchema();
     for (const row of CONTEXT_ROLE_SEED) {
-      let profileId = null;
-      if (row.profile_name) {
-        const profile = await db.execute({
-          sql: "SELECT id FROM access_profiles WHERE name = ?",
-          args: [row.profile_name],
-        });
-        profileId = profile.rows[0]?.id ?? null;
-      }
+      const profileKey = row.profile_name
+        ? profileKeyForAccessProfileName(row.profile_name)
+        : null;
       await db.execute({
         sql: `INSERT INTO context_role_profiles
-                (context, role_key, profile_id, is_active, notes)
+                (context, role_key, profile_key, is_active, notes)
               VALUES (?, ?, ?, 1, ?)
               ON CONFLICT (context, role_key) DO NOTHING`,
-        args: [row.context, row.role_key, profileId, row.notes || ""],
+        args: [row.context, row.role_key, profileKey, row.notes || ""],
       });
     }
     return { success: true };
@@ -192,17 +196,13 @@ export async function backfillContextRoleProfileMappings() {
   const updated = [];
   for (const row of CONTEXT_ROLE_SEED) {
     if (!row.profile_name) continue;
-    const profile = await db.execute({
-      sql: "SELECT id FROM access_profiles WHERE name = ?",
-      args: [row.profile_name],
-    });
-    const profileId = profile.rows?.[0]?.id ?? null;
-    if (!profileId) continue;
+    const profileKey = profileKeyForAccessProfileName(row.profile_name);
+    if (!profileKey) continue;
     const res = await db.execute({
       sql: `UPDATE context_role_profiles
-            SET profile_id = ?, updated_at = NOW()
-            WHERE context = ? AND role_key = ? AND profile_id IS NULL`,
-      args: [profileId, row.context, row.role_key],
+            SET profile_key = ?, updated_at = NOW()
+            WHERE context = ? AND role_key = ? AND profile_key IS NULL`,
+      args: [profileKey, row.context, row.role_key],
     });
     updated.push({
       context: row.context,
@@ -214,14 +214,25 @@ export async function backfillContextRoleProfileMappings() {
   return { success: true, updated };
 }
 
+/**
+ * How many registry rows map to a profile KEY — the delete guard's read, so a
+ * profile the context registry still points at is not removed underneath it.
+ */
+export function countContextRoleProfilesByKey(profileKey) {
+  return db.execute({
+    sql: "SELECT COUNT(*)::int AS n FROM context_role_profiles WHERE profile_key = ?",
+    args: [String(profileKey)],
+  });
+}
+
 /** Every registry row, with the mapped profile name (LEFT JOIN, never hidden). */
 export async function listContextRoleProfiles() {
   return db.execute({
-    sql: `SELECT crp.id, crp.context, crp.role_key, crp.profile_id,
+    sql: `SELECT crp.id, crp.context, crp.role_key, crp.profile_key,
                  crp.is_active, crp.notes, crp.updated_at,
-                 ap.name AS profile_name
+                 p.label AS profile_name
           FROM context_role_profiles crp
-          LEFT JOIN access_profiles ap ON ap.id = crp.profile_id
+          LEFT JOIN profiles p ON p.key = crp.profile_key
           ORDER BY crp.context, crp.role_key`,
   });
 }
@@ -229,11 +240,11 @@ export async function listContextRoleProfiles() {
 /** Single registry row — the resolution helper future phases will consume. */
 export async function getContextRoleProfile(context, roleKey) {
   return db.execute({
-    sql: `SELECT crp.id, crp.context, crp.role_key, crp.profile_id,
+    sql: `SELECT crp.id, crp.context, crp.role_key, crp.profile_key,
                  crp.is_active, crp.notes,
-                 ap.name AS profile_name
+                 p.label AS profile_name
           FROM context_role_profiles crp
-          LEFT JOIN access_profiles ap ON ap.id = crp.profile_id
+          LEFT JOIN profiles p ON p.key = crp.profile_key
           WHERE crp.context = ? AND crp.role_key = ?
           LIMIT 1`,
     args: [context, roleKey],
@@ -244,20 +255,20 @@ export async function getContextRoleProfile(context, roleKey) {
 export async function upsertContextRoleProfile({
   context,
   roleKey,
-  profileId,
+  profileKey,
   isActive,
   notes,
 }) {
   return db.execute({
     sql: `INSERT INTO context_role_profiles
-            (context, role_key, profile_id, is_active, notes)
+            (context, role_key, profile_key, is_active, notes)
           VALUES (?, ?, ?, ?, ?)
           ON CONFLICT (context, role_key) DO UPDATE SET
-            profile_id = EXCLUDED.profile_id,
+            profile_key = EXCLUDED.profile_key,
             is_active = EXCLUDED.is_active,
             notes = EXCLUDED.notes,
             updated_at = NOW()`,
-    args: [context, roleKey, profileId, isActive ? 1 : 0, notes || ""],
+    args: [context, roleKey, profileKey, isActive ? 1 : 0, notes || ""],
   });
 }
 
@@ -280,6 +291,7 @@ const CONTEXT_ROLE_HOLDER_QUERIES = {
         WHERE member_type = 'team_member' AND removed_at IS NULL`,
   "lms:learner": `COUNT(DISTINCT user_cid)::int FROM lms_enrollments WHERE status <> 'suspended'`,
   "investor:investor": `COUNT(*)::int FROM investor_profiles`,
+  "venture:venture_manager": `COUNT(DISTINCT staff_contact_id)::int FROM venture_staff_assignments WHERE responsibility_code = 'lead_manager' AND status = 'active'`,
 };
 
 /**

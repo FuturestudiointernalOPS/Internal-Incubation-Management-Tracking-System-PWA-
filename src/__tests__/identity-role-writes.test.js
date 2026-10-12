@@ -53,6 +53,10 @@ test("mutation-site inventory is frozen (every contacts.role write is known)", (
   const KNOWN_SITES = [
     "src/models/adminOps/userManagement.js", // approval → participant (contextual — I2 target)
     "src/models/authorization/engineeringAndAudit.js", // promote/demote super_admin/staff (TRUE identity op — keep)
+    // Phase H — aligns a LEGACY role value onto a baseline identity (guarded by
+    // the exact legacy value, deletes nothing). A TRUE identity op, not a
+    // contextual mutation: it removes context from the column, never adds it.
+    "src/models/authorization/legacyRoleCleanupStore.js",
     "src/models/investorRelations/provisioningAndProfile.js", // investor onboarding (contextual — I2 target)
     "src/models/platform/automation/automationCore.js", // platform approval role set (contextual — I2 target)
   ];

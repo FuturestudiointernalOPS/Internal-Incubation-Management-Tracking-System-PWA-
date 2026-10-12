@@ -49,6 +49,7 @@ import {
   getContactNameAndRole,
   getSentinelGrantedCapabilities,
 } from "@/models/authorization/contextGrantReadinessReads";
+import { listProfileAssignments } from "@/models/authorization/profileAssignmentsStore";
 
 /** Modules the PROGRAM feature owns — the only ones an impact list may contain. */
 const PROGRAM_MODULES = new Set(
@@ -116,6 +117,15 @@ export async function buildContextGrantReadiness({ limit = DEFAULT_LIMIT } = {})
     // Neither assignment row of any role → nothing to report for this person.
     if (assignments.length === 0) continue;
 
+    // Phase G — the profile-assignment cards for this person, so the report
+    // shows the PROFILE and the period that justifies the relationship. Read on
+    // its own so an un-migrated registry never fails the whole row.
+    let cards = [];
+    try {
+      const registry = await listProfileAssignments(cid);
+      cards = (registry.rows || []).filter((row) => row.context_type === "program");
+    } catch (_) {}
+
     // Their full effective matrix, resolved by the real resolver, so the impact
     // list reflects what they ACTUALLY hold (profile + group + grants − blocks).
     let effective = {};
@@ -181,6 +191,18 @@ export async function buildContextGrantReadiness({ limit = DEFAULT_LIMIT } = {})
         wouldLose: programEffective
           .filter((capabilityKey) => !desiredKeys.has(capabilityKey))
           .sort(),
+        // Phase G — profile + card: the registry entries for this role, with
+        // their period, source and state.
+        cards: cards
+          .filter((card) => card.profile_key === roleKey)
+          .map((card) => ({
+            profileKey: card.profile_key,
+            contextId: card.context_id,
+            source: card.source,
+            startedAt: card.started_at,
+            endsAt: card.ends_at,
+            status: card.status,
+          })),
         reason: Object.keys(desired).length ? "assigned" : "no-per-program-rights",
       });
     }

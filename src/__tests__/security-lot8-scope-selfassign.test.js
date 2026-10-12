@@ -114,15 +114,15 @@ jest.mock("@/lib/spreadsheet", () => ({ objectsToAoa: jest.fn(() => []) }));
 jest.mock("write-excel-file/node", () => jest.fn());
 
 jest.mock("@/models/authorization", () => ({
-  getContactForAssignment: jest.fn(async () => ({ rows: [{ cid: "USR_TARGET", role: "member", name: "Target" }] })),
-  getActiveAccessProfile: jest.fn(async () => ({ rows: [{ id: 5, name: "Profile" }] })),
+  getContactProfileOverrideTarget: jest.fn(async () => ({ rows: [{ cid: "USR_TARGET", role: "member", name: "Target" }] })),
+  getContactProfileOverrideState: jest.fn(async () => ({ rows: [] })),
+  getActiveProfileByKey: jest.fn(async () => ({ rows: [{ key: "founder", label: "Profile" }] })),
+  getProfileSummaryByKey: jest.fn(async () => ({ rows: [] })),
   getUserGroupNames: jest.fn(async () => ({ rows: [] })),
-  assignUserAccessProfile: jest.fn(async () => ({})),
-  clearUserAccessProfileOverride: jest.fn(async () => ({})),
-  getRoleDefaultProfileName: jest.fn(async () => ({ rows: [{ name: "Default" }] })),
-  getContactAssignmentState: jest.fn(async () => ({ rows: [] })),
-  getAccessProfileSummary: jest.fn(async () => ({ rows: [] })),
-  getRoleDefaultAccessProfile: jest.fn(async () => ({ rows: [] })),
+  assignUserProfileKey: jest.fn(async () => ({})),
+  clearUserProfileKeyOverride: jest.fn(async () => ({})),
+  getRoleDefaultProfileLabel: jest.fn(async () => ({ rows: [{ label: "Default" }] })),
+  getRoleDefaultProfileSummary: jest.fn(async () => ({ rows: [] })),
 }));
 
 jest.mock("@/models/responsibilities", () => ({
@@ -144,7 +144,7 @@ const { assignResponsibility } = require("@/services/authorization/accessProfile
 const reports = require("@/app/api/pm/reports/route");
 const exp = require("@/app/api/pm/export/route");
 const curriculum = require("@/app/api/pm/curriculum/route");
-const accessProfileAssign = require("@/app/api/access-profiles/assign/route");
+const profileOverride = require("@/app/api/engineering/permissions/profile-override/route");
 const responsibilityAssign = require("@/app/api/responsibilities/assign/route");
 
 const req = (url, method, body) =>
@@ -234,13 +234,13 @@ describe("pm/curriculum resolves the program from the RECORD, not the body", () 
 });
 
 describe("nobody changes their own capabilities", () => {
-  test("access-profiles/assign refuses a self-target", async () => {
-    const res = await accessProfileAssign.PUT(req("http://localhost/api/access-profiles/assign", "PUT", {
-      user_cid: "USR_ACTOR", profile_id: 5,
+  test("profile-override refuses a self-target", async () => {
+    const res = await profileOverride.PUT(req("http://localhost/api/engineering/permissions/profile-override", "PUT", {
+      user_cid: "USR_ACTOR", profile_key: "founder",
     }));
 
     expect(res.status).toBe(403);
-    expect(authorizationModel.assignUserAccessProfile).not.toHaveBeenCalled();
+    expect(authorizationModel.assignUserProfileKey).not.toHaveBeenCalled();
   });
 
   test("responsibilities/assign refuses a self-target", async () => {
@@ -261,13 +261,13 @@ describe("nobody changes their own capabilities", () => {
     expect(assignResponsibility).toHaveBeenCalledWith("USR_TARGET", 2, "USR_ACTOR");
   });
 
-  test("assigning an access profile to ANOTHER user still works", async () => {
-    const res = await accessProfileAssign.PUT(req("http://localhost/api/access-profiles/assign", "PUT", {
-      user_cid: "USR_TARGET", profile_id: null,
+  test("assigning a profile to ANOTHER user still works", async () => {
+    const res = await profileOverride.PUT(req("http://localhost/api/engineering/permissions/profile-override", "PUT", {
+      user_cid: "USR_TARGET", profile_key: null,
     }));
 
     expect(res.status).toBe(200);
-    expect(authorizationModel.clearUserAccessProfileOverride).toHaveBeenCalledWith("USR_TARGET");
+    expect(authorizationModel.clearUserProfileKeyOverride).toHaveBeenCalledWith("USR_TARGET");
   });
 });
 
@@ -285,8 +285,8 @@ describe("Super Admin is never scoped or self-blocked", () => {
   test("a Super Admin can still only act on OTHER users' capabilities", async () => {
     // Separation of duties is not role-scoped: even a Super Admin cannot
     // self-assign.
-    const res = await accessProfileAssign.PUT(req("http://localhost/api/access-profiles/assign", "PUT", {
-      user_cid: "USR_ACTOR", profile_id: 5,
+    const res = await profileOverride.PUT(req("http://localhost/api/engineering/permissions/profile-override", "PUT", {
+      user_cid: "USR_ACTOR", profile_key: "founder",
     }));
     expect(res.status).toBe(403);
   });

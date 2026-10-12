@@ -55,6 +55,14 @@ export default function PersonScopePanel({
     labelsByPolicy[ctx.scopePolicy][String(ctx.id)] = ctx.label || String(ctx.id);
   }
 
+  // A relationship that has ENDED still resolves a read-only scope for the
+  // person who held it (venture_managed_history / program_managed_history).
+  // Saying so here is what stops "no current profile" being misread as "no
+  // access at all" — the access is retained through the relationship's history.
+  const retainedPolicies = policies.filter(
+    (entry) => /_managed_history$/.test(entry.policy) && (entry.count ?? 0) > 0,
+  );
+
   const setProbe = (policy, patch) =>
     setProbes((prev) => ({ ...prev, [policy]: { ...prev[policy], ...patch } }));
 
@@ -276,6 +284,17 @@ export default function PersonScopePanel({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {retainedPolicies.length > 0 && (
+        <div className="rounded-lg border border-[var(--border-primary)] bg-secondary/30 p-2.5">
+          <p className="text-xs font-semibold text-[var(--text-primary)]">
+            {t("engineering.permissions.accessScopeHistoryTitle")}
+          </p>
+          <p className="text-xs text-[var(--text-secondary)]">
+            {t("engineering.permissions.accessScopeHistoryNote")}
+          </p>
         </div>
       )}
 

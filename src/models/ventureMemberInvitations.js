@@ -131,7 +131,7 @@ function defaultRoleFor(memberType, role) {
  * What they are inside the Venture is the MEMBERSHIP (member_type), never the
  * stored identity — a founder is a member who holds the founder context of the
  * Venture they were invited into. The stored role is therefore never rewritten
- * here; `getContextEligibilityRoles` is what lets that context open doors.
+ * here; that founding context is what opens those doors.
  */
 async function ensureVentureLead(ventureId, contactCid) {
   if (!ventureId || !contactCid) return { promoted: false };

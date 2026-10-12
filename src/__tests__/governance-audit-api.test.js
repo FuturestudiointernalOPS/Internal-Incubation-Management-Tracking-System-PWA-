@@ -34,7 +34,6 @@ jest.mock("@/models/authorization/index", () => ({
 
 const { requireAuthorization } = require("@/models/authorization/index");
 const auditRoute = require("@/app/api/engineering/permissions/audit/route");
-const profilesRoute = require("@/app/api/access-profiles/route");
 
 const getReq = (params = "") =>
   new Request(`http://localhost/api/engineering/permissions/audit?${params}`);
@@ -98,35 +97,5 @@ describe("GET /api/engineering/permissions/audit — viewer API", () => {
     expect(auditRoute.POST).toBeUndefined();
     expect(auditRoute.DELETE).toBeUndefined();
     expect(auditRoute.PATCH).toBeUndefined();
-  });
-});
-
-describe("Protected profile safeguards (role-default profiles)", () => {
-  test("disabling a role-default profile → 400 with an explicit message", async () => {
-    const res = await profilesRoute.PUT(
-      new Request("http://localhost/api/access-profiles", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: 2, is_active: 0 }),
-      }),
-    );
-    expect(res.status).toBe(400);
-    const data = await res.json();
-    expect(data.success).toBe(false);
-    expect(String(data.error)).toMatch(/staff/i);
-    expect(mockExecutedQueries.some((statement) => statement.includes("UPDATE access_profiles SET is_active"))).toBe(false);
-  });
-
-  test("deleting a role-default profile → rejected (change the role default first)", async () => {
-    const res = await profilesRoute.DELETE(
-      new Request("http://localhost/api/access-profiles?id=2", { method: "DELETE" }),
-    );
-    const data = await res.json();
-    expect(data.success).toBe(false);
-    // Structured refusal: a machine key for the UI, the roles, and the sentence.
-    expect(data.error).toBe("profile_in_use_role_default");
-    expect(data.roles).toEqual(["staff"]);
-    expect(String(data.message)).toMatch(/default for role/i);
-    expect(mockExecutedQueries.some((statement) => statement.includes("DELETE FROM access_profiles"))).toBe(false);
   });
 });

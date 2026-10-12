@@ -67,7 +67,6 @@ const AUTHORIZATION_EXPORTS = [
   "seedDefaultRoleCapabilities",
   "getUserEffectiveProfile",
   "getAccessProfileCapabilities",
-  "seedDefaultAccessProfiles",
   "ensureResponsibilitiesSchema",
   "ensurePermissionsSchema",
   "getUserResponsibilities",

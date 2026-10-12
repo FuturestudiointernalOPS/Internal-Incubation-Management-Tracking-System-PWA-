@@ -73,6 +73,10 @@ export function buildPermissionExplanation(ctx) {
         groups: ctx.groupCaps || {},
         grants: ctx.grants || {},
       },
+      // Phase G — the contextual identity the rest of the answer is written
+      // against. Super Admin bypasses eligibility and holds no profile.
+      contextualProfiles: [],
+      accessProfile: ctx.profile || null,
     };
   }
 
@@ -98,5 +102,11 @@ export function buildPermissionExplanation(ctx) {
       groups: ctx.groupCaps || {},
       grants: ctx.grants || {},
     },
+    // Phase G — the active contextual profiles this person holds (they feed the
+    // eligibility rows above) and the access template they resolve to, so the
+    // explanation can answer "which contextual function put them here" beside
+    // the raw capability sources.
+    contextualProfiles: ctx.profiles || [],
+    accessProfile: ctx.profile || null,
   };
 }

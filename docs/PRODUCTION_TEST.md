@@ -102,8 +102,9 @@ No script exists. Export these tables **before the first request of the new buil
 SELECT * FROM feature_eligibility;
 SELECT * FROM responsibilities;
 SELECT * FROM user_responsibilities;
-SELECT * FROM access_profile_capabilities;
-SELECT * FROM role_access_profile_defaults;
+SELECT * FROM profiles;
+SELECT * FROM profile_capabilities;
+SELECT * FROM role_profile_defaults;
 SELECT * FROM role_capabilities;
 SELECT * FROM venture_staff_assignments;
 ```
@@ -112,7 +113,8 @@ SELECT * FROM venture_staff_assignments;
 
 ```sql
 SELECT name FROM authz_migrations WHERE name = 'feature-key-alignment-v1';
-SELECT name FROM authz_migrations WHERE name = 'retire-developer-admin-roles-v1';
+SELECT name FROM authz_migrations WHERE name = 'profile-catalogue-seed-v1';
+SELECT name FROM authz_migrations WHERE name = 'drop-access-profiles-v1';
 ```
 
 The first request after deploy renames feature keys (`program_management→programs`,
@@ -122,22 +124,26 @@ The first request after deploy renames feature keys (`program_management→progr
 and merges responsibilities. **Until it completes, every non-Super-Admin is denied
 on ~10 of 12 features.**
 
-The same burst removes the retired `developer` / `admin` roles: the
-`Developer` / `Developer Intern` templates, their role→profile defaults, the
-legacy `role_capabilities` fallback rows, the role eligibility rows and the
-retired `engineering.manage_developers` capability (in every capability table).
-Run `migrations/check_retired_developer_admin_roles.sql` (read-only) to confirm
-zero rows remain; its Q7 is this migration's marker.
+The profile catalogue is seeded directly (`profile-catalogue-seed-v1`), and the
+retired access-profile tables are dropped (`drop-access-profiles-v1`) — the last
+step of the profiles takeover. Confirm both markers are present, then confirm the
+three tables are gone:
 
-### 4.3 Seed the access profiles (as Super Admin, signed in)
-
-```
-GET /api/engineering/permissions/seed-access-profiles
+```sql
+SELECT to_regclass('public.access_profiles'),
+       to_regclass('public.access_profile_capabilities'),
+       to_regclass('public.role_access_profile_defaults');
 ```
 
-Creates the `Founder` and `Venture Member` profiles, grants `ventures.view` /
-`ventures.edit` to Staff Default + Program Manager, and re-adds the Staff Default
-capabilities. **Uses `DO UPDATE` — it overwrites admin edits. Snapshot (§4.1) first.**
+Expect three NULLs. The retired-role cleanup (`retire-developer-admin-roles-v1`)
+and the data takeover (`profiles-takeover-v1`) are retired: they have run on every
+existing database and are no longer part of the boot batch.
+
+### 4.3 Profile catalogue
+
+No action. The profiles and their capabilities, and the role → profile defaults,
+are seeded automatically by `profile-catalogue-seed-v1` (insert-only — an
+existing database keeps every administrator edit).
 
 ### 4.4 Apply the context grants
 
@@ -145,8 +151,9 @@ capabilities. **Uses `DO UPDATE` — it overwrites admin edits. Snapshot (§4.1)
 GET /api/engineering/permissions/sync-context-grants
 ```
 
-Additive, stamped `ctx:…` grants for founders and team members. Requires §4.3 first
-(unmapped while the profile id is NULL).
+Additive, stamped `ctx:…` grants for founders and team members. The registry maps
+each couple to a profile key; run this after the boot batch so the catalogue and
+registry are seeded.
 
 ### 4.5 Bulk import (only if D-question says so)
 

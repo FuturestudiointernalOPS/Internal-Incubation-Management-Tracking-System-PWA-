@@ -3,11 +3,11 @@
  *
  * RESILIENCE: the optional profile-override column.
  *
- * `v2_program_staff.access_profile_id` arrives with migration 041 and is one
- * REFINEMENT of the tick list (JSON overrides, then the assignment's profile,
- * then the program default). Before the column exists, a query that NAMES it
- * fails as a whole — which took the whole assignment derivation down, and with
- * it every gated request waiting on the migration batch.
+ * `v2_program_staff.profile_key` (a profile KEY, since the profiles takeover) is
+ * one REFINEMENT of the tick list (JSON overrides, then the assignment's
+ * profile, then the program default). Before the column exists, a query that
+ * NAMES it fails as a whole — which took the whole assignment derivation down,
+ * and with it every gated request waiting on the migration batch.
  *
  * The read is therefore tolerant: try with the column, and if the column is
  * missing, retry once without it and remember that for the process. These
@@ -42,7 +42,7 @@ beforeEach(() => resetState());
 /**
  * RESILIENCE: the optional profile-override column.
  *
- * `v2_program_staff.access_profile_id` arrives with migration 041 and is only a
+ * `v2_program_staff.profile_key` is only a
  * REFINEMENT of the tick list (JSON overrides, then the assignment's profile,
  * then the program default). Before the column exists, a query that NAMES it
  * fails as a whole — which took the whole assignment derivation down, and with it
@@ -54,7 +54,7 @@ beforeEach(() => resetState());
  * on every call.
  */
 describe("a database without the profile-override column still works", () => {
-  const MISSING = 'column "access_profile_id" does not exist';
+  const MISSING = 'column "profile_key" does not exist';
 
   beforeEach(() => {
     resetAssignmentProfileColumnCache();
@@ -62,7 +62,7 @@ describe("a database without the profile-override column still works", () => {
 
   test("the lookup error is recognised (and only for the right shape)", () => {
     expect(isMissingColumnError(new Error(MISSING))).toBe(true);
-    expect(isMissingColumnError(new Error("no such column: access_profile_id"))).toBe(true);
+    expect(isMissingColumnError(new Error("no such column: profile_key"))).toBe(true);
     // Unrelated failures must keep propagating.
     expect(isMissingColumnError(new Error("connection terminated"))).toBe(false);
     expect(isMissingColumnError(new Error('column "other_col" does not exist'))).toBe(false);
@@ -72,10 +72,10 @@ describe("a database without the profile-override column still works", () => {
     const db = require("@/lib/db").default;
     let namingCalls = 0;
     db.execute.mockImplementation(async ({ sql }) => {
-      // The real failure is NAMING the column (`ps.access_profile_id`). The
-      // fallback's `NULL AS access_profile_id` is only an alias and is fine, so
+      // The real failure is NAMING the column (`ps.profile_key`). The
+      // fallback's `NULL AS profile_key` is only an alias and is fine, so
       // the mock must distinguish the two the way Postgres does.
-      if (String(sql).includes("ps.access_profile_id")) {
+      if (String(sql).includes("ps.profile_key")) {
         namingCalls += 1;
         throw new Error(MISSING);
       }
@@ -86,7 +86,7 @@ describe("a database without the profile-override column still works", () => {
               program_id: OPEN_END_ID,
               role_key: "facilitator",
               permissions: JSON.stringify({ "attendance.record": 2 }),
-              access_profile_id: null,
+              profile_key: null,
               end_date: OPEN_END,
               status: "Active",
               is_archived: 0,
@@ -101,7 +101,7 @@ describe("a database without the profile-override column still works", () => {
 
     // The assignment survives; only the profile override is unavailable.
     expect(rows).toHaveLength(1);
-    expect(rows[0].access_profile_id).toBeNull();
+    expect(rows[0].profile_key).toBeNull();
     const { desired } = deriveFacilitatorDesiredCaps(rows, {});
     expect(desired["facilitator.attendance.record"].level).toBe(2);
     // Asked once, learned, never asked again in this process.

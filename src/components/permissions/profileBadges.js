@@ -14,7 +14,7 @@ export function deriveProfileBadges(profile, isDefaultFor = []) {
   if (profile && (Number(profile.is_active) === 0 || profile.is_active === false)) {
     badges.push("inactive");
   }
-  if (/super\s*admin/i.test(String(profile?.name || ""))) {
+  if (/super\s*admin/i.test(String(profile?.name || profile?.label || ""))) {
     badges.push("superAdmin");
   }
   return badges;

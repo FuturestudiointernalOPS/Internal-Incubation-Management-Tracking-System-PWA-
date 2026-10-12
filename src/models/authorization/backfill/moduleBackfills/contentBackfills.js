@@ -1,5 +1,6 @@
 import db from "@/lib/db";
 import { ensurePermissionsSchema } from "@/models/authorization/bootstrap";
+import { profileKeyForAccessProfileName } from "@/models/authorization/profileTakeoverBackfill";
 
 /**
  * Authorization backfills — content and communications modules (knowledge,
@@ -21,23 +22,16 @@ const KNOWLEDGE_CAPS = { view: 1, create: 2, edit: 3, delete: 4 };
 async function ensureKnowledgeBackfill() {
   await ensurePermissionsSchema();
 
-  // 1. "Staff Default" access profile (the profile staff resolve to by role
-  //    default). Insert knowledge capabilities if they don't exist yet.
-  const profile =
-    (
-      await db.execute({
-        sql: "SELECT id FROM access_profiles WHERE name = 'Staff Default' AND is_active = 1",
-        args: [],
-      })
-    ).rows[0] || null;
-
-  if (profile) {
+  // 1. The "Staff Default" PROFILE (staff_default) — the profile staff resolve
+  //    to by role default. Insert knowledge capabilities if they don't exist yet.
+  const staffKey = profileKeyForAccessProfileName("Staff Default");
+  if (staffKey) {
     for (const [capability, level] of Object.entries(KNOWLEDGE_CAPS)) {
       await db.execute({
-        sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
+        sql: `INSERT INTO profile_capabilities (profile_key, module, capability, access_level)
               VALUES (?, 'knowledge', ?, ?)
-              ON CONFLICT (profile_id, module, capability) DO NOTHING`,
-        args: [profile.id, capability, level],
+              ON CONFLICT (profile_key, module, capability) DO NOTHING`,
+        args: [staffKey, capability, level],
       });
     }
   }
@@ -85,20 +79,14 @@ async function ensureReportsBackfill() {
 
   // 1. Access profile capabilities (the base for profile-bearing users).
   for (const [profileName, rows] of Object.entries(REPORTS_CAP_BACKFILL.profiles)) {
-    const profile =
-      (
-        await db.execute({
-          sql: "SELECT id FROM access_profiles WHERE name = ? AND is_active = 1",
-          args: [profileName],
-        })
-      ).rows[0] || null;
-    if (!profile) continue;
+    const key = profileKeyForAccessProfileName(profileName);
+    if (!key) continue;
     for (const [module, capability, level] of rows) {
       await db.execute({
-        sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
+        sql: `INSERT INTO profile_capabilities (profile_key, module, capability, access_level)
               VALUES (?, ?, ?, ?)
-              ON CONFLICT (profile_id, module, capability) DO NOTHING`,
-        args: [profile.id, module, capability, level],
+              ON CONFLICT (profile_key, module, capability) DO NOTHING`,
+        args: [key, module, capability, level],
       });
     }
   }
@@ -174,20 +162,14 @@ async function ensureAnnouncementsBackfill() {
   await ensurePermissionsSchema();
 
   for (const [profileName, rows] of Object.entries(ANNOUNCEMENTS_BACKFILL.profiles)) {
-    const profile =
-      (
-        await db.execute({
-          sql: "SELECT id FROM access_profiles WHERE name = ? AND is_active = 1",
-          args: [profileName],
-        })
-      ).rows[0] || null;
-    if (!profile) continue;
+    const key = profileKeyForAccessProfileName(profileName);
+    if (!key) continue;
     for (const [module, capability, level] of rows) {
       await db.execute({
-        sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
+        sql: `INSERT INTO profile_capabilities (profile_key, module, capability, access_level)
               VALUES (?, ?, ?, ?)
-              ON CONFLICT (profile_id, module, capability) DO NOTHING`,
-        args: [profile.id, module, capability, level],
+              ON CONFLICT (profile_key, module, capability) DO NOTHING`,
+        args: [key, module, capability, level],
       });
     }
   }
@@ -224,20 +206,14 @@ async function ensureFormsBackfill() {
   await ensurePermissionsSchema();
 
   for (const [profileName, rows] of Object.entries(FORMS_BACKFILL.profiles)) {
-    const profile =
-      (
-        await db.execute({
-          sql: "SELECT id FROM access_profiles WHERE name = ? AND is_active = 1",
-          args: [profileName],
-        })
-      ).rows[0] || null;
-    if (!profile) continue;
+    const key = profileKeyForAccessProfileName(profileName);
+    if (!key) continue;
     for (const [module, capability, level] of rows) {
       await db.execute({
-        sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
+        sql: `INSERT INTO profile_capabilities (profile_key, module, capability, access_level)
               VALUES (?, ?, ?, ?)
-              ON CONFLICT (profile_id, module, capability) DO NOTHING`,
-        args: [profile.id, module, capability, level],
+              ON CONFLICT (profile_key, module, capability) DO NOTHING`,
+        args: [key, module, capability, level],
       });
     }
   }

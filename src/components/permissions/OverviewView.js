@@ -5,7 +5,6 @@ import Link from "next/link";
 import { AlertTriangle, MapPin, ShieldCheck, Users } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { Skeleton } from "@/components/ui/Skeleton";
-import Badge from "./ui/Badge";
 import StatCard from "./ui/StatCard";
 import SectionCard from "./ui/SectionCard";
 import { PERMISSION_NAV, PERMISSION_BASE } from "./permissionNav";
@@ -43,7 +42,7 @@ export default function OverviewView({ hideRecent = false }) {
     (async () => {
       const [contextRolesResult, profilesResult, auditResult] = await Promise.allSettled([
         fetch("/api/engineering/permissions/context-roles").then((response) => response.json()),
-        fetch("/api/access-profiles").then((response) => response.json()),
+        fetch("/api/engineering/permissions/profiles").then((response) => response.json()),
         fetch("/api/engineering/permissions/audit?page=1&pageSize=5").then((response) =>
           response.json(),
         ),
@@ -82,13 +81,37 @@ export default function OverviewView({ hideRecent = false }) {
 
   const coverage = summarizeContextRoles(state.contextRoles?.roles || []);
   const profileCount = state.profiles?.profiles?.length ?? null;
-  const roleDefaultCount = state.profiles?.roleDefaults
-    ? Object.keys(state.profiles.roleDefaults).length
+  const roleDefaultCount = state.profiles?.role_defaults
+    ? Object.keys(state.profiles.role_defaults).length
     : null;
   const implementedPolicies = SCOPE_POLICY_KEYS.filter(
     (policyKey) => SCOPE_POLICIES[policyKey]?.implemented,
   ).length;
   const entries = state.audit?.entries || [];
+
+  // Health alerts — the things that need a hand, each with a way straight to the
+  // screen that fixes it. Only the two the center can act on are raised here;
+  // the memberships health heads the same page just below, so it is not
+  // repeated as an alert.
+  const alerts = [];
+  if (state.contextRoles && coverage.gaps.length > 0) {
+    alerts.push({
+      key: "gaps",
+      icon: MapPin,
+      href: `${PERMISSION_BASE}/profiles?sub=contextRoles`,
+      label: t("engineering.permissions.healthAlertGaps", { count: coverage.gaps.length }),
+    });
+  }
+  if (implementedPolicies < SCOPE_POLICY_KEYS.length) {
+    alerts.push({
+      key: "scope",
+      icon: ShieldCheck,
+      href: `${PERMISSION_BASE}/eligibility?sub=scope`,
+      label: t("engineering.permissions.healthAlertScope", {
+        count: SCOPE_POLICY_KEYS.length - implementedPolicies,
+      }),
+    });
+  }
 
   return (
     <div className="space-y-4">
@@ -105,8 +128,8 @@ export default function OverviewView({ hideRecent = false }) {
             { key: "identity", label: t("engineering.permissions.modelStripIdentity"), href: null },
             { key: "eligibility", label: t("engineering.permissions.modelStripEligibility"), href: `${PERMISSION_BASE}/eligibility` },
             { key: "profile", label: t("engineering.permissions.modelStripProfile"), href: `${PERMISSION_BASE}/profiles` },
-            { key: "context", label: t("engineering.permissions.modelStripContext"), href: `${PERMISSION_BASE}/context-scope?sub=roles` },
-            { key: "scope", label: t("engineering.permissions.modelStripScope"), href: `${PERMISSION_BASE}/context-scope?sub=policies` },
+            { key: "context", label: t("engineering.permissions.modelStripContext"), href: `${PERMISSION_BASE}/profiles?sub=contextRoles` },
+            { key: "scope", label: t("engineering.permissions.modelStripScope"), href: `${PERMISSION_BASE}/eligibility?sub=scope` },
           ].map((chip, index) => (
             <React.Fragment key={chip.key}>
               {index > 0 && <span className="text-[var(--text-secondary)] opacity-50">→</span>}
@@ -170,19 +193,35 @@ export default function OverviewView({ hideRecent = false }) {
         />
       </div>
 
-      {coverage.gaps.length > 0 && (
-        <SectionCard title={t("engineering.permissions.overviewOpenGaps")}>
-          <ul className="flex flex-wrap gap-2">
-            {coverage.gaps.map((gap) => (
-              <li key={`${gap.context}:${gap.role_key}`}>
-                <Badge variant="gap">
-                  {gap.context} · {gap.role_key}
-                </Badge>
-              </li>
-            ))}
+      <SectionCard title={t("engineering.permissions.healthAlertsTitle")}>
+        {alerts.length === 0 ? (
+          <p className="text-xs font-medium text-emerald-500">
+            {t("engineering.permissions.healthAllClear")}
+          </p>
+        ) : (
+          <ul className="divide-y divide-[var(--border-primary)]">
+            {alerts.map((alert) => {
+              const Icon = alert.icon;
+              return (
+                <li key={alert.key}>
+                  <Link
+                    href={alert.href}
+                    className="flex items-center justify-between gap-3 rounded-sm py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60"
+                  >
+                    <span className="flex items-center gap-2 text-xs font-bold text-[var(--text-secondary)]">
+                      <Icon className="h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden="true" />
+                      {alert.label}
+                    </span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+                      {t("engineering.permissions.healthSee")}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
-        </SectionCard>
-      )}
+        )}
+      </SectionCard>
 
       {!hideRecent && (
       <SectionCard

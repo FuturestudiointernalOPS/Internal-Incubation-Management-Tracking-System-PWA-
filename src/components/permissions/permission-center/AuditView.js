@@ -47,6 +47,8 @@ const AUDIT_ACTIONS = [
   "access_profile_changed",
   "membership_changed",
   "role_changed",
+  "profile_assignment_created",
+  "profile_assignment_closed",
 ];
 
 const AUDIT_FILTER_DEFAULTS = {

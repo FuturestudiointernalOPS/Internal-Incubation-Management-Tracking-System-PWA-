@@ -23,6 +23,7 @@ const mockState = {
   contactGroups: [],
   eligibilityRoles: [],
   roleDefaults: [],
+  profiles: [],
   priorRow: null,
   // Per-ROLE probe answers, because the probe is asked once per downgrade and
   // a global stub would make every role look impacted.
@@ -43,6 +44,7 @@ function resetState() {
   contactGroups: [],
   eligibilityRoles: [],
   roleDefaults: [],
+  profiles: [],
   priorRow: null,
   // Per-ROLE probe answers, because the probe is asked once per downgrade and
   // a global stub would make every role look impacted.
@@ -133,14 +135,29 @@ function authorizationModelMock() {
     listEligibilityRoleIdentities: jest.fn().mockImplementation(async () => ({
       rows: mockState.eligibilityRoles,
     })),
-    listRoleAccessProfileDefaults: jest.fn().mockImplementation(async () => ({
-      rows: mockState.roleDefaults,
-    })),
     getEligibilityRow: jest.fn().mockImplementation(async () => ({
       rows: mockState.priorRow ? [mockState.priorRow] : [],
     })),
     deleteEligibilityRow: jest.fn().mockResolvedValue({ rowsAffected: 1 }),
     upsertEligibilityRow: jest.fn().mockResolvedValue({ rowsAffected: 1 }),
+  };
+}
+
+// The role→profile defaults now come from the takeover's own store; the
+// eligible profiles are read from the DB (profiles table) — never a hardcoded
+// list — so the route's profile catalogue is stubbed here.
+function profileCapabilitiesStoreMock() {
+  return {
+    listRoleProfileDefaults: jest.fn().mockImplementation(async () => ({
+      rows: mockState.roleDefaults,
+    })),
+  };
+}
+
+function profilesStoreMock() {
+  return {
+    ensureProfilesSchema: jest.fn().mockResolvedValue(true),
+    listProfiles: jest.fn().mockImplementation(async () => ({ rows: mockState.profiles })),
   };
 }
 
@@ -154,4 +171,6 @@ module.exports = {
   eligibilityAdminMock,
   authMock,
   authorizationModelMock,
+  profileCapabilitiesStoreMock,
+  profilesStoreMock,
 };

@@ -42,12 +42,11 @@ jest.mock("@/models/authorization/contextReads", () => ({
   getContactAccessProfileAndGroup: jest.fn(async () => ({ rows: [{}] })),
   getActiveAccessProfileById: jest.fn(async () => ({ rows: [] })),
   getRoleDefaultAccessProfile: jest.fn(async () => ({ rows: [] })),
+  resolveContactBaseProfile: jest.fn(async () => ({ rows: [] })),
+  resolveRoleDefaultBaseProfile: jest.fn(async () => ({ rows: [] })),
   getBaseCapabilityRows: jest.fn(async () => ({ rows: [] })),
   getGroupCapabilityRows: jest.fn(async () => ({ rows: [] })),
   getFeatureEligibilityRows: jest.fn(async () => ({ rows: [] })),
-  // The context roles this person holds (venture founder, participant,
-  // facilitator…) are eligibility identities too — see contextResolver.
-  getContextEligibilityRoles: jest.fn(async () => ({ rows: [] })),
 }));
 
 jest.mock("@/lib/workspaceContextCache", () => ({
@@ -249,9 +248,9 @@ describe("bootstrap — eligibility is seeded once per process", () => {
       "eligibility-bootstrap-seed",
       "eligibility-lms-bootstrap-v2",
       "eligibility-ventures-member-v1",
-      "eligibility-ventures-founder-v1",
-      "eligibility-template-ceiling-v1",
       "eligibility-programs-assignment-v1",
+      "eligibility-profile-defaults-v1",
+      "eligibility-baseline-roles-only-v1",
     ]);
   });
 

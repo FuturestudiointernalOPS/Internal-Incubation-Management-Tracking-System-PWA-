@@ -15,7 +15,7 @@ const SCOPE_DERIVED_ROLES = new Set(["lms:learner"]);
 
 /** mapped | scopeDerived | gap — the status badge in both renderings. */
 function roleStatus(row) {
-  const mapped = !(row.profile_id === null || row.profile_id === undefined);
+  const mapped = !(row.profile_key === null || row.profile_key === undefined);
   if (mapped) return "mapped";
   return SCOPE_DERIVED_ROLES.has(`${row.context}:${row.role_key}`)
     ? "scopeDerived"
@@ -50,10 +50,10 @@ export default function ContextRolesView() {
     const next = {};
     for (const row of json.roles || []) {
       next[rowKey(row)] = {
-        profile_id:
-          row.profile_id === null || row.profile_id === undefined
+        profile_key:
+          row.profile_key === null || row.profile_key === undefined
             ? ""
-            : String(row.profile_id),
+            : String(row.profile_key),
         is_active: Number(row.is_active) === 1 || row.is_active === true,
         notes: row.notes || "",
       };
@@ -93,10 +93,10 @@ export default function ContextRolesView() {
     const draft = drafts[rowKey(row)];
     if (!draft) return false;
     return (
-      draft.profile_id !==
-        (row.profile_id === null || row.profile_id === undefined
+      draft.profile_key !==
+        (row.profile_key === null || row.profile_key === undefined
           ? ""
-          : String(row.profile_id)) ||
+          : String(row.profile_key)) ||
       draft.is_active !== (Number(row.is_active) === 1 || row.is_active === true) ||
       draft.notes !== (row.notes || "")
     );
@@ -116,7 +116,7 @@ export default function ContextRolesView() {
         body: JSON.stringify({
           context: row.context,
           role_key: row.role_key,
-          profile_id: draft.profile_id === "" ? null : Number(draft.profile_id),
+          profile_key: draft.profile_key === "" ? null : draft.profile_key,
           is_active: draft.is_active,
           notes: draft.notes,
           reason: reason.trim() || undefined,
@@ -232,18 +232,18 @@ export default function ContextRolesView() {
                   </td>
                   <td className="p-3">
                     <select
-                      value={draft.profile_id ?? ""}
-                      onChange={(event) => setDraftField(row, "profile_id", event.target.value)}
+                      value={draft.profile_key ?? ""}
+                      onChange={(event) => setDraftField(row, "profile_key", event.target.value)}
                       className={`w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50 focus-visible:ring-2 focus-visible:ring-brand-orange/40 ${
-                        draft.profile_id === "" ? "opacity-70" : ""
+                        draft.profile_key === "" ? "opacity-70" : ""
                       }`}
                     >
                       <option value="">
                         {t("engineering.permissions.contextRolesNone")}
                       </option>
                       {profiles.map((profile) => (
-                        <option key={profile.id} value={String(profile.id)}>
-                          {profile.name}
+                        <option key={profile.key} value={profile.key}>
+                          {profile.label}
                         </option>
                       ))}
                     </select>
@@ -323,14 +323,14 @@ export default function ContextRolesView() {
                   {t("engineering.permissions.contextRolesProfile")}
                 </span>
                 <select
-                  value={draft.profile_id ?? ""}
-                  onChange={(event) => setDraftField(row, "profile_id", event.target.value)}
-                  className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50 focus-visible:ring-2 focus-visible:ring-brand-orange/40"
+                  value={draft.profile_key ?? ""}
+                  onChange={(event) => setDraftField(row, "profile_key", event.target.value)}
+                  className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/50"
                 >
                   <option value="">{t("engineering.permissions.contextRolesNone")}</option>
                   {profiles.map((profile) => (
-                    <option key={profile.id} value={String(profile.id)}>
-                      {profile.name}
+                    <option key={profile.key} value={profile.key}>
+                      {profile.label}
                     </option>
                   ))}
                 </select>

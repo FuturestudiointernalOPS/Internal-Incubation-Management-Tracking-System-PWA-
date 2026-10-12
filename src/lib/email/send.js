@@ -15,6 +15,19 @@ import { EMAIL_PRIMARY_DEFAULT } from "./config";
 import { sendViaGmail } from "./gmail";
 import { sendViaResend } from "./resend";
 
+/** Prefer a string `error`, then stringify objects, then fall back to `note`. */
+function transportReason(result) {
+  if (!result) return null;
+  const raw = result.error != null ? result.error : result.note;
+  if (raw == null || raw === "") return null;
+  if (typeof raw === "string") return raw;
+  try {
+    return JSON.stringify(raw);
+  } catch {
+    return String(raw);
+  }
+}
+
 /**
  * Internal: single dispatch point for outgoing email.
  *
@@ -70,16 +83,17 @@ export async function sendEmail({ to, cc, subject, html, provider, attachments, 
     return { ...secondary, provider: secondary.provider, fallback_used: true };
   }
 
+  const error = transportReason(primary) || transportReason(secondary) || "Email send failed";
   logger.error("email_send_failed", {
     provider: chosen,
     fallback,
     durationMs: Date.now() - started,
-    error: primary.error || secondary.error || "Email send failed",
+    error,
   });
   return {
     success: false,
     provider: chosen,
-    error: primary.error || secondary.error || "Email send failed",
+    error,
     note: "Primary provider (" + chosen + ") and fallback (" + fallback + ") both failed",
   };
 }

@@ -149,29 +149,6 @@ export function ensurePermissionsSchema() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         UNIQUE(user_cid, group_name)
       )`);
-      await db.execute(`CREATE TABLE IF NOT EXISTS access_profiles (
-        id SERIAL PRIMARY KEY,
-        name TEXT NOT NULL UNIQUE,
-        description TEXT DEFAULT '',
-        is_active INTEGER NOT NULL DEFAULT 1,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      )`);
-      await db.execute(`CREATE TABLE IF NOT EXISTS access_profile_capabilities (
-        id SERIAL PRIMARY KEY,
-        profile_id INTEGER NOT NULL,
-        module TEXT NOT NULL,
-        capability TEXT NOT NULL,
-        access_level INTEGER NOT NULL DEFAULT 1,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        UNIQUE(profile_id, module, capability)
-      )`);
-      await db.execute(`CREATE TABLE IF NOT EXISTS role_access_profile_defaults (
-        id SERIAL PRIMARY KEY,
-        role_name TEXT NOT NULL UNIQUE,
-        access_profile_id INTEGER NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      )`);
       await db.execute(`CREATE INDEX IF NOT EXISTS idx_user_caps_lookup ON user_capabilities(user_cid, module, capability)`);
       await db.execute(`CREATE INDEX IF NOT EXISTS idx_user_restr_lookup ON user_capability_restrictions(user_cid, module, capability)`);
       return true;

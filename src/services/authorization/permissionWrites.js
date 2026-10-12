@@ -40,7 +40,6 @@ import {
   revokeUserCapability,
   setGroupDefaultCapability,
   setRoleDefaultCapability,
-  setUserAccessProfile,
   setUserRole,
   setUserStatus,
   unrestrictUserCapability,
@@ -58,6 +57,14 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
   const targetName = targetResult.rows[0]?.name || "Unknown";
   const targetRole = targetResult.rows[0]?.role || null;
 
+  // The reviewer's MOTIF rides with the write and lands in the audit trail.
+  // Risky changes (high/critical) are confirmed with a mandatory reason in the
+  // Permission Center; recording it is what makes the trail answer "why".
+  const reason =
+    typeof payload?.reason === "string" && payload.reason.trim()
+      ? payload.reason.trim()
+      : "";
+
   // Handle promote/remove super admin specially
   if (action === "promote_super_admin") {
     await promoteContactToSuperAdmin(userCid);
@@ -67,7 +74,7 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
       targetCid: userCid,
       targetName,
       action: "role_changed",
-      details: `Promoted to super_admin`,
+      details: reason || `Promoted to super_admin`,
     });
     invalidateAuthorizationContext(userCid);
     return { status: 200, body: { success: true, message: "User promoted to Super Admin" } };
@@ -81,7 +88,7 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
       targetCid: userCid,
       targetName,
       action: "role_changed",
-      details: "Super Admin status removed",
+      details: reason || "Super Admin status removed",
     });
     invalidateAuthorizationContext(userCid);
     return { status: 200, body: { success: true, message: "Super Admin status removed" } };
@@ -128,6 +135,7 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
         capability,
         previousValue: priorGrant.rows[0] ? String(priorGrant.rows[0].access_level) : "none",
         newValue: String(accessLevel || 1),
+        ...(reason ? { details: reason } : {}),
       });
       break;
     }
@@ -145,6 +153,7 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
         capability,
         previousValue: priorGrant.rows[0] ? String(priorGrant.rows[0].access_level) : "none",
         newValue: "none",
+        ...(reason ? { details: reason } : {}),
       });
       break;
     }
@@ -162,6 +171,7 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
         capability,
         previousValue: priorBlock.rows.length ? "blocked" : "none",
         newValue: "blocked",
+        ...(reason ? { details: reason } : {}),
       });
       break;
     }
@@ -179,6 +189,7 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
         capability,
         previousValue: priorBlock.rows.length ? "blocked" : "none",
         newValue: "none",
+        ...(reason ? { details: reason } : {}),
       });
       break;
     }
@@ -217,23 +228,6 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
         previousValue: priorDefault.rows[0] ? String(priorDefault.rows[0].access_level) : "none",
         newValue: String(accessLevel || 0),
         details: `Group: ${payload.group_name}`,
-      });
-      break;
-    }
-
-    case "set_access_profile": {
-      const priorContact = await getContactForAssignment(userCid);
-      const priorProfile = priorContact.rows[0]?.access_profile_id;
-      await setUserAccessProfile(payload.access_profile_id || null, userCid);
-      await logPermissionAudit({
-        actorCid: actor.cid,
-        actorName: actor.name,
-        targetCid: userCid,
-        targetName,
-        action: "access_profile_changed",
-        previousValue: priorProfile ? String(priorProfile) : "none",
-        newValue: payload.access_profile_id ? String(payload.access_profile_id) : "none",
-        details: `Access profile set to ID ${payload.access_profile_id || "none"}`,
       });
       break;
     }

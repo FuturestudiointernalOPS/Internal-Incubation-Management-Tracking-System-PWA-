@@ -20,6 +20,8 @@ export const SCOPE_POLICY_KEYS = [
   "program_assigned",
   "program_staffed",
   "learning_own",
+  "venture_managed_history",
+  "program_managed_history",
   "team_own",
 ];
 
@@ -61,6 +63,23 @@ export const SCOPE_POLICIES = {
     resource: "course",
     implemented: true,
     source: "lms_enrollments (own enrollments, suspended excluded)",
+  },
+  // Phase F — the RESIDUAL READ. A former manager keeps a read-only view of what
+  // they managed: the contexts of their ENDED relationship rows. Automatic
+  // assignments only (the generalized contextual rows cover legacy history).
+  venture_managed_history: {
+    key: "venture_managed_history",
+    resource: "venture",
+    implemented: true,
+    source:
+      "profile_assignments ended (automatic, context venture) UNION contact_roles is_current = false (context venture)",
+  },
+  program_managed_history: {
+    key: "program_managed_history",
+    resource: "program",
+    implemented: true,
+    source:
+      "profile_assignments ended (automatic, context program) UNION contact_roles is_current = false (context program)",
   },
   team_own: {
     key: "team_own",

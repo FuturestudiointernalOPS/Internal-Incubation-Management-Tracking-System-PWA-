@@ -92,14 +92,19 @@ describe("planContextGrantChanges — expiry is part of the comparison", () => {
 });
 
 describe("eligibility ceiling — the assignment grant must not be dead on arrival", () => {
-  const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/models/authorization/eligibility-defaults");
+  const {
+    FEATURE_ELIGIBILITY_DEFAULTS,
+    FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
+  } = require("@/models/authorization/eligibility-defaults");
   const { RESPONSIBILITY_FEATURE_ROLES } = require("@/lib/featureAccess");
 
   test("the programs feature is eligible for the contextual identities", () => {
-    // A facilitator is a baseline Member (or carries the facilitator label);
-    // without the ceiling row the resolver refuses BEFORE reading the grant.
-    expect(FEATURE_ELIGIBILITY_DEFAULTS.programs).toContain("facilitator");
+    // A facilitator is a baseline Member with the facilitator PROFILE (Phase H),
+    // so the role list carries `member` and the profile list carries
+    // `facilitator`; without the ceiling row the resolver refuses BEFORE reading
+    // the grant.
     expect(FEATURE_ELIGIBILITY_DEFAULTS.programs).toContain("member");
+    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.programs).toContain("facilitator");
   });
 
   test("the responsibility defaults stay in exact sync (they share one source)", () => {

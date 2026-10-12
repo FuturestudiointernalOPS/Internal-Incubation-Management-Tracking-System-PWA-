@@ -58,7 +58,7 @@ function toIsoDate(value) {
  * getFacilitatorPermissionLevel() in src/lib/auth.js step for step, adding the
  * live "unconfigured" default as the final step.
  *
- * @param {Object} assignment  { permissions, access_profile_id, program_id }
+ * @param {Object} assignment  { permissions, profile_key, program_id }
  * @param {Object} ctx         { profileCaps: Array<{module,capability,access_level}>,
  *                               programDefault: Object }
  */

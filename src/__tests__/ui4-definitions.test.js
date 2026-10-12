@@ -11,68 +11,15 @@
  *     was configured, stored and never shown.
  */
 
-const fs = require("fs");
-const path = require("path");
-
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
-const { readPermissionCenterSurface } = require("./helpers/permissionCenterSource");
 
-const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const resolveKey = (bundle, dotted) =>
   dotted.split(".").reduce((acc, part) => (acc == null ? undefined : acc[part]), bundle);
 
-// The editor moved out of the shim into its own module, so the positives below
-// are pinned against the file that holds them rather than against the shim. It
-// then split in two: the panel keeps the state, the catalog effect and the
-// derivations, while the catalog matrix moved to the detail block and the
-// defaults to a factory. The panel's own effect is still pinned to the panel;
-// everything else reads the surface, so duplicating it elsewhere fails.
-const CENTER = "src/components/permissions/permission-center/AccessProfilesView.js";
-
-describe("UI-4b — the editor reads the server catalog", () => {
-  const src = read(CENTER);
-
-  test("no local copy of the module catalog survives", () => {
-    // Read across the whole surface: the defect this guards was a HARDCODED
-    // catalog copy, and such a copy would be just as wrong in an extracted
-    // module as it was in the monolith. Asserting only on the shim would let it
-    // return unnoticed.
-    const surface = readPermissionCenterSurface();
-    // The global that fed the fallback is gone…
-    expect(surface).not.toContain("window.availableModules");
-    // …and so is the literal it fell back to.
-    expect(surface).not.toContain('capabilities: ["view", "create", "edit", "delete", "archive"]');
-    expect(surface).not.toContain('name: "Internal Communication"');
-  });
-
-  test("the catalog comes from the response, and a failure is stated", () => {
-    expect(src).toContain("setModuleCatalog(data.modules || {})");
-    expect(src).toContain("const availableModules = moduleCatalog ? buildEditableModules(moduleCatalog) : {};");
-    // A missing catalog must not masquerade as "this profile has no features".
-    // That sentence is the detail block's, where the matrix is rendered.
-    const surface = readPermissionCenterSurface();
-    expect(surface).toContain("catalogUnavailable");
-    expect(surface).toContain("moduleCatalog && visibleSections.length === 0");
-  });
-
-  test("the 'Default for' control replaces the retired Role → Profile grid", () => {
-    // The same guarantee the grid carried: every stored role default is visible
-    // on the template that receives it, including names outside the identity
-    // list (selectedIsDefaultFor is read from the unfiltered map). The control's
-    // markup now lives in its own modal, so its label is pinned there.
-    const modal = read(
-      "src/components/permissions/permission-center/ProfileRoleDefaultsModal.js",
-    );
-    expect(modal).toContain("defaultForTitle");
-    // the write is a factory's, and the read feeds the factory that builds the
-    // sections: neither is in the panel any more
-    const surface = readPermissionCenterSurface();
-    expect(surface).toContain("assignRoleDefault");
-    expect(surface).toContain("/api/access-profiles/role-defaults");
-    expect(surface).toContain("selectedIsDefaultFor");
-  });
-});
+// The access-profile editor this suite pinned was retired with the profiles
+// takeover; the catalogue now lives on the Profiles screen and reads its module
+// catalog from the server (see profiles-takeover-ui.test.js).
 
 describe("UI-4b — the tabs say what they map", () => {
   const keys = [

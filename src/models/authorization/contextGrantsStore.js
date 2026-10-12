@@ -37,6 +37,7 @@ export function ensureContextAppliedGrantsSchema() {
           module TEXT NOT NULL,
           capability TEXT NOT NULL,
           access_level INTEGER NOT NULL DEFAULT 1,
+          mode TEXT NOT NULL DEFAULT 'active',
           created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
           UNIQUE(user_cid, context, role_key, module, capability)
@@ -46,6 +47,13 @@ export function ensureContextAppliedGrantsSchema() {
       await db.execute({
         sql: `CREATE INDEX IF NOT EXISTS idx_context_applied_grants_user
          ON context_applied_grants(user_cid, context, role_key)`,
+        args: [],
+      });
+      // Phase F — the provenance row now carries its MODE ('active' grants vs
+      // the residual 'historical' read). Added for databases created before F.
+      await db.execute({
+        sql: `ALTER TABLE context_applied_grants
+              ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 'active'`,
         args: [],
       });
       return true;
@@ -72,11 +80,11 @@ export async function listActiveFounderVentures(cid) {
   return (result.rows || []).map((row) => String(row.venture_id)).filter(Boolean);
 }
 
-/** The capability rows one access profile carries (the registry-mapped grant). */
-export async function getProfileCapabilityRows(profileId) {
+/** The capability rows one PROFILE KEY carries (the registry-mapped grant). */
+export async function getProfileCapabilityRows(profileKey) {
   return db.execute({
-    sql: "SELECT module, capability, access_level FROM access_profile_capabilities WHERE profile_id = ?",
-    args: [profileId],
+    sql: "SELECT module, capability, access_level FROM profile_capabilities WHERE profile_key = ?",
+    args: [String(profileKey)],
   });
 }
 
@@ -86,6 +94,83 @@ export async function listFounderRelationshipCids() {
     sql: `SELECT DISTINCT COALESCE(NULLIF(contact_id, ''), user_cid) AS cid
               FROM venture_members
               WHERE removed_at IS NULL AND ${FOUNDER_MATCH_SQL}`,
+  });
+}
+
+// ── Phase E — the other activated couples ─────────────────────────────────────
+
+/** The investor profiles held by one person (the justifying relationship). */
+export function listActiveInvestorProfiles(cid) {
+  if (!cid) return Promise.resolve({ rows: [] });
+  return db.execute({
+    sql: "SELECT DISTINCT CAST(id AS TEXT) AS investor_id FROM investor_profiles WHERE user_id = ?",
+    args: [String(cid)],
+  });
+}
+
+/** Everyone with an investor profile — the investor sweep's population. */
+export function listInvestorRelationshipCids() {
+  return db.execute({
+    sql: `SELECT DISTINCT user_id AS cid FROM investor_profiles
+          WHERE user_id IS NOT NULL AND TRIM(user_id) <> ''`,
+  });
+}
+
+/** The courses one person is enrolled in (suspended excluded). */
+export function listActiveLearnerCourses(cid) {
+  if (!cid) return Promise.resolve({ rows: [] });
+  return db.execute({
+    sql: `SELECT DISTINCT CAST(course_id AS TEXT) AS course_id
+          FROM lms_enrollments
+          WHERE user_cid = ? AND status <> 'suspended'`,
+    args: [String(cid)],
+  });
+}
+
+/** Everyone enrolled in a course — the learner sweep's population. */
+export function listLearnerRelationshipCids() {
+  return db.execute({
+    sql: `SELECT DISTINCT user_cid AS cid FROM lms_enrollments
+          WHERE status <> 'suspended' AND user_cid IS NOT NULL`,
+  });
+}
+
+/** The ventures one person lead-manages (active delegated staff assignment). */
+export function listActiveVentureManagerVentures(cid) {
+  if (!cid) return Promise.resolve({ rows: [] });
+  return db.execute({
+    sql: `SELECT DISTINCT CAST(venture_id AS TEXT) AS venture_id
+          FROM venture_staff_assignments
+          WHERE staff_contact_id = ? AND responsibility_code = 'lead_manager' AND status = 'active'`,
+    args: [String(cid)],
+  });
+}
+
+/** Everyone who lead-manages a venture — the venture_manager sweep's population. */
+export function listVentureManagerCids() {
+  return db.execute({
+    sql: `SELECT DISTINCT staff_contact_id AS cid FROM venture_staff_assignments
+          WHERE responsibility_code = 'lead_manager' AND status = 'active'
+            AND staff_contact_id IS NOT NULL`,
+  });
+}
+
+/** The programs one person is enrolled in (their participant relationship). */
+export function listActiveParticipantPrograms(cid) {
+  if (!cid) return Promise.resolve({ rows: [] });
+  return db.execute({
+    sql: `SELECT DISTINCT CAST(program_id AS TEXT) AS program_id
+          FROM participant_programs
+          WHERE participant_id = ?`,
+    args: [String(cid)],
+  });
+}
+
+/** Everyone enrolled in a program — the participant sweep's population. */
+export function listParticipantRelationshipCids() {
+  return db.execute({
+    sql: `SELECT DISTINCT participant_id AS cid FROM participant_programs
+          WHERE participant_id IS NOT NULL AND TRIM(participant_id) <> ''`,
   });
 }
 
@@ -127,15 +212,16 @@ export function upsertUserCapability(cid, { module, capability, level, sentinel,
 }
 
 /** Record one applied grant in the provenance table. */
-export function upsertContextAppliedGrant(cid, { context, roleKey, sourceRef, module, capability, level }) {
+export function upsertContextAppliedGrant(cid, { context, roleKey, sourceRef, module, capability, level, mode = "active" }) {
   return db.execute({
-    sql: `INSERT INTO context_applied_grants (user_cid, context, role_key, source_ref, module, capability, access_level)
-              VALUES (?, ?, ?, ?, ?, ?, ?)
+    sql: `INSERT INTO context_applied_grants (user_cid, context, role_key, source_ref, module, capability, access_level, mode)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
               ON CONFLICT (user_cid, context, role_key, module, capability) DO UPDATE SET
                 access_level = EXCLUDED.access_level,
                 source_ref = EXCLUDED.source_ref,
+                mode = EXCLUDED.mode,
                 updated_at = NOW()`,
-    args: [String(cid), context, roleKey, sourceRef, module, capability, level],
+    args: [String(cid), context, roleKey, sourceRef, module, capability, level, mode],
   });
 }
 

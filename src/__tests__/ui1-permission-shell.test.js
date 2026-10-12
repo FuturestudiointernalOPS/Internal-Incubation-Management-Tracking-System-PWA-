@@ -6,7 +6,7 @@
  *      that page renders the shell with the matching `active` key.
  *   2. Navigation ↔ translations: every nav/sub-tab label resolves in BOTH
  *      English and French (no raw key leaking into the UI).
- *   3. The readability rules of Phase UI-5: five places, never more than three
+ *   3. The readability rules of the current centre: four places, never more than three
  *      sub-tasks under a tab, and a sub-tab is never named like its own tab.
  *   4. Retired doors keep forwarding, so old bookmarks never 404.
  */
@@ -52,12 +52,6 @@ describe("UI-5 — navigation model", () => {
       "people",
       "templates",
       "rules",
-      "context",
-      // Portfolio-wide jobs: the two consequential operations that used to have
-      // no button anywhere. Its own door because "Where it applies" already
-      // carries its three sub-tasks and the max-3 rule is what keeps a tab
-      // readable.
-      "operations",
       "history",
     ]);
   });
@@ -85,21 +79,21 @@ describe("UI-5 — navigation model", () => {
     }
   });
 
-  test("every nav item has a route page that renders the shell with the matching key", () => {
+  test("every primary section has a route page that renders the approved prototype", () => {
+    const prototypeSection = { people: "people", templates: "profiles", rules: "rules", history: "journal" };
     for (const item of PERMISSION_NAV) {
       const file = routeFileFor(item);
       expect(fs.existsSync(file)).toBe(true);
       const src = fs.readFileSync(file, "utf8");
-      expect(src).toContain("PermissionShell");
-      expect(src).toContain(`active="${item.key}"`);
+      expect(src).toContain("PermissionPrototype");
+      expect(src).toContain(`initialSection="${prototypeSection[item.key]}"`);
     }
   });
 
-  test("the landed URL forwards to the first place, keeping ?cid=", () => {
+  test("the landed URL renders the approved permission-centre prototype", () => {
     const src = read("src/app/admin/security/permissions/page.js");
     expect(src).toContain("PermissionCenterLanding");
-    expect(src).toContain("/people");
-    expect(src).toContain('get("cid")');
+    expect(src).toContain("PermissionPrototype");
   });
 
   test("the retired Advanced door still forwards to the new homes", () => {
@@ -117,10 +111,10 @@ describe("UI-5 — navigation model", () => {
     }
   });
 
-  test("the retired catalog link forwards out of Templates", () => {
+  test("the profiles route is served by the approved prototype", () => {
     const src = read("src/app/admin/security/permissions/profiles/page.js");
-    expect(src).toContain('subTab === "catalog"');
-    expect(src).toContain("/eligibility?sub=ceilings");
+    expect(src).toContain("PermissionPrototype");
+    expect(src).toContain('initialSection="profiles"');
   });
 
   test("there is exactly one navigation: no legacy tab bar survives", () => {
@@ -152,8 +146,8 @@ describe("UI-1 — shell translations (en + fr parity)", () => {
 describe("UI-1 — overview governance math", () => {
   test("counts mapped roles and keeps unmapped ones as visible gaps", () => {
     const summary = summarizeContextRoles([
-      { context: "program", role_key: "participant", profile_id: 2 },
-      { context: "venture", role_key: "founder", profile_id: null },
+      { context: "program", role_key: "participant", profile_key: 2 },
+      { context: "venture", role_key: "founder", profile_key: null },
       { context: "lms", role_key: "learner" },
     ]);
     expect(summary.total).toBe(3);

@@ -18,69 +18,7 @@ jest.mock("@/server/auth/session", () => ({ getSession: mockAuthz.auth.getSessio
 jest.mock("@/models/authorization/bootstrap", () => ({ ensurePermissionsSchema: mockAuthz.auth.ensurePermissionsSchema }));
 jest.mock("next/server", () => mockAuthz.nextServer);
 
-// ─── Retired roles cleanup (developer / admin) ────────────────
-// The one-time `retire-developer-admin-roles-v1` migration removes every row
-// keyed by the retired roles or their templates. These tests pin the SQL it
-// issues so a future seed cannot quietly re-introduce the vocabulary.
-
-describe("retired roles cleanup (developer / admin)", () => {
-  test("removes the retired templates, roles and manage_developers grants", async () => {
-    const dbMock = require("@/lib/db").default;
-    const { ensureRetiredRoleCleanup } = require("@/models/authorization/backfill");
-    dbMock.execute.mockClear();
-    dbMock.execute.mockImplementation(async () => ({ rows: [] }));
-
-    await ensureRetiredRoleCleanup();
-
-    const allSql = dbMock.execute.mock.calls
-      .map((call) => (typeof call[0] === "string" ? call[0] : call[0]?.sql))
-      .filter(Boolean)
-      .join("\n");
-
-    // Templates: per-user assignments cleared FIRST, then caps + profiles.
-    expect(allSql).toMatch(/UPDATE contacts SET access_profile_id = NULL/);
-    expect(allSql).toMatch(/DELETE FROM access_profile_capabilities/);
-    expect(allSql).toMatch(
-      /DELETE FROM access_profiles WHERE name IN \('Developer', 'Developer Intern'\)/,
-    );
-
-    // Retired role rows (role-keyed only — group eligibility is sacred).
-    expect(allSql).toMatch(/DELETE FROM role_access_profile_defaults/);
-    expect(allSql).toMatch(
-      /DELETE FROM role_capabilities WHERE role IN \('developer', 'admin'\)/,
-    );
-    expect(allSql).toMatch(
-      /DELETE FROM feature_eligibility[\s\S]*?identity_type = 'role'[\s\S]*?'developer', 'admin'/,
-    );
-
-    // The retired capability, stripped from every capability table.
-    for (const table of [
-      "role_capabilities",
-      "group_capabilities",
-      "user_capabilities",
-      "user_capability_restrictions",
-      "access_profile_capabilities",
-      "responsibility_capability_grants",
-    ]) {
-      expect(allSql).toMatch(
-        new RegExp(
-          `DELETE FROM ${table} WHERE module = 'engineering' AND capability = 'manage_developers'`,
-        ),
-      );
-    }
-  });
-
-  test("is registered as a one-time authz migration", () => {
-    const src = require("fs").readFileSync(
-      require("path").join(process.cwd(), "src/models/authorization/backfill.js"),
-      "utf8",
-    );
-    expect(src).toMatch(
-      /"retire-developer-admin-roles-v1"[\s\S]*?ensureRetiredRoleCleanup/,
-    );
-  });
-});
-
+// ─── runAuthzMigration ────────────────────────────────────────
 
 describe("runAuthzMigration (one-time policy migrations)", () => {
   test("runs once per database, then never again", async () => {

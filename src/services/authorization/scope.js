@@ -39,6 +39,8 @@ import {
   getProgramAssignedScopeIds,
   getProgramStaffedScopeIds,
   getLearningOwnScopeIds,
+  getVentureManagedHistoryScopeIds,
+  getProgramManagedHistoryScopeIds,
   getVentureIdByUuid,
   contactSharesStaffedProgram,
 } from "@/models/authorization/scopeReads";
@@ -74,6 +76,11 @@ export async function resolveScopeIds(policyKey, userCid, { email = null } = {})
         return await getProgramStaffedScopeIds(userCid, email);
       case "learning_own":
         return await getLearningOwnScopeIds(userCid);
+      // Phase F — the residual read: the contexts a former manager consulted.
+      case "venture_managed_history":
+        return await getVentureManagedHistoryScopeIds(userCid);
+      case "program_managed_history":
+        return await getProgramManagedHistoryScopeIds(userCid);
       default:
         return null;
     }

@@ -22,6 +22,27 @@ const FALLBACK_ACCESS = {
   icons: { reports: "barChart3" },
 };
 
+// Phase H — a legacy contextual PROFILE value is not a role. An account still
+// carrying one resolves to its BASELINE mask (staff for a staff-only profile,
+// member otherwise), so it keeps a working sidebar instead of the neutral
+// fallback, until the role alignment has run everywhere.
+const LEGACY_PROFILE_SURFACES = {
+  program_manager: "staff",
+  facilitator: "member",
+  participant: "member",
+  founder: "member",
+  investor: "member",
+};
+
+/** The role's access table, with the legacy profile values normalized. */
+function accessForRole(role) {
+  return (
+    ROLE_ACCESS[role] ||
+    ROLE_ACCESS[LEGACY_PROFILE_SURFACES[role]] ||
+    FALLBACK_ACCESS
+  );
+}
+
 /** Pure capability check against an effective matrix. */
 export function hasCapability(effective, module, capability, minLevel = 1) {
   return Number(effective?.[module]?.[capability] ?? 0) >= minLevel;
@@ -75,7 +96,7 @@ function projectMasterSection(node, access) {
  * the server stays authoritative — but never on hrefs.
  */
 export function buildAccessNav(role, effective) {
-  const access = ROLE_ACCESS[role] || FALLBACK_ACCESS;
+  const access = accessForRole(role);
   const canOpenAdmin = role === "super_admin";
   const roleHrefs = access.hrefs || {};
 
@@ -211,7 +232,7 @@ function projectNode(node, access, depth) {
  * children collapse to leaves using the role's resolved href.
  */
 export function buildRoleNav(role) {
-  const access = ROLE_ACCESS[role] || FALLBACK_ACCESS;
+  const access = accessForRole(role);
   return (access.top || [])
     .map((id) => {
       const node = NAV_NODE_INDEX[id];

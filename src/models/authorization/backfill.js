@@ -16,11 +16,13 @@
 import { runAuthzMigration } from "./migrations";
 import { ensureMembershipBootstrap } from "./membership";
 import { backfillContextRoleProfileMappings } from "./contextRoleProfiles";
+import { seedProfiles } from "./profilesStore";
 import {
-  ensureAssignedProgramManagerProfile,
-  ensurePortfolioProgramManagerProfile,
   backfillFacilitatorTickLists,
 } from "./programAssignmentBackfill";
+import { ensureProfileCatalogueSeed } from "./profileCatalogueSeed";
+import { backfillProgramAssignmentProfileKeys } from "./programAssignmentProfileKey";
+import { dropAccessProfileTables } from "./profileTakeoverDrop";
 // The feature-key alignment RULE lives in the service layer (audit A1, finding
 // #8); its statements live in `./featureKeyAlignmentStore`. Importing it here is
 // a deliberate model→service edge, like `programAssignmentBackfill`.
@@ -43,7 +45,6 @@ import {
   ensureMessagingPolicyBackfill,
   ensureFinalPolicyBackfill,
   ensureCommunicationFeatureBackfill,
-  ensureRetiredRoleCleanup,
 } from "./backfill/policies";
 
 
@@ -117,6 +118,10 @@ export function ensureCapabilityBackfills() {
           // become active, no-expiry memberships (zero behavior change at
           // cutover; see membership.js).
           runAuthzMigration("membership-bootstrap-v1", ensureMembershipBootstrap),
+          // Phase A (ROADMAP_ROLES_PROFILES_ACCESS): seed the profile catalogue
+          // once per database. Insert-only, so an administrator's edit of
+          // allowed_roles / is_active / notes is never overwritten.
+          runAuthzMigration("profiles-catalog-v1", seedProfiles),
           // Phase 6: registry rows seeded before their mapped profile existed
           // carry profile_id NULL (the Founder profile post-dates the
           // venture:founder seed). Fill NULLs only — admin mappings win.
@@ -126,28 +131,10 @@ export function ensureCapabilityBackfills() {
           ),
           // ASSIGNMENT-DERIVED PROGRAM ACCESS.
           //
-          // (a) Create the narrow "Assigned Program Manager" template and point
-          //     the registry's program:program_manager row at it — only while it
-          //     still points at the seeded profile, so an administrator's own
-          //     choice is never overwritten.
-          // (b) Fill the missing entries of every facilitator assignment's
-          //     tick list at the level today's resolution already produces, so
-          //     turning on per-program enforcement cannot deny a facilitator
-          //     who is already working. Never rewrites an existing entry.
-          runAuthzMigration(
-            "assigned-program-manager-profile-v1",
-            ensureAssignedProgramManagerProfile,
-          ),
-          // (c) Create the PORTFOLIO template — the trimmed replacement for the
-          //     role bundle that mixes programme management with venture
-          //     editing and people creation. ADDITIVE AND INERT: nothing
-          //     resolves to it until an administrator repoints the role default
-          //     from the permission console, after reading the impact report.
-          //     Nothing is repointed at boot, on purpose.
-          runAuthzMigration(
-            "portfolio-program-manager-profile-v1",
-            ensurePortfolioProgramManagerProfile,
-          ),
+          // Fill the missing entries of every facilitator assignment's tick list
+          // at the level today's resolution already produces, so turning on
+          // per-program enforcement cannot deny a facilitator who is already
+          // working. Never rewrites an existing entry.
           runAuthzMigration(
             "facilitator-tick-list-backfill-v1",
             backfillFacilitatorTickLists,
@@ -158,18 +145,28 @@ export function ensureCapabilityBackfills() {
         // Feature-key alignment (FEATURES = dashboard sections) runs AFTER the
         // parallel backfills so it never races the rows they touch. It gets the
         // same treatment: a failure is reported, never propagated.
-        //
-        // The retired-role cleanup (developer / admin) runs here too: it removes
-        // the rows earlier seeds may have left for roles the product no longer
-        // has, after every backfill has had its say.
         const alignment = await Promise.allSettled([
           runAuthzMigration("feature-key-alignment-v1", ensureFeatureKeyAlignment),
+          // DIRECT profile seed: so a FRESH database gets the catalogue even
+          // with no `access_profiles` at all — the retired layer is gone.
+          runAuthzMigration("profile-catalogue-seed-v1", ensureProfileCatalogueSeed),
+          // The per-assignment profile override moves from an access-profile id
+          // (`v2_program_staff.access_profile_id`) to a profile KEY. Adds the
+          // column and fills it NULL-only from the legacy id.
           runAuthzMigration(
-            "retire-developer-admin-roles-v1",
-            ensureRetiredRoleCleanup,
+            "program-assignment-profile-key-v1",
+            backfillProgramAssignmentProfileKeys,
           ),
         ]);
         reportFailedMigrations(alignment);
+
+        // PROFILES TAKE OVER — the FINAL step: drop the retired template layer.
+        // Runs strictly AFTER the batch above, which is the last thing that reads
+        // it (the per-assignment key backfill). Recorded once per database.
+        const drop = await Promise.allSettled([
+          runAuthzMigration("drop-access-profiles-v1", dropAccessProfileTables),
+        ]);
+        reportFailedMigrations(drop);
 
         // Attempted once per process, whatever the outcome. A migration that
         // failed is still not recorded, so it does retry on the next boot — but
@@ -190,5 +187,4 @@ export {
   ensureLmsViewBackfill,
   ensureFinalPolicyBackfill,
   ensureCommunicationFeatureBackfill,
-  ensureRetiredRoleCleanup,
 };

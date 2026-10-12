@@ -16,8 +16,6 @@ import {
 } from "@/models/authorization/index";
 import {
   resolveCanConfigure,
-  deriveEligibleGroupNames,
-  deriveExtraRoles,
   selectTemplateImpactCandidates,
   collectTemplateImpacts,
   resolveEligibilityWrite,
@@ -25,14 +23,11 @@ import {
 } from "@/services/authorization/eligibilityConfiguration";
 import {
   listFeatureEligibilityRows,
-  listDistinctUserGroupNames,
-  listDistinctContactGroupNames,
-  listEligibilityRoleIdentities,
-  listRoleAccessProfileDefaults,
   getEligibilityRow,
   deleteEligibilityRow,
   upsertEligibilityRow,
 } from "@/models/authorization";
+import { listProfiles, ensureProfilesSchema } from "@/models/authorization/profilesStore";
 
 export const dynamic = "force-dynamic";
 
@@ -73,28 +68,14 @@ export async function GET() {
 
     const rows = await fetchAllRows();
 
-    // Distinct groups from user_groups + contacts.group_name fallback.
-    const groupResults = await Promise.all([
-      listDistinctUserGroupNames(),
-      listDistinctContactGroupNames(),
-    ]);
-    const groups = deriveEligibleGroupNames(groupResults[0].rows, groupResults[1].rows);
-
-    // Roles the resolver actually consults that are NOT in the curated identity
-    // list (mentor, teacher, program_manager…). The administrator
-    // must be able to see and configure those ceilings from THIS screen —
-    // otherwise a refused template save has no front-end remedy, which is
-    // exactly how Staff Default became unsavable. Derived from the data, never a
-    // new allowlist: nothing becomes configurable that the engine does not
-    // already enforce.
-    const [eligibilityRolesResult, roleDefaultsResult] = await Promise.all([
-      listEligibilityRoleIdentities(),
-      listRoleAccessProfileDefaults(),
-    ]);
-    const extraRoles = deriveExtraRoles(
-      eligibilityRolesResult.rows,
-      roleDefaultsResult.rows,
-    );
+    // The profiles come from the DATABASE (the catalogue table is the source of
+    // truth), never from a hardcoded list: a profile created, renamed or deleted
+    // from the profiles screen is offered here on the next read.
+    await ensureProfilesSchema();
+    const profilesRes = await listProfiles();
+    const profiles = (profilesRes.rows || [])
+      .map((row) => row.key)
+      .sort();
 
     return NextResponse.json({
       success: true,
@@ -103,18 +84,12 @@ export async function GET() {
       // Capability module → feature key, so the UI can filter which modules
       // are relevant for a role based on its eligibility.
       moduleToFeature: MODULE_TO_FEATURE,
-      // Agreed eligibility identities only (functions like program_manager are
-      // not eligibility identities). ROLE_CATALOG stays
-      // the full technical catalog for gate validation.
+      // The role identities: the three BASELINE identities only. Every
+      // contextual function is a PROFILE (see `profiles` below), never a role.
       roles: ELIGIBILITY_IDENTITIES,
-      // Roles found in this database that the agreed list does not carry. The
-      // UI renders them as a third, clearly-labelled group so no enforced
-      // ceiling is invisible.
-      extraRoles,
-      // The honest split (UI-4c): baseline identities vs the context roles that
-      // share the same ceiling table. The UI labels them, never conflates them.
       identityGroups: ELIGIBILITY_IDENTITY_GROUPS,
-      groups,
+      // The profile keys a ceiling can be written against — read from the DB.
+      profiles,
       rows,
       canConfigure: !!canConfigure,
     });
@@ -137,8 +112,15 @@ export async function PUT(req) {
     if (authError) return authError;
 
     const body = await req.json().catch(() => null);
+
+    // Validate against the profiles that EXIST: a ceiling may only name a role
+    // of the baseline or a profile the database holds.
+    const profilesRes = await listProfiles();
+    const profileKeys = (profilesRes.rows || []).map((row) => row.key);
+
     const { valid, errors, normalized } = validateEligibilityChanges(
       body?.changes,
+      profileKeys,
     );
     if (!valid) {
       return NextResponse.json(

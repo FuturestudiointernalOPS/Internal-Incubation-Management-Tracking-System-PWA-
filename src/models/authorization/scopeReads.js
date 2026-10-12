@@ -70,6 +70,46 @@ export async function getLearningOwnScopeIds(userCid) {
   return result.rows.map((row) => String(row.id));
 }
 
+/**
+ * Ventures the person MANAGED in the past — the residual read (Phase F).
+ * Base: ENDED automatic profile assignments (context venture) plus the legacy
+ * generalized contextual rows that are no longer current.
+ */
+export async function getVentureManagedHistoryScopeIds(userCid) {
+  const result = await db.execute({
+    sql: `SELECT DISTINCT CAST(context_id AS TEXT) AS id
+                FROM profile_assignments
+                WHERE contact_cid = ? AND context_type = 'venture'
+                  AND source = 'automatic' AND status = 'ended'
+                  AND context_id IS NOT NULL
+                UNION
+                SELECT DISTINCT CAST(context_id AS TEXT) AS id
+                FROM contact_roles
+                WHERE contact_cid = ? AND context_type = 'venture'
+                  AND is_current = false AND context_id IS NOT NULL`,
+    args: [String(userCid), String(userCid)],
+  });
+  return result.rows.map((row) => String(row.id));
+}
+
+/** Programs the person MANAGED in the past — the residual read (Phase F). */
+export async function getProgramManagedHistoryScopeIds(userCid) {
+  const result = await db.execute({
+    sql: `SELECT DISTINCT CAST(context_id AS TEXT) AS id
+                FROM profile_assignments
+                WHERE contact_cid = ? AND context_type = 'program'
+                  AND source = 'automatic' AND status = 'ended'
+                  AND context_id IS NOT NULL
+                UNION
+                SELECT DISTINCT CAST(context_id AS TEXT) AS id
+                FROM contact_roles
+                WHERE contact_cid = ? AND context_type = 'program'
+                  AND is_current = false AND context_id IS NOT NULL`,
+    args: [String(userCid), String(userCid)],
+  });
+  return result.rows.map((row) => String(row.id));
+}
+
 /** The canonical VNT code for a venture UUID, or null when there is no row. */
 export async function getVentureIdByUuid(value) {
   const result = await db.execute({

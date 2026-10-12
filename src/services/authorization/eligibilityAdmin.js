@@ -24,12 +24,13 @@
 
 import { MODULE_TO_FEATURE, FEATURE_ELIGIBILITY_DEFAULTS } from "@/models/authorization/eligibility";
 import { FEATURE_ORDER } from "@/models/authorization/eligibility-defaults";
+import { isValidProfileKeyShape } from "@/models/authorization/profile-catalog";
 import { evaluateEligibility } from "./eligibility";
 import { getFeatureEligibilityRows } from "@/models/authorization/contextReads";
 import {
-  getProfileCapabilityRows,
   getTemplatesGrantingModules,
 } from "@/models/authorization/eligibilityAdminReads";
+import { listProfileCapabilities } from "@/models/authorization/profileCapabilitiesStore";
 
 const CONFIGURABLE_FEATURES = [
   ...new Set([
@@ -48,21 +49,14 @@ export const FEATURE_KEYS = [
   ...CONFIGURABLE_FEATURES.filter((feature) => !FEATURE_ORDER.includes(feature)).sort(),
 ];
 
-export const IDENTITY_TYPES = ["role", "group"];
-
 /**
- * The agreed eligibility-matrix identities — the ONLY identities the
- * Permission UI shows/configures, split into baseline identities and context
- * roles (see BASELINE_IDENTITIES / CONTEXT_ROLES below). Functions
- * (program_manager, ...) are deliberately NOT eligibility
- * identities — they are profiles/assignments layered on Staff. ROLE_CATALOG
- * remains the full technical catalog (used by the gate-validation tests); this
- * list is the UI-facing subset.
- *
- * The split matters: a person keeps ONE baseline identity and holds context
- * roles additively (Founder of Venture X, Participant in Program A) — the two
- * are different things that happen to share one enforcement table.
+ * The identity kinds a ceiling may be written against: the BASELINE role on the
+ * account (`role`) and the contextual function a person HOLDS (`profile`). A
+ * rule can therefore say "Member WITH the Founder profile" and distinguish it
+ * from a plain Member. Nothing else is configurable.
  */
+export const IDENTITY_TYPES = ["role", "profile"];
+
 /**
  * The baseline identities — the person's relationship with the PLATFORM.
  * If someone stops participating in a program or a venture, this does not
@@ -73,11 +67,11 @@ export const BASELINE_IDENTITIES = ["super_admin", "staff", "member"];
 /**
  * Context roles — what someone IS inside a program, a venture or an investment.
  *
- * They are ceilings too (the engine enforces them the same way), but they must
- * not be mistaken for identities: a person holds them PER CONTEXT, additively,
- * and keeps their baseline identity throughout. Founder = venture membership
- * (venture_own scope), participant = program enrollment, never a platform-wide
- * identity and never an automatic participant surface.
+ * They are ceilings too, but they are no longer roles on the account: each one
+ * is a PROFILE in the catalogue (`src/models/authorization/profile-catalog.js`),
+ * held per relationship and additively, while the person keeps their baseline
+ * identity throughout. Kept here as the named set; these are NOT eligibility
+ * role values.
  */
 export const CONTEXT_ROLES = [
   "participant",
@@ -87,20 +81,15 @@ export const CONTEXT_ROLES = [
 ];
 
 /**
- * The agreed eligibility-matrix identities — the ONLY values the Permission UI
- * shows/configures. Functions (program_manager, ...)
- * are deliberately NOT here: they are profiles/assignments layered on Staff.
- * ROLE_CATALOG remains the full technical catalog (gate validation).
+ * The ONLY role values the Permission UI shows/configures: the three baseline
+ * identities. Every contextual function is a PROFILE (its own identity kind),
+ * so the role list carries nothing else.
  */
-export const ELIGIBILITY_IDENTITIES = [
-  ...BASELINE_IDENTITIES,
-  ...CONTEXT_ROLES,
-];
+export const ELIGIBILITY_IDENTITIES = [...BASELINE_IDENTITIES];
 
-/** The two groups, so the UI can label the matrix honestly (UI-4c). */
+/** The role identities, grouped so the UI can label the matrix. */
 export const ELIGIBILITY_IDENTITY_GROUPS = {
   identities: BASELINE_IDENTITIES,
-  contextRoles: CONTEXT_ROLES,
 };
 
 /** Canonical role catalog: every role referenced by seeds/config plus the
@@ -153,11 +142,14 @@ export function validateCapabilitiesWithinEligibility(caps, eligibility) {
  * Validate + normalize an eligibility change batch.
  *
  * @param {Array<{feature_key, identity_type, identity_value, eligible}>} changes
+ * @param {string[]|null} [profileKeys]  the profile keys that EXIST (read from
+ *   the DB by the caller). When provided, a `profile` change must name one of
+ *   them; when omitted, the key is validated by SHAPE only.
  * @returns {{valid: boolean, errors: string[], normalized: Array}}
  *   normalized entries are {feature_key, identity_type, identity_value, eligible}
  *   where eligible is 0|1|null (null → delete the row).
  */
-export function validateEligibilityChanges(changes) {
+export function validateEligibilityChanges(changes, profileKeys = null) {
   const errors = [];
   const normalized = [];
   if (!Array.isArray(changes) || changes.length === 0) {
@@ -181,6 +173,23 @@ export function validateEligibilityChanges(changes) {
       errors.push("empty identity_value");
       continue;
     }
+    if (identityType === "role" && !BASELINE_IDENTITIES.includes(identityValue)) {
+      errors.push(`unknown role: ${identityValue}`);
+      continue;
+    }
+    if (identityType === "profile") {
+      // Profiles are DYNAMIC: the key is validated by shape, and — when the
+      // caller passes the DB list — it must name a profile that exists.
+      const wellFormed = isValidProfileKeyShape(identityValue);
+      const known =
+        profileKeys === null || profileKeys === undefined
+          ? wellFormed
+          : wellFormed && profileKeys.includes(identityValue);
+      if (!known) {
+        errors.push(`unknown profile: ${identityValue}`);
+        continue;
+      }
+    }
     if (eligible !== 0 && eligible !== 1 && eligible !== null) {
       errors.push(`invalid eligible value for ${featureKey}/${identityType}/${identityValue}: ${eligible}`);
       continue;
@@ -191,17 +200,26 @@ export function validateEligibilityChanges(changes) {
 }
 
 /**
- * Server-side enforcement (Phase 2): a DEFAULT ACCESS TEMPLATE (access
- * profile) can never grant capabilities whose feature the target identity is
- * not eligible for. Eligibility is the boundary.
+ * Server-side enforcement (Phase 2): a profile can never grant capabilities
+ * whose feature the target identity is not eligible for. Eligibility is the
+ * boundary.
+ *
+ * The profile is named by its KEY (`profileKey`, the source of truth since the
+ * takeover).
  *
  * @param {string} role  the identity role (or the user's role)
  * @param {string[]} groups  the identity's effective groups (or [] for roles)
- * @param {number|string} profileId
+ * @param {string[]} [profiles]  the identity's ACTIVE profile keys (Phase D)
+ * @param {string} [profileKey]  the profile key
  * @returns {{valid: boolean, violations: Array<{module, capability, feature}>}}
  */
-export async function assertTemplateCapsEligible({ role, groups = [], profileId }) {
-  const capsRes = await getProfileCapabilityRows(profileId);
+export async function assertTemplateCapsEligible({
+  role,
+  groups = [],
+  profiles = [],
+  profileKey,
+}) {
+  const capsRes = profileKey ? await listProfileCapabilities(profileKey) : { rows: [] };
   const caps = {};
   for (const row of capsRes.rows) {
     caps[row.module] ??= {};
@@ -210,7 +228,7 @@ export async function assertTemplateCapsEligible({ role, groups = [], profileId 
     }
   }
 
-  const eligRes = await getFeatureEligibilityRows(role, groups);
+  const eligRes = await getFeatureEligibilityRows(role, groups, profiles);
   const eligibility = {};
   for (const featureKey of new Set(Object.values(MODULE_TO_FEATURE))) {
     eligibility[featureKey] = evaluateEligibility(eligRes.rows, featureKey);

@@ -7,7 +7,7 @@
  * only the routing and the public surface:
  *
  *   default PermissionManager  — the screen for a given `initialTab`
- *   { GovernanceView }         — re-exported, imported by ContextScopeView.js
+ *   { GovernanceView }         — re-exported, imported by the History route
  *
  * The individual-access editor (the `search` view) keeps its own
  * `space-y-8 pb-20` wrapper, exactly as it had before the split, so the rendered
@@ -16,7 +16,6 @@
  */
 "use client";
 
-import AccessProfilesView from "@/components/permissions/permission-center/AccessProfilesView";
 import AuditView from "@/components/permissions/permission-center/AuditView";
 import EligibilityView from "@/components/permissions/permission-center/EligibilityView";
 import PersonAccessScreen from "@/components/permissions/permission-center/PersonAccessScreen";
@@ -25,18 +24,26 @@ import ResponsibilityAccessView from "@/components/permissions/permission-center
 
 export default function PermissionManager({
   initialTab = "search",
-  initialProfileId = null,
   cid = null,
+  // Forwarded from the screen above so the profiles bar can open the editor's
+  // access-profile override dialog (see IndividualAccessScreen).
+  overrideOpen = false,
+  onOverrideClose = null,
 }) {
   // The person editor owns its outer wrapper; the other tabs share one.
   if (initialTab === "search") {
-    return <PersonAccessScreen cid={cid} />;
+    return (
+      <PersonAccessScreen
+        cid={cid}
+        overrideOpen={overrideOpen}
+        onOverrideClose={onOverrideClose}
+      />
+    );
   }
 
   return (
     <div className="space-y-8 pb-20">
       {initialTab === "eligibility" && <EligibilityView />}
-      {initialTab === "setup" && <AccessProfilesView initialProfileId={initialProfileId} />}
       {initialTab === "responsibilities" && <ResponsibilitiesView />}
       {initialTab === "access" && <ResponsibilityAccessView />}
       {initialTab === "audit" && <AuditView />}

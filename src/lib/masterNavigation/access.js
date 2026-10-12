@@ -41,22 +41,12 @@ export const ROLE_ACCESS = {
     icons: {},
   },
 
-  program_manager: {
-    top: ["dashboard", "programs", "communication", "reports"],
-    children: {
-      communication: ["groups", "messages"],
-      reports: ["internal_reports", "my_projects"],
-    },
-    hrefs: {
-      dashboard: "/pm",
-      programs: "/pm/programs",
-      messages: "/pm/messages",
-      internal_reports: "/staff/op-report",
-      lms_courses: "/pm/lms/courses",
-    },
-    icons: {},
-  },
-
+  // NOTE (Phase H vocabulary) — no CONTEXTUAL profile has a mask here: a profile
+  // is not a role. A legacy value (program_manager, facilitator, participant,
+  // founder, investor) is normalized to its BASELINE surface by the projection
+  // builders (staff for a staff-only profile, member otherwise), and the personal
+  // surfaces are relationship-driven, so an account not yet aligned still gets a
+  // working sidebar instead of the neutral fallback.
   staff: {
     top: ["dashboard", "weekly_ops", "programs", "my_projects", "communication"],
     children: {
@@ -70,13 +60,6 @@ export const ROLE_ACCESS = {
     icons: {},
   },
 
-  facilitator: {
-    top: ["dashboard", "my_programs", "reviews", "profile"],
-    children: {},
-    hrefs: { dashboard: "/facilitator" },
-    icons: {},
-  },
-
   member: {
     top: ["dashboard"],
     children: {},
@@ -87,41 +70,10 @@ export const ROLE_ACCESS = {
     icons: {},
   },
 
-  participant: {
-    top: ["dashboard", "learning", "programs", "certificates"],
-    children: {},
-    hrefs: {
-      dashboard: "/participant",
-      programs: "/participant/dashboard",
-    },
-    icons: {},
-  },
-
-  founder: {
-    top: ["dashboard", "programs", "ventures", "timeline"],
-    children: {},
-    hrefs: {
-      dashboard: "/participant",
-      programs: "/participant/dashboard",
-      ventures: "/participant/ventures",
-    },
-    icons: {},
-  },
-
   team: {
     top: ["dashboard", "programs"],
     children: {},
     hrefs: { dashboard: "/team", programs: "/team" },
-    icons: {},
-  },
-
-  investor: {
-    top: ["dashboard", "portfolio", "activity", "profile"],
-    children: {},
-    hrefs: {
-      dashboard: "/investor/dashboard",
-      profile: "/investor/profile",
-    },
     icons: {},
   },
 

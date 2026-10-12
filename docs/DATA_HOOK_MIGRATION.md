@@ -1059,8 +1059,8 @@ recoverable from git if the feature is picked up again.
 
 The phase's throwaway artefacts (the audit tables and the per-lot ESLint JSON)
 were cleared from `scratch/`. The DIRECTORY is kept: committed tooling writes its
-before-images there (`scripts/apply-template-ceiling-eligibility.mjs`,
-`scripts/audit-participant-membership-gaps.mjs`, `scripts/i6c-acceptance-matrix.mjs`).
+before-images there (`scripts/audit-participant-membership-gaps.mjs`,
+`scripts/i6c-acceptance-matrix.mjs`).
 
 ### 6.7 The actor of a write comes from the session
 

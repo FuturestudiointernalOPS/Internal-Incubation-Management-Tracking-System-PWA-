@@ -13,11 +13,11 @@ const fs = require("fs");
 const path = require("path");
 
 const { deriveProfileBadges } = require("@/components/permissions/profileBadges");
+const { PROTOTYPE_TABS } = require("@/components/permissions/prototype/prototypeNav");
 
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
 
-const { readPermissionCenterSurface } = require("./helpers/permissionCenterSource");
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const resolveKey = (bundle, dotted) =>
   dotted.split(".").reduce((acc, part) => (acc == null ? undefined : acc[part]), bundle);
@@ -51,36 +51,19 @@ describe("UI-2c — profile badges", () => {
 
 describe("UI-2c — screen contracts", () => {
   const route = "src/app/admin/security/permissions/profiles/page.js";
-  // Pinned to the file that owns the behaviour: the editor moved out of the
-  // shim, so reading the shim would pass vacuously. It then split in two — the
-  // panel keeps the state, the effects and the loaders, the writes and the
-  // markup moved under `profiles/` — so an assertion about a write reads the
-  // surface (every module, so duplicating it elsewhere still fails) and an
-  // assertion about the panel's own effect reads the panel.
-  const center = "src/components/permissions/permission-center/AccessProfilesView.js";
-  const surface = readPermissionCenterSurface();
+  const view = "src/components/permissions/ProfilesView.js";
 
-  test("the route forwards a ?profile= deep link into the editor", () => {
+  test("the Profiles door renders the catalogue and the context-role mapping", () => {
     const src = read(route);
-    expect(src).toContain('get("profile")');
-    expect(src).toContain("initialProfileId");
-  });
-
-  test("the editor preselection never auto-selects without a requested id", () => {
-    const src = read(center);
-    expect(src).toContain("initialProfileId");
-    expect(src).toContain("if (!initialProfileId) return;");
+    expect(src).toContain("PermissionPrototype");
+    expect(src).toContain('initialSection="profiles"');
+    expect(PROTOTYPE_TABS.profiles).toEqual(["matrix", "contextRoles"]);
+    expect(src).not.toContain("PermissionManager");
+    expect(src).not.toContain("EntitlementRollup");
   });
 
   test("profile writes carry the review reason (audited server-side)", () => {
-    // the write lives in the save factory now, not in the panel
-    expect(surface).toMatch(/reason: reason\.trim\(\) \|\| undefined/);
-  });
-
-  test("the impact preview comes from the real impact endpoint", () => {
-    // the request is the panel's effect; the count it feeds is the detail block's
-    expect(read(center)).toContain("/api/engineering/permissions/impact?profile_id=");
-    expect(surface).toContain("impactAffects");
+    expect(read(view)).toMatch(/reason: reason\.trim\(\) \|\| undefined/);
   });
 
   test("every badge label exists in English and French", () => {

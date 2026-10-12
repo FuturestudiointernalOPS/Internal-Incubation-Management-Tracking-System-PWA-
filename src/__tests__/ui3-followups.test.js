@@ -17,7 +17,6 @@ const { diffCapabilities } = require("@/components/permissions/pendingChanges");
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
 
-const { readPermissionCenterSurface } = require("./helpers/permissionCenterSource");
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const resolveKey = (bundle, dotted) =>
   dotted.split(".").reduce((acc, part) => (acc == null ? undefined : acc[part]), bundle);
@@ -46,17 +45,6 @@ describe("UI-3 — pending changes diff", () => {
 });
 
 describe("UI-3 — one pending-changes presentation", () => {
-  test("the template editor uses the shared pending-changes list", () => {
-    // Pinned to the file that owns it. The template editor was extracted into
-    // its own module, so reading the shim would pass while guarding nothing —
-    // that exact regression is what permission-center-extraction-integrity
-    // exists to catch. It has since split again: the markup that renders the
-    // list is the detail block's, so the pin reads the whole surface — a copy
-    // planted anywhere else still fails.
-    expect(readPermissionCenterSurface()).toContain("PendingChangesList");
-    expect(read(`${PERMS}ui/PendingChangesList.js`)).toContain("pendingLevelOff");
-  });
-
   test("the level labels exist in English and French", () => {
     for (const key of [
       "engineering.permissions.pendingLevelFull",

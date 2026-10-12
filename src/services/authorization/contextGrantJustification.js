@@ -38,15 +38,19 @@ import {
 import {
   getProfileCapabilityRows,
   listActiveFounderVentures,
+  listActiveInvestorProfiles,
+  listActiveLearnerCourses,
+  listActiveVentureManagerVentures,
+  listActiveParticipantPrograms,
 } from "@/models/authorization/contextGrantsStore";
 
 export async function resolveContextDesiredCaps(context, roleKey) {
   const mapping = await getContextRoleProfile(context, roleKey);
   const row = mapping?.rows?.[0];
-  if (!row || Number(row.is_active) !== 1 || !row.profile_id) {
+  if (!row || Number(row.is_active) !== 1 || !row.profile_key) {
     return { profile: null, desired: {}, reason: row ? "unmapped" : "no-registry-row" };
   }
-  const capabilitiesResult = await getProfileCapabilityRows(row.profile_id);
+  const capabilitiesResult = await getProfileCapabilityRows(row.profile_key);
   const desired = {};
   for (const capabilityRow of capabilitiesResult.rows || []) {
     desired[`${capabilityRow.module}.${capabilityRow.capability}`] = {
@@ -138,6 +142,72 @@ export async function resolveContextJustification(cid, { context, roleKey, email
     };
   }
 
+  // ── Phase E — the newly activated couples (roadmap §7) ─────────────────────
+  //
+  // Each resolves the relationship to its source ids and then reuses the SAME
+  // registry mapping as the couples above: the capability set always comes from
+  // the profile the Context Roles registry points the pair at, never from a
+  // blanket default. None of these three carries an expiry — the reconcile
+  // removes the grant when the relationship itself ends.
+
+  // {investor, investor} — a person with an investor profile.
+  if (context === "investor" && roleKey === "investor") {
+    const { rows } = await listActiveInvestorProfiles(cid);
+    const sourceIds = (rows || []).map((row) => String(row.investor_id)).filter(Boolean);
+    return await coupleReport(context, roleKey, sourceIds);
+  }
+
+  // {lms, learner} — anyone with access to a course (an active enrollment).
+  if (context === "lms" && roleKey === "learner") {
+    const { rows } = await listActiveLearnerCourses(cid);
+    const sourceIds = (rows || []).map((row) => String(row.course_id)).filter(Boolean);
+    return await coupleReport(context, roleKey, sourceIds);
+  }
+
+  // {venture, venture_manager} — the lead manager of a venture.
+  if (context === "venture" && roleKey === "venture_manager") {
+    const ventures = await listActiveVentureManagerVentures(cid);
+    const sourceIds = (ventures || []).map((id) => String(id)).filter(Boolean);
+    return await coupleReport(context, roleKey, sourceIds);
+  }
+
+  // {program, participant} — anyone enrolled in a program. The enrollment row is
+  // the relationship, so the grant ends when the enrollment does. The registry
+  // maps the pair to the Participant template.
+  if (context === "program" && roleKey === "participant") {
+    const { rows } = await listActiveParticipantPrograms(cid);
+    const sourceIds = (rows || []).map((row) => String(row.program_id)).filter(Boolean);
+    return await coupleReport(context, roleKey, sourceIds);
+  }
+
   return null;
+}
+
+/**
+ * The shared shape for a "relationship → registry profile" couple (Phase E):
+ * an empty source set is honestly reported as "no active relationship", so the
+ * reconcile withdraws what this couple previously applied rather than silently
+ * revoking on an unknown pair.
+ */
+async function coupleReport(context, roleKey, sourceIds) {
+  if (sourceIds.length === 0) {
+    return {
+      sourceIds: [],
+      profile: null,
+      desired: {},
+      reason: "no active relationship",
+      managesExpiry: false,
+      expiresAt: null,
+    };
+  }
+  const resolved = await resolveContextDesiredCaps(context, roleKey);
+  return {
+    sourceIds,
+    profile: resolved.profile,
+    desired: resolved.desired,
+    reason: resolved.reason,
+    managesExpiry: false,
+    expiresAt: null,
+  };
 }
 

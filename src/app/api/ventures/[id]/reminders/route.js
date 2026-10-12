@@ -11,6 +11,7 @@ import {
   selectReminderRules,
   setReminderRuleActive,
 } from "@/models/ventureReminders";
+import { getVentureNameByIdOrCode } from "@/models/ventureWorkspace";
 import { sendManualReminder } from "@/services/reminders/engine";
 import { normalizeEmail, resolveWorkItemRecipients } from "@/services/reminders/recipients";
 import { normalizeDaysBefore, normalizeRuleKind, REMINDER_TRIGGERS } from "@/services/reminders/rules";
@@ -108,9 +109,13 @@ export async function POST(req, { params }) {
       const item = items.find((entry) => entry.id === String(body?.work_item || ""));
       if (!item) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
+      const nameResult = await getVentureNameByIdOrCode(id).catch(() => ({ rows: [] }));
+      const ventureName =
+        nameResult.rows?.[0]?.company_name || nameResult.rows?.[0]?.name || null;
+
       const outcome = await sendManualReminder({
         ventureCode: id,
-        ventureName: null,
+        ventureName,
         item,
         sentBy: access.session?.name || null,
       });

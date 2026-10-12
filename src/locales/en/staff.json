@@ -194,6 +194,44 @@
       "listSubtitle": "Ventures assigned to you — access is per assignment, never by staff role alone.",
       "listEmpty": "No Venture assignments yet",
       "listEmptyHint": "When the Super Admin assigns you as a Lead Manager, Coach or Facilitator for a Venture, it will appear here."
+    },
+    "leadHome": {
+      "title": "Lead Manager — My day",
+      "subtitle": "Only the Ventures you lead. What needs action today, and where to go next.",
+      "workspaceHint": "Lead Manager workspace — operate the roadmap, reviews and sessions. The global framework (templates, roles) stays with Super Admin. Venture profile fields are view-only here.",
+      "kpiVentures": "Ventures I lead",
+      "kpiActiveJourneys": "Active journeys",
+      "kpiBlocked": "Blocked milestones",
+      "kpiToReview": "To review",
+      "kpiSignoff": "Awaiting sign-off",
+      "kpiSessionsWeek": "Sessions this week",
+      "kpiReports": "Journey reports due",
+      "blockedHint": "Blocked: {names}",
+      "queueTitle": "To handle",
+      "queueEmpty": "Nothing urgent across your Ventures.",
+      "myVenturesTitle": "My Ventures",
+      "myVenturesSubtitle": "Health, next deadline and last activity — open for the 360° workspace.",
+      "filterPhase": "Filter by phase",
+      "filterAllPhases": "All phases",
+      "progress": "Progress {done}/{total}",
+      "blockedCount": "{count} blocked",
+      "nextDeadline": "Next: {title} · {date}",
+      "noDeadline": "No upcoming deadline",
+      "lastActivity": "Last activity: {date}",
+      "kind": {
+        "overdue_milestone": "Overdue milestone",
+        "blocked_milestone": "Blocked milestone",
+        "review_stale": "Review waiting too long",
+        "review_deliverable": "Deliverable to review",
+        "review_submission": "Submission to review",
+        "due_soon_milestone": "Due soon",
+        "journey_no_start": "Journey with no start date",
+        "journey_no_milestone": "Journey with no milestone",
+        "inactive_venture": "No recent activity",
+        "session_no_memo": "Session without memo",
+        "session_upcoming": "Upcoming session",
+        "journey_report_due": "Journey report due"
+      }
     }
   }
 }

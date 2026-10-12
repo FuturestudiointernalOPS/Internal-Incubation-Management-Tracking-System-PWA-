@@ -25,6 +25,7 @@ import {
   isAlreadyFacilitatorInProgram,
   upsertFacilitatorProgramStaff,
 } from "@/models/facilitation";
+import { reconcileFacilitatorAccessForUser } from "@/services/authorization/contextGrantProgramAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -150,6 +151,12 @@ export async function POST(req) {
 
       // Facilitator relationship inherits the program default permissions.
       await upsertFacilitatorProgramStaff(programId, contactCid, defaultPermissions);
+
+      // Phase E — the new relationship applies immediately, not at the next
+      // connect or sweep. Best-effort: the stored assignment is the truth.
+      try {
+        await reconcileFacilitatorAccessForUser(contactCid, { email: analysis.email });
+      } catch (_) {}
 
       // Link the contact to this program (fill-only) and record the contextual
       // facilitator role without overwriting the person's global role.

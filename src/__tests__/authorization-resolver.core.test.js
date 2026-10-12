@@ -298,11 +298,16 @@ describe("reports module (Phase 3)", () => {
   test("reports eligibility defaults cover the submit routes (admin/developer removed)", () => {
     const {
   FEATURE_ELIGIBILITY_DEFAULTS,
+  FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
 } = require("@/models/authorization/eligibility");
     const reports = FEATURE_ELIGIBILITY_DEFAULTS.reports;
     expect(reports).toEqual(
-      expect.arrayContaining(["super_admin", "staff", "program_manager"]),
+      expect.arrayContaining(["super_admin", "staff"]),
     );
+    // Phase H — program_manager is a PROFILE, so its reports ceiling lives on the
+    // profile identity, not on a role the account no longer carries.
+    expect(reports).not.toContain("program_manager");
+    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.reports).toContain("program_manager");
     expect(reports).not.toContain("admin");
     expect(reports).not.toContain("developer");
   });
@@ -342,10 +347,13 @@ describe("contacts module (Phase 4)", () => {
   test("crm eligibility defaults are internal identities only (participant/founder removed by policy #3)", () => {
     const {
   FEATURE_ELIGIBILITY_DEFAULTS,
+  FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
 } = require("@/models/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).toEqual(
-      expect.arrayContaining(["super_admin", "staff", "program_manager"]),
+      expect.arrayContaining(["super_admin", "staff"]),
     );
+    // Phase H — program_manager is a PROFILE now.
+    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.crm).toContain("program_manager");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("participant");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("founder");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("developer");
@@ -401,18 +409,19 @@ describe("communication feature (Messages + Announcements)", () => {
   test("communication eligibility defaults cover the CRM-like allowlist (PO decision, no admin)", () => {
     const {
   FEATURE_ELIGIBILITY_DEFAULTS,
+  FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
 } = require("@/models/authorization/eligibility");
-    // participant / mentor / investor are listed because their OWN seeded
-    // default templates (Participant Default, Mentor) carry messaging caps. A
-    // role must be eligible for every feature its default template grants —
-    // otherwise the ceiling check rejects the whole template and it can never
-    // be saved (the bug that made Staff Default unsavable).
+    // The ROLE list is the baseline roles only. The contextual functions that
+    // read messaging (mentor → the Mentor/Investor profile) are PROFILES: their
+    // ceiling rides the profile identity, so a person is eligible through the
+    // profile they hold, not through a role label.
     expect(FEATURE_ELIGIBILITY_DEFAULTS.communication).toEqual([
       "super_admin",
       "staff",
+    ]);
+    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.communication).toEqual([
       "program_manager",
       "participant",
-      "mentor",
       "investor",
     ]);
     expect(FEATURE_ELIGIBILITY_DEFAULTS.communication).not.toContain("admin");

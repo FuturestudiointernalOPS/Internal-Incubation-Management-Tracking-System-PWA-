@@ -194,6 +194,44 @@
       "listSubtitle": "Les Ventures qui vous sont attribuées — l'accès dépend de l'affectation, jamais du rôle staff seul.",
       "listEmpty": "Aucune affectation de Venture pour le moment",
       "listEmptyHint": "Lorsque le Super Admin vous affectera à une Venture comme Lead Manager, Coach ou Facilitateur, elle apparaîtra ici."
+    },
+    "leadHome": {
+      "title": "Lead Manager — Ma journée",
+      "subtitle": "Uniquement les Ventures que vous dirigez. Ce qu'il faut traiter aujourd'hui, et où aller ensuite.",
+      "workspaceHint": "Espace Lead Manager — pilotez la feuille de route, les relectures et les séances. Le cadre global (modèles, rôles) reste au Super Admin. Le profil Venture est en consultation seule ici.",
+      "kpiVentures": "Ventures que je dirige",
+      "kpiActiveJourneys": "Parcours actifs",
+      "kpiBlocked": "Jalons bloqués",
+      "kpiToReview": "À relire",
+      "kpiSignoff": "En attente de signature",
+      "kpiSessionsWeek": "Séances cette semaine",
+      "kpiReports": "Rapports de Parcours dus",
+      "blockedHint": "Bloqués : {names}",
+      "queueTitle": "À traiter",
+      "queueEmpty": "Rien d'urgent sur vos Ventures.",
+      "myVenturesTitle": "Mes Ventures",
+      "myVenturesSubtitle": "Santé, prochaine échéance et dernière activité — ouvrez pour la vue 360°.",
+      "filterPhase": "Filtrer par phase",
+      "filterAllPhases": "Toutes les phases",
+      "progress": "Avancement {done}/{total}",
+      "blockedCount": "{count} bloqué(s)",
+      "nextDeadline": "Prochaine : {title} · {date}",
+      "noDeadline": "Aucune échéance à venir",
+      "lastActivity": "Dernière activité : {date}",
+      "kind": {
+        "overdue_milestone": "Jalon en retard",
+        "blocked_milestone": "Jalon bloqué",
+        "review_stale": "Relecture trop longue",
+        "review_deliverable": "Livrable à relire",
+        "review_submission": "Soumission à relire",
+        "due_soon_milestone": "Échéance proche",
+        "journey_no_start": "Parcours sans date de début",
+        "journey_no_milestone": "Parcours sans jalon",
+        "inactive_venture": "Sans activité récente",
+        "session_no_memo": "Séance sans mémo",
+        "session_upcoming": "Séance à venir",
+        "journey_report_due": "Rapport de Parcours dû"
+      }
     }
   }
 }

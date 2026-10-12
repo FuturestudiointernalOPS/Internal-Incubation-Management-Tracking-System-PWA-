@@ -78,14 +78,14 @@ describe("validateEligibilityChanges (eligibility API)", () => {
     const { validateEligibilityChanges } = require("@/models/authorization/index");
     const result = validateEligibilityChanges([
       { feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 1 },
-      { feature_key: "crm", identity_type: "group", identity_value: "Future Studio", eligible: 0 },
+      { feature_key: "crm", identity_type: "profile", identity_value: "founder", eligible: 0 },
       { feature_key: "communication", identity_type: "role", identity_value: "member", eligible: null },
     ]);
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);
     expect(result.normalized).toEqual([
       { feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 1 },
-      { feature_key: "crm", identity_type: "group", identity_value: "Future Studio", eligible: 0 },
+      { feature_key: "crm", identity_type: "profile", identity_value: "founder", eligible: 0 },
       { feature_key: "communication", identity_type: "role", identity_value: "member", eligible: null },
     ]);
   });
@@ -171,22 +171,11 @@ describe("validateEligibilityChanges (eligibility API)", () => {
     expect(result.valid).toBe(true);
   });
 
-  test("the template-ceiling catch-up mirrors the canonical defaults (no drift)", () => {
-    // The catch-up exists for databases whose eligibility bootstrap ran BEFORE
-    // the seeded default templates were reconciled with their roles' ceilings.
-    // It must add exactly what a fresh database gets from the defaults — a
-    // divergence would make the two populations behave differently.
-    const {
-  TEMPLATE_CEILING_ROWS,
-  FEATURE_ELIGIBILITY_DEFAULTS,
-} = require("@/models/authorization/eligibility");
-    const rows = Object.entries(TEMPLATE_CEILING_ROWS);
-    expect(rows.length).toBeGreaterThan(0);
-    for (const [featureKey, roles] of rows) {
-      expect(FEATURE_ELIGIBILITY_DEFAULTS[featureKey]).toBeDefined();
-      for (const role of roles) {
-        expect(FEATURE_ELIGIBILITY_DEFAULTS[featureKey]).toContain(role);
-      }
+  test("the role defaults carry baseline identities only (no legacy labels)", () => {
+    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/models/authorization/eligibility");
+    const baseline = new Set(["super_admin", "staff", "member"]);
+    for (const roles of Object.values(FEATURE_ELIGIBILITY_DEFAULTS)) {
+      for (const role of roles) expect(baseline.has(role)).toBe(true);
     }
   });
 

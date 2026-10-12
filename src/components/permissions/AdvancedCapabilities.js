@@ -238,8 +238,10 @@ export default function AdvancedCapabilities({
             )}
           </span>
         </div>
-        <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-          {t("engineering.permissions.advancedCurrentState")}:{" "}
+        <p className="flex flex-wrap items-center gap-1.5 text-[10px] font-semibold text-[var(--text-secondary)]">
+          <span className="rounded-md border border-[var(--border-primary)] bg-secondary/50 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider">
+            {t("engineering.permissions.advancedCurrentState")}
+          </span>
           <span
             className={
               origin === "restricted"

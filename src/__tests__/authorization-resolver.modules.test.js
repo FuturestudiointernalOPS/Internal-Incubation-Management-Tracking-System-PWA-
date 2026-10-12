@@ -80,13 +80,18 @@ describe("tasks module (Phase 7)", () => {
     expect(MODULE_TO_FEATURE.tasks).toBe("operations");
   });
 
-  test("operations eligibility defaults cover the tasks allowlist incl. team", () => {
+  test("operations eligibility defaults are the baseline roles only", () => {
     const {
   FEATURE_ELIGIBILITY_DEFAULTS,
+  FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
 } = require("@/models/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.operations).toEqual(
-      expect.arrayContaining(["super_admin", "staff", "program_manager", "team"]),
+      expect.arrayContaining(["super_admin", "staff"]),
     );
+    // Phase H — program_manager / participant / investor are PROFILES now.
+    for (const profile of ["program_manager", "participant", "investor"]) {
+      expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.operations).toContain(profile);
+    }
   });
 
   test("team member with tasks capabilities is allowed on the board", () => {
@@ -205,10 +210,15 @@ describe("ventures module (Phase 10)", () => {
   test("ventures eligibility defaults cover the CRUD allowlist", () => {
     const {
   FEATURE_ELIGIBILITY_DEFAULTS,
+  FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
 } = require("@/models/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.ventures).toEqual(
-      expect.arrayContaining(["super_admin", "staff", "program_manager"]),
+      expect.arrayContaining(["super_admin", "staff", "member"]),
     );
+    // Phase H — program_manager / investor / founder are PROFILES now.
+    for (const profile of ["program_manager", "investor", "founder"]) {
+      expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.ventures).toContain(profile);
+    }
   });
 
   // Phase 6: a venture founder is a BASELINE MEMBER with a venture context, so
@@ -280,11 +290,15 @@ describe("investor module (Phase 11)", () => {
   test("investor eligibility covers the uniform portal allowlist (no PM)", () => {
     const {
   FEATURE_ELIGIBILITY_DEFAULTS,
+  FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
 } = require("@/models/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.investors).toEqual(
-      expect.arrayContaining(["super_admin", "staff", "investor"]),
+      expect.arrayContaining(["super_admin", "staff"]),
     );
+    // Phase H — investor is a PROFILE now; program_manager is not eligible.
+    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.investors).toContain("investor");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.investors).not.toContain("program_manager");
+    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.investors).not.toContain("program_manager");
   });
 
   test("investor with backfilled caps is allowed; mentor (same profile) is NOT eligible", () => {
@@ -322,13 +336,15 @@ describe("messaging module (communication feature)", () => {
   test("messaging eligibility now rides the communication feature (internal roles per PO)", () => {
     const {
   FEATURE_ELIGIBILITY_DEFAULTS,
+  FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
 } = require("@/models/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.communication).toEqual([
       "super_admin",
       "staff",
+    ]);
+    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.communication).toEqual([
       "program_manager",
       "participant",
-      "mentor",
       "investor",
     ]);
   });

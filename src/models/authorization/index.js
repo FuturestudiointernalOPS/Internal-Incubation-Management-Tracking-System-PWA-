@@ -28,6 +28,7 @@ export {
   seedDefaultEligibility,
   MODULE_TO_FEATURE,
   FEATURE_ELIGIBILITY_DEFAULTS,
+  FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
   FEATURE_ORDER,
 } from "./eligibility";
 

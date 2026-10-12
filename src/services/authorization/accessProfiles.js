@@ -22,66 +22,69 @@ import {
   seedDefaultResponsibilities,
 } from "@/models/authorization/bootstrap";
 import {
-  selectUserAccessProfileId,
-  selectActiveAccessProfileById,
-  selectRoleDefaultAccessProfile,
-  selectAccessProfileCapabilityRows,
   selectResponsibilitiesForUser,
   insertUserResponsibility,
   deleteUserResponsibility,
   selectActiveResponsibilities,
 } from "@/models/accessProfilesStore";
+import { getContactBaseState } from "@/models/authorization/baseCapabilityReads";
+import {
+  resolveContactBaseProfile,
+  resolveRoleDefaultBaseProfile,
+} from "@/models/authorization/contextReads";
+import { listProfileCapabilities } from "@/models/authorization/profileCapabilitiesStore";
 
 /**
- * Resolves the effective Access Profile for a user.
- * Returns { profileId, profileName, source: 'user'|'role'|'legacy' }
+ * Resolves the effective PROFILE for a user.
+ * Returns { profileKey, profileName, source: 'user'|'role'|'legacy' }
  */
 export async function getUserEffectiveProfile(userCid, userRole) {
   try {
     await initDb();
 
-    // Step 1: Check if user has an explicit access_profile_id
-    const userRes = await selectUserAccessProfileId(userCid);
+    const contact = (await getContactBaseState(userCid)).rows[0] || {};
 
-    if (userRes.rows.length > 0 && userRes.rows[0].access_profile_id) {
-      const profile = await selectActiveAccessProfileById(userRes.rows[0].access_profile_id);
+    // Step 1: an explicit profile override, by KEY.
+    if (contact.profile_key) {
+      const profile = await resolveContactBaseProfile({ profileKey: contact.profile_key });
       if (profile.rows.length > 0) {
         return {
-          profileId: profile.rows[0].id,
-          profileName: profile.rows[0].name,
+          profileKey: contact.profile_key,
+          profileName: profile.rows[0].label,
           source: "user",
         };
       }
     }
 
-    // Step 2: Check role's default access profile
-    if (userRole) {
-      const roleDefault = await selectRoleDefaultAccessProfile(userRole);
+    // Step 2: the role's default profile.
+    const role = userRole || contact.role;
+    if (role) {
+      const roleDefault = await resolveRoleDefaultBaseProfile(role);
       if (roleDefault.rows.length > 0) {
         return {
-          profileId: roleDefault.rows[0].id,
-          profileName: roleDefault.rows[0].name,
+          profileKey: roleDefault.rows[0].profile_key,
+          profileName: roleDefault.rows[0].label,
           source: "role",
         };
       }
     }
 
-    // Step 3: No profile found — return legacy signal
-    return { profileId: null, profileName: null, source: "legacy" };
+    // Step 3: No profile found — the identity's role capabilities are the base.
+    return { profileKey: null, profileName: null, source: "legacy" };
   } catch (error) {
     console.error("getUserEffectiveProfile error:", error.message);
-    return { profileId: null, profileName: null, source: "legacy" };
+    return { profileKey: null, profileName: null, source: "legacy" };
   }
 }
 
 /**
- * Gets capabilities from an access profile.
- * Returns Map { capabilityKey -> accessLevel }
+ * Gets capabilities from a profile, by KEY.
+ * Returns Map { module: { capability: level } }
  */
-export async function getAccessProfileCapabilities(profileId) {
+export async function getAccessProfileCapabilities(profileKey) {
   try {
     await initDb();
-    const rows = await selectAccessProfileCapabilityRows(profileId);
+    const rows = await listProfileCapabilities(profileKey);
     const result = {};
     for (const row of rows.rows) {
       if (!result[row.module]) result[row.module] = {};
