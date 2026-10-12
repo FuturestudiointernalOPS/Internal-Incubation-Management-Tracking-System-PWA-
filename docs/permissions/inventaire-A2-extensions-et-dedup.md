@@ -158,7 +158,7 @@ Occurrences exactes en production :
 P="--glob src/**/*.{js,jsx,ts,tsx} --glob !src/__tests__/** \
    --glob !src/server/authz/** --glob !src/models/authorization/** --glob !src/services/authorization/**"
 rg -n --no-heading --color never $P -e 'FEATURE_ELIGIBILITY_DEFAULTS' src
-# src/lib/featureAccess.js:27:import { FEATURE_ELIGIBILITY_DEFAULTS } from "@/models/authorization/eligibility-defaults";
+# src/lib/featureAccess.js:27:import { FEATURE_ELIGIBILITY_DEFAULTS } from "@/models/authorization/constants";
 # src/lib/featureAccess.js:35:export const RESPONSIBILITY_FEATURE_ROLES = FEATURE_ELIGIBILITY_DEFAULTS;
 
 rg -n --no-heading --color never $P -e 'RESPONSIBILITY_FEATURE_ROLES' src

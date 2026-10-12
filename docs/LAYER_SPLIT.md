@@ -2888,7 +2888,7 @@ Done: `models/lms/learning.js` → `services/lms/learning.js` + `models/lms/lear
 - `models/intelligence.js` — aggregation reads plus light formatting.
 - Pure modules: `platform/roles.js`, `authorization/capability-catalog.js`,
   `lms/constants.js`, `lms/scoring.js`, `lib/programProgress.js`,
-  `ventureChangeLog.js`, `authorization/eligibility-defaults.js`.
+  `ventureChangeLog.js`, `authorization/constants/`.
 
 > **Controllers are the new frontier.** Once the model modules are split, the
 > remaining domain logic is the orchestration inside `src/app/api/**/route.js`.
