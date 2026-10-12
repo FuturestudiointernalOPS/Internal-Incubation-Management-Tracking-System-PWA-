@@ -162,13 +162,18 @@ describe("validateEligibilityChanges (eligibility API)", () => {
     });
   });
 
-  test("infra modules without a feature mapping are not eligibility-bound", () => {
+  test("org_membership is eligibility-bound to its feature (crm)", () => {
     const { validateCapabilitiesWithinEligibility } = require("@/models/authorization/index");
     const result = validateCapabilitiesWithinEligibility(
       { org_membership: { manage: 2 } },
       {},
     );
-    expect(result.valid).toBe(true);
+    expect(result.valid).toBe(false);
+    expect(result.violations[0]).toEqual({
+      module: "org_membership",
+      capability: "manage",
+      feature: "crm",
+    });
   });
 
   test("the role defaults carry baseline identities only (no legacy labels)", () => {

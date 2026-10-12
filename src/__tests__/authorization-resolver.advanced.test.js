@@ -135,12 +135,12 @@ describe("org_membership capability (Phase 1 — protected groups)", () => {
   test("holders may manage membership; assign_capabilities does NOT imply it", () => {
     const manager = staffCtx({
       role: "staff",
-      eligibility: {},
+      eligibility: { crm: true },
       effective: { org_membership: { view: 1, manage: 2 } },
     });
     const capAssigner = staffCtx({
       role: "staff",
-      eligibility: {},
+      eligibility: { crm: true },
       effective: { permissions: { assign_capabilities: 2 } }, // different power
     });
     expect(authorize(manager, "org_membership", "manage")).toBe(true);

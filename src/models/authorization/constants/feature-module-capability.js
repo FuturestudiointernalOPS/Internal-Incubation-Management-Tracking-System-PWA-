@@ -7,9 +7,6 @@
  *
  * Feature-first: features follow FEATURE_ORDER; a feature's modules follow
  * MODULE_TO_FEATURE.
- *
- * NOTE — a module absent from MODULE_TO_FEATURE (e.g. `org_membership`) belongs
- * to no feature and therefore does not appear here.
  */
 
 export const FEATURE_MODULE_CAPABILITY = {
@@ -85,6 +82,18 @@ export const FEATURE_MODULE_CAPABILITY = {
         label: "Manage",
         risk: "high",
         description: "Administer CRM configuration, module capabilities, and pipeline (Phase 2+)"
+      }
+    },
+    org_membership: {
+      view: {
+        label: "View",
+        risk: "medium",
+        description: "See organizational membership"
+      },
+      manage: {
+        label: "Manage",
+        risk: "critical",
+        description: "Manage protected-group membership (e.g. FUTURE STUDIO)"
       }
     }
   },

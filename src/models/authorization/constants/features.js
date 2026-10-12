@@ -34,6 +34,9 @@ export const MODULE_TO_FEATURE = {
   duplicates: "crm",
   bulk_upload: "crm",
   crm: "crm",
+  // Organizational membership — the CRM section owns it in the navigation (the
+  // `crm_membership` node).
+  org_membership: "crm",
   // Communication
   messaging: "communication",
   internal_comms: "communication",
