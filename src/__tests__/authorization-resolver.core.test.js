@@ -349,8 +349,8 @@ describe("contacts module (Phase 4)", () => {
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).toEqual(
       expect.arrayContaining(["super_admin", "staff"]),
     );
-    // Phase H — program_manager is a PROFILE now.
-    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.crm).toContain("program_manager");
+    // crm carries no PROFILE ceiling (the program_manager entry was removed).
+    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.crm).toBeUndefined();
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("participant");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("founder");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("developer");

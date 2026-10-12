@@ -70,9 +70,8 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
  * decision is never overwritten.
  */
 export const FEATURE_ELIGIBILITY_PROFILE_DEFAULTS = {
-  crm: ["program_manager"],
   communication: ["program_manager", "participant", "investor"],
-  programs: ["program_manager", "participant", "investor", "facilitator"],
+  programs: ["program_manager", "participant", "facilitator"],
   ventures: ["program_manager", "investor", "founder"],
   investors: ["investor"],
   operations: ["program_manager", "participant", "investor"],

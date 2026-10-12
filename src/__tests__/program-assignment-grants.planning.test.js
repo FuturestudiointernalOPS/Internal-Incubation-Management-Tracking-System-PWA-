@@ -100,11 +100,11 @@ describe("eligibility ceiling — the assignment grant must not be dead on arriv
 
   test("the programs feature is eligible for the contextual identities", () => {
     // A facilitator is a baseline Member with the facilitator PROFILE (Phase H),
-    // so the role list carries `member` and the profile list carries
-    // `facilitator`; without the ceiling row the resolver refuses BEFORE reading
-    // the grant.
+    // so the role list carries `member`; the profile list carries the contextual
+    // program identities (program_manager, participant). Without the ceiling row
+    // the resolver refuses BEFORE reading the grant.
     expect(FEATURE_ELIGIBILITY_DEFAULTS.programs).toContain("member");
-    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.programs).toContain("facilitator");
+    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.programs).toContain("program_manager");
   });
 
   test("the responsibility defaults stay in exact sync (they share one source)", () => {
