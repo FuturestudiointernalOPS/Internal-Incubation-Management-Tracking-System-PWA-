@@ -1,15 +1,11 @@
 /**
  * ImpactOS — Authorization Foundation: FEATURE ELIGIBILITY DEFAULTS
  *
- * Pure constants ONLY (no db import, no side effects). This module is the
- * single source of truth for the per-feature allowlists used by:
- *
- *   - the eligibility seed (`./eligibility.js` — feature_eligibility rows),
- *   - the Responsibility Access defaults (`src/lib/featureAccess.js`),
- *   - the model-consistency tests (roles must stay within ROLE_CATALOG).
- *
- * FEATURES = the dashboard sections (CRM, Communication, Programs, …). Their
- * modules are the sub-sections (see MODULE_TO_FEATURE).
+ * Pure constants ONLY (no db import, no side effects). The per-feature
+ * allowlists the eligibility seed writes (`../eligibility.js` —
+ * feature_eligibility rows), the Responsibility Access defaults
+ * (`src/lib/featureAccess.js`), and the assignment-derived seed rows.
+ * The model-consistency tests keep roles within ROLE_CATALOG.
  *
  * TWO allowlists, split by IDENTITY KIND:
  *
@@ -27,25 +23,6 @@
  */
 
 /**
- * Canonical order of the features — mirrors the dashboard sections so the
- * Permissions UI lists them the way the sidebar does (NOT alphabetically).
- */
-export const FEATURE_ORDER = [
-  "crm",
-  "communication",
-  "programs",
-  "ventures",
-  "investors",
-  "finance",
-  "operations",
-  "reports",
-  "knowledge",
-  "lms",
-  "security",
-  "settings",
-];
-
-/**
  * The BASELINE-role ceilings. Only the three identities the account itself can
  * carry: `super_admin`, `staff`, `member`. Every contextual function is a
  * profile (see `FEATURE_ELIGIBILITY_PROFILE_DEFAULTS`); legacy role labels
@@ -56,7 +33,7 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
   crm: ["super_admin", "staff"],
   // Communication — messaging, announcements, forms. The contextual functions
   // that read messaging (mentor) are PROFILES now, so their ceiling rides the
-  // profile identity (see FEATURE_ELIGIBILITY_PROFILE_DEFAULTS). Only the
+  // profile identity (see `FEATURE_ELIGIBILITY_PROFILE_DEFAULTS`). Only the
   // baseline roles remain on the role list.
   communication: ["super_admin", "staff"],
   // Programs — programs, participants, submissions (facilitator module).
@@ -101,4 +78,21 @@ export const FEATURE_ELIGIBILITY_PROFILE_DEFAULTS = {
   operations: ["program_manager", "participant", "investor"],
   reports: ["program_manager"],
   lms: ["program_manager"],
+};
+
+/**
+ * Assignment-derived program access: the eligibility rows the per-program
+ * assignment model needs on databases that bootstrapped before it existed.
+ *
+ * A facilitator / program manager receives capabilities from the program
+ * assignment (Context Roles → profile → additive grants). Eligibility is
+ * checked BEFORE capability and fails closed, so without these rows the grant
+ * would look inert and the person would be refused — the opposite of the
+ * "already in production, must not be blocked" requirement.
+ *
+ * Insert-only (ON CONFLICT DO NOTHING): an administrator's decision — including
+ * an explicit deny — is never overwritten. MIRRORS FEATURE_ELIGIBILITY_DEFAULTS.programs.
+ */
+export const PROGRAM_ASSIGNMENT_ROWS = {
+  programs: ["member"],
 };

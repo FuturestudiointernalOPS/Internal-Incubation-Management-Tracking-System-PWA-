@@ -23,7 +23,7 @@
  */
 
 import { MODULE_TO_FEATURE, FEATURE_ELIGIBILITY_DEFAULTS } from "@/models/authorization/eligibility";
-import { FEATURE_ORDER } from "@/models/authorization/eligibility-defaults";
+import { FEATURE_ORDER } from "@/models/authorization/constants";
 import { isValidProfileKeyShape } from "@/models/authorization/profile-catalog";
 import { evaluateEligibility } from "./eligibility";
 import { getFeatureEligibilityRows } from "@/models/authorization/contextReads";

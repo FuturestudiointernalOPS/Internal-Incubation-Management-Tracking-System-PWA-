@@ -103,7 +103,7 @@ export const ROLE_ACCESS = {
 // visibility only.
 //
 // CONFIG CHAIN (single source, enforced by tests):
-//   eligibility-defaults (canonical) → featureAccess responsibility roles
+//   authorization/constants (canonical) → featureAccess responsibility roles
 //   → NAV_CAPABILITY_REQUIREMENTS (node → module capability) → projection.
 // navigation.test.js's "capability projection consistency" contract locks:
 // requirements resolve to real catalog capabilities/nav nodes, show/hide ids

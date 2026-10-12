@@ -24,7 +24,7 @@
  * the server-side route allowlists.
  */
 
-import { FEATURE_ELIGIBILITY_DEFAULTS } from "@/models/authorization/eligibility-defaults";
+import { FEATURE_ELIGIBILITY_DEFAULTS } from "@/models/authorization/constants";
 
 // Initial defaults — used to seed the DB once and as fallback for
 // responsibilities that have not been configured yet.

@@ -18,7 +18,7 @@
  * `profiles` table (see `profilesStore.listProfiles`).
  *
  * No database import — safe to share with client components and tests, exactly
- * like `eligibility-defaults.js`. The seed inserts with ON CONFLICT DO NOTHING,
+ * like `constants/eligibility-defaults.js`. The seed inserts with ON CONFLICT DO NOTHING,
  * so an administrator's edit of `allowed_roles` / `is_active` / `notes` — or a
  * profile they created — always wins.
  *

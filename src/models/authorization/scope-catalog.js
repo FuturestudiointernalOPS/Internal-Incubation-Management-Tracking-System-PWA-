@@ -2,7 +2,7 @@
  * ImpactOS — Authorization Foundation: SCOPE CATALOGUE (Phase 5, PURE MODULE).
  *
  * No database imports — safe to share with client components (the Scope
- * Policies governance view) and tests, exactly like `eligibility-defaults`.
+ * Policies governance view) and tests, exactly like `constants/eligibility-defaults`.
  * The executable predicates live in ./scope.js.
  *
  * SCOPE answers the third authorization question — after eligibility ("may

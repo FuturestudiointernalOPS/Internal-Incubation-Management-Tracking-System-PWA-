@@ -18,7 +18,7 @@ import applyOptimisticQuickAction from "@/components/permissions/permission-cent
 import { riskyChanges } from "@/components/permissions/riskGate";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { useI18n } from "@/lib/i18n";
-import { FEATURE_ORDER } from "@/models/authorization/eligibility-defaults";
+import { FEATURE_ORDER } from "@/models/authorization/constants";
 
 
 export default function PersonAccessScreen({

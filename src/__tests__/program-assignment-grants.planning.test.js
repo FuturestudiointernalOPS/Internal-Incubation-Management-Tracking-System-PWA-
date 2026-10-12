@@ -95,7 +95,7 @@ describe("eligibility ceiling — the assignment grant must not be dead on arriv
   const {
     FEATURE_ELIGIBILITY_DEFAULTS,
     FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
-  } = require("@/models/authorization/eligibility-defaults");
+  } = require("@/models/authorization/constants");
   const { RESPONSIBILITY_FEATURE_ROLES } = require("@/lib/featureAccess");
 
   test("the programs feature is eligible for the contextual identities", () => {
