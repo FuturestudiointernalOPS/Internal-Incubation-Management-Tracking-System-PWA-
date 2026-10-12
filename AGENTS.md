@@ -330,10 +330,22 @@ curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/api/ventures/VNT-
 `405` instead of `401`/`404` means the path resolved but that HTTP method is not
 exported.
 
-### `.env.local` points at staging
+### `.env.local` points at PRODUCTION (corrected 2026-10-11)
 
-The local dev server reads `DATABASE_URL` from `.env.local`, which on this
-workstation is the **staging** Supabase project. Browsing admin screens writes to
-staging. Schema is *not* an exception — see the runtime migration note in
-`src/lib/db.js`: unless `SKIP_RUNTIME_SCHEMA_MAINTENANCE` is set, the app applies
-its own `CREATE TABLE IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` on first use.
+The local dev server reads `DATABASE_URL` from `.env.local`, and on this
+workstation that is the **production** Supabase project — **not staging**, as
+this file previously and wrongly claimed. Verified read-only on 2026-10-11:
+`.env.local` holds **588 contacts / 530 form submissions / 5 ventures**, while
+`.env.audit-staging` is the near-empty staging project (**10 contacts /
+1 venture**).
+
+So: **browsing admin screens writes to PRODUCTION.** Schema is *not* an
+exception — see the runtime migration note in `src/lib/db.js`: unless
+`SKIP_RUNTIME_SCHEMA_MAINTENANCE` is set, the app applies its own
+`CREATE TABLE IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` on first use.
+
+Build and test on **staging**; production is the promotion target only. To tell
+the two apart before pointing any tool at them, count, read-only:
+`node scripts/db-audit/run-readonly.mjs <sql-file> .env.local` — that runner
+executes only `SELECT / WITH / SET / SHOW / EXPLAIN / VALUES` statements and
+skips (never runs) anything else.
