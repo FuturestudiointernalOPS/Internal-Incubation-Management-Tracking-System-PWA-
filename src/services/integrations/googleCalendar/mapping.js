@@ -135,26 +135,27 @@ export function planTaskSync(tasks, links, options = {}) {
 }
 
 /**
- * A timed platform object (a program session or a coaching follow-up) → the
- * Google event body. Unlike a task this carries a real start and end instant, so
- * it is a timed event (not all-day) and it shows as BUSY (a session occupies the
- * person's time; a task does not).
+ * A platform object → the Google event body.
  *
- * Instants are sent as UTC ISO strings: Google renders the instant in the
- * calendar's own timezone, so no timezone maths is needed here and no day shifts.
+ * Two shapes:
+ *   - a TIMED object (a session, a coaching follow-up) — a real start and end
+ *     instant, shown as BUSY (it occupies the person's time);
+ *   - an ALL-DAY object (a venture milestone, which carries a date, not a time) —
+ *     shown as free, with Google's exclusive end (+1 day).
+ *
+ * Timed instants are sent as UTC ISO strings: Google renders the instant in the
+ * calendar's own timezone, so no timezone maths is needed and no day shifts.
  */
-export function timedEventToGoogleEvent(event, { appUrl = "" } = {}) {
-  if (!event?.startsAt) return null;
-  const endsAt = event.endsAt || event.startsAt;
+export function eventToGoogleEvent(event, { appUrl = "" } = {}) {
+  if (!event) return null;
+
   const lines = ["Future Studio · ImpactOS"];
   if (event.description) lines.push("", String(event.description));
   if (appUrl) lines.push("", appUrl);
-  return {
+
+  const base = {
     summary: event.title || "Event",
     description: lines.join("\n"),
-    start: { dateTime: new Date(event.startsAt).toISOString() },
-    end: { dateTime: new Date(endsAt).toISOString() },
-    transparency: "opaque",
     ...(event.location ? { location: event.location } : {}),
     extendedProperties: {
       private: {
@@ -162,6 +163,27 @@ export function timedEventToGoogleEvent(event, { appUrl = "" } = {}) {
         fs_ref: eventKey(event.source, event.sourceId),
       },
     },
+  };
+
+  if (event.allDay) {
+    if (!event.startDate) return null;
+    const lastDay =
+      event.endDate && event.endDate >= event.startDate ? event.endDate : event.startDate;
+    return {
+      ...base,
+      start: { date: event.startDate },
+      end: { date: addDays(lastDay, 1) },
+      transparency: "transparent", // a milestone does not block the person's time
+    };
+  }
+
+  if (!event.startsAt) return null;
+  const endsAt = event.endsAt || event.startsAt;
+  return {
+    ...base,
+    start: { dateTime: new Date(event.startsAt).toISOString() },
+    end: { dateTime: new Date(endsAt).toISOString() },
+    transparency: "opaque",
   };
 }
 
@@ -181,7 +203,7 @@ export function planEventSync(events, links, options = {}) {
   const updates = [];
   const seen = new Set();
   for (const event of events) {
-    const body = timedEventToGoogleEvent(event, options);
+    const body = eventToGoogleEvent(event, options);
     if (!body) continue;
     const key = eventKey(event.source, event.sourceId);
     seen.add(key);
