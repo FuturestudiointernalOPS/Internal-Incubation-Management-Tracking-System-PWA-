@@ -42,12 +42,13 @@ export async function upsertInvestmentPipeline({ investor_id, venture_id, stage,
 /** pipeline POST — investor/venture names for the meeting-request notification. */
 export async function getMeetingRequestInfo({ venture_id, investor_id }) {
   return db.execute({
-    sql: `SELECT c.name as investor_name, ipr.organization_name, p.name as venture_name
+    sql: `SELECT c.name as investor_name, ipr.organization_name, COALESCE(p.name, v.name, v.company_name) as venture_name
                 FROM investor_profiles ipr
                 JOIN contacts c ON ipr.user_id = c.cid
                 LEFT JOIN v2_programs p ON p.id = ?
+                LEFT JOIN ventures v ON v.id = ?
                 WHERE ipr.id = ?`,
-    args: [venture_id, investor_id],
+    args: [venture_id, venture_id, investor_id],
   });
 }
 
@@ -140,12 +141,13 @@ export async function markRelationshipWorkspaceActiveInvestment(workspaceId) {
 /** pipeline POST — investor/venture/contact info for investment notifications. */
 export async function getInvestmentNotificationInfo({ venture_id, investor_id }) {
   return db.execute({
-    sql: `SELECT c.name as investor_name, c.email, ipr.organization_name, p.name as venture_name, ipr.user_id
+    sql: `SELECT c.name as investor_name, c.email, ipr.organization_name, COALESCE(p.name, v.name, v.company_name) as venture_name, ipr.user_id
                 FROM investor_profiles ipr
                 JOIN contacts c ON ipr.user_id = c.cid
                 LEFT JOIN v2_programs p ON p.id = ?
+                LEFT JOIN ventures v ON v.id = ?
                 WHERE ipr.id = ?`,
-    args: [venture_id, investor_id],
+    args: [venture_id, venture_id, investor_id],
   });
 }
 
@@ -225,27 +227,30 @@ export async function listInvestmentPipeline({ ventureId, stage, role, investorI
 
   if (ventureId && !investorId) {
     // Management view: all pipeline rows for the venture.
-    sql = `SELECT ip.*, p.name as venture_name
+    sql = `SELECT ip.*, COALESCE(p.name, v.name, v.company_name) as venture_name
              FROM investment_pipeline ip
              LEFT JOIN v2_programs p ON ip.venture_id = p.id
+             LEFT JOIN ventures v ON v.id = ip.venture_id
              WHERE ip.venture_id = ?`;
     args = [ventureId];
   } else if (ventureId && investorId) {
     // Phase 1.5: own-scoped venture view — a non-management session may only
     // read its OWN rows for the venture (the previous branch returned every
     // investor's rows to anyone with the venture id).
-    sql = `SELECT ip.*, p.name as venture_name
+    sql = `SELECT ip.*, COALESCE(p.name, v.name, v.company_name) as venture_name
              FROM investment_pipeline ip
              LEFT JOIN v2_programs p ON ip.venture_id = p.id
+             LEFT JOIN ventures v ON v.id = ip.venture_id
              WHERE ip.venture_id = ? AND ip.investor_id = ?`;
     args = [ventureId, investorId];
   } else if (stage && (role === "super_admin" || role === "staff")) {
     // Admin filtering by stage (e.g., meeting_requested)
-    sql = `SELECT ip.*, p.name as venture_name, ipr.organization_name, c.name as investor_name, c.email,
+    sql = `SELECT ip.*, COALESCE(p.name, v.name, v.company_name) as venture_name, ipr.organization_name, c.name as investor_name, c.email,
                      ipref.industries, ipref.countries, ipref.startup_stages,
                      ipref.ticket_size_min, ipref.ticket_size_max
              FROM investment_pipeline ip
              LEFT JOIN v2_programs p ON ip.venture_id = p.id
+             LEFT JOIN ventures v ON v.id = ip.venture_id
              LEFT JOIN investor_profiles ipr ON ip.investor_id = ipr.id
              LEFT JOIN contacts c ON ipr.user_id = c.cid
              LEFT JOIN investor_preferences ipref ON ipref.investor_id = ipr.id
@@ -254,9 +259,10 @@ export async function listInvestmentPipeline({ ventureId, stage, role, investorI
     args = [stage];
   } else {
     // Own pipeline.
-    sql = `SELECT ip.*, p.name as venture_name
+    sql = `SELECT ip.*, COALESCE(p.name, v.name, v.company_name) as venture_name
              FROM investment_pipeline ip
              LEFT JOIN v2_programs p ON ip.venture_id = p.id
+             LEFT JOIN ventures v ON v.id = ip.venture_id
              WHERE ip.investor_id = ?
              ORDER BY ip.stage_changed_at DESC`;
     args = [investorId];

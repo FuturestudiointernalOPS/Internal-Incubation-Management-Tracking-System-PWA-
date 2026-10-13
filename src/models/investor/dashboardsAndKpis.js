@@ -22,9 +22,11 @@ export async function getInvestorDashboardProfile(userCid) {
 /** dashboard — the investor's pipeline entries, newest stage change first. */
 export async function listInvestorPipelineEntries(investorId) {
   return db.execute({
-    sql: `SELECT ip.*, p.name as venture_name, p.status as venture_status
+    sql: `SELECT ip.*, COALESCE(p.name, v.name, v.company_name) as venture_name,
+                    COALESCE(p.status, v.status) as venture_status
             FROM investment_pipeline ip
             LEFT JOIN v2_programs p ON ip.venture_id = p.id
+            LEFT JOIN ventures v ON v.id = ip.venture_id
             WHERE ip.investor_id = ?
             ORDER BY ip.stage_changed_at DESC`,
     args: [investorId],
@@ -34,15 +36,22 @@ export async function listInvestorPipelineEntries(investorId) {
 /** dashboard — the investor's watchlist enriched with venture/campaign data. */
 export async function listInvestorWatchlist(investorId) {
   return db.execute({
-    sql: `SELECT iw.*, p.name as venture_name, p.status as venture_status,
-                    p.industry, p.country, p.business_stage, p.completion_index,
-                    p.funding_requirement, p.description,
+    sql: `SELECT iw.*,
+                    COALESCE(p.name, v.name, v.company_name) as venture_name,
+                    COALESCE(p.status, v.status) as venture_status,
+                    COALESCE(p.industry, v.industry) as industry,
+                    COALESCE(p.country, v.country) as country,
+                    COALESCE(p.business_stage, v.business_stage) as business_stage,
+                    p.completion_index,
+                    p.funding_requirement,
+                    COALESCE(p.description, v.description) as description,
                     fc.id as campaign_id, fc.name as campaign_name, fc.status as campaign_status,
                     fc.target_raise, fc.current_raised, fc.min_investment,
                     fc.opening_date, fc.closing_date,
                     (SELECT COUNT(*) FROM investment_pipeline WHERE venture_id = iw.venture_id AND stage NOT IN ('declined'))::int as investor_count
              FROM investor_watchlist iw
              LEFT JOIN v2_programs p ON iw.venture_id = p.id
+             LEFT JOIN ventures v ON v.id = iw.venture_id
              LEFT JOIN fundraising_campaigns fc ON fc.venture_id = iw.venture_id AND fc.status = 'active'
              WHERE iw.investor_id = ?
              ORDER BY iw.created_at DESC`,
@@ -50,16 +59,24 @@ export async function listInvestorWatchlist(investorId) {
   });
 }
 
-/** dashboard — active ventures fed into the recommendation scorer. */
+/**
+ * dashboard — the active Ventures fed into the recommendation scorer.
+ *
+ * Reads the platform's own directory (see the note in
+ * `venturesAndUpdates.js`): readiness and funding have no column on a Venture
+ * yet, so they arrive as NULL rather than as a borrowed number.
+ */
 export async function listActiveVenturesForRecommendations() {
   return db.execute({
-    sql: `SELECT p.id, p.name, p.description, p.status, p.industry,
-                     p.country, p.completion_index, p.business_stage,
-                     p.funding_requirement, p.created_at,
-                     (SELECT COUNT(*) FROM investment_pipeline WHERE venture_id = p.id) as investor_interest_count
-              FROM v2_programs p
-              WHERE p.status = 'active' AND p.is_archived = 0
-              ORDER BY p.created_at DESC LIMIT 50`,
+    sql: `SELECT v.id, COALESCE(v.name, v.company_name) AS name, v.description,
+                     v.status, v.industry, v.country, v.business_stage, v.created_at,
+                     NULL::numeric AS completion_index,
+                     NULL::text AS funding_requirement,
+                     (SELECT COUNT(*) FROM investment_pipeline WHERE venture_id = v.id) as investor_interest_count
+              FROM ventures v
+              WHERE COALESCE(v.is_archived::text, '0') NOT IN ('1','t','true')
+                AND LOWER(COALESCE(v.status, '')) <> 'archived'
+              ORDER BY v.created_at DESC LIMIT 50`,
     args: [],
   });
 }
@@ -179,7 +196,7 @@ export async function getExecutiveDashboardCampaignPerformance() {
 /** admin-overview — DD workspaces joined with pipeline/investor/venture info. */
 export async function listAdminOverviewWorkspaces() {
   return db.execute({
-    sql: `SELECT dw.*, ip.venture_id, ip.stage, ipr.organization_name, c.name as investor_name, c.email as investor_email, p.name as venture_name FROM due_diligence_workspaces dw JOIN investment_pipeline ip ON dw.pipeline_id = ip.id LEFT JOIN investor_profiles ipr ON ip.investor_id = ipr.id LEFT JOIN contacts c ON ipr.user_id = c.cid LEFT JOIN v2_programs p ON ip.venture_id = p.id ORDER BY dw.updated_at DESC`,
+    sql: `SELECT dw.*, ip.venture_id, ip.stage, ipr.organization_name, c.name as investor_name, c.email as investor_email, COALESCE(p.name, v.name, v.company_name) as venture_name FROM due_diligence_workspaces dw JOIN investment_pipeline ip ON dw.pipeline_id = ip.id LEFT JOIN investor_profiles ipr ON ip.investor_id = ipr.id LEFT JOIN contacts c ON ipr.user_id = c.cid LEFT JOIN v2_programs p ON ip.venture_id = p.id LEFT JOIN ventures v ON v.id = ip.venture_id ORDER BY dw.updated_at DESC`,
     args: [],
   });
 }
@@ -188,13 +205,14 @@ export async function listAdminOverviewWorkspaces() {
 export async function listAdminOverviewPipelines() {
   return db.execute({
     sql: `SELECT ip.*, ipr.organization_name, c.name as investor_name, c.email, c.cid as investor_cid,
-                           p.name as venture_name, d.decision_type, d.investment_amount, d.decision_date,
+                           COALESCE(p.name, v.name, v.company_name) as venture_name, d.decision_type, d.investment_amount, d.decision_date,
                            ipref.industries, ipref.countries, ipref.startup_stages,
                            ipref.ticket_size_min, ipref.ticket_size_max, ipref.investment_philosophy
                     FROM investment_pipeline ip
                     LEFT JOIN investor_profiles ipr ON ip.investor_id = ipr.id
                     LEFT JOIN contacts c ON ipr.user_id = c.cid
                     LEFT JOIN v2_programs p ON ip.venture_id = p.id
+                    LEFT JOIN ventures v ON v.id = ip.venture_id
                     LEFT JOIN investment_decisions d ON d.pipeline_id = ip.id
                     LEFT JOIN investor_preferences ipref ON ipref.investor_id = ipr.id
                     WHERE ip.stage IN ('invested','negotiation','due_diligence','meeting_requested')
@@ -214,7 +232,7 @@ export async function getAdminOverviewStats() {
 /** admin-overview — recent DD information requests (50) with context joins. */
 export async function listAdminOverviewRequests() {
   return db.execute({
-    sql: `SELECT r.*, dw.pipeline_id, ip.venture_id, p.name as venture_name, ipr.organization_name, c.name as investor_name FROM dd_information_requests r JOIN due_diligence_workspaces dw ON r.workspace_id = dw.id JOIN investment_pipeline ip ON dw.pipeline_id = ip.id LEFT JOIN investor_profiles ipr ON ip.investor_id = ipr.id LEFT JOIN contacts c ON ipr.user_id = c.cid LEFT JOIN v2_programs p ON ip.venture_id = p.id ORDER BY r.created_at DESC LIMIT 50`,
+    sql: `SELECT r.*, dw.pipeline_id, ip.venture_id, COALESCE(p.name, v.name, v.company_name) as venture_name, ipr.organization_name, c.name as investor_name FROM dd_information_requests r JOIN due_diligence_workspaces dw ON r.workspace_id = dw.id JOIN investment_pipeline ip ON dw.pipeline_id = ip.id LEFT JOIN investor_profiles ipr ON ip.investor_id = ipr.id LEFT JOIN contacts c ON ipr.user_id = c.cid LEFT JOIN v2_programs p ON ip.venture_id = p.id LEFT JOIN ventures v ON v.id = ip.venture_id ORDER BY r.created_at DESC LIMIT 50`,
     args: [],
   });
 }

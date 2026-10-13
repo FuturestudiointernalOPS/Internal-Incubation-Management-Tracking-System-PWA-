@@ -45,9 +45,21 @@ function EligibilityTab({ data, refresh }) {
   const [busy, setBusy] = useState(false);
 
   const eligibility = data.eligibility;
-  const roles = [...new Set([...(eligibility?.roles || []), ...(eligibility?.extraRoles || [])])];
   const features = eligibility?.features || [];
   const empty = t("engineering.permissions.prototype.emptyValue");
+
+  // The ceiling covers BOTH identity kinds the resolver understands: the
+  // baseline ROLE on the account (super_admin / staff / member) and the
+  // contextual PROFILE a person holds (program_manager, participant…). Writing
+  // a profile ceiling is what opens a feature to a profile at all — without it
+  // the profile editor can never grant that feature (the server refuses an
+  // ineligible capability), so both kinds must be configurable here.
+  const identities = [
+    ...[...new Set([...(eligibility?.roles || []), ...(eligibility?.extraRoles || [])])].map(
+      (value) => ({ kind: "role", value }),
+    ),
+    ...(eligibility?.profiles || []).map((value) => ({ kind: "profile", value })),
+  ];
 
   /** The server's impact report, flattened into one line per template. */
   const impactLines = (impacts = []) =>
@@ -62,14 +74,17 @@ function EligibilityTab({ data, refresh }) {
       ),
     );
 
-  const stateOf = (role, feature) => {
+  const stateOf = (kind, value, feature) => {
     const row = (eligibility?.rows || []).find(
-      (item) => item.identity_type === "role" && item.identity_value === role && item.feature_key === feature,
+      (item) =>
+        item.identity_type === kind &&
+        item.identity_value === value &&
+        item.feature_key === feature,
     );
     return row ? Number(row.eligible) : null;
   };
 
-  const put = async (role, feature, next, confirm = false) => {
+  const put = async (kind, value, feature, next, confirm = false) => {
     setBusy(true);
     try {
       const response = await fetch("/api/engineering/permissions/eligibility", {
@@ -79,8 +94,8 @@ function EligibilityTab({ data, refresh }) {
           changes: [
             {
               feature_key: feature,
-              identity_type: "role",
-              identity_value: role,
+              identity_type: kind,
+              identity_value: value,
               eligible: next,
             },
           ],
@@ -91,7 +106,7 @@ function EligibilityTab({ data, refresh }) {
       if (response.status === 409 && result?.requiresConfirmation) {
         // C2 — the downgrade would strand capabilities a role-default profile
         // still grants. Nothing was persisted: name them, then ask.
-        setPending({ role, feature, next, impacts: result.impacts || [] });
+        setPending({ kind, value, feature, next, impacts: result.impacts || [] });
         return;
       }
       if (!response.ok || result?.success === false) throw new Error(result?.error || "save failed");
@@ -104,14 +119,19 @@ function EligibilityTab({ data, refresh }) {
     }
   };
 
-  const onCell = (role, feature) => {
-    put(role, feature, nextEligibilityState(stateOf(role, feature)));
+  const onCell = (identity, feature) => {
+    put(
+      identity.kind,
+      identity.value,
+      feature,
+      nextEligibilityState(stateOf(identity.kind, identity.value, feature)),
+    );
   };
 
   return (
     <>
       <KpiRow>
-        <Kpi value={roles.length} label={t("engineering.permissions.prototype.identities")} />
+        <Kpi value={identities.length} label={t("engineering.permissions.prototype.identities")} />
         <Kpi value={features.length} label={t("engineering.permissions.prototype.features")} />
         <Kpi value={data.alerts?.length ?? 0} label={t("engineering.permissions.prototype.alertsTitle")} />
       </KpiRow>
@@ -132,12 +152,21 @@ function EligibilityTab({ data, refresh }) {
           </tr>
         </thead>
         <tbody>
-          {roles.length === 0 && <EmptyRow colSpan={features.length + 1} label={t("common.noResults")} />}
-          {roles.map((role) => (
-            <tr key={role}>
-              <Cell className="font-bold">{role}</Cell>
+          {identities.length === 0 && <EmptyRow colSpan={features.length + 1} label={t("common.noResults")} />}
+          {identities.map((identity) => (
+            <tr key={`${identity.kind}:${identity.value}`}>
+              <Cell className="font-bold">
+                <span className="flex items-center gap-1.5">
+                  {identity.value}
+                  {identity.kind === "profile" && (
+                    <Pill tone="accent">
+                      {t("engineering.permissions.eligibilityProfileTag")}
+                    </Pill>
+                  )}
+                </span>
+              </Cell>
               {features.map((feature) => {
-                const state = stateOf(role, feature);
+                const state = stateOf(identity.kind, identity.value, feature);
                 const tone =
                   state === 1
                     ? "bg-emerald-500/10 text-emerald-500"
@@ -155,7 +184,7 @@ function EligibilityTab({ data, refresh }) {
                     <button
                       type="button"
                       disabled={!data.canConfigure || busy}
-                      onClick={() => onCell(role, feature)}
+                      onClick={() => onCell(identity, feature)}
                       title={t("engineering.permissions.prototype.cellCycle")}
                       className={`min-w-10 rounded-[var(--radius-sm)] px-2 py-1 text-[10px] font-bold transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-orange/60 ${tone} ${
                         data.canConfigure ? "cursor-pointer hover:opacity-80" : "cursor-not-allowed opacity-60"
@@ -175,12 +204,12 @@ function EligibilityTab({ data, refresh }) {
         <ImpactPreviewDrawer
           title={t("engineering.permissions.prototype.impactTitle")}
           hint={t("engineering.permissions.prototype.impactHint", {
-            role: pending.role,
+            role: pending.value,
             feature: pending.feature,
           })}
           lines={impactLines(pending.impacts)}
           confirmLabel={t("engineering.permissions.prototype.impactConfirm")}
-          onConfirm={() => put(pending.role, pending.feature, pending.next, true)}
+          onConfirm={() => put(pending.kind, pending.value, pending.feature, pending.next, true)}
           onClose={() => setPending(null)}
         />
       )}

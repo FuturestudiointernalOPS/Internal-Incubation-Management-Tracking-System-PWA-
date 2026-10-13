@@ -26,6 +26,7 @@ import AccessCheckDrawer from "./prototype/drawers/AccessCheckDrawer";
 import EditRightDrawer from "./prototype/drawers/EditRightDrawer";
 import GroupDrawer from "./prototype/drawers/GroupDrawer";
 import ProfileFeatureDrawer from "./prototype/drawers/ProfileFeatureDrawer";
+import CreateProfileDrawer from "./prototype/drawers/CreateProfileDrawer";
 import PromoteAdminDrawer from "./prototype/drawers/PromoteAdminDrawer";
 import PeopleSection from "./prototype/sections/PeopleSection";
 import PersonDetail from "./prototype/sections/PersonDetail";
@@ -231,6 +232,19 @@ export default function PermissionPrototype({ initialSection = "people" }) {
           onClose={() => setDrawer(null)}
           onSaved={() => {
             data.refresh("profiles");
+            data.refresh("audit");
+          }}
+        />
+      )}
+      {drawer?.kind === "createProfile" && (
+        <CreateProfileDrawer
+          data={data}
+          onClose={() => setDrawer(null)}
+          onSaved={() => {
+            data.refresh("profiles");
+            // A new profile is a new ceiling identity: refresh the matrix so it
+            // can be opened to features in Rules → Eligibility.
+            data.refresh("eligibility");
             data.refresh("audit");
           }}
         />

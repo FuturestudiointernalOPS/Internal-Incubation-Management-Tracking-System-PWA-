@@ -29,10 +29,14 @@ export async function listInvestorNotesByPipelineId(pipelineId) {
 /** diligence GET — pipeline row joined with its venture program. */
 export async function getPipelineWithVentureById(pipelineId) {
   return db.execute({
-    sql: `SELECT ip.*, p.name as venture_name, p.description as venture_description,
-                   p.industry, p.country, p.business_stage
+    sql: `SELECT ip.*, COALESCE(p.name, v.name, v.company_name) as venture_name,
+                   COALESCE(p.description, v.description) as venture_description,
+                   COALESCE(p.industry, v.industry) as industry,
+                   COALESCE(p.country, v.country) as country,
+                   COALESCE(p.business_stage, v.business_stage) as business_stage
             FROM investment_pipeline ip
             LEFT JOIN v2_programs p ON ip.venture_id = p.id
+            LEFT JOIN ventures v ON v.id = ip.venture_id
             WHERE ip.id = ?`,
     args: [pipelineId],
   });
