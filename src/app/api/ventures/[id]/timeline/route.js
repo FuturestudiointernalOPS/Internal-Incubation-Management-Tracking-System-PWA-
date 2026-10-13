@@ -22,23 +22,29 @@ export const GET = createHandler(async (req, { params }) => {
   if (access.error) return access.error;
   const view = new URL(req.url).searchParams.get("view") || "timeline";
 
+  // The timeline tables key on the Venture's internal id, while the address
+  // carries the human code (VNT-…): reading them with the code made every view
+  // fail with a 500 (invalid uuid). Resolve it once, like the writes below.
+  const dbId = await resolveVentureDbId(id);
+  if (!dbId) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+
   if (view === "gantt") {
-    const data = await getGanttData(id);
+    const data = await getGanttData(dbId);
     return NextResponse.json({ success: true, ...data });
   }
 
   if (view === "progress") {
-    const progress = await calculateProjectProgress(id);
+    const progress = await calculateProjectProgress(dbId);
     return NextResponse.json({ success: true, progress });
   }
 
   if (view === "delay") {
-    const delay = await getDelaySummary(id);
+    const delay = await getDelaySummary(dbId);
     return NextResponse.json({ success: true, ...delay });
   }
 
   // Default: timeline
-  const timeline = await getProjectTimeline(id);
+  const timeline = await getProjectTimeline(dbId);
   return NextResponse.json({ success: true, ...timeline });
 });
 

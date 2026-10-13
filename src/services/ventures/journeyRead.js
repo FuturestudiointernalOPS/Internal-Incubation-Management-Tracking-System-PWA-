@@ -114,7 +114,16 @@ export async function attachJourneyWork({ ventureParam, dbId, stages, signEviden
   // (type, id) stamp — resolve the current template name for the UI banner.
   const stamped = stages.find((stage) => stage.source_template_id);
   let templateSource = null;
-  if (stamped && stamped.source_template_id) {
+  // A stage stamped "plan_import" came from an imported tracker, not a reusable
+  // template: its id points at the import, so there is no template name to read.
+  // Asking the plan-template table (integer ids) with that UUID made the query
+  // fail on every load of a journey.
+  const looksLikeTemplate =
+    stamped &&
+    stamped.source_template_id &&
+    stamped.source_template_type !== "plan_import" &&
+    (stamped.source_template_type === "journey" || /^\d+$/.test(String(stamped.source_template_id)));
+  if (looksLikeTemplate) {
     const srcType = stamped.source_template_type === "journey" ? "journey" : "plan";
     const table = srcType === "journey" ? "venture_journey_templates" : "venture_plan_templates";
     try {

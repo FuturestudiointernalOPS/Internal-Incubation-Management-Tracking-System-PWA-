@@ -55,8 +55,17 @@ export default function ParticipantVentures() {
             {ventures.map((venture) => (
               <div
                 key={venture.id}
+                role="link"
+                tabIndex={0}
                 onClick={() => router.push(`/participant/ventures/${venture.venture_id || venture.id}`)}
-                className="rounded-xl p-5 transition-all cursor-pointer border"
+                onKeyDown={(event) => {
+                  // A clickable card must also open from the keyboard.
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    router.push(`/participant/ventures/${venture.venture_id || venture.id}`);
+                  }
+                }}
+                className="rounded-xl p-5 transition-all cursor-pointer border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]"
                 style={{
                   backgroundColor: "var(--surface-3)",
                   borderColor: "var(--border-primary)",

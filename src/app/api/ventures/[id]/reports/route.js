@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { resolveVentureDbId } from "@/lib/ventureOwnership";
 import { getVentureAnalytics, getMilestonesReport, getTasksReport, getTeamProductivity, getExportData } from "@/services/ventures/analytics";
 
 /**
@@ -16,18 +17,23 @@ export const GET = createHandler(async (req, { params }) => {
   const searchParams = new URL(req.url).searchParams;
   const type = searchParams.get("type") || "analytics";
 
+  // The report queries key on the Venture's internal id, not the VNT-… code the
+  // address carries: handing them the code failed every report with a 500.
+  const dbId = await resolveVentureDbId(id);
+  if (!dbId) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+
   if (type === "analytics") {
-    const data = await getVentureAnalytics(id);
+    const data = await getVentureAnalytics(dbId);
     return NextResponse.json({ success: true, ...data });
   }
 
   if (type === "milestones") {
-    const milestones = await getMilestonesReport(id);
+    const milestones = await getMilestonesReport(dbId);
     return NextResponse.json({ success: true, milestones });
   }
 
   if (type === "tasks") {
-    const tasks = await getTasksReport(id, {
+    const tasks = await getTasksReport(dbId, {
       status: searchParams.get("status"),
       priority: searchParams.get("priority"),
       assigned_cid: searchParams.get("assigned_cid"),
@@ -39,14 +45,14 @@ export const GET = createHandler(async (req, { params }) => {
   }
 
   if (type === "productivity") {
-    const team = await getTeamProductivity(id);
+    const team = await getTeamProductivity(dbId);
     return NextResponse.json({ success: true, team });
   }
 
   if (type === "export") {
     const format = searchParams.get("format") || "json";
     const exportType = searchParams.get("export_type") || "tasks";
-    const data = await getExportData(id, exportType);
+    const data = await getExportData(dbId, exportType);
 
     if (format === "csv") {
       if (data.length === 0) return NextResponse.json({ success: true, data: [], format: "csv" });
