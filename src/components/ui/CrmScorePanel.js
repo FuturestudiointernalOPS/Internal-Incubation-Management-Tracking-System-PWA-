@@ -6,6 +6,7 @@ import AppButton from "@/components/ui/AppButton";
 import AppModal from "@/components/ui/AppModal";
 import AppInput from "@/components/ui/AppInput";
 import AppSelect from "@/components/ui/AppSelect";
+import AppTextarea from "@/components/ui/AppTextarea";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { useI18n } from "@/lib/i18n";
 
@@ -150,11 +151,11 @@ export default function CrmScorePanel({ lead, onUpdate }) {
             onChange={e => setScoreForm(f => ({ ...f, score: e.target.value }))}
             min="0" max="100"
           />
-          <AppInput
+          <AppTextarea
             label={t("crm.intelligence.score.reasonLabel")}
             value={scoreForm.reason}
             onChange={e => setScoreForm(f => ({ ...f, reason: e.target.value }))}
-            multiline rows={2}
+            rows={2}
           />
           <div className="flex justify-end gap-2 mt-4">
             <AppButton variant="ghost" onClick={() => setShowScoreModal(false)} disabled={saving}>{t("common.cancel")}</AppButton>
@@ -168,17 +169,17 @@ export default function CrmScorePanel({ lead, onUpdate }) {
           <AppSelect
             label={t("crm.intelligence.score.stateLabel")}
             value={qualForm.state}
-            onChange={v => setQualForm(f => ({ ...f, state: v }))}
+            onChange={e => setQualForm(f => ({ ...f, state: e.target.value }))}
             options={QUALIFICATION_STATES.map(s => ({
               value: s,
               label: t(`crm.intelligence.score.states.${s}`),
             }))}
           />
-          <AppInput
+          <AppTextarea
             label={t("crm.intelligence.score.reasonLabel")}
             value={qualForm.reason}
             onChange={e => setQualForm(f => ({ ...f, reason: e.target.value }))}
-            multiline rows={2}
+            rows={2}
           />
           <div className="flex justify-end gap-2 mt-4">
             <AppButton variant="ghost" onClick={() => setShowQualModal(false)} disabled={saving}>{t("common.cancel")}</AppButton>

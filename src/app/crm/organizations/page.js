@@ -22,21 +22,11 @@ const ORG_TYPES = [
   "other",
 ];
 
-const RELATIONSHIP_TYPES = [
-  "works_for",
-  "founded",
-  "advises",
-  "represents",
-  "invested_in",
-  "partners_with",
-  "other",
-];
-
 /**
  * CRM Organizations page — /crm/organizations
  *
- * READ-ONLY list for non-admin CRM users (crm.view).
- * Create is available to users with crm.create (checked server-side on POST).
+ * List for CRM users (crm.view). The "New Organization" button only shows for
+ * users holding crm.create (the POST checks it again server-side).
  * Full edit/delete stays in /admin/crm for Super Admin.
  */
 export default function CrmOrganizationsPage() {
@@ -131,26 +121,26 @@ export default function CrmOrganizationsPage() {
   const columns = [
     {
       key: "name",
-      header: t("crm.organizations.namePlaceholder"),
-      render: (row) => (
+      label: t("crm.organizations.namePlaceholder"),
+      render: (_value, row) => (
         <span className="font-semibold text-[var(--text-primary)]">{row.name}</span>
       ),
     },
     {
       key: "type",
-      header: t("crm.organizations.typePlaceholder"),
-      render: (row) =>
-        row.type ? t(`crm.organizations.types.${row.type}`) || row.type : "—",
+      label: t("crm.organizations.typeLabel"),
+      render: (_value, row) =>
+        row.type ? t(`crm.organizations.types.${row.type}`) : "—",
     },
     {
       key: "industry",
-      header: t("crm.organizations.industryPlaceholder"),
-      render: (row) => row.industry || "—",
+      label: t("crm.organizations.industryPlaceholder"),
+      render: (_value, row) => row.industry || "—",
     },
     {
       key: "website",
-      header: t("crm.organizations.websitePlaceholder"),
-      render: (row) =>
+      label: t("crm.organizations.websitePlaceholder"),
+      render: (_value, row) =>
         row.website ? (
           <a
             href={row.website}
@@ -185,10 +175,10 @@ export default function CrmOrganizationsPage() {
           </div>
           {canCreate && (
             <AppButton
+              icon={Plus}
               onClick={() => setShowModal(true)}
               className="shrink-0"
             >
-              <Plus className="w-4 h-4" />
               {t("crm.organizations.newOrganization")}
             </AppButton>
           )}
@@ -225,13 +215,13 @@ export default function CrmOrganizationsPage() {
             description={!search ? t("crm.organizations.noOrganizationsHint") : undefined}
           />
         ) : (
-          <AppTable columns={columns} rows={filtered} rowKey="id" />
+          <AppTable columns={columns} data={filtered} />
         )}
       </div>
 
       {/* Create modal */}
       <AppModal
-        open={showModal}
+        isOpen={showModal}
         onClose={() => setShowModal(false)}
         title={t("crm.organizations.newOrganization")}
       >
@@ -246,7 +236,7 @@ export default function CrmOrganizationsPage() {
 
           <div>
             <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1 uppercase tracking-wide">
-              {t("crm.organizations.typePlaceholder")}
+              {t("crm.organizations.typeLabel")}
             </label>
             <select
               value={form.type}

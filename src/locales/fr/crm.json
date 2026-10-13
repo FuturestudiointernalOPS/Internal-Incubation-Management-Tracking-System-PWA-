@@ -475,6 +475,7 @@
     "organizations": {
       "title": "Organisations",
       "subtitle": "Entreprises, écoles, fonds et autres organisations liées à vos contacts.",
+      "typeLabel": "Type",
       "nameRequired": "Le nom de l'organisation est obligatoire.",
       "notFound": "Organisation introuvable.",
       "newOrganization": "Nouvelle organisation",
@@ -525,9 +526,30 @@
         "other": "Autre"
       }
     },
+    "target": {
+      "label": "Lié à",
+      "kinds": {
+        "organization": "Organisation",
+        "contact": "Personne",
+        "lead": "Lead"
+      },
+      "choose": {
+        "organization": "Choisir une organisation",
+        "contact": "Choisir une personne",
+        "lead": "Choisir un lead"
+      },
+      "empty": {
+        "organization": "Aucune organisation trouvée — créez-en une d'abord.",
+        "contact": "Aucune personne trouvée.",
+        "lead": "Aucun lead trouvé — créez-en un d'abord."
+      }
+    },
     "leads": {
       "title": "Pistes",
       "subtitle": "Suivez les relations potentielles, les partenaires et les opportunités.",
+      "typeLabel": "Type de lead",
+      "sourceLabel": "Source",
+      "sourcePlaceholder": "ex. : entrant, recommandation, événement",
       "createLead": "Nouvelle piste",
       "noLeads": "Aucune piste trouvée.",
       "noLeadsHint": "Créez une piste pour commencer à suivre une relation potentielle.",
@@ -564,6 +586,7 @@
       },
       "qualifications": {
         "not_assessed": "Non évalué",
+        "in_review": "En cours d'examen",
         "needs_review": "Nécessite un examen",
         "qualified": "Qualifié",
         "unqualified": "Non qualifié"
@@ -572,6 +595,17 @@
     "opportunities": {
       "title": "Opportunités",
       "subtitle": "Suivez et gérez les résultats commerciaux et relationnels.",
+      "namePlaceholder": "ex. : Déploiement MTN — Phase 1",
+      "pipelineOnlyLabel": "Pipeline",
+      "choosePipeline": "Choisir un pipeline",
+      "currencyLabel": "Devise",
+      "nameRequired": "Le nom de l'opportunité est requis.",
+      "pipelineRequired": "Choisissez un pipeline pour cette opportunité.",
+      "targetRequired": "Une opportunité doit être liée à un lead, une personne ou une organisation.",
+      "probabilityRange": "La probabilité doit être comprise entre 0 et 100.",
+      "stagePipelineMismatch": "Cette étape n'appartient pas au pipeline sélectionné.",
+      "stageRequired": "Une étape est requise.",
+      "notFound": "Opportunité introuvable.",
       "newOpportunity": "Nouvelle opportunité",
       "noOpportunities": "Aucune opportunité trouvée.",
       "noOpportunitiesHint": "Créez une opportunité pour commencer à suivre la progression du pipeline.",
@@ -606,6 +640,12 @@
     "pipelines": {
       "title": "Pipelines",
       "subtitle": "Configurez et examinez les flux d'étapes.",
+      "nameRequired": "Le nom du pipeline est requis.",
+      "noStages": "Ce pipeline n'a pas encore d'étape.",
+      "notFound": "Pipeline introuvable.",
+      "stageNameRequired": "Le nom de l'étape est requis.",
+      "stageNotFound": "Étape introuvable.",
+      "stagePositionRequired": "La position de l'étape est requise.",
       "noPipelines": "Aucun pipeline configuré.",
       "inactive": "Inactif"
     },

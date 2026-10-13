@@ -475,6 +475,7 @@
     "organizations": {
       "title": "Organizations",
       "subtitle": "Companies, schools, funds, and other organizations linked to your contacts.",
+      "typeLabel": "Type",
       "nameRequired": "Organization name is required.",
       "notFound": "Organization not found.",
       "newOrganization": "New Organization",
@@ -525,9 +526,30 @@
         "other": "Other"
       }
     },
+    "target": {
+      "label": "Linked to",
+      "kinds": {
+        "organization": "Organization",
+        "contact": "Person",
+        "lead": "Lead"
+      },
+      "choose": {
+        "organization": "Choose an organization",
+        "contact": "Choose a person",
+        "lead": "Choose a lead"
+      },
+      "empty": {
+        "organization": "No organization found — create one first.",
+        "contact": "No person found.",
+        "lead": "No lead found — create one first."
+      }
+    },
     "leads": {
       "title": "Leads",
       "subtitle": "Track potential relationships, partners, and opportunities.",
+      "typeLabel": "Lead type",
+      "sourceLabel": "Source",
+      "sourcePlaceholder": "e.g., inbound, referral, event",
       "createLead": "New Lead",
       "noLeads": "No leads found.",
       "noLeadsHint": "Create a lead to start tracking a potential relationship.",
@@ -564,6 +586,7 @@
       },
       "qualifications": {
         "not_assessed": "Not Assessed",
+        "in_review": "In Review",
         "needs_review": "Needs Review",
         "qualified": "Qualified",
         "unqualified": "Unqualified"
@@ -572,6 +595,17 @@
     "opportunities": {
       "title": "Opportunities",
       "subtitle": "Track and manage commercial and relationship outcomes.",
+      "namePlaceholder": "e.g., MTN rollout — Phase 1",
+      "pipelineOnlyLabel": "Pipeline",
+      "choosePipeline": "Choose a pipeline",
+      "currencyLabel": "Currency",
+      "nameRequired": "Opportunity name is required.",
+      "pipelineRequired": "Choose a pipeline for this opportunity.",
+      "targetRequired": "An opportunity must be linked to a lead, a person or an organization.",
+      "probabilityRange": "Probability must be between 0 and 100.",
+      "stagePipelineMismatch": "This stage does not belong to the selected pipeline.",
+      "stageRequired": "A stage is required.",
+      "notFound": "Opportunity not found.",
       "newOpportunity": "New Opportunity",
       "noOpportunities": "No opportunities found.",
       "noOpportunitiesHint": "Create an opportunity to start tracking pipeline progress.",
@@ -606,6 +640,12 @@
     "pipelines": {
       "title": "Pipelines",
       "subtitle": "Configure and review stage workflows.",
+      "nameRequired": "Pipeline name is required.",
+      "noStages": "This pipeline has no stage yet.",
+      "notFound": "Pipeline not found.",
+      "stageNameRequired": "Stage name is required.",
+      "stageNotFound": "Stage not found.",
+      "stagePositionRequired": "Stage position is required.",
       "noPipelines": "No pipelines configured.",
       "inactive": "Inactive"
     },

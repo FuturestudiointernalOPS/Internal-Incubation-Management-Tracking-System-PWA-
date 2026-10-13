@@ -1,16 +1,18 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Filter, Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Filter, Plus, Pencil, Trash2 } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import AppModal from "@/components/ui/AppModal";
 import AppInput from "@/components/ui/AppInput";
 import AppSelect from "@/components/ui/AppSelect";
+import AppTextarea from "@/components/ui/AppTextarea";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/constants";
+import { useCrmCapabilities } from "@/components/crm/useCrmCapabilities";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +24,7 @@ const ENTITY_LABEL_KEYS = {
 export default function CrmSegmentsPage() {
   const { t } = useI18n();
   const { confirm, alert } = useDialogs();
+  const { can } = useCrmCapabilities();
 
   const [segments, setSegments] = useState([]);
   const [loading, setLoading]   = useState(true);
@@ -107,10 +110,11 @@ export default function CrmSegmentsPage() {
             {t("crm.intelligence.segments.subtitle")}
           </p>
         </div>
-        <AppButton onClick={openCreate}>
-          <Plus className="w-4 h-4 mr-2" />
-          {t("crm.intelligence.segments.createSegment")}
-        </AppButton>
+        {can("create") && (
+          <AppButton icon={Plus} onClick={openCreate}>
+            {t("crm.intelligence.segments.createSegment")}
+          </AppButton>
+        )}
       </div>
 
       {loading ? (
@@ -120,8 +124,9 @@ export default function CrmSegmentsPage() {
         </div>
       ) : segments.length === 0 ? (
         <AppEmptyState
-          message={t("crm.intelligence.segments.noSegments")}
-          hint={t("crm.intelligence.segments.noSegmentsHint")}
+          icon={Filter}
+          title={t("crm.intelligence.segments.noSegments")}
+          description={t("crm.intelligence.segments.noSegmentsHint")}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -133,12 +138,16 @@ export default function CrmSegmentsPage() {
                   <span className="text-xs font-semibold uppercase tracking-wide">{t(ENTITY_LABEL_KEYS[seg.entity_type] ?? seg.entity_type)}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => openEdit(seg)} className="p-1.5 text-[var(--text-secondary)] hover:bg-[var(--surface-3)] rounded">
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => handleDelete(seg)} className="p-1.5 text-red-500 hover:bg-[var(--surface-3)] rounded">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {can("edit") && (
+                    <button onClick={() => openEdit(seg)} aria-label={t("common.edit")} className="p-1.5 text-[var(--text-secondary)] hover:bg-[var(--surface-3)] rounded">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  {can("delete") && (
+                    <button onClick={() => handleDelete(seg)} aria-label={t("common.delete")} className="p-1.5 text-red-500 hover:bg-[var(--surface-3)] rounded">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
               <h3 className="font-semibold text-[var(--text-primary)] mb-1">{seg.name}</h3>
@@ -158,14 +167,6 @@ export default function CrmSegmentsPage() {
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         title={editing ? t("crm.intelligence.segments.editSegment") : t("crm.intelligence.segments.newSegment")}
-        footer={
-          <div className="flex gap-3 justify-end">
-            <AppButton variant="ghost" onClick={() => setShowModal(false)} disabled={saving}>{t("common.cancel")}</AppButton>
-            <AppButton onClick={handleSave} disabled={saving}>
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t("common.save")}
-            </AppButton>
-          </div>
-        }
       >
         <div className="space-y-4">
           <AppInput
@@ -173,18 +174,17 @@ export default function CrmSegmentsPage() {
             value={form.name}
             onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
           />
-          <AppInput
+          <AppTextarea
             label={t("crm.intelligence.segments.description")}
             value={form.description}
             onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-            multiline
             rows={2}
           />
           {!editing && (
             <AppSelect
               label={t("crm.intelligence.segments.entityType")}
               value={form.entity_type}
-              onChange={v => setForm(f => ({ ...f, entity_type: v }))}
+              onChange={e => setForm(f => ({ ...f, entity_type: e.target.value }))}
               options={[
                 { value: "lead", label: t("crm.intelligence.common.lead") },
                 { value: "opportunity", label: t("crm.intelligence.common.opportunity") }
@@ -194,6 +194,12 @@ export default function CrmSegmentsPage() {
           <p className="text-xs text-[var(--text-secondary)] mt-2">
             {t("crm.intelligence.segments.conditionBuilderSoon")}
           </p>
+          <div className="flex justify-end gap-3 pt-2">
+            <AppButton variant="ghost" onClick={() => setShowModal(false)} disabled={saving}>{t("common.cancel")}</AppButton>
+            <AppButton onClick={handleSave} loading={saving}>
+              {t("common.save")}
+            </AppButton>
+          </div>
         </div>
       </AppModal>
     </div>

@@ -1,15 +1,17 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, Loader2, Zap } from "lucide-react";
+import { Plus, Pencil, Trash2, Zap } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import AppModal from "@/components/ui/AppModal";
 import AppInput from "@/components/ui/AppInput";
 import AppSelect from "@/components/ui/AppSelect";
+import AppTextarea from "@/components/ui/AppTextarea";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { useI18n } from "@/lib/i18n";
+import { useCrmCapabilities } from "@/components/crm/useCrmCapabilities";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +23,9 @@ const ENTITY_LABEL_KEYS = {
 export default function CrmAutomationsPage() {
   const { t } = useI18n();
   const { confirm, alert } = useDialogs();
+  // Every automation endpoint — the list included — requires crm.manage.
+  const { can } = useCrmCapabilities();
+  const canManage = can("manage");
 
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -117,10 +122,11 @@ export default function CrmAutomationsPage() {
             {t("crm.intelligence.automations.subtitle")}
           </p>
         </div>
-        <AppButton onClick={openCreate}>
-          <Plus className="w-4 h-4 mr-2" />
-          {t("crm.intelligence.automations.newRule")}
-        </AppButton>
+        {canManage && (
+          <AppButton icon={Plus} onClick={openCreate}>
+            {t("crm.intelligence.automations.newRule")}
+          </AppButton>
+        )}
       </div>
 
       {loading ? (
@@ -129,8 +135,9 @@ export default function CrmAutomationsPage() {
         </div>
       ) : rules.length === 0 ? (
         <AppEmptyState
-          message={t("crm.intelligence.automations.noRules")}
-          hint={t("crm.intelligence.automations.noRulesHint")}
+          icon={Zap}
+          title={t("crm.intelligence.automations.noRules")}
+          description={t("crm.intelligence.automations.noRulesHint")}
         />
       ) : (
         <div className="grid grid-cols-1 gap-4">
@@ -154,17 +161,19 @@ export default function CrmAutomationsPage() {
                   </div>
                 </div>
               </div>
+              {canManage && (
               <div className="flex items-center gap-2 shrink-0">
                 <AppButton variant="ghost" onClick={() => toggleActive(r)}>
                   {r.active ? t("crm.intelligence.automations.disable") : t("crm.intelligence.automations.enable")}
                 </AppButton>
-                <button onClick={() => openEdit(r)} className="p-2 text-[var(--text-secondary)] hover:bg-[var(--surface-3)] rounded">
+                <button onClick={() => openEdit(r)} aria-label={t("common.edit")} className="p-2 text-[var(--text-secondary)] hover:bg-[var(--surface-3)] rounded">
                   <Pencil className="w-4 h-4" />
                 </button>
-                <button onClick={() => handleDelete(r)} className="p-2 text-red-500 hover:bg-[var(--surface-3)] rounded">
+                <button onClick={() => handleDelete(r)} aria-label={t("common.delete")} className="p-2 text-red-500 hover:bg-[var(--surface-3)] rounded">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
+              )}
             </div>
           ))}
         </div>
@@ -174,14 +183,6 @@ export default function CrmAutomationsPage() {
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         title={editing ? t("crm.intelligence.automations.editRule") : t("crm.intelligence.automations.newRule")}
-        footer={
-          <div className="flex gap-3 justify-end">
-            <AppButton variant="ghost" onClick={() => setShowModal(false)} disabled={saving}>{t("common.cancel")}</AppButton>
-            <AppButton onClick={handleSave} disabled={saving}>
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t("common.save")}
-            </AppButton>
-          </div>
-        }
       >
         <div className="space-y-4">
           <AppInput
@@ -189,11 +190,10 @@ export default function CrmAutomationsPage() {
             value={form.name}
             onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
           />
-          <AppInput
+          <AppTextarea
             label={t("crm.intelligence.automations.description")}
             value={form.description}
             onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-            multiline
             rows={2}
           />
           {!editing && (
@@ -201,7 +201,7 @@ export default function CrmAutomationsPage() {
               <AppSelect
                 label={t("crm.intelligence.automations.entityType")}
                 value={form.entity_type}
-                onChange={v => setForm(f => ({ ...f, entity_type: v }))}
+                onChange={e => setForm(f => ({ ...f, entity_type: e.target.value }))}
                 options={[
                   { value: "lead", label: t("crm.intelligence.common.lead") },
                   { value: "opportunity", label: t("crm.intelligence.common.opportunity") }
@@ -210,7 +210,7 @@ export default function CrmAutomationsPage() {
               <AppSelect
                 label={t("crm.intelligence.automations.triggerEvent")}
                 value={form.trigger_event}
-                onChange={v => setForm(f => ({ ...f, trigger_event: v }))}
+                onChange={e => setForm(f => ({ ...f, trigger_event: e.target.value }))}
                 options={[
                   { value: "lead.qualified", label: t("crm.intelligence.automations.triggerLeadQualified") },
                   { value: "lead.disqualified", label: t("crm.intelligence.automations.triggerLeadDisqualified") },
@@ -223,6 +223,12 @@ export default function CrmAutomationsPage() {
           <p className="text-xs text-[var(--text-secondary)] mt-2">
             {t("crm.intelligence.automations.builderSoon")}
           </p>
+          <div className="flex justify-end gap-3 pt-2">
+            <AppButton variant="ghost" onClick={() => setShowModal(false)} disabled={saving}>{t("common.cancel")}</AppButton>
+            <AppButton onClick={handleSave} loading={saving}>
+              {t("common.save")}
+            </AppButton>
+          </div>
         </div>
       </AppModal>
     </div>
