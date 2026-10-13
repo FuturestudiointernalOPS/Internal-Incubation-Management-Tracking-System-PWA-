@@ -7,8 +7,9 @@ export const dynamic = "force-dynamic";
 
 /**
  * PATCH /api/crm/pipelines/[id]/stages/[stageId] — rename a stage, change its
- * probability or (de)activate it (crm.manage). Position, terminal flag and
- * outcome are set at creation: moving a stage would reorder the deals' history.
+ * probability or (de)activate it (crm.manage). The order is changed through
+ * PATCH …/stages; the terminal flag and outcome are set at creation, because
+ * they decide how the deals already on the stage are counted.
  */
 export const PATCH = createHandler(
   { roles: ["super_admin"] },

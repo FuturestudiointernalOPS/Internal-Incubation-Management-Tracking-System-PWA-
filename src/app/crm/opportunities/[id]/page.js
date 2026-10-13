@@ -66,11 +66,16 @@ export default function CrmOpportunityDetailPage({ params }) {
       });
       const data = await res.json();
       if (data.success) {
-        setOpp(data.opportunity);
-        // Refresh history
+        // The move answers with the bare row; the re-read brings the stage
+        // name and the history back with it.
         const hr = await fetch(`/api/crm/opportunities/${opp.id}`);
         const hd = await hr.json();
-        if (hd.success) setHistory(hd.stageHistory ?? []);
+        if (hd.success) {
+          setOpp(hd.opportunity);
+          setHistory(hd.stageHistory ?? []);
+        } else {
+          setOpp((current) => ({ ...current, ...data.opportunity }));
+        }
       } else {
         await alert({ message: t(data.error || "errors.somethingWrong") });
       }

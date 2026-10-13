@@ -643,6 +643,9 @@
       }
     },
     "pipelines": {
+      "moveStageEarlier": "Déplacer avant",
+      "moveStageLater": "Déplacer après",
+      "stageOrderInvalid": "L'ordre doit contenir chaque étape du pipeline une seule fois.",
       "newPipeline": "Nouveau pipeline",
       "editPipeline": "Modifier le pipeline",
       "nameLabel": "Nom du pipeline",
@@ -725,6 +728,7 @@
         "valueLabel": "Valeur",
         "count": "{count} condition(s)",
         "fields": {
+          "stage_name": "Étape",
           "status": "Statut",
           "lead_type": "Type de lead",
           "qualification_state": "Qualification",
@@ -786,6 +790,10 @@
         "entityType": "Type d'entité"
       },
       "automations": {
+        "triggerOpportunityCreated": "Opportunité créée",
+        "triggerOpportunityStageChanged": "Étape de l'opportunité modifiée",
+        "triggerOpportunityWon": "Opportunité gagnée",
+        "triggerOpportunityLost": "Opportunité perdue",
         "executions": "Journal d'exécution",
         "noExecutions": "Cette règle ne s'est pas encore exécutée.",
         "executionStatus": {

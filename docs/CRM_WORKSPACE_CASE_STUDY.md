@@ -33,7 +33,8 @@ Action buttons follow the capability their endpoint checks:
 |---|---|
 | New organization / lead / opportunity / segment, link a person | `crm.create` |
 | Score, qualify, move a stage, edit a segment, log an activity | `crm.edit` |
-| Delete a segment, remove a person ↔ organization link | `crm.delete` |
+| Edit an organization | `crm.edit` |
+| Delete an organization or a segment, remove a person ↔ organization link | `crm.delete` |
 | Automations (all of it), create/edit pipelines and stages | `crm.manage` |
 
 ---
@@ -42,6 +43,10 @@ Action buttons follow the capability their endpoint checks:
 
 `/crm/organizations` → **New Organization** → name (required), type, website,
 industry, description → save. The organization appears in the table.
+
+On a row, the pencil edits the organization (`crm.edit`) and the bin deletes it
+after confirmation (`crm.delete`, Super Admin). The deletion is a soft delete:
+the leads, opportunities and links that point to it are kept.
 
 ## 2. Have a person, and link them to the organization
 
@@ -129,12 +134,15 @@ probability and the won/lost colour. With `crm.manage`:
 - **New Pipeline** — name and description.
 - On an expanded pipeline: **Add Stage**, **Edit Pipeline**,
   **Activate / Deactivate**.
-- On a stage: the pencil edits its name and probability; **Retire / Restore**
-  hides it from, or returns it to, the stage pills.
+- On a stage: the arrows move it earlier or later; the pencil edits its name
+  and probability; **Retire / Restore** hides it from, or returns it to, the
+  stage pills.
 
-A stage is added at the **end** of the pipeline and its kind (open / won /
-lost) is chosen then and not changed afterwards: reordering or re-flagging a
-stage would rewrite how existing deals are counted.
+A stage is added at the **end** of the pipeline, then moved where it belongs.
+Reordering only changes the order: deals stay on their stage and the stage
+history is kept. The kind of a stage (open / won / lost) is chosen at creation
+and not changed afterwards, because it decides how the deals already on it are
+counted.
 
 ## 9. Create a segment
 
@@ -145,16 +153,25 @@ conditions hold; no condition means every record.
 | Entity | Fields |
 |---|---|
 | Lead | status, lead type, qualification, score, source |
-| Opportunity | status, value, probability, currency |
+| Opportunity | status, value, probability, currency, stage |
 
 **View records** on a segment card lists the leads or opportunities that match
 right now. A segment is a saved filter, not a stored list.
 
 ## 10. Create an automation rule
 
-`/crm/automations` → **New Rule**: name, description, entity type, trigger
-(`lead.qualified`, `lead.disqualified`, `lead.score_changed`, `lead.assigned`),
-then:
+`/crm/automations` → **New Rule**: name, description, entity type, trigger,
+then conditions and actions. The triggers follow the entity type:
+
+| Entity | Trigger | Raised when |
+|---|---|---|
+| Lead | `lead.qualified` / `lead.disqualified` | the qualification is set |
+| Lead | `lead.score_changed` | the score is computed or adjusted |
+| Lead | `lead.assigned` | the owner changes |
+| Opportunity | `opportunity.created` | an opportunity is created |
+| Opportunity | `opportunity.stage_changed` | it moves to another stage |
+| Opportunity | `opportunity.won` / `opportunity.lost` | the move closes the deal |
+
 
 - **Conditions** — same builder as segments; the rule only runs when they hold.
 - **Actions**, run in order — *Create a task* (title, priority), *Add a note to
@@ -164,10 +181,9 @@ Use **Enable / Disable** on the rule, and the clock icon for its **execution
 log** (success / failed / skipped, with the record and the error if any).
 
 **Live test:** enable a rule on `lead.qualified` with a *Create a task* action,
-qualify the lead (step 4), then open the rule's execution log.
-
-All four triggers are lead events, so a rule whose entity type is Opportunity
-has nothing to fire it yet.
+qualify the lead (step 4), then open the rule's execution log. The same works
+on a deal: a rule on `opportunity.won`, then move the opportunity to its Won
+stage (step 7).
 
 ## 11. Timeline and membership
 
@@ -203,12 +219,12 @@ has nothing to fire it yet.
 | 7 | Score was manual only | Computed score added; manual adjustment kept |
 | 8 | `needs_review` vs `in_review` | Aligned on `in_review` |
 | 9 | Super Admin had no link to `/crm` | Quick link on `/admin/crm` |
+| — | No screen to edit or delete an organization | Added |
+| — | Stages could not be reordered | Added |
+| — | Automations had no opportunity trigger | Added (created, stage changed, won, lost) |
 
 Still open:
 
-- Editing or deleting an organization has no screen (the endpoints exist).
-- Stages cannot be reordered.
-- No opportunity trigger for automations.
 - Automation and segment endpoints still answer some errors as plain English
   sentences rather than translation keys.
 
@@ -219,6 +235,8 @@ Still open:
   fill the forms and assert the request that leaves the page.
 - **Decision tests** — `src/__tests__/crm-lead-scoring.test.js` covers the
   score rules and segment membership.
+- **Route tests** (models mocked) — `src/__tests__/crm-pipeline-events-api.test.js`
+  covers the events a stage move raises and the validation of a reorder.
 - `npm run lint`, `npm test` and `npm run build` pass.
 
 **Not yet done:** a run of this case study in a browser against the staging

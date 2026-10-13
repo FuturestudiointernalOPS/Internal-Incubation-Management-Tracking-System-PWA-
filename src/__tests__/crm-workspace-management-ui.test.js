@@ -127,6 +127,13 @@ describe("Pipelines", () => {
       name: "Lost", probability: 0, position: 3, is_terminal: true, outcome: "lost",
     });
   });
+  test("a stage is moved earlier by sending the new order", async () => {
+    render(<PipelinesPage />);
+    await click(/Partnerships/);
+    await click("crm.pipelines.moveStageEarlier — Won");
+
+    expect(sent("/api/crm/pipelines/pipe-1/stages", "PATCH")[0].body).toEqual({ order: ["st-2", "st-1"] });
+  });
 });
 
 describe("Segments", () => {
@@ -173,6 +180,21 @@ describe("Automations", () => {
     });
   });
 
+  test("an opportunity rule is offered the opportunity triggers", async () => {
+    render(<AutomationsPage />);
+    await click("crm.intelligence.automations.newRule");
+    const dialog = within(screen.getByRole("dialog"));
+    change(dialog, "crm.intelligence.automations.name", "Celebrate a win");
+    change(dialog, "crm.intelligence.automations.entityType", "opportunity");
+    change(dialog, "crm.intelligence.automations.triggerEvent", "opportunity.won");
+    await click("common.save", dialog);
+
+    expect(sent("/api/crm/automations")[0].body).toMatchObject({
+      entity_type: "opportunity",
+      trigger_event: "opportunity.won",
+    });
+  });
+
   test("the execution log of a rule can be read", async () => {
     render(<AutomationsPage />);
     await click("crm.intelligence.automations.executions");
@@ -203,6 +225,23 @@ describe("Organizations and scoring", () => {
       organization_id: "org-1",
       relationship_type: "works_for",
     });
+  });
+
+  test("an organization is edited, then deleted after confirmation", async () => {
+    render(<OrganizationsPage />);
+    await click("crm.organizations.editOrganization — E2E-MTN Benin");
+    const dialog = within(screen.getByRole("dialog"));
+    change(dialog, "crm.organizations.industryPlaceholder", "Telecoms");
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("dialog").querySelector("form"));
+    });
+    expect(sent("/api/crm/organizations/org-1", "PATCH")[0].body).toMatchObject({
+      name: "E2E-MTN Benin",
+      industry: "Telecoms",
+    });
+
+    await click("crm.organizations.deleteOrganization — E2E-MTN Benin");
+    expect(sent("/api/crm/organizations/org-1", "DELETE")).toHaveLength(1);
   });
 
   test("the computed score shows what it is made of", async () => {

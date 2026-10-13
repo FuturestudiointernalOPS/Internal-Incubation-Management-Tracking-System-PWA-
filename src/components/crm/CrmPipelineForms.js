@@ -100,8 +100,8 @@ const STAGE_KINDS = ["open", "won", "lost"];
 
 /**
  * Add a stage at the end of a pipeline, or edit an existing one (`stage` given).
- * The kind (open / won / lost) is chosen at creation only: it decides how the
- * deals that reach the stage are counted.
+ * The page moves it afterwards. The kind (open / won / lost) is chosen at
+ * creation only: it decides how the deals that reach the stage are counted.
  */
 export function CrmStageFormModal({ pipelineId, stage, nextPosition, onClose, onSaved }) {
   const { saving, submit, alert, t } = useSubmit(onSaved);

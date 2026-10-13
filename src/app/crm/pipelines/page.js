@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { Settings, ChevronRight, Plus, Pencil } from "lucide-react";
+import { Settings, ChevronRight, Plus, Pencil, ArrowLeft, ArrowRight } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -91,6 +91,15 @@ export default function CrmPipelinesPage() {
     }
   }
 
+  // Swap a stage with its neighbour and send the whole order.
+  async function moveStage(pipelineId, index, offset) {
+    const order = (stages[pipelineId] ?? []).map((stage) => stage.id);
+    const target = index + offset;
+    if (target < 0 || target >= order.length) return;
+    [order[index], order[target]] = [order[target], order[index]];
+    if (await patch(`/api/crm/pipelines/${pipelineId}/stages`, { order })) await loadStages(pipelineId);
+  }
+
   async function handleSaved() {
     const pipelineId = dialog?.type === "stage" ? dialog.pipeline.id : null;
     setDialog(null);
@@ -160,7 +169,7 @@ export default function CrmPipelinesPage() {
                       <p className="text-sm text-[var(--text-secondary)]">{t("crm.pipelines.noStages")}</p>
                     ) : (
                       <ol className="flex flex-wrap gap-x-4 gap-y-2">
-                        {stages[p.id].map((s) => (
+                        {stages[p.id].map((s, index) => (
                           <li key={s.id} className={`flex items-center gap-2 ${s.is_active ? "" : "opacity-50"}`}>
                             <span className={`px-3 py-1 rounded-full text-xs font-semibold ${stageTone(s)}`}>
                               {s.position}. {s.name}
@@ -170,6 +179,22 @@ export default function CrmPipelinesPage() {
                             )}
                             {canManage && (
                               <>
+                                <button
+                                  onClick={() => moveStage(p.id, index, -1)}
+                                  disabled={index === 0}
+                                  aria-label={`${t("crm.pipelines.moveStageEarlier")} — ${s.name}`}
+                                  className="p-1 rounded text-[var(--text-secondary)] hover:bg-[var(--surface-3)] disabled:opacity-30"
+                                >
+                                  <ArrowLeft className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => moveStage(p.id, index, 1)}
+                                  disabled={index === stages[p.id].length - 1}
+                                  aria-label={`${t("crm.pipelines.moveStageLater")} — ${s.name}`}
+                                  className="p-1 rounded text-[var(--text-secondary)] hover:bg-[var(--surface-3)] disabled:opacity-30"
+                                >
+                                  <ArrowRight className="w-3 h-3" />
+                                </button>
                                 <button
                                   onClick={() => setDialog({ type: "stage", pipeline: p, stage: s })}
                                   aria-label={`${t("crm.pipelines.editStage")} — ${s.name}`}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Building2, Plus, Search, Globe, Briefcase, Users } from "lucide-react";
+import { Building2, Plus, Search, Globe, Briefcase, Users, Pencil, Trash2 } from "lucide-react";
 import AppTable from "@/components/ui/AppTable";
 import AppButton from "@/components/ui/AppButton";
 import AppInput from "@/components/ui/AppInput";
@@ -33,7 +33,8 @@ const ORG_TYPES = [
  */
 export default function CrmOrganizationsPage() {
   const { t } = useI18n();
-  const { alert } = useDialogs();
+  const { alert, confirm } = useDialogs();
+  const [editing, setEditing]     = useState(null); // the organization being edited, or null when creating
   const { can } = useCrmCapabilities();
   const canCreate = can("create");
   const [peopleOf, setPeopleOf]   = useState(null); // the organization whose people are shown
@@ -78,7 +79,38 @@ export default function CrmOrganizationsPage() {
     );
   }, [orgs, search]);
 
-  // ── Create org ───────────────────────────────────────────────────────────
+  function openCreate() {
+    setEditing(null);
+    setForm({ name: "", type: "", website: "", industry: "", description: "" });
+    setShowModal(true);
+  }
+
+  function openEdit(org) {
+    setEditing(org);
+    setForm({
+      name: org.name ?? "",
+      type: org.type ?? "",
+      website: org.website ?? "",
+      industry: org.industry ?? "",
+      description: org.description ?? "",
+    });
+    setShowModal(true);
+  }
+
+  async function handleDelete(org) {
+    const ok = await confirm({ message: t("crm.organizations.confirmDelete"), hint: org.name, tone: "danger" });
+    if (!ok) return;
+    try {
+      const res  = await fetch(`/api/crm/organizations/${org.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) await fetchOrgs();
+      else await alert({ message: t(data.error || "errors.somethingWrong") });
+    } catch {
+      await alert({ message: t("errors.somethingWrong") });
+    }
+  }
+
+  // ── Create or update org ─────────────────────────────────────────────────
   async function handleCreate(e) {
     e.preventDefault();
     if (!form.name.trim()) {
@@ -87,8 +119,8 @@ export default function CrmOrganizationsPage() {
     }
     setSaving(true);
     try {
-      const res  = await fetch("/api/crm/organizations", {
-        method: "POST",
+      const res  = await fetch(editing ? `/api/crm/organizations/${editing.id}` : "/api/crm/organizations", {
+        method: editing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
@@ -150,9 +182,29 @@ export default function CrmOrganizationsPage() {
       label: t("crm.organizations.people"),
       align: "right",
       render: (_value, row) => (
-        <AppButton size="sm" variant="secondary" icon={Users} onClick={() => setPeopleOf(row)}>
-          {t("crm.organizations.people")}
-        </AppButton>
+        <div className="inline-flex items-center gap-1">
+          <AppButton size="sm" variant="secondary" icon={Users} onClick={() => setPeopleOf(row)}>
+            {t("crm.organizations.people")}
+          </AppButton>
+          {can("edit") && (
+            <button
+              onClick={() => openEdit(row)}
+              aria-label={`${t("crm.organizations.editOrganization")} — ${row.name}`}
+              className="p-2 rounded text-[var(--text-secondary)] hover:bg-[var(--surface-3)]"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          )}
+          {can("delete") && (
+            <button
+              onClick={() => handleDelete(row)}
+              aria-label={`${t("crm.organizations.deleteOrganization")} — ${row.name}`}
+              className="p-2 rounded text-red-500 hover:bg-[var(--surface-3)]"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       ),
     },
   ];
@@ -176,7 +228,7 @@ export default function CrmOrganizationsPage() {
           {canCreate && (
             <AppButton
               icon={Plus}
-              onClick={() => setShowModal(true)}
+              onClick={openCreate}
               className="shrink-0"
             >
               {t("crm.organizations.newOrganization")}
@@ -223,7 +275,7 @@ export default function CrmOrganizationsPage() {
       <AppModal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={t("crm.organizations.newOrganization")}
+        title={editing ? t("crm.organizations.editOrganization") : t("crm.organizations.newOrganization")}
       >
         <form onSubmit={handleCreate} className="space-y-4">
           <AppInput
@@ -290,7 +342,7 @@ export default function CrmOrganizationsPage() {
               {t("common.cancel")}
             </AppButton>
             <AppButton type="submit" disabled={saving}>
-              {saving ? t("common.saving") : t("crm.organizations.newOrganization")}
+              {saving ? t("common.saving") : editing ? t("common.save") : t("crm.organizations.newOrganization")}
             </AppButton>
           </div>
         </form>

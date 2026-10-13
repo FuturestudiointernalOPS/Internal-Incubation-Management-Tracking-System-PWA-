@@ -23,6 +23,22 @@ const ENTITY_LABEL_KEYS = {
   opportunity: "crm.intelligence.common.opportunity",
 };
 
+// The events each entity raises (lead and opportunity API routes).
+const TRIGGERS = {
+  lead: [
+    { value: "lead.qualified", labelKey: "crm.intelligence.automations.triggerLeadQualified" },
+    { value: "lead.disqualified", labelKey: "crm.intelligence.automations.triggerLeadDisqualified" },
+    { value: "lead.score_changed", labelKey: "crm.intelligence.automations.triggerLeadScoreChanged" },
+    { value: "lead.assigned", labelKey: "crm.intelligence.automations.triggerLeadAssigned" },
+  ],
+  opportunity: [
+    { value: "opportunity.created", labelKey: "crm.intelligence.automations.triggerOpportunityCreated" },
+    { value: "opportunity.stage_changed", labelKey: "crm.intelligence.automations.triggerOpportunityStageChanged" },
+    { value: "opportunity.won", labelKey: "crm.intelligence.automations.triggerOpportunityWon" },
+    { value: "opportunity.lost", labelKey: "crm.intelligence.automations.triggerOpportunityLost" },
+  ],
+};
+
 export default function CrmAutomationsPage() {
   const { t } = useI18n();
   const { confirm, alert } = useDialogs();
@@ -222,7 +238,7 @@ export default function CrmAutomationsPage() {
               <AppSelect
                 label={t("crm.intelligence.automations.entityType")}
                 value={form.entity_type}
-                onChange={e => setForm(f => ({ ...f, entity_type: e.target.value, conditions: [], actions: [] }))}
+                onChange={e => setForm(f => ({ ...f, entity_type: e.target.value, trigger_event: TRIGGERS[e.target.value][0].value, conditions: [], actions: [] }))}
                 options={[
                   { value: "lead", label: t("crm.intelligence.common.lead") },
                   { value: "opportunity", label: t("crm.intelligence.common.opportunity") }
@@ -232,12 +248,7 @@ export default function CrmAutomationsPage() {
                 label={t("crm.intelligence.automations.triggerEvent")}
                 value={form.trigger_event}
                 onChange={e => setForm(f => ({ ...f, trigger_event: e.target.value }))}
-                options={[
-                  { value: "lead.qualified", label: t("crm.intelligence.automations.triggerLeadQualified") },
-                  { value: "lead.disqualified", label: t("crm.intelligence.automations.triggerLeadDisqualified") },
-                  { value: "lead.score_changed", label: t("crm.intelligence.automations.triggerLeadScoreChanged") },
-                  { value: "lead.assigned", label: t("crm.intelligence.automations.triggerLeadAssigned") }
-                ]}
+                options={(TRIGGERS[form.entity_type] ?? []).map(trigger => ({ value: trigger.value, label: t(trigger.labelKey) }))}
               />
             </>
           )}

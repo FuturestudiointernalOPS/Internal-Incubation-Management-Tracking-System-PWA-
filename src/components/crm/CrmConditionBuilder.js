@@ -29,6 +29,7 @@ export const CONDITION_FIELDS = {
     { name: "value", number: true },
     { name: "probability", number: true },
     { name: "currency" },
+    { name: "stage_name" },
   ],
 };
 
