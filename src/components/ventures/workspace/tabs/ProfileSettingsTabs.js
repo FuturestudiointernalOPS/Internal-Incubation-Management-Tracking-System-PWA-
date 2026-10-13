@@ -115,7 +115,7 @@ export function ProfileTab() {
           </div>
         </div>
       </div>
-      <div className="flex justify-end pt-4 border-t" style={{ borderColor: "rgb(255 255 255 / 0.1)" }}>
+      <div className="flex justify-end pt-4 border-t" style={{ borderColor: "var(--border-primary)" }}>
         <button type="submit" disabled={saving}
           className="flex items-center gap-2 px-6 py-2 rounded-lg text-white disabled:opacity-50 transition-colors"
           style={{ backgroundColor: "var(--brand-orange)" }}>

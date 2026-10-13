@@ -315,7 +315,7 @@ export function JourneyTab() {
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
                     stage.status === 'completed' ? 'bg-green-600 text-white' :
                     stage.status === 'active' ? 'bg-blue-600 text-white' :
-                    'bg-gray-700 text-gray-400'
+                    'bg-[var(--surface-3)] text-gray-400'
                   }`}>
                     {stage.status === 'completed' ? '✓' : String(stage.stage_order).padStart(2, '0')}
                   </div>
@@ -324,14 +324,14 @@ export function JourneyTab() {
                       <p className={`font-medium ${stage.status === 'completed' ? 'line-through' : ''}`} style={{ color: stage.status === 'completed' ? 'var(--text-secondary)' : 'var(--text-primary)' }}>{stage.name}</p>
                       <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${statusChipClass(stageStatusWord(stage.status))}`}>{statusLabel(stageStatusWord(stage.status), t)}</span>
                       {milestoneCounts.total > 0 && (
-                        <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-white/10 text-slate-400">{milestoneCounts.completed}/{milestoneCounts.total} {t('venture.milestones')}</span>
+                        <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-[var(--surface-3)] text-slate-400">{milestoneCounts.completed}/{milestoneCounts.total} {t('venture.milestones')}</span>
                       )}
                     </div>
                   </div>
                   {isOpen ? <ChevronDown size={18} className="shrink-0" style={{ color: 'var(--text-secondary)' }} /> : <ChevronRight size={18} className="shrink-0" style={{ color: 'var(--text-secondary)' }} />}
                 </button>
                 {isOpen && (
-                  <div className="px-4 pb-4 pt-3 border-t space-y-3" style={{ borderColor: 'rgb(255 255 255 / 0.08)' }}>
+                  <div className="px-4 pb-4 pt-3 border-t space-y-3" style={{ borderColor: 'var(--border-primary)' }}>
                     {stage.objective && (
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-widest mb-0.5" style={{ color: 'var(--text-secondary)' }}>{t('venture.objective') || 'Objective'}</p>
@@ -346,7 +346,7 @@ export function JourneyTab() {
                     )}
                     <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px]">
                       {stage.target_date && <span style={{ color: 'var(--text-secondary)' }}>{t('venture.targetDate') || 'Target Date'}: {new Date(`${stage.target_date}T00:00:00`).toLocaleDateString()}</span>}
-                      {stage.completed_at && <span style={{ color: '#22c55e' }}>✓ {t('venture.completed') || 'Completed'}: {new Date(stage.completed_at).toLocaleDateString()}</span>}
+                      {stage.completed_at && <span style={{ color: 'var(--chart-success)' }}>✓ {t('venture.completed') || 'Completed'}: {new Date(stage.completed_at).toLocaleDateString()}</span>}
                     </div>
 
                     {/* Milestones bound to this stage (canonical spine) */}
@@ -366,7 +366,7 @@ export function JourneyTab() {
                             String(milestone.status) !== "completed" &&
                             String(firstOpenId) === String(milestone.id);
                           return (
-                            <div key={milestone.id} className="rounded-xl border p-3 space-y-2" style={{ borderColor: 'rgb(255 255 255 / 0.1)' }}>
+                            <div key={milestone.id} className="rounded-xl border p-3 space-y-2" style={{ borderColor: 'var(--border-primary)' }}>
                               <div className="flex items-center justify-between gap-2 flex-wrap">
                                 <p className="text-sm font-bold">{milestone.title}</p>
                                 <div className="flex items-center gap-2">

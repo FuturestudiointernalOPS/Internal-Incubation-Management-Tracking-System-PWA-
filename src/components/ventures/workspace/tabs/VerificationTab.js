@@ -367,7 +367,7 @@ export function VerificationTab() {
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className="text-[10px] font-bold text-[var(--text-primary)]">{commentEntry.author_name || commentEntry.author_cid}</span>
                   {commentEntry.author_type === "system" && (
-                    <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-white/10 text-slate-400">
+                    <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-[var(--surface-3)] text-slate-400">
                       {t("vadmin.verification.system")}
                     </span>
                   )}

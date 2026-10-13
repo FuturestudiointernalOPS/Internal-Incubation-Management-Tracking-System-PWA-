@@ -17,10 +17,10 @@ const REPORT_FILTERS = [
 ];
 
 const STATUS_CHIP = {
-  draft: "bg-white/10 text-slate-400",
+  draft: "bg-[var(--surface-3)] text-slate-400",
   submitted: "bg-amber-500/15 text-amber-400",
   reviewed: "bg-emerald-500/15 text-emerald-400",
-  archived: "bg-white/10 text-slate-500",
+  archived: "bg-[var(--surface-3)] text-slate-500",
 };
 
 /**
@@ -206,7 +206,7 @@ export default function VentureJourneyPage() {
                 <div key={report.id} className="flex flex-wrap items-center gap-2 text-xs border-b border-[var(--border-primary)] last:border-0 pb-2 last:pb-0">
                   <span className="font-bold text-[var(--text-primary)]">{report.venture_name || report.venture_code}</span>
                   <span style={{ color: "var(--text-secondary)" }}>· {report.journey_name || t("vadmin.journeyReports.noJourney")}</span>
-                  <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-white/10 text-slate-400">{kindLabel(report.report_kind)}</span>
+                  <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-[var(--surface-3)] text-slate-400">{kindLabel(report.report_kind)}</span>
                   <span className="flex-1 min-w-[140px] truncate text-[var(--text-primary)]">{report.title}</span>
                   {report.reporting_period && (
                     <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>{report.reporting_period}</span>

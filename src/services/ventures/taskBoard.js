@@ -19,7 +19,7 @@ import {
   isTaskComplete,
   TASK_COMPLETED_STATUSES,
 } from "@/lib/ventureStatuses";
-import { isStaffActorForVenture } from "@/lib/ventureAuth";
+import { isStaffActorForVenture, roleIsPrivileged } from "@/lib/ventureAuth";
 import { canManageMilestones, syncMilestoneFromWork } from "@/services/ventures/milestoneEngine";
 import { hasApprovedTaskSubmission } from "@/models/ventureWorkspace";
 
@@ -122,18 +122,25 @@ export function buildTaskBoard(tasks, edges, includeArchived) {
  * @returns {Promise<null | { error: string, status: number, blocked_by?: string[] }>}
  */
 export async function checkTaskStatusChange({ id, dbId, session, existingTask, taskId, numericTaskId, status }) {
-  if (status !== undefined && TASK_PROCEED_STATUSES.includes(status)) {
-    const staffActor = await isStaffActorForVenture(id, session);
-    if (!staffActor) {
-      const blockers = await getUnmetTaskDependencies({ ventureId: dbId, taskId: numericTaskId });
-      if (blockers.length > 0) {
-        const names = blockers.map((blocker) => `"${blocker.title || blocker.id}"`).join(", ");
-        return {
-          error: `This task is blocked by ${names}, which is not completed yet.`,
-          blocked_by: blockers.map((blocker) => blocker.title || blocker.id),
-          status: 409,
-        };
-      }
+  // A task's status is Future Studio's call. A founder (or any other Venture
+  // member) reports progress through submissions and evidence; they never move
+  // the status themselves — even though they may hold the Venture "edit" right.
+  const movesStatus = status !== undefined && status !== existingTask?.status;
+  const proceeds = status !== undefined && TASK_PROCEED_STATUSES.includes(status);
+  const assignedStaff = movesStatus || proceeds ? await isStaffActorForVenture(id, session) : false;
+  if (movesStatus && !assignedStaff && !roleIsPrivileged(session?.role)) {
+    return { error: "Only Future Studio staff can change a task's status.", status: 403 };
+  }
+
+  if (proceeds && !assignedStaff) {
+    const blockers = await getUnmetTaskDependencies({ ventureId: dbId, taskId: numericTaskId });
+    if (blockers.length > 0) {
+      const names = blockers.map((blocker) => `"${blocker.title || blocker.id}"`).join(", ");
+      return {
+        error: `This task is blocked by ${names}, which is not completed yet.`,
+        blocked_by: blockers.map((blocker) => blocker.title || blocker.id),
+        status: 409,
+      };
     }
   }
 

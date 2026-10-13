@@ -49,16 +49,16 @@ export default function PlanReviewHeader({ draft, error, notice, stats, alreadyC
         <span className="px-2 py-1 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)]">
           {t("venture.planImport.statJourneys", { n: stats.journeys || 0 })}
         </span>
-        <span className="px-2 py-1 rounded-lg bg-white/5 text-[var(--text-secondary)]">
+        <span className="px-2 py-1 rounded-lg bg-[var(--surface-2)] text-[var(--text-secondary)]">
           {t("venture.planImport.statMilestones", { n: stats.milestones || 0 })}
         </span>
-        <span className="px-2 py-1 rounded-lg bg-white/5 text-[var(--text-secondary)]">
+        <span className="px-2 py-1 rounded-lg bg-[var(--surface-2)] text-[var(--text-secondary)]">
           {t("venture.planImport.statTasks", { n: stats.tasks || 0 })}
         </span>
-        <span className="px-2 py-1 rounded-lg bg-white/5 text-[var(--text-secondary)]">
+        <span className="px-2 py-1 rounded-lg bg-[var(--surface-2)] text-[var(--text-secondary)]">
           {t("venture.planImport.statDeliverables", { n: stats.deliverables || 0 })}
         </span>
-        <span className="px-2 py-1 rounded-lg bg-white/5 text-slate-400 normal-case tracking-normal">
+        <span className="px-2 py-1 rounded-lg bg-[var(--surface-2)] text-slate-400 normal-case tracking-normal">
           {t("venture.planImport.sheetsRead", {
             n: (draft.sheets || []).length,
             names: (draft.sheets || []).map((sheet) => sheet.name).join(", "),

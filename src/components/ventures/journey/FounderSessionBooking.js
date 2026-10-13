@@ -28,7 +28,7 @@ export default function FounderSessionBooking({
   return (
     <div className="space-y-1.5 pt-1">
       {bookFor === milestone.id ? (
-        <form onSubmit={(event) => bookSession(event, stage, milestone)} className="rounded-lg border p-2.5 space-y-2" style={{ borderColor: 'rgb(255 255 255 / 0.08)' }}>
+        <form onSubmit={(event) => bookSession(event, stage, milestone)} className="rounded-lg border p-2.5 space-y-2" style={{ borderColor: 'var(--border-primary)' }}>
           <p className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5" style={{ color: 'var(--brand-orange)' }}>
             <CalendarPlus size={13} /> {t('venture.manager.bookSession')}
           </p>
@@ -75,7 +75,7 @@ export default function FounderSessionBooking({
           </div>
           <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.manager.sessionLeadHint')}</p>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => setBookFor(null)} className="px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest" style={{ borderColor: 'rgb(255 255 255 / 0.15)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
+            <button type="button" onClick={() => setBookFor(null)} className="px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest" style={{ borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
             <button type="submit" disabled={bookSaving} className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-black flex items-center gap-1.5 disabled:opacity-50" style={{ backgroundColor: 'var(--brand-orange)' }}>
               {bookSaving ? <Loader2 size={12} className="animate-spin" /> : <CalendarPlus size={12} />} {t('venture.manager.bookSession')}
             </button>

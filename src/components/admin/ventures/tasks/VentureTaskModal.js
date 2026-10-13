@@ -22,7 +22,7 @@ export default function VentureTaskModal({
         <div className="w-full max-w-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-black text-[var(--text-primary)]">{editTask ? "Edit Task" : "New Task"}</h2>
-            <button onClick={() => setShowTaskModal(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
+            <button onClick={() => setShowTaskModal(false)} className="p-2 hover:bg-[var(--surface-2)] rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
           </div>
           <div className="space-y-4">
             <div>

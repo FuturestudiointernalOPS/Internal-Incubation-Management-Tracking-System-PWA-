@@ -186,9 +186,9 @@ export default function VentureDataRoomPage() {
         {/* Categories + Search */}
         <div className="flex gap-3">
           <div className="flex gap-1 overflow-x-auto pb-1">
-            <button onClick={() => setActiveCategory("")} className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${!activeCategory ? "bg-brand-orange/10 text-[var(--brand-orange)]" : "bg-tertiary text-[var(--text-secondary)] hover:bg-white/5"}`}>All</button>
+            <button onClick={() => setActiveCategory("")} className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${!activeCategory ? "bg-brand-orange/10 text-[var(--brand-orange)]" : "bg-tertiary text-[var(--text-secondary)] hover:bg-[var(--surface-2)]"}`}>All</button>
             {CATEGORIES.map((category) => (
-              <button key={category.value} onClick={() => setActiveCategory(category.value)} className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${activeCategory===category.value ? "bg-brand-orange/10 text-[var(--brand-orange)]" : "bg-tertiary text-[var(--text-secondary)] hover:bg-white/5"}`}>{category.label}</button>
+              <button key={category.value} onClick={() => setActiveCategory(category.value)} className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${activeCategory===category.value ? "bg-brand-orange/10 text-[var(--brand-orange)]" : "bg-tertiary text-[var(--text-secondary)] hover:bg-[var(--surface-2)]"}`}>{category.label}</button>
             ))}
           </div>
           <div className="relative flex-1 max-w-xs ml-auto">
@@ -228,7 +228,7 @@ export default function VentureDataRoomPage() {
           <div className="w-full max-w-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-black text-[var(--text-primary)]">Upload Document</h2>
-              <button onClick={() => setShowUploadModal(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
+              <button onClick={() => setShowUploadModal(false)} className="p-2 hover:bg-[var(--surface-2)] rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
             </div>
             <div className="space-y-4">
               <div>
@@ -273,7 +273,7 @@ export default function VentureDataRoomPage() {
                   <FileText className="w-5 h-5 text-[var(--brand-orange)]" />
                   <h2 className="text-sm font-black text-[var(--text-primary)]">{selectedDoc.title}</h2>
                 </div>
-                <button onClick={() => setShowDetail(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
+                <button onClick={() => setShowDetail(false)} className="p-2 hover:bg-[var(--surface-2)] rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-[10px]">
@@ -349,7 +349,7 @@ export default function VentureDataRoomPage() {
           <div className="w-full max-w-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-black text-[var(--text-primary)]">Share Document</h2>
-              <button onClick={() => setShowShareModal(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
+              <button onClick={() => setShowShareModal(false)} className="p-2 hover:bg-[var(--surface-2)] rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
             </div>
             <p className="text-[10px] text-[var(--text-secondary)]">Create a secure sharing link for <strong>{selectedDoc.title}</strong></p>
             <div className="space-y-4">

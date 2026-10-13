@@ -58,12 +58,12 @@ export default function ParticipantVentures() {
                 onClick={() => router.push(`/participant/ventures/${venture.venture_id || venture.id}`)}
                 className="rounded-xl p-5 transition-all cursor-pointer border"
                 style={{
-                  backgroundColor: "rgb(255 255 255 / 0.05)",
-                  borderColor: "rgb(255 255 255 / 0.1)",
+                  backgroundColor: "var(--surface-3)",
+                  borderColor: "var(--border-primary)",
                   color: "var(--text-primary)"
                 }}
                 onMouseEnter={event => { event.currentTarget.style.borderColor = "var(--brand-orange)"; event.currentTarget.style.boxShadow = "0 4px 20px rgb(255 102 0 / 0.15)"; }}
-                onMouseLeave={event => { event.currentTarget.style.borderColor = "rgb(255 255 255 / 0.1)"; event.currentTarget.style.boxShadow = "none"; }}
+                onMouseLeave={event => { event.currentTarget.style.borderColor = "var(--border-primary)"; event.currentTarget.style.boxShadow = "none"; }}
               >
                 <div className="flex items-start justify-between mb-3">
                   {/* Same display rule as every other Ventures surface: the
@@ -72,8 +72,8 @@ export default function ParticipantVentures() {
                   <h3 className="font-semibold text-lg">{venture.company_name || venture.name}</h3>
                   <span className="text-xs px-2 py-1 rounded-full font-medium"
                     style={{
-                      backgroundColor: venture.status === "active" ? "rgb(16 185 129 / 0.2)" : venture.status === "paused" ? "rgb(245 158 11 / 0.2)" : venture.status === "graduated" ? "rgb(168 85 247 / 0.2)" : "rgb(255 255 255 / 0.1)",
-                      color: venture.status === "active" ? "#10b981" : venture.status === "paused" ? "#f59e0b" : venture.status === "graduated" ? "#a855f7" : "var(--text-secondary)"
+                      backgroundColor: venture.status === "active" ? "rgb(16 185 129 / 0.2)" : venture.status === "paused" ? "rgb(245 158 11 / 0.2)" : venture.status === "graduated" ? "rgb(168 85 247 / 0.2)" : "var(--border-primary)",
+                      color: venture.status === "active" ? "var(--chart-success)" : venture.status === "paused" ? "var(--chart-warning)" : venture.status === "graduated" ? "var(--chart-info)" : "var(--text-secondary)"
                     }}
                   >
                     {t(`venture.statuses.${venture.status || "active"}`)}
