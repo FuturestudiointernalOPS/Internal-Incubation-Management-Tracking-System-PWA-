@@ -68,6 +68,22 @@ export async function findParticipantFacilitatorConflict(staffId, programId, con
   });
 }
 
+/**
+ * The contact's own role, and whether they are the program's assigned PM —
+ * the inputs of the "a participant / a PM cannot be a facilitator" rule.
+ */
+export async function getContactFacilitatorEligibility(staffRef, programId) {
+  return db.execute({
+    sql: `SELECT c.role,
+                 EXISTS (SELECT 1 FROM v2_programs p
+                         WHERE CAST(p.id AS TEXT) = ? AND CAST(p.assigned_pm_id AS TEXT) = c.cid::text) AS is_program_pm
+          FROM contacts c
+          WHERE (c.cid = ? OR LOWER(c.email) = LOWER(?)) AND c.deleted = 0
+          LIMIT 1`,
+    args: [String(programId), String(staffRef), String(staffRef)],
+  });
+}
+
 /** Insert (or update on conflict) a v2_program_staff assignment. */
 export async function upsertV2ProgramStaffAssignment(programId, staffId, role, permissionsJson) {
   return db.execute({
@@ -103,7 +119,7 @@ export async function insertGeneralizedProgramAssignmentV2(role, programIdStr, p
 /** Current role + program id of a v2_program_staff row (scope check). */
 export async function getProgramStaffTargetForScopeCheck(id) {
   return db.execute({
-    sql: "SELECT role, program_id FROM v2_program_staff WHERE id = ?",
+    sql: "SELECT role, program_id, staff_id FROM v2_program_staff WHERE id = ?",
     args: [id],
   });
 }

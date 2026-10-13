@@ -33,6 +33,7 @@ import {
   setTeamVentureReady,
   updateTeamHandler,
 } from "@/models/teams";
+import { getContactFacilitatorEligibility } from "@/models/programMembership";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -210,6 +211,16 @@ export async function applyTeamPatch({ payload }) {
 
   // Support update_handler action (reassign the team's facilitator/oversight).
   if (action === "update_handler" && team_id) {
+    if (handler_id) {
+      const eligibility = await getContactFacilitatorEligibility(handler_id, "");
+      const role = String(eligibility.rows[0]?.role || "").toLowerCase();
+      if (role === "participant") {
+        return { status: 409, body: { success: false, error: "errors.roleConflictParticipantFacilitator" } };
+      }
+      if (role === "program_manager") {
+        return { status: 409, body: { success: false, error: "errors.roleConflictPmFacilitator" } };
+      }
+    }
     await updateTeamHandler(team_id, handler_id, handler_name);
     return { status: 200, body: { success: true } };
   }
