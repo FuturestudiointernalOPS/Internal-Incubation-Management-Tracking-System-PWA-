@@ -84,8 +84,12 @@ export function useFormActions({
         setFields([]);
         setScoringConfig({ enabled: false, max_per_question: 0, sections: {}, rankings: [{ min: 0, max: 59, label: "Needs Work" }, { min: 60, max: 79, label: "Good" }, { min: 80, max: 100, label: "Excellent" }] });
         setAiEvalFramework(null);
+      } else {
+        notify(data.error || t("platformMisc.forms.notifyCreateFailed"));
       }
-    } catch (_) {}
+    } catch (_) {
+      notify(t("platformMisc.forms.notifyCreateFailed"));
+    }
     setSaving(false);
   }, [createForm, notify, refreshForms, t, createDefaultSection, setEditingForm, setShowBuilder, setPreviewMode, setSelectedFieldId, setFields, setScoringConfig, setAiEvalFramework]);
 
