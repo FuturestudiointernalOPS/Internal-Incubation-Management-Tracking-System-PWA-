@@ -13,8 +13,11 @@
  * envelope.
  */
 
-import { PERMISSION_MODULES, ACCESS_LEVELS } from "@/server/authz/capabilities";
-import { CAPABILITY_CATALOG } from "@/models/authorization/capability-catalog";
+import {
+  PERMISSION_MODULES,
+  CAPABILITY_CATALOG,
+} from "@/models/authorization/constants/feature-module-capability";
+import { ACCESS_LEVELS } from "@/server/authz/capabilities";
 import { MODULE_TO_FEATURE } from "@/models/authorization/eligibility";
 import { getUserGroups } from "@/models/authorization/accessQueries";
 import {

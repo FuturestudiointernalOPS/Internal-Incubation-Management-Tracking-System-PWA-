@@ -1,7 +1,7 @@
 "use client";
 
 import EffectiveBadge from "../ui/EffectiveBadge";
-import { capabilityLabel } from "@/models/authorization/capability-catalog";
+import { capabilityLabel } from "@/models/authorization/constants/feature-module-capability";
 
 /**
  * The body of the Why drawer: WHY a capability resolves the way it does —

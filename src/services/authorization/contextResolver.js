@@ -28,7 +28,8 @@
  */
 
 import { initDb } from "@/lib/db";
-import { PERMISSION_MODULES, ACCESS_LEVELS } from "@/server/authz/capabilities";
+import { PERMISSION_MODULES } from "@/models/authorization/constants/feature-module-capability";
+import { ACCESS_LEVELS } from "@/server/authz/capabilities";
 import { MODULE_TO_FEATURE } from "@/models/authorization/eligibility";
 import { explainEligibility } from "./eligibility";
 import { ensureCapabilityBackfills } from "@/models/authorization/backfill";

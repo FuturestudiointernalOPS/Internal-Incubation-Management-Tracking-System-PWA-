@@ -10,7 +10,7 @@
 
 const { projectUserContext } = require("@/services/authorization/userContextProjection");
 const { explainAuthorization, buildContextDecisions } = require("@/services/authorization/contextDecisions");
-const { PERMISSION_MODULES } = require("@/server/authz/capabilities");
+const { PERMISSION_MODULES } = require("@/models/authorization/constants/feature-module-capability");
 const fs = require("node:fs");
 const path = require("node:path");
 

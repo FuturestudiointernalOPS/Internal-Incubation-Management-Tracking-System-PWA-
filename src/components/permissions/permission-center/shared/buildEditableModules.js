@@ -9,7 +9,7 @@
  * it stays testable without a component tree.
  */
 
-import { CAPABILITY_CATALOG } from "@/models/authorization/capability-catalog";
+import { CAPABILITY_CATALOG } from "@/models/authorization/constants/feature-module-capability";
 
 /**
  * The module catalog the Access-Profile editor can EDIT: the server-served

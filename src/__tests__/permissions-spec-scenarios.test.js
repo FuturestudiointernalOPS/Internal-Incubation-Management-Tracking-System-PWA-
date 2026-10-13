@@ -94,13 +94,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => true),
 }));
 
-jest.mock("@/server/authz/capabilities", () => {
-  const mocks = require("./helpers/authorizationMocks");
-  return {
-    PERMISSION_MODULES: mocks.auth.PERMISSION_MODULES,
-    ACCESS_LEVELS: mocks.auth.ACCESS_LEVELS,
-  };
-});
+jest.mock("@/models/authorization/constants/feature-module-capability", () => ({
+  ...jest.requireActual("@/models/authorization/constants/feature-module-capability"),
+  PERMISSION_MODULES: require("./helpers/authorizationMocks").auth.PERMISSION_MODULES,
+}));
 jest.mock("@/server/auth/session", () => ({ getSession: jest.fn(async () => null) }));
 jest.mock("@/models/authorization/bootstrap", () => ({
   ensurePermissionsSchema: jest.fn(async () => {}),

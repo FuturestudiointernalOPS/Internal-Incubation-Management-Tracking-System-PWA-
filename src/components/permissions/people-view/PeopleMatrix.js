@@ -9,7 +9,7 @@ import {
   resolveDenialReason,
   describeCapOrigins,
 } from "../matrixHelpers";
-import { capabilityLabel } from "@/models/authorization/capability-catalog";
+import { capabilityLabel } from "@/models/authorization/constants/feature-module-capability";
 import { moduleCaps } from "./accessSummary";
 import {
   ACCESS_LEVEL_KEYS,

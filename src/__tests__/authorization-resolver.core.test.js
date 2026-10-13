@@ -12,8 +12,9 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => {}),
 }));
 
-jest.mock("@/server/authz/capabilities", () => {
-  const PERMISSION_MODULES = {
+jest.mock("@/models/authorization/constants/feature-module-capability", () => ({
+  ...jest.requireActual("@/models/authorization/constants/feature-module-capability"),
+  PERMISSION_MODULES: {
     projects: { capabilities: ["view", "create", "edit", "delete", "archive"] },
     programs: { capabilities: ["view", "create", "edit", "delete", "publish"] },
     users: {
@@ -54,12 +55,8 @@ jest.mock("@/server/authz/capabilities", () => {
       ],
     },
     lms: { capabilities: ["view", "create", "edit", "delete"] },
-  };
-  return {
-    PERMISSION_MODULES,
-    ACCESS_LEVELS: { NONE: 0, VIEW: 1, CREATE: 2, EDIT: 3, DELETE: 4, FULL: 5 },
-  };
-});
+  },
+}));
 jest.mock("@/server/auth/session", () => ({ getSession: jest.fn(async () => null) }));
 jest.mock("@/models/authorization/bootstrap", () => ({ ensurePermissionsSchema: jest.fn(async () => {}) }));
 

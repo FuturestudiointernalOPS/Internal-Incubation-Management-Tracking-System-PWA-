@@ -18,7 +18,7 @@
  */
 
 import { MODULE_TO_FEATURE } from "@/models/authorization/eligibility";
-import { PERMISSION_MODULES } from "@/server/authz/capabilities";
+import { PERMISSION_MODULES } from "@/models/authorization/constants/feature-module-capability";
 import { explainEligibility } from "./eligibility";
 
 // ─── Authorization decision ─────────────────────────────────────────────────

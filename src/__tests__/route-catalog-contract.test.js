@@ -18,7 +18,7 @@
  */
 const fs = require("node:fs");
 const path = require("node:path");
-const { CAPABILITY_CATALOG } = require("@/models/authorization/capability-catalog");
+const { CAPABILITY_CATALOG } = require("@/models/authorization/constants/feature-module-capability");
 
 const API_ROOT = path.join(__dirname, "..", "app", "api");
 

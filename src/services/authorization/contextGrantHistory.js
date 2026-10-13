@@ -34,7 +34,7 @@
  */
 
 import { MODULE_TO_FEATURE } from "@/models/authorization/eligibility";
-import { CAPABILITY_CATALOG } from "@/models/authorization/capability-catalog";
+import { CAPABILITY_CATALOG } from "@/models/authorization/constants/feature-module-capability";
 import {
   getUserCapabilityRows,
   getContextAppliedGrantRows,

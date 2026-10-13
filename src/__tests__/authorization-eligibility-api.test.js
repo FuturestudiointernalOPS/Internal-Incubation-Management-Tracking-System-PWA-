@@ -10,10 +10,10 @@
 const mockAuthz = require("./helpers/authorizationMocks");
 
 jest.mock("@/lib/db", () => mockAuthz.db);
-jest.mock("@/server/authz/capabilities", () => {
-  const auth = mockAuthz.auth;
-  return { PERMISSION_MODULES: auth.PERMISSION_MODULES, ACCESS_LEVELS: auth.ACCESS_LEVELS };
-});
+jest.mock("@/models/authorization/constants/feature-module-capability", () => ({
+  ...jest.requireActual("@/models/authorization/constants/feature-module-capability"),
+  PERMISSION_MODULES: mockAuthz.auth.PERMISSION_MODULES,
+}));
 jest.mock("@/server/auth/session", () => ({ getSession: mockAuthz.auth.getSession }));
 jest.mock("@/models/authorization/bootstrap", () => ({ ensurePermissionsSchema: mockAuthz.auth.ensurePermissionsSchema }));
 jest.mock("next/server", () => mockAuthz.nextServer);
@@ -28,7 +28,7 @@ const { saCtx, staffCtx } = require("./helpers/authorizationMocks");
 
 describe("permissions.configure_eligibility (Phase A)", () => {
   test("is part of the permissions module capability set", () => {
-    const { PERMISSION_MODULES } = require("@/server/authz/capabilities");
+    const { PERMISSION_MODULES } = require("@/models/authorization/constants/feature-module-capability");
     expect(PERMISSION_MODULES.permissions.capabilities).toContain(
       "configure_eligibility",
     );
@@ -185,8 +185,8 @@ describe("validateEligibilityChanges (eligibility API)", () => {
   });
 
   test("capability catalog exposes labels and risk for every module", () => {
-    const { CAPABILITY_CATALOG } = require("@/models/authorization/capability-catalog");
-    const { PERMISSION_MODULES } = require("@/server/authz/capabilities");
+    const { CAPABILITY_CATALOG } = require("@/models/authorization/constants/feature-module-capability");
+    const { PERMISSION_MODULES } = require("@/models/authorization/constants/feature-module-capability");
     for (const [mod, def] of Object.entries(PERMISSION_MODULES)) {
       expect(CAPABILITY_CATALOG[mod]).toBeDefined();
       for (const cap of def.capabilities) {

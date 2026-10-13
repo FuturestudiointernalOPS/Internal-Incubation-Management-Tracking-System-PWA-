@@ -3,9 +3,11 @@
  * bulk-invitation API so the "full facilitator access" default can never drift
  * from the capabilities the UI can actually render.
  *
- * This list, PERMISSION_MODULES.facilitator.capabilities (src/lib/auth.js) and
- * CAPABILITY_CATALOG.facilitator.capabilities (src/models/authorization/
- * capability-catalog.js) are three declarations of ONE vocabulary. They are
+ * This list, PERMISSION_MODULES.facilitator.capabilities and
+ * CAPABILITY_CATALOG.facilitator.capabilities — both derived from the one
+ * capability source
+ * (src/models/authorization/constants/feature-module-capability.js) — are
+ * declarations of ONE vocabulary. They are
  * kept in exact sync by src/__tests__/facilitator-capability-coverage.test.js,
  * which also records which keys are enforced at request level and which are
  * still assignment-only.

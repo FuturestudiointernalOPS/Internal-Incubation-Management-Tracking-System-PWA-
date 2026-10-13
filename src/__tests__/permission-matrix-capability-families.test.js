@@ -25,7 +25,7 @@ describe("capability families — catalog metadata contract", () => {
     capabilityChildren,
     moduleCapabilityParents,
     isCapabilityParent,
-  } = require("@/models/authorization/capability-catalog");
+  } = require("@/models/authorization/constants/feature-module-capability");
 
   test("every parent resolves to a capability of the SAME module", () => {
     for (const featureDef of Object.values(CAPABILITY_CATALOG)) {
@@ -123,7 +123,7 @@ describe("Full is scoped to the CRUD set", () => {
 });
 
 describe("toggleCapability (capability families)", () => {
-  const { moduleCapabilityParents } = require("@/models/authorization/capability-catalog");
+  const { moduleCapabilityParents } = require("@/models/authorization/constants/feature-module-capability");
   const PROJECT_CAPS = ["view", "create", "edit", "delete", "archive"];
   const PROJECT_PARENTS = moduleCapabilityParents("projects");
   const PROGRAM_CAPS = ["view", "create", "edit", "delete", "publish"];

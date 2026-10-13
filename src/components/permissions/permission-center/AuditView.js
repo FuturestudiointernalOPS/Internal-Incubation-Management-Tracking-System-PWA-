@@ -26,7 +26,7 @@ import { defer } from "@/components/permissions/effectUtils";
 import Badge from "@/components/permissions/ui/Badge";
 import WhyDrawer from "@/components/permissions/ui/WhyDrawer";
 import AppPagination from "@/components/ui/AppPagination";
-import { CAPABILITY_CATALOG } from "@/models/authorization/capability-catalog";
+import { CAPABILITY_CATALOG } from "@/models/authorization/constants/feature-module-capability";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import AuditFilters from "@/components/permissions/permission-center/AuditFilters";

@@ -19,7 +19,8 @@
  */
 
 import db from "@/lib/db";
-import { PERMISSION_MODULES, ACCESS_LEVELS } from "@/server/authz/capabilities";
+import { PERMISSION_MODULES } from "@/models/authorization/constants/feature-module-capability";
+import { ACCESS_LEVELS } from "@/server/authz/capabilities";
 import { ensureProfileCapabilitiesSchema } from "./profileCapabilitiesStore";
 
 /**

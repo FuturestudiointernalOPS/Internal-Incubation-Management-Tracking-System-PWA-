@@ -19,7 +19,7 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => {}),
 }));
 
-const { PERMISSION_MODULES } = require("@/server/authz/capabilities");
+const { PERMISSION_MODULES } = require("@/models/authorization/constants/feature-module-capability");
 
 /** Fresh module state (the memos live at module scope, per process). */
 function load() {

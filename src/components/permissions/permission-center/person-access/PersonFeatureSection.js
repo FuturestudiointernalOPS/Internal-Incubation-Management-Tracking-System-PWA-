@@ -22,7 +22,7 @@ import {
   LEVEL_CHIP_IDLE,
   LEVEL_CHIP_INHERITED,
 } from "@/components/permissions/levelChips";
-import { capabilityLabel } from "@/models/authorization/capability-catalog";
+import { capabilityLabel } from "@/models/authorization/constants/feature-module-capability";
 import { Ban, ChevronDown, ChevronRight, Info, RotateCcw, Trash2 } from "lucide-react";
 
 export default function PersonFeatureSection({

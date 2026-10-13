@@ -11,8 +11,8 @@
  * Split out of `permissions-static-guards.test.js` to stay under the 600-line
  * file ceiling enforced by `src/__tests__/server/line-limits.test.js`.
  */
-const { PERMISSION_MODULES } = require("@/server/authz/capabilities");
-const { CAPABILITY_CATALOG } = require("@/models/authorization/capability-catalog");
+const { PERMISSION_MODULES } = require("@/models/authorization/constants/feature-module-capability");
+const { CAPABILITY_CATALOG } = require("@/models/authorization/constants/feature-module-capability");
 
 /** Un problème de libellé de module, ou null si le libellé est propre. */
 function moduleNameProblem(name) {

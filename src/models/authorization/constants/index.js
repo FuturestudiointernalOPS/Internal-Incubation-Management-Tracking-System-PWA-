@@ -3,7 +3,12 @@
  * by file. Import from here: `@/models/authorization/constants`.
  */
 export { FEATURE_ORDER, MODULE_TO_FEATURE } from "./features";
-export { FEATURE_MODULE_CAPABILITY } from "./feature-module-capability";
+// The one capability source and the two views derived from it.
+export {
+  FEATURE_MODULE_CAPABILITY,
+  CAPABILITY_CATALOG,
+  PERMISSION_MODULES,
+} from "./feature-module-capability";
 export {
   FEATURE_ELIGIBILITY_DEFAULTS,
   FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,

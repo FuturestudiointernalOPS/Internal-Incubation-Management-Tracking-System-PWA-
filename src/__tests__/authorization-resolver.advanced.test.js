@@ -14,10 +14,10 @@
 const mockAuthz = require("./helpers/authorizationMocks");
 
 jest.mock("@/lib/db", () => mockAuthz.db);
-jest.mock("@/server/authz/capabilities", () => {
-  const auth = mockAuthz.auth;
-  return { PERMISSION_MODULES: auth.PERMISSION_MODULES, ACCESS_LEVELS: auth.ACCESS_LEVELS };
-});
+jest.mock("@/models/authorization/constants/feature-module-capability", () => ({
+  ...jest.requireActual("@/models/authorization/constants/feature-module-capability"),
+  PERMISSION_MODULES: mockAuthz.auth.PERMISSION_MODULES,
+}));
 jest.mock("@/server/auth/session", () => ({ getSession: mockAuthz.auth.getSession }));
 jest.mock("@/models/authorization/bootstrap", () => ({ ensurePermissionsSchema: mockAuthz.auth.ensurePermissionsSchema }));
 jest.mock("next/server", () => mockAuthz.nextServer);
@@ -123,7 +123,7 @@ describe("final eligibility policy (#3)", () => {
 
 describe("org_membership capability (Phase 1 — protected groups)", () => {
   test("is part of the module set; SA bypasses", () => {
-    const { PERMISSION_MODULES } = require("@/server/authz/capabilities");
+    const { PERMISSION_MODULES } = require("@/models/authorization/constants/feature-module-capability");
     expect(PERMISSION_MODULES.org_membership.capabilities).toEqual([
       "view",
       "manage",

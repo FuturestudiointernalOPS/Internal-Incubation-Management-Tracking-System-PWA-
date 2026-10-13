@@ -11,10 +11,10 @@
 const mockAuthz = require("./helpers/authorizationMocks");
 
 jest.mock("@/lib/db", () => mockAuthz.db);
-jest.mock("@/server/authz/capabilities", () => {
-  const auth = mockAuthz.auth;
-  return { PERMISSION_MODULES: auth.PERMISSION_MODULES, ACCESS_LEVELS: auth.ACCESS_LEVELS };
-});
+jest.mock("@/models/authorization/constants/feature-module-capability", () => ({
+  ...jest.requireActual("@/models/authorization/constants/feature-module-capability"),
+  PERMISSION_MODULES: mockAuthz.auth.PERMISSION_MODULES,
+}));
 jest.mock("@/server/auth/session", () => ({ getSession: mockAuthz.auth.getSession }));
 jest.mock("@/models/authorization/bootstrap", () => ({ ensurePermissionsSchema: mockAuthz.auth.ensurePermissionsSchema }));
 jest.mock("next/server", () => mockAuthz.nextServer);
@@ -127,7 +127,7 @@ describe("engineering module (Phase 8)", () => {
   });
 
   test("manage_developers is gone from the engineering catalog (developer role retired)", () => {
-    const { CAPABILITY_CATALOG } = require("@/models/authorization/capability-catalog");
+    const { CAPABILITY_CATALOG } = require("@/models/authorization/constants/feature-module-capability");
     expect(CAPABILITY_CATALOG.engineering.capabilities.manage_developers).toBeUndefined();
   });
 

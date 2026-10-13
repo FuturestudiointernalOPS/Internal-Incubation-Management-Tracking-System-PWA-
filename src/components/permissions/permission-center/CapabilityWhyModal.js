@@ -15,7 +15,7 @@
 
 import { useEffect, useState } from "react";
 import { ACCESS_LEVEL_KEYS } from "@/components/permissions/levelChips";
-import { capabilityLabel } from "@/models/authorization/capability-catalog";
+import { capabilityLabel } from "@/models/authorization/constants/feature-module-capability";
 import { deriveMembershipStatus } from "@/lib/membership-ui";
 import { X } from "lucide-react";
 
