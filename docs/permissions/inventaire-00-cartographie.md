@@ -24,7 +24,7 @@ rapport d'écart annoncé. Ce point doit être confirmé par un humain.
 
 | Élément | Emplacement | Rôle |
 |---|---|---|
-| Vocabulaire des capacités | `src/server/authz/capabilities.js` | `PERMISSION_MODULES`, `ACCESS_LEVELS` |
+| Vocabulaire des capacités (source unique) | `src/models/authorization/constants/feature-module-capability.js` | `FEATURE_MODULE_CAPABILITY` → `CAPABILITY_CATALOG` + `PERMISSION_MODULES` dérivés |
 | Résolution du contexte | `src/services/authorization/contextResolver.js` | `resolveAuthorizationContext` |
 | Algèbre des droits | `src/services/authorization/capabilityMerge.js` | `mergeEffectiveCapabilities` (max-merge puis − restrictions) |
 | Décision pure | `src/services/authorization/contextDecisions.js` | `authorize`, `buildPermissionExplanation` |

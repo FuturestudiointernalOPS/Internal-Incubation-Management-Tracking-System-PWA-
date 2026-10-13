@@ -76,9 +76,9 @@ capability rather than lowering it. Locked by
 | Group grants | IMPLEMENTED | `group_capabilities` + `membership.js` |
 | Personal grants | IMPLEMENTED | `user_capabilities` |
 | Explicit blocks | IMPLEMENTED | `user_capability_restrictions` |
-| CRUD capabilities | IMPLEMENTED | `capability-catalog.js` |
+| CRUD capabilities | IMPLEMENTED | `models/authorization/constants/feature-module-capability.js` |
 | Business capabilities | PARTIAL | `programs.publish`, `projects.archive`, `runs.review` exist; some are declared-but-unrouted (documented in `route-catalog-contract.test.js`) |
-| Central capability registry | IMPLEMENTED | `PERMISSION_MODULES` (auth.js) + `CAPABILITY_CATALOG`; consistency locked by `route-catalog-contract.test.js` |
+| Central capability registry | IMPLEMENTED | one source: `models/authorization/constants/feature-module-capability.js` → derived `PERMISSION_MODULES` + `CAPABILITY_CATALOG`; consistency locked by `route-catalog-contract.test.js` and `capability-source-consistency.test.js` |
 | Deterministic precedence | IMPLEMENTED | `mergeEffectiveCapabilities` |
 | Permission-source explanation | IMPLEMENTED | `buildPermissionExplanation` + Permission Center explanation panel |
 | Privileged capability identification | IMPLEMENTED | per-capability `risk` + `capabilityRisk()`; passive badge in the UI |

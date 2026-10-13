@@ -2886,9 +2886,8 @@ Done: `models/lms/learning.js` → `services/lms/learning.js` + `models/lms/lear
 - `models/ventureAssets.js` (416, 47 q) — a pure repository: one statement per function; the `isFounderFor*` names return ROWS, the decision lives in the controller.
 - `models/ventureMemberAccess.js` (84) — thin reads returning booleans; its policy is already a separate pure function.
 - `models/intelligence.js` — aggregation reads plus light formatting.
-- Pure modules: `platform/roles.js`, `authorization/capability-catalog.js`,
-  `lms/constants.js`, `lms/scoring.js`, `lib/programProgress.js`,
-  `ventureChangeLog.js`, `authorization/constants/`.
+- Pure modules: `platform/roles.js`, `lms/constants.js`, `lms/scoring.js`,
+  `lib/programProgress.js`, `ventureChangeLog.js`, `authorization/constants/`.
 
 > **Controllers are the new frontier.** Once the model modules are split, the
 > remaining domain logic is the orchestration inside `src/app/api/**/route.js`.

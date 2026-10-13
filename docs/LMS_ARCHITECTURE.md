@@ -307,8 +307,9 @@ Rules (enforced by convention + the route/service test suites):
 
 ## 4. Authorization
 
-- New module `lms` in `PERMISSION_MODULES` (`src/lib/auth.js`) with capabilities
-  `view, create, edit, delete`.
+- New module `lms` in `PERMISSION_MODULES` (declared in the one capability source,
+  `src/models/authorization/constants/feature-module-capability.js`) with
+  capabilities `view, create, edit, delete`.
 - **Super admin**: automatically gets full LMS access through every layer — the V3 resolver's
   in-memory `buildSuperAdminMatrix()`, `hasCapabilityV2`'s SA bypass, and (after re-running the
   seeds) the `role_capabilities` / `access_profile_capabilities` rows.
