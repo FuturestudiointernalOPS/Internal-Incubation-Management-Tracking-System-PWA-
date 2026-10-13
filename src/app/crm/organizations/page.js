@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Building2, Plus, Search, Globe, Briefcase } from "lucide-react";
+import { Building2, Plus, Search, Globe, Briefcase, Users } from "lucide-react";
 import AppTable from "@/components/ui/AppTable";
 import AppButton from "@/components/ui/AppButton";
 import AppInput from "@/components/ui/AppInput";
@@ -10,6 +10,8 @@ import AppEmptyState from "@/components/ui/AppEmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { useI18n } from "@/lib/i18n";
+import CrmOrganizationPeopleModal from "@/components/crm/CrmOrganizationPeopleModal";
+import { useCrmCapabilities } from "@/components/crm/useCrmCapabilities";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +34,9 @@ const ORG_TYPES = [
 export default function CrmOrganizationsPage() {
   const { t } = useI18n();
   const { alert } = useDialogs();
+  const { can } = useCrmCapabilities();
+  const canCreate = can("create");
+  const [peopleOf, setPeopleOf]   = useState(null); // the organization whose people are shown
 
   const [orgs, setOrgs]           = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -39,7 +44,6 @@ export default function CrmOrganizationsPage() {
   const [search, setSearch]       = useState("");
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving]       = useState(false);
-  const [canCreate, setCanCreate] = useState(false);
 
   // New org form state
   const [form, setForm] = useState({
@@ -59,20 +63,6 @@ export default function CrmOrganizationsPage() {
       setLoading(false);
     }
   }
-
-  // ── Check crm.create permission ──────────────────────────────────────────
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/me/permissions")
-      .then((r) => r.json())
-      .then((d) => {
-        if (alive && d.success) {
-          setCanCreate(Number(d.effective?.crm?.create ?? 0) >= 1);
-        }
-      })
-      .catch(() => {});
-    return () => { alive = false; };
-  }, []);
 
   useEffect(() => { fetchOrgs(); }, []);
 
@@ -154,6 +144,16 @@ export default function CrmOrganizationsPage() {
         ) : (
           "—"
         ),
+    },
+    {
+      key: "people",
+      label: t("crm.organizations.people"),
+      align: "right",
+      render: (_value, row) => (
+        <AppButton size="sm" variant="secondary" icon={Users} onClick={() => setPeopleOf(row)}>
+          {t("crm.organizations.people")}
+        </AppButton>
+      ),
     },
   ];
 
@@ -295,6 +295,10 @@ export default function CrmOrganizationsPage() {
           </div>
         </form>
       </AppModal>
+
+      {peopleOf && (
+        <CrmOrganizationPeopleModal organization={peopleOf} can={can} onClose={() => setPeopleOf(null)} />
+      )}
     </>
   );
 }

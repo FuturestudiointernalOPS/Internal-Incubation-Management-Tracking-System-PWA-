@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Filter, Plus, Pencil, Trash2 } from "lucide-react";
+import { Filter, Plus, Pencil, Trash2, Users } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import AppModal from "@/components/ui/AppModal";
 import AppInput from "@/components/ui/AppInput";
@@ -13,6 +13,8 @@ import { useDialogs } from "@/components/ui/DialogProvider";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/constants";
 import { useCrmCapabilities } from "@/components/crm/useCrmCapabilities";
+import CrmConditionBuilder, { cleanConditions } from "@/components/crm/CrmConditionBuilder";
+import { CrmSegmentMembersModal } from "@/components/crm/CrmRecordListModal";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +35,8 @@ export default function CrmSegmentsPage() {
   const [editing, setEditing]     = useState(null);
   const [saving, setSaving]       = useState(false);
   
-  const [form, setForm] = useState({ name: "", description: "", entity_type: "lead" });
+  const [form, setForm] = useState({ name: "", description: "", entity_type: "lead", conditions: [] });
+  const [viewing, setViewing] = useState(null); // the segment whose records are shown
 
   async function load() {
     setLoading(true);
@@ -52,13 +55,18 @@ export default function CrmSegmentsPage() {
 
   function openCreate() {
     setEditing(null);
-    setForm({ name: "", description: "", entity_type: "lead" });
+    setForm({ name: "", description: "", entity_type: "lead", conditions: [] });
     setShowModal(true);
   }
 
   function openEdit(seg) {
     setEditing(seg);
-    setForm({ name: seg.name, description: seg.description || "", entity_type: seg.entity_type });
+    setForm({
+      name: seg.name,
+      description: seg.description || "",
+      entity_type: seg.entity_type,
+      conditions: Array.isArray(seg.conditions) ? seg.conditions : [],
+    });
     setShowModal(true);
   }
 
@@ -72,7 +80,7 @@ export default function CrmSegmentsPage() {
       const res = await fetch(editing ? `/api/crm/segments/${editing.id}` : "/api/crm/segments", {
         method: editing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form)
+        body: JSON.stringify({ ...form, conditions: cleanConditions(form.conditions, form.entity_type) })
       });
       const data = await res.json();
       if (data.success) {
@@ -154,6 +162,14 @@ export default function CrmSegmentsPage() {
               <p className="text-sm text-[var(--text-secondary)] flex-1 line-clamp-2">
                 {seg.description || t("crm.intelligence.common.noDescription")}
               </p>
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <span className="text-xs text-[var(--text-secondary)]">
+                  {t("crm.intelligence.conditions.count", { count: Array.isArray(seg.conditions) ? seg.conditions.length : 0 })}
+                </span>
+                <AppButton size="sm" variant="secondary" icon={Users} onClick={() => setViewing(seg)}>
+                  {t("crm.intelligence.segments.viewRecords")}
+                </AppButton>
+              </div>
               <div className="mt-4 pt-4 border-t border-[var(--border-primary)] flex items-center justify-between text-xs text-[var(--text-secondary)]">
                 <span>{t("crm.intelligence.common.by", { name: seg.created_by_name || t("crm.intelligence.common.system") })}</span>
                 <span>{formatDate(new Date(seg.created_at))}</span>
@@ -167,6 +183,7 @@ export default function CrmSegmentsPage() {
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         title={editing ? t("crm.intelligence.segments.editSegment") : t("crm.intelligence.segments.newSegment")}
+        size="lg"
       >
         <div className="space-y-4">
           <AppInput
@@ -184,16 +201,18 @@ export default function CrmSegmentsPage() {
             <AppSelect
               label={t("crm.intelligence.segments.entityType")}
               value={form.entity_type}
-              onChange={e => setForm(f => ({ ...f, entity_type: e.target.value }))}
+              onChange={e => setForm(f => ({ ...f, entity_type: e.target.value, conditions: [] }))}
               options={[
                 { value: "lead", label: t("crm.intelligence.common.lead") },
                 { value: "opportunity", label: t("crm.intelligence.common.opportunity") }
               ]}
             />
           )}
-          <p className="text-xs text-[var(--text-secondary)] mt-2">
-            {t("crm.intelligence.segments.conditionBuilderSoon")}
-          </p>
+          <CrmConditionBuilder
+            entityType={form.entity_type}
+            conditions={form.conditions}
+            onChange={conditions => setForm(f => ({ ...f, conditions }))}
+          />
           <div className="flex justify-end gap-3 pt-2">
             <AppButton variant="ghost" onClick={() => setShowModal(false)} disabled={saving}>{t("common.cancel")}</AppButton>
             <AppButton onClick={handleSave} loading={saving}>
@@ -202,6 +221,8 @@ export default function CrmSegmentsPage() {
           </div>
         </div>
       </AppModal>
+
+      {viewing && <CrmSegmentMembersModal segment={viewing} onClose={() => setViewing(null)} />}
     </div>
   );
 }

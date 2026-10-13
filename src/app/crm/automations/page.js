@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, Zap } from "lucide-react";
+import { Plus, Pencil, Trash2, Zap, History } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import AppModal from "@/components/ui/AppModal";
 import AppInput from "@/components/ui/AppInput";
@@ -12,6 +12,9 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { useI18n } from "@/lib/i18n";
 import { useCrmCapabilities } from "@/components/crm/useCrmCapabilities";
+import CrmConditionBuilder, { cleanConditions } from "@/components/crm/CrmConditionBuilder";
+import CrmActionBuilder, { cleanActions } from "@/components/crm/CrmActionBuilder";
+import { CrmAutomationExecutionsModal } from "@/components/crm/CrmRecordListModal";
 
 export const dynamic = "force-dynamic";
 
@@ -35,8 +38,9 @@ export default function CrmAutomationsPage() {
   const [saving, setSaving] = useState(false);
   
   const [form, setForm] = useState({ 
-    name: "", description: "", entity_type: "lead", trigger_event: "lead.qualified" 
+    name: "", description: "", entity_type: "lead", trigger_event: "lead.qualified", conditions: [], actions: []
   });
+  const [viewing, setViewing] = useState(null); // the rule whose execution log is shown
 
   async function load() {
     setLoading(true);
@@ -55,13 +59,20 @@ export default function CrmAutomationsPage() {
 
   function openCreate() {
     setEditing(null);
-    setForm({ name: "", description: "", entity_type: "lead", trigger_event: "lead.qualified" });
+    setForm({ name: "", description: "", entity_type: "lead", trigger_event: "lead.qualified", conditions: [], actions: [] });
     setShowModal(true);
   }
 
   function openEdit(r) {
     setEditing(r);
-    setForm({ name: r.name, description: r.description || "", entity_type: r.entity_type, trigger_event: r.trigger_event });
+    setForm({
+      name: r.name,
+      description: r.description || "",
+      entity_type: r.entity_type,
+      trigger_event: r.trigger_event,
+      conditions: Array.isArray(r.conditions) ? r.conditions : [],
+      actions: Array.isArray(r.actions) ? r.actions : [],
+    });
     setShowModal(true);
   }
 
@@ -75,7 +86,11 @@ export default function CrmAutomationsPage() {
       const res = await fetch(editing ? `/api/crm/automations/${editing.id}` : "/api/crm/automations", {
         method: editing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form)
+        body: JSON.stringify({
+          ...form,
+          conditions: cleanConditions(form.conditions, form.entity_type),
+          actions: cleanActions(form.actions),
+        })
       });
       const data = await res.json();
       if (data.success) {
@@ -158,6 +173,8 @@ export default function CrmAutomationsPage() {
                   <div className="flex gap-4 mt-2 text-xs font-mono text-[var(--text-secondary)]">
                     <span>{t("crm.intelligence.automations.on")}: {r.trigger_event}</span>
                     <span>{t("crm.intelligence.automations.entity")}: {t(ENTITY_LABEL_KEYS[r.entity_type] ?? r.entity_type)}</span>
+                    <span>{t("crm.intelligence.conditions.count", { count: Array.isArray(r.conditions) ? r.conditions.length : 0 })}</span>
+                    <span>{t("crm.intelligence.actions.count", { count: Array.isArray(r.actions) ? r.actions.length : 0 })}</span>
                   </div>
                 </div>
               </div>
@@ -166,6 +183,9 @@ export default function CrmAutomationsPage() {
                 <AppButton variant="ghost" onClick={() => toggleActive(r)}>
                   {r.active ? t("crm.intelligence.automations.disable") : t("crm.intelligence.automations.enable")}
                 </AppButton>
+                <button onClick={() => setViewing(r)} aria-label={t("crm.intelligence.automations.executions")} title={t("crm.intelligence.automations.executions")} className="p-2 text-[var(--text-secondary)] hover:bg-[var(--surface-3)] rounded">
+                  <History className="w-4 h-4" />
+                </button>
                 <button onClick={() => openEdit(r)} aria-label={t("common.edit")} className="p-2 text-[var(--text-secondary)] hover:bg-[var(--surface-3)] rounded">
                   <Pencil className="w-4 h-4" />
                 </button>
@@ -183,6 +203,7 @@ export default function CrmAutomationsPage() {
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         title={editing ? t("crm.intelligence.automations.editRule") : t("crm.intelligence.automations.newRule")}
+        size="xl"
       >
         <div className="space-y-4">
           <AppInput
@@ -201,7 +222,7 @@ export default function CrmAutomationsPage() {
               <AppSelect
                 label={t("crm.intelligence.automations.entityType")}
                 value={form.entity_type}
-                onChange={e => setForm(f => ({ ...f, entity_type: e.target.value }))}
+                onChange={e => setForm(f => ({ ...f, entity_type: e.target.value, conditions: [], actions: [] }))}
                 options={[
                   { value: "lead", label: t("crm.intelligence.common.lead") },
                   { value: "opportunity", label: t("crm.intelligence.common.opportunity") }
@@ -220,9 +241,16 @@ export default function CrmAutomationsPage() {
               />
             </>
           )}
-          <p className="text-xs text-[var(--text-secondary)] mt-2">
-            {t("crm.intelligence.automations.builderSoon")}
-          </p>
+          <CrmConditionBuilder
+            entityType={form.entity_type}
+            conditions={form.conditions}
+            onChange={conditions => setForm(f => ({ ...f, conditions }))}
+          />
+          <CrmActionBuilder
+            entityType={form.entity_type}
+            actions={form.actions}
+            onChange={actions => setForm(f => ({ ...f, actions }))}
+          />
           <div className="flex justify-end gap-3 pt-2">
             <AppButton variant="ghost" onClick={() => setShowModal(false)} disabled={saving}>{t("common.cancel")}</AppButton>
             <AppButton onClick={handleSave} loading={saving}>
@@ -231,6 +259,8 @@ export default function CrmAutomationsPage() {
           </div>
         </div>
       </AppModal>
+
+      {viewing && <CrmAutomationExecutionsModal rule={viewing} onClose={() => setViewing(null)} />}
     </div>
   );
 }

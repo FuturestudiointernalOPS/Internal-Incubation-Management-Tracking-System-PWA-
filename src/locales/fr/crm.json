@@ -502,6 +502,11 @@
       }
     },
     "relationships": {
+      "personRequired": "Choisissez une personne à lier.",
+      "confirmRemove": "Retirer ce lien ? La personne et l'organisation sont toutes deux conservées.",
+      "noPeople": "Aucune personne n'est encore liée à cette organisation.",
+      "linkPerson": "Lier une personne",
+      "titleLabel": "Titre ou rôle",
       "organizationRequired": "L'organisation est obligatoire.",
       "notFound": "Relation introuvable.",
       "alreadyExists": "Cette personne est déjà liée à cette organisation avec le même type de relation.",
@@ -638,6 +643,25 @@
       }
     },
     "pipelines": {
+      "newPipeline": "Nouveau pipeline",
+      "editPipeline": "Modifier le pipeline",
+      "nameLabel": "Nom du pipeline",
+      "descriptionLabel": "Description",
+      "addStage": "Ajouter une étape",
+      "editStage": "Modifier l'étape",
+      "stageNameLabel": "Nom de l'étape",
+      "stageProbabilityLabel": "Probabilité (%)",
+      "stageKindLabel": "Nature de l'étape",
+      "stageKinds": {
+        "open": "Ouverte (en cours)",
+        "won": "Gagnée (clôt l'affaire)",
+        "lost": "Perdue (clôt l'affaire)"
+      },
+      "stageAppendHint": "L'étape est ajoutée à la fin du pipeline. Sa nature ne peut plus être modifiée ensuite.",
+      "retireStage": "Retirer",
+      "restoreStage": "Rétablir",
+      "activate": "Activer",
+      "deactivate": "Désactiver",
       "title": "Pipelines",
       "subtitle": "Configurez et examinez les flux d'étapes.",
       "nameRequired": "Le nom du pipeline est requis.",
@@ -691,7 +715,63 @@
       }
     },
     "intelligence": {
+      "conditions": {
+        "title": "Conditions (toutes requises)",
+        "add": "Ajouter une condition",
+        "none": "Aucune condition — tous les enregistrements correspondent.",
+        "remove": "Retirer la condition",
+        "fieldLabel": "Champ",
+        "operatorLabel": "Opérateur",
+        "valueLabel": "Valeur",
+        "count": "{count} condition(s)",
+        "fields": {
+          "status": "Statut",
+          "lead_type": "Type de lead",
+          "qualification_state": "Qualification",
+          "score": "Score",
+          "source": "Source",
+          "value": "Valeur",
+          "probability": "Probabilité",
+          "currency": "Devise"
+        },
+        "operators": {
+          "equals": "est",
+          "not_equals": "n'est pas",
+          "greater_than": "est supérieur à",
+          "greater_than_or_equal": "est au moins",
+          "less_than": "est inférieur à",
+          "contains": "contient",
+          "is_empty": "est vide",
+          "is_not_empty": "est renseigné"
+        }
+      },
+      "actions": {
+        "title": "Actions (exécutées dans l'ordre)",
+        "add": "Ajouter une action",
+        "none": "Aucune action — la règle enregistre seulement son déclenchement.",
+        "remove": "Retirer l'action",
+        "typeLabel": "Action",
+        "titleLabel": "Titre",
+        "noteLabel": "Note",
+        "priorityLabel": "Priorité",
+        "statusLabel": "Nouveau statut",
+        "count": "{count} action(s)",
+        "types": {
+          "create_task": "Créer une tâche",
+          "add_timeline_event": "Ajouter une note à l'enregistrement",
+          "update_field": "Changer le statut"
+        },
+        "priorities": {
+          "low": "Basse",
+          "medium": "Moyenne",
+          "high": "Haute"
+        }
+      },
       "segments": {
+        "viewRecords": "Voir les enregistrements",
+        "noMembers": "Aucun enregistrement ne correspond à ce segment pour le moment.",
+        "memberCount": "{count} enregistrement(s) correspondant(s)",
+        "notFound": "Segment introuvable.",
         "title": "Segments",
         "subtitle": "Filtres dynamiques pour les pistes et les opportunités.",
         "createSegment": "Nouveau segment",
@@ -703,10 +783,16 @@
         "noSegmentsHint": "Créez un segment pour regrouper dynamiquement des enregistrements.",
         "name": "Nom",
         "description": "Description",
-        "entityType": "Type d'entité",
-        "conditionBuilderSoon": "Le générateur de conditions sera disponible dans une prochaine mise à jour."
+        "entityType": "Type d'entité"
       },
       "automations": {
+        "executions": "Journal d'exécution",
+        "noExecutions": "Cette règle ne s'est pas encore exécutée.",
+        "executionStatus": {
+          "success": "Réussie",
+          "failed": "Échouée",
+          "skipped": "Ignorée"
+        },
         "title": "Automatisations",
         "subtitle": "Déclenchez des actions automatiquement selon les événements CRM.",
         "newRule": "Nouvelle règle",
@@ -723,7 +809,6 @@
         "triggerLeadDisqualified": "Piste disqualifiée",
         "triggerLeadScoreChanged": "Score de la piste modifié",
         "triggerLeadAssigned": "Piste assignée",
-        "builderSoon": "Le générateur de conditions et d'actions sera disponible dans une prochaine mise à jour. Pour l'instant, les actions se déclenchent sans condition.",
         "inactive": "Inactif",
         "enable": "Activer",
         "disable": "Désactiver",
@@ -738,6 +823,15 @@
         "system": "Système"
       },
       "score": {
+        "compute": "Calculer",
+        "rules": {
+          "qualification": "Qualification",
+          "status": "Statut du lead",
+          "profile": "Complétude du profil",
+          "engagement": "Activités enregistrées",
+          "positiveOutcomes": "Résultats positifs",
+          "recency": "Activité récente"
+        },
         "panelTitle": "Intelligence et qualification",
         "leadScore": "Score de la piste",
         "adjust": "Ajuster",

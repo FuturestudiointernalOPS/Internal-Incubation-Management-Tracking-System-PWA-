@@ -502,6 +502,11 @@
       }
     },
     "relationships": {
+      "personRequired": "Choose a person to link.",
+      "confirmRemove": "Remove this link? The person and the organization are both kept.",
+      "noPeople": "No person is linked to this organization yet.",
+      "linkPerson": "Link a person",
+      "titleLabel": "Title or role",
       "organizationRequired": "Organization is required.",
       "notFound": "Relationship not found.",
       "alreadyExists": "This person is already linked to that organization with the same relationship type.",
@@ -638,6 +643,25 @@
       }
     },
     "pipelines": {
+      "newPipeline": "New Pipeline",
+      "editPipeline": "Edit Pipeline",
+      "nameLabel": "Pipeline name",
+      "descriptionLabel": "Description",
+      "addStage": "Add Stage",
+      "editStage": "Edit Stage",
+      "stageNameLabel": "Stage name",
+      "stageProbabilityLabel": "Probability (%)",
+      "stageKindLabel": "Kind of stage",
+      "stageKinds": {
+        "open": "Open (in progress)",
+        "won": "Won (closes the deal)",
+        "lost": "Lost (closes the deal)"
+      },
+      "stageAppendHint": "The stage is added at the end of the pipeline. Its kind cannot be changed afterwards.",
+      "retireStage": "Retire",
+      "restoreStage": "Restore",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
       "title": "Pipelines",
       "subtitle": "Configure and review stage workflows.",
       "nameRequired": "Pipeline name is required.",
@@ -691,7 +715,63 @@
       }
     },
     "intelligence": {
+      "conditions": {
+        "title": "Conditions (all must hold)",
+        "add": "Add condition",
+        "none": "No condition — every record matches.",
+        "remove": "Remove condition",
+        "fieldLabel": "Field",
+        "operatorLabel": "Operator",
+        "valueLabel": "Value",
+        "count": "{count} condition(s)",
+        "fields": {
+          "status": "Status",
+          "lead_type": "Lead type",
+          "qualification_state": "Qualification",
+          "score": "Score",
+          "source": "Source",
+          "value": "Value",
+          "probability": "Probability",
+          "currency": "Currency"
+        },
+        "operators": {
+          "equals": "is",
+          "not_equals": "is not",
+          "greater_than": "is greater than",
+          "greater_than_or_equal": "is at least",
+          "less_than": "is less than",
+          "contains": "contains",
+          "is_empty": "is empty",
+          "is_not_empty": "is filled in"
+        }
+      },
+      "actions": {
+        "title": "Actions (run in order)",
+        "add": "Add action",
+        "none": "No action — the rule only records that it fired.",
+        "remove": "Remove action",
+        "typeLabel": "Action",
+        "titleLabel": "Title",
+        "noteLabel": "Note",
+        "priorityLabel": "Priority",
+        "statusLabel": "New status",
+        "count": "{count} action(s)",
+        "types": {
+          "create_task": "Create a task",
+          "add_timeline_event": "Add a note to the record",
+          "update_field": "Change the status"
+        },
+        "priorities": {
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
       "segments": {
+        "viewRecords": "View records",
+        "noMembers": "No record matches this segment right now.",
+        "memberCount": "{count} matching record(s)",
+        "notFound": "Segment not found.",
         "title": "Segments",
         "subtitle": "Dynamic filters for leads and opportunities.",
         "createSegment": "New Segment",
@@ -703,10 +783,16 @@
         "noSegmentsHint": "Create a segment to group records dynamically.",
         "name": "Name",
         "description": "Description",
-        "entityType": "Entity Type",
-        "conditionBuilderSoon": "Condition builder will be available in a future update."
+        "entityType": "Entity Type"
       },
       "automations": {
+        "executions": "Execution log",
+        "noExecutions": "This rule has not run yet.",
+        "executionStatus": {
+          "success": "Success",
+          "failed": "Failed",
+          "skipped": "Skipped"
+        },
         "title": "Automations",
         "subtitle": "Trigger actions automatically based on CRM events.",
         "newRule": "New Rule",
@@ -723,7 +809,6 @@
         "triggerLeadDisqualified": "Lead Disqualified",
         "triggerLeadScoreChanged": "Lead Score Changed",
         "triggerLeadAssigned": "Lead Assigned",
-        "builderSoon": "Condition and Action builder will be available in a future update. For now, actions trigger unconditionally.",
         "inactive": "Inactive",
         "enable": "Enable",
         "disable": "Disable",
@@ -738,6 +823,15 @@
         "system": "System"
       },
       "score": {
+        "compute": "Calculate",
+        "rules": {
+          "qualification": "Qualification",
+          "status": "Lead status",
+          "profile": "Profile completeness",
+          "engagement": "Recorded activities",
+          "positiveOutcomes": "Positive outcomes",
+          "recency": "Recent activity"
+        },
         "panelTitle": "Intelligence & Qualification",
         "leadScore": "Lead Score",
         "adjust": "Adjust",

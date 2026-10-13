@@ -1,9 +1,28 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireAuthorization } from "@/models/authorization/index";
-import { updateCrmSegment, deleteCrmSegment } from "@/models/crm/intelligence";
+import { getCrmSegmentById, updateCrmSegment, deleteCrmSegment } from "@/models/crm/intelligence";
+import { resolveSegmentMembers } from "@/services/crm/segments";
 
 export const dynamic = "force-dynamic";
+
+/** GET — the segment and the records it currently contains (crm.view). */
+export const GET = createHandler(
+  { roles: ["super_admin", "staff", "program_manager"] },
+  async (_req, { params }) => {
+    const authError = await requireAuthorization("crm", "view");
+    if (authError) return authError;
+
+    const { id } = await params;
+    const segment = await getCrmSegmentById(id);
+    if (!segment) {
+      return NextResponse.json({ success: false, error: "crm.intelligence.segments.notFound" }, { status: 404 });
+    }
+
+    const members = await resolveSegmentMembers(segment);
+    return NextResponse.json({ success: true, segment, members });
+  }
+);
 
 export const PATCH = createHandler(
   { roles: ["super_admin", "staff", "program_manager"] },
