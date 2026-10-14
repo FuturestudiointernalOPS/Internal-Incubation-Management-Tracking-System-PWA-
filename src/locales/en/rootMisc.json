@@ -4,28 +4,40 @@
       "brand": "ImpactOS Terminal",
       "connecting": "Connecting Secure Session...",
       "kicker": "Future Studio",
-      "title": "The studio's operating system.",
-      "intro": "ImpactOS is Future Studio's internal operations platform — the single place where the studio runs its programs, its teams and its ventures, day after day.",
+      "title": "Your journey from idea to impact starts here.",
+      "intro": "Access the programs, mentorship, resources, and opportunities you need to develop your ideas, build your venture, connect with the right people, and turn your ambitions into measurable progress.",
       "whatTitle": "What you can do here",
       "pillars": {
         "programs": {
-          "title": "Run programs",
-          "body": "Guide cohorts and participants from first contact to completion, with every step in one place."
+          "title": "Join Programs & Cohorts",
+          "body": "Discover your program activities, access learning sessions, follow your curriculum, and track your progress from onboarding to completion."
         },
         "ventures": {
-          "title": "Steer teams & ventures",
-          "body": "Follow the teams you support and the ventures they build, milestone by milestone."
+          "title": "Build Your Venture",
+          "body": "Develop your ideas, organize your business activities, complete milestones, and access the guidance and support needed to grow your startup."
         },
-        "insight": {
-          "title": "Keep the pulse",
-          "body": "Tasks, deadlines and operational reports, always up to date and shared with the right people."
+        "mentorship": {
+          "title": "Access Mentorship & Networks",
+          "body": "Connect with mentors, collaborate with peers, participate in sessions, and benefit from relationships that support your professional and entrepreneurial growth."
+        },
+        "progress": {
+          "title": "Track Your Progress",
+          "body": "Stay on top of your tasks, monitor your achievements, submit deliverables, and see how far you have progressed toward your goals."
+        },
+        "funding": {
+          "title": "Explore Funding Opportunities",
+          "body": "Follow relevant funding opportunities, prepare for investment readiness, and track your venture's progress toward accessing capital."
+        },
+        "impact": {
+          "title": "Showcase Your Impact",
+          "body": "Document your achievements, highlight your milestones, and demonstrate the progress and impact of your work."
         }
       },
-      "signIn": "Sign in",
-      "signInHint": "Reserved for Future Studio staff and partners.",
+      "signIn": "Sign In →",
+      "signInHint": "For registered participants, founders, mentors, and authorized partners.",
       "language": "Language",
       "switchTheme": "Switch theme",
-      "footer": "© 2026 Future Studio · Internal operational asset"
+      "footer": "© 2026 Future Studio · Empowering Innovation & Entrepreneurship"
     },
     "terminal": {
       "title": "Terminal Unification",
