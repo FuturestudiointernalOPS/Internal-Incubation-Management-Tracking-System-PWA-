@@ -546,6 +546,8 @@
       "milestoneSessions": "Sessions ({n})",
       "sessionDeliverable": "Attach to deliverable",
       "sessionNoDeliverable": "No specific deliverable",
+      "sessionActivity": "Activity",
+      "sessionNoActivity": "No specific activity",
       "sessionLeadHint": "Sessions book from 30 minutes ahead.",
       "minutes": "{n} min",
       "noCoach": "No coach",

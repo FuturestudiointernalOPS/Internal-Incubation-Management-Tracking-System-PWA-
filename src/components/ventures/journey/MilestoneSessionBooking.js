@@ -139,6 +139,25 @@ export default function MilestoneSessionBooking({
               ))}
             </select>
           </div>
+          {Array.isArray(milestone.activities) && milestone.activities.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
+                {t("venture.manager.sessionActivity")}
+              </p>
+              <select
+                value={bookForm.activity_id || ""}
+                onChange={(event) => setBookForm({ ...bookForm, activity_id: event.target.value })}
+                className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+              >
+                <option value="">{t("venture.manager.sessionNoActivity")}</option>
+                {milestone.activities.map((activity) => (
+                  <option key={activity.id} value={activity.id}>
+                    {activity.source_ref ? `${activity.source_ref} · ` : ""}{activity.title || `#${activity.id}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <p className="text-[9px] text-slate-500">{t("venture.manager.sessionLeadHint")}</p>
           <div className="space-y-1">
             <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">

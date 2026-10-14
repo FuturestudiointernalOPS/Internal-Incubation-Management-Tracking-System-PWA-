@@ -44,12 +44,16 @@ export default function MilestoneSessionsList({
       </p>
       {sessions.map((session) => {
         const deliverable = deliverables.find((candidate) => String(candidate.id) === String(session.deliverable_id));
+        const activity = (deliverables || [])
+          .map((candidate) => candidate.activity)
+          .find((entry) => entry && String(entry.id) === String(session.task_id));
         return (
           <div key={session.id} className="space-y-0.5">
             <div className="flex flex-wrap items-center gap-2 text-[10px] text-[var(--text-secondary)]">
             <span className="font-bold text-[var(--text-primary)]">{new Date(session.start_time).toLocaleString(lang || undefined)}</span>
             <span>{session.title}</span>
             {session.coach_name && <span>· {session.coach_name}</span>}
+            {activity && <span>· {activity.title}</span>}
             {deliverable && <span>· {deliverable.title}</span>}
             <span className="uppercase tracking-widest">{t(statusKey(session.status))}</span>
             {(session.materials || []).length > 0 && (

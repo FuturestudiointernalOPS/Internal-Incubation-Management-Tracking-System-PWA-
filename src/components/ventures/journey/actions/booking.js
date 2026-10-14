@@ -38,7 +38,7 @@ export function sessionBooking({
     // Prefill the earliest bookable slot (30 minutes from now) — never an empty picker.
     // One instant drives both the floor and the prefill, so the prefilled slot is always valid.
     const min = minSessionStartInput();
-    setBookForm({ date: toDateInput(min), time: toTimeInput(min), min_time: toTimeInput(min), duration: "45", coach_id: "", title: milestone.title || "", deliverable_id: "", note: "", files: [], inviteesText: "" });
+    setBookForm({ date: toDateInput(min), time: toTimeInput(min), min_time: toTimeInput(min), duration: "45", coach_id: "", title: milestone.title || "", deliverable_id: "", activity_id: "", note: "", files: [], inviteesText: "" });
     if (coachOptions.length === 0) {
       try {
         const res = await fetch(`/api/ventures/${ventureId}/coaches`);
@@ -109,6 +109,9 @@ export function sessionBooking({
           venture_facing: true,
           journey_stage_id: stage.id,
           milestone_ref: String(milestone.id),
+          // The session is anchored to an ACTIVITY (a task) of the milestone,
+          // not to the milestone alone — that is the work it supports.
+          task_id: bookForm.activity_id || null,
           deliverable_id: bookForm.deliverable_id || null,
           invitees,
           materials,

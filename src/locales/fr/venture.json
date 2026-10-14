@@ -546,6 +546,8 @@
       "milestoneSessions": "Séances ({n})",
       "sessionDeliverable": "Lier à un livrable",
       "sessionNoDeliverable": "Aucun livrable spécifique",
+      "sessionActivity": "Activité",
+      "sessionNoActivity": "Aucune activité spécifique",
       "sessionLeadHint": "Les séances se réservent à partir de 30 minutes à l'avance.",
       "minutes": "{n} min",
       "noCoach": "Aucun coach",
