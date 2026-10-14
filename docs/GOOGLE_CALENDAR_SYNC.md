@@ -336,9 +336,9 @@ Résultats :
   compte ni adresse e-mail enregistrés, donc ils ne peuvent pas encore être
   atteints (ni par la synchro, ni par une invitation). Il faut d'abord leur
   rattacher un compte ou une adresse.
-- Envoyer un **rappel de jalon** (le moteur de rappels envoie l'e-mail) ne crée
-  pas encore d'**événement distinct** dans le calendrier : la copie du jalon
-  apparaît, mais l'événement « rappel » à propre date reste à ajouter.
+- Envoyer un **rappel de jalon** (le moteur de rappels envoie l'e-mail) n'ajoute
+  **pas** d'événement au calendrier : c'est une décision, pas un manque. Le
+  rappel reste un e-mail ; seule la copie du jalon figure dans l'agenda.
 - La déconnexion **laisse** l'agenda « Future Studio » dans le compte Google,
   pour ne jamais supprimer de données de l'utilisateur. Une reconnexion
   ultérieure crée un nouvel agenda.
