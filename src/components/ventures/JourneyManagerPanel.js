@@ -342,7 +342,7 @@ export default function JourneyManagerPanel({ ventureId }) {
       {/* Phase 1 of the programme import: read a tracker, show what the analysts
           proposes. Guarded by the same authority that may define the journey —
           importing a plan IS defining one. */}
-      {access.create && <PlanImportPanel ventureId={ventureId} />}
+      {access.create && <PlanImportPanel ventureId={ventureId} onImported={refreshJourney} />}
 
       {/* History answers a question, so it sits with the thing it describes. */}
       <VentureChangeLogPanel ventureId={ventureId} />
