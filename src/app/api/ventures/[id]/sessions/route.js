@@ -8,6 +8,7 @@ import { signSessionMaterials } from "@/lib/ventureEvidence";
 import { checkSessionBooking } from "@/services/ventures/sessionBooking";
 import { resolveSessionBookingTargets } from "@/services/ventures/sessionBookingTargets";
 import { checkSessionManagement } from "@/services/ventures/sessionAuthority";
+import { pushSessionToCalendars } from "@/services/ventures/sessionCalendarPush";
 import { selectInviteesBySessionIds } from "@/models/ventureSessionInviteesStore";
 import {
   addSessionInvitee,
@@ -165,17 +166,12 @@ export const POST = createHandler(async (req, { params }) => {
           }).catch(() => {});
         }
       }
-      // The person who booked gets the session on their OWN calendar now, not
-      // on whatever the next sync happens to be: the booking is what just
-      // happened, and the confirmation says the session appears on their
-      // calendar. Best-effort, exactly like the invitee path below — a calendar
-      // that cannot be reached never fails the booking.
-      if (req.session?.cid) {
-        try {
-          const { syncUser } = await import("@/services/integrations/googleCalendar");
-          await syncUser(req.session.cid);
-        } catch (_) {}
-      }
+      // The people a session concerns get it on their OWN calendars now, not on
+      // whatever the next sync happens to be: the booking is what just happened,
+      // and the confirmation says the session appears on their calendar. The
+      // booker and the coach, best-effort — a calendar that cannot be reached
+      // never fails the booking.
+      await pushSessionToCalendars([req.session?.cid, coachContactId]);
       return NextResponse.json({ success: true, session_id: createdSession.id });
     } catch (error) { return NextResponse.json({ success: false, error: error.message }, { status: 400 }); }
   }
@@ -192,6 +188,9 @@ export const POST = createHandler(async (req, { params }) => {
         const changed = (["start_time", "end_time", "meeting_link", "location"]).some((field) => body.updates && body.updates[field] !== undefined && String(body.updates[field]) !== String(before[field]));
         if (changed) {
           await notifySessionUpdated({ ventureParam: id, session });
+          // The calendar follows the change immediately: a moved session that
+          // keeps its old slot is worse than no entry at all.
+          await pushSessionToCalendars([req.session?.cid, session.coach_contact_id]);
         }
       }
       return NextResponse.json({ success: true, session });
@@ -230,6 +229,8 @@ export const POST = createHandler(async (req, { params }) => {
     await cancelSession(parseInt(body.session_id));
     if (session) {
       await notifySessionCancelled({ ventureParam: id, session, actorCid: req.session?.cid });
+      // A cancelled session must leave the calendars too.
+      await pushSessionToCalendars([req.session?.cid, session.coach_contact_id]);
     }
     return NextResponse.json({ success: true });
   }
@@ -243,6 +244,7 @@ export const POST = createHandler(async (req, { params }) => {
       const session = await getSession(parseInt(body.session_id));
       if (session) {
         await notifySessionRescheduled({ ventureParam: id, session, actorCid: req.session?.cid });
+        await pushSessionToCalendars([req.session?.cid, session.coach_contact_id]);
       }
       return NextResponse.json({ success: true });
     } catch (error) { return NextResponse.json({ success: false, error: error.message }, { status: 400 }); }
@@ -252,7 +254,11 @@ export const POST = createHandler(async (req, { params }) => {
     const denied = await deniedSessionManagement();
     if (denied) return denied;
     if (!(await sessionBelongsToVenture(body.session_id))) return ventureNotFound();
+    // Read the row BEFORE deleting: once it is gone, the coach it names is
+    // unknown, and their calendar would keep a session that no longer exists.
+    const doomed = await getSession(parseInt(body.session_id));
     await deleteSession(parseInt(body.session_id));
+    await pushSessionToCalendars([req.session?.cid, doomed?.coach_contact_id]);
     return NextResponse.json({ success: true });
   }
 
