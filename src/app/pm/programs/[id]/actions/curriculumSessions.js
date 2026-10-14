@@ -67,6 +67,14 @@ export function curriculumSessionActions({
       notify(t("pmMisc.workspace.kpiRequired"), "error");
       return;
     }
+    if (
+      newSession.scheduled_date &&
+      newSession.end_date &&
+      newSession.end_date < newSession.scheduled_date
+    ) {
+      notify(t("pmMisc.workspace.endBeforeStart"), "error");
+      return;
+    }
     setIsSaving(true);
     try {
       const response = await fetch("/api/pm/curriculum", {
@@ -82,6 +90,7 @@ export function curriculumSessionActions({
           handler_name: (newSession.handler_names || []).join(", "),
           kpi_ids: newSession.kpi_ids || [],
           scheduled_date: newSession.scheduled_date || null,
+          end_date: newSession.end_date || null,
           start_time: newSession.start_time || null,
           end_time: newSession.end_time || null,
           notes: newSession.notes || null,
@@ -106,6 +115,7 @@ export function curriculumSessionActions({
           handler_ids: [],
           handler_names: [],
           scheduled_date: "",
+          end_date: "",
           start_time: "",
           end_time: "",
           notes: "",

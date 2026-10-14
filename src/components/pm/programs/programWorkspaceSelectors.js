@@ -44,7 +44,10 @@ export function selectProgramTeamMembers(
 // Oversight candidates = assigned program staff (staff/assistant)
 // + program facilitators. Deduped by cid so the same person appears once.
 export function selectOversightCandidates(assignedStaff, facilitators) {
-  const merged = [...assignedStaff, ...facilitators];
+  // A participant or a program manager is never offered as a facilitator.
+  const merged = [...assignedStaff, ...facilitators].filter(
+    (member) => !["participant", "program_manager"].includes(member.role),
+  );
   return Array.from(
     new Map(
       merged.map((member) => [

@@ -178,7 +178,13 @@ export default function SessionModalRequirements({
             </label>
             <AssigneeSelect
               value={newRequirement.assignee_type || "all"}
-              onChange={onAssigneeTypeChange}
+              onChange={(event) =>
+                onAssigneeTypeChange((prev) => ({
+                  ...prev,
+                  assignee_type: event.value,
+                  assignee_id: "",
+                }))
+              }
               disabled={!newRequirement.title.trim()}
             />
           </div>
