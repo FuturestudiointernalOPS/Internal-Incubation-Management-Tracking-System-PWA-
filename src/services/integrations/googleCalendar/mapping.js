@@ -206,6 +206,10 @@ export function planEventSync(events, links, options = {}) {
     const body = eventToGoogleEvent(event, options);
     if (!body) continue;
     const key = eventKey(event.source, event.sourceId);
+    // The same object can reach the list twice (a Venture session both in the
+    // person's scope and in an invitation): the first occurrence wins, so a
+    // duplicate never becomes a second Google event.
+    if (seen.has(key)) continue;
     seen.add(key);
     const fingerprint = fingerprintEvent(body);
     const link = linkByKey.get(key);

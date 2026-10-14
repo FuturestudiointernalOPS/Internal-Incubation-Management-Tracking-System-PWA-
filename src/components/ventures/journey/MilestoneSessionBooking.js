@@ -140,6 +140,19 @@ export default function MilestoneSessionBooking({
             </select>
           </div>
           <p className="text-[9px] text-slate-500">{t("venture.manager.sessionLeadHint")}</p>
+          <div className="space-y-1">
+            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
+              {t("venture.manager.inviteGuests")}
+            </p>
+            <input
+              type="text"
+              value={bookForm.inviteesText || ""}
+              onChange={(event) => setBookForm({ ...bookForm, inviteesText: event.target.value })}
+              placeholder={t("venture.manager.inviteGuestsPlaceholder")}
+              className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+            />
+            <p className="text-[9px] text-slate-500">{t("venture.manager.inviteGuestsHint")}</p>
+          </div>
           <p className="text-[9px] text-slate-500">{t("venture.manager.sessionNotifyHint")}</p>
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setBookFor(null)} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">

@@ -38,7 +38,7 @@ export function sessionBooking({
     // Prefill the earliest bookable slot (30 minutes from now) — never an empty picker.
     // One instant drives both the floor and the prefill, so the prefilled slot is always valid.
     const min = minSessionStartInput();
-    setBookForm({ date: toDateInput(min), time: toTimeInput(min), min_time: toTimeInput(min), duration: "45", coach_id: "", title: milestone.title || "", deliverable_id: "", note: "", files: [] });
+    setBookForm({ date: toDateInput(min), time: toTimeInput(min), min_time: toTimeInput(min), duration: "45", coach_id: "", title: milestone.title || "", deliverable_id: "", note: "", files: [], inviteesText: "" });
     if (coachOptions.length === 0) {
       try {
         const res = await fetch(`/api/ventures/${ventureId}/coaches`);
@@ -85,6 +85,13 @@ export function sessionBooking({
       const minutes = Number(bookForm.duration) || 45;
       const end = new Date(start.getTime() + minutes * 60000);
       const coach = coachOptions.find((option) => String(option.coach_id) === String(bookForm.coach_id));
+      // Guests typed as a comma-separated list: any address is kept, on ImpactOS
+      // or not — the server tells an account apart and reaches its calendar.
+      const invitees = String(bookForm.inviteesText || "")
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .map((email) => ({ email }));
       const res = await fetch(`/api/ventures/${ventureId}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -103,6 +110,7 @@ export function sessionBooking({
           journey_stage_id: stage.id,
           milestone_ref: String(milestone.id),
           deliverable_id: bookForm.deliverable_id || null,
+          invitees,
           materials,
         }),
       });

@@ -134,6 +134,16 @@ describe("timed objects (sessions, follow-ups)", () => {
     expect(plan.deletes).toEqual([{ source: "session", sourceId: "9", eventId: "e9" }]);
   });
 
+  it("keeps ONE event when the same object reaches the list twice (scope + invitation)", () => {
+    // A Venture session can be both in the person's scope and in their
+    // invitations; the first occurrence wins, so no second Google event is made.
+    const scoped = session({ source: "venture_session", sourceId: "5", title: "Coaching" });
+    const invited = session({ source: "venture_session", sourceId: "5", title: "Coaching" });
+    const plan = planEventSync([scoped, invited], []);
+    expect(plan.creates).toHaveLength(1);
+    expect(plan.creates[0].event.sourceId).toBe("5");
+  });
+
   it("our own timed copies are recognised and skipped on the way back", () => {
     expect(isPlatformEvent(eventToGoogleEvent(session()))).toBe(true);
   });

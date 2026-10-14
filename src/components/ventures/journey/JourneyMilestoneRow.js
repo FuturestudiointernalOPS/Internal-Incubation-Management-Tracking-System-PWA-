@@ -294,6 +294,7 @@ export default function JourneyMilestoneRow({
               onCancelNote={() => { setNoteEditFor(null); setNoteDraft(""); }}
               onSaveNote={saveSessionNote}
               autoGrow={autoGrow}
+              ventureId={ventureId}
             />
           );
         })()}

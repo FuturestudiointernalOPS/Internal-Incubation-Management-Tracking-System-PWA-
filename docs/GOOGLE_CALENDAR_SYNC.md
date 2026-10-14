@@ -158,6 +158,9 @@ L'architecture suit les couches MVC du projet (`docs/LAYER_SPLIT.md`) :
   +1 jour. Marqués « disponible ».
 - Portée des objets de venture : **personnelle** — les ventures de la personne
   (membership ∪ affectations ∪ sessions coachées), jamais « toutes les ventures ».
+- **Sessions où la personne est invitée** : une session à laquelle elle a été
+  conviée par e-mail est copiée même si la venture n'est pas dans sa portée ;
+  elle partage la source de ses sessions de venture, donc jamais en double.
 - Les **tâches ne sont plus synchronisées** (choix explicite). Les copies déjà
   présentes dans les agendas Google ne sont **pas** supprimées.
 - Chaque copie porte un marqueur privé
@@ -332,10 +335,12 @@ Résultats :
 - Un nouvel objet (session, rendez-vous, jalon) part vers Google à la synchro
   suivante (chargement, bouton ou cron), pas instantanément. On pourrait appeler
   `syncUser` après la création, mais cela toucherait au code des objets.
-- Les supporteurs d'un jalon ou d'une session sont des **noms** : ils n'ont ni
-  compte ni adresse e-mail enregistrés, donc ils ne peuvent pas encore être
-  atteints (ni par la synchro, ni par une invitation). Il faut d'abord leur
-  rattacher un compte ou une adresse.
+- Les **invités d'une session** sont saisis **par e-mail** (avec ou sans compte
+  ImpactOS) : chacun reçoit une invitation avec un lien « ajouter à mon
+  calendrier » et un fichier `.ics` ; si l'adresse appartient à un compte au
+  calendrier connecté, la session y est aussi ajoutée. Les **supporteurs d'un
+  jalon** restent, eux, des **noms** sans e-mail : ils ne sont pas encore
+  joignables.
 - Envoyer un **rappel de jalon** (le moteur de rappels envoie l'e-mail) n'ajoute
   **pas** d'événement au calendrier : c'est une décision, pas un manque. Le
   rappel reste un e-mail ; seule la copie du jalon figure dans l'agenda.

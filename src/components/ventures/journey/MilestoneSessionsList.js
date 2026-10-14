@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useI18n } from "@/lib/i18n";
+import SessionInvitees from "@/components/ventures/journey/SessionInvitees";
 
 /**
  * The sessions already booked on a milestone (the milestone stays the home of
@@ -33,6 +34,7 @@ export default function MilestoneSessionsList({
   onCancelNote,
   onSaveNote,
   autoGrow,
+  ventureId,
 }) {
   const { t, lang } = useI18n();
   return (
@@ -115,6 +117,12 @@ export default function MilestoneSessionsList({
                   {t("venture.manager.editMemo")}
                 </button>
               </div>
+            )}
+            {ventureId && (
+              <SessionInvitees
+                ventureId={ventureId}
+                session={session}
+              />
             )}
           </div>
         );

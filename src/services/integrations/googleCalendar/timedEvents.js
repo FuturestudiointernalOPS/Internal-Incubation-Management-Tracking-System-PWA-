@@ -7,6 +7,7 @@ import {
   selectCalendarVentureSessions,
   selectCalendarVentureMilestones,
 } from "@/models/workspaceCalendarStore";
+import { selectInvitedSessionsForContact } from "@/models/ventureSessionInviteesStore";
 import {
   resolveCalendarProgramScope,
   resolveCalendarFollowupVisibility,
@@ -101,7 +102,7 @@ export async function listUserCalendarEvents({ userId, role }) {
   const includeVentures = seesAllVentures || (ventureScope && ventureScope.length > 0);
   const ventureArgs = { personalMode: true, seesAllVentures: false, ventureScope, scopeIds, sessionCid: userId };
 
-  const [sessions, followups, ventureSessions, ventureMilestones] = await Promise.all([
+  const [sessions, followups, ventureSessions, ventureMilestones, invitedSessions] = await Promise.all([
     getCalendarSessions(programScopeSql, programScopeArgs).catch(() => empty),
     getCalendarFollowups(
       programScopeSql,
@@ -119,6 +120,9 @@ export async function listUserCalendarEvents({ userId, role }) {
           scopeIds,
         }).catch(() => empty)
       : Promise.resolve(empty),
+    // Sessions the person was INVITED to by e-mail — included whatever their
+    // Venture scope: an invitation reaches a guest the scope never named.
+    selectInvitedSessionsForContact(userId).catch(() => empty),
   ]);
 
   const events = [];
@@ -184,6 +188,23 @@ export async function listUserCalendarEvents({ userId, role }) {
       allDay: true,
       startDate: day,
       endDate: day,
+    });
+  }
+
+  // Invited sessions: same source/id as a scoped Venture session, so an invited
+  // member's own session is deduplicated by the sync planner, never doubled.
+  for (const session of invitedSessions.rows || []) {
+    const startsAt = toIso(session.start_time);
+    if (!startsAt) continue;
+    events.push({
+      source: "venture_session",
+      sourceId: String(session.id),
+      title: session.title || "Venture session",
+      description: session.coach_name ? `Coach: ${session.coach_name}` : null,
+      location: null,
+      allDay: false,
+      startsAt,
+      endsAt: plusMinutes(startsAt, VENTURE_SESSION_DEFAULT_MINUTES),
     });
   }
 
