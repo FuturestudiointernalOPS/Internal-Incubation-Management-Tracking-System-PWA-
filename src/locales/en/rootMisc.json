@@ -2,7 +2,30 @@
   "rootMisc": {
     "landing": {
       "brand": "ImpactOS Terminal",
-      "connecting": "Connecting Secure Session..."
+      "connecting": "Connecting Secure Session...",
+      "kicker": "Future Studio",
+      "title": "The studio's operating system.",
+      "intro": "ImpactOS is Future Studio's internal operations platform — the single place where the studio runs its programs, its teams and its ventures, day after day.",
+      "whatTitle": "What you can do here",
+      "pillars": {
+        "programs": {
+          "title": "Run programs",
+          "body": "Guide cohorts and participants from first contact to completion, with every step in one place."
+        },
+        "ventures": {
+          "title": "Steer teams & ventures",
+          "body": "Follow the teams you support and the ventures they build, milestone by milestone."
+        },
+        "insight": {
+          "title": "Keep the pulse",
+          "body": "Tasks, deadlines and operational reports, always up to date and shared with the right people."
+        }
+      },
+      "signIn": "Sign in",
+      "signInHint": "Reserved for Future Studio staff and partners.",
+      "language": "Language",
+      "switchTheme": "Switch theme",
+      "footer": "© 2026 Future Studio · Internal operational asset"
     },
     "terminal": {
       "title": "Terminal Unification",

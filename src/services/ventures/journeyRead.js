@@ -105,9 +105,14 @@ export async function attachJourneyWork({ ventureParam, dbId, stages, signEviden
   // that produces it (task_id), so the pair is resolved here. Guarded like the
   // counts — a database without the new columns still renders the roadmap.
   const tasksById = new Map();
+  const tasksByMilestone = {};
   if (boundMilestoneIds.length > 0) {
     const tasksResult = await listJourneyTasksByMilestoneIds(boundMilestoneIds).catch(() => ({ rows: [] }));
-    for (const task of tasksResult.rows || []) tasksById.set(String(task.id), task);
+    for (const task of tasksResult.rows || []) {
+      tasksById.set(String(task.id), task);
+      const key = String(task.milestone_id);
+      (tasksByMilestone[key] = tasksByMilestone[key] || []).push(task);
+    }
   }
 
   // Template provenance: stages generated from a reusable template carry a
@@ -130,6 +135,9 @@ export async function attachJourneyWork({ ventureParam, dbId, stages, signEviden
     for (const milestone of stageMilestones) {
       milestone.deliverables = deliverablesByMilestone[String(milestone.id)] || [];
       milestone.task_counts = taskCountsByMilestone[String(milestone.id)] || { total: 0, done: 0 };
+      // A session can be booked AGAINST one of the milestone's ACTIVITIES (a
+      // task), not only against the milestone: the whole work list is exposed
+      // here so the booking form can offer it.
       // "Activity → Deliverable": the deliverable carries its linked task's
       // title, Definition of Done, support and start — so one screen shows the
       // whole chain without a second read.
@@ -152,6 +160,14 @@ export async function attachJourneyWork({ ventureParam, dbId, stages, signEviden
             }
           : null;
       }
+      milestone.activities = (tasksByMilestone[String(milestone.id)] || []).map((task) => ({
+        id: task.id,
+        source_ref: task.source_ref || null,
+        title: task.title || null,
+        owner_name: task.assigned_name || null,
+        due_date: task.due_date || null,
+        status: task.status || null,
+      }));
     }
     stage.milestone_counts = {
       total: stageMilestones.length,

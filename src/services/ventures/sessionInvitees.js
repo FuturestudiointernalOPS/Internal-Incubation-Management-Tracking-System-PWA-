@@ -1,0 +1,158 @@
+/**
+ * services/ventures/sessionInvitees — the people a Venture session is announced
+ * to by e-mail, and what they read.
+ *
+ * A session invitee is an E-MAIL, not necessarily an account: a guest, an
+ * external coach, a partner. The address may belong to an ImpactOS account — in
+ * which case the session is also pushed to that person's own calendar (their
+ * Future Studio calendar, once they have connected one) — or to nobody, and
+ * then the e-mail itself carries an "add to calendar" link and an .ics file.
+ *
+ * Every notice is best-effort: a failed e-mail or calendar push never fails the
+ * write. SQL lives in `@/models/ventureSessionInviteesStore`; the e-mail and the
+ * calendar use their own facades; nothing here runs SQL.
+ */
+import { selectContactByEmail } from "@/models/contactLookupStore";
+import {
+  deleteInvitee,
+  selectInvitedSessionsForContact,
+  selectInviteeById,
+  selectInviteesBySession,
+  upsertInvitee,
+} from "@/models/ventureSessionInviteesStore";
+import { buildGoogleCalendarUrl, buildIcsEvent } from "@/lib/calendarIcs";
+import { sendStandaloneEmail } from "@/lib/email";
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** A raw e-mail → its normalized form, or null when it is not an address. */
+export function normalizeInviteEmail(raw) {
+  const email = String(raw || "").trim().toLowerCase();
+  return EMAIL_PATTERN.test(email) ? email : null;
+}
+
+export async function listSessionInvitees(sessionId) {
+  const res = await selectInviteesBySession(sessionId);
+  return res.rows || [];
+}
+
+export async function getSessionInvitee(inviteeId) {
+  const res = await selectInviteeById(inviteeId);
+  return res.rows?.[0] || null;
+}
+
+/** The sessions an account was invited to, as the personal calendar reads them. */
+export async function listInvitedSessionsForContact(contactCid) {
+  if (!contactCid) return [];
+  const res = await selectInvitedSessionsForContact(contactCid);
+  return res.rows || [];
+}
+
+/** The calendar-ready event of a session (title, memo, place, window). */
+function sessionEvent(session) {
+  const description = [
+    session.description ? `Memo: ${session.description}` : "",
+    session.coach_name ? `With: ${session.coach_name}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  return {
+    uid: `session-${session.id}@impactos`,
+    title: session.title || "Venture session",
+    description,
+    location: session.location || null,
+    url: session.meeting_link || null,
+    startIso: session.start_time,
+    endIso: session.end_time,
+  };
+}
+
+/**
+ * Add (or refresh) one invitee and e-mail them the invitation. Returns
+ * `{ ok: true, invitee }` or `{ ok: false, error }` (the controller sends 400).
+ *
+ * @param {object} args
+ * @param {number} args.sessionId
+ * @param {object} args.session      the session row (for the invitation content)
+ * @param {string} [args.ventureLabel] the Venture's name (for the e-mail)
+ * @param {string} args.email
+ * @param {string} [args.name]
+ * @param {string} [args.actorCid]
+ */
+export async function addSessionInvitee({ sessionId, session, ventureLabel, email, name, actorCid }) {
+  const clean = normalizeInviteEmail(email);
+  if (!clean) return { ok: false, error: "A valid e-mail address is required." };
+
+  // An address that belongs to an account is bound to it: the session can then
+  // also reach that person's calendar, and their display name fills in.
+  let contactCid = null;
+  let displayName = name ? String(name).trim() : null;
+  try {
+    const contact = await selectContactByEmail(clean);
+    const row = contact.rows?.[0];
+    if (row) {
+      contactCid = row.cid || null;
+      displayName = displayName || row.name || null;
+    }
+  } catch (_) {
+    // A lookup failure never blocks the invitation.
+  }
+
+  const inserted = await upsertInvitee({ sessionId, email: clean, name: displayName, contactCid, createdBy: actorCid || null });
+  const invitee = inserted.rows?.[0] || { session_id: sessionId, email: clean, name: displayName, contact_cid: contactCid };
+
+  await emailSessionInvitation({ session, ventureLabel, invitee }).catch(() => {});
+  // An account that connected a calendar gets the session through its own sync
+  // source (the invite is a session the person is part of). Best-effort.
+  if (contactCid) {
+    try {
+      const { syncUser } = await import("@/services/integrations/googleCalendar");
+      await syncUser(contactCid);
+    } catch (_) {}
+  }
+  return { ok: true, invitee };
+}
+
+/** Remove one invitee. Their calendar loses the session on its next sync. */
+export async function removeSessionInvitee(inviteeId) {
+  await deleteInvitee(inviteeId);
+  return { ok: true };
+}
+
+function escapeHtml(text) {
+  return String(text ?? "").replace(/[&<>"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[character]));
+}
+
+/** The invitation e-mail: the session, its memo, a "add to calendar" button and an .ics. */
+export async function emailSessionInvitation({ session, ventureLabel, invitee }) {
+  if (!session || !invitee?.email) return { skipped: true };
+  const when = session.start_time ? new Date(session.start_time).toUTCString() : "";
+  const googleUrl = buildGoogleCalendarUrl(sessionEvent(session));
+  const lines = [
+    `${session.title || "A session"}${ventureLabel ? ` — ${ventureLabel}` : ""}`,
+    when ? `When: ${when}` : "",
+    session.location ? `Where: ${session.location}` : "",
+    session.meeting_link ? `Join: ${session.meeting_link}` : "",
+    session.description ? `\n${session.description}` : "",
+  ].filter(Boolean);
+  const html = `
+    <div style="font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;line-height:1.5;">
+      <p>You are invited to a Venture session on ImpactOS.</p>
+      <p style="white-space:pre-wrap;">${escapeHtml(lines.join("\n"))}</p>
+      ${googleUrl ? `<p><a href="${googleUrl}" style="background:#ff6a00;color:#000;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:bold;">Add to my calendar</a></p>` : ""}
+      <p>An .ics file is attached — open it in any calendar app to add the session.</p>
+    </div>`;
+  const ics = buildIcsEvent(sessionEvent(session));
+  const attachments = ics
+    ? [{ filename: "session.ics", content: ics, contentType: "text/calendar" }]
+    : undefined;
+  return sendStandaloneEmail({
+    to: invitee.email,
+    subject: `Invitation: ${session.title || "Venture session"}`,
+    html,
+    contact_cid: invitee.contact_cid || null,
+    email_type: "session_invitation",
+    note: `Session invitation #${session.id}`,
+    attachments,
+  });
+}

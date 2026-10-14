@@ -17,9 +17,9 @@ import {
   toTimeInput,
 } from "@/lib/ventureSessionRules";
 import { useVenture } from "../VentureContext";
+import { sessionBookingKey } from "@/components/ventures/journey/journeyShapers";
 import FounderMilestoneSessions from "@/components/ventures/journey/FounderMilestoneSessions";
 import FounderMilestoneTasks from "@/components/ventures/journey/FounderMilestoneTasks";
-import FounderSessionBooking from "@/components/ventures/journey/FounderSessionBooking";
 import FounderMilestoneDeliverables from "./JourneyPlaybookTabs/FounderMilestoneDeliverables";
 
 /* Journey Tab — the Venture journey as its operating workspace.
@@ -65,12 +65,20 @@ export function JourneyTab() {
     } catch (_) {}
   };
 
-  const openBooking = (milestone) => {
-    setBookFor(milestone.id);
+  const openBooking = (milestone, activity = null, deliverableId = null) => {
+    // One booking slot per ACTIVITY: the control sits in the activity's own
+    // block, and the form's title follows it.
+    setBookFor(sessionBookingKey(milestone, activity, deliverableId));
     // Same floor as every other booking form: now + 30 minutes, rounded up to a
     // whole minute, so the prefilled slot can never be rejected by the server.
     const min = minSessionStartInput();
-    setBookForm({ date: toDateInput(min), time: toTimeInput(min), min_time: toTimeInput(min), duration: "45", note: "", files: [] });
+    setBookForm({
+      date: toDateInput(min), time: toTimeInput(min), min_time: toTimeInput(min), duration: "45",
+      title: activity?.title || milestone.title || "",
+      activity_id: activity?.id != null ? activity.id : "",
+      deliverable_id: deliverableId != null ? String(deliverableId) : "",
+      note: "", files: [],
+    });
   };
 
   const bookSession = async (event, stage, milestone) => {
@@ -111,7 +119,7 @@ export function JourneyTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "create_session",
-          title: milestone.title,
+          title: bookForm.title || milestone.title,
           description: bookForm.note.trim(),
           session_type: "coaching",
           start_time: start.toISOString(),
@@ -120,6 +128,8 @@ export function JourneyTab() {
           venture_facing: true,
           journey_stage_id: stage.id,
           milestone_ref: String(milestone.id),
+          // The session is anchored to an ACTIVITY of the milestone.
+          task_id: bookForm.activity_id || null,
           materials,
         }),
       });
@@ -391,22 +401,15 @@ export function JourneyTab() {
                                 dvDrafts={dvDrafts}
                                 setDvDrafts={setDvDrafts}
                                 submitDeliverable={submitDeliverable}
+                                canBook={isCurrent}
+                                bookFor={bookFor}
+                                bookForm={bookForm}
+                                bookSaving={bookSaving}
+                                bookSession={bookSession}
+                                openBooking={openBooking}
+                                setBookFor={setBookFor}
+                                setBookForm={setBookForm}
                               />
-                              {/* The Venture books its own sessions — strictly against
-                                  the milestone that is currently open. */}
-                              {isCurrent && (
-                                <FounderSessionBooking
-                                  bookFor={bookFor}
-                                  bookForm={bookForm}
-                                  bookSaving={bookSaving}
-                                  bookSession={bookSession}
-                                  milestone={milestone}
-                                  openBooking={openBooking}
-                                  setBookFor={setBookFor}
-                                  setBookForm={setBookForm}
-                                  stage={stage}
-                                />
-                              )}
 
                               {/* Sessions already booked on this milestone, with the
                                   documents they were booked with. */}

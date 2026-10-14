@@ -8,6 +8,14 @@ import { signSessionMaterials } from "@/lib/ventureEvidence";
 import { checkSessionBooking } from "@/services/ventures/sessionBooking";
 import { resolveSessionBookingTargets } from "@/services/ventures/sessionBookingTargets";
 import { checkSessionManagement } from "@/services/ventures/sessionAuthority";
+import { selectInviteesBySessionIds } from "@/models/ventureSessionInviteesStore";
+import {
+  addSessionInvitee,
+  getSessionInvitee,
+  listSessionInvitees,
+  removeSessionInvitee,
+} from "@/services/ventures/sessionInvitees";
+import { getVentureIdAndCode, getVentureDisplayNameByCode } from "@/models/ventureWorkspace";
 import {
   notifySessionScheduled,
   notifySessionUpdated,
@@ -15,6 +23,19 @@ import {
   notifySessionRescheduled,
 } from "@/services/ventures/sessionNotices";
 
+
+/** The Venture's display name (company_name-first), or null — best-effort. */
+async function resolveVentureLabel(ventureParam) {
+  try {
+    const resolved = await getVentureIdAndCode(ventureParam);
+    const code = resolved.rows?.[0]?.venture_id;
+    if (!code) return null;
+    const label = await getVentureDisplayNameByCode(code);
+    return label.rows?.[0]?.venture_name || null;
+  } catch (_) {
+    return null;
+  }
+}
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
@@ -34,7 +55,20 @@ export const GET = createHandler(async (req, { params }) => {
       materials: await signSessionMaterials(session.materials),
     })),
   );
-  return NextResponse.json({ success: true, sessions: signed });
+  // The invitees travel with the session: the panel shows who was told, and an
+  // invited guest has no other place to be seen.
+  const invitees = (await selectInviteesBySessionIds((sessions || []).map((session) => session.id))).rows || [];
+  const inviteesBySession = new Map();
+  for (const invitee of invitees) {
+    const key = String(invitee.session_id);
+    if (!inviteesBySession.has(key)) inviteesBySession.set(key, []);
+    inviteesBySession.get(key).push(invitee);
+  }
+  const withInvitees = signed.map((session) => ({
+    ...session,
+    invitees: inviteesBySession.get(String(session.id)) || [],
+  }));
+  return NextResponse.json({ success: true, sessions: withInvitees });
 });
 
 export const POST = createHandler(async (req, { params }) => {
@@ -115,6 +149,22 @@ export const POST = createHandler(async (req, { params }) => {
         ventureParam: id, body, sessionNote, createdSession, coachContactId,
         actorCid: req.session?.cid,
       });
+      // Guests entered while booking are invited as soon as the session exists.
+      const invited = Array.isArray(body.invitees) ? body.invitees : [];
+      if (invited.length > 0) {
+        const session = await getSession(createdSession.id);
+        const ventureLabel = await resolveVentureLabel(id);
+        for (const invitee of invited) {
+          await addSessionInvitee({
+            sessionId: createdSession.id,
+            session,
+            ventureLabel,
+            email: invitee?.email,
+            name: invitee?.name,
+            actorCid: req.session?.cid,
+          }).catch(() => {});
+        }
+      }
       return NextResponse.json({ success: true, session_id: createdSession.id });
     } catch (error) { return NextResponse.json({ success: false, error: error.message }, { status: 400 }); }
   }
@@ -223,6 +273,38 @@ export const POST = createHandler(async (req, { params }) => {
   if (action === "update_action_item") {
     const dbId = await resolveVentureDbId(id);
     await updateActionItem(parseInt(body.action_item_id), body.updates, [id, dbId]);
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === "list_invitees") {
+    if (!(await sessionBelongsToVenture(body.session_id))) return ventureNotFound();
+    const invitees = await listSessionInvitees(parseInt(body.session_id));
+    return NextResponse.json({ success: true, invitees });
+  }
+
+  if (action === "add_invitee") {
+    const denied = await deniedSessionManagement();
+    if (denied) return denied;
+    if (!(await sessionBelongsToVenture(body.session_id))) return ventureNotFound();
+    const session = await getSession(parseInt(body.session_id));
+    const result = await addSessionInvitee({
+      sessionId: parseInt(body.session_id),
+      session,
+      ventureLabel: await resolveVentureLabel(id),
+      email: body.email,
+      name: body.name,
+      actorCid: req.session?.cid,
+    });
+    if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: 400 });
+    return NextResponse.json({ success: true, invitee: result.invitee });
+  }
+
+  if (action === "remove_invitee") {
+    const denied = await deniedSessionManagement();
+    if (denied) return denied;
+    const invitee = await getSessionInvitee(parseInt(body.invitee_id));
+    if (!invitee || !(await sessionBelongsToVenture(invitee.session_id))) return ventureNotFound();
+    await removeSessionInvitee(parseInt(body.invitee_id));
     return NextResponse.json({ success: true });
   }
 
