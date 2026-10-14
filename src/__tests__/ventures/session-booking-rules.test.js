@@ -4,7 +4,7 @@
  * cleaned values, so the move stays behaviour-identical.
  */
 const { checkSessionBooking } = require("@/services/ventures/sessionBooking");
-const { SESSION_MIN_LEAD_MINUTES } = require("@/lib/ventureSessionRules");
+const { SESSION_MIN_LEAD_MINUTES, SESSION_PAST_START_ERROR } = require("@/lib/ventureSessionRules");
 
 const NOW = Date.UTC(2026, 9, 1, 10, 0, 0);
 const later = (minutes) => new Date(NOW + minutes * 60 * 1000).toISOString();
@@ -44,9 +44,24 @@ describe("checkSessionBooking", () => {
     expect(checkSessionBooking({ ...valid(), start_time: "not a date" }, NOW)).toEqual(refusal);
   });
 
-  test("a start inside the minimum lead time is refused", () => {
-    expect(checkSessionBooking({ ...valid(), start_time: later(SESSION_MIN_LEAD_MINUTES - 1) }, NOW))
-      .toEqual({ ok: false, error: `A session must start at least ${SESSION_MIN_LEAD_MINUTES} minutes from now.` });
+  test("a start time already behind us is refused", () => {
+    expect(checkSessionBooking({ ...valid(), start_time: later(-1) }, NOW))
+      .toEqual({ ok: false, error: SESSION_PAST_START_ERROR });
+  });
+
+  test("a session may start minutes from now — there is no lead time", () => {
+    // There used to be a 30-minute floor: it made "start in 5 minutes"
+    // impossible and pushed the earliest slot to a clock time nobody chose.
+    // The booker decides; the session is written either way.
+    expect(checkSessionBooking({ ...valid(), start_time: later(1) }, NOW).ok).toBe(true);
+    expect(checkSessionBooking({ ...valid(), start_time: later(0) }, NOW).ok).toBe(true);
+  });
+
+  test("a start a few minutes ahead is accepted whatever the lead constant says", () => {
+    // The constant is kept (0 today) so the rule can be tightened again without
+    // hunting for comparisons: every check goes through isValidSessionStart.
+    expect(SESSION_MIN_LEAD_MINUTES).toBe(0);
+    expect(checkSessionBooking({ ...valid(), start_time: later(5) }, NOW).ok).toBe(true);
   });
 
   test("invalid materials are refused", () => {

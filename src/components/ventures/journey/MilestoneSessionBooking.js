@@ -4,6 +4,7 @@ import React from "react";
 import { useI18n } from "@/lib/i18n";
 import { SESSION_MATERIALS_MAX, toDateInput } from "@/lib/ventureSessionRules";
 import { CalendarPlus, Loader2, X } from "lucide-react";
+import GuestEmailField from "./GuestEmailField";
 
 /**
  * Book a session on a milestone (date + exact time, coach, deliverable,
@@ -125,7 +126,7 @@ export default function MilestoneSessionBooking({
               onChange={(event) => setBookForm({ ...bookForm, duration: event.target.value })}
               className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
             >
-              {["30", "45", "60", "90"].map((durationOption) => (
+              {["15", "20", "30", "45", "60", "90"].map((durationOption) => (
                 <option key={durationOption} value={durationOption}>{t("venture.manager.minutes", { n: durationOption })}</option>
               ))}
             </select>
@@ -145,11 +146,9 @@ export default function MilestoneSessionBooking({
             <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
               {t("venture.manager.inviteGuests")}
             </p>
-            <input
-              type="text"
+            <GuestEmailField
               value={bookForm.inviteesText || ""}
-              onChange={(event) => setBookForm({ ...bookForm, inviteesText: event.target.value })}
-              placeholder={t("venture.manager.inviteGuestsPlaceholder")}
+              onChange={(next) => setBookForm({ ...bookForm, inviteesText: next })}
               className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
             />
             <p className="text-[9px] text-slate-500">{t("venture.manager.inviteGuestsHint")}</p>

@@ -7,7 +7,7 @@
  * `{ ok: false, error }` with the exact refusal the controller already sent
  * (HTTP 400). No SQL, no HTTP.
  */
-import { SESSION_MIN_LEAD_MINUTES, normalizeSessionMaterials } from "@/lib/ventureSessionRules";
+import { isValidSessionStart, SESSION_PAST_START_ERROR, normalizeSessionMaterials } from "@/lib/ventureSessionRules";
 
 /**
  * @param {object} body the create_session request body
@@ -23,8 +23,8 @@ export function checkSessionBooking(body, now = Date.now()) {
     return { ok: false, error: "A session note is required." };
   }
   // Vinance 3 rules: a session always belongs to a milestone (sessions
-  // never exist outside one), always carries a concrete date and time, and
-  // always starts at least SESSION_MIN_LEAD_MINUTES ahead of booking.
+  // never exist outside one) and always carries a concrete date and time that
+  // has not already passed. Any time is bookable — the booker decides.
   const milestoneRef = body.milestone_ref ? String(body.milestone_ref) : null;
   if (!milestoneRef) {
     return { ok: false, error: "A session must belong to a milestone." };
@@ -33,8 +33,8 @@ export function checkSessionBooking(body, now = Date.now()) {
   if (!startAt || Number.isNaN(startAt.getTime())) {
     return { ok: false, error: "A session date and time are required." };
   }
-  if (startAt.getTime() < now + SESSION_MIN_LEAD_MINUTES * 60 * 1000) {
-    return { ok: false, error: `A session must start at least ${SESSION_MIN_LEAD_MINUTES} minutes from now.` };
+  if (!isValidSessionStart(startAt, now)) {
+    return { ok: false, error: SESSION_PAST_START_ERROR };
   }
   // Documents the participants need for this session (a deck, a brief).
   // Only paths issued by THIS Venture's session upload route are accepted.

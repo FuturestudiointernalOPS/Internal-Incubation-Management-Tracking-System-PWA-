@@ -202,7 +202,29 @@ describe("POST /api/ventures/[id]/sessions — compulsory session note", () => {
     expect(mockCreateSession).not.toHaveBeenCalled();
   });
 
-  test("a session starting in less than 30 minutes is refused", async () => {
+  test("a session starting in the past is refused", async () => {
+    const start = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const end = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const res = await POST(
+      request({
+        action: "create_session",
+        title: "Customer validation review",
+        description: "Review the 20 interview findings.",
+        start_time: start,
+        end_time: end,
+        milestone_ref: "m1",
+      }),
+      ctx,
+    );
+    const data = await res.json();
+    expect(res.status).toBe(400);
+    expect(data.error).toBe("A session cannot start in the past.");
+    expect(mockCreateSession).not.toHaveBeenCalled();
+  });
+
+  test("a session starting minutes from now is accepted — no lead time", async () => {
+    // The booker decides when the session happens; a 30-minute floor used to
+    // refuse exactly this, which is not a rule the product wanted.
     const start = new Date(Date.now() + 10 * 60 * 1000).toISOString();
     const end = new Date(Date.now() + 45 * 60 * 1000).toISOString();
     const res = await POST(
@@ -217,9 +239,8 @@ describe("POST /api/ventures/[id]/sessions — compulsory session note", () => {
       ctx,
     );
     const data = await res.json();
-    expect(res.status).toBe(400);
-    expect(data.error).toBe("A session must start at least 30 minutes from now.");
-    expect(mockCreateSession).not.toHaveBeenCalled();
+    expect(data.success).toBe(true);
+    expect(mockCreateSession).toHaveBeenCalledTimes(1);
   });
 
   test("a deliverable from another milestone is refused", async () => {

@@ -23,3 +23,25 @@ export function selectContactByEmail(cleanEmail) {
     args: [cleanEmail],
   });
 }
+
+/**
+ * Up to `limit` live contacts whose NAME or EMAIL contains `term`.
+ *
+ * `term` is lower-cased and stripped of LIKE wildcards by the caller, so this
+ * stays a plain statement with no decisions in it. Address matches come first
+ * (a picker is usually fed the start of an address), then people by name.
+ * `limit` is a server-side integer, never caller input, and is interpolated
+ * because a bound LIMIT is not portable.
+ */
+export function selectContactsByTerm(term, limit = 8) {
+  const take = Math.min(Math.max(Number(limit) || 8, 1), 25);
+  return db.execute({
+    sql: `SELECT cid, name, email, role, status
+            FROM contacts
+           WHERE deleted_at IS NULL
+             AND (LOWER(email) LIKE ? OR LOWER(name) LIKE ?)
+           ORDER BY (LOWER(email) LIKE ?) DESC, name ASC
+           LIMIT ${take}`,
+    args: [`${term}%`, `%${term}%`, `${term}%`],
+  });
+}

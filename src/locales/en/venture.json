@@ -546,7 +546,7 @@
       "milestoneSessions": "Sessions ({n})",
       "sessionDeliverable": "Attach to deliverable",
       "sessionNoDeliverable": "No specific deliverable",
-      "sessionLeadHint": "Sessions book from 30 minutes ahead.",
+      "sessionLeadHint": "Any time works — the session is written to ImpactOS and to the calendars.",
       "minutes": "{n} min",
       "noCoach": "No coach",
       "sessionBooked": "Session booked — the Venture and the coach are notified by email.",
@@ -568,7 +568,7 @@
         "rescheduled": "Rescheduled",
         "no_show": "No show"
       },
-      "sessionTooSoon": "A session must start at least 30 minutes from now — the time has been moved for you.",
+      "sessionTooSoon": "That time has already passed — the time has been moved for you.",
       "sessionMaterials": "Documents for the session",
       "sessionMaterialsHint": "Up to 5 documents (PDF, Word, Excel, PowerPoint, 5MB max each). Everyone in the session can open them from the session itself.",
       "sessionMaterialsRemove": "Remove this document",

@@ -546,7 +546,7 @@
       "milestoneSessions": "Séances ({n})",
       "sessionDeliverable": "Lier à un livrable",
       "sessionNoDeliverable": "Aucun livrable spécifique",
-      "sessionLeadHint": "Les séances se réservent à partir de 30 minutes à l'avance.",
+      "sessionLeadHint": "Toute heure convient — la séance est enregistrée dans ImpactOS et dans les calendriers.",
       "minutes": "{n} min",
       "noCoach": "Aucun coach",
       "sessionBooked": "Session réservée — l'entreprise et le coach sont notifiés par e-mail.",
@@ -568,7 +568,7 @@
         "rescheduled": "Reprogrammée",
         "no_show": "Absence"
       },
-      "sessionTooSoon": "Une séance doit commencer au moins 30 minutes à partir de maintenant — l'heure a été ajustée.",
+      "sessionTooSoon": "Cette heure est déjà passée — l'heure a été ajustée pour vous.",
       "sessionMaterials": "Documents de la séance",
       "sessionMaterialsHint": "Jusqu'à 5 documents (PDF, Word, Excel, PowerPoint, 5 Mo max chacun), ouvrables depuis la séance elle-même.",
       "sessionMaterialsRemove": "Retirer ce document",
