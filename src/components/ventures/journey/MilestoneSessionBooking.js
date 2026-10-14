@@ -16,13 +16,14 @@ import { CalendarPlus, Loader2, X } from "lucide-react";
 export default function MilestoneSessionBooking({
   autoGrow,
   bookFor,
+  bookForKey,
   bookForm,
   bookSaving,
   bookSession,
   coachOptions,
   deliverableList,
   milestone,
-  openBooking,
+  onOpen,
   setBookFor,
   setBookForm,
   stage,
@@ -30,7 +31,7 @@ export default function MilestoneSessionBooking({
   const { t } = useI18n();
   return (
     <div className="mt-2 ml-5">
-      {bookFor === milestone.id ? (
+      {bookFor === bookForKey ? (
         <form onSubmit={(event) => bookSession(event, stage, milestone)} className="rounded-lg border border-[var(--border-primary)] p-2.5 space-y-2">
           <p className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] flex items-center gap-1.5">
             <CalendarPlus className="w-3.5 h-3.5" /> {t("venture.manager.bookSession")}
@@ -139,25 +140,6 @@ export default function MilestoneSessionBooking({
               ))}
             </select>
           </div>
-          {Array.isArray(milestone.activities) && milestone.activities.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
-                {t("venture.manager.sessionActivity")}
-              </p>
-              <select
-                value={bookForm.activity_id || ""}
-                onChange={(event) => setBookForm({ ...bookForm, activity_id: event.target.value })}
-                className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-              >
-                <option value="">{t("venture.manager.sessionNoActivity")}</option>
-                {milestone.activities.map((activity) => (
-                  <option key={activity.id} value={activity.id}>
-                    {activity.source_ref ? `${activity.source_ref} · ` : ""}{activity.title || `#${activity.id}`}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
           <p className="text-[9px] text-slate-500">{t("venture.manager.sessionLeadHint")}</p>
           <div className="space-y-1">
             <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
@@ -185,7 +167,7 @@ export default function MilestoneSessionBooking({
       ) : (
         <button
           type="button"
-          onClick={() => openBooking(milestone)}
+          onClick={onOpen}
           className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]"
         >
           <CalendarPlus className="w-3 h-3" /> {t("venture.manager.bookSession")}
