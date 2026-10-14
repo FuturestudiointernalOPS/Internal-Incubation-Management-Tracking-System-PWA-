@@ -4,7 +4,12 @@
  * cleaned values, so the move stays behaviour-identical.
  */
 const { checkSessionBooking } = require("@/services/ventures/sessionBooking");
-const { SESSION_MIN_LEAD_MINUTES, SESSION_PAST_START_ERROR } = require("@/lib/ventureSessionRules");
+const {
+  SESSION_MIN_LEAD_MINUTES,
+  SESSION_PAST_START_ERROR,
+  sessionTimeFloor,
+  toDateInput,
+} = require("@/lib/ventureSessionRules");
 
 const NOW = Date.UTC(2026, 9, 1, 10, 0, 0);
 const later = (minutes) => new Date(NOW + minutes * 60 * 1000).toISOString();
@@ -68,5 +73,38 @@ describe("checkSessionBooking", () => {
     const tooMany = Array.from({ length: 50 }, (_, index) => ({ name: `d${index}`, path: `x/${index}` }));
     expect(checkSessionBooking({ ...valid(), materials: tooMany }, NOW))
       .toEqual({ ok: false, error: "The session materials are invalid (up to 5 documents)." });
+  });
+});
+
+describe("the time picker's floor knows which day it applies to", () => {
+  const TODAY = "2026-10-14";
+  const TOMORROW = "2026-10-15";
+
+  test("REGRESSION: tomorrow keeps its own clock — today's floor does not follow it", () => {
+    // The time input's `min` carries no date. Handing it today's floor while
+    // tomorrow is selected made the browser refuse 09:00 tomorrow ("must be
+    // 14:35 or later"), which is exactly the complaint this fixes.
+    expect(sessionTimeFloor(TOMORROW, "14:35", TODAY)).toBe("");
+  });
+
+  test("today does keep the floor", () => {
+    expect(sessionTimeFloor(TODAY, "14:35", TODAY)).toBe("14:35");
+  });
+
+  test("no date chosen yet means no floor", () => {
+    expect(sessionTimeFloor("", "14:35", TODAY)).toBe("");
+  });
+
+  test("no floor computed means no floor", () => {
+    expect(sessionTimeFloor(TODAY, "", TODAY)).toBe("");
+    expect(sessionTimeFloor(TODAY, undefined, TODAY)).toBe("");
+  });
+
+  test("a later date never inherits today's floor, however far away", () => {
+    expect(sessionTimeFloor("2099-01-01", "23:59", TODAY)).toBe("");
+  });
+
+  test("the default 'today' is the local day, like the date picker's own floor", () => {
+    expect(sessionTimeFloor(toDateInput(new Date()), "14:35")).toBe("14:35");
   });
 });

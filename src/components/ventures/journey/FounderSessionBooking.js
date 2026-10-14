@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useI18n } from "@/lib/i18n";
-import { SESSION_MATERIALS_MAX, toDateInput } from "@/lib/ventureSessionRules";
+import { SESSION_MATERIALS_MAX, sessionTimeFloor, toDateInput } from "@/lib/ventureSessionRules";
 import { CalendarPlus, Loader2, X } from "lucide-react";
 
 /**
@@ -43,7 +43,7 @@ export default function FounderSessionBooking({
           />
           <div className="flex flex-wrap items-center gap-2">
             <input type="date" required min={toDateInput(new Date())} value={bookForm.date} onChange={(event) => setBookForm({ ...bookForm, date: event.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
-            <input type="time" required min={bookForm.min_time || undefined} value={bookForm.time} onChange={(event) => setBookForm({ ...bookForm, time: event.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
+            <input type="time" required min={sessionTimeFloor(bookForm.date, bookForm.min_time) || undefined} value={bookForm.time} onChange={(event) => setBookForm({ ...bookForm, time: event.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
             <select value={bookForm.duration} onChange={(event) => setBookForm({ ...bookForm, duration: event.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]">
               {["15", "20", "30", "45", "60", "90"].map((durationOption) => (
                 <option key={durationOption} value={durationOption}>{t('venture.manager.minutes', { n: durationOption })}</option>

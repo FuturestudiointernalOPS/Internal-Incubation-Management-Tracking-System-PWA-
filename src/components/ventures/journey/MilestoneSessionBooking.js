@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useI18n } from "@/lib/i18n";
-import { SESSION_MATERIALS_MAX, toDateInput } from "@/lib/ventureSessionRules";
+import { SESSION_MATERIALS_MAX, sessionTimeFloor, toDateInput } from "@/lib/ventureSessionRules";
 import { CalendarPlus, Loader2, X } from "lucide-react";
 import GuestEmailField from "./GuestEmailField";
 
@@ -116,7 +116,9 @@ export default function MilestoneSessionBooking({
             <input
               type="time"
               required
-              min={bookForm.min_time || undefined}
+              // The floor is today's; tomorrow's clock time is free (09:00
+              // tomorrow is later than now, even though 09:00 < 14:35).
+              min={sessionTimeFloor(bookForm.date, bookForm.min_time) || undefined}
               value={bookForm.time}
               onChange={(event) => setBookForm({ ...bookForm, time: event.target.value })}
               className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"

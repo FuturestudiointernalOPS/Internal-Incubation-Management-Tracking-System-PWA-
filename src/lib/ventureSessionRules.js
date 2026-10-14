@@ -63,6 +63,26 @@ export function isValidSessionStart(value, now = Date.now()) {
   return timestamp >= startOfMinute(now) + SESSION_MIN_LEAD_MINUTES * 60 * 1000;
 }
 
+/**
+ * The time-of-day floor to put on the time picker for a chosen DATE.
+ *
+ * `<input type="time">`'s `min` is a CLOCK TIME with no date attached to it:
+ * handing it today's floor while tomorrow is selected makes the browser refuse
+ * 09:00 tomorrow, because 09:00 is before 14:35 — today's answer to a question
+ * nobody asked. Tomorrow morning IS later than now, so the floor belongs to
+ * today alone; on any other date the clock time is free and the server compares
+ * the full date and time.
+ */
+export function sessionTimeFloor(
+  dateValue,
+  minTime,
+  todayValue = toDateInput(new Date()),
+) {
+  const date = String(dateValue || "");
+  if (!date || date !== String(todayValue)) return "";
+  return String(minTime || "");
+}
+
 // ─── Session materials (documents attached while booking) ────────────────────
 // A session may carry documents the participants need (a deck, a brief). The
 // files live in the PRIVATE evidence bucket under this prefix and are signed on
