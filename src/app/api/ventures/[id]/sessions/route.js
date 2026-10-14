@@ -152,18 +152,24 @@ export const POST = createHandler(async (req, { params }) => {
       });
       // Guests entered while booking are invited as soon as the session exists.
       const invited = Array.isArray(body.invitees) ? body.invitees : [];
+      const emailFailed = [];
       if (invited.length > 0) {
         const session = await getSession(createdSession.id);
         const ventureLabel = await resolveVentureLabel(id);
         for (const invitee of invited) {
-          await addSessionInvitee({
+          const invited1 = await addSessionInvitee({
             sessionId: createdSession.id,
             session,
             ventureLabel,
             email: invitee?.email,
             name: invitee?.name,
             actorCid: req.session?.cid,
-          }).catch(() => {});
+          }).catch(() => null);
+          // An invitation that did not leave is reported back, so the booking can
+          // say so instead of claiming an inbox was reached.
+          if (invited1 && invited1.emailResult && invited1.emailResult.sent === false) {
+            emailFailed.push(String(invitee?.email || "").trim());
+          }
         }
       }
       // The people a session concerns get it on their OWN calendars now, not on
@@ -172,7 +178,12 @@ export const POST = createHandler(async (req, { params }) => {
       // booker and the coach, best-effort — a calendar that cannot be reached
       // never fails the booking.
       await pushSessionToCalendars([req.session?.cid, coachContactId]);
-      return NextResponse.json({ success: true, session_id: createdSession.id });
+      return NextResponse.json({
+        success: true,
+        session_id: createdSession.id,
+        // Who could NOT be e-mailed — empty in the normal case.
+        invitations: { failed: emailFailed.filter(Boolean) },
+      });
     } catch (error) { return NextResponse.json({ success: false, error: error.message }, { status: 400 }); }
   }
 

@@ -110,7 +110,9 @@ describe("getCalendarVentureSessions — visibility contract", () => {
     expect(expansion.args).toEqual(expect.arrayContaining([MEMBER_VENTURE, STAFF_VENTURE]));
     expect(placeholders(expansion.sql)).toBe(expansion.args.length);
 
-    const inList = sessionsQuery().args.slice(1);
+    // Two leading legs compare to the user id (coach, creator); the rest is the
+    // venture scope list.
+    const inList = sessionsQuery().args.slice(2);
     expect(inList).toEqual(expect.arrayContaining([MEMBER_VENTURE, STAFF_VENTURE, MEMBER_UUID]));
     expect(inList).toHaveLength(3);
     expect(new Set(inList).size).toBe(inList.length);
@@ -128,7 +130,7 @@ describe("getCalendarVentureSessions — visibility contract", () => {
     expect(res.rows).toEqual(mockRows.sessions);
   });
 
-  test("the sessions query keeps the coach leg and the venture_facing guard", async () => {
+  test("the sessions query keeps the coach and creator legs, and the venture_facing guard", async () => {
     mockRows.scope = [{ venture_id: MEMBER_VENTURE }];
     mockRows.expanded = [{ id: MEMBER_UUID }];
 
@@ -136,16 +138,19 @@ describe("getCalendarVentureSessions — visibility contract", () => {
 
     const flat = flatten(sessionsQuery().sql);
     expect(flat).toContain("coach_contact_id = ?");
+    // A session the person BOOKED is theirs to see, wherever the venture sits.
+    expect(flat).toContain("created_by = ?");
     expect(flat).toContain("venture_facing = TRUE");
-    // The IN list only ever widens the venture-facing leg — the coach leg is
-    // compared to the user id itself, never to a venture scope value.
+    // The IN list only ever widens the venture-facing leg — the coach and creator
+    // legs are compared to the user id itself, never to a venture scope value.
     expect(flat).toContain(
-      "WHERE start_time IS NOT NULL AND status NOT IN ('cancelled', 'no_show') AND (coach_contact_id = ? OR (venture_facing = TRUE AND venture_id IN (",
+      "WHERE start_time IS NOT NULL AND status NOT IN ('cancelled', 'no_show') AND (coach_contact_id = ? OR created_by = ? OR (venture_facing = TRUE AND venture_id IN (",
     );
     expect(sessionsQuery().args[0]).toBe(USER_ID);
+    expect(sessionsQuery().args[1]).toBe(USER_ID);
   });
 
-  test("empty scope falls back to the sentinel and still keeps the coach leg", async () => {
+  test("empty scope falls back to the sentinel and still keeps the coach and creator legs", async () => {
     mockRows.scope = [];
     mockRows.expanded = [];
 
@@ -156,8 +161,9 @@ describe("getCalendarVentureSessions — visibility contract", () => {
     expect(executed).toHaveLength(2);
 
     const sessions = sessionsQuery();
-    expect(sessions.args).toEqual([USER_ID, SENTINEL]);
+    expect(sessions.args).toEqual([USER_ID, USER_ID, SENTINEL]);
     expect(flatten(sessions.sql)).toContain("coach_contact_id = ?");
-    expect(placeholders(sessions.sql)).toBe(2);
+    expect(flatten(sessions.sql)).toContain("created_by = ?");
+    expect(placeholders(sessions.sql)).toBe(3);
   });
 });

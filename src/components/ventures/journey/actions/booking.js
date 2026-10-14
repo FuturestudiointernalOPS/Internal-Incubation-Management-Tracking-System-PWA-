@@ -131,11 +131,17 @@ export function sessionBooking({
       if (payload.success) {
         // A booking is the moment the person just spent effort on: it is worth
         // stopping for, so it is said in a popup instead of a banner at the top
-        // of a long panel that scrolls away unnoticed.
+        // of a long panel that scrolls away unnoticed. A guest the platform
+        // could NOT e-mail is named here — the alternative is a confirmation
+        // that claims an inbox was reached when it was not.
+        const failed = (payload.invitations?.failed || []).filter(Boolean);
+        const message = failed.length
+          ? t("venture.manager.sessionBookedEmailFailed", { emails: failed.join(", ") })
+          : t("venture.manager.sessionBooked");
         if (typeof notifyPopup === "function") {
-          await notifyPopup({ message: t("venture.manager.sessionBooked") });
+          await notifyPopup({ message });
         } else {
-          notify(t("venture.manager.sessionBooked"));
+          notify(message);
         }
         setBookFor(null);
         // Surface the new session inside its milestone right away.

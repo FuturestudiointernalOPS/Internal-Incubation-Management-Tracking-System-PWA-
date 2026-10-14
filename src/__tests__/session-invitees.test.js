@@ -98,6 +98,32 @@ describe("addSessionInvitee", () => {
     expect(store.upsertInvitee).not.toHaveBeenCalled();
     expect(sendStandaloneEmail).not.toHaveBeenCalled();
   });
+
+  it("a sent invitation reports itself as sent", async () => {
+    store.upsertInvitee.mockResolvedValue({ rows: [{ id: 3, session_id: 42, email: "ok@x.io" }] });
+    sendStandaloneEmail.mockResolvedValueOnce({ success: true, provider: "gmail" });
+
+    const result = await addSessionInvitee({ sessionId: 42, session: SESSION, email: "ok@x.io" });
+
+    expect(result.emailResult).toEqual({ sent: true, error: null });
+  });
+
+  it("REGRESSION: an invitation that never left says so, instead of looking delivered", async () => {
+    // The transport RETURNS its failure (it does not throw), so the caller used
+    // to have no way to tell a delivered invitation from a lost one — and the
+    // booking confirmed "notified by email" either way.
+    store.upsertInvitee.mockResolvedValue({ rows: [{ id: 4, session_id: 42, email: "lost@x.io" }] });
+    sendStandaloneEmail.mockResolvedValueOnce({
+      success: false,
+      provider: "gmail",
+      error: "invalid_grant",
+    });
+
+    const result = await addSessionInvitee({ sessionId: 42, session: SESSION, email: "lost@x.io" });
+
+    expect(result.ok).toBe(true); // the invite itself stands
+    expect(result.emailResult).toEqual({ sent: false, error: "invalid_grant" });
+  });
 });
 
 describe("list/remove", () => {

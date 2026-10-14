@@ -101,7 +101,20 @@ export async function addSessionInvitee({ sessionId, session, ventureLabel, emai
   const inserted = await upsertInvitee({ sessionId, email: clean, name: displayName, contactCid, createdBy: actorCid || null });
   const invitee = inserted.rows?.[0] || { session_id: sessionId, email: clean, name: displayName, contact_cid: contactCid };
 
-  await emailSessionInvitation({ session, ventureLabel, invitee }).catch(() => {});
+  // The transport RETURNS its failure — it does not throw — so the result has to
+  // be kept: an invitation that never left must not look like one that did, or
+  // the booking says "notified by email" for an inbox that stays empty.
+  let emailResult = { sent: false, error: null };
+  try {
+    const result = await emailSessionInvitation({ session, ventureLabel, invitee });
+    emailResult = {
+      sent: result?.success === true,
+      error: result?.success === true ? null : result?.error || result?.note || "errors.somethingWrong",
+    };
+  } catch (error) {
+    emailResult = { sent: false, error: error?.message || String(error) };
+  }
+
   // An account that connected a calendar gets the session through its own sync
   // source (the invite is a session the person is part of). Best-effort.
   if (contactCid) {
@@ -110,7 +123,7 @@ export async function addSessionInvitee({ sessionId, session, ventureLabel, emai
       await syncUser(contactCid);
     } catch (_) {}
   }
-  return { ok: true, invitee };
+  return { ok: true, invitee, emailResult };
 }
 
 /** Remove one invitee. Their calendar loses the session on its next sync. */

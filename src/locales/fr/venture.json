@@ -712,7 +712,8 @@
         "under_review": "En revue",
         "changes_requested": "Modifications demandées",
         "completed": "Terminé"
-      }
+      },
+      "sessionBookedEmailFailed": "Séance réservée — mais l'e-mail n'a pas pu être envoyé à {emails}. Transmettez-leur les détails autrement."
     },
     "personal": {
       "title": "Mon tableau de bord",

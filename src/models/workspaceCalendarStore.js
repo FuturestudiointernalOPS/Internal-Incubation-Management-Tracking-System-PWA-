@@ -46,8 +46,9 @@ export function selectPersonalVentureSessions(userId, scopeList) {
           WHERE start_time IS NOT NULL
             AND status NOT IN ('cancelled', 'no_show')
             AND (coach_contact_id = ?
+                 OR created_by = ?
                  OR (venture_facing = TRUE AND venture_id IN (${scopeList.map(() => "?").join(",")})))`,
-    args: [userId, ...scopeList],
+    args: [userId, userId, ...scopeList],
   });
 }
 
@@ -93,8 +94,15 @@ function calendarVentureScope(seesAllVentures, ventureScope, scopeIds) {
 /** Venture sessions on the calendar (founder-facing, plus the coach's own). */
 export function selectCalendarVentureSessions({ personalMode, seesAllVentures, ventureScope, scopeIds, sessionCid }) {
   const { scopeSql, args: scopeArgs } = calendarVentureScope(seesAllVentures, ventureScope, scopeIds);
-  const sessionsPersonalSql = personalMode && sessionCid ? " AND (coach_contact_id = ? OR venture_facing = TRUE)" : "";
-  const sessionsPersonalArgs = personalMode && sessionCid ? [sessionCid] : [];
+  // A session the person BOOKED is theirs to see, in whatever venture it sits —
+  // the creator is as much a party to it as the coach. Without this, a session
+  // booked in a venture outside one's own scope (a Super Admin's test booking,
+  // a manager covering another team) synced nowhere.
+  const sessionsPersonalSql =
+    personalMode && sessionCid
+      ? " AND (coach_contact_id = ? OR created_by = ? OR venture_facing = TRUE)"
+      : "";
+  const sessionsPersonalArgs = personalMode && sessionCid ? [sessionCid, sessionCid] : [];
   const sessionsBaseWhere = personalMode
     ? "start_time IS NOT NULL"
     : "venture_facing = TRUE AND start_time IS NOT NULL";

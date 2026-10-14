@@ -712,7 +712,8 @@
         "under_review": "Under review",
         "changes_requested": "Changes requested",
         "completed": "Completed"
-      }
+      },
+      "sessionBookedEmailFailed": "Session booked — but we could not e-mail {emails}. Send them the details another way."
     },
     "personal": {
       "title": "My Dashboard",
