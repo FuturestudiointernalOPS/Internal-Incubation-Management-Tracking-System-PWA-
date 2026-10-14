@@ -3,12 +3,12 @@
 Branche `google-calendar-sync` (créée depuis `dashboard_refactoring_front`), 2026-10-08.
 Ouverte à **tous les rôles et tous les utilisateurs** (branche `A`, 2026-10-09).
 
-Chaque utilisateur connecté peut relier son compte Google, depuis la **carte
-« Google Calendar » de sa page profil** (ou depuis la barre d'outils du calendrier
-du tableau de bord admin). Ses tâches datées **et ses objets horaires** (sessions
-de programme, rendez-vous de coaching) sont copiés dans son Google Calendar, et
-les événements qu'il ajoute côté Google **dans l'agenda Future Studio**
-apparaissent sur le tableau de bord. Ses rendez-vous personnels ne sont jamais lus.
+Chaque utilisateur connecté peut relier son compte Google depuis le **contrôle
+de l'en-tête partagé** (visible par tous les rôles). Ses **sessions** (programme
+et venture), ses **rendez-vous de coaching** et ses **jalons de venture** sont
+copiés dans son Google Calendar, et les événements qu'il ajoute côté Google
+**dans l'agenda Future Studio** apparaissent sur le tableau de bord. Ses
+rendez-vous personnels ne sont jamais lus.
 
 ---
 
@@ -39,7 +39,7 @@ Résultat :
 
 | Sens | Ce qui passe | Ce qui ne passe jamais |
 |---|---|---|
-| Plateforme → Google | les tâches datées de l'utilisateur (créées par lui ou qui lui sont assignées), dans l'agenda « Future Studio » | les tâches des autres membres |
+| Plateforme → Google | les **sessions**, les **rendez-vous de coaching** et les **jalons** des ventures de la personne, dans l'agenda « Future Studio » | les objets des ventures dont elle ne fait pas partie ; les **tâches** (volontairement non synchronisées) |
 | Google → plateforme | les événements que l'utilisateur ajoute **dans l'agenda « Future Studio »** | tout événement d'un autre agenda (perso, travail, anniversaires…) : inaccessible au niveau OAuth |
 
 Pour ajouter un rendez-vous Future Studio depuis Google, l'utilisateur le crée
@@ -55,9 +55,9 @@ Migration : `src/migrations/050_google_calendar_sync.sql`. Le même schéma est 
 `src/models/integrations/googleCalendar.js`, sauf si
 `SKIP_RUNTIME_SCHEMA_MAINTENANCE=true` (dans ce cas, appliquer la migration à la main). Les
 changements sont purement additifs : 4 nouvelles tables (`google_calendar_connections`,
-`google_calendar_task_links`, `google_calendar_events` et
-`google_calendar_event_links` pour les objets horaires), aucune table existante
-modifiée.
+`google_calendar_events`, `google_calendar_event_links` pour les objets
+synchronisés, et `google_calendar_task_links` — **héritage**, l'historique des
+tâches jadis copiées), aucune table existante modifiée.
 
 ### `google_calendar_connections` — une ligne par utilisateur relié
 
@@ -73,7 +73,7 @@ modifiée.
 | `channel_id`, `channel_token_hash`, `channel_resource_id`, `channel_expires_at` | canal de notifications push (webhook). Le secret est stocké **haché** (SHA-256) |
 | `last_synced_at`, `last_error` | état affiché dans l'UI (`revoked`, `syncFailed`) |
 
-### `google_calendar_task_links` — tâche → événement Google
+### `google_calendar_task_links` — (héritage) tâche → événement Google
 
 `(user_id, task_id)` → `google_event_id` + `fingerprint` (hash du dernier
 contenu envoyé). Si l'empreinte n'a pas changé, aucun appel n'est fait à Google.
@@ -98,8 +98,8 @@ heure, `all_day`, `html_link`.
   changer de clé ou d'algorithme plus tard.
 - Les jetons ne quittent jamais le serveur : l'API de statut indique seulement
   si une connexion existe.
-- La déconnexion **révoque** le jeton chez Google, puis supprime les trois
-  types de lignes de l'utilisateur.
+- La déconnexion **révoque** le jeton chez Google, puis supprime toutes les
+  lignes de l'utilisateur (connexion, liens, objets importés).
 
 ---
 
@@ -112,8 +112,9 @@ L'architecture suit les couches MVC du projet (`docs/LAYER_SPLIT.md`) :
 | Infra | `src/lib/integrations/google/oauth.js` | URL de consentement, échange du code, refresh, révocation |
 | Infra | `src/lib/integrations/google/calendarApi.js` | appels REST Calendar v3 (`fetch`, sans SDK) |
 | Infra | `src/lib/integrations/google/tokenCrypto.js` | chiffrement AES-256-GCM |
-| Modèle | `src/models/integrations/googleCalendar.js` | tout le SQL des 3 tables + lecture des tâches à synchroniser |
-| Service | `src/services/integrations/googleCalendar/mapping.js` | règles pures : tâche → événement, reconnaissance de nos copies, plan créer/modifier/supprimer |
+| Modèle | `src/models/integrations/googleCalendar.js` | tout le SQL des tables de suivi + la lecture des objets à synchroniser |
+| Service | `src/services/integrations/googleCalendar/mapping.js` | règles pures : objet → événement (horaire ou journée entière), reconnaissance de nos copies, plan créer/modifier/supprimer |
+| Service | `src/services/integrations/googleCalendar/timedEvents.js` | composition des objets du calendrier (sessions, rendez-vous, jalons) selon la portée |
 | Service | `src/services/integrations/googleCalendar/index.js` | cas d'usage : connexion, synchro, webhook, cron, statut, déconnexion |
 | Contrôleurs | `src/app/api/integrations/google-calendar/**/route.js` | auth, appel du service, réponse |
 
@@ -142,32 +143,36 @@ L'architecture suit les couches MVC du projet (`docs/LAYER_SPLIT.md`) :
    l'accès à l'agenda, rien n'est connecté.
 4. Les jetons sont chiffrés et stockés. L'agenda « Future Studio » est créé.
    Une première synchro est lancée.
-5. Retour sur `/admin?gcal=connected`. Le tableau de bord affiche un message
+5. Retour sur la **page d'origine** `?gcal=connected`. La page affiche un message
    via `useDialogs()` puis nettoie l'URL.
 
 ### Synchronisation
 
-**Plateforme → Google** (`pushTasks`)
-- Tâches concernées : `tasks` où `user_id = cid` ou `assigned_to = cid`, avec
-  au moins une date, et qui ne sont pas terminées depuis plus de 90 jours
-  (500 au maximum).
-- Une tâche devient un événement **sur la journée entière**, du début à la
-  fin. La fin est exclusive chez Google, d'où le +1 jour. Une tâche terminée
-  est préfixée « ✓ ». L'événement est marqué « disponible » pour ne pas
-  bloquer l'agenda de l'utilisateur.
+**Plateforme → Google** (`pushCalendarEvents`)
+- **Sessions** : les sessions de programme et les sessions de venture de la
+  personne, **avec heure** (début et fin ; une session sans heure de fin est
+  copiée sur +1 h). Marquées « occupé ».
+- **Rendez-vous de coaching** : les suivis programmés, avec heure.
+- **Jalons de venture** : les jalons de ses ventures, en **journée entière** (un
+  jalon porte une date, pas une heure) ; la fin Google est exclusive, d'où le
+  +1 jour. Marqués « disponible ».
+- Portée des objets de venture : **personnelle** — les ventures de la personne
+  (membership ∪ affectations ∪ sessions coachées), jamais « toutes les ventures ».
+- Les **tâches ne sont plus synchronisées** (choix explicite). Les copies déjà
+  présentes dans les agendas Google ne sont **pas** supprimées.
 - Chaque copie porte un marqueur privé
-  `extendedProperties.private = { fs_source: "impactos", fs_task_id }`.
-- `planTaskSync` compare les tâches et les liens existants : il crée les
-  nouvelles, modifie celles dont l'empreinte a changé et supprime celles qui
-  sortent du périmètre.
-- La plateforme est la **source de vérité** pour les tâches. Une copie
-  supprimée à la main dans Google est recréée. Une modification faite dans
-  Google sur une copie de tâche n'est pas reportée sur la tâche.
+  `extendedProperties.private = { fs_source: "impactos", fs_ref: "<source>:<id>" }`.
+- `planEventSync` compare les objets et les liens existants : il crée les
+  nouveaux, modifie ceux dont l'empreinte a changé et supprime ceux qui sortent
+  du périmètre.
+- La plateforme est la **source de vérité**. Une copie supprimée à la main dans
+  Google est recréée ; une modification faite dans Google sur une copie n'est pas
+  reportée sur l'objet.
 
 **Google → plateforme** (`pullEvents`)
 - `events.list` sur l'agenda Future Studio, avec un `syncToken` : seuls les
   changements sont relus, suppressions comprises.
-- Les événements qui portent notre marqueur (nos copies de tâches) sont
+- Les événements qui portent notre marqueur (nos propres copies) sont
   ignorés. Les autres sont enregistrés dans `google_calendar_events`.
   Les événements annulés sont supprimés.
 - Une réponse `410 Gone` (jeton de synchro expiré) déclenche une relecture
@@ -281,13 +286,13 @@ curl -X POST "$APP_URL/api/integrations/google-calendar/cron" -H "x-cron-secret:
 ## 6. Tests
 
 Tests automatiques : `src/__tests__/google-calendar-sync.test.js`. Ils couvrent
-les dates (fin exclusive, changement de mois et d'année), la conversion d'une
-tâche en événement, le plan créer/modifier/supprimer, la reconnaissance de nos
+les dates (fin exclusive, changement de mois et d'année), la conversion d'un
+objet en événement (horaire **et** journée entière), le plan créer/modifier/supprimer, la reconnaissance de nos
 copies, la normalisation des événements Google et le chiffrement (aller-retour,
 IV unique, refus d'un chiffré altéré, refus sans clé).
 
 Résultats :
-- `npm test` : 350 suites et 7040 tests réussis ;
+- `npm test` : 377 suites et 7323 tests réussis ;
 - lint : 0 erreur, aucun nouvel avertissement sur les fichiers modifiés ;
 - `npm run i18n:parity` : 0 clé manquante ;
 - `npm run build` : OK.
@@ -299,14 +304,14 @@ Résultats :
 2. Avec les variables : clic → écran Google → accepter → retour sur `/admin`
    avec le message « Google Calendar connecté ».
 3. Dans Google Calendar : un agenda **« Future Studio »** existe et contient
-   les tâches datées (sur la journée entière, du début à la fin).
+   les sessions (avec heure) et les jalons (journée entière).
 4. Créer un événement dans **l'agenda principal** Google → il **n'apparaît
    pas** sur le tableau de bord, même après « Synchroniser maintenant ».
 5. Créer un événement dans **l'agenda « Future Studio »** → après
    synchronisation, il apparaît en bleu ciel. Un clic l'ouvre dans Google.
-6. Modifier la date d'une tâche sur la plateforme → « Synchroniser » →
-   l'événement Google est déplacé.
-7. Terminer une tâche → l'événement Google devient « ✓ … ».
+6. Déplacer la date d'un jalon de venture sur la plateforme → « Synchroniser » →
+   l'événement Google se déplace.
+7. Créer une session avec heure → elle apparaît avec son créneau horaire.
 8. Refuser l'accès sur l'écran Google → message « Connexion annulée ».
 9. « Déconnecter » → confirmation → le bouton revient. Sur
    https://myaccount.google.com/permissions, l'application n'a plus d'accès.
@@ -324,16 +329,22 @@ Résultats :
   ventures »). La durée d'une session vient de ses heures de début/fin ; à défaut,
   +1 h. Un rendez-vous de coaching est copié sur +30 min (sa durée n'est pas
   remontée).
-- Une nouvelle tâche part vers Google à la synchro suivante (chargement du
-  tableau de bord, bouton ou cron), pas instantanément. On pourrait appeler
-  `syncUser` après la création d'une tâche, mais cela toucherait au code des
-  tâches existant ; ce n'est pas fait dans cette tâche.
+- Un nouvel objet (session, rendez-vous, jalon) part vers Google à la synchro
+  suivante (chargement, bouton ou cron), pas instantanément. On pourrait appeler
+  `syncUser` après la création, mais cela toucherait au code des objets.
+- Les supporteurs d'un jalon ou d'une session sont des **noms** : ils n'ont ni
+  compte ni adresse e-mail enregistrés, donc ils ne peuvent pas encore être
+  atteints (ni par la synchro, ni par une invitation). Il faut d'abord leur
+  rattacher un compte ou une adresse.
+- Envoyer un **rappel de jalon** (le moteur de rappels envoie l'e-mail) ne crée
+  pas encore d'**événement distinct** dans le calendrier : la copie du jalon
+  apparaît, mais l'événement « rappel » à propre date reste à ajouter.
 - La déconnexion **laisse** l'agenda « Future Studio » dans le compte Google,
   pour ne jamais supprimer de données de l'utilisateur. Une reconnexion
   ultérieure crée un nouvel agenda.
 - Le verrou « une synchro à la fois » vaut pour un processus. Sur plusieurs
   instances serverless, deux synchros simultanées restent possibles mais
-  rares. Le pire cas est une copie en double d'une tâche dans l'agenda Google
+  rares. Le pire cas est une copie en double d'un objet dans l'agenda Google
   (l'une des deux n'est plus suivie et doit être supprimée à la main). Un
   verrou en base (`SELECT … FOR UPDATE SKIP LOCKED`) réglerait ce cas si
   besoin.

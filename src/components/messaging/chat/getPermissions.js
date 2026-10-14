@@ -22,12 +22,8 @@ export function getPermissions(role, groupName, userProgramIds, allPrograms) {
     // Super Admin can message anyone
     if (isSA) return true;
 
-    // Staff (FUTURE STUDIO): only other FUTURE STUDIO members
-    if (isStaffFutureStudio) {
-      return (
-        String(contact.group_name || "").toUpperCase() === "FUTURE STUDIO"
-      );
-    }
+    // Staff: any active contact (FUTURE STUDIO members get the staff group too)
+    if (role === "staff") return true;
 
     // Program Manager: only contacts in programs they manage
     if (isPM) {

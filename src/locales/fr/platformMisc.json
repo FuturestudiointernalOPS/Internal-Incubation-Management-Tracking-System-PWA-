@@ -283,6 +283,7 @@
       "notifyFormArchived": "Formulaire archivé",
       "notifyFormDeleted": "Formulaire supprimé définitivement",
       "notifyFormCreated": "Formulaire créé",
+      "notifyCreateFailed": "Impossible de créer le formulaire",
       "notifyFormDuplicated": "Formulaire dupliqué",
       "notifyFormRepublished": "Formulaire republié — URL en direct mise à jour",
       "notifyFormRestored": "Formulaire restauré",

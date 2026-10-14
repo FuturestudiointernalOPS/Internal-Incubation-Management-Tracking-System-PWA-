@@ -14,7 +14,7 @@ import {
   planEventSync,
   planTaskSync,
   taskToGoogleEvent,
-  timedEventToGoogleEvent,
+  eventToGoogleEvent,
   toDashboardItem,
 } from "@/services/integrations/googleCalendar/mapping";
 import {
@@ -99,7 +99,7 @@ describe("timed objects (sessions, follow-ups)", () => {
   });
 
   it("makes a TIMED (busy) event carrying a real start and end instant", () => {
-    const body = timedEventToGoogleEvent(session(), { appUrl: "https://app.test" });
+    const body = eventToGoogleEvent(session(), { appUrl: "https://app.test" });
     expect(body.start).toEqual({ dateTime: "2026-10-12T09:00:00.000Z" });
     expect(body.end).toEqual({ dateTime: "2026-10-12T10:00:00.000Z" });
     expect(body.transparency).toBe("opaque"); // a session occupies the person's time
@@ -108,9 +108,9 @@ describe("timed objects (sessions, follow-ups)", () => {
   });
 
   it("falls back to the start when there is no end, and skips a missing start", () => {
-    const body = timedEventToGoogleEvent(session({ endsAt: null }));
+    const body = eventToGoogleEvent(session({ endsAt: null }));
     expect(body.end).toEqual({ dateTime: "2026-10-12T09:00:00.000Z" });
-    expect(timedEventToGoogleEvent(session({ startsAt: null }))).toBeNull();
+    expect(eventToGoogleEvent(session({ startsAt: null }))).toBeNull();
   });
 
   it("keys a timed source by source + id", () => {
@@ -135,7 +135,22 @@ describe("timed objects (sessions, follow-ups)", () => {
   });
 
   it("our own timed copies are recognised and skipped on the way back", () => {
-    expect(isPlatformEvent(timedEventToGoogleEvent(session()))).toBe(true);
+    expect(isPlatformEvent(eventToGoogleEvent(session()))).toBe(true);
+  });
+
+  it("makes a venture milestone an ALL-DAY, free event with an exclusive end", () => {
+    const body = eventToGoogleEvent({
+      source: "venture_milestone",
+      sourceId: "42",
+      title: "Market Expansion (milestone)",
+      allDay: true,
+      startDate: "2026-11-02",
+      endDate: "2026-11-02",
+    });
+    expect(body.start).toEqual({ date: "2026-11-02" });
+    expect(body.end).toEqual({ date: "2026-11-03" }); // Google's end is exclusive
+    expect(body.transparency).toBe("transparent");
+    expect(body.extendedProperties.private.fs_ref).toBe("venture_milestone:42");
   });
 });
 

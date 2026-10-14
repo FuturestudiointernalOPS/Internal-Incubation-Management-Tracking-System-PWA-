@@ -35,13 +35,11 @@ import {
   listConnections,
   listEventLinks,
   listImportedEvents,
-  listSyncableTasksForUser,
   listTaskLinks,
   updateConnection,
   upsertConnection,
   upsertEventLink,
   upsertImportedEvent,
-  upsertTaskLink,
 } from "@/models/integrations/googleCalendar";
 import { getContactIdentityByCid } from "@/models/contacts/contactStore";
 import {
@@ -49,10 +47,9 @@ import {
   isPlatformEvent,
   normalizeGoogleEvent,
   planEventSync,
-  planTaskSync,
   toDashboardItem,
 } from "./mapping";
-import { listUserTimedEvents } from "./timedEvents";
+import { listUserCalendarEvents } from "./timedEvents";
 
 /**
  * Google Calendar integration — use cases (SERVICE layer).
@@ -200,46 +197,6 @@ async function resetCalendar(connection) {
 
 // ── Platform → Google ───────────────────────────────────────────────────────
 
-async function pushTasks(connection, accessToken) {
-  const userId = connection.user_id;
-  const calendarId = connection.calendar_id;
-  const [tasks, links] = await Promise.all([
-    listSyncableTasksForUser(userId),
-    listTaskLinks(userId),
-  ]);
-  const plan = planTaskSync(tasks, links, { appUrl: resolveAppUrl() });
-  const stats = { created: 0, updated: 0, deleted: 0 };
-
-  for (const { task, body, fingerprint } of plan.creates) {
-    const created = await insertEvent(accessToken, calendarId, body);
-    await upsertTaskLink(userId, task.id, created.id, fingerprint);
-    stats.created++;
-  }
-  for (const { task, eventId, body, fingerprint } of plan.updates) {
-    try {
-      await patchEvent(accessToken, calendarId, eventId, body);
-      await upsertTaskLink(userId, task.id, eventId, fingerprint);
-    } catch (error) {
-      if (!isGone(error)) throw error;
-      // Deleted by hand in Google: the platform is the source of truth for
-      // tasks, so the copy is recreated.
-      const created = await insertEvent(accessToken, calendarId, body);
-      await upsertTaskLink(userId, task.id, created.id, fingerprint);
-    }
-    stats.updated++;
-  }
-  for (const { taskId, eventId } of plan.deletes) {
-    try {
-      await deleteEvent(accessToken, calendarId, eventId);
-    } catch (error) {
-      if (!isGone(error)) throw error;
-    }
-    await deleteTaskLink(userId, taskId);
-    stats.deleted++;
-  }
-  return stats;
-}
-
 async function resolveUserRole(userId) {
   const res = await getContactIdentityByCid(userId).catch(() => ({ rows: [] }));
   return res.rows?.[0]?.role || null;
@@ -247,11 +204,11 @@ async function resolveUserRole(userId) {
 
 // ── Platform timed objects → Google (sessions, follow-ups) ───────────────────
 
-async function pushTimedEvents(connection, accessToken, role) {
+async function pushCalendarEvents(connection, accessToken, role) {
   const userId = connection.user_id;
   const calendarId = connection.calendar_id;
   const [events, links] = await Promise.all([
-    listUserTimedEvents({ userId, role }),
+    listUserCalendarEvents({ userId, role }),
     listEventLinks(userId),
   ]);
   const plan = planEventSync(events, links, { appUrl: resolveAppUrl() });
@@ -382,8 +339,7 @@ async function ensureWatch(connection, accessToken) {
 async function runSync(connection, { push = true, role = null } = {}) {
   const accessToken = await getAccessToken(connection);
   await ensureCalendar(connection, accessToken);
-  const pushed = push ? await pushTasks(connection, accessToken) : null;
-  const pushedEvents = push ? await pushTimedEvents(connection, accessToken, role) : null;
+  const pushedEvents = push ? await pushCalendarEvents(connection, accessToken, role) : null;
   const pulled = await pullEvents(connection, accessToken);
   let watching = false;
   try {
@@ -391,7 +347,7 @@ async function runSync(connection, { push = true, role = null } = {}) {
   } catch (error) {
     console.warn("[Google Calendar] watch channel not opened:", error.message);
   }
-  return { pushed, pushedEvents, pulled, watching };
+  return { pushedEvents, pulled, watching };
 }
 
 /** Full two-way sync of one user. Returns { ok, ...stats } or { ok:false, error }. */

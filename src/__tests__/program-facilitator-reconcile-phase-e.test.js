@@ -17,6 +17,7 @@ jest.mock("@/models/programMembership", () => ({
   endV2MirroredProgramContactRole: jest.fn(async () => ({ rows: [] })),
   findParticipantFacilitatorConflict: jest.fn(async () => ({ rows: [] })),
   getContactEmailForRoleConflict: jest.fn(async () => ({ rows: [{ email: "fac@x.test" }] })),
+  getContactFacilitatorEligibility: jest.fn(async () => ({ rows: [{ role: "staff", is_program_pm: false }] })),
   getProgramStaffTargetForScopeCheck: jest.fn(async () => ({ rows: [] })),
   getV2ContactCidForProgramRoleCleanup: jest.fn(async () => ({ rows: [{ cid: "C1" }] })),
   getV2ContactCidForProgramRoleMirror: jest.fn(async () => ({ rows: [{ cid: "C1" }] })),
