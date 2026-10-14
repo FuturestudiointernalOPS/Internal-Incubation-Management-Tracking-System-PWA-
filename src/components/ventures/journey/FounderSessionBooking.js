@@ -15,11 +15,12 @@ import { CalendarPlus, Loader2, X } from "lucide-react";
  */
 export default function FounderSessionBooking({
   bookFor,
+  bookForKey,
   bookForm,
   bookSaving,
   bookSession,
   milestone,
-  openBooking,
+  onOpen,
   setBookFor,
   setBookForm,
   stage,
@@ -27,7 +28,7 @@ export default function FounderSessionBooking({
   const { t } = useI18n();
   return (
     <div className="space-y-1.5 pt-1">
-      {bookFor === milestone.id ? (
+      {bookFor === bookForKey ? (
         <form onSubmit={(event) => bookSession(event, stage, milestone)} className="rounded-lg border p-2.5 space-y-2" style={{ borderColor: 'rgb(255 255 255 / 0.08)' }}>
           <p className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5" style={{ color: 'var(--brand-orange)' }}>
             <CalendarPlus size={13} /> {t('venture.manager.bookSession')}
@@ -82,7 +83,7 @@ export default function FounderSessionBooking({
           </div>
         </form>
       ) : (
-        <button type="button" onClick={() => openBooking(milestone)} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-orange)' }}>
+        <button type="button" onClick={onOpen} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-orange)' }}>
           <CalendarPlus size={12} /> {t('venture.manager.bookSession')}
         </button>
       )}
