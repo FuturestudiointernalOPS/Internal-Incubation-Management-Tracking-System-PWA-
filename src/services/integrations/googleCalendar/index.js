@@ -3,6 +3,7 @@ import { resolveAppUrl } from "@/lib/appUrl";
 import { hashToken } from "@/lib/token-hashing";
 import {
   buildGoogleAuthUrl,
+  describeGoogleRedirect,
   emailFromIdToken,
   exchangeGoogleCode,
   isGoogleOAuthConfigured,
@@ -423,13 +424,30 @@ export async function handleNotification({ channelId, channelToken, resourceStat
 // ── Status, dashboard items, disconnect ─────────────────────────────────────
 
 export async function getStatus(userId) {
+  // The callback we actually send Google, so the screen can be compared with
+  // the authorized redirect URIs in the Google console. Not a secret: it is
+  // already visible in the browser during consent.
+  const redirect = describeGoogleRedirect();
   const configured = isGoogleCalendarConfigured();
   if (!configured) {
-    return { configured: false, connected: false, missing: missingGoogleCalendarConfig() };
+    return {
+      configured: false,
+      connected: false,
+      missing: missingGoogleCalendarConfig(),
+      redirectUri: redirect.redirectUri,
+      redirectUriSource: redirect.source,
+    };
   }
   await ensureGoogleCalendarSchema();
   const connection = await findConnectionByUser(userId);
-  if (!connection) return { configured: true, connected: false };
+  if (!connection) {
+    return {
+      configured: true,
+      connected: false,
+      redirectUri: redirect.redirectUri,
+      redirectUriSource: redirect.source,
+    };
+  }
   return {
     configured: true,
     connected: true,
@@ -438,6 +456,8 @@ export async function getStatus(userId) {
     lastSyncedAt: connection.last_synced_at,
     lastError: connection.last_error,
     realtime: Boolean(connection.channel_id),
+    redirectUri: redirect.redirectUri,
+    redirectUriSource: redirect.source,
   };
 }
 

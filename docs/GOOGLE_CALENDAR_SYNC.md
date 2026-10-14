@@ -263,7 +263,6 @@ GOOGLE_CLIENT_ID=xxxxxxxx.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=xxxxxxxx
 GOOGLE_TOKEN_ENCRYPTION_KEY=$(openssl rand -base64 32)   # NE PLUS CHANGER ensuite
 # optionnelles
-GOOGLE_REDIRECT_URI=https://…/api/integrations/google-calendar/callback  # sinon APP_URL + chemin
 GOOGLE_CALENDAR_TIMEZONE=Africa/Porto-Novo
 GOOGLE_CALENDAR_WEBHOOKS=off        # pour couper les notifications push
 CRON_SECRET=…                       # déjà utilisé par les autres tâches planifiées
@@ -271,6 +270,45 @@ CRON_SECRET=…                       # déjà utilisé par les autres tâches p
 
    Si `GOOGLE_TOKEN_ENCRYPTION_KEY` change, les jetons déjà stockés deviennent
    illisibles : chaque utilisateur doit alors se reconnecter.
+
+### 5.1 L'URI de retour est DÉDUITE, jamais recopiée
+
+L'URI de retour n'est pas une variable à saisir : elle est construite depuis
+`APP_URL` + `/api/integrations/google-calendar/callback`. Google compare la
+valeur **caractère par caractère** avec la liste des *Authorized redirect URIs*,
+donc la seule chose à configurer par environnement est `APP_URL` :
+
+| Environnement | `APP_URL` |
+| --- | --- |
+| Production | `https://impactos.futurestudio.bj` |
+| Staging | `https://<domaine-de-staging>` |
+| Local | (rien — `http://localhost:3000`) |
+
+- Ne PAS définir `GOOGLE_REDIRECT_URI` en production. Si vous le faites, la
+  valeur doit être l'URL **complète** (`https://<domaine>/api/integrations/…`) :
+  le code refuse désormais toute valeur qui n'est pas une URL de retour
+  utilisable (schéma, hôte, chemin) et retombe sur la valeur déduite, avec un
+  avertissement explicite dans les logs.
+- Sans `APP_URL`, Vercel fournit `VERCEL_URL` : l'hôte de **déploiement**
+  (`…-<hash>.vercel.app`). Le hash change à chaque déploiement, donc une URI de
+  retour construite ainsi ne correspondra jamais durablement à une valeur
+  enregistrée. Le code avertit quand il en arrive là.
+- La route de statut
+  (`GET /api/integrations/google-calendar`) renvoie `redirectUri` et
+  `redirectUriSource` : c'est la valeur exacte envoyée à Google, à comparer avec
+  la console.
+
+### 5.2 Dépannage — `Error 400: redirect_uri_mismatch`
+
+1. `GET /api/integrations/google-calendar` sur l'environnement concerné et lire
+   `redirectUri` (et `redirectUriSource`).
+2. Comparer cette valeur, à l'identique, avec les *Authorized redirect URIs* du
+   client OAuth utilisé par cet environnement (`GOOGLE_CLIENT_ID`).
+3. Les deux causes déjà rencontrées : un hôte de déploiement (hash `vercel.app`)
+   au lieu du domaine public — donc `APP_URL` manquant — et une valeur
+   `GOOGLE_REDIRECT_URI` recopiée sans le préfixe `/api`.
+4. La propagation d'un changement d'URI enregistrée peut prendre de quelques
+   minutes à quelques heures.
 6. **Cron** : appeler la route toutes les 15 min environ :
 
 ```bash

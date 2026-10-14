@@ -10,13 +10,100 @@ import { resolveAppUrl } from "@/lib/appUrl";
  * Environment:
  *   GOOGLE_CLIENT_ID        OAuth client (type "Web application")
  *   GOOGLE_CLIENT_SECRET
- *   GOOGLE_REDIRECT_URI     optional — defaults to
- *                           <APP_URL>/api/integrations/google-calendar/callback
+ *   APP_URL                 the public domain of THIS environment (see appUrl.js)
+ *   GOOGLE_REDIRECT_URI     optional — normally left unset. When set it MUST be
+ *                           the full callback URL (https://<host>/api/…); a
+ *                           value that is not a usable callback is refused
+ *                           loudly instead of being sent to Google.
  */
 
 const AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 const REVOKE_ENDPOINT = "https://oauth2.googleapis.com/revoke";
+
+/**
+ * The one path our callback handler actually serves. Google compares the
+ * redirect_uri byte-for-byte against the registered list, so this path — not a
+ * hand-typed string — is what every caller must build from.
+ */
+export const GOOGLE_CALENDAR_CALLBACK_PATH =
+  "/api/integrations/google-calendar/callback";
+
+// Avoid repeating the same configuration warning on every token exchange.
+const _warned = new Set();
+function warnOnce(key, message) {
+  if (_warned.has(key)) return;
+  _warned.add(key);
+  console.warn(message);
+}
+
+/**
+ * Could this be the OAuth callback? A redirect URI is only usable when it is
+ * absolute, https (http only for local development) and ends with the path the
+ * handler serves — otherwise it can never be one of the registered URIs.
+ */
+export function isUsableGoogleRedirectUri(value) {
+  try {
+    const url = new URL(String(value || "").trim());
+    const isLocal =
+      url.hostname === "localhost" || url.hostname === "127.0.0.1";
+    if (url.protocol !== "https:" && !(url.protocol === "http:" && isLocal)) {
+      return false;
+    }
+    return url.pathname.replace(/\/+$/, "") === GOOGLE_CALENDAR_CALLBACK_PATH;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The redirect URI we send Google — DERIVED, never hand-typed.
+ *
+ * A mismatch is invisible until Google rejects the whole consent screen, so a
+ * malformed override is refused here (warning + derived URL) rather than sent.
+ * Deriving from APP_URL also keeps the value off the deployment host: a
+ * `*.vercel.app` callback changes with every deployment hash, so a registered
+ * preview URL can never match for long.
+ */
+export function getGoogleCalendarRedirectUri() {
+  const override = String(process.env.GOOGLE_REDIRECT_URI || "").trim();
+  if (override) {
+    if (isUsableGoogleRedirectUri(override)) return override.replace(/\/+$/, "");
+    warnOnce(
+      `bad-redirect:${override}`,
+      `[google-oauth] GOOGLE_REDIRECT_URI is not a usable callback URL: "${override}". ` +
+        `It must be https://<host>${GOOGLE_CALENDAR_CALLBACK_PATH}. The override is ignored ` +
+        `and the URL is derived from APP_URL instead.`,
+    );
+  }
+
+  const derived = `${resolveAppUrl()}${GOOGLE_CALENDAR_CALLBACK_PATH}`;
+  try {
+    const { hostname } = new URL(derived);
+    if (hostname.endsWith(".vercel.app")) {
+      warnOnce(
+        `vercel-host:${hostname}`,
+        `[google-oauth] the OAuth callback is derived from a deployment host (${hostname}). ` +
+          `Set APP_URL to this environment's public domain, or Google will reject the redirect.`,
+      );
+    }
+  } catch {
+    // A malformed APP_URL is not fatal here — Google reports it precisely.
+  }
+  return derived;
+}
+
+/** The redirect URI and where it came from — for the integration status screen. */
+export function describeGoogleRedirect() {
+  const override = String(process.env.GOOGLE_REDIRECT_URI || "").trim();
+  return {
+    redirectUri: getGoogleCalendarRedirectUri(),
+    source:
+      override && isUsableGoogleRedirectUri(override)
+        ? "GOOGLE_REDIRECT_URI"
+        : "APP_URL",
+  };
+}
 
 // `calendar.app.created` is the privacy guarantee of the whole feature: it only
 // grants access to calendars this app creates. Google itself refuses any read
@@ -32,9 +119,7 @@ export function getGoogleOAuthConfig() {
   return {
     clientId: process.env.GOOGLE_CLIENT_ID || "",
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-    redirectUri:
-      process.env.GOOGLE_REDIRECT_URI ||
-      `${resolveAppUrl()}/api/integrations/google-calendar/callback`,
+    redirectUri: getGoogleCalendarRedirectUri(),
   };
 }
 
