@@ -26,6 +26,7 @@ export function sessionBooking({
   setCoachOptions,
   bookForm,
   notify,
+  notifyPopup,
   t,
   setBookSaving,
   refreshSessions,
@@ -128,7 +129,14 @@ export function sessionBooking({
       });
       const payload = await res.json();
       if (payload.success) {
-        notify(t("venture.manager.sessionBooked"));
+        // A booking is the moment the person just spent effort on: it is worth
+        // stopping for, so it is said in a popup instead of a banner at the top
+        // of a long panel that scrolls away unnoticed.
+        if (typeof notifyPopup === "function") {
+          await notifyPopup({ message: t("venture.manager.sessionBooked") });
+        } else {
+          notify(t("venture.manager.sessionBooked"));
+        }
         setBookFor(null);
         // Surface the new session inside its milestone right away.
         refreshSessions();

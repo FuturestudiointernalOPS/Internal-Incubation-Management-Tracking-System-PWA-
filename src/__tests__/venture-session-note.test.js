@@ -7,8 +7,8 @@
  *     carries its internal note
  *   - a session must belong to a milestone: without milestone_ref the request
  *     is refused (400) and creates nothing
- *   - a session must carry a parseable start_time and must start at least 30
- *     minutes in the future, otherwise 400 and nothing is created
+ *   - a session must carry a parseable start_time and must not start in the
+ *     past, otherwise 400 and nothing is created
  *   - a deliverable_id must resolve to a deliverable of the booked milestone:
  *     an unknown deliverable, or one from another milestone, is refused (400)
  *     and creates nothing
@@ -16,6 +16,9 @@
  *     and the milestone record stays the manager's own writing
  *   - a valid session carries its trimmed note, its milestone_ref and its
  *     deliverable_id through to createSession
+ *   - the BOOKER's own calendar is pushed at booking time (best-effort): the
+ *     confirmation promises the session appears on their calendar, and waiting
+ *     for a later sync is not that promise
  */
 
 const executed = [];
@@ -93,6 +96,14 @@ jest.mock("@/services/ventures/notify", () => ({
   notifyVentureLeadManagers: jest.fn().mockResolvedValue(true),
 }));
 
+// Booking pushes the booker's own calendar; the push itself is another test's
+// subject, so here it only has to be reachable and harmless.
+jest.mock("@/services/integrations/googleCalendar", () => ({
+  syncUser: jest.fn(async () => ({ ok: false })),
+}));
+
+const { syncUser } = require("@/services/integrations/googleCalendar");
+
 const VENTURE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const { POST } = require("@/app/api/ventures/[id]/sessions/route");
 const ctx = { params: { id: VENTURE_ID } };
@@ -111,6 +122,7 @@ beforeEach(() => {
   mockGetSession.mockReset();
   mockGetSession.mockResolvedValue(null);
   mockUpdateSession.mockClear();
+  syncUser.mockClear();
 });
 
 describe("POST /api/ventures/[id]/sessions — compulsory session note", () => {
@@ -166,6 +178,10 @@ describe("POST /api/ventures/[id]/sessions — compulsory session note", () => {
     // The memo stays on the SESSION: it is the brief the Venture is told about,
     // and nothing is copied onto the milestone.
     expect(executed.find((entry) => entry.sql && entry.sql.includes("INSERT INTO venture_notes"))).toBeUndefined();
+
+    // The booker's OWN calendar is pushed now, not on some later sync: the
+    // confirmation says the session appears on their calendar.
+    expect(syncUser).toHaveBeenCalledWith("sa-1");
   });
 
   test("a session without a milestone is refused", async () => {
@@ -220,6 +236,8 @@ describe("POST /api/ventures/[id]/sessions — compulsory session note", () => {
     expect(res.status).toBe(400);
     expect(data.error).toBe("A session cannot start in the past.");
     expect(mockCreateSession).not.toHaveBeenCalled();
+    // Nothing was created, so nothing is pushed anywhere.
+    expect(syncUser).not.toHaveBeenCalled();
   });
 
   test("a session starting minutes from now is accepted — no lead time", async () => {

@@ -165,6 +165,17 @@ export const POST = createHandler(async (req, { params }) => {
           }).catch(() => {});
         }
       }
+      // The person who booked gets the session on their OWN calendar now, not
+      // on whatever the next sync happens to be: the booking is what just
+      // happened, and the confirmation says the session appears on their
+      // calendar. Best-effort, exactly like the invitee path below — a calendar
+      // that cannot be reached never fails the booking.
+      if (req.session?.cid) {
+        try {
+          const { syncUser } = await import("@/services/integrations/googleCalendar");
+          await syncUser(req.session.cid);
+        } catch (_) {}
+      }
       return NextResponse.json({ success: true, session_id: createdSession.id });
     } catch (error) { return NextResponse.json({ success: false, error: error.message }, { status: 400 }); }
   }

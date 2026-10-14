@@ -17,6 +17,7 @@ import {
   toTimeInput,
 } from "@/lib/ventureSessionRules";
 import { useVenture } from "../VentureContext";
+import { useDialogs } from "@/components/ui/DialogProvider";
 import { sessionBookingKey } from "@/components/ventures/journey/journeyShapers";
 import FounderMilestoneSessions from "@/components/ventures/journey/FounderMilestoneSessions";
 import FounderMilestoneTasks from "@/components/ventures/journey/FounderMilestoneTasks";
@@ -28,6 +29,9 @@ import FounderMilestoneDeliverables from "./JourneyPlaybookTabs/FounderMilestone
    review each submission (approved / changes requested). */
 export function JourneyTab() {
   const { t } = useI18n();
+  // The booking's own confirmation is a popup: the inline banner at the top of
+  // the tab scrolls away long before the person looks up from the form.
+  const { alert } = useDialogs();
   const { journeyStages, cardStyle, params, notifyMsg, fetchJourney, journeyDeliverablesUnavailable } = useVenture();
   const [openId, setOpenId] = useState(null);
   const [tasksByMilestone, setTasksByMilestone] = useState({});
@@ -135,7 +139,7 @@ export function JourneyTab() {
       });
       const payload = await res.json();
       if (payload.success) {
-        notifyMsg(t("venture.manager.sessionBooked"));
+        await alert({ message: t("venture.manager.sessionBooked") });
         setBookFor(null);
         await loadVentureSessions();
       } else {
