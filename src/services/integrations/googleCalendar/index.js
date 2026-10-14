@@ -205,6 +205,16 @@ async function resolveUserRole(userId) {
 
 // ── Platform timed objects → Google (sessions, follow-ups) ───────────────────
 
+/**
+ * Ask Google to e-mail the guests of an event we write.
+ *
+ * `sendUpdates` defaults to sending NOTHING, so a session with attendees would
+ * land on the organiser's calendar and reach nobody — the silent half of the
+ * invitation. "all" only matters when an event HAS attendees; an event without
+ * them sends nothing.
+ */
+const NOTIFY_ATTENDEES = { sendUpdates: "all" };
+
 async function pushCalendarEvents(connection, accessToken, role) {
   const userId = connection.user_id;
   const calendarId = connection.calendar_id;
@@ -216,25 +226,26 @@ async function pushCalendarEvents(connection, accessToken, role) {
   const stats = { created: 0, updated: 0, deleted: 0 };
 
   for (const { event, body, fingerprint } of plan.creates) {
-    const created = await insertEvent(accessToken, calendarId, body);
+    const created = await insertEvent(accessToken, calendarId, body, NOTIFY_ATTENDEES);
     await upsertEventLink(userId, event.source, event.sourceId, created.id, fingerprint);
     stats.created++;
   }
   for (const { event, eventId, body, fingerprint } of plan.updates) {
     try {
-      await patchEvent(accessToken, calendarId, eventId, body);
+      await patchEvent(accessToken, calendarId, eventId, body, NOTIFY_ATTENDEES);
       await upsertEventLink(userId, event.source, event.sourceId, eventId, fingerprint);
     } catch (error) {
       if (!isGone(error)) throw error;
       // Deleted by hand in Google: recreate it.
-      const created = await insertEvent(accessToken, calendarId, body);
+      const created = await insertEvent(accessToken, calendarId, body, NOTIFY_ATTENDEES);
       await upsertEventLink(userId, event.source, event.sourceId, created.id, fingerprint);
     }
     stats.updated++;
   }
   for (const { source, sourceId, eventId } of plan.deletes) {
     try {
-      await deleteEvent(accessToken, calendarId, eventId);
+      // A cancelled session must also leave the guests' calendars.
+      await deleteEvent(accessToken, calendarId, eventId, NOTIFY_ATTENDEES);
     } catch (error) {
       if (!isGone(error)) throw error;
     }

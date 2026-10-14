@@ -157,6 +157,15 @@ export function eventToGoogleEvent(event, { appUrl = "" } = {}) {
     summary: event.title || "Event",
     description: lines.join("\n"),
     ...(event.location ? { location: event.location } : {}),
+    // Guests the session was booked with. Google sends them the invitation for
+    // an event on the organiser's own calendar, so a guest needs no ImpactOS
+    // account and no connection of their own — the invitation arrives from
+    // Google, with accept / decline, and follows later edits and cancellations.
+    // The address list is part of the fingerprint, so adding a guest later
+    // re-sends the event (and the invitation with it).
+    ...(Array.isArray(event.attendees) && event.attendees.length
+      ? { attendees: event.attendees }
+      : {}),
     extendedProperties: {
       private: {
         fs_source: PLATFORM_MARKER,

@@ -553,7 +553,7 @@
       "sessionNotifyHint": "L'entreprise, le coach et vous êtes notifiés par e-mail, et la session apparaît dans vos calendriers.",
       "inviteGuests": "Inviter des personnes",
       "inviteGuestsPlaceholder": "Adresses e-mail, séparées par des virgules",
-      "inviteGuestsHint": "Chaque invité reçoit un e-mail d'invitation avec un lien « ajouter à mon calendrier » — avec ou sans compte.",
+      "inviteGuestsHint": "Chaque invité reçoit un e-mail d'invitation — avec ou sans compte ImpactOS. Si l'organisateur a connecté un calendrier, Google envoie aussi une véritable invitation qui suit les modifications et les annulations.",
       "invitees": "Invités",
       "inviteePlaceholder": "Adresse e-mail à inviter",
       "inviteeAdd": "Inviter",

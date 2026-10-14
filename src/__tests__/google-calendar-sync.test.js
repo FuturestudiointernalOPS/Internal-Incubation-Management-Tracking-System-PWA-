@@ -144,6 +144,42 @@ describe("timed objects (sessions, follow-ups)", () => {
     expect(plan.creates[0].event.sourceId).toBe("5");
   });
 
+  it("carries the guests of a session into the event Google sends them", () => {
+    const body = eventToGoogleEvent(
+      session({
+        source: "venture_session",
+        attendees: [{ email: "coach@external.com", displayName: "External Coach" }],
+      }),
+    );
+    expect(body.attendees).toEqual([
+      { email: "coach@external.com", displayName: "External Coach" },
+    ]);
+  });
+
+  it("omits the guests entirely when there are none", () => {
+    // An empty array would be a field Google has to be told about; the absence
+    // of the key is what "no guests" means.
+    expect(eventToGoogleEvent(session())).not.toHaveProperty("attendees");
+    expect(eventToGoogleEvent(session({ attendees: [] }))).not.toHaveProperty("attendees");
+  });
+
+  it("invites a guest added later: the guest list is part of the fingerprint", () => {
+    const withoutGuest = session({ source: "venture_session", sourceId: "7" });
+    const withGuest = session({
+      source: "venture_session",
+      sourceId: "7",
+      attendees: [{ email: "guest@example.org" }],
+    });
+    const fingerprint = planEventSync([withoutGuest], []).creates[0].fingerprint;
+    const plan = planEventSync(
+      [withGuest],
+      [{ source: "venture_session", source_id: "7", google_event_id: "e7", fingerprint }],
+    );
+    // Same session, same time — only the guest is new, and that must reach Google.
+    expect(plan.updates).toHaveLength(1);
+    expect(plan.updates[0].body.attendees).toEqual([{ email: "guest@example.org" }]);
+  });
+
   it("our own timed copies are recognised and skipped on the way back", () => {
     expect(isPlatformEvent(eventToGoogleEvent(session()))).toBe(true);
   });

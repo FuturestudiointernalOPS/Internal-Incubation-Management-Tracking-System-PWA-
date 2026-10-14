@@ -553,7 +553,7 @@
       "sessionNotifyHint": "The Venture, the coach and you are notified by email, and the session appears on your calendars.",
       "inviteGuests": "Invite guests",
       "inviteGuestsPlaceholder": "E-mail addresses, separated by commas",
-      "inviteGuestsHint": "Each guest receives an invitation e-mail with an \"add to my calendar\" link — account or not.",
+      "inviteGuestsHint": "Each guest receives an invitation e-mail — with or without an ImpactOS account. When the organiser has connected a calendar, Google also sends a real invitation that follows changes and cancellations.",
       "invitees": "Invited",
       "inviteePlaceholder": "E-mail address to invite",
       "inviteeAdd": "Invite",

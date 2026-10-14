@@ -40,7 +40,8 @@ export function selectInternalVentureIds(ventureCodes) {
 export function selectPersonalVentureSessions(userId, scopeList) {
   return db.execute({
     sql: `SELECT id, title, start_time, coach_name, status, venture_id,
-                 milestone_ref, journey_stage_id, deliverable_id
+                 milestone_ref, journey_stage_id, deliverable_id,
+                 created_by, coach_contact_id
           FROM venture_sessions
           WHERE start_time IS NOT NULL
             AND status NOT IN ('cancelled', 'no_show')

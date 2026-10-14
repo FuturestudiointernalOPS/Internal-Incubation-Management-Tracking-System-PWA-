@@ -58,7 +58,7 @@ export function selectInvitedSessionsForContact(contactCid) {
     sql: `SELECT s.id, s.venture_id, s.title, s.description, s.session_type,
                  s.coach_name, s.start_time, s.end_time, s.timezone, s.location,
                  s.meeting_link, s.status, s.journey_stage_id, s.milestone_ref,
-                 s.venture_facing
+                 s.venture_facing, s.created_by, s.coach_contact_id
             FROM venture_session_invitees i
             JOIN venture_sessions s ON s.id = i.session_id
            WHERE i.contact_cid = ?
