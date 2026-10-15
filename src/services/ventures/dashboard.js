@@ -121,7 +121,7 @@ export async function buildVentureDashboard({ ventureParam, isInternalViewer }) 
   // (that feed is NEVER exposed to Venture members).
   const notifications = (async () => {
     try {
-      const memberResult = await listVentureMemberRecipients(id);
+      const memberResult = await listVentureMemberRecipients(dbId);
       const recipientIds = [...new Set((memberResult.rows || []).flatMap((row) => [row.contact_id, row.user_cid]).filter(Boolean))];
       let feedResult;
       if (recipientIds.length > 0) {
@@ -164,7 +164,7 @@ export async function buildVentureDashboard({ ventureParam, isInternalViewer }) 
   ];
   const recentActivity = (async () => {
     try {
-      const activityQuery = await listVentureActivityLog(id);
+      const activityQuery = await listVentureActivityLog(dbId);
       const rows = activityQuery.rows || [];
       if (isInternalViewer) {
         return rows.slice(0, 10).map((entry) => ({
@@ -206,10 +206,10 @@ export async function buildVentureDashboard({ ventureParam, isInternalViewer }) 
     try {
       let rows = [];
       try {
-        const documentsQuery = await listVentureDocumentsForDashboard(id);
+        const documentsQuery = await listVentureDocumentsForDashboard(dbId);
         rows = documentsQuery.rows || [];
       } catch (_) {
-        const documentsQuery = await listVentureDocumentsForDashboardLegacy(id);
+        const documentsQuery = await listVentureDocumentsForDashboardLegacy(dbId);
         rows = documentsQuery.rows || [];
       }
       return {
