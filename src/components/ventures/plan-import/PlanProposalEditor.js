@@ -58,7 +58,9 @@ export default function PlanProposalEditor({
               <input
                 type="date"
                 value={journey.start_date || ""}
-                onChange={(event) => patchJourney(ji, { start_date: event.target.value || null })}
+                onChange={(event) =>
+                  patchJourney(ji, { start_date: event.target.value || null, dates_derived: null })
+                }
                 className={inputClass}
               />
             </label>
