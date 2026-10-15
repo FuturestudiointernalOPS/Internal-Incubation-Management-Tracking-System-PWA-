@@ -178,11 +178,18 @@ const getPool = () => {
       connectionString: dbUrl,
       ssl: { rejectUnauthorized: false },
       max: 10,
-      idleTimeoutMillis: 60000, // Recycle idle connections after 60s instead of 300s
+      // Supabase transaction pooler (port 6543) silently drops idle connections
+      // after ~5s. Set idleTimeoutMillis well below that so the pool discards
+      // the connection itself before Supabase does — preventing the
+      // "Connection terminated due to connection timeout" error on the next
+      // request after a quiet period.
+      idleTimeoutMillis: isPooler ? 3000 : 60000,
       connectionTimeoutMillis: 10000, // Time to establish a NEW connection
       query_timeout: 30000, // Kill queries running longer than 30s (client-side)
-      keepAlive: true,
-      keepAliveInitialDelayMillis: 10000,
+      // keepAlive fights the pooler's own idle-connection culling and produces
+      // the timeout errors. Disable it on the transaction pooler.
+      keepAlive: !isPooler,
+      keepAliveInitialDelayMillis: isPooler ? 0 : 10000,
       // MAXIMUM time waiting for a free slot from an exhausted pool. Without
       // this, pool.connect() blocks indefinitely once all `max` connections
       // are busy, which under load hangs requests and cascades into the

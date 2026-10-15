@@ -283,6 +283,7 @@
       "notifyFormArchived": "Form archived",
       "notifyFormDeleted": "Form permanently deleted",
       "notifyFormCreated": "Form created",
+      "notifyCreateFailed": "Could not create the form",
       "notifyFormDuplicated": "Form duplicated",
       "notifyFormRepublished": "Form republished — live URL updated",
       "notifyFormRestored": "Form restored",

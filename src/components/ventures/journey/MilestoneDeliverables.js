@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { datePickerFloor, groupDeliverablesByActivity } from "@/components/ventures/journey/journeyShapers";
+import { datePickerFloor, groupActivitiesWithDeliverables, sessionBookingKey } from "@/components/ventures/journey/journeyShapers";
+import MilestoneSessionBooking from "@/components/ventures/journey/MilestoneSessionBooking";
 import { dateOnly, todayDateInput } from "@/lib/ventureMilestoneDates";
 import { statusChipClass, statusDotClass, statusLabel } from "@/lib/ventureStatuses";
 import { Loader2, Plus, Save } from "lucide-react";
@@ -46,12 +47,23 @@ export default function MilestoneDeliverables({
   setDeliverableNewUrl,
   setDeliverableText,
   submitDeliverableEvidence,
+  autoGrow,
+  bookFor,
+  bookForm,
+  bookSaving,
+  bookSession,
+  canBook,
+  coachOptions,
+  openBooking,
+  setBookFor,
+  setBookForm,
+  stage,
 }) {
   const { t } = useI18n();
   // The deliverable whose detail dialog is open (id only, so the dialog reads
   // the current row from props and a review/approval shows up live).
   const [detailId, setDetailId] = useState(null);
-  const groups = groupDeliverablesByActivity(deliverableList);
+  const groups = groupActivitiesWithDeliverables(milestone.activities || [], deliverableList);
   const detailGroup =
     detailId == null
       ? null
@@ -82,7 +94,9 @@ export default function MilestoneDeliverables({
 
           {/* DELIVERABLE(S) — the output, underneath its activity */}
           <div className="space-y-1">
-            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">{t("venture.manager.deliverableLabel")}</p>
+            {group.deliverables.length > 0 && (
+              <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">{t("venture.manager.deliverableLabel")}</p>
+            )}
             {group.deliverables.map((deliverable) => {
               const status = deliverableStatus(deliverable);
               const mode = deliverableAction?.id === deliverable.id ? deliverableAction.mode : null;
@@ -258,6 +272,25 @@ export default function MilestoneDeliverables({
               <span className="text-[var(--text-primary)]">{(group.activity?.due_date || group.deliverables[0]?.due_date) ? fmtDate(group.activity?.due_date || group.deliverables[0]?.due_date) : "—"}</span>
             </span>
           </div>
+
+          {/* Book a session AGAINST THIS ACTIVITY (date + exact time) */}
+          {canBook && (
+            <MilestoneSessionBooking
+              autoGrow={autoGrow}
+              bookFor={bookFor}
+              bookForKey={sessionBookingKey(milestone, group.activity, group.deliverables[0]?.id ?? null)}
+              bookForm={bookForm}
+              bookSaving={bookSaving}
+              bookSession={bookSession}
+              coachOptions={coachOptions}
+              deliverableList={group.deliverables}
+              milestone={milestone}
+              onOpen={() => openBooking(milestone, group.activity, group.deliverables[0]?.id ?? null)}
+              setBookFor={setBookFor}
+              setBookForm={setBookForm}
+              stage={stage}
+            />
+          )}
         </div>
       ))}
 

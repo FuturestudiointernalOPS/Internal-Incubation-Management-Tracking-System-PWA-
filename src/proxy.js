@@ -7,6 +7,8 @@ import { NextResponse } from "next/server";
  * Redirects unauthenticated users to /login.
  *
  * Public routes (no auth required):
+ *   - / (the landing page: a signed-out visitor's front door, it only links to
+ *     /login and reads nothing)
  *   - /login
  *   - /forgot-password
  *   - /setup-password/*
@@ -39,6 +41,9 @@ import { NextResponse } from "next/server";
  *     the result emails whose delay has elapsed: the scheduler has no session,
  *     and the shared secret is the credential — every OTHER /api/platform/*
  *     route stays behind a session)
+ *   - /api/tasks/notify-deadlines (the daily deadline reminder: a clock has no
+ *     session, and the x-cron-secret shared secret is the credential, checked
+ *     in-route — every OTHER /api/tasks/* route stays behind a session)
  *   - /api/families (the ?registration_id= lookup is the public join path;
  *      every other branch requires a capability in-route)
  *   - /api/verify/* (public certificate verification)
@@ -49,6 +54,7 @@ import { NextResponse } from "next/server";
  */
 
 const publicPaths = [
+  "/",
   "/login",
   "/activate",
   "/forgot-password",
@@ -97,6 +103,12 @@ const publicApiPaths = [
   // configured rather than degrading into an open send button.
   "/api/reminders/sweep",
   "/api/platform/scheduled-result-emails",
+  // The daily deadline reminder. A clock holds no session cookie, so without
+  // this the request is refused at the edge with 401 and the route never runs —
+  // the job would look "configured" and silently never notify anyone. The
+  // route's own x-cron-secret gate is the credential. Every OTHER /api/tasks/*
+  // route stays behind a session.
+  "/api/tasks/notify-deadlines",
   "/api/families",
   "/api/verify",
   "/api/venture-member-invites",

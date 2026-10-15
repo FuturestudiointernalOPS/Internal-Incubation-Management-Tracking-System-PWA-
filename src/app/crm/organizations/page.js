@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Building2, Plus, Search, Globe, Briefcase } from "lucide-react";
+import { Building2, Plus, Search, Globe, Briefcase, Users, Pencil, Trash2 } from "lucide-react";
 import AppTable from "@/components/ui/AppTable";
 import AppButton from "@/components/ui/AppButton";
 import AppInput from "@/components/ui/AppInput";
@@ -10,6 +10,8 @@ import AppEmptyState from "@/components/ui/AppEmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { useI18n } from "@/lib/i18n";
+import CrmOrganizationPeopleModal from "@/components/crm/CrmOrganizationPeopleModal";
+import { useCrmCapabilities } from "@/components/crm/useCrmCapabilities";
 
 export const dynamic = "force-dynamic";
 
@@ -22,26 +24,20 @@ const ORG_TYPES = [
   "other",
 ];
 
-const RELATIONSHIP_TYPES = [
-  "works_for",
-  "founded",
-  "advises",
-  "represents",
-  "invested_in",
-  "partners_with",
-  "other",
-];
-
 /**
  * CRM Organizations page — /crm/organizations
  *
- * READ-ONLY list for non-admin CRM users (crm.view).
- * Create is available to users with crm.create (checked server-side on POST).
+ * List for CRM users (crm.view). The "New Organization" button only shows for
+ * users holding crm.create (the POST checks it again server-side).
  * Full edit/delete stays in /admin/crm for Super Admin.
  */
 export default function CrmOrganizationsPage() {
   const { t } = useI18n();
-  const { alert } = useDialogs();
+  const { alert, confirm } = useDialogs();
+  const [editing, setEditing]     = useState(null); // the organization being edited, or null when creating
+  const { can } = useCrmCapabilities();
+  const canCreate = can("create");
+  const [peopleOf, setPeopleOf]   = useState(null); // the organization whose people are shown
 
   const [orgs, setOrgs]           = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -49,7 +45,6 @@ export default function CrmOrganizationsPage() {
   const [search, setSearch]       = useState("");
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving]       = useState(false);
-  const [canCreate, setCanCreate] = useState(false);
 
   // New org form state
   const [form, setForm] = useState({
@@ -70,20 +65,6 @@ export default function CrmOrganizationsPage() {
     }
   }
 
-  // ── Check crm.create permission ──────────────────────────────────────────
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/me/permissions")
-      .then((r) => r.json())
-      .then((d) => {
-        if (alive && d.success) {
-          setCanCreate(Number(d.effective?.crm?.create ?? 0) >= 1);
-        }
-      })
-      .catch(() => {});
-    return () => { alive = false; };
-  }, []);
-
   useEffect(() => { fetchOrgs(); }, []);
 
   // ── Search filter ────────────────────────────────────────────────────────
@@ -98,7 +79,38 @@ export default function CrmOrganizationsPage() {
     );
   }, [orgs, search]);
 
-  // ── Create org ───────────────────────────────────────────────────────────
+  function openCreate() {
+    setEditing(null);
+    setForm({ name: "", type: "", website: "", industry: "", description: "" });
+    setShowModal(true);
+  }
+
+  function openEdit(org) {
+    setEditing(org);
+    setForm({
+      name: org.name ?? "",
+      type: org.type ?? "",
+      website: org.website ?? "",
+      industry: org.industry ?? "",
+      description: org.description ?? "",
+    });
+    setShowModal(true);
+  }
+
+  async function handleDelete(org) {
+    const ok = await confirm({ message: t("crm.organizations.confirmDelete"), hint: org.name, tone: "danger" });
+    if (!ok) return;
+    try {
+      const res  = await fetch(`/api/crm/organizations/${org.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) await fetchOrgs();
+      else await alert({ message: t(data.error || "errors.somethingWrong") });
+    } catch {
+      await alert({ message: t("errors.somethingWrong") });
+    }
+  }
+
+  // ── Create or update org ─────────────────────────────────────────────────
   async function handleCreate(e) {
     e.preventDefault();
     if (!form.name.trim()) {
@@ -107,8 +119,8 @@ export default function CrmOrganizationsPage() {
     }
     setSaving(true);
     try {
-      const res  = await fetch("/api/crm/organizations", {
-        method: "POST",
+      const res  = await fetch(editing ? `/api/crm/organizations/${editing.id}` : "/api/crm/organizations", {
+        method: editing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
@@ -131,26 +143,26 @@ export default function CrmOrganizationsPage() {
   const columns = [
     {
       key: "name",
-      header: t("crm.organizations.namePlaceholder"),
-      render: (row) => (
+      label: t("crm.organizations.namePlaceholder"),
+      render: (_value, row) => (
         <span className="font-semibold text-[var(--text-primary)]">{row.name}</span>
       ),
     },
     {
       key: "type",
-      header: t("crm.organizations.typePlaceholder"),
-      render: (row) =>
-        row.type ? t(`crm.organizations.types.${row.type}`) || row.type : "—",
+      label: t("crm.organizations.typeLabel"),
+      render: (_value, row) =>
+        row.type ? t(`crm.organizations.types.${row.type}`) : "—",
     },
     {
       key: "industry",
-      header: t("crm.organizations.industryPlaceholder"),
-      render: (row) => row.industry || "—",
+      label: t("crm.organizations.industryPlaceholder"),
+      render: (_value, row) => row.industry || "—",
     },
     {
       key: "website",
-      header: t("crm.organizations.websitePlaceholder"),
-      render: (row) =>
+      label: t("crm.organizations.websitePlaceholder"),
+      render: (_value, row) =>
         row.website ? (
           <a
             href={row.website}
@@ -164,6 +176,36 @@ export default function CrmOrganizationsPage() {
         ) : (
           "—"
         ),
+    },
+    {
+      key: "people",
+      label: t("crm.organizations.people"),
+      align: "right",
+      render: (_value, row) => (
+        <div className="inline-flex items-center gap-1">
+          <AppButton size="sm" variant="secondary" icon={Users} onClick={() => setPeopleOf(row)}>
+            {t("crm.organizations.people")}
+          </AppButton>
+          {can("edit") && (
+            <button
+              onClick={() => openEdit(row)}
+              aria-label={`${t("crm.organizations.editOrganization")} — ${row.name}`}
+              className="p-2 rounded text-[var(--text-secondary)] hover:bg-[var(--surface-3)]"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          )}
+          {can("delete") && (
+            <button
+              onClick={() => handleDelete(row)}
+              aria-label={`${t("crm.organizations.deleteOrganization")} — ${row.name}`}
+              className="p-2 rounded text-red-500 hover:bg-[var(--surface-3)]"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      ),
     },
   ];
 
@@ -185,10 +227,10 @@ export default function CrmOrganizationsPage() {
           </div>
           {canCreate && (
             <AppButton
-              onClick={() => setShowModal(true)}
+              icon={Plus}
+              onClick={openCreate}
               className="shrink-0"
             >
-              <Plus className="w-4 h-4" />
               {t("crm.organizations.newOrganization")}
             </AppButton>
           )}
@@ -225,15 +267,15 @@ export default function CrmOrganizationsPage() {
             description={!search ? t("crm.organizations.noOrganizationsHint") : undefined}
           />
         ) : (
-          <AppTable columns={columns} rows={filtered} rowKey="id" />
+          <AppTable columns={columns} data={filtered} />
         )}
       </div>
 
       {/* Create modal */}
       <AppModal
-        open={showModal}
+        isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={t("crm.organizations.newOrganization")}
+        title={editing ? t("crm.organizations.editOrganization") : t("crm.organizations.newOrganization")}
       >
         <form onSubmit={handleCreate} className="space-y-4">
           <AppInput
@@ -246,7 +288,7 @@ export default function CrmOrganizationsPage() {
 
           <div>
             <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1 uppercase tracking-wide">
-              {t("crm.organizations.typePlaceholder")}
+              {t("crm.organizations.typeLabel")}
             </label>
             <select
               value={form.type}
@@ -300,11 +342,15 @@ export default function CrmOrganizationsPage() {
               {t("common.cancel")}
             </AppButton>
             <AppButton type="submit" disabled={saving}>
-              {saving ? t("common.saving") : t("crm.organizations.newOrganization")}
+              {saving ? t("common.saving") : editing ? t("common.save") : t("crm.organizations.newOrganization")}
             </AppButton>
           </div>
         </form>
       </AppModal>
+
+      {peopleOf && (
+        <CrmOrganizationPeopleModal organization={peopleOf} can={can} onClose={() => setPeopleOf(null)} />
+      )}
     </>
   );
 }

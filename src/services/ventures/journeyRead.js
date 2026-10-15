@@ -105,16 +105,30 @@ export async function attachJourneyWork({ ventureParam, dbId, stages, signEviden
   // that produces it (task_id), so the pair is resolved here. Guarded like the
   // counts — a database without the new columns still renders the roadmap.
   const tasksById = new Map();
+  const tasksByMilestone = {};
   if (boundMilestoneIds.length > 0) {
     const tasksResult = await listJourneyTasksByMilestoneIds(boundMilestoneIds).catch(() => ({ rows: [] }));
-    for (const task of tasksResult.rows || []) tasksById.set(String(task.id), task);
+    for (const task of tasksResult.rows || []) {
+      tasksById.set(String(task.id), task);
+      const key = String(task.milestone_id);
+      (tasksByMilestone[key] = tasksByMilestone[key] || []).push(task);
+    }
   }
 
   // Template provenance: stages generated from a reusable template carry a
   // (type, id) stamp — resolve the current template name for the UI banner.
   const stamped = stages.find((stage) => stage.source_template_id);
   let templateSource = null;
-  if (stamped && stamped.source_template_id) {
+  // A stage stamped "plan_import" came from an imported tracker, not a reusable
+  // template: its id points at the import, so there is no template name to read.
+  // Asking the plan-template table (integer ids) with that UUID made the query
+  // fail on every load of a journey.
+  const looksLikeTemplate =
+    stamped &&
+    stamped.source_template_id &&
+    stamped.source_template_type !== "plan_import" &&
+    (stamped.source_template_type === "journey" || /^\d+$/.test(String(stamped.source_template_id)));
+  if (looksLikeTemplate) {
     const srcType = stamped.source_template_type === "journey" ? "journey" : "plan";
     const table = srcType === "journey" ? "venture_journey_templates" : "venture_plan_templates";
     try {
@@ -130,6 +144,9 @@ export async function attachJourneyWork({ ventureParam, dbId, stages, signEviden
     for (const milestone of stageMilestones) {
       milestone.deliverables = deliverablesByMilestone[String(milestone.id)] || [];
       milestone.task_counts = taskCountsByMilestone[String(milestone.id)] || { total: 0, done: 0 };
+      // A session can be booked AGAINST one of the milestone's ACTIVITIES (a
+      // task), not only against the milestone: the whole work list is exposed
+      // here so the booking form can offer it.
       // "Activity → Deliverable": the deliverable carries its linked task's
       // title, Definition of Done, support and start — so one screen shows the
       // whole chain without a second read.
@@ -152,6 +169,14 @@ export async function attachJourneyWork({ ventureParam, dbId, stages, signEviden
             }
           : null;
       }
+      milestone.activities = (tasksByMilestone[String(milestone.id)] || []).map((task) => ({
+        id: task.id,
+        source_ref: task.source_ref || null,
+        title: task.title || null,
+        owner_name: task.assigned_name || null,
+        due_date: task.due_date || null,
+        status: task.status || null,
+      }));
     }
     stage.milestone_counts = {
       total: stageMilestones.length,

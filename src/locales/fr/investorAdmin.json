@@ -77,7 +77,8 @@
       "stageIntroRequested": "Intro demandée",
       "stageDueDiligence": "Due Diligence",
       "stageNegotiation": "Négociation",
-      "stageDeclined": "Décliné"
+      "stageDeclined": "Décliné",
+      "executiveSection": "Vue exécutive"
     },
     "list": {
       "title": "Gestion des investisseurs",

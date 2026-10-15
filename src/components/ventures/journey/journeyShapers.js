@@ -103,3 +103,46 @@ export function groupDeliverablesByActivity(deliverables = []) {
   }
   return groups;
 }
+
+/**
+ * One block per ACTIVITY of a milestone — every activity, whether or not it has
+ * produced a deliverable yet — each carrying the deliverable(s) it points at. A
+ * hand-made deliverable with no activity stands alone, as before. This is what
+ * lets a session be booked against a SPECIFIC activity.
+ */
+export function groupActivitiesWithDeliverables(activities = [], deliverables = []) {
+  const groups = [];
+  const byKey = new Map();
+  for (const activity of activities || []) {
+    const key = `activity:${activity.id}`;
+    const group = { activity, deliverables: [] };
+    byKey.set(key, group);
+    groups.push(group);
+  }
+  for (const deliverable of deliverables || []) {
+    const activityId = deliverable?.activity?.id;
+    const key =
+      activityId !== null && activityId !== undefined
+        ? `activity:${activityId}`
+        : `deliverable:${deliverable?.id}`;
+    let group = byKey.get(key);
+    if (!group) {
+      group = { activity: deliverable?.activity || null, deliverables: [] };
+      byKey.set(key, group);
+      groups.push(group);
+    }
+    group.deliverables.push(deliverable);
+  }
+  return groups;
+}
+
+/**
+ * The identity of the booking slot a group owns: an activity when there is one,
+ * otherwise the first deliverable it holds, otherwise the milestone. Two groups
+ * of the same milestone never share a key, so only one booking form opens.
+ */
+export function sessionBookingKey(milestone, activity, deliverableId) {
+  if (activity?.id !== null && activity?.id !== undefined) return `activity:${activity.id}`;
+  if (deliverableId !== null && deliverableId !== undefined) return `deliverable:${deliverableId}`;
+  return `milestone:${milestone?.id ?? ""}`;
+}

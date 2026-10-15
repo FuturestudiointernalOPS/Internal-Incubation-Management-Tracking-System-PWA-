@@ -10,7 +10,6 @@ import VenturePersonField from "@/components/ventures/VenturePersonField";
 import ScopedNotes from "@/components/ventures/ScopedNotes";
 import MilestoneReviewInbox from "@/components/ventures/journey/MilestoneReviewInbox";
 import MilestoneDeliverables from "@/components/ventures/journey/MilestoneDeliverables";
-import MilestoneSessionBooking from "@/components/ventures/journey/MilestoneSessionBooking";
 import MilestoneSessionsList from "@/components/ventures/journey/MilestoneSessionsList";
 
 /**
@@ -227,10 +226,21 @@ export default function JourneyMilestoneRow({
           />
         )}
 
-        {isOpen && (deliverableList.length > 0 || milestoneAuthority) && (
+        {isOpen && (deliverableList.length > 0 || (milestone.activities || []).length > 0 || milestoneAuthority) && (
           <MilestoneDeliverables
             DELIVERABLE_TYPES={DELIVERABLE_TYPES}
             addDeliverable={addDeliverable}
+            autoGrow={autoGrow}
+            bookFor={bookFor}
+            bookForm={bookForm}
+            bookSaving={bookSaving}
+            bookSession={bookSession}
+            canBook={Boolean(milestoneAuthority || access.manage) && !stage.is_archived}
+            coachOptions={coachOptions}
+            openBooking={openBooking}
+            setBookFor={setBookFor}
+            setBookForm={setBookForm}
+            stage={stage}
             deliverableAction={deliverableAction}
             deliverableAddFor={deliverableAddFor}
             deliverableBusy={deliverableBusy}
@@ -259,24 +269,6 @@ export default function JourneyMilestoneRow({
           />
         )}
 
-        {/* Book a session on this milestone (date + exact time) */}
-        {isOpen && (milestoneAuthority || access.manage) && !stage.is_archived && (
-          <MilestoneSessionBooking
-            autoGrow={autoGrow}
-            bookFor={bookFor}
-            bookForm={bookForm}
-            bookSaving={bookSaving}
-            bookSession={bookSession}
-            coachOptions={coachOptions}
-            deliverableList={deliverableList}
-            milestone={milestone}
-            openBooking={openBooking}
-            setBookFor={setBookFor}
-            setBookForm={setBookForm}
-            stage={stage}
-          />
-        )}
-
         {/* Sessions already booked on this milestone — the milestone stays the home of its sessions. */}
         {isOpen && (() => {
           const mine = ventureSessions.filter((session) => String(session.milestone_ref) === String(milestone.id) && session.status !== "cancelled");
@@ -294,6 +286,7 @@ export default function JourneyMilestoneRow({
               onCancelNote={() => { setNoteEditFor(null); setNoteDraft(""); }}
               onSaveNote={saveSessionNote}
               autoGrow={autoGrow}
+              ventureId={ventureId}
             />
           );
         })()}

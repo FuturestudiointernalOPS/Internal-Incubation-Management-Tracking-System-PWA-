@@ -2,28 +2,39 @@
  * Venture session scheduling rules (Vinance 3).
  *
  * A session always belongs to a milestone, and every session carries a concrete
- * date and time that is at least SESSION_MIN_LEAD_MINUTES ahead of the moment it
- * is booked. Shared by the server (enforcement) and the booking UI (its date and
- * time pickers use minSessionStart so an invalid choice cannot be made).
+ * date and time that has not already passed when it is booked. Shared by the
+ * server (enforcement) and the booking UI (its date and time pickers use
+ * minSessionStart so an unreasonable choice cannot be made).
  *
  * No db import — safe to import from client components.
  */
-export const SESSION_MIN_LEAD_MINUTES = 30;
+export const SESSION_MIN_LEAD_MINUTES = 0;
+
+/**
+ * The start of the minute `now` falls in. A time picker offers `HH:MM`, so
+ * "now" means the current minute — not the instant, which has already moved on
+ * by the time the form is submitted.
+ */
+function startOfMinute(ms) {
+  return Math.floor(ms / 60000) * 60000;
+}
+
+/** The one refusal a start time can produce: it is already behind us. */
+export const SESSION_PAST_START_ERROR = "A session cannot start in the past.";
 
 /** Earliest start a session may be booked for. */
 export function minSessionStart(now = Date.now()) {
-  return new Date(now + SESSION_MIN_LEAD_MINUTES * 60 * 1000);
+  return new Date(startOfMinute(now) + SESSION_MIN_LEAD_MINUTES * 60 * 1000);
 }
 
 /**
- * Earliest bookable MINUTE: now + SESSION_MIN_LEAD_MINUTES, rounded UP to the
- * next whole minute. The booking form must use this (not minSessionStart) for
- * both the prefilled value and the picker floor: an `HH:MM` value floored from
- * `now + 30min` would carry seconds forward and be rejected by the server, which
- * compares with millisecond precision at request time.
+ * Earliest bookable MINUTE: now (plus any lead time), rounded to a whole minute.
+ * The booking form must use this (not minSessionStart) for both the prefilled
+ * value and the picker floor, so the prefilled slot is always accepted by the
+ * server, which compares with the same minute granularity.
  */
 export function minSessionStartInput(now = Date.now()) {
-  const target = now + SESSION_MIN_LEAD_MINUTES * 60 * 1000;
+  const target = startOfMinute(now) + SESSION_MIN_LEAD_MINUTES * 60 * 1000;
   return new Date(Math.ceil(target / 60000) * 60000);
 }
 
@@ -38,12 +49,38 @@ export function toTimeInput(date) {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
-/** True when the given start time is a valid, at-least-30-minutes-ahead time. */
+/**
+ * True when the given start time may be booked.
+ *
+ * Any time works as long as it has not already passed — the booker decides
+ * when a session happens, and the session is written to ImpactOS and to the
+ * calendar either way.
+ */
 export function isValidSessionStart(value, now = Date.now()) {
   if (value === null || value === undefined || value === "") return false;
   const timestamp = value instanceof Date ? value.getTime() : new Date(value).getTime();
   if (Number.isNaN(timestamp)) return false;
-  return timestamp >= now + SESSION_MIN_LEAD_MINUTES * 60 * 1000;
+  return timestamp >= startOfMinute(now) + SESSION_MIN_LEAD_MINUTES * 60 * 1000;
+}
+
+/**
+ * The time-of-day floor to put on the time picker for a chosen DATE.
+ *
+ * `<input type="time">`'s `min` is a CLOCK TIME with no date attached to it:
+ * handing it today's floor while tomorrow is selected makes the browser refuse
+ * 09:00 tomorrow, because 09:00 is before 14:35 — today's answer to a question
+ * nobody asked. Tomorrow morning IS later than now, so the floor belongs to
+ * today alone; on any other date the clock time is free and the server compares
+ * the full date and time.
+ */
+export function sessionTimeFloor(
+  dateValue,
+  minTime,
+  todayValue = toDateInput(new Date()),
+) {
+  const date = String(dateValue || "");
+  if (!date || date !== String(todayValue)) return "";
+  return String(minTime || "");
 }
 
 // ─── Session materials (documents attached while booking) ────────────────────

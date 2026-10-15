@@ -12,11 +12,11 @@ import DataBankDocumentRow from "../../../DataBankDocumentRow";
  * read and the writes; this component only renders.
  */
 const ITEM_STATUS = {
-  pending: { label: "vadmin.verification.itemStatusPending", cls: "bg-white/10 text-slate-400" },
+  pending: { label: "vadmin.verification.itemStatusPending", cls: "bg-[var(--surface-3)] text-slate-400" },
   under_review: { label: "vadmin.verification.itemStatusUnderReview", cls: "bg-amber-500/15 text-amber-400" },
   verified: { label: "vadmin.verification.statusVerified", cls: "bg-emerald-500/15 text-emerald-400" },
   rejected: { label: "vadmin.verification.statusRejected", cls: "bg-rose-500/15 text-rose-400" },
-  not_applicable: { label: "vadmin.verification.itemStatusNotApplicable", cls: "bg-white/5 text-slate-500" },
+  not_applicable: { label: "vadmin.verification.itemStatusNotApplicable", cls: "bg-[var(--surface-2)] text-slate-500" },
 };
 
 export default function VerificationDocumentSteps({

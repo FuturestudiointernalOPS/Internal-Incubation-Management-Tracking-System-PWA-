@@ -69,6 +69,16 @@ export async function runCurriculumAction({ payload }) {
       requirements, // Extracted from payload
     } = payload;
 
+    if (scheduled_date && end_date && end_date < scheduled_date) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          error: "The end date is before the start date. Please review the dates.",
+        },
+      };
+    }
+
     // Conflict detection: check for overlapping sessions.
     if (scheduled_date && start_time && end_time) {
       const conflictCheck = await findSessionScheduleConflict(

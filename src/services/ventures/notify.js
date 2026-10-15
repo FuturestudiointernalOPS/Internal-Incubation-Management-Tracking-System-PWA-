@@ -17,6 +17,16 @@
  * see docs/LAYER_SPLIT.md.
  */
 import { sendStandaloneEmail } from "@/lib/email";
+
+/**
+ * These notices are the venture's operational mail — a session booked, moved or
+ * cancelled, a deliverable to review — and they are the calendar's own voice.
+ * Gmail is pinned explicitly for them: it is already the primary provider when
+ * its credentials exist, and pinning keeps that true if someone sets
+ * EMAIL_PRIMARY_PROVIDER=resend globally (which would send them from the
+ * transactional service instead of the studio's mailbox).
+ */
+const VENTURE_NOTICE_PROVIDER = "gmail";
 import {
   selectNotifyVentureCode,
   selectFounderRecipients,
@@ -62,7 +72,7 @@ export async function notifyAndEmailVentureFounders({ dbId, title, message, emai
 
     for (const founder of foundersResult.rows || []) {
       try {
-        const sendResult = await sendStandaloneEmail({ to: founder.email, subject: emailSubject, html, contact_cid: founder.cid, email_type: "venture_notification" });
+        const sendResult = await sendStandaloneEmail({ to: founder.email, subject: emailSubject, html, contact_cid: founder.cid, email_type: "venture_notification", provider: VENTURE_NOTICE_PROVIDER });
         if (sendResult && sendResult.success !== false) sent += 1;
       } catch (_) {}
     }
@@ -95,7 +105,7 @@ export async function notifyVentureCoach({ dbId, coachContactId, title, message,
 
     if (!contact.email) return { sent: 0 };
     const html = renderEmailHtml(emailLines);
-    const sendResult = await sendStandaloneEmail({ to: contact.email, subject: emailSubject, html, contact_cid: contact.cid, email_type: "venture_notification" });
+    const sendResult = await sendStandaloneEmail({ to: contact.email, subject: emailSubject, html, contact_cid: contact.cid, email_type: "venture_notification", provider: VENTURE_NOTICE_PROVIDER });
     return { sent: sendResult && sendResult.success !== false ? 1 : 0 };
   } catch (_) {
     return { sent: 0 };
@@ -156,7 +166,7 @@ export async function notifyVentureLeadManagers({ dbId, ventureCode, title, mess
         });
 
         if (!contact.email) continue;
-        const sendResult = await sendStandaloneEmail({ to: contact.email, subject: emailSubject, html, contact_cid: contact.cid, email_type: "venture_notification" });
+        const sendResult = await sendStandaloneEmail({ to: contact.email, subject: emailSubject, html, contact_cid: contact.cid, email_type: "venture_notification", provider: VENTURE_NOTICE_PROVIDER });
         if (sendResult && sendResult.success !== false) sent += 1;
       } catch (_) {}
     }

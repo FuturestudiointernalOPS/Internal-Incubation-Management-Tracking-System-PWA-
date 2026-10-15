@@ -4,7 +4,12 @@
  * cleaned values, so the move stays behaviour-identical.
  */
 const { checkSessionBooking } = require("@/services/ventures/sessionBooking");
-const { SESSION_MIN_LEAD_MINUTES } = require("@/lib/ventureSessionRules");
+const {
+  SESSION_MIN_LEAD_MINUTES,
+  SESSION_PAST_START_ERROR,
+  sessionTimeFloor,
+  toDateInput,
+} = require("@/lib/ventureSessionRules");
 
 const NOW = Date.UTC(2026, 9, 1, 10, 0, 0);
 const later = (minutes) => new Date(NOW + minutes * 60 * 1000).toISOString();
@@ -44,14 +49,62 @@ describe("checkSessionBooking", () => {
     expect(checkSessionBooking({ ...valid(), start_time: "not a date" }, NOW)).toEqual(refusal);
   });
 
-  test("a start inside the minimum lead time is refused", () => {
-    expect(checkSessionBooking({ ...valid(), start_time: later(SESSION_MIN_LEAD_MINUTES - 1) }, NOW))
-      .toEqual({ ok: false, error: `A session must start at least ${SESSION_MIN_LEAD_MINUTES} minutes from now.` });
+  test("a start time already behind us is refused", () => {
+    expect(checkSessionBooking({ ...valid(), start_time: later(-1) }, NOW))
+      .toEqual({ ok: false, error: SESSION_PAST_START_ERROR });
+  });
+
+  test("a session may start minutes from now — there is no lead time", () => {
+    // There used to be a 30-minute floor: it made "start in 5 minutes"
+    // impossible and pushed the earliest slot to a clock time nobody chose.
+    // The booker decides; the session is written either way.
+    expect(checkSessionBooking({ ...valid(), start_time: later(1) }, NOW).ok).toBe(true);
+    expect(checkSessionBooking({ ...valid(), start_time: later(0) }, NOW).ok).toBe(true);
+  });
+
+  test("a start a few minutes ahead is accepted whatever the lead constant says", () => {
+    // The constant is kept (0 today) so the rule can be tightened again without
+    // hunting for comparisons: every check goes through isValidSessionStart.
+    expect(SESSION_MIN_LEAD_MINUTES).toBe(0);
+    expect(checkSessionBooking({ ...valid(), start_time: later(5) }, NOW).ok).toBe(true);
   });
 
   test("invalid materials are refused", () => {
     const tooMany = Array.from({ length: 50 }, (_, index) => ({ name: `d${index}`, path: `x/${index}` }));
     expect(checkSessionBooking({ ...valid(), materials: tooMany }, NOW))
       .toEqual({ ok: false, error: "The session materials are invalid (up to 5 documents)." });
+  });
+});
+
+describe("the time picker's floor knows which day it applies to", () => {
+  const TODAY = "2026-10-14";
+  const TOMORROW = "2026-10-15";
+
+  test("REGRESSION: tomorrow keeps its own clock — today's floor does not follow it", () => {
+    // The time input's `min` carries no date. Handing it today's floor while
+    // tomorrow is selected made the browser refuse 09:00 tomorrow ("must be
+    // 14:35 or later"), which is exactly the complaint this fixes.
+    expect(sessionTimeFloor(TOMORROW, "14:35", TODAY)).toBe("");
+  });
+
+  test("today does keep the floor", () => {
+    expect(sessionTimeFloor(TODAY, "14:35", TODAY)).toBe("14:35");
+  });
+
+  test("no date chosen yet means no floor", () => {
+    expect(sessionTimeFloor("", "14:35", TODAY)).toBe("");
+  });
+
+  test("no floor computed means no floor", () => {
+    expect(sessionTimeFloor(TODAY, "", TODAY)).toBe("");
+    expect(sessionTimeFloor(TODAY, undefined, TODAY)).toBe("");
+  });
+
+  test("a later date never inherits today's floor, however far away", () => {
+    expect(sessionTimeFloor("2099-01-01", "23:59", TODAY)).toBe("");
+  });
+
+  test("the default 'today' is the local day, like the date picker's own floor", () => {
+    expect(sessionTimeFloor(toDateInput(new Date()), "14:35")).toBe("14:35");
   });
 });

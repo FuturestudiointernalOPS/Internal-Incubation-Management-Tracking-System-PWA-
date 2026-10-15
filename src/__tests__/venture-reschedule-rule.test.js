@@ -5,7 +5,7 @@
  * session lookup and before the double-booking check:
  *   - a parseable start and end
  *   - an end strictly after the start
- *   - a start at least SESSION_MIN_LEAD_MINUTES ahead of now
+ *   - a start that has not already passed (any lead time is allowed)
  *
  * The db double answers the session lookup with one row and every
  * double-booking probe with none, and records each { sql, args } pair so the
@@ -31,10 +31,11 @@ jest.mock("@/lib/db", () => ({
 }));
 
 const { rescheduleSession } = require("@/services/ventures/sessions");
+const { SESSION_PAST_START_ERROR } = require("@/lib/ventureSessionRules");
 
 const SESSION_ID = 7;
 const HOUR = 60 * 60 * 1000;
-const LEAD_MESSAGE = "A session must start at least 30 minutes from now.";
+const PAST_MESSAGE = SESSION_PAST_START_ERROR;
 
 // 2099 so the valid window can never fall inside the lead floor.
 const VALID_START = new Date(Date.UTC(2099, 0, 1, 12, 0, 0));
@@ -51,15 +52,18 @@ describe("rescheduleSession — scheduling floor", () => {
   test("a start time in the past is refused", async () => {
     await expect(
       rescheduleSession(SESSION_ID, "2000-01-01T00:00:00.000Z", "2000-01-01T01:00:00.000Z"),
-    ).rejects.toThrow(LEAD_MESSAGE);
+    ).rejects.toThrow(PAST_MESSAGE);
     expect(updateQuery()).toBeUndefined();
   });
 
-  test("a start time 10 minutes from now is refused", async () => {
-    const start = new Date(Date.now() + 10 * 60 * 1000);
+  test("a start time minutes from now is allowed — there is no lead time", async () => {
+    // A 30-minute floor used to make this impossible, which is not what the
+    // person rescheduling the session wanted.
+    const start = new Date(Date.now() + 5 * 60 * 1000);
     const end = new Date(start.getTime() + HOUR);
-    await expect(rescheduleSession(SESSION_ID, start.toISOString(), end.toISOString())).rejects.toThrow(LEAD_MESSAGE);
-    expect(updateQuery()).toBeUndefined();
+    const res = await rescheduleSession(SESSION_ID, start.toISOString(), end.toISOString());
+    expect(res).toEqual({ success: true });
+    expect(updateQuery()).toBeDefined();
   });
 
   test("an end time before the start time is refused", async () => {

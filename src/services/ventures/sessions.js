@@ -38,7 +38,7 @@ import {
   updateActionItemScoped,
 } from "@/models/ventureSessionsStore";
 import { isUnknownColumnError } from "@/lib/ventureInput";
-import { SESSION_MIN_LEAD_MINUTES } from "@/lib/ventureSessionRules";
+import { isValidSessionStart, SESSION_PAST_START_ERROR } from "@/lib/ventureSessionRules";
 
 export async function listSessions(ventureId, { startDate, endDate, status, coachId, limit } = {}) {
   const res = await selectSessions(ventureId, { startDate, endDate, status, coachId, limit });
@@ -126,17 +126,15 @@ export async function rescheduleSession(sessionId, newStartTime, newEndTime) {
   const sessionResult = await selectSessionById(sessionId);
   if (sessionResult.rows.length === 0) throw new Error("Session not found.");
   // Vinance 3: the same scheduling floor that guards booking also guards a
-  // reschedule — a parseable window, an end after the start, and a start at
-  // least SESSION_MIN_LEAD_MINUTES ahead.
+  // reschedule — a parseable window, an end after the start, and a start that
+  // has not already passed. Any time is bookable.
   const startAt = new Date(newStartTime);
   const endAt = new Date(newEndTime);
   if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
     throw new Error("A session date and time are required.");
   }
   if (startAt >= endAt) throw new Error("End time must be after start time.");
-  if (startAt.getTime() < Date.now() + SESSION_MIN_LEAD_MINUTES * 60 * 1000) {
-    throw new Error(`A session must start at least ${SESSION_MIN_LEAD_MINUTES} minutes from now.`);
-  }
+  if (!isValidSessionStart(startAt)) throw new Error(SESSION_PAST_START_ERROR);
   const bookingCheck = await checkDoubleBooking({ ventureId: sessionResult.rows[0].venture_id, coachId: sessionResult.rows[0].coach_id, startTime: newStartTime, endTime: newEndTime, excludeSessionId: sessionId });
   if (bookingCheck.conflict) throw new Error(bookingCheck.message);
   await updateSessionWindow(sessionId, newStartTime, newEndTime);

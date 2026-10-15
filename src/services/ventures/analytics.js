@@ -95,7 +95,12 @@ export async function getVentureAnalytics(ventureId) {
 
   // ── Productivity score ──
   const totalTasks = tasks.total || 1;
-  const productivityScore = Math.round(((tasks.done / totalTasks) * 50) + (onTimeDelivery * 0.3) + (Math.max(0, 100 - tasks.blocked * 10) * 0.2));
+  // Nothing finished means nothing to score: without this, a Venture with no
+  // blocked task was handed the full "no blockers" 20 points and read as 20%
+  // productive while having completed nothing.
+  const productivityScore = tasks.done > 0
+    ? Math.round(((tasks.done / totalTasks) * 50) + (onTimeDelivery * 0.3) + (Math.max(0, 100 - tasks.blocked * 10) * 0.2))
+    : 0;
 
   return {
     summary: { milestones, tasks, deliverables, overall, health_score: healthScore },

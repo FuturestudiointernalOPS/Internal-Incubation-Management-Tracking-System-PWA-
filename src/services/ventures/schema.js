@@ -26,6 +26,7 @@ import foundation from "./schema/foundation";
 import operatingModel from "./schema/operatingModel";
 import governance from "./schema/governance";
 import journey from "./schema/journey";
+import sessionInvitees from "./schema/sessionInvitees";
 import reminders from "./schema/reminders";
 
 /**
@@ -42,6 +43,7 @@ export async function ensureVentureSchema() {
     ...operatingModel,
     ...governance,
     ...journey,
+    ...sessionInvitees,
     ...reminders,
   ];
 

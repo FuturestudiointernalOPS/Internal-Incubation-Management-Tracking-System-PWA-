@@ -2,7 +2,42 @@
   "rootMisc": {
     "landing": {
       "brand": "ImpactOS Terminal",
-      "connecting": "Connexion de la session sécurisée..."
+      "connecting": "Connexion de la session sécurisée...",
+      "kicker": "Future Studio",
+      "title": "Votre parcours de l'idée à l'impact commence ici.",
+      "intro": "Accédez aux programmes, au mentorat, aux ressources et aux opportunités dont vous avez besoin pour développer vos idées, bâtir votre venture, rencontrer les bonnes personnes et transformer vos ambitions en progrès mesurables.",
+      "whatTitle": "Ce que vous pouvez y faire",
+      "pillars": {
+        "programs": {
+          "title": "Rejoindre des programmes et des cohortes",
+          "body": "Découvrez les activités de votre programme, accédez aux sessions d'apprentissage, suivez votre cursus et mesurez votre progression, de l'intégration à la fin du programme."
+        },
+        "ventures": {
+          "title": "Bâtir votre venture",
+          "body": "Développez vos idées, organisez vos activités, franchissez les jalons et accédez à l'accompagnement nécessaire pour faire grandir votre startup."
+        },
+        "mentorship": {
+          "title": "Accéder au mentorat et aux réseaux",
+          "body": "Échangez avec des mentors, collaborez avec vos pairs, participez aux sessions et tirez parti de relations qui soutiennent votre croissance professionnelle et entrepreneuriale."
+        },
+        "progress": {
+          "title": "Suivre votre progression",
+          "body": "Gardez le contrôle de vos tâches, suivez vos réalisations, soumettez vos livrables et mesurez le chemin parcouru vers vos objectifs."
+        },
+        "funding": {
+          "title": "Explorer les opportunités de financement",
+          "body": "Suivez les opportunités de financement pertinentes, préparez-vous à l'investissement et suivez la progression de votre venture vers l'accès au capital."
+        },
+        "impact": {
+          "title": "Mettre en valeur votre impact",
+          "body": "Documentez vos réalisations, mettez en avant vos jalons et démontrez le progrès et l'impact de votre travail."
+        }
+      },
+      "signIn": "Se connecter →",
+      "signInHint": "Pour les participants inscrits, les fondateurs, les mentors et les partenaires autorisés.",
+      "language": "Langue",
+      "switchTheme": "Changer de thème",
+      "footer": "© 2026 Future Studio · Encourager l'innovation et l'entrepreneuriat"
     },
     "terminal": {
       "title": "Unification du terminal",

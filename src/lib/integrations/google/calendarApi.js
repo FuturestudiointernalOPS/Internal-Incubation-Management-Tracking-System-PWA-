@@ -47,18 +47,24 @@ export function getCalendar(accessToken, calendarId) {
   return call(accessToken, "GET", calPath(calendarId));
 }
 
-export function insertEvent(accessToken, calendarId, event) {
-  return call(accessToken, "POST", `${calPath(calendarId)}/events`, { body: event });
-}
-
-export function patchEvent(accessToken, calendarId, eventId, event) {
-  return call(accessToken, "PATCH", `${calPath(calendarId)}/events/${encodeURIComponent(eventId)}`, {
+export function insertEvent(accessToken, calendarId, event, { sendUpdates } = {}) {
+  return call(accessToken, "POST", `${calPath(calendarId)}/events`, {
     body: event,
+    query: sendUpdates ? { sendUpdates } : undefined,
   });
 }
 
-export function deleteEvent(accessToken, calendarId, eventId) {
-  return call(accessToken, "DELETE", `${calPath(calendarId)}/events/${encodeURIComponent(eventId)}`);
+export function patchEvent(accessToken, calendarId, eventId, event, { sendUpdates } = {}) {
+  return call(accessToken, "PATCH", `${calPath(calendarId)}/events/${encodeURIComponent(eventId)}`, {
+    body: event,
+    query: sendUpdates ? { sendUpdates } : undefined,
+  });
+}
+
+export function deleteEvent(accessToken, calendarId, eventId, { sendUpdates } = {}) {
+  return call(accessToken, "DELETE", `${calPath(calendarId)}/events/${encodeURIComponent(eventId)}`, {
+    query: sendUpdates ? { sendUpdates } : undefined,
+  });
 }
 
 /**

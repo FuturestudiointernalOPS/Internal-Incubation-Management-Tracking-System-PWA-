@@ -14,6 +14,7 @@ import {
 } from "@/models/crm/pipelines";
 import { appendCrmStageHistory } from "@/models/crm/stageHistory";
 import { addContactTimelineEvent } from "@/services/contacts/timeline";
+import { fireCrmEvent } from "@/services/crm/automationEngine";
 
 export const dynamic = "force-dynamic";
 
@@ -157,6 +158,14 @@ export const POST = createHandler(
           metadata:    { opportunity_id: opp.id, pipeline_id: opp.pipeline_id },
         });
       }
+
+      // Automation rules listening to new opportunities
+      await fireCrmEvent(
+        "opportunity.created",
+        { ...opp, stage_name: stage.name, entity_type: "opportunity" },
+        `evt_opp_${opp.id}_created`,
+        session,
+      );
     }
 
     return NextResponse.json({ success: true, opportunity: opp }, { status: 201 });

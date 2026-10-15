@@ -45,7 +45,10 @@ import { journeySelection } from "@/components/ventures/journey/actions/journeyB
 
 export default function JourneyManagerPanel({ ventureId }) {
   const { t, lang } = useI18n();
-  const { confirm } = useDialogs();
+  // `notifyPopup` is the journey's word for a notice that must be seen: the
+  // factories that confirm a write raise it as a dialog instead of the inline
+  // banner (which a long panel scrolls out of sight).
+  const { confirm, alert: notifyPopup } = useDialogs();
 
   // The journey, the sessions and the reports are three reads through the shared
   // hook, which owns the cache, the cache-first paint and the discarding of a
@@ -174,6 +177,7 @@ export default function JourneyManagerPanel({ ventureId }) {
     setStages,
     toast,
     setToast,
+    notifyPopup,
     addOpen,
     setAddOpen,
     form,
@@ -342,7 +346,7 @@ export default function JourneyManagerPanel({ ventureId }) {
       {/* Phase 1 of the programme import: read a tracker, show what the analysts
           proposes. Guarded by the same authority that may define the journey —
           importing a plan IS defining one. */}
-      {access.create && <PlanImportPanel ventureId={ventureId} />}
+      {access.create && <PlanImportPanel ventureId={ventureId} onImported={refreshJourney} />}
 
       {/* History answers a question, so it sits with the thing it describes. */}
       <VentureChangeLogPanel ventureId={ventureId} />

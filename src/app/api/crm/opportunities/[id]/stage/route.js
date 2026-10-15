@@ -11,6 +11,7 @@ import {
 } from "@/models/crm/pipelines";
 import { appendCrmStageHistory } from "@/models/crm/stageHistory";
 import { addContactTimelineEvent } from "@/services/contacts/timeline";
+import { fireCrmEvent } from "@/services/crm/automationEngine";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,9 @@ export const dynamic = "force-dynamic";
  *   4. Derives status from stage terminal/outcome flags
  *   5. Appends a stage history record (append-only)
  *   6. Writes a timeline event if tied to a contact
- *   7. Returns the updated opportunity
+ *   7. Raises opportunity.stage_changed, plus opportunity.won / opportunity.lost
+ *      when the move closes the deal, for the automation rules
+ *   8. Returns the updated opportunity
  *
  * No frontend-only stage update path exists. All stage changes use this endpoint.
  */
@@ -121,6 +124,20 @@ export const PATCH = createHandler(
           new_status:      newStatus,
         },
       });
+    }
+
+    if (updated && newStageId !== opp.stage_id) {
+      const context = {
+        ...updated,
+        stage_name: newStage.name,
+        previous_stage_name: opp.stage_name ?? null,
+        entity_type: "opportunity",
+      };
+      const eventIdBase = `evt_opp_${id}_${Date.now()}`;
+      await fireCrmEvent("opportunity.stage_changed", context, `${eventIdBase}_stage`, session);
+      if (newStatus !== opp.status && (newStatus === "won" || newStatus === "lost")) {
+        await fireCrmEvent(`opportunity.${newStatus}`, context, `${eventIdBase}_${newStatus}`, session);
+      }
     }
 
     return NextResponse.json({ success: true, opportunity: updated });

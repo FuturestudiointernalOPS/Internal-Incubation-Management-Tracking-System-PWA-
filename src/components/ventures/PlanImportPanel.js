@@ -28,7 +28,7 @@ import PlanReview from "./plan-import/PlanReview";
  * the form appears only when someone clicks to upload. A stored draft, on the
  * other hand, is active work and stays open.
  */
-export default function PlanImportPanel({ ventureId }) {
+export default function PlanImportPanel({ ventureId, onImported }) {
   const { t } = useI18n();
   const { confirm } = useDialogs();
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -94,7 +94,7 @@ export default function PlanImportPanel({ ventureId }) {
       ) : draft ? (
         // `key` so a replaced draft remounts with its own working copy rather
         // than editing the draft that is no longer there.
-        <PlanReview key={draft.id} ventureId={ventureId} draft={draft} onSaved={refreshDraft} />
+        <PlanReview key={draft.id} ventureId={ventureId} draft={draft} onSaved={refreshDraft} onApplied={onImported} />
       ) : uploadOpen ? (
         <PlanUpload
           ventureId={ventureId}

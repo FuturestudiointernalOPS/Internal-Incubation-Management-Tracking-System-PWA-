@@ -2,13 +2,14 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import {
-  Phone, Mail, Users, FileText, Repeat, SquareCheck, Loader2,
+  Phone, Mail, Users, FileText, Repeat, SquareCheck,
   ChevronDown, ChevronUp, Plus, Pencil, Trash2, Clock,
 } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import AppModal from "@/components/ui/AppModal";
 import AppInput from "@/components/ui/AppInput";
 import AppSelect from "@/components/ui/AppSelect";
+import AppTextarea from "@/components/ui/AppTextarea";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDialogs } from "@/components/ui/DialogProvider";
@@ -277,8 +278,7 @@ export default function CrmActivityPanel({ leadId, opportunityId, contactCid, or
           <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
             {t("crm.activities.title")}
           </h2>
-          <AppButton size="sm" onClick={openCreate}>
-            <Plus className="w-4 h-4 mr-1" />
+          <AppButton size="sm" icon={Plus} onClick={openCreate}>
             {t("crm.activities.addActivity")}
           </AppButton>
         </div>
@@ -290,8 +290,9 @@ export default function CrmActivityPanel({ leadId, opportunityId, contactCid, or
           </div>
         ) : activities.length === 0 ? (
           <AppEmptyState
-            message={t("crm.activities.noActivities")}
-            hint={t("crm.activities.noActivitiesHint")}
+            size="sm"
+            title={t("crm.activities.noActivities")}
+            description={t("crm.activities.noActivitiesHint")}
           />
         ) : (
           <>
@@ -361,23 +362,13 @@ export default function CrmActivityPanel({ leadId, opportunityId, contactCid, or
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         title={editing ? t("crm.activities.editActivity") : t("crm.activities.addActivity")}
-        footer={
-          <div className="flex justify-end gap-3">
-            <AppButton variant="ghost" onClick={() => setShowModal(false)} disabled={saving}>
-              {t("common.cancel")}
-            </AppButton>
-            <AppButton onClick={handleSave} disabled={saving}>
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t("common.save")}
-            </AppButton>
-          </div>
-        }
       >
         <div className="space-y-4">
           {!editing && (
             <AppSelect
               label={t("crm.activities.typeLabel")}
               value={form.type}
-              onChange={v => setForm(f => ({ ...f, type: v }))}
+              onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
               options={typeOptions.map(o => ({
                 value: o.value,
                 label: t(o.label),
@@ -403,7 +394,7 @@ export default function CrmActivityPanel({ leadId, opportunityId, contactCid, or
             <AppSelect
               label={t("crm.activities.outcomeLabel")}
               value={form.outcome}
-              onChange={v => setForm(f => ({ ...f, outcome: v }))}
+              onChange={e => setForm(f => ({ ...f, outcome: e.target.value }))}
               options={OUTCOME_OPTIONS.map(o => ({
                 value: o.value,
                 label: t(o.label),
@@ -411,14 +402,21 @@ export default function CrmActivityPanel({ leadId, opportunityId, contactCid, or
             />
           )}
 
-          <AppInput
+          <AppTextarea
             label={t("crm.activities.descriptionLabel")}
             value={form.description}
             onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             placeholder={t("crm.activities.descriptionPlaceholder")}
-            multiline
             rows={3}
           />
+          <div className="flex justify-end gap-3 pt-2">
+            <AppButton variant="ghost" onClick={() => setShowModal(false)} disabled={saving}>
+              {t("common.cancel")}
+            </AppButton>
+            <AppButton onClick={handleSave} loading={saving}>
+              {t("common.save")}
+            </AppButton>
+          </div>
         </div>
       </AppModal>
     </div>

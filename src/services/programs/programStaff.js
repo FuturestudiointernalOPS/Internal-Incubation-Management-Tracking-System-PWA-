@@ -3,6 +3,7 @@ import {
   endV2MirroredProgramContactRole,
   findParticipantFacilitatorConflict,
   getContactEmailForRoleConflict,
+  getContactFacilitatorEligibility,
   getProgramStaffTargetForScopeCheck,
   getV2ContactCidForProgramRoleCleanup,
   getV2ContactCidForProgramRoleMirror,
@@ -39,6 +40,23 @@ async function assertPmScope(programId, session) {
     if (isPm) return;
   }
   throw new ProgramStaffError("errors.insufficientPermissions", 403);
+}
+
+/**
+ * A participant, or a program manager, can never be assigned as a facilitator.
+ * Throws a 409 so the picker shows the reason instead of silently accepting.
+ */
+async function assertEligibleFacilitator(staffRef, programId) {
+  const res = await getContactFacilitatorEligibility(staffRef, programId);
+  const row = res.rows[0];
+  if (!row) return;
+  const contactRole = String(row.role || "").toLowerCase();
+  if (contactRole === "participant") {
+    throw new ProgramStaffError("errors.roleConflictParticipantFacilitator", 409);
+  }
+  if (contactRole === "program_manager" || row.is_program_pm) {
+    throw new ProgramStaffError("errors.roleConflictPmFacilitator", 409);
+  }
 }
 
 async function logFacilitatorTimeline(staffId, programId, eventType, description, extra = {}, session) {
@@ -104,6 +122,7 @@ export async function upsertProgramStaffAssignment(payload, session) {
         : {};
 
   if (roleLower === "facilitator") {
+    await assertEligibleFacilitator(staff_id, program_id);
     const contactRes = await getContactEmailForRoleConflict(staff_id);
     const contactEmail = contactRes.rows[0]?.email || "";
     const conflict = await findParticipantFacilitatorConflict(
@@ -153,6 +172,13 @@ export async function updateProgramStaffAssignment(payload, session) {
   const target = await getProgramStaffTargetForScopeCheck(id);
   if (session?.role === "staff" && target.rows[0]?.program_id) {
     await assertPmScope(target.rows[0].program_id, session);
+  }
+
+  if (
+    String(role || "").toLowerCase() === "facilitator" &&
+    target.rows[0]?.staff_id
+  ) {
+    await assertEligibleFacilitator(target.rows[0].staff_id, target.rows[0].program_id);
   }
 
   const fields = [];

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useI18n } from "@/lib/i18n";
-import { SESSION_MATERIALS_MAX, toDateInput } from "@/lib/ventureSessionRules";
+import { SESSION_MATERIALS_MAX, sessionTimeFloor, toDateInput } from "@/lib/ventureSessionRules";
 import { CalendarPlus, Loader2, X } from "lucide-react";
 
 /**
@@ -15,11 +15,12 @@ import { CalendarPlus, Loader2, X } from "lucide-react";
  */
 export default function FounderSessionBooking({
   bookFor,
+  bookForKey,
   bookForm,
   bookSaving,
   bookSession,
   milestone,
-  openBooking,
+  onOpen,
   setBookFor,
   setBookForm,
   stage,
@@ -27,8 +28,8 @@ export default function FounderSessionBooking({
   const { t } = useI18n();
   return (
     <div className="space-y-1.5 pt-1">
-      {bookFor === milestone.id ? (
-        <form onSubmit={(event) => bookSession(event, stage, milestone)} className="rounded-lg border p-2.5 space-y-2" style={{ borderColor: 'rgb(255 255 255 / 0.08)' }}>
+      {bookFor === bookForKey ? (
+        <form onSubmit={(event) => bookSession(event, stage, milestone)} className="rounded-lg border p-2.5 space-y-2" style={{ borderColor: 'var(--border-primary)' }}>
           <p className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5" style={{ color: 'var(--brand-orange)' }}>
             <CalendarPlus size={13} /> {t('venture.manager.bookSession')}
           </p>
@@ -42,9 +43,9 @@ export default function FounderSessionBooking({
           />
           <div className="flex flex-wrap items-center gap-2">
             <input type="date" required min={toDateInput(new Date())} value={bookForm.date} onChange={(event) => setBookForm({ ...bookForm, date: event.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
-            <input type="time" required min={bookForm.min_time || undefined} value={bookForm.time} onChange={(event) => setBookForm({ ...bookForm, time: event.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
+            <input type="time" required min={sessionTimeFloor(bookForm.date, bookForm.min_time) || undefined} value={bookForm.time} onChange={(event) => setBookForm({ ...bookForm, time: event.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]" />
             <select value={bookForm.duration} onChange={(event) => setBookForm({ ...bookForm, duration: event.target.value })} className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]">
-              {["30", "45", "60", "90"].map((durationOption) => (
+              {["15", "20", "30", "45", "60", "90"].map((durationOption) => (
                 <option key={durationOption} value={durationOption}>{t('venture.manager.minutes', { n: durationOption })}</option>
               ))}
             </select>
@@ -75,14 +76,14 @@ export default function FounderSessionBooking({
           </div>
           <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.manager.sessionLeadHint')}</p>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => setBookFor(null)} className="px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest" style={{ borderColor: 'rgb(255 255 255 / 0.15)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
+            <button type="button" onClick={() => setBookFor(null)} className="px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest" style={{ borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
             <button type="submit" disabled={bookSaving} className="px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-black flex items-center gap-1.5 disabled:opacity-50" style={{ backgroundColor: 'var(--brand-orange)' }}>
               {bookSaving ? <Loader2 size={12} className="animate-spin" /> : <CalendarPlus size={12} />} {t('venture.manager.bookSession')}
             </button>
           </div>
         </form>
       ) : (
-        <button type="button" onClick={() => openBooking(milestone)} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-orange)' }}>
+        <button type="button" onClick={onOpen} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-orange)' }}>
           <CalendarPlus size={12} /> {t('venture.manager.bookSession')}
         </button>
       )}

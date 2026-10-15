@@ -60,11 +60,16 @@ export default function AppSelect({
           <option value="" disabled style={{ background: "var(--surface-1)", color: "var(--text-tertiary)" }}>
             {placeholder}
           </option>
-          {options.map((option) => (
-            <option key={option.value || option} value={option.value || option} style={{ background: "var(--surface-1)", color: "var(--text-primary)" }}>
-              {option.label || option}
-            </option>
-          ))}
+          {options.map((option) => {
+            // `option.value || option` turned a legitimate "" value ("All",
+            // "None") into the option object itself, i.e. "[object Object]".
+            const optionValue = typeof option === "object" ? option.value : option;
+            return (
+              <option key={optionValue} value={optionValue} style={{ background: "var(--surface-1)", color: "var(--text-primary)" }}>
+                {typeof option === "object" ? option.label : option}
+              </option>
+            );
+          })}
         </select>
         <ChevronDown
           className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"

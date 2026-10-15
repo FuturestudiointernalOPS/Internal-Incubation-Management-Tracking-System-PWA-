@@ -46,7 +46,7 @@ export default function VentureChangeLogPanel({ ventureId }) {
         <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
           <History className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
           {t("venture.changes.title")}
-          <span className="px-1.5 py-0.5 rounded bg-white/5 text-slate-400">{changes.length}</span>
+          <span className="px-1.5 py-0.5 rounded bg-[var(--surface-2)] text-slate-400">{changes.length}</span>
         </h3>
         {open ? (
           <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
@@ -84,7 +84,7 @@ export default function VentureChangeLogPanel({ ventureId }) {
                     <span className="text-slate-500">
                       {change.created_at ? new Date(change.created_at).toLocaleString(lang) : ""}
                     </span>
-                    <span className="font-black uppercase tracking-widest text-[8px] px-1.5 py-0.5 rounded bg-white/5 text-slate-400">
+                    <span className="font-black uppercase tracking-widest text-[8px] px-1.5 py-0.5 rounded bg-[var(--surface-2)] text-slate-400">
                       {entityLabel(change.entity_type)}
                     </span>
                     <span className="font-bold text-[var(--text-primary)]">{change.entity_label || "—"}</span>
