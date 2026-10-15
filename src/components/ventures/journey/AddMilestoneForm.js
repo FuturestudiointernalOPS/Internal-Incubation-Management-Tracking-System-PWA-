@@ -42,7 +42,7 @@ export default function AddMilestoneForm({
     <>
       {milestoneAddFor === stage.id ? (
         <form onSubmit={(event) => addMilestone(event, stage)} className="rounded-xl border border-[var(--border-primary)] bg-tertiary p-3 space-y-2">
-          <p className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] flex items-center gap-1.5">
+          <p className="jy-lbl">
             <Flag className="w-3.5 h-3.5" /> {t("venture.manager.addMilestone")}
           </p>
           <input
@@ -87,7 +87,7 @@ export default function AddMilestoneForm({
           {/* Deliverables are defined with the milestone, so
               the milestone is never created empty. */}
           <div className="space-y-2 rounded-lg border border-[var(--border-primary)] p-2.5">
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+            <p className="jy-lbl">
               {t("venture.manager.deliverables")}
             </p>
             {milestoneDeliverables.map((deliverable, deliverableIndex) => (
@@ -119,15 +119,15 @@ export default function AddMilestoneForm({
                 </button>
               </div>
             ))}
-            <button type="button" onClick={addMilestoneDeliverable} className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+            <button type="button" onClick={addMilestoneDeliverable} className="stf-btn sm">
               <Plus className="w-3 h-3" /> {t("venture.manager.addDeliverable")}
             </button>
           </div>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => { setMilestoneAddFor(null); setMilestoneForm(emptyMilestoneForm); }} className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]">
+            <button type="button" onClick={() => { setMilestoneAddFor(null); setMilestoneForm(emptyMilestoneForm); }} className="stf-btn sm">
               {t("common.cancel")}
             </button>
-            <button type="submit" disabled={milestoneSaving} className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5 disabled:opacity-50">
+            <button type="submit" disabled={milestoneSaving} className="stf-btn sm pr">
               {milestoneSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} {t("venture.manager.addMilestone")}
             </button>
           </div>
@@ -135,7 +135,7 @@ export default function AddMilestoneForm({
       ) : (
         <button
           onClick={() => { setMilestoneAddFor(stage.id); setMilestoneForm(emptyMilestoneForm); setMilestoneDeliverables([]); }}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] border border-brand-orange/30 hover:bg-brand-orange/10"
+          className="stf-btn sm"
         >
           <Plus className="w-3.5 h-3.5" /> {t("venture.manager.addMilestone")}
         </button>

@@ -131,7 +131,6 @@ export default function JourneyStageList({ ctx }) {
               key={stage.id}
               stage={stage}
               index={index}
-              visibleStagesCount={visibleStages.length}
               access={access}
               editId={editId}
               setEditId={setEditId}

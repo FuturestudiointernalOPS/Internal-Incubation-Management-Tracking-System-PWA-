@@ -30,7 +30,7 @@ export default function FounderSessionBooking({
     <div className="space-y-1.5 pt-1">
       {bookFor === bookForKey ? (
         <form onSubmit={(event) => bookSession(event, stage, milestone)} className="rounded-lg border p-2.5 space-y-2" style={{ borderColor: 'var(--border-primary)' }}>
-          <p className="text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5" style={{ color: 'var(--brand-orange)' }}>
+          <p className="jy-lbl" style={{ color: 'var(--brand-orange)' }}>
             <CalendarPlus size={13} /> {t('venture.manager.bookSession')}
           </p>
           <textarea

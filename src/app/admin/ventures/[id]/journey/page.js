@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Route } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 
@@ -41,25 +41,21 @@ export default function VentureJourneyPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl mx-auto">
+    <div className="stf mx-auto max-w-5xl" style={{ paddingBottom: 60 }}>
       <button
+        type="button"
         onClick={() => router.push(`/admin/ventures/${id}`)}
-        className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all"
+        className="stf-lk-back"
       >
-        <ArrowLeft className="w-3 h-3" /> {t("vadmin.journey.backToVenture", { name: venture?.company_name || t("vadmin.dashboard.venture") })}
+        <ArrowLeft size={14} /> {t("vadmin.journey.backToVenture", { name: venture?.company_name || t("vadmin.dashboard.venture") })}
       </button>
 
-      <div className="card">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-brand-orange/10 flex items-center justify-center">
-            <Route className="w-6 h-6 text-[var(--brand-orange)]" />
-          </div>
-          <div>
-            <h1 className="text-xl font-black text-[var(--text-primary)]">{t("vadmin.journey.title")}</h1>
-            <p className="text-[10px] text-slate-500 mt-0.5">
-              {t("vadmin.journey.subtitle", { company: venture?.company_name, code: venture?.venture_id })}
-            </p>
-          </div>
+      <div className="stf-head" style={{ marginTop: 14 }}>
+        <div>
+          <h1 className="stf-title">{t("vadmin.journey.title")}</h1>
+          <p className="stf-sub">
+            {t("vadmin.journey.subtitle", { company: venture?.company_name, code: venture?.venture_id })}
+          </p>
         </div>
       </div>
 
