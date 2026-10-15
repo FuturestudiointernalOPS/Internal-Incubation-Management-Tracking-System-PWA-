@@ -14,7 +14,7 @@ import {
   updateVentureMemberFields,
 } from "@/models/ventureWorkspace";
 import {
-  resolveVentureCode,
+  resolveVentureTableId,
   getVentureFounderCount,
   checkVentureMemberViewAccess as checkAccess,
   checkVentureMemberMutateAccess as checkMutateAccess,
@@ -59,9 +59,9 @@ export async function GET(req, { params }) {
     } catch (_) {}
 
     await getVentureByCode(id);
-    const code = await resolveVentureCode(db, id);
+    const ventureId = await resolveVentureTableId(db, id);
 
-    const result = await listVentureMembersWithContacts(code);
+    const result = await listVentureMembersWithContacts(ventureId);
 
     return NextResponse.json({ success: true, members: result.rows });
   } catch (error) {
@@ -124,10 +124,12 @@ export async function POST(req, { params }) {
       );
     }
 
-    const code = await resolveVentureCode(db, id);
+    // Everything roster-shaped keys on the INTERNAL id (Phase 0); the Venture's
+    // own display name is still read by its code, the key the route carries.
+    const ventureId = await resolveVentureTableId(db, id);
 
     // Someone already on the roster does not need an invitation.
-    const alreadyMember = await findVentureMemberByEmail(code, emailNorm);
+    const alreadyMember = await findVentureMemberByEmail(ventureId, emailNorm);
     if (alreadyMember.rows?.length) {
       return NextResponse.json(
         { success: false, error: "This person is already a member of this Venture." },
@@ -138,7 +140,7 @@ export async function POST(req, { params }) {
     // Invite ≠ member: the add creates a PENDING invitation and emails a link.
     // The person joins (and gains access) only once they accept it.
     const invitation = await createVentureMemberInvitation({
-      ventureId: code,
+      ventureId,
       email: emailNorm,
       name: typeof name === "string" ? name.trim() : null,
       memberType,
@@ -149,7 +151,7 @@ export async function POST(req, { params }) {
     // the email below — ask for it once.
     let ventureName = "the Venture";
     try {
-      const ventureResult = await getVentureDisplayNameByCode(code);
+      const ventureResult = await getVentureDisplayNameByCode(id);
       ventureName = ventureResult.rows?.[0]?.venture_name || ventureName;
     } catch (_) {}
 
