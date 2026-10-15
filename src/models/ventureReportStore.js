@@ -107,7 +107,7 @@ export function selectPortfolioReports(status, limit) {
                     r.created_at AS report_created_at, r.journey_stage_id AS report_journey_stage_id,
                     s.name AS journey_name, v.*
              FROM venture_reports r
-             LEFT JOIN ventures v ON r.venture_id = v.id::text
+             LEFT JOIN ventures v ON r.venture_id::text = v.id::text
              LEFT JOIN venture_journey_stages s ON s.id = r.journey_stage_id`;
   const args = [];
   if (status) {

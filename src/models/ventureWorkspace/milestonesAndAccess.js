@@ -169,7 +169,7 @@ export async function listVenturesAssignedToStaff(staffCid, ventureFilter) {
              a.scope_type, a.scope_ref_type, a.scope_ref_id, a.notes, a.created_at AS assigned_at,
              v.venture_id, v.company_name, v.name, v.status, v.business_stage, v.industry, v.country
       FROM venture_staff_assignments a
-      JOIN ventures v ON a.venture_id = v.id::text
+      JOIN ventures v ON a.venture_id::text = v.id::text
       LEFT JOIN venture_responsibilities vr ON vr.code = a.responsibility_code
       WHERE a.staff_contact_id = ? AND a.status = 'active'
     `;
@@ -404,7 +404,7 @@ export async function updateVentureMemberFields(updates, args) {
 export async function listMilestonesForArchive(id, ids) {
   return db.execute({
     sql: `SELECT m.id, m.title, m.journey_stage_id, v.id AS venture_db_id FROM venture_milestones m
-          JOIN ventures v ON m.venture_id = v.id::text
+          JOIN ventures v ON m.venture_id::text = v.id::text
           WHERE v.venture_id = ?
             AND m.id::text = ANY(?)`,
     args: [id, ids],

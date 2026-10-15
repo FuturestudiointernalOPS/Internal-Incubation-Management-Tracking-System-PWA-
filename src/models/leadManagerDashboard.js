@@ -17,7 +17,7 @@ export function selectLeadManagerVentures(staffCid) {
                  v.id AS venture_db_id, v.venture_id, v.company_name, v.name,
                  v.status, v.business_stage, v.industry, v.country, v.updated_at
           FROM venture_staff_assignments a
-          JOIN ventures v ON a.venture_id = v.id::text
+          JOIN ventures v ON a.venture_id::text = v.id::text
           WHERE a.staff_contact_id = ?
             AND a.status = 'active'
             AND a.responsibility_code = 'lead_manager'
