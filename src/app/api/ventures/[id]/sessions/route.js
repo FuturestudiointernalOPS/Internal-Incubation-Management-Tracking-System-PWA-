@@ -168,6 +168,10 @@ export const POST = createHandler(async (req, { params }) => {
               email: address,
               name: invitee?.name,
               actorCid: req.session?.cid,
+              // Who invited them: the signed-in person, so the guest sees a
+              // name in the e-mail and in their own calendar, not the platform.
+              actorName: req.session?.name,
+              actorEmail: req.session?.email,
             });
           } catch (error) {
             // This used to be `.catch(() => null)`, and null was never reported:
@@ -333,6 +337,8 @@ export const POST = createHandler(async (req, { params }) => {
       email: body.email,
       name: body.name,
       actorCid: req.session?.cid,
+      actorName: req.session?.name,
+      actorEmail: req.session?.email,
     });
     if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     return NextResponse.json({ success: true, invitee: result.invitee });

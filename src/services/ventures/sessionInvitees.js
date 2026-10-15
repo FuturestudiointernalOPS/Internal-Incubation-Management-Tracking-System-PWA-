@@ -99,9 +99,17 @@ export async function listInvitedSessionsForContact(contactCid) {
   return res.rows || [];
 }
 
-/** The calendar-ready event of a session (title, memo, place, window). */
-function sessionEvent(session) {
+/**
+ * The calendar-ready event of a session (title, memo, place, window, organiser).
+ *
+ * The ORGANISER is what makes an invitation legible once it is IN someone's
+ * calendar: without it the event appears anonymously, and the guest cannot see
+ * who asked them to be there. It is the connected person who sent the
+ * invitation — not the platform's own sending address.
+ */
+function sessionEvent(session, inviter) {
   const description = [
+    inviter?.name ? `Invited by: ${inviter.name}` : "",
     session.description ? `Memo: ${session.description}` : "",
     session.coach_name ? `With: ${session.coach_name}` : "",
   ]
@@ -115,7 +123,25 @@ function sessionEvent(session) {
     url: session.meeting_link || null,
     startIso: session.start_time,
     endIso: session.end_time,
+    organizerName: inviter?.name || null,
+    organizerEmail: inviter?.email || null,
   };
+}
+
+/**
+ * "15 Oct 2026, 07:45 UTC" — the same instant the e-mail always showed (it is
+ * pinned to UTC on purpose: the stored wall clock is what the organiser typed,
+ * and moving it to a local zone here would silently shift it).
+ */
+function formatWhen(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "UTC",
+    weekday: "short", day: "numeric", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }).format(date) + " UTC";
 }
 
 /**
@@ -129,14 +155,24 @@ function sessionEvent(session) {
  * @param {string} args.email
  * @param {string} [args.name]
  * @param {string} [args.actorCid]
+ * @param {string} [args.actorName]  the connected person who sends the invitation
+ * @param {string} [args.actorEmail] …and their own address, so the guest's
+ *   calendar can show who organised it
  */
-export async function addSessionInvitee({ sessionId, session, ventureLabel, email, name, actorCid }) {
+export async function addSessionInvitee({ sessionId, session, ventureLabel, email, name, actorCid, actorName, actorEmail }) {
   const clean = normalizeInviteEmail(email);
   if (!clean) return { ok: false, error: "A valid e-mail address is required." };
 
   // The table this writes to exists by the time the write happens — a missing
   // one is a loud failure, never an invitation that quietly did not happen.
   await ensureInviteeSchema();
+
+  // Who is inviting: the signed-in person, read from their session, not guessed
+  // from the session row. It travels in the e-mail and in the .ics.
+  const inviter = {
+    name: actorName ? String(actorName).trim() || null : null,
+    email: actorEmail ? String(actorEmail).trim() || null : null,
+  };
 
   // An address that belongs to an account is bound to it: the session can then
   // also reach that person's calendar, and their display name fills in.
@@ -161,7 +197,7 @@ export async function addSessionInvitee({ sessionId, session, ventureLabel, emai
   // the booking says "notified by email" for an inbox that stays empty.
   let emailResult = { sent: false, error: null };
   try {
-    const result = await emailSessionInvitation({ session, ventureLabel, invitee });
+    const result = await emailSessionInvitation({ session, ventureLabel, invitee, inviter });
     emailResult = {
       sent: result?.success === true,
       error: result?.success === true ? null : result?.error || result?.note || "errors.somethingWrong",
@@ -192,8 +228,20 @@ function escapeHtml(text) {
   return String(text ?? "").replace(/[&<>"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[character]));
 }
 
-/** The invitation e-mail: the session, its memo, a "add to calendar" button and an .ics. */
-export async function emailSessionInvitation({ session, ventureLabel, invitee }) {
+/**
+ * The invitation e-mail.
+ *
+ * It leads with the two things a guest actually needs:
+ *  1. WHO invited them — the connected person who sent it, in the greeting, the
+ *     heading line and (for the calendar) as the event's organiser;
+ *  2. WHEN it is — the window, in the same instant the app shows.
+ *
+ * It then carries everything needed to be IN their own calendar: a one-click
+ * Google Calendar button, and the .ics the button cannot help with (Outlook,
+ * Apple Calendar, a desktop client). The .ics names the organiser too, so the
+ * event does not land in their calendar as an anonymous block.
+ */
+export async function emailSessionInvitation({ session, ventureLabel, invitee, inviter }) {
   if (!session || !invitee?.email) {
     // A skip is a DECISION, not an accident — but silence made it look like a
     // lost email: no log row is written when the send never starts, so a guest
@@ -205,34 +253,80 @@ export async function emailSessionInvitation({ session, ventureLabel, invitee })
     );
     return { skipped: true, error: "errors.somethingWrong" };
   }
-  const when = session.start_time ? new Date(session.start_time).toUTCString() : "";
-  const googleUrl = buildGoogleCalendarUrl(sessionEvent(session));
-  const lines = [
-    `${session.title || "A session"}${ventureLabel ? ` — ${ventureLabel}` : ""}`,
-    when ? `When: ${when}` : "",
-    session.location ? `Where: ${session.location}` : "",
-    session.meeting_link ? `Join: ${session.meeting_link}` : "",
-    session.description ? `\n${session.description}` : "",
-  ].filter(Boolean);
+
+  const who = inviter?.name ? String(inviter.name).trim() : null;
+  const event = sessionEvent(session, inviter);
+  const when = formatWhen(session.start_time);
+  const googleUrl = buildGoogleCalendarUrl(event);
+  const ics = buildIcsEvent(event);
+
+  const detailRows = [
+    ["When", when],
+    ["Venture", ventureLabel],
+    ["Where", session.location],
+  ].filter(([, value]) => Boolean(value));
+  if (session.meeting_link) {
+    detailRows.push([
+      "Join",
+      `<a href="${escapeHtml(session.meeting_link)}" style="color:#c2410c;">${escapeHtml(session.meeting_link)}</a>`,
+    ]);
+  }
+
   const html = `
-    <div style="font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;line-height:1.5;">
-      <p>You are invited to a Venture session on ImpactOS.</p>
-      <p style="white-space:pre-wrap;">${escapeHtml(lines.join("\n"))}</p>
-      ${googleUrl ? `<p><a href="${googleUrl}" style="background:#ff6a00;color:#000;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:bold;">Add to my calendar</a></p>` : ""}
-      <p>An .ics file is attached — open it in any calendar app to add the session.</p>
+    <div style="background:#f4f5f7;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;">
+      <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e3e5e8;border-radius:14px;padding:28px;">
+        <p style="margin:0 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;">ImpactOS &middot; Venture session</p>
+        <h1 style="margin:0 0 16px;font-size:20px;line-height:1.35;color:#111827;">Invitation for a session</h1>
+        <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#1f2937;">
+          ${who ? `<strong>${escapeHtml(who)}</strong> invited you to a session.` : "You have been invited to a session."}
+        </p>
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;color:#1f2937;">
+          <tr>
+            <td style="padding:0 0 10px;font-size:16px;font-weight:bold;line-height:1.4;" colspan="2">${escapeHtml(session.title || "Venture session")}</td>
+          </tr>
+          ${detailRows
+            .map(
+              ([label, value]) => `<tr>
+            <td style="padding:4px 14px 4px 0;vertical-align:top;color:#6b7280;white-space:nowrap;">${label}</td>
+            <td style="padding:4px 0;vertical-align:top;">${value}</td>
+          </tr>`,
+            )
+            .join("")}
+        </table>
+        ${
+          session.description
+            ? `<div style="margin:20px 0 0;padding:12px 14px;background:#f9fafb;border-left:3px solid #ff6a00;border-radius:6px;">
+          <p style="margin:0 0 4px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;">Memo</p>
+          <p style="margin:0;font-size:14px;line-height:1.6;color:#1f2937;white-space:pre-wrap;">${escapeHtml(session.description)}</p>
+        </div>`
+            : ""
+        }
+        ${
+          googleUrl
+            ? `<p style="margin:24px 0 0;"><a href="${googleUrl}" style="display:inline-block;background:#ff6a00;color:#111827;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;">Add to my calendar</a></p>`
+            : ""
+        }
+        <p style="margin:18px 0 0;font-size:12px;line-height:1.6;color:#6b7280;">
+          An .ics file is attached — open it in Google Calendar, Outlook or Apple Calendar to add this session to your own calendar.
+        </p>
+      </div>
     </div>`;
-  const ics = buildIcsEvent(sessionEvent(session));
+
   const attachments = ics
-    ? [{ filename: "session.ics", content: ics, contentType: "text/calendar" }]
+    ? [{ filename: "session-invitation.ics", content: ics, contentType: "text/calendar" }]
     : undefined;
   return sendStandaloneEmail({
     to: invitee.email,
-    subject: `Invitation: ${session.title || "Venture session"}`,
+    subject: "Invitation for a session",
     html,
     contact_cid: invitee.contact_cid || null,
     email_type: "session_invitation",
     note: `Session invitation #${session.id}`,
     attachments,
+    // The guest's inbox should say WHO asked them, not just which platform the
+    // mail came from — the address stays the platform's (deliverability), the
+    // display name is the connected person who booked.
+    fromName: who || undefined,
     // GMAIL first, explicitly. This mail carries the .ics, and only the Gmail
     // transport can attach a file — the Resend sender has no attachment
     // support, so a fallback drops the calendar file silently. Pinning it here

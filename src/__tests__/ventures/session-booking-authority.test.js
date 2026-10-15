@@ -319,7 +319,7 @@ describe("an invitation that could not be made is never confirmed as sent", () =
   const GUEST = { email: "guest@x.io" };
 
   beforeEach(() => {
-    mockGuard = { session: { cid: "sa-1", name: "Super", role: "super_admin" }, path: "super-admin" };
+    mockGuard = { session: { cid: "sa-1", name: "Super", role: "super_admin", email: "super@x.io" }, path: "super-admin" };
     mockIsStaffActor = true;
   });
 
@@ -356,6 +356,11 @@ describe("an invitation that could not be made is never confirmed as sent", () =
 
     const body = await (await book({ invitees: [GUEST] })).json();
     expect(body.invitations).toEqual({ attempted: 1, failed: [] });
+    // The invitation names the CONNECTED person, so the guest's e-mail and
+    // calendar say who asked them — not just which platform wrote to them.
+    expect(mockAddSessionInvitee).toHaveBeenCalledWith(
+      expect.objectContaining({ actorName: "Super", actorEmail: "super@x.io" }),
+    );
   });
 
   test("a booking with no guests asks for nothing and reports nothing", async () => {

@@ -102,6 +102,56 @@ describe("addSessionInvitee", () => {
     expect(sendStandaloneEmail).not.toHaveBeenCalled();
   });
 
+  it("says WHO invited them — in the subject, the greeting and the from name", async () => {
+    selectContactByEmail.mockResolvedValue({ rows: [] });
+    store.upsertInvitee.mockResolvedValue({ rows: [{ id: 5, session_id: 42, email: "guest@x.io" }] });
+
+    await addSessionInvitee({
+      sessionId: 42,
+      session: SESSION,
+      email: "guest@x.io",
+      actorName: "Amina Diallo",
+      actorEmail: "amina@impactos.io",
+    });
+
+    const sent = sendStandaloneEmail.mock.calls[0][0];
+    expect(sent.subject).toBe("Invitation for a session");
+    expect(sent.html).toContain("Amina Diallo");
+    expect(sent.fromName).toBe("Amina Diallo");
+  });
+
+  it("names the organiser in the .ics, so the event is not anonymous in the guest's calendar", async () => {
+    selectContactByEmail.mockResolvedValue({ rows: [] });
+    store.upsertInvitee.mockResolvedValue({ rows: [{ id: 6, session_id: 42, email: "guest@x.io" }] });
+
+    await addSessionInvitee({
+      sessionId: 42,
+      session: SESSION,
+      email: "guest@x.io",
+      actorName: "Amina Diallo",
+      actorEmail: "amina@impactos.io",
+    });
+
+    const ics = sendStandaloneEmail.mock.calls[0][0].attachments[0].content;
+    expect(ics).toContain("ORGANIZER;CN=Amina Diallo:mailto:amina@impactos.io");
+    expect(ics).toContain("Invited by: Amina Diallo");
+    // The event still lands at the announced instant, and carries the link.
+    expect(ics).toContain("DTSTART:20261102T090000Z");
+  });
+
+  it("an unknown inviter reads as a sentence, not as a blank name", async () => {
+    selectContactByEmail.mockResolvedValue({ rows: [] });
+    store.upsertInvitee.mockResolvedValue({ rows: [{ id: 7, session_id: 42, email: "guest@x.io" }] });
+
+    await addSessionInvitee({ sessionId: 42, session: SESSION, email: "guest@x.io" });
+
+    const sent = sendStandaloneEmail.mock.calls[0][0];
+    expect(sent.html).toContain("You have been invited to a session.");
+    expect(sent.fromName).toBeUndefined();
+    expect(sent.attachments[0].content).not.toContain("ORGANIZER");
+    expect(sent.attachments[0].filename).toBe("session-invitation.ics");
+  });
+
   it("a sent invitation reports itself as sent", async () => {
     store.upsertInvitee.mockResolvedValue({ rows: [{ id: 3, session_id: 42, email: "ok@x.io" }] });
     sendStandaloneEmail.mockResolvedValueOnce({ success: true, provider: "gmail" });
