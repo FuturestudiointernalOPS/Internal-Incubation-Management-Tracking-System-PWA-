@@ -168,6 +168,7 @@ import AppTabs from "@/components/ui/AppTabs";
 
 // Forms
 import AppInput from "@/components/ui/AppInput";
+import AppTextarea from "@/components/ui/AppTextarea";
 import AppSelect from "@/components/ui/AppSelect";
 
 // Data Display
@@ -400,6 +401,7 @@ src/
 │       ├── AppEmptyState.js     ← Empty/placeholder state (sm/md/lg)
 │       ├── AppImage.js          ← Image wrapper; plain <img> for arbitrary hosts, next/image for allowed ones
 │       ├── AppInput.js
+│       ├── AppTextarea.js       ← Multi-line field, same contract as AppInput
 │       ├── AppModal.js
 │       ├── AppMenu.js           ← Row-action menu (⋯) — grouped items, danger items
 │       ├── AppSplitMenu.js      ← Split action button — the action on show + a chevron for the other actions
@@ -476,3 +478,5 @@ Desktop collapse is persisted with `impactos_participant_sidebar_collapsed` and 
 Participant active group styling uses `data-nav-kind="group"`; only active nested links use the solid orange surface. SearchableSelect exposes `data-select-trigger` and `aria-expanded` so the participant select theme applies to searchable dropdowns, with labels associated to the trigger. The participant brand header displays Future Studio / ImpactOS beside the logo and an outlined collapse control.
 
 Participant announcements now live at `/participant/announcements`, sourced from the complete announcement notification history for the session recipient. Read/unread changes persist through the notification API; categorisation and personal pins are stored per recipient on the current browser. Uncategorized notifications default to Programme. The participant sidebar omits Assignments, Progress, Rituals and Follow-ups while their routes remain accessible. The home page links to the announcement hub.
+
+Investor Space (`/investor/dashboard`) also hosts the shared welcome, calendar and announcement shortcut above investment tools. Investor accounts (session role or approved investor relationship) reach this home from `/participant`; the sidebar uses Investor Space as their primary entry instead of a duplicate common Dashboard. Other participant accounts keep their dashboard.

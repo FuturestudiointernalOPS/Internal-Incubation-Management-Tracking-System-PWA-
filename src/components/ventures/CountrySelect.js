@@ -60,7 +60,7 @@ export default function CountrySelect({ value, onSelect, inputStyle, id }) {
         </button>
       ) : (
         <div className="w-full rounded-lg overflow-hidden border" style={inputStyle}>
-          <div className="flex items-center gap-2 px-3 py-2 border-b" style={{ borderColor: "rgb(255 255 255 / 0.1)" }}>
+          <div className="flex items-center gap-2 px-3 py-2 border-b" style={{ borderColor: "var(--border-primary)" }}>
             <Search size={14} style={{ color: "var(--text-secondary)" }} />
             <input
               autoFocus
@@ -82,7 +82,7 @@ export default function CountrySelect({ value, onSelect, inputStyle, id }) {
                   onClick={() => pick(country.code, country.name)}
                   className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-sm hover:opacity-80"
                   style={{ color: "var(--text-primary)", background: "transparent" }}
-                  onMouseEnter={(event) => { event.currentTarget.style.background = "rgb(255 255 255 / 0.06)"; }}
+                  onMouseEnter={(event) => { event.currentTarget.style.background = "var(--surface-3)"; }}
                   onMouseLeave={(event) => { event.currentTarget.style.background = "transparent"; }}
                 >
                   <span className="text-base">{country.flag}</span>
@@ -101,7 +101,7 @@ export default function CountrySelect({ value, onSelect, inputStyle, id }) {
             type="button"
             onClick={() => { setOpen(false); setQuery(""); }}
             className="w-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-center border-t"
-            style={{ borderColor: "rgb(255 255 255 / 0.1)", color: "var(--text-secondary)" }}
+            style={{ borderColor: "var(--border-primary)", color: "var(--text-secondary)" }}
           >
             Cancel
           </button>

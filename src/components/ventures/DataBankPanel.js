@@ -336,7 +336,7 @@ export default function DataBankPanel({ ventureId, canReview = false }) {
               </h2>
               <button
                 onClick={() => setReviewOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-white/5 text-[var(--text-secondary)]"
+                className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] text-[var(--text-secondary)]"
               >
                 <X size={16} />
               </button>
@@ -383,7 +383,7 @@ export default function DataBankPanel({ ventureId, canReview = false }) {
             <div className="flex gap-3">
               <button
                 onClick={() => setReviewOpen(false)}
-                className="flex-1 py-2.5 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:bg-white/5 transition-all"
+                className="flex-1 py-2.5 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:bg-[var(--surface-2)] transition-all"
               >
                 {t("vadmin.verification.cancel")}
               </button>

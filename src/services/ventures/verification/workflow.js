@@ -202,6 +202,19 @@ export async function updateVerificationStatus({
     if (itemRes.rows.length === 0) throw new Error("Verification item not found.");
     const item = itemRes.rows[0];
 
+    // A slot that expects a file cannot be approved while it holds none: there
+    // is nothing to judge, and the approval would count towards readiness for a
+    // document nobody has seen. (Rejecting or suspending stays possible.)
+    if (newStatus === "verified") {
+      const types = (await listActiveVentureDocumentTypesOrDefaults(ventureId)) || [];
+      const documentType = types.find((entry) => entry.code === category);
+      if (documentType && documentType.verification_method !== "external") {
+        const documentsResult = await selectVerificationDocuments(verificationId);
+        const filed = (documentsResult.rows || []).some((entry) => entry.category === category);
+        if (!filed) throw new Error("There is no document to approve in this section yet.");
+      }
+    }
+
     await updateVerificationItemStatus(item.id, newStatus, notes || null, reviewerCid, now);
 
     await insertVerificationItemUpdatedHistory({

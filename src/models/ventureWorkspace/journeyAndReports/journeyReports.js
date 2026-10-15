@@ -24,9 +24,12 @@ export function listVentureStagesForReportLegacy(dbId) {
 
 /** Journey-bound milestones of a Venture (owner ids). */
 export function listVentureMilestonesForReport(owners) {
+  // `venture_milestones.venture_id` is a UUID, while the owner list also carries
+  // the human code (VNT-…): compared as text, so the code is never cast to a UUID
+  // (which failed the whole read and dropped the milestones from the report).
   return db.execute({
     sql: `SELECT id, journey_stage_id, title, status, target_date FROM venture_milestones
-              WHERE venture_id IN (${owners.map(() => "?").join(", ")}) AND journey_stage_id IS NOT NULL`,
+              WHERE venture_id::text IN (${owners.map(() => "?").join(", ")}) AND journey_stage_id IS NOT NULL`,
     args: owners,
   });
 }

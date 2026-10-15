@@ -162,8 +162,8 @@ export default function VentureDashboard({ id, embedded = false }) {
         <div className={wrapperClass}>
           {!embedded && (
             <div className="animate-pulse">
-              <div className="h-8 w-64 rounded bg-slate-700/50 mb-2" />
-              <div className="h-4 w-96 rounded bg-slate-700/50" />
+              <div className="h-8 w-64 rounded bg-[var(--surface-3)] mb-2" />
+              <div className="h-4 w-96 rounded bg-[var(--surface-3)]" />
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

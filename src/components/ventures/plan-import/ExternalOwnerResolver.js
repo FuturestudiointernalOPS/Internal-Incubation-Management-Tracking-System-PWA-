@@ -47,7 +47,7 @@ export default function ExternalOwnerResolver({
                 <li key={entry.name} className="rounded-lg border border-[var(--border-primary)] p-2 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[11px] font-bold text-[var(--text-primary)]">{entry.name}</span>
-                    <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-white/5 text-slate-400">
+                    <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-[var(--surface-2)] text-slate-400">
                       {t("venture.planImport.externalBadge")}
                     </span>
                     <span className="text-[9px] text-slate-500">

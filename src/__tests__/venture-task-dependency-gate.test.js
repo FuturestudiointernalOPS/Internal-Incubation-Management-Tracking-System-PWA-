@@ -2,10 +2,13 @@
  * TASK DEPENDENCY GATE — the Venture cannot move blocked work forward.
  *
  * The rule these pin down:
- *   - a Venture-side actor may not start or finish a task while a task it
- *     depends on is not done — the refusal NAMES the blocker;
- *   - Future Studio staff plan ahead and are exempt (same rule as booking a
- *     session against a milestone);
+ *   - a founder never moves a task's status: it is Future Studio's call, and
+ *     the founder reports progress through submissions;
+ *   - a Future Studio actor who is not assigned to the Venture may not start or
+ *     finish a task while a task it depends on is not done — the refusal NAMES
+ *     the blocker;
+ *   - Future Studio staff assigned to the Venture plan ahead and are exempt
+ *     (same rule as booking a session against a milestone);
  *   - a completed task frees what it was holding back, in the same request;
  *   - the board read carries each task's dependencies, so the UI can say why.
  */
@@ -16,6 +19,7 @@ const mockSyncBlock = jest.fn();
 const mockRelease = jest.fn();
 const mockEdges = jest.fn();
 let mockIsStaff = false;
+let mockRole = "program_manager";
 
 jest.mock("@/lib/db", () => ({
   __esModule: true,
@@ -27,18 +31,19 @@ jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
 }));
 jest.mock("@/server/auth/session", () => ({
-  getSession: jest.fn().mockResolvedValue({ cid: "c1", name: "Actor", role: "founder" }),
+  getSession: jest.fn(async () => ({ cid: "c1", name: "Actor", role: mockRole })),
 }));
 
 jest.mock("@/lib/ventureScopedAccess", () => ({
-  requireVentureScopedAccess: jest.fn().mockResolvedValue({
-    session: { cid: "c1", name: "Actor", role: "founder" },
+  requireVentureScopedAccess: jest.fn(async () => ({
+    session: { cid: "c1", name: "Actor", role: mockRole },
     path: "capability+scope",
-  }),
+  })),
 }));
 
 jest.mock("@/lib/ventureAuth", () => ({
   isStaffActorForVenture: jest.fn(async () => mockIsStaff),
+  roleIsPrivileged: (role) => ["staff", "super_admin", "program_manager"].includes(role),
 }));
 
 jest.mock("@/models/ventureWorkspace", () => ({
@@ -78,6 +83,7 @@ const patchReq = (body) => ({ url: "http://localhost/api/ventures/VNT-1/tasks?id
 beforeEach(() => {
   jest.clearAllMocks();
   mockIsStaff = false;
+  mockRole = "program_manager";
   mockGetUnmet.mockResolvedValue([]);
   mockSetDependencies.mockResolvedValue({ success: true, count: 0 });
   mockSyncBlock.mockResolvedValue({ status: "todo" });
@@ -87,7 +93,24 @@ beforeEach(() => {
   updateTask.mockResolvedValue({ updated: true });
 });
 
-describe("the hard gate — a blocked task cannot move forward for the Venture", () => {
+describe("a founder never moves a task's status", () => {
+  test.each(["in_progress", "done", "blocked"])("a founder moving a task to %s is refused", async (status) => {
+    mockRole = "founder";
+    const res = await PATCH(patchReq({ status }), ctx);
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toMatch(/Future Studio staff/);
+    expect(updateTask).not.toHaveBeenCalled();
+  });
+
+  test("a founder may still edit the task's other fields", async () => {
+    mockRole = "founder";
+    const res = await PATCH(patchReq({ description: "Clearer wording" }), ctx);
+    expect(res.status).toBe(200);
+    expect(updateTask).toHaveBeenCalled();
+  });
+});
+
+describe("the hard gate — a blocked task cannot move forward for an unassigned actor", () => {
   test("a blocked task refuses to start, and NAMES the blocker", async () => {
     mockGetUnmet.mockResolvedValue([{ id: 9, title: "Identify ICPs", status: "in_progress" }]);
     const res = await PATCH(patchReq({ status: "in_progress" }), ctx);

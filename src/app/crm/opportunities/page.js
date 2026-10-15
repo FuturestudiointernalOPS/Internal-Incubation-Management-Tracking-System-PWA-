@@ -7,6 +7,8 @@ import AppButton from "@/components/ui/AppButton";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/lib/i18n";
+import CrmOpportunityCreateModal from "@/components/crm/CrmOpportunityCreateModal";
+import { useCrmCapabilities } from "@/components/crm/useCrmCapabilities";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +24,8 @@ function MetricCard({ label, value, sub }) {
 
 export default function CrmOpportunitiesPage() {
   const { t } = useI18n();
+  const { can } = useCrmCapabilities();
+  const [showModal, setShowModal] = useState(false);
   const [opps, setOpps]         = useState([]);
   const [metrics, setMetrics]   = useState(null);
   const [pipelines, setPipelines] = useState([]);
@@ -76,8 +80,8 @@ export default function CrmOpportunitiesPage() {
   const columns = [
     {
       key: "name",
-      header: t("crm.opportunities.nameLabel"),
-      render: (row) => (
+      label: t("crm.opportunities.nameLabel"),
+      render: (_value, row) => (
         <div>
           <a href={`/crm/opportunities/${row.id}`} className="font-semibold text-[var(--brand-orange)] hover:underline">
             {row.name}
@@ -90,8 +94,8 @@ export default function CrmOpportunitiesPage() {
     },
     {
       key: "pipeline_name",
-      header: t("crm.opportunities.pipelineLabel"),
-      render: (row) => (
+      label: t("crm.opportunities.pipelineLabel"),
+      render: (_value, row) => (
         <div>
           <div className="text-sm text-[var(--text-primary)]">{row.pipeline_name}</div>
           <div className="text-xs text-[var(--text-secondary)]">{row.stage_name}</div>
@@ -100,30 +104,30 @@ export default function CrmOpportunitiesPage() {
     },
     {
       key: "value",
-      header: t("crm.opportunities.valueLabel"),
-      render: (row) =>
+      label: t("crm.opportunities.valueLabel"),
+      render: (_value, row) =>
         row.value != null
           ? `${Number(row.value).toLocaleString()} ${row.currency || ""}`.trim()
           : "—",
     },
     {
       key: "probability",
-      header: t("crm.opportunities.probabilityLabel"),
-      render: (row) => (row.probability != null ? `${row.probability}%` : "—"),
+      label: t("crm.opportunities.probabilityLabel"),
+      render: (_value, row) => (row.probability != null ? `${row.probability}%` : "—"),
     },
     {
       key: "status",
-      header: t("crm.opportunities.statusLabel"),
-      render: (row) => (
+      label: t("crm.opportunities.statusLabel"),
+      render: (_value, row) => (
         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--surface-3)] text-[var(--text-primary)]">
-          {t(`crm.opportunities.statuses.${row.status}`) || row.status}
+          {t(`crm.opportunities.statuses.${row.status}`)}
         </span>
       ),
     },
     {
       key: "owner_name",
-      header: t("crm.leads.ownerLabel"),
-      render: (row) => row.owner_name || "—",
+      label: t("crm.leads.ownerLabel"),
+      render: (_value, row) => row.owner_name || "—",
     },
   ];
 
@@ -142,10 +146,11 @@ export default function CrmOpportunitiesPage() {
             </p>
           </div>
         </div>
-        <AppButton onClick={() => window.location.href = "/crm/opportunities/new"} className="shrink-0">
-          <Plus className="w-4 h-4" />
-          {t("crm.opportunities.newOpportunity")}
-        </AppButton>
+        {can("create") && (
+          <AppButton icon={Plus} onClick={() => setShowModal(true)} className="shrink-0">
+            {t("crm.opportunities.newOpportunity")}
+          </AppButton>
+        )}
       </div>
 
       {/* Metrics */}
@@ -209,8 +214,18 @@ export default function CrmOpportunitiesPage() {
           description={!search && !filterPipeline && !filterStatus ? t("crm.opportunities.noOpportunitiesHint") : undefined}
         />
       ) : (
-        <AppTable columns={columns} rows={filtered} rowKey="id" />
+        <AppTable columns={columns} data={filtered} />
       )}
+
+      <CrmOpportunityCreateModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        pipelines={pipelines}
+        onCreated={async () => {
+          setShowModal(false);
+          await fetchAll();
+        }}
+      />
     </div>
   );
 }

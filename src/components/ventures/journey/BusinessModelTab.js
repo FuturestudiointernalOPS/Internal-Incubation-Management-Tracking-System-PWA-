@@ -24,7 +24,7 @@ export function BusinessModelTab() {
               </div>
             ))}
           </div>
-          <div className="flex justify-end pt-4 border-t" style={{ borderColor: 'rgb(255 255 255 / 0.1)' }}>
+          <div className="flex justify-end pt-4 border-t" style={{ borderColor: 'var(--border-primary)' }}>
             <button type="submit" className="px-6 py-2 rounded-lg text-white" style={{ backgroundColor: 'var(--brand-orange)' }}>{t('venture.save')}</button>
           </div>
         </div>

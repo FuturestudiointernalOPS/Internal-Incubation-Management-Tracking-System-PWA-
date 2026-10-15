@@ -104,8 +104,11 @@ export function selectDelayedMilestones(ventureId) {
 /** A Venture's deadlines in the next 7 days (tasks then milestones). */
 export function selectUpcomingDeadlines(ventureId) {
   return db.execute({
-    sql: `SELECT id, title, 'task' as type, due_date FROM venture_tasks WHERE venture_id = ? AND due_date IS NOT NULL AND due_date BETWEEN NOW() AND NOW() + INTERVAL '7 days' AND status NOT IN ('done', 'cancelled') UNION ALL
-          SELECT id, title, 'milestone' as type, target_date AS due_date FROM venture_milestones WHERE venture_id = ? AND target_date IS NOT NULL AND target_date BETWEEN NOW() AND NOW() + INTERVAL '7 days' AND status NOT IN ('completed', 'cancelled') ORDER BY target_date ASC`,
+    // Task ids are integers and milestone ids are UUIDs: both are cast to text so
+    // the two halves of the UNION have the same type, and the result is ordered
+    // by the output column (`due_date`), not by a column only one half has.
+    sql: `SELECT id::text AS id, title, 'task' as type, due_date FROM venture_tasks WHERE venture_id = ? AND due_date IS NOT NULL AND due_date BETWEEN NOW() AND NOW() + INTERVAL '7 days' AND status NOT IN ('done', 'cancelled') UNION ALL
+          SELECT id::text AS id, title, 'milestone' as type, target_date AS due_date FROM venture_milestones WHERE venture_id = ? AND target_date IS NOT NULL AND target_date BETWEEN NOW() AND NOW() + INTERVAL '7 days' AND status NOT IN ('completed', 'cancelled') ORDER BY due_date ASC`,
     args: [ventureId, ventureId],
   });
 }

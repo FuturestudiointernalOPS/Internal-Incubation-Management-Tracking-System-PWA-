@@ -136,12 +136,11 @@ export function useDashboardNavigation({
         isInvestor: false,
         ventures: [],
       };
-      // ONE dashboard per surface: the calendar page. "member" is the
-      // baseline identity, not a destination — a member (and a founder, and a
-      // participant) all land on /participant and get their contexts as
-      // sidebar additions. Only the team surface has a different calendar page.
+      // Investors use Investor Space as their home. Other personal accounts
+      // keep the common participant dashboard, and team accounts keep /team.
       const dashboardHref = activeRole === "team" ? "/team" : "/participant";
-      const items = [
+      const investorAccount = activeRole === "investor" || rel.isInvestor;
+      const items = investorAccount ? [] : [
         { id: "dashboard", name: "DASHBOARD", icon: LayoutDashboard, href: dashboardHref },
       ];
       // The learner door. It opens from an actual enrollment — the LMS decides
@@ -179,8 +178,8 @@ export function useDashboardNavigation({
       // gets their investor space here — exactly like the program and venture
       // doors, driven by what the server resolved for this person, never by the
       // role string.
-      if (rel.isInvestor) {
-        items.push({ id: "investor", name: "INVESTOR SPACE", icon: TrendingUp, href: "/investor/dashboard" });
+      if (investorAccount) {
+        items.unshift({ id: "investor", name: "INVESTOR SPACE", icon: TrendingUp, href: "/investor/dashboard" });
       }
       return items;
     }

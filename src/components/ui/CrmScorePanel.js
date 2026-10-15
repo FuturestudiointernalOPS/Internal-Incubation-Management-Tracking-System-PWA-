@@ -6,6 +6,7 @@ import AppButton from "@/components/ui/AppButton";
 import AppModal from "@/components/ui/AppModal";
 import AppInput from "@/components/ui/AppInput";
 import AppSelect from "@/components/ui/AppSelect";
+import AppTextarea from "@/components/ui/AppTextarea";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { useI18n } from "@/lib/i18n";
 
@@ -30,6 +31,7 @@ export default function CrmScorePanel({ lead, onUpdate }) {
   const [qualForm, setQualForm] = useState({ state: lead?.qualification_state || "not_assessed", reason: lead?.qualification_reason || "" });
 
   const [saving, setSaving] = useState(false);
+  const [breakdown, setBreakdown] = useState(null); // the rules behind the last computed score
 
   const band = getScoreBand(lead?.score || 0);
   const state = lead?.qualification_state || "not_assessed";
@@ -49,6 +51,25 @@ export default function CrmScorePanel({ lead, onUpdate }) {
       const data = await res.json();
       if (data.success) {
         setShowScoreModal(false);
+        if (onUpdate) onUpdate(data.lead);
+      } else {
+        await alert({ message: t(data.error || "errors.somethingWrong") });
+      }
+    } catch {
+      await alert({ message: t("crm.intelligence.score.errorScore") });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleCompute() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/crm/leads/${lead.id}/score`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setBreakdown(data.breakdown ?? []);
+        setScoreForm(f => ({ ...f, score: data.lead?.score ?? 0 }));
         if (onUpdate) onUpdate(data.lead);
       } else {
         await alert({ message: t(data.error || "errors.somethingWrong") });
@@ -107,10 +128,25 @@ export default function CrmScorePanel({ lead, onUpdate }) {
                 {t(`crm.intelligence.score.bands.${band.key}`)}
               </span>
             </div>
-            <button onClick={() => setShowScoreModal(true)} className="text-xs font-medium text-[var(--brand-blue)] hover:underline">
-              {t("crm.intelligence.score.adjust")}
-            </button>
+            <div className="flex flex-col items-end gap-2">
+              <button onClick={handleCompute} disabled={saving} className="text-xs font-medium text-[var(--brand-blue)] hover:underline disabled:opacity-50">
+                {t("crm.intelligence.score.compute")}
+              </button>
+              <button onClick={() => setShowScoreModal(true)} className="text-xs font-medium text-[var(--brand-blue)] hover:underline">
+                {t("crm.intelligence.score.adjust")}
+              </button>
+            </div>
           </div>
+          {breakdown && (
+            <ul className="mt-3 pt-3 border-t border-[var(--border-primary)] space-y-1">
+              {breakdown.map((rule) => (
+                <li key={rule.key} className="flex justify-between text-xs text-[var(--text-secondary)]">
+                  <span>{t(`crm.intelligence.score.rules.${rule.key}`)}</span>
+                  <span className="font-semibold text-[var(--text-primary)]">+{rule.points}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Qualification Block */}
@@ -150,11 +186,11 @@ export default function CrmScorePanel({ lead, onUpdate }) {
             onChange={e => setScoreForm(f => ({ ...f, score: e.target.value }))}
             min="0" max="100"
           />
-          <AppInput
+          <AppTextarea
             label={t("crm.intelligence.score.reasonLabel")}
             value={scoreForm.reason}
             onChange={e => setScoreForm(f => ({ ...f, reason: e.target.value }))}
-            multiline rows={2}
+            rows={2}
           />
           <div className="flex justify-end gap-2 mt-4">
             <AppButton variant="ghost" onClick={() => setShowScoreModal(false)} disabled={saving}>{t("common.cancel")}</AppButton>
@@ -168,17 +204,17 @@ export default function CrmScorePanel({ lead, onUpdate }) {
           <AppSelect
             label={t("crm.intelligence.score.stateLabel")}
             value={qualForm.state}
-            onChange={v => setQualForm(f => ({ ...f, state: v }))}
+            onChange={e => setQualForm(f => ({ ...f, state: e.target.value }))}
             options={QUALIFICATION_STATES.map(s => ({
               value: s,
               label: t(`crm.intelligence.score.states.${s}`),
             }))}
           />
-          <AppInput
+          <AppTextarea
             label={t("crm.intelligence.score.reasonLabel")}
             value={qualForm.reason}
             onChange={e => setQualForm(f => ({ ...f, reason: e.target.value }))}
-            multiline rows={2}
+            rows={2}
           />
           <div className="flex justify-end gap-2 mt-4">
             <AppButton variant="ghost" onClick={() => setShowQualModal(false)} disabled={saving}>{t("common.cancel")}</AppButton>

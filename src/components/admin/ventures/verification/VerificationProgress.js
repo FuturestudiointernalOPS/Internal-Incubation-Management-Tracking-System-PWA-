@@ -121,7 +121,10 @@ export default function VerificationProgress({
 
               {/* Per-document review (decision Q6): validate or reject ONE
                   document at a time. Hidden for not_applicable items. */}
-              {item && item.status !== "not_applicable" && (
+              {/* A slot that expects a file cannot be approved or rejected while it
+                  holds none: there is nothing to judge, and an approval would
+                  count towards readiness for a document nobody has seen. */}
+              {item && item.status !== "not_applicable" && !(isUpload && stepDocs.length === 0) && (
                 <div className="flex gap-2 mt-3">
                   {item.status !== "verified" && (
                     <button

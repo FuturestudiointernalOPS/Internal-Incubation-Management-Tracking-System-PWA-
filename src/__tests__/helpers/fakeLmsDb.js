@@ -391,6 +391,11 @@ export function createFakeDb() {
 
   function interpreter(sql, args) {
     const statement = sql.replace(/\s+/g, " ").trim();
+    // Self-healing schema DDL (CREATE ... IF NOT EXISTS): the fake's tables
+    // already exist, so it is a no-op here.
+    if (/^create (?:unique )?(?:table|index) if not exists/i.test(statement)) {
+      return { rows: [], rowsAffected: 0 };
+    }
     if (/^insert into/i.test(statement)) return insert(statement, args);
     if (/^update/i.test(statement)) return update(statement, args);
     if (/^delete from/i.test(statement)) return remove(statement, args);

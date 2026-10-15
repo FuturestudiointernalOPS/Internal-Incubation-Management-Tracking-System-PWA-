@@ -24,7 +24,7 @@ export default function InviteModal({
               <p className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.founders.inviteModalSubtitle")}</p>
             </div>
           </div>
-          <button onClick={() => setShowInviteModal(false)} className="p-2 hover:bg-white/5 rounded-lg">
+          <button onClick={() => setShowInviteModal(false)} className="p-2 hover:bg-[var(--surface-2)] rounded-lg">
             <X className="w-4 h-4 text-slate-500" />
           </button>
         </div>

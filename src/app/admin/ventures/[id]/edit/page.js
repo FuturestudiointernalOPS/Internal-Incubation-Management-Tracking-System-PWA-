@@ -254,15 +254,29 @@ export default function EditVenturePage({ params }) {
                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
                   {t("vadmin.edit.industry")}
                 </label>
-                <select
-                  value={form.industry}
-                  onChange={(event) => handleChange("industry", event.target.value)}
-                  className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-brand-orange/50 transition-all"
-                >
-                  {INDUSTRIES.map((ind) => (
-                    <option key={ind} value={ind.toLowerCase()}>{ind}</option>
-                  ))}
-                </select>
+                {/* The stored industry is free text (it may be empty, or spelt
+                    differently from the list). The select shows what is really
+                    stored: an empty choice when there is none, and the stored
+                    value itself when it is not one of the listed ones — so
+                    saving the form never swaps it for the first option. */}
+                {(() => {
+                  const stored = String(form.industry || "");
+                  const listed = INDUSTRIES.find((ind) => ind.toLowerCase() === stored.toLowerCase());
+                  const selected = listed ? listed.toLowerCase() : stored;
+                  return (
+                    <select
+                      value={selected}
+                      onChange={(event) => handleChange("industry", event.target.value)}
+                      className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-brand-orange/50 transition-all"
+                    >
+                      {!stored && <option value="">—</option>}
+                      {stored && !listed && <option value={stored}>{stored}</option>}
+                      {INDUSTRIES.map((ind) => (
+                        <option key={ind} value={ind.toLowerCase()}>{ind}</option>
+                      ))}
+                    </select>
+                  );
+                })()}
               </div>
 
               <div>
@@ -274,6 +288,7 @@ export default function EditVenturePage({ params }) {
                   onChange={(event) => handleChange("business_stage", event.target.value)}
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-brand-orange/50 transition-all"
                 >
+                  {!form.business_stage && <option value="">—</option>}
                   {BUSINESS_STAGES.map((stage) => (
                     <option key={stage.value} value={stage.value}>{t(`vadmin.edit.stageOptions.${stage.value}`)}</option>
                   ))}
