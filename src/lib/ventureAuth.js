@@ -18,10 +18,11 @@ export async function isStaffActorForVenture(ventureId, session) {
   if (session.role === "super_admin") return true;
   if (!session.cid) return false;
   try {
-    // venture_staff_assignments stores the VNT code (TEXT). The shared facts
-    // resolve an internal UUID back to the code once, for every caller.
-    const facts = await getVentureFacts(ventureId);
-    return hasActiveVentureAssignment(facts?.code || ventureId, session.cid);
+    // `venture_staff_assignments` keys on the INTERNAL id (Phase 0), resolved
+    // inside the relationship read from whatever identifier we were handed.
+    // Passing the reference straight through keeps the Venture's own facts a
+    // cache hit for the caller that just asked for them.
+    return hasActiveVentureAssignment(ventureId, session.cid);
   } catch (_) {
     return false;
   }
@@ -75,37 +76,37 @@ export async function requireOperationalVentureAccess({ ventureId, session, muta
 }
 
 /**
- * Shared venture access check — import this instead of re-implementing
- * the membership check in every route. Returns the session or null.
- *
- * Usage in a route:
- *   const { ventureId, session } = await requireVentureAccess(params.id);
- *   if (!session) return NextResponse.json({...}, {status: 404});
- *
- * Rules (Phase 2 — assignment-aware delegation):
- *   - GLOBAL roles (super_admin) bypass membership
- *     (org-wide Venture authority).
- *   - Everyone else must hold EITHER:
- *       a) an ACTIVE venture_members row (founder/member access), OR
- *       b) an ACTIVE staff assignment (venture_staff_assignments) —
- *          delegated staff access derived from the assignment, never from
- *          the global role alone.
- *   - Plain `staff`/`program_manager` WITHOUT an assignment no longer
- *     bypass: access is per-Venture via assignment or membership.
- *   - Non-member / non-assigned → 404 (don't leak existence).
+ * Does this person hold an ACTIVE staff assignment on this Venture?
+ * `ventureRef` is the access key ("VNT-…") or the internal id.
  */
-export async function hasActiveVentureAssignment(ventureCode, sessionCid) {
-  if (!ventureCode || !sessionCid) return false;
+export async function hasActiveVentureAssignment(ventureRef, sessionCid) {
+  if (!ventureRef || !sessionCid) return false;
   try {
     // Shares the cached relationship, so an access check and a staff-actor check
     // on the same screen never ask the database twice for the same answer.
-    const relationship = await getViewerRelationship(ventureCode, sessionCid);
+    const relationship = await getViewerRelationship(ventureRef, sessionCid);
     return relationship.is_assigned;
   } catch (_) {
     return false;
   }
 }
 
+/**
+ * Shared venture access check — import this instead of re-implementing the
+ * membership check in every route. Returns the session or null.
+ *
+ * Usage in a route:
+ *   const { ventureId, session } = await requireVentureAccess(params.id);
+ *   if (!session) return NextResponse.json({...}, {status: 404});
+ *
+ * Rules (Phase 2 — assignment-aware delegation):
+ *   - GLOBAL roles (super_admin) bypass membership (org-wide authority).
+ *   - Everyone else must hold EITHER an ACTIVE venture_members row, OR an
+ *     ACTIVE staff assignment (venture_staff_assignments) — delegated staff
+ *     access derived from the assignment, never from the role alone.
+ *   - Plain `staff`/`program_manager` WITHOUT an assignment no longer bypass.
+ *   - Non-member / non-assigned → 404 (don't leak existence).
+ */
 export async function requireVentureAccess(ventureId) {
   const session = await getSession();
   if (!session) return { ventureId, session: null };
@@ -118,9 +119,9 @@ export async function requireVentureAccess(ventureId) {
 
   if (session.cid) {
     // Two facts, one round trip each, asked once per viewer and Venture rather
-    // than once per screen (see lib/ventureAccessFacts.js): the Venture's code
-    // (venture_members stores the code, not the internal id) and then the
-    // relationship itself — membership OR a delegated staff assignment.
+    // than once per screen (see services/ventures/accessFacts.js): the Venture's
+    // own row — which carries the internal id the membership and assignment
+    // tables key on since Phase 0 — and then the relationship itself.
     const { facts, relationship } = await ventureAccessFacts(ventureId, session.cid);
     if (facts && (relationship.is_member || relationship.is_assigned)) {
       return { ventureId, session };

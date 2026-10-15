@@ -28,6 +28,7 @@ import {
   resolveOrCreateContactIdentity,
   syncVentureRoleHistory,
 } from "@/models/contactIdentity";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 const DEFAULT_EXPIRY_HOURS = 168; // 7 days
 
@@ -175,7 +176,7 @@ function isExpired(row) {
  * earlier link stops working — exactly the intent of "resend".
  */
 export async function createVentureMemberInvitation({
-  ventureId,
+  ventureId: ventureRef,
   email,
   name = null,
   memberType = "team_member",
@@ -184,6 +185,10 @@ export async function createVentureMemberInvitation({
   expiresInHours = DEFAULT_EXPIRY_HOURS,
 }) {
   await ensureVentureMemberInvitationSchema();
+
+  // The caller carries the access key; the table stores the internal id
+  // (Phase 0 — docs/VENTURE_IDENTITY_PHASE0.md).
+  const ventureId = await resolveVentureInternalId(ventureRef);
 
   const emailNorm = normalizeEmail(email);
   if (!emailNorm || !emailNorm.includes("@")) {
@@ -273,8 +278,9 @@ export async function createVentureMemberInvitation({
 }
 
 /** Pending invitations for a Venture, newest first, with a display name. */
-export async function listVentureMemberInvitations(ventureId) {
+export async function listVentureMemberInvitations(ventureRef) {
   await ensureVentureMemberInvitationSchema();
+  const ventureId = await resolveVentureInternalId(ventureRef);
   const result = await safe(
     `SELECT i.id, i.venture_id, i.email, i.name, i.member_type, i.role,
             i.status, i.expires_at, i.created_at,
@@ -317,9 +323,10 @@ export async function describeVentureMemberInvitation(token) {
   const invitation = result.invitation;
   const venture = await safe(
     // company_name is the canonical label; `name` is the legacy column and can
-    // still hold the intake Run's name.
-    "SELECT COALESCE(NULLIF(company_name, ''), name) AS venture_name, company_name FROM ventures WHERE venture_id = ? LIMIT 1",
-    [invitation.venture_id],
+    // still hold the intake Run's name. The invitation stores the internal id
+    // (Phase 0), the code is matched too so an un-migrated row still resolves.
+    "SELECT COALESCE(NULLIF(company_name, ''), name) AS venture_name, company_name FROM ventures WHERE id::text = ? OR venture_id = ? LIMIT 1",
+    [invitation.venture_id, invitation.venture_id],
   );
   const contact = await findContactByEmail(invitation.email);
 
@@ -500,8 +507,9 @@ export async function recordVentureMemberInvitationDelivery({ id, sent, error = 
 }
 
 /** Withdraw a pending invitation. Only a still-pending row can be revoked. */
-export async function revokeVentureMemberInvitation({ id, ventureId }) {
+export async function revokeVentureMemberInvitation({ id, ventureId: ventureRef }) {
   await ensureVentureMemberInvitationSchema();
+  const ventureId = await resolveVentureInternalId(ventureRef);
   const result = await db.execute({
     sql: `UPDATE venture_member_invitations
           SET status = 'revoked', responded_at = NOW()

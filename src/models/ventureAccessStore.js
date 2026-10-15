@@ -14,22 +14,29 @@
 
 import db from "@/lib/db";
 
-/** The Venture's own row (code + lifecycle), keyed by the caller's column choice. */
+/**
+ * The Venture's own row (internal id, code, lifecycle), keyed by the caller's
+ * column choice. The internal id travels with it because everything the
+ * relationship check reads keys on that id since Phase 0.
+ */
 export function selectVentureFacts(key, column) {
   return db.execute({
-    sql: `SELECT venture_id AS code, status, is_archived FROM ventures WHERE ${column} = ? LIMIT 1`,
+    sql: `SELECT id::text AS id, venture_id AS code, status, is_archived FROM ventures WHERE ${column} = ? LIMIT 1`,
     args: [key],
   });
 }
 
-/** The viewer's relationship to one Venture, both facts in one statement. */
-export function selectViewerRelationship(ventureCode, cid) {
+/**
+ * The viewer's relationship to one Venture, both facts in one statement.
+ * `ventureId` is the INTERNAL id (Phase 0 — both tables below key on it).
+ */
+export function selectViewerRelationship(ventureId, cid) {
   return db.execute({
     sql: `SELECT
               EXISTS (SELECT 1 FROM venture_members m
                       WHERE m.venture_id = ? AND m.contact_id = ? AND m.removed_at IS NULL) AS is_member,
               EXISTS (SELECT 1 FROM venture_staff_assignments a
                       WHERE a.venture_id = ? AND a.staff_contact_id = ? AND a.status = 'active') AS is_assigned`,
-    args: [ventureCode, cid, ventureCode, cid],
+    args: [ventureId, cid, ventureId, cid],
   });
 }

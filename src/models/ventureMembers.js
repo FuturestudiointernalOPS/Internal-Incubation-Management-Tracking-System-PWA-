@@ -14,21 +14,25 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 function rowsOf(result) {
   return (result && result.rows) || [];
 }
 
-/** Venture ids travel as the public code (VNT-…) in this table. */
-const asCode = (ventureId) => String(ventureId || "");
-
 /**
  * Every member of a Venture, founder first.
+ *
+ * `ventureRef` is the access key ("VNT-…") OR the internal id — resolved here,
+ * once, so this single read serves every surface whatever identifier it holds
+ * (Phase 0 — docs/VENTURE_IDENTITY_PHASE0.md). The membership table keys on the
+ * internal id.
  *
  * The contact join uses the contact id when present and the user id otherwise,
  * because both generations of rows exist in the table.
  */
-export async function listVentureMembers(ventureId, { includeRemoved = false } = {}) {
+export async function listVentureMembers(ventureRef, { includeRemoved = false } = {}) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   const result = await db.execute({
     sql: `SELECT vm.id, vm.contact_id, vm.user_cid, vm.member_type, vm.role,
                  vm.permissions, vm.joined_at, vm.lead_founder, vm.is_owner,
@@ -40,7 +44,7 @@ export async function listVentureMembers(ventureId, { includeRemoved = false } =
           ORDER BY COALESCE(vm.lead_founder, FALSE) DESC,
                    COALESCE(vm.is_owner, FALSE) DESC,
                    vm.id ASC`,
-    args: [asCode(ventureId)],
+    args: [ventureId],
   });
 
   return rowsOf(result).map(normalizeMember);
