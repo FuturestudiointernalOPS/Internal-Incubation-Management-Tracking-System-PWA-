@@ -134,7 +134,8 @@ export default function CrmLeadDetailPage({ params }) {
       </div>
 
       {/* Intelligence / Scoring */}
-      <CrmScorePanel lead={lead} onUpdate={setLead} />
+      {/* The update answers with the bare row: keep the joined names already loaded. */}
+      <CrmScorePanel lead={lead} onUpdate={(updated) => setLead((current) => ({ ...current, ...updated }))} />
 
       {/* Activities + Next Action */}
       <CrmActivityPanel leadId={lead.id} />

@@ -168,6 +168,7 @@ import AppTabs from "@/components/ui/AppTabs";
 
 // Forms
 import AppInput from "@/components/ui/AppInput";
+import AppTextarea from "@/components/ui/AppTextarea";
 import AppSelect from "@/components/ui/AppSelect";
 
 // Data Display
@@ -400,6 +401,7 @@ src/
 │       ├── AppEmptyState.js     ← Empty/placeholder state (sm/md/lg)
 │       ├── AppImage.js          ← Image wrapper; plain <img> for arbitrary hosts, next/image for allowed ones
 │       ├── AppInput.js
+│       ├── AppTextarea.js       ← Multi-line field, same contract as AppInput
 │       ├── AppModal.js
 │       ├── AppMenu.js           ← Row-action menu (⋯) — grouped items, danger items
 │       ├── AppSplitMenu.js      ← Split action button — the action on show + a chevron for the other actions

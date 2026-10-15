@@ -4,6 +4,7 @@ import { requireAuthorization } from "@/models/authorization/index";
 import {
   getCrmPipelineStages,
   createCrmPipelineStage,
+  reorderCrmPipelineStages,
 } from "@/models/crm/pipelines";
 
 export const dynamic = "force-dynamic";
@@ -60,5 +61,38 @@ export const POST = createHandler(
       { success: true, stage: result.rows?.[0] },
       { status: 201 },
     );
+  },
+);
+
+/**
+ * PATCH /api/crm/pipelines/[id]/stages — reorder the stages (crm.manage).
+ * Body: { order: [stageId, …] } — every stage of the pipeline, exactly once.
+ * Only the order changes: deals stay on their stage and its history is kept.
+ */
+export const PATCH = createHandler(
+  { roles: ["super_admin"] },
+  async (req, { params }) => {
+    const authError = await requireAuthorization("crm", "manage");
+    if (authError) return authError;
+
+    const { id } = await params;
+    const body = await req.json();
+    const order = Array.isArray(body.order) ? body.order.map(String) : [];
+
+    const current = (await getCrmPipelineStages(id, { includeInactive: true })).rows || [];
+    const known = new Set(current.map((stage) => String(stage.id)));
+    const isPermutation =
+      order.length === current.length &&
+      new Set(order).size === order.length &&
+      order.every((stageId) => known.has(stageId));
+    if (current.length === 0 || !isPermutation) {
+      return NextResponse.json(
+        { success: false, error: "crm.pipelines.stageOrderInvalid" },
+        { status: 400 },
+      );
+    }
+
+    const result = await reorderCrmPipelineStages(id, order);
+    return NextResponse.json({ success: true, stages: result.rows });
   },
 );
