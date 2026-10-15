@@ -173,11 +173,22 @@ export async function attachJourneyWork({ ventureParam, dbId, stages, signEviden
             }
           : null;
       }
+      // The milestone view renders an ACTIVITY block — Definition of Done, the
+      // people supporting it, its start — from THIS list, so the list has to carry
+      // those fields. It used to hand over only the booking fields, so an activity
+      // reached the screen twice: complete through its deliverable, bare through its
+      // milestone. The bare one won the grouping, and every milestone read
+      // "Definition of Done: Not provided" for work whose Definition of Done was
+      // stored, filled and correct.
       milestone.activities = (tasksByMilestone[String(milestone.id)] || []).map((task) => ({
         id: task.id,
         source_ref: task.source_ref || null,
         title: task.title || null,
+        description: task.description || null,
+        definition_of_done: task.definition_of_done || null,
         owner_name: task.assigned_name || null,
+        support_name: task.support_name || null,
+        start_date: task.start_date || null,
         due_date: task.due_date || null,
         status: task.status || null,
       }));
