@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import {
-  getVentureIdByCodeForDocumentPermissions, getVentureCodeByIdForDocumentPermissions,
+  getVentureIdByCodeForDocumentPermissions,
   getDocumentForPermissions, listDocumentPermissions, getDocumentForPermissionsUpdate,
   isFounderForDocumentPermissions, deleteDocumentPermission, upsertDocumentPermission,
 } from "@/models/ventureAssets";
@@ -14,17 +14,6 @@ const PRIVILEGED = ["staff", "program_manager", "super_admin"];
 async function resolveVentureDbId(ventureId) {
   const ventureResult = await getVentureIdByCodeForDocumentPermissions(ventureId);
   return ventureResult.rows?.[0]?.id || null;
-}
-
-// venture_members stores venture_id as the VNT code (TEXT) — resolve the code from a UUID if needed
-async function resolveVentureCode(idOrCode) {
-  if (!idOrCode || (typeof idOrCode === "string" && !idOrCode.startsWith("VNT-") && idOrCode.includes("-"))) {
-    try {
-      const ventureResult = await getVentureCodeByIdForDocumentPermissions(idOrCode);
-      return ventureResult.rows?.[0]?.venture_id || idOrCode;
-    } catch { return idOrCode; }
-  }
-  return idOrCode;
 }
 
 export async function GET(req, { params }) {
@@ -64,8 +53,8 @@ export async function PATCH(req, { params }) {
 
     // Only founders (or privileged staff roles) may edit permissions.
     if (!PRIVILEGED.includes(session.role)) {
-      const code = await resolveVentureCode(dbId);
-      const founder = await isFounderForDocumentPermissions(code, session.cid);
+      // `dbId` is the internal id, which the membership table keys on (Phase 0).
+      const founder = await isFounderForDocumentPermissions(dbId, session.cid);
       if (!founder.rows?.length) return NextResponse.json({ success: false, error: "Only founders can manage document permissions." }, { status: 403 });
     }
 

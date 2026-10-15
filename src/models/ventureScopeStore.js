@@ -13,6 +13,7 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 /** The VNT code of a Venture from its internal UUID. */
 export function selectVentureCodeById(ventureId) {
@@ -23,13 +24,14 @@ export function selectVentureCodeById(ventureId) {
 }
 
 /** The actor's active assignment scopes on one Venture (code-keyed). */
-export function selectAssignmentScopes(ventureCode, cid) {
+export async function selectAssignmentScopes(ventureRef, cid) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT scope_type, scope_ref_type, scope_ref_id, responsibility_code
             FROM venture_staff_assignments
             WHERE venture_id = ? AND staff_contact_id = ? AND status = 'active'
             ORDER BY id ASC`,
-    args: [ventureCode, cid],
+    args: [ventureId, cid],
   });
 }
 

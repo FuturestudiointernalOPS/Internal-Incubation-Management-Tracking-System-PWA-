@@ -27,27 +27,20 @@ export async function getVentureIdByCode(ventureId) {
   });
 }
 
-/** VNT code for an internal ventures.id — resolveVentureCode helper (documents controller). */
-export async function getVentureCodeById(idOrCode) {
-  return db.execute({
-    sql: "SELECT venture_id FROM ventures WHERE id = ?",
-    args: [idOrCode],
-  });
-}
-
-/** Founder-membership gate used for documents visibility (GET list). */
-export async function isFounderForDocumentVisibility(code, cid) {
+/** Founder-membership gate used for documents visibility (GET list).
+ * `ventureId` is the internal id (Phase 0) — the membership table keys on it. */
+export async function isFounderForDocumentVisibility(ventureId, cid) {
   return db.execute({
     sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL LIMIT 1",
-    args: [code, cid],
+    args: [ventureId, cid],
   });
 }
 
 /** Founder-membership gate for the POST action="transition" branch. SQL identical to isFounderForDocumentVisibility — kept per occurrence. */
-export async function isFounderForDocumentStatusTransition(code, cid) {
+export async function isFounderForDocumentStatusTransition(ventureId, cid) {
   return db.execute({
     sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL LIMIT 1",
-    args: [code, cid],
+    args: [ventureId, cid],
   });
 }
 
@@ -68,14 +61,6 @@ export async function getVentureIdByCodeForDocumentPermissions(ventureId) {
   return db.execute({
     sql: "SELECT id FROM ventures WHERE venture_id = ?",
     args: [ventureId],
-  });
-}
-
-/** VNT code for an internal ventures.id — resolveVentureCode helper (permissions controller). SQL identical to getVentureCodeById — kept per occurrence. */
-export async function getVentureCodeByIdForDocumentPermissions(idOrCode) {
-  return db.execute({
-    sql: "SELECT venture_id FROM ventures WHERE id = ?",
-    args: [idOrCode],
   });
 }
 
@@ -103,11 +88,11 @@ export async function getDocumentForPermissionsUpdate(docId, dbId) {
   });
 }
 
-/** Founder-membership gate for editing permissions (PATCH). SQL identical to isFounderForDocumentVisibility — kept per occurrence. */
-export async function isFounderForDocumentPermissions(code, cid) {
+/** Founder-membership gate for editing permissions (PATCH). `ventureId` is the internal id (Phase 0). */
+export async function isFounderForDocumentPermissions(ventureId, cid) {
   return db.execute({
     sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL LIMIT 1",
-    args: [code, cid],
+    args: [ventureId, cid],
   });
 }
 
@@ -252,14 +237,6 @@ export async function insertDocumentReview({ document_id, reviewer_id, comment, 
 // documents/[docId]/transition/route.js — document status transition controller (6 queries)
 // ───────────────────────────────────────────────────────────────────────────
 
-/** VNT code for an internal ventures.id — resolveVentureCode helper (transition controller). SQL identical to getVentureCodeById — kept per occurrence. */
-export async function getVentureCodeByIdForTransition(idOrCode) {
-  return db.execute({
-    sql: "SELECT venture_id FROM ventures WHERE id = ?",
-    args: [idOrCode],
-  });
-}
-
 /** Internal ventures.id for a VNT code (PATCH). SQL identical to getVentureIdByCodeForVersions — kept per occurrence. */
 export async function getVentureIdByCodeForTransitionStatus(id) {
   return db.execute({
@@ -276,11 +253,11 @@ export async function getDocumentForTransition(docId, dbId) {
   });
 }
 
-/** Founder-membership gate for transitioning document status (PATCH). SQL identical to isFounderForDocumentVisibility — kept per occurrence. */
-export async function isFounderForDocumentTransition(code, cid) {
+/** Founder-membership gate for transitioning document status (PATCH). `ventureId` is the internal id (Phase 0). */
+export async function isFounderForDocumentTransition(ventureId, cid) {
   return db.execute({
     sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL LIMIT 1",
-    args: [code, cid],
+    args: [ventureId, cid],
   });
 }
 
