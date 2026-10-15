@@ -12,6 +12,7 @@ import {
   deriveProposalDates,
   knownOwnerCids,
   normalizeJourneys,
+  placeMilestonesByStatedJourneys,
   placeTasksByStatedRefs,
   resolveProposalOwners,
   toText,
@@ -228,6 +229,7 @@ export async function revisePlanProposal({ proposal, instruction } = {}) {
     .slice(0, 100);
 
   const journeys = normalizeJourneys(parsed.journeys, warnings);
+  placeMilestonesByStatedJourneys(journeys, warnings);
   placeTasksByStatedRefs(journeys, warnings);
   deriveProposalDates(journeys, warnings);
   validateDependencyRefs(journeys, warnings);

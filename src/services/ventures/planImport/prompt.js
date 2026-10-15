@@ -50,6 +50,7 @@ EXPLICIT MILESTONES TAKE PRECEDENCE:
 - The activity sheet is still the ONLY source of tasks and deliverables. Read an explicit milestone list for the milestone STRUCTURE only; it never adds work.
 - When the milestone list states which activities belong to a milestone — its completion condition naming activity references such as "MS-01/MS-02", "LG-01", "PM-03" — place exactly those activities there. That is stated, not guessed.
 - ALSO record that membership as DATA, in the milestone's "task_refs" — and do it EVEN WHEN those activities' rows are not present in the part of the sheet you were given. The reference is what the list states; the system applies it to the merged plan afterwards. Recording it is what stops a stated mapping from arriving as "needs review — assign the activities" on an otherwise complete plan.
+- ALSO record WHICH journey the list places each milestone under, in its "journey_name", copied verbatim. THE LIST'S JOURNEY COLUMN IS THE AUTHORITY FOR THE JOURNEY LAYER: when an explicit milestone list exists, the journeys ARE the ones it names. Never add a journey the list does not name — not from the workbook's title, its sheet name, its subtitle or a heading — and never leave a stated milestone under a journey of your own. Recording the journey is what stops the activities of six programmes from arriving under one invented heading while the six real journeys stand empty.
 - When it does NOT state the membership, DO NOT GUESS and never spread the work evenly across the milestones. Put those activities under ONE milestone named for review, set "requires_review": true on it, and add a warning that a human must assign them.
 - A milestone may end up with no tasks of its own. That is a finding, not a failure: report it, never fill it with unrelated work.
 
@@ -81,6 +82,7 @@ Return ONLY valid JSON. No markdown, no extra text. Format:
           "objective": "The outcome this milestone proves, or null",
           "requires_review": false,
           "reason": "Why this milestone needs a human's attention, or null",
+          "journey_name": "the journey the explicit milestone list places this milestone under, verbatim — null when it states none",
           "task_refs": ["the activity references this list states for this milestone, verbatim — [] when it states none"],
           "start_date": "YYYY-MM-DD or an Excel serial copied verbatim, or null",
           "target_date": "YYYY-MM-DD or an Excel serial copied verbatim, or null",

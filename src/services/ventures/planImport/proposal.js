@@ -216,6 +216,11 @@ export function normalizeJourneys(rawJourneys = [], warnings = []) {
           description: toText(milestone?.description),
           objective: toText(milestone?.objective),
           priority: toPriority(milestone?.priority),
+          // The journey the EXPLICIT milestone list places this milestone under. The
+          // list is the authority for structure, so the home is data too — a part that
+          // named the wrong journey cannot scatter the plan, because the placement is
+          // applied once, on the merged proposal.
+          journey_name: toText(milestone?.journey_name),
           // The activity ids an EXPLICIT milestone list says belong here. Kept as
           // data so the placement can be applied across the parts of a sheet that
           // was read in several passes — the list states the membership, so it must
@@ -270,6 +275,139 @@ export function collectTaskRefs(journeys = []) {
     }
   }
   return refs;
+}
+
+/** A name as a match key: case, "&"/"and" and punctuation are not meaning. */
+const nameKey = (value) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+/** Fold one copy of a stated milestone into the copy already standing in its
+ *  journey: tasks and stated refs are the union, and the first value of everything
+ *  else wins — the same rule the parts themselves were merged under. */
+function keepMilestone(journey, milestone) {
+  const key = nameKey(milestone?.name);
+  const existing = (journey.milestones || []).find((item) => nameKey(item?.name) === key);
+  if (!existing) {
+    journey.milestones = [...(journey.milestones || []), milestone];
+    return;
+  }
+
+  const seen = new Set((existing.tasks || []).map((task) => nameKey(task?.ref) || `t:${nameKey(task?.title)}`));
+  for (const task of milestone.tasks || []) {
+    const identity = nameKey(task?.ref) || `t:${nameKey(task?.title)}`;
+    if (seen.has(identity)) continue;
+    seen.add(identity);
+    existing.tasks = [...(existing.tasks || []), task];
+  }
+
+  existing.task_refs = existing.task_refs || [];
+  const stated = new Set(existing.task_refs.map((reference) => nameKey(reference)));
+  for (const reference of milestone.task_refs || []) {
+    if (stated.has(nameKey(reference))) continue;
+    stated.add(nameKey(reference));
+    existing.task_refs.push(reference);
+  }
+
+  for (const field of ["ref", "description", "objective", "priority", "start_date", "target_date", "reason"]) {
+    if (!existing[field] && milestone[field]) existing[field] = milestone[field];
+  }
+  if (existing.requires_review !== true && milestone.requires_review === true) existing.requires_review = true;
+  if (existing.dates_derived !== true && milestone.dates_derived === true) existing.dates_derived = true;
+}
+
+/**
+ * Put every stated milestone under the journey ITS OWN LIST places it in.
+ *
+ * THE JOURNEY LAYER NEEDED THE SAME TREATMENT AS THE TASK LAYER. A sheet read in
+ * parts is interpreted one part at a time, and the parts disagreed about where the
+ * plan lives: the parts carrying rows described the workbook by its TITLE, while the
+ * parts carrying the milestone list described the programmes the workbook actually
+ * names. Merging kept both, so the plan arrived as one journey holding every
+ * milestone and every activity, PLUS six journeys holding the same nineteen
+ * milestones, empty — and the reviewer had to work out which half was real.
+ *
+ * The list states the home, so the home is DATA (`journey_name`), applied here on the
+ * merged proposal BY THE STATED JOURNEY'S NAME — never by milestone name alone,
+ * because "Regulatory & Corridor Intelligence" legitimately stands under two
+ * different journeys, and name-matching would move real work between them.
+ *
+ * A journey the list names but no part emitted is CREATED: the list is the authority
+ * for structure, and omitting it would drop stated structure rather than a duplicate.
+ * A journey the list does NOT name and that is left holding nothing is REMOVED — it is
+ * a heading invented from the workbook's own title, and an invented heading is not
+ * something a reviewer should have to notice and delete by hand. A journey the list
+ * DOES name is kept even when empty: there, the emptiness is a finding.
+ */
+export function placeMilestonesByStatedJourneys(journeys = [], warnings = []) {
+  const statedNames = new Map();
+  for (const journey of journeys) {
+    for (const milestone of journey.milestones || []) {
+      const name = toText(milestone?.journey_name);
+      if (name && !statedNames.has(nameKey(name))) statedNames.set(nameKey(name), name);
+    }
+  }
+  // No stated journey anywhere: the workbook's structure is the analyst's own, and
+  // this pass must not touch it.
+  if (statedNames.size === 0) return { moved: 0, created: 0, dropped: 0 };
+
+  const byName = new Map();
+  for (const journey of journeys) {
+    const key = nameKey(journey?.name);
+    if (key && !byName.has(key)) byName.set(key, journey);
+  }
+
+  let created = 0;
+  for (const [key, name] of statedNames) {
+    if (byName.has(key)) continue;
+    const journey = { name, objective: null, start_date: null, target_date: null, dates_derived: null, milestones: [] };
+    journeys.push(journey);
+    byName.set(key, journey);
+    created += 1;
+  }
+
+  let moved = 0;
+  for (const journey of journeys) {
+    const kept = [];
+    for (const milestone of journey.milestones || []) {
+      const stated = toText(milestone?.journey_name);
+      const home = stated ? byName.get(nameKey(stated)) : null;
+      if (!home || home === journey) {
+        kept.push(milestone);
+        continue;
+      }
+      keepMilestone(home, milestone);
+      moved += 1;
+    }
+    journey.milestones = kept;
+  }
+
+  const dropped = [];
+  const survivors = [];
+  for (const journey of journeys) {
+    if ((journey.milestones || []).length === 0 && !statedNames.has(nameKey(journey?.name))) {
+      dropped.push(journey.name);
+      continue;
+    }
+    survivors.push(journey);
+  }
+  journeys.splice(0, journeys.length, ...survivors);
+
+  if (moved > 0 || created > 0 || dropped.length > 0) {
+    warnings.push(
+      `The workbook's own milestone list states which journey each milestone belongs to: ${moved} milestone(s) were placed in the journey that states them` +
+        (created > 0 ? `, ${created} journey(s) it names were added` : "") +
+        (dropped.length > 0
+          ? `, and ${dropped.length} journey(s) it does not name, left holding nothing, were removed (${dropped.slice(0, 5).join(", ")}${dropped.length > 5 ? ", and more" : ""})`
+          : "") +
+        ".",
+    );
+  }
+  return { moved, created, dropped: dropped.length };
 }
 
 /**
