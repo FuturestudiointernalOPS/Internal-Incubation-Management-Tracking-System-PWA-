@@ -9,21 +9,58 @@
  * then the e-mail itself carries an "add to calendar" link and an .ics file.
  *
  * Every notice is best-effort: a failed e-mail or calendar push never fails the
- * write. SQL lives in `@/models/ventureSessionInviteesStore`; the e-mail and the
+ * write. The one thing that DOES fail loudly is the table itself — see
+ * `ensureInviteeSchema` below: an invitation nobody could record must never be
+ * confirmed as sent.
+ *
+ * SQL lives in `@/models/ventureSessionInviteesStore`; the e-mail and the
  * calendar use their own facades; nothing here runs SQL.
  */
 import { selectContactByEmail } from "@/models/contactLookupStore";
+import { runVentureMigration } from "@/models/ventureSchemaStore";
 import {
   deleteInvitee,
   selectInvitedSessionsForContact,
   selectInviteeById,
   selectInviteesBySession,
+  selectInviteesBySessionIds,
   upsertInvitee,
 } from "@/models/ventureSessionInviteesStore";
 import { buildGoogleCalendarUrl, buildIcsEvent } from "@/lib/calendarIcs";
 import { sendStandaloneEmail } from "@/lib/email";
+import inviteeSchema from "./schema/sessionInvitees";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * The invitee table, ensured ONCE per process, at the point invitees are used.
+ *
+ * `venture_session_invitees` used to be created only by `ensureVentureSchema()`,
+ * which runs on the Venture intake and admin paths — never on the booking path.
+ * In production the table therefore did not exist at all: the INSERT threw, the
+ * route swallowed the throw, and an invitation that was never written looked
+ * exactly like one whose e-mail had gone missing.
+ *
+ * These are the same three statements the full bootstrap replays, kept in one
+ * place (`./schema/sessionInvitees`, also part of `ensureVentureSchema`). A
+ * failure is NOT memoized — the next attempt retries — and it is logged, because
+ * a broken invitation is something the booker has to be told about, not a
+ * silent success.
+ */
+let inviteeSchemaEnsured = null;
+
+function ensureInviteeSchema() {
+  if (!inviteeSchemaEnsured) {
+    inviteeSchemaEnsured = (async () => {
+      for (const sql of inviteeSchema) await runVentureMigration(sql);
+    })().catch((error) => {
+      console.error("[session-invitation] the invitee table could not be created:", error?.message || error);
+      inviteeSchemaEnsured = null;
+      throw error;
+    });
+  }
+  return inviteeSchemaEnsured;
+}
 
 /** A raw e-mail → its normalized form, or null when it is not an address. */
 export function normalizeInviteEmail(raw) {
@@ -32,11 +69,24 @@ export function normalizeInviteEmail(raw) {
 }
 
 export async function listSessionInvitees(sessionId) {
+  await ensureInviteeSchema();
   const res = await selectInviteesBySession(sessionId);
   return res.rows || [];
 }
 
+/**
+ * The invitees of several sessions at once, as the sessions panel reads them.
+ * The table is ensured here too: a READ must not be the first thing that ever
+ * touches it, or a panel 500s on a database the bookings have not reached yet.
+ */
+export async function listInviteesBySessionIds(sessionIds) {
+  await ensureInviteeSchema();
+  const res = await selectInviteesBySessionIds(sessionIds);
+  return res.rows || [];
+}
+
 export async function getSessionInvitee(inviteeId) {
+  await ensureInviteeSchema();
   const res = await selectInviteeById(inviteeId);
   return res.rows?.[0] || null;
 }
@@ -44,6 +94,7 @@ export async function getSessionInvitee(inviteeId) {
 /** The sessions an account was invited to, as the personal calendar reads them. */
 export async function listInvitedSessionsForContact(contactCid) {
   if (!contactCid) return [];
+  await ensureInviteeSchema();
   const res = await selectInvitedSessionsForContact(contactCid);
   return res.rows || [];
 }
@@ -82,6 +133,10 @@ function sessionEvent(session) {
 export async function addSessionInvitee({ sessionId, session, ventureLabel, email, name, actorCid }) {
   const clean = normalizeInviteEmail(email);
   if (!clean) return { ok: false, error: "A valid e-mail address is required." };
+
+  // The table this writes to exists by the time the write happens — a missing
+  // one is a loud failure, never an invitation that quietly did not happen.
+  await ensureInviteeSchema();
 
   // An address that belongs to an account is bound to it: the session can then
   // also reach that person's calendar, and their display name fills in.
@@ -128,6 +183,7 @@ export async function addSessionInvitee({ sessionId, session, ventureLabel, emai
 
 /** Remove one invitee. Their calendar loses the session on its next sync. */
 export async function removeSessionInvitee(inviteeId) {
+  await ensureInviteeSchema();
   await deleteInvitee(inviteeId);
   return { ok: true };
 }
@@ -138,7 +194,17 @@ function escapeHtml(text) {
 
 /** The invitation e-mail: the session, its memo, a "add to calendar" button and an .ics. */
 export async function emailSessionInvitation({ session, ventureLabel, invitee }) {
-  if (!session || !invitee?.email) return { skipped: true };
+  if (!session || !invitee?.email) {
+    // A skip is a DECISION, not an accident — but silence made it look like a
+    // lost email: no log row is written when the send never starts, so a guest
+    // who is not written to and a guest whose mail vanished were
+    // indistinguishable. Say why, and report it as the failure it is.
+    console.warn(
+      "[session-invitation] SKIPPED — not sent: " +
+        (!session ? "the session could not be read" : "no recipient address"),
+    );
+    return { skipped: true, error: "errors.somethingWrong" };
+  }
   const when = session.start_time ? new Date(session.start_time).toUTCString() : "";
   const googleUrl = buildGoogleCalendarUrl(sessionEvent(session));
   const lines = [

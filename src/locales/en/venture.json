@@ -550,6 +550,7 @@
       "minutes": "{n} min",
       "noCoach": "No coach",
       "sessionBooked": "Session booked — the Venture and the coach are notified by email.",
+      "sessionBookedInvited": "Session booked — your guests are notified by email too.",
       "sessionNotifyHint": "The Venture, the coach and you are notified by email, and the session appears on your calendars.",
       "inviteGuests": "Invite guests",
       "inviteGuestsPlaceholder": "E-mail addresses, separated by commas",

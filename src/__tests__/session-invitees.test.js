@@ -14,7 +14,9 @@ jest.mock("@/models/ventureSessionInviteesStore", () => ({
   selectInviteeById: jest.fn(),
   deleteInvitee: jest.fn(),
   selectInvitedSessionsForContact: jest.fn(),
+  selectInviteesBySessionIds: jest.fn(),
 }));
+jest.mock("@/models/ventureSchemaStore", () => ({ runVentureMigration: jest.fn(async () => ({})) }));
 jest.mock("@/lib/email", () => ({ sendStandaloneEmail: jest.fn(async () => ({ success: true })) }));
 jest.mock("@/services/integrations/googleCalendar", () => ({ syncUser: jest.fn(async () => ({ ok: false })) }));
 
@@ -27,6 +29,7 @@ const {
   addSessionInvitee,
   removeSessionInvitee,
   listSessionInvitees,
+  emailSessionInvitation,
 } = require("@/services/ventures/sessionInvitees");
 const { buildIcsEvent, buildGoogleCalendarUrl } = require("@/lib/calendarIcs");
 
@@ -123,6 +126,93 @@ describe("addSessionInvitee", () => {
 
     expect(result.ok).toBe(true); // the invite itself stands
     expect(result.emailResult).toEqual({ sent: false, error: "invalid_grant" });
+  });
+});
+
+describe("the invitee table", () => {
+  // The table is ensured ONCE per process, so each case loads its own copy of the
+  // service instead of depending on whichever test happened to run first.
+  let migrate;
+  let service;
+  let freshStore;
+  let freshSend;
+  let errorSpy;
+
+  beforeEach(() => {
+    errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    jest.resetModules();
+    service = require("@/services/ventures/sessionInvitees");
+    ({ runVentureMigration: migrate } = require("@/models/ventureSchemaStore"));
+    freshStore = require("@/models/ventureSessionInviteesStore");
+    ({ sendStandaloneEmail: freshSend } = require("@/lib/email"));
+    freshStore.upsertInvitee.mockResolvedValue({ rows: [{ id: 9, session_id: 42, email: "a@x.io" }] });
+  });
+
+  afterEach(() => errorSpy.mockRestore());
+
+  it("is created before the first write, once per process", async () => {
+    // The production defect: this table was only ever created by the Venture
+    // intake/admin bootstrap, which the booking path never reached — so the
+    // INSERT threw on a table that did not exist.
+    await service.addSessionInvitee({ sessionId: 42, session: SESSION, email: "a@x.io" });
+
+    expect(migrate).toHaveBeenCalledTimes(3); // the three statements, in order
+    expect(freshStore.upsertInvitee).toHaveBeenCalled();
+
+    await service.addSessionInvitee({ sessionId: 42, session: SESSION, email: "b@x.io" });
+    expect(migrate).toHaveBeenCalledTimes(3); // per PROCESS, not per invitation
+  });
+
+  it("is created on a read too, so a panel is never the first thing to touch it", async () => {
+    freshStore.selectInviteesBySession.mockResolvedValue({ rows: [] });
+    await service.listSessionInvitees(42);
+    expect(migrate).toHaveBeenCalledTimes(3);
+  });
+
+  it("REGRESSION: a table that cannot be created fails loudly, and no e-mail is attempted", async () => {
+    migrate.mockRejectedValueOnce(new Error("permission denied for schema public"));
+
+    await expect(
+      service.addSessionInvitee({ sessionId: 42, session: SESSION, email: "a@x.io" }),
+    ).rejects.toThrow(/permission denied/);
+
+    expect(freshStore.upsertInvitee).not.toHaveBeenCalled();
+    expect(freshSend).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled(); // silent was the old behaviour
+  });
+
+  it("retries the next time — a failure is never memoised as success", async () => {
+    migrate.mockRejectedValueOnce(new Error("connection reset"));
+    await expect(
+      service.addSessionInvitee({ sessionId: 42, session: SESSION, email: "a@x.io" }),
+    ).rejects.toThrow(/connection reset/);
+
+    await service.addSessionInvitee({ sessionId: 42, session: SESSION, email: "a@x.io" });
+    expect(freshStore.upsertInvitee).toHaveBeenCalled();
+  });
+});
+
+describe("a skipped invitation is a decision that says so", () => {
+  it("REGRESSION: a session that could not be read is reported, not swallowed", async () => {
+    // This used to `return { skipped: true }` in silence. Nothing reached the
+    // e-mail log, so a guest who was never written to was indistinguishable from
+    // one whose mail had vanished — and the booking confirmed both as sent.
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    const result = await emailSessionInvitation({ session: null, invitee: { email: "a@x.io" } });
+
+    expect(result.skipped).toBe(true);
+    expect(result.error).toBeTruthy();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("an address-less invitee is reported too", async () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    const result = await emailSessionInvitation({ session: SESSION, invitee: null });
+    expect(result.skipped).toBe(true);
+    expect(result.error).toBeTruthy();
+    warn.mockRestore();
   });
 });
 

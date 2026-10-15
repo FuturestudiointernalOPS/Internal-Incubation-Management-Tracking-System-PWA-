@@ -131,13 +131,19 @@ export function sessionBooking({
       if (payload.success) {
         // A booking is the moment the person just spent effort on: it is worth
         // stopping for, so it is said in a popup instead of a banner at the top
-        // of a long panel that scrolls away unnoticed. A guest the platform
-        // could NOT e-mail is named here — the alternative is a confirmation
-        // that claims an inbox was reached when it was not.
-        const failed = (payload.invitations?.failed || []).filter(Boolean);
+        // of a long panel that scrolls away unnoticed. The popup says what
+        // actually HAPPENED to the invitations — a guest whose invitation could
+        // not be sent is named, and guests who were invited are acknowledged. A
+        // confirmation that claims an inbox was reached when it was not is worse
+        // than no confirmation at all.
+        const invitations = payload.invitations || {};
+        const failed = (invitations.failed || []).filter(Boolean);
+        const invited = Number(invitations.attempted) || 0;
         const message = failed.length
           ? t("venture.manager.sessionBookedEmailFailed", { emails: failed.join(", ") })
-          : t("venture.manager.sessionBooked");
+          : invited > 0
+            ? t("venture.manager.sessionBookedInvited")
+            : t("venture.manager.sessionBooked");
         if (typeof notifyPopup === "function") {
           await notifyPopup({ message });
         } else {

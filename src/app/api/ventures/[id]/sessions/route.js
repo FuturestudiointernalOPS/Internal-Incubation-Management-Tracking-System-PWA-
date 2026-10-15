@@ -9,10 +9,10 @@ import { checkSessionBooking } from "@/services/ventures/sessionBooking";
 import { resolveSessionBookingTargets } from "@/services/ventures/sessionBookingTargets";
 import { checkSessionManagement } from "@/services/ventures/sessionAuthority";
 import { pushSessionToCalendars } from "@/services/ventures/sessionCalendarPush";
-import { selectInviteesBySessionIds } from "@/models/ventureSessionInviteesStore";
 import {
   addSessionInvitee,
   getSessionInvitee,
+  listInviteesBySessionIds,
   listSessionInvitees,
   removeSessionInvitee,
 } from "@/services/ventures/sessionInvitees";
@@ -57,8 +57,9 @@ export const GET = createHandler(async (req, { params }) => {
     })),
   );
   // The invitees travel with the session: the panel shows who was told, and an
-  // invited guest has no other place to be seen.
-  const invitees = (await selectInviteesBySessionIds((sessions || []).map((session) => session.id))).rows || [];
+  // invited guest has no other place to be seen. Read through the invitee service
+  // so this panel is never the first thing to touch a table nobody created yet.
+  const invitees = await listInviteesBySessionIds((sessions || []).map((session) => session.id));
   const inviteesBySession = new Map();
   for (const invitee of invitees) {
     const key = String(invitee.session_id);
@@ -157,19 +158,27 @@ export const POST = createHandler(async (req, { params }) => {
         const session = await getSession(createdSession.id);
         const ventureLabel = await resolveVentureLabel(id);
         for (const invitee of invited) {
-          const invited1 = await addSessionInvitee({
-            sessionId: createdSession.id,
-            session,
-            ventureLabel,
-            email: invitee?.email,
-            name: invitee?.name,
-            actorCid: req.session?.cid,
-          }).catch(() => null);
-          // An invitation that did not leave is reported back, so the booking can
-          // say so instead of claiming an inbox was reached.
-          if (invited1 && invited1.emailResult && invited1.emailResult.sent === false) {
-            emailFailed.push(String(invitee?.email || "").trim());
+          const address = String(invitee?.email || "").trim();
+          let invited1 = null;
+          try {
+            invited1 = await addSessionInvitee({
+              sessionId: createdSession.id,
+              session,
+              ventureLabel,
+              email: address,
+              name: invitee?.name,
+              actorCid: req.session?.cid,
+            });
+          } catch (error) {
+            // This used to be `.catch(() => null)`, and null was never reported:
+            // an invitation the platform could not even RECORD (production had no
+            // `venture_session_invitees` table at all) came back to the booker as
+            // "notified by email". Nothing about a failed invitation is discarded.
+            console.error(`[session-invitation] could not invite ${address}:`, error?.message || error);
           }
+          // Only an invitation the transport reported as SENT counts as delivered.
+          const delivered = invited1?.ok === true && invited1?.emailResult?.sent === true;
+          if (address && !delivered) emailFailed.push(address);
         }
       }
       // The people a session concerns get it on their OWN calendars now, not on
@@ -181,8 +190,10 @@ export const POST = createHandler(async (req, { params }) => {
       return NextResponse.json({
         success: true,
         session_id: createdSession.id,
-        // Who could NOT be e-mailed — empty in the normal case.
-        invitations: { failed: emailFailed.filter(Boolean) },
+        // What happened to the invitations: how many were ATTEMPTED, and which
+        // addresses could not be reached — empty in the normal case. Without the
+        // count, "nobody was invited" and "everybody was invited" look the same.
+        invitations: { attempted: invited.length, failed: emailFailed.filter(Boolean) },
       });
     } catch (error) { return NextResponse.json({ success: false, error: error.message }, { status: 400 }); }
   }

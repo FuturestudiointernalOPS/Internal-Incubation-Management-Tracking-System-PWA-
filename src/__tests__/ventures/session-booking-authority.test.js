@@ -117,6 +117,15 @@ jest.mock("@/services/ventures/notify", () => ({
   notifyVentureLeadManagers: jest.fn().mockResolvedValue(true),
 }));
 
+const mockAddSessionInvitee = jest.fn();
+jest.mock("@/services/ventures/sessionInvitees", () => ({
+  addSessionInvitee: (...args) => mockAddSessionInvitee(...args),
+  getSessionInvitee: jest.fn(async () => null),
+  listInviteesBySessionIds: jest.fn(async () => []),
+  listSessionInvitees: jest.fn(async () => []),
+  removeSessionInvitee: jest.fn(async () => ({ ok: true })),
+}));
+
 const { POST } = require("@/app/api/ventures/[id]/sessions/route");
 const { hasVentureCapability } = require("@/services/ventures/permissions");
 const { resolveVentureCode } = require("@/services/ventures/operatingPlans");
@@ -124,7 +133,7 @@ const { resolveVentureCode } = require("@/services/ventures/operatingPlans");
 const VENTURE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const ctx = { params: Promise.resolve({ id: VENTURE_ID }) };
 
-function book() {
+function book(extra = {}) {
   const req = new Request("http://localhost/x", {
     method: "POST",
     body: JSON.stringify({
@@ -135,6 +144,7 @@ function book() {
       end_time: "2099-01-01T11:00:00Z",
       milestone_ref: "m1",
       venture_facing: true,
+      ...extra,
     }),
   });
   req.session = mockGuard.session;
@@ -169,6 +179,7 @@ beforeEach(() => {
   mockBookable = { ok: true };
   hasVentureCapability.mockClear();
   resolveVentureCode.mockClear();
+  mockAddSessionInvitee.mockReset();
 });
 
 describe("a Coach supports the Venture; a manager schedules it", () => {
@@ -298,6 +309,58 @@ describe("managing the calendar is the same act as booking it", () => {
     expect(res.status).toBe(200); // ...but a global actor never reads it
     expect(hasVentureCapability).not.toHaveBeenCalled();
     expect(mockCancelSession).toHaveBeenCalledWith(7);
+  });
+});
+
+describe("an invitation that could not be made is never confirmed as sent", () => {
+  // The production defect: the invitee table did not exist, the INSERT threw, a
+  // `.catch(() => null)` discarded the throw — and the booking popup still said
+  // "notified by email" for a guest nothing had been written to, let alone told.
+  const GUEST = { email: "guest@x.io" };
+
+  beforeEach(() => {
+    mockGuard = { session: { cid: "sa-1", name: "Super", role: "super_admin" }, path: "super-admin" };
+    mockIsStaffActor = true;
+  });
+
+  test("a throw from the invitee path names the address instead of vanishing", async () => {
+    mockAddSessionInvitee.mockRejectedValueOnce(
+      new Error('relation "venture_session_invitees" does not exist'),
+    );
+
+    const res = await book({ invitees: [GUEST] });
+    expect(res.status).toBe(200); // the SESSION is booked, and that is true
+    const body = await res.json();
+
+    expect(body.invitations.attempted).toBe(1);
+    expect(body.invitations.failed).toEqual(["guest@x.io"]);
+  });
+
+  test("a transport that did not send names the address too", async () => {
+    mockAddSessionInvitee.mockResolvedValueOnce({
+      ok: true,
+      invitee: { id: 1, email: "guest@x.io" },
+      emailResult: { sent: false, error: "invalid_grant" },
+    });
+
+    const body = await (await book({ invitees: [GUEST] })).json();
+    expect(body.invitations).toEqual({ attempted: 1, failed: ["guest@x.io"] });
+  });
+
+  test("an invitation that left is not reported as failed", async () => {
+    mockAddSessionInvitee.mockResolvedValueOnce({
+      ok: true,
+      invitee: { id: 1, email: "guest@x.io" },
+      emailResult: { sent: true, error: null },
+    });
+
+    const body = await (await book({ invitees: [GUEST] })).json();
+    expect(body.invitations).toEqual({ attempted: 1, failed: [] });
+  });
+
+  test("a booking with no guests asks for nothing and reports nothing", async () => {
+    await book();
+    expect(mockAddSessionInvitee).not.toHaveBeenCalled();
   });
 });
 

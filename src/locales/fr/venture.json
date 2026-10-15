@@ -550,6 +550,7 @@
       "minutes": "{n} min",
       "noCoach": "Aucun coach",
       "sessionBooked": "Session réservée — l'entreprise et le coach sont notifiés par e-mail.",
+      "sessionBookedInvited": "Session réservée — vos invités sont eux aussi notifiés par e-mail.",
       "sessionNotifyHint": "L'entreprise, le coach et vous êtes notifiés par e-mail, et la session apparaît dans vos calendriers.",
       "inviteGuests": "Inviter des personnes",
       "inviteGuestsPlaceholder": "Adresses e-mail, séparées par des virgules",
