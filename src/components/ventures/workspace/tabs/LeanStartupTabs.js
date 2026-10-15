@@ -11,7 +11,7 @@ function AddInterviewModal() {
   if (!showAddInterview) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgb(0 0 0 / 0.6)' }} onClick={() => setShowAddInterview(false)}>
-      <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{ backgroundColor: '#0f172a', borderColor: 'rgb(255 255 255 / 0.1)', color: 'var(--text-primary)' }} onClick={event => event.stopPropagation()}>
+      <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{ backgroundColor: 'var(--surface-1)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }} onClick={event => event.stopPropagation()}>
         <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addInterview')}</h2><button onClick={() => setShowAddInterview(false)} style={{ color: 'var(--text-secondary)' }}><X size={20} /></button></div>
         <form onSubmit={async event => { event.preventDefault(); await fetch(`/api/ventures/${params.id}/interviews`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...interviewForm, created_by: user.cid }) }); setShowAddInterview(false); setInterviewForm({}); fetchInterviews(); }} className="space-y-3">
           <input placeholder={t('venture.interviewee')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={interviewForm.interviewee_name || ''} onChange={event => setInterviewForm({ ...interviewForm, interviewee_name: event.target.value })} />
@@ -33,7 +33,7 @@ function AddValidationModal() {
   if (!showAddValidation) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgb(0 0 0 / 0.6)' }} onClick={() => setShowAddValidation(false)}>
-      <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{ backgroundColor: '#0f172a', borderColor: 'rgb(255 255 255 / 0.1)', color: 'var(--text-primary)' }} onClick={event => event.stopPropagation()}>
+      <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{ backgroundColor: 'var(--surface-1)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }} onClick={event => event.stopPropagation()}>
         <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addEntry')}</h2><button onClick={() => setShowAddValidation(false)} style={{ color: 'var(--text-secondary)' }}><X size={20} /></button></div>
         <form onSubmit={async event => { event.preventDefault(); await fetch(`/api/ventures/${params.id}/validations`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ validation_type: validationForm.type, notes: validationForm.notes, status: validationForm.status }) }); setShowAddValidation(false); setValidationForm({ type: 'problem' }); fetchValidations(); }} className="space-y-3">
           <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={validationForm.type} onChange={event => setValidationForm({ ...validationForm, type: event.target.value })}>
@@ -57,7 +57,7 @@ function AddPmfModal() {
   if (!showAddPmf) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgb(0 0 0 / 0.6)' }} onClick={() => setShowAddPmf(false)}>
-      <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{ backgroundColor: '#0f172a', borderColor: 'rgb(255 255 255 / 0.1)', color: 'var(--text-primary)' }} onClick={event => event.stopPropagation()}>
+      <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{ backgroundColor: 'var(--surface-1)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }} onClick={event => event.stopPropagation()}>
         <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addAssessment')}</h2><button onClick={() => setShowAddPmf(false)} style={{ color: 'var(--text-secondary)' }}><X size={20} /></button></div>
         <form onSubmit={async event => { event.preventDefault(); await fetch(`/api/ventures/${params.id}/pmf`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pmfForm) }); setShowAddPmf(false); setPmfForm({}); fetchPmf(); }} className="space-y-3">
           <textarea placeholder={t('venture.feedback')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={pmfForm.customer_feedback || ''} onChange={event => setPmfForm({ ...pmfForm, customer_feedback: event.target.value })} />
@@ -113,9 +113,9 @@ export function ValidationTab() {
             <h3 className="font-semibold capitalize mb-2">{t(`venture.${type}`)}</h3>
             {items.length === 0 && <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No entries</p>}
             {items.map(validation => (
-              <div key={validation.id} className="flex items-center justify-between py-2 border-b last:border-0" style={{ borderColor: 'rgb(255 255 255 / 0.05)' }}>
+              <div key={validation.id} className="flex items-center justify-between py-2 border-b last:border-0" style={{ borderColor: 'var(--border-primary)' }}>
                 <div><p className="text-sm">{validation.notes || '—'}</p><p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{new Date(validation.created_at).toLocaleDateString()}</p></div>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${validation.status === 'validated' ? 'bg-green-500/20 text-green-400' : validation.status === 'invalidated' ? 'bg-red-500/20 text-red-400' : validation.status === 'in_progress' ? 'bg-amber-500/20 text-amber-400' : 'bg-white/10 text-slate-400'}`}>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${validation.status === 'validated' ? 'bg-green-500/20 text-green-400' : validation.status === 'invalidated' ? 'bg-red-500/20 text-red-400' : validation.status === 'in_progress' ? 'bg-amber-500/20 text-amber-400' : 'bg-[var(--surface-3)] text-slate-400'}`}>
                   {t(`venture.${({ not_started: 'notStarted', in_progress: 'inProgress', validated: 'validated', invalidated: 'invalidated' })[validation.status] || validation.status || 'notStarted'}`)}
                 </span>
               </div>
@@ -145,7 +145,7 @@ export function PmfTab() {
                 <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{new Date(assessment.created_at).toLocaleDateString()}</span>
                 <span className="text-sm font-bold" style={{ color: 'var(--brand-orange)' }}>{assessment.pmf_progress || 0}%</span>
               </div>
-              <div className="w-full h-2 rounded-full bg-white/10 mb-2"><div className="h-full rounded-full transition-all" style={{ width: `${assessment.pmf_progress || 0}%`, backgroundColor: 'var(--brand-orange)' }} /></div>
+              <div className="w-full h-2 rounded-full bg-[var(--surface-3)] mb-2"><div className="h-full rounded-full transition-all" style={{ width: `${assessment.pmf_progress || 0}%`, backgroundColor: 'var(--brand-orange)' }} /></div>
               {assessment.customer_feedback && <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>📝 {assessment.customer_feedback}</p>}
               {assessment.improvements && <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>🔧 {assessment.improvements}</p>}
             </div>

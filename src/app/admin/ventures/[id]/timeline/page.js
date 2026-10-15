@@ -171,7 +171,7 @@ export default function VentureTimelinePage() {
                 {t("vadmin.reports.tabJourney")}
               </button>
             </div>
-            <button onClick={() => refreshGantt()} className="p-2 hover:bg-white/5 rounded-lg"><RefreshCw className="w-4 h-4 text-slate-500" /></button>
+            <button onClick={() => refreshGantt()} className="p-2 hover:bg-[var(--surface-2)] rounded-lg"><RefreshCw className="w-4 h-4 text-slate-500" /></button>
           </div>
         </div>
 
@@ -264,7 +264,7 @@ export default function VentureTimelinePage() {
                             {row.start_date && (
                               <div className={`absolute top-0.5 h-5 rounded ${STATUS_COLORS[row.status] || "bg-slate-500"} opacity-80`}
                                 style={{ left: `${left}%`, width: `${Math.max(width, 2)}%` }}>
-                                <div className="h-full rounded bg-white/20" style={{ width: `${row.progress}%` }} />
+                                <div className="h-full rounded bg-[var(--surface-3)]" style={{ width: `${row.progress}%` }} />
                               </div>
                             )}
                           </div>

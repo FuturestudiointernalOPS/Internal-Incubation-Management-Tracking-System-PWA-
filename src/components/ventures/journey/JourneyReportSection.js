@@ -41,7 +41,7 @@ export default function JourneyReportSection({
                   key={report.id}
                   type="button"
                   onClick={() => setReportOpenId(reportOpenId === report.id ? null : report.id)}
-                  className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded transition-colors ${reportOpenId === report.id ? "bg-brand-orange/20 text-[var(--brand-orange)]" : "bg-white/10 text-slate-400 hover:text-[var(--text-primary)]"}`}
+                  className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded transition-colors ${reportOpenId === report.id ? "bg-brand-orange/20 text-[var(--brand-orange)]" : "bg-[var(--surface-3)] text-slate-400 hover:text-[var(--text-primary)]"}`}
                 >
                   {report.report_kind === "closing" ? t("venture.manager.closingReport") : t("venture.manager.progressReport")} · {reportStatusLabel(report.status)}
                 </button>

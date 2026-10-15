@@ -214,7 +214,7 @@ export default function DataBankDocumentRow({ ventureId, doc, canUpload = false,
             <button
               onClick={handleOpenVersions}
               title={t("venture.verificationTab.versionHistory")}
-              className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5 rounded"
+              className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] rounded"
             >
               <History size={12} />
             </button>
@@ -268,7 +268,7 @@ export default function DataBankDocumentRow({ ventureId, doc, canUpload = false,
               </div>
               <button
                 onClick={() => setShowVersions(false)}
-                className="p-1.5 rounded-lg hover:bg-white/5 text-[var(--text-secondary)]"
+                className="p-1.5 rounded-lg hover:bg-[var(--surface-2)] text-[var(--text-secondary)]"
               >
                 <X size={16} />
               </button>

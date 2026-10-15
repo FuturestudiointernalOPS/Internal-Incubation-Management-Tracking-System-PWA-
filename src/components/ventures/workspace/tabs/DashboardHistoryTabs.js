@@ -73,7 +73,7 @@ export function DashboardTab() {
           ) : (
             <div className="space-y-2">
               {upcomingEvents.map((event, index) => (
-                <div key={index} className="flex items-center gap-3 text-sm py-1.5 border-b last:border-0" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
+                <div key={index} className="flex items-center gap-3 text-sm py-1.5 border-b last:border-0" style={{ borderColor: "var(--border-primary)" }}>
                   <div className="shrink-0 w-14 text-center">
                     <p className="text-[10px] font-black leading-tight">{event.date ? new Date(`${event.date}T00:00:00`).toLocaleDateString(undefined, { weekday: "short" }) : ""}</p>
                     <p className="text-[10px]" style={{ color: "var(--text-secondary)" }}>{event.date ? new Date(`${event.date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : ""}</p>
@@ -100,7 +100,7 @@ export function DashboardTab() {
         {dashboardData.recent_activity?.length === 0 ? (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.noRecentActivity")}</p>
         ) : dashboardData.recent_activity?.map((activity, index) => (
-          <div key={activity.id || index} className="flex items-center gap-3 py-2 border-b last:border-0 text-sm" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
+          <div key={activity.id || index} className="flex items-center gap-3 py-2 border-b last:border-0 text-sm" style={{ borderColor: "var(--border-primary)" }}>
             <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "var(--brand-orange)" }} />
             <span className="font-medium">{t(`venture.activity.${activity.action}`)}</span>
             <span style={{ color: "var(--text-secondary)" }}>• {new Date(activity.created_at).toLocaleDateString()}</span>
@@ -117,7 +117,7 @@ export function DashboardTab() {
         {!dashboardData.notifications?.recent?.length ? (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.noNotifications")}</p>
         ) : dashboardData.notifications.recent.map((notification, index) => (
-          <div key={notification.id || index} className="py-2 border-b last:border-0" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
+          <div key={notification.id || index} className="py-2 border-b last:border-0" style={{ borderColor: "var(--border-primary)" }}>
             <div className="flex items-center gap-2">
               {!notification.is_read && <span className="w-2 h-2 rounded-full bg-blue-400" />}
               <p className="text-sm font-medium">{notification.title}</p>

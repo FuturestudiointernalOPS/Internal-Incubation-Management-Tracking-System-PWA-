@@ -18,9 +18,17 @@ export async function getVentureDbIdForMilestoneCreate(venture_id) {
   });
 }
 
-/** All milestones of a Venture db id, newest first. */
+/**
+ * All milestones of a Venture db id, in roadmap order. A journey that was
+ * imported or generated creates all its milestones in one go (same
+ * `created_at`), so "newest first" left their order to chance — the first
+ * milestone could be listed last. `display_order` is the roadmap's own order.
+ */
 export async function listVentureMilestonesByDbId(ventureDbId) {
-  return db.execute({ sql: "SELECT * FROM venture_milestones WHERE venture_id = ? ORDER BY created_at DESC", args: [ventureDbId] });
+  return db.execute({
+    sql: "SELECT * FROM venture_milestones WHERE venture_id = ? ORDER BY display_order ASC NULLS LAST, created_at ASC, id ASC",
+    args: [ventureDbId],
+  });
 }
 
 /** Whether a journey stage belongs to a Venture db id. */

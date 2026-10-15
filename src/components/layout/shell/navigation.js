@@ -51,7 +51,6 @@ const NAV_KEY_MAP = {
   investors_manage: "navigation.investorsManage",
   investors_dashboard: "navigation.investorsDashboard",
   investors_review: "navigation.investorsReview",
-  investors_overview: "navigation.investorsOverview",
   investors_campaigns: "navigation.investorsCampaigns",
   investors_relationships: "navigation.investorsRelationships",
   operations: "navigation.operations",

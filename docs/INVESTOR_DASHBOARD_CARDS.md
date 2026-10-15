@@ -64,7 +64,7 @@ To enable a card the day its page ships: set `isDeveloped: true` and `redirectTo
 | Invested Deals | ❌ | — (no "invested" pipeline view) |
 | Fundraising (section) | ✅ | `/admin/investors/campaigns` |
 | Relationships (section) | ✅ | `/admin/investors/relationships` |
-| Investment Pipeline (section) | ✅ | `/admin/investors/overview` |
+| Investment Pipeline (section) | ✅ | `/admin/investors/dashboard` |
 | Campaign Performance (section) | ✅ | `/admin/investors/campaigns` |
 | Sector Demand (section) | ❌ | — (no sector analytics page) |
 | Top Investors (section) | ✅ | `/admin/investors` |

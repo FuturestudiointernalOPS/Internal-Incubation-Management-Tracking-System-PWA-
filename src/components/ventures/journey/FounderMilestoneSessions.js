@@ -50,7 +50,7 @@ export default function FounderMilestoneSessions({
                 className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-[11px] text-[var(--text-primary)]"
               />
               <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => { setNoteEditFor(null); setNoteDraft(""); }} className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border" style={{ borderColor: 'rgb(255 255 255 / 0.15)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
+                <button type="button" onClick={() => { setNoteEditFor(null); setNoteDraft(""); }} className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
                 <button type="button" disabled={noteSaving || !noteDraft.trim()} onClick={() => saveSessionNote(session.id)} className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg text-black disabled:opacity-50" style={{ backgroundColor: 'var(--brand-orange)' }}>{t('common.save')}</button>
               </div>
             </div>
