@@ -88,8 +88,65 @@ export function insertCoachingNotification(recipientId, title, message) {
 
 // ── Requests ─────────────────────────────────────────────────────────────────
 
+/**
+ * SELF-HEALING SCHEMA — the same contract as the `lms_coaching_requests` half of
+ * supabase/migrations/20260916_lms_session_resources_and_coaching.sql, applied on
+ * first use so an environment where that migration was never run does not fail
+ * with `relation "lms_coaching_requests" does not exist` (the convention of
+ * `ensureCheckoutSchema`).
+ *
+ * Every statement is IF NOT EXISTS, so it is a no-op once the migration has run.
+ * Runs ONCE per process; a failure is logged, never fatal.
+ */
+let coachingSchemaPromise = null;
+
+export function ensureCoachingSchema() {
+  if (!coachingSchemaPromise) {
+    coachingSchemaPromise = (async () => {
+      const statements = [
+        `CREATE TABLE IF NOT EXISTS lms_coaching_requests (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_cid TEXT NOT NULL REFERENCES contacts(cid) ON DELETE CASCADE,
+          program_id TEXT,
+          course_id UUID REFERENCES lms_courses(id) ON DELETE CASCADE,
+          lesson_id UUID REFERENCES lms_lessons(id) ON DELETE SET NULL,
+          timing TEXT NOT NULL DEFAULT 'during'
+            CHECK (timing IN ('before', 'during', 'after')),
+          topic TEXT,
+          message TEXT,
+          status TEXT NOT NULL DEFAULT 'pending'
+            CHECK (status IN ('pending', 'accepted', 'declined', 'completed', 'cancelled')),
+          handled_by TEXT,
+          handled_at TIMESTAMPTZ,
+          response_note TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+        )`,
+        "CREATE INDEX IF NOT EXISTS idx_lms_coaching_requests_user ON lms_coaching_requests(user_cid)",
+        "CREATE INDEX IF NOT EXISTS idx_lms_coaching_requests_program ON lms_coaching_requests(program_id, status)",
+        "CREATE INDEX IF NOT EXISTS idx_lms_coaching_requests_course ON lms_coaching_requests(course_id)",
+      ];
+
+      for (const sql of statements) {
+        try {
+          await db.execute({ sql, args: [] });
+        } catch (error) {
+          console.warn("[CoachingSchema] skipped statement:", error.message);
+        }
+      }
+      return true;
+    })().catch((error) => {
+      console.warn("[CoachingSchema] ensureCoachingSchema failed:", error.message);
+      coachingSchemaPromise = null; // allow a retry on the next call
+      return false;
+    });
+  }
+  return coachingSchemaPromise;
+}
+
 /** The open (pending) coaching request of a learner for a course, if any. */
-export function selectOpenCoachingRequest(cid, courseId) {
+export async function selectOpenCoachingRequest(cid, courseId) {
+  await ensureCoachingSchema();
   return db.execute({
     sql: "SELECT * FROM lms_coaching_requests WHERE user_cid = ? AND course_id = ? AND status = 'pending' LIMIT 1",
     args: [String(cid), courseId],
@@ -97,7 +154,8 @@ export function selectOpenCoachingRequest(cid, courseId) {
 }
 
 /** Insert one coaching request, returning the row. */
-export function insertCoachingRequest(cid, programId, courseId, lessonId, timing, topic, message) {
+export async function insertCoachingRequest(cid, programId, courseId, lessonId, timing, topic, message) {
+  await ensureCoachingSchema();
   return db.execute({
     sql: `INSERT INTO lms_coaching_requests
             (user_cid, program_id, course_id, lesson_id, timing, topic, message, status)
@@ -107,7 +165,8 @@ export function insertCoachingRequest(cid, programId, courseId, lessonId, timing
 }
 
 /** One coaching request row. */
-export function selectCoachingRequestById(requestId) {
+export async function selectCoachingRequestById(requestId) {
+  await ensureCoachingSchema();
   return db.execute({
     sql: "SELECT * FROM lms_coaching_requests WHERE id = ?",
     args: [requestId],
@@ -115,7 +174,8 @@ export function selectCoachingRequestById(requestId) {
 }
 
 /** Coaching request rows matching a caller-built WHERE clause, newest first. */
-export function selectCoachingRequests(where, args) {
+export async function selectCoachingRequests(where, args) {
+  await ensureCoachingSchema();
   return db.execute({
     sql: `SELECT * FROM lms_coaching_requests${where} ORDER BY created_at DESC`,
     args,
@@ -123,7 +183,8 @@ export function selectCoachingRequests(where, args) {
 }
 
 /** Apply a computed SET list to a coaching request. */
-export function updateCoachingRequestRow(sets, args) {
+export async function updateCoachingRequestRow(sets, args) {
+  await ensureCoachingSchema();
   return db.execute({
     sql: `UPDATE lms_coaching_requests SET ${sets.join(", ")} WHERE id = ?`,
     args,
