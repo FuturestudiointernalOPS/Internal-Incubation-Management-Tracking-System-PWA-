@@ -154,6 +154,98 @@ export async function resolveExternalName({ dbId, displayName, contactId, actorC
   return { resolved: total, counts };
 }
 
+/**
+ * The mirror of the census above: the names whose assignments ALREADY carry an
+ * identity, with their per-level counts and the contacts found on them.
+ *
+ * It exists so the People screen can tell the whole truth. A name resolved on its
+ * own rows — by the older, per-row decision — must not appear there as
+ * unidentified: the screen would then contradict the work it is describing.
+ *
+ * A name carrying DIFFERENT contacts on different rows is reported as such (the
+ * list is returned whole) rather than collapsed: that is a disagreement a human
+ * should see, not one this layer should settle.
+ */
+export async function listAssignmentIdentities({ dbId }) {
+  if (!dbId) return [];
+  const found = new Map();
+
+  for (const [level, config] of Object.entries(ASSIGNMENT_LEVELS)) {
+    const result = await db
+      .execute({
+        sql: `SELECT ${config.nameColumn} AS name, ${config.cidColumn} AS cid, COUNT(*) AS count
+                FROM ${config.table}
+               WHERE venture_id::text = ?::text
+                 AND COALESCE(${config.cidColumn}, '') <> ''
+                 AND COALESCE(${config.nameColumn}, '') <> ''
+               GROUP BY ${config.nameColumn}, ${config.cidColumn}`,
+        args: [String(dbId)],
+      })
+      .catch(() => ({ rows: [] }));
+
+    for (const row of rowsOf(result)) {
+      const name = cleanName(row.name);
+      if (!name) continue;
+      const key = name.toLowerCase();
+      const entry = found.get(key) || { name, total: 0, levels: {}, cids: [] };
+      const count = Number(row.count || 0);
+      entry.total += count;
+      entry.levels[level] = (entry.levels[level] || 0) + count;
+      const cid = row.cid ? String(row.cid) : null;
+      if (cid && !entry.cids.includes(cid)) entry.cids.push(cid);
+      found.set(key, entry);
+    }
+  }
+
+  return [...found.values()].sort((left, right) => left.name.localeCompare(right.name));
+}
+
+/**
+ * UNDO a decision: clear the identity written on every assignment standing on one
+ * name, across every level.
+ *
+ * Letting a name go must leave NOTHING behind, or the two ways of recording an
+ * identity would drift apart — the name would be free again while its rows still
+ * pointed at a person. The name itself is untouched: it is the tracker's record.
+ */
+export async function clearAssignmentIdentities({ dbId, displayName, actorCid = null }) {
+  const name = cleanName(displayName);
+  if (!dbId || !name) return { error: "A name is required." };
+
+  const counts = {};
+  let total = 0;
+  for (const [level, config] of Object.entries(ASSIGNMENT_LEVELS)) {
+    const result = await db
+      .execute({
+        sql: `UPDATE ${config.table}
+                 SET ${config.cidColumn} = NULL
+               WHERE venture_id::text = ?::text
+                 AND LOWER(COALESCE(${config.nameColumn}, '')) = LOWER(?)
+                 AND COALESCE(${config.cidColumn}, '') <> ''
+               RETURNING id`,
+        args: [String(dbId), name],
+      })
+      .catch(() => ({ rows: [] }));
+    const changed = rowsOf(result).length;
+    if (changed > 0) counts[level] = changed;
+    total += changed;
+  }
+
+  if (total > 0) {
+    await recordVentureChange({
+      dbId,
+      entityType: "import",
+      entityId: null,
+      entityLabel: name,
+      action: "assignee_unresolved",
+      actorCid,
+      metadata: { name, assignments: counts },
+    });
+  }
+
+  return { cleared: total, counts };
+}
+
 /** Everything assigned to one real person, across the hierarchy. */
 export async function listContactAssignments({ dbId, contactId }) {
   if (!dbId || !contactId) return { milestones: [], tasks: [], deliverables: [] };
@@ -179,7 +271,9 @@ export default {
   ASSIGNMENT_LEVELS,
   ASSIGNMENT_LEVEL_NAMES,
   listExternalAssignees,
+  listAssignmentIdentities,
   resolveExternalAssignment,
   resolveExternalName,
+  clearAssignmentIdentities,
   listContactAssignments,
 };

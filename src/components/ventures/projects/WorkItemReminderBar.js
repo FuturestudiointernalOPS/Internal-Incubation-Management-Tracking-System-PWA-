@@ -8,6 +8,7 @@ import { useDialogs } from "@/components/ui/DialogProvider";
 import AppButton from "@/components/ui/AppButton";
 import AppInput from "@/components/ui/AppInput";
 import AppTextarea from "@/components/ui/AppTextarea";
+import IdentifyPersonModal from "./IdentifyPersonModal";
 
 /**
  * Reminders for ONE work item.
@@ -38,6 +39,7 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
   const [message, setMessage] = useState("");
   const [attachment, setAttachment] = useState(null); // { path, name }
   const [uploading, setUploading] = useState(false);
+  const [identifying, setIdentifying] = useState(null);
 
   // The recipients a reminder would reach are a READ, so they come through the
   // shared hook like every other read on the platform.
@@ -273,7 +275,7 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
                     ) : null}
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-flex flex-wrap items-center gap-1.5">
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-400">
                       <AlertTriangle className="w-3 h-3" />
                       {t(`venture.reminders.reason.${entry.reason}`)}
@@ -286,6 +288,21 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
                     >
                       {rowBusy ? t("common.loading") : t("venture.reminders.addEmail")}
                     </button>
+                    {/* An address typed by hand is a workaround; naming the
+                        PERSON is the fix, and it makes every mention of their
+                        name reachable at once. Offered wherever the identity is
+                        what is missing or broken — never where the recorded
+                        address is simply unusable, which is an edit. */}
+                    {entry.reason !== "invalid_on_file" && (
+                      <button
+                        type="button"
+                        disabled={rowBusy || busy}
+                        onClick={() => setIdentifying(entry)}
+                        className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:underline disabled:opacity-50"
+                      >
+                        {t("venture.reminders.identifyPerson")}
+                      </button>
+                    )}
                   </span>
                 )}
               </li>
@@ -316,6 +333,18 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
             <p className="text-[10px] text-amber-400">{t("venture.reminders.attachmentDropped")}</p>
           ) : null}
         </div>
+      )}
+
+      {identifying && (
+        <IdentifyPersonModal
+          ventureId={ventureId}
+          person={identifying}
+          onClose={() => setIdentifying(null)}
+          onIdentified={() => {
+            refresh();
+            onChanged?.();
+          }}
+        />
       )}
     </div>
   );

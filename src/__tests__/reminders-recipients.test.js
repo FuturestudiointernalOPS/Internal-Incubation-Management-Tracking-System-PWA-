@@ -100,6 +100,26 @@ describe("who a reminder reaches", () => {
     expect(david.cid).toBe("USR_D");
   });
 
+  test("a decision about the NAME wins over an identity written on the assignment", async () => {
+    // Two records of "who Amina is"; the one the screen shows and edits decides,
+    // otherwise changing it there would change nothing about where mail goes.
+    selectAssigneeLinks.mockResolvedValue({ rows: [{ display_name: "Amina", contact_cid: "USR_NEW" }] });
+    selectContactEmailsByCids.mockResolvedValue({
+      rows: [
+        { cid: "USR_NEW", email: "new@example.com", deleted: 0 },
+        { cid: "USR_OLD", email: "old@example.com", deleted: 0 },
+      ],
+    });
+
+    const recipients = await resolveWorkItemRecipients({
+      ventureId: "VNT-1",
+      item: { ...ITEM, owner: { name: "Amina", cid: "USR_OLD" } },
+    });
+
+    expect(recipients[0].cid).toBe("USR_NEW");
+    expect(recipients[0].email).toBe("new@example.com");
+  });
+
   test("an identified person whose record holds no address still uses the typed one", async () => {
     // Reaching them matters more than which field the address came from.
     selectContactEmailsByCids.mockResolvedValue({ rows: [{ cid: "USR_A", email: null, deleted: 0 }] });
