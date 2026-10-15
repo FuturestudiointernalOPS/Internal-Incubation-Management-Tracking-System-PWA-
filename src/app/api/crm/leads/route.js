@@ -63,14 +63,14 @@ export const POST = createHandler(
       title,
       contact_cid:         body.contact_cid ?? null,
       organization_id:     body.organization_id ?? null,
-      owner_cid:           body.owner_cid ?? session?.user?.cid ?? null,
+      owner_cid:           body.owner_cid ?? session?.cid ?? null,
       lead_type:           body.lead_type ?? 'other',
       status:              body.status ?? 'new',
       qualification_state: body.qualification_state ?? 'not_assessed',
       source:              body.source ?? null,
       description:         body.description ?? null,
       notes:               body.notes ?? null,
-      created_by:          session?.user?.cid ?? null,
+      created_by:          session?.cid ?? null,
     });
 
     const lead = result.rows?.[0];
@@ -81,7 +81,7 @@ export const POST = createHandler(
         cid: lead.contact_cid,
         eventType: "lead_created",
         description: `Lead created: ${lead.title}`,
-        actorCid: session?.user?.cid ?? null,
+        actorCid: session?.cid ?? null,
         metadata: { lead_id: lead.id, lead_type: lead.lead_type },
       });
     }

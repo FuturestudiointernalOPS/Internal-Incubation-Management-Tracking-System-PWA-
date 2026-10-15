@@ -147,7 +147,6 @@ export const MASTER_NAVIGATION = [
     name: "SETTINGS",
     icon: "wrench",
     children: [
-      { id: "integrations", name: "INTEGRATIONS", href: "/admin/integrations" },
       { id: "system", name: "SYSTEM MONITORING", href: "/admin/system" },
     ],
   },

@@ -54,7 +54,7 @@ export const PATCH = createHandler(
     if (authError) return authError;
 
     const session = await getSession();
-    const actorCid = session?.user?.cid ?? null;
+    const actorCid = session?.cid ?? null;
 
     const existing = await getCrmOpportunityById(id);
     if (!existing.rows?.[0]) {
@@ -115,7 +115,7 @@ export const DELETE = createHandler(
     const { id } = await params;
     const session = await getSession();
 
-    const result = await softDeleteCrmOpportunity(id, session?.user?.cid ?? null);
+    const result = await softDeleteCrmOpportunity(id, session?.cid ?? null);
     if (!result.rows?.[0]) {
       return NextResponse.json(
         { success: false, error: "crm.opportunities.notFound" },

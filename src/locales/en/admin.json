@@ -5,13 +5,11 @@
     "internalOperations": "Internal Operations",
     "teamAccountability": "Team Accountability",
     "risksAndBlockers": "Risks & Blockers",
-    "historicalIntelligence": "Historical Intelligence",
     "activePrograms": "Active Programs",
     "totalParticipants": "Total Participants",
     "operationalStaff": "Operational Staff",
     "mondayStandups": "Monday Stand-Ups",
     "fridayRetros": "Friday Retros",
-    "blockersReported": "Blockers Reported",
     "blockerRate": "Blocker Rate",
     "activeBlockerRate": "Active Blocker Rate",
     "consistent": "Consistent",
@@ -22,9 +20,6 @@
     "quickActions": "Quick Actions",
     "viewAllBlockers": "View All Blockers",
     "blockerReports": "Blocker Reports",
-    "reportArchive": "Report Archive",
-    "reportsHub": "Reports Hub",
-    "reportResponses": "Report Responses",
     "programName": "Program Name",
     "programType": "Program Type",
     "programTypes": {
@@ -70,11 +65,8 @@
     "awaitingAction": "awaiting action",
     "assignedBy": "Assigned by:",
     "approveAccess": "Approve Access",
-    "ofAllReports": "of all reports",
-    "activeReporters": "active reporters",
     "latestBlockers": "Latest Blockers",
     "noActiveBlockers": "No active blockers",
-    "fullArchive": "Full Archive",
     "ownerLabel": "Owner:",
     "taskLabel": "Task:",
     "sectionSubtitles": {
@@ -83,17 +75,13 @@
       "activeInternalProjects": "Active internal projects",
       "staffReporting": "Staff Reporting & Operational Activity",
       "reportingReliability": "Reporting Reliability & Team Accountability",
-      "recurringProblems": "Recurring Operational Problems",
-      "longTermVisibility": "Long-Term Operational Visibility"
+      "recurringProblems": "Recurring Operational Problems"
     },
     "descriptions": {
       "workHub": "Centralized hub for tasks, blockers, and execution tracking",
       "trackTasks": "Track execution of all tasks across the organization",
       "monitorBlockers": "Monitor active blockers and resolution progress",
-      "viewProjects": "View project portfolio and milestone progress",
-      "browseArchive": "Browse all submitted reports and historical data",
-      "historicalReports": "Historical program reports and form submissions",
-      "pmReportResponses": "All submitted program manager report responses"
+      "viewProjects": "View project portfolio and milestone progress"
     },
     "programsList": "Programs",
     "all": "All",
@@ -145,6 +133,18 @@
       "deleteSuccess": "Team deleted successfully",
       "deleteConfirm": "Are you sure you want to delete this team? This action cannot be undone.",
       "backToPrograms": "Back to Programs"
+    },
+    "accountability": {
+      "window": "Last 4 weeks",
+      "notDue": "Not due yet",
+      "missing": "Missing",
+      "activeBlockers": "Active blockers",
+      "regularity": "Regularity",
+      "lastReport": "Last report",
+      "doneOfDue": "{done}/{due} over 4 weeks",
+      "ofStandups": "of stand-ups, last 4 weeks",
+      "thisWeek": "This week · W{week}",
+      "dueFriday": "Due on Friday"
     }
   }
 }

@@ -68,8 +68,8 @@ export const POST = createHandler(
       website:     body.website ?? null,
       industry:    body.industry ?? null,
       description: body.description ?? null,
-      owner_cid:   body.owner_cid ?? session?.user?.cid ?? null,
-      created_by:  session?.user?.cid ?? null,
+      owner_cid:   body.owner_cid ?? session?.cid ?? null,
+      created_by:  session?.cid ?? null,
     });
 
     const org = result.rows?.[0] ?? null;

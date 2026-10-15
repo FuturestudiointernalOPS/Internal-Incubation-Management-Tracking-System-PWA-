@@ -35,7 +35,7 @@ export const ROLE_ACCESS = {
       knowledge: ["knowledge_base"],
       lms: ["lms_courses", "lms_registrations"],
       security: ["security", "audit_logs", "access_summary", "permissions"],
-      settings: ["integrations", "system"],
+      settings: ["system"],
     },
     hrefs: {},
     icons: {},

@@ -38,7 +38,7 @@ export const POST = createHandler(
       description: body.description,
       entityType: body.entity_type,
       conditions: body.conditions || [],
-      createdBy: session?.user?.cid
+      createdBy: session?.cid
     });
 
     return NextResponse.json({ success: true, segment: result.rows?.[0] });

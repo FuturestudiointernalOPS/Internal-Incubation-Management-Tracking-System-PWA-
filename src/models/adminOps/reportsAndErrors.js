@@ -375,10 +375,24 @@ export async function countParticipantContacts() {
   );
 }
 
+// An operational staff member: the staff role, still active, not deleted or archived.
+const ACTIVE_STAFF =
+  "role = 'staff' AND COALESCE(deleted, 0) = 0 AND archived_at IS NULL AND COALESCE(status, 'active') <> 'inactive'";
+
 /** Count of staff contacts (staff role). */
 export async function countStaffContacts() {
   return db.execute(
-    "SELECT COUNT(*) as count FROM contacts WHERE role IN ('staff')",
+    `SELECT COUNT(*) as count FROM contacts WHERE ${ACTIVE_STAFF}`,
+  );
+}
+
+/**
+ * The staff held to the weekly stand-up / retro: active, not deleted, not
+ * archived. Same population as `countStaffContacts`.
+ */
+export async function listStaffRoster() {
+  return db.execute(
+    `SELECT cid, name, role FROM contacts WHERE ${ACTIVE_STAFF} ORDER BY name`,
   );
 }
 

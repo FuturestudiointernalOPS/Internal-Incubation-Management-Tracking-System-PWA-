@@ -39,7 +39,7 @@ export const POST = createHandler(
       conditions: body.conditions || [],
       actions: body.actions || [],
       active: body.active !== false,
-      createdBy: session?.user?.cid
+      createdBy: session?.cid
     });
 
     return NextResponse.json({ success: true, rule: result.rows?.[0] });

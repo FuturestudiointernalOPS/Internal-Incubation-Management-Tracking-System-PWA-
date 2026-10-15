@@ -65,7 +65,7 @@ export const POST = createHandler(
       is_primary:        body.is_primary ?? false,
       started_at:        body.started_at ?? null,
       notes:             body.notes ?? null,
-      created_by:        session?.user?.cid ?? null,
+      created_by:        session?.cid ?? null,
     });
 
     const relationship = result.rows?.[0] ?? null;

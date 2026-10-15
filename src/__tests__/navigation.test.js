@@ -128,7 +128,6 @@ const FIXTURE = {
       id: "settings",
       href: null,
       subItems: [
-        { id: "integrations", href: "/admin/integrations", subItems: null },
         { id: "system", href: "/admin/system", subItems: null },
       ],
     },

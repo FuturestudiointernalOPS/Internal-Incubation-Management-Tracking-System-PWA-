@@ -85,7 +85,6 @@ export const FEATURE_SUBSECTIONS = {
     { id: "permissions", labelKey: "navigation.permissions", module: "permissions" },
   ],
   settings: [
-    { id: "integrations", labelKey: "navigation.integrations" },
     { id: "engineering_dashboard", labelKey: "navigation.engineering", module: "engineering" },
     { id: "system", labelKey: "navigation.system", module: "settings" },
   ],

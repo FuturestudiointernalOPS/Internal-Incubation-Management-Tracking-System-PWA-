@@ -40,7 +40,7 @@ export const POST = createHandler(
 
     const body = await req.json();
     const session = await getSession();
-    const actorCid = session?.user?.cid;
+    const actorCid = session?.cid;
 
     if (!body.type) {
       return NextResponse.json({ success: false, error: "Type is required" }, { status: 400 });
@@ -71,7 +71,7 @@ export const POST = createHandler(
       const now = new Date();
       const taskRes = await createTask({
         user_id: actorCid,
-        user_name: session?.user?.name || "CRM User",
+        user_name: session?.name || "CRM User",
         title: body.title,
         description: body.description,
         status: "pending", // Default native status
@@ -102,7 +102,7 @@ export const POST = createHandler(
         to: body.email_to,
         subject: body.title,
         html: `<div style="font-family:sans-serif;">${body.description || ""}</div>`,
-        fromName: session?.user?.name || "Future Studio CRM",
+        fromName: session?.name || "Future Studio CRM",
         provider: null, // Let platform choose
         contact_cid: body.contact_cid || null,
         email_type: "crm_communication",
