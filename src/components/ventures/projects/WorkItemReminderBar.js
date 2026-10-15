@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
-import { AlertTriangle, Loader2, Mail, Send } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { AlertTriangle, Loader2, Mail, Paperclip, Send, X } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import AppButton from "@/components/ui/AppButton";
+import AppInput from "@/components/ui/AppInput";
+import AppTextarea from "@/components/ui/AppTextarea";
 
 /**
  * Reminders for ONE work item.
@@ -18,14 +20,24 @@ import AppButton from "@/components/ui/AppButton";
  *
  * Recording an address creates NOTHING: no contact, no member, no platform
  * access. It is an address to write to, against the name the tracker wrote.
+ *
+ * The manager may also WRITE the reminder — its subject, its message — and attach
+ * ONE file. Leaving those blank sends the standard wording, which is what most
+ * reminders are; filling them in sends their own words unchanged, so a chase can
+ * carry the context only the person sending it has.
  */
 export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
   const { t } = useI18n();
   const { prompt, alert } = useDialogs();
 
+  const fileInputRef = useRef(null);
   const [sending, setSending] = useState(false);
   const [savingEmail, setSavingEmail] = useState(null);
   const [outcome, setOutcome] = useState(null);
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [attachment, setAttachment] = useState(null); // { path, name }
+  const [uploading, setUploading] = useState(false);
 
   // The recipients a reminder would reach are a READ, so they come through the
   // shared hook like every other read on the platform.
@@ -69,13 +81,35 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok || !payload?.success) {
-        await alert({ message: payload?.error || t("errors.generic"), tone: "danger" });
+        await alert({ message: t(payload?.error || "errors.somethingWrong"), tone: "danger" });
         return;
       }
       refresh();
       onChanged?.();
     } finally {
       setSavingEmail(null);
+    }
+  };
+
+  /** Store the ONE file this reminder carries. Uploading is separate from sending. */
+  const attachFile = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    setOutcome(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`/api/ventures/${ventureId}/reminders/upload`, { method: "POST", body: form });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok || !payload?.success) {
+        await alert({ message: t(payload?.error || "errors.somethingWrong"), tone: "danger" });
+        return;
+      }
+      setAttachment({ path: payload.path, name: payload.name || file.name });
+    } finally {
+      setUploading(false);
+      // So choosing the SAME file again after removing it still fires a change.
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -86,14 +120,26 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
       const res = await fetch(`/api/ventures/${ventureId}/reminders`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "send", work_item: item.id }),
+        body: JSON.stringify({
+          action: "send",
+          work_item: item.id,
+          subject: subject.trim() || null,
+          body: message.trim() || null,
+          attachment_path: attachment?.path || null,
+          attachment_name: attachment?.name || null,
+        }),
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok || !payload?.success) {
-        await alert({ message: payload?.error || t("errors.generic"), tone: "danger" });
+        await alert({ message: t(payload?.error || "errors.somethingWrong"), tone: "danger" });
         return;
       }
       setOutcome(payload.outcome);
+      // The words and the file went out with the message — clearing them keeps
+      // the next send from silently repeating them.
+      setSubject("");
+      setMessage("");
+      setAttachment(null);
       refresh();
       onChanged?.();
     } finally {
@@ -104,6 +150,7 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
   const list = recipients;
   const reachable = list.filter((entry) => entry.email).length;
   const unreachableCount = Array.isArray(outcome?.unreachable) ? outcome.unreachable.length : 0;
+  const busy = sending || uploading;
 
   return (
     <div className="space-y-3 rounded-lg border border-[var(--border-primary)] bg-[var(--surface-1)] p-3">
@@ -116,11 +163,68 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
           size="sm"
           icon={sending ? Loader2 : Send}
           loading={sending}
-          disabled={loading || reachable === 0 || Boolean(savingEmail)}
+          disabled={loading || reachable === 0 || Boolean(savingEmail) || uploading}
           onClick={send}
         >
           {t("venture.reminders.send")}
         </AppButton>
+      </div>
+
+      {/* WHAT THE MESSAGE SAYS — blank means the standard wording. */}
+      <div className="grid grid-cols-1 gap-3">
+        <AppInput
+          label={t("venture.reminders.subjectLabel")}
+          value={subject}
+          placeholder={t("venture.reminders.subjectPlaceholder")}
+          disabled={busy}
+          onChange={(event) => setSubject(event.target.value)}
+        />
+        <AppTextarea
+          label={t("venture.reminders.messageLabel")}
+          rows={3}
+          value={message}
+          placeholder={t("venture.reminders.messagePlaceholder")}
+          disabled={busy}
+          onChange={(event) => setMessage(event.target.value)}
+        />
+
+        {/* ONE FILE — chosen by the picker, stored before the send. */}
+        <div className="space-y-1">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg"
+            className="hidden"
+            onChange={(event) => attachFile(event.target.files?.[0])}
+          />
+          {attachment ? (
+            <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+              <span className="inline-flex items-center gap-1 text-[var(--text-secondary)]">
+                <Paperclip className="w-3 h-3" /> {attachment.name}
+              </span>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setAttachment(null)}
+                className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-rose-400 hover:underline disabled:opacity-50"
+              >
+                <X className="w-3 h-3" /> {t("venture.reminders.removeAttachment")}
+              </button>
+            </span>
+          ) : (
+            <AppButton
+              variant="secondary"
+              size="sm"
+              icon={uploading ? Loader2 : Paperclip}
+              loading={uploading}
+              disabled={busy}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {t("venture.reminders.attachFile")}
+            </AppButton>
+          )}
+          <p className="text-[10px] text-[var(--text-tertiary)]">{t("venture.reminders.attachHint")}</p>
+        </div>
       </div>
 
       {loading ? (
@@ -131,7 +235,7 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
         <ul className="space-y-1.5">
           {list.map((entry) => {
             const rowKey = `${entry.role}:${entry.name}`;
-            const busy = savingEmail === rowKey;
+            const rowBusy = savingEmail === rowKey;
             return (
               <li key={rowKey} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                 <span className="text-[var(--text-primary)] font-semibold">{entry.name}</span>
@@ -139,18 +243,34 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
                   {t(`venture.reminders.role.${entry.role}`)}
                 </span>
                 {entry.email ? (
-                  <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="text-[var(--text-secondary)] inline-flex items-center gap-1">
-                      <Mail className="w-3 h-3" /> {entry.email}
+                  <span className="inline-flex flex-col gap-y-0.5">
+                    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="text-[var(--text-secondary)] inline-flex items-center gap-1">
+                        <Mail className="w-3 h-3" /> {entry.email}
+                      </span>
+                      {entry.cid ? (
+                        // The address comes from the person's own record, so editing
+                        // one here would change nothing. The People screen is where
+                        // this person is identified or let go.
+                        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+                          {t("venture.people.fromRecord")}
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={rowBusy || busy}
+                          onClick={() => setEmail(entry, { editing: true })}
+                          className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:underline disabled:opacity-50"
+                        >
+                          {rowBusy ? t("common.loading") : t("venture.reminders.editEmail")}
+                        </button>
+                      )}
                     </span>
-                    <button
-                      type="button"
-                      disabled={busy || sending}
-                      onClick={() => setEmail(entry, { editing: true })}
-                      className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:underline disabled:opacity-50"
-                    >
-                      {busy ? t("common.loading") : t("venture.reminders.editEmail")}
-                    </button>
+                    {entry.alternative_email ? (
+                      <span className="text-[10px] text-amber-400">
+                        {t("venture.people.alternative", { email: entry.alternative_email })}
+                      </span>
+                    ) : null}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5">
@@ -160,11 +280,11 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
                     </span>
                     <button
                       type="button"
-                      disabled={busy || sending}
+                      disabled={rowBusy || busy}
                       onClick={() => setEmail(entry, { editing: false })}
                       className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:underline disabled:opacity-50"
                     >
-                      {busy ? t("common.loading") : t("venture.reminders.addEmail")}
+                      {rowBusy ? t("common.loading") : t("venture.reminders.addEmail")}
                     </button>
                   </span>
                 )}
@@ -191,6 +311,9 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
             <p className="text-[10px] text-amber-400">
               {t("venture.reminders.failedReason", { reason: outcome.failed[0].error })}
             </p>
+          ) : null}
+          {outcome.attachment_dropped ? (
+            <p className="text-[10px] text-amber-400">{t("venture.reminders.attachmentDropped")}</p>
           ) : null}
         </div>
       )}

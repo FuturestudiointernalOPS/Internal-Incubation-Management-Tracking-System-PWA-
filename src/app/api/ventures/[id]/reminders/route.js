@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
+import { reminderAttachmentPrefix } from "@/lib/storage";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { resolveVentureDbId } from "@/lib/ventureOwnership";
 import { buildWorkItems } from "@/services/workItems";
@@ -109,6 +110,20 @@ export async function POST(req, { params }) {
       const item = items.find((entry) => entry.id === String(body?.work_item || ""));
       if (!item) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
+      // What the manager wrote, when they wrote anything: a subject, a message
+      // and at most ONE file. Absent means "use the standard wording".
+      const subject = String(body?.subject || "").trim().slice(0, 200) || null;
+      const message = String(body?.body || "").trim().slice(0, 5000) || null;
+      const attachmentPath = String(body?.attachment_path || "").trim() || null;
+      const attachmentName = String(body?.attachment_name || "").trim().slice(0, 200) || null;
+
+      // A path is accepted only when it belongs to THIS Venture (see the upload
+      // route): otherwise a caller could ask us to mail another Venture's own
+      // private document by simply quoting its path.
+      if (attachmentPath && !attachmentPath.startsWith(reminderAttachmentPrefix(id))) {
+        return NextResponse.json({ success: false, error: "errors.invalidAttachment" }, { status: 400 });
+      }
+
       const nameResult = await getVentureNameByIdOrCode(id).catch(() => ({ rows: [] }));
       const ventureName =
         nameResult.rows?.[0]?.company_name || nameResult.rows?.[0]?.name || null;
@@ -118,6 +133,9 @@ export async function POST(req, { params }) {
         ventureName,
         item,
         sentBy: access.session?.name || null,
+        subject,
+        message,
+        attachment: attachmentPath ? { path: attachmentPath, name: attachmentName || "attachment" } : null,
       });
 
       // 200 with the truth: "reached nobody, because nobody has an address" is a

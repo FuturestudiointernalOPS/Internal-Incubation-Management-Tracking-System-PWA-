@@ -2,6 +2,7 @@
   "errors": {
     "required": "This field is required.",
     "invalidEmail": "Invalid email address.",
+    "invalidAttachment": "That file cannot be attached to this reminder.",
     "minLength": "Must be at least {min} characters.",
     "maxLength": "Must be no more than {max} characters.",
     "passwordTooShort": "Password must be at least 4 characters.",

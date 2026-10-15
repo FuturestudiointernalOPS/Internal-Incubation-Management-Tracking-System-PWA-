@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { BellRing, Loader2, Plus, Trash2 } from "lucide-react";
+import { BellRing, Loader2, Paperclip, Plus, Trash2 } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import { useDialogs } from "@/components/ui/DialogProvider";
@@ -17,7 +17,8 @@ import AppModal from "@/components/ui/AppModal";
  * rule can be paused without being deleted.
  *
  * History shows manual and automatic sends together, which is the question a
- * manager actually asks: was this chased, when, by whom, did it arrive.
+ * manager actually asks: was this chased, when, by whom, did it arrive — and,
+ * for a manual one, what was actually written and what travelled with it.
  */
 export default function VentureRemindersPanel({ ventureId }) {
   const { t } = useI18n();
@@ -44,7 +45,7 @@ export default function VentureRemindersPanel({ ventureId }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.success) {
-        await alert({ message: data?.error || t("errors.generic"), tone: "danger" });
+        await alert({ message: data?.error ? t(data.error) : t("errors.somethingWrong"), tone: "danger" });
         return false;
       }
       refresh();
@@ -183,6 +184,16 @@ export default function VentureRemindersPanel({ ventureId }) {
                     <td className="p-2 text-[var(--text-primary)]">
                       {row.work_item_ref ? <span className="text-[var(--brand-orange)] font-bold mr-1">{row.work_item_ref}</span> : null}
                       <span className="break-words">{row.work_item_title || "—"}</span>
+                      {(row.subject || row.attachment_name) && (
+                        <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-[var(--text-tertiary)]">
+                          {row.subject ? <span className="truncate max-w-[240px]">{row.subject}</span> : null}
+                          {row.attachment_name ? (
+                            <span className="inline-flex items-center gap-1">
+                              <Paperclip className="w-3 h-3" /> {row.attachment_name}
+                            </span>
+                          ) : null}
+                        </span>
+                      )}
                     </td>
                     <td className="p-2 text-[var(--text-secondary)] whitespace-nowrap">
                       {row.mode === "manual" ? t("venture.reminders.modeManual") : t(`venture.reminders.trigger.${row.trigger}`)}

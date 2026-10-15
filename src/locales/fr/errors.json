@@ -2,6 +2,7 @@
   "errors": {
     "required": "Ce champ est requis.",
     "invalidEmail": "Adresse email invalide.",
+    "invalidAttachment": "Ce fichier ne peut pas être joint à ce rappel.",
     "minLength": "Doit contenir au moins {min} caractères.",
     "maxLength": "Doit contenir au maximum {max} caractères.",
     "passwordTooShort": "Le mot de passe doit contenir au moins 4 caractères.",

@@ -56,6 +56,18 @@ export function gmailCredentialsAvailable() {
 }
 
 /**
+ * Whether a given transport can CARRY a file attachment.
+ *
+ * Only the workspace mailbox can; the transactional service has no attachment
+ * support. A sender that attached a file must therefore be able to tell, after
+ * the fact, that the fallback went out without it — a dropped attachment is a
+ * silent loss otherwise, which is exactly what this platform refuses to do.
+ */
+export function transportSupportsAttachments(provider) {
+  return provider === "gmail";
+}
+
+/**
  * What the mail configuration IS — for diagnosing a send from the running
  * environment (production included) without ever revealing a secret.
  *

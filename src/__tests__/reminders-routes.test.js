@@ -49,6 +49,10 @@ jest.mock("@/models/ventureAssigneeEmails", () => ({
   deleteAssigneeEmail: jest.fn(async () => ({ rows: [] })),
 }));
 
+jest.mock("@/models/ventureAssigneeLinks", () => ({
+  selectAssigneeLinks: jest.fn(async () => ({ rows: [] })),
+}));
+
 const mockSendManual = jest.fn(async () => ({ sent: 1, already_sent: 0, failed: [], unreachable: [], no_recipients: false }));
 jest.mock("@/services/reminders/engine", () => ({
   sendManualReminder: (...args) => mockSendManual(...args),
@@ -156,6 +160,46 @@ describe("sending", () => {
 
     expect(response.status).toBe(200);
     expect(body.outcome.no_recipients).toBe(true);
+  });
+
+  test("what the manager wrote is handed to the send, trimmed", async () => {
+    await callRoute({
+      method: "POST",
+      body: {
+        action: "send",
+        work_item: "activity:41",
+        subject: "  A word before Friday  ",
+        body: "  Bring the interview notes.  ",
+        attachment_path: "reminders/VNT-KORA/17_plan.pdf",
+        attachment_name: "plan.pdf",
+      },
+    });
+
+    expect(mockSendManual).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: "A word before Friday",
+        message: "Bring the interview notes.",
+        attachment: { path: "reminders/VNT-KORA/17_plan.pdf", name: "plan.pdf" },
+      }),
+    );
+  });
+
+  test("no written subject, message or file leaves the send on the standard wording", async () => {
+    await callRoute({ method: "POST", body: { action: "send", work_item: "activity:41" } });
+
+    expect(mockSendManual).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: null, message: null, attachment: null }),
+    );
+  });
+
+  test("a file belonging to ANOTHER Venture is refused, not mailed", async () => {
+    const response = await callRoute({
+      method: "POST",
+      body: { action: "send", work_item: "activity:41", attachment_path: "reminders/VNT-OTHER/17_plan.pdf" },
+    });
+
+    expect(response.status).toBe(400);
+    expect(mockSendManual).not.toHaveBeenCalled();
   });
 });
 
