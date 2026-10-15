@@ -25,10 +25,17 @@ const VENTURE_STAGES = {
   scaling: { label: "vadmin.list.stageScaling", color: "text-[var(--brand-orange)] bg-brand-orange/10" },
 };
 
+// The company lifecycle, resolved through the shared vocabulary
+// (`@/lib/ventureCompanyStatus`) so this list, the profile form and the founder
+// screen never describe one state with three different words. `pending` is kept
+// for rows written before the vocabulary existed; it reads as a prospect.
 const STATUS_CONFIG = {
-  active: { label: "vadmin.list.statusActive", color: "text-emerald-400 bg-emerald-500/10", dot: "bg-emerald-400" },
-  pending: { label: "vadmin.list.statusPending", color: "text-amber-400 bg-amber-500/10", dot: "bg-amber-400" },
-  archived: { label: "vadmin.list.statusArchived", color: "text-slate-400 bg-slate-500/10", dot: "bg-slate-400" },
+  prospect: { label: "status.prospect", color: "text-sky-400 bg-sky-500/10", dot: "bg-sky-400" },
+  active: { label: "status.active", color: "text-emerald-400 bg-emerald-500/10", dot: "bg-emerald-400" },
+  pending: { label: "status.pending", color: "text-amber-400 bg-amber-500/10", dot: "bg-amber-400" },
+  paused: { label: "status.paused", color: "text-amber-400 bg-amber-500/10", dot: "bg-amber-400" },
+  graduated: { label: "status.graduated", color: "text-purple-400 bg-purple-500/10", dot: "bg-purple-400" },
+  archived: { label: "status.archived", color: "text-slate-400 bg-slate-500/10", dot: "bg-slate-400" },
 };
 
 // Module scope on purpose: the hook keys its internal callback on this function,
