@@ -22,8 +22,8 @@ import db from "@/lib/db";
 export async function listVenturesWithCounts({ effectiveContactId, assignedStaffId, status, search, includeArchived = false }) {
   let sql = `
       SELECT v.*,
-        (SELECT COUNT(*) FROM venture_members vm WHERE vm.venture_id = v.venture_id AND vm.member_type = 'founder' AND vm.removed_at IS NULL) as founder_count,
-        (SELECT COUNT(*) FROM venture_members vm WHERE vm.venture_id = v.venture_id AND vm.member_type != 'founder' AND vm.removed_at IS NULL) as member_count
+        (SELECT COUNT(*) FROM venture_members vm WHERE vm.venture_id = v.id::text AND vm.member_type = 'founder' AND vm.removed_at IS NULL) as founder_count,
+        (SELECT COUNT(*) FROM venture_members vm WHERE vm.venture_id = v.id::text AND vm.member_type != 'founder' AND vm.removed_at IS NULL) as member_count
       FROM ventures v WHERE 1=1
     `;
   const args = [];
@@ -33,14 +33,15 @@ export async function listVenturesWithCounts({ effectiveContactId, assignedStaff
   }
 
   if (effectiveContactId) {
-    sql += " AND v.venture_id IN (SELECT vm.venture_id FROM venture_members vm WHERE vm.user_cid = ? OR vm.contact_id = ?)";
+    sql += " AND v.id::text IN (SELECT vm.venture_id FROM venture_members vm WHERE vm.user_cid = ? OR vm.contact_id = ?)";
     args.push(effectiveContactId, effectiveContactId);
   }
 
   // Delegated staff/program_manager: assigned Ventures OR Ventures they are a
-  // member of — never the whole directory.
+  // member of — never the whole directory. Membership/assignment columns hold
+  // the internal id, so the comparison is on `v.id`.
   if (assignedStaffId) {
-    sql += " AND (v.venture_id IN (SELECT venture_id FROM venture_staff_assignments WHERE staff_contact_id = ? AND status = 'active') OR v.venture_id IN (SELECT vm.venture_id FROM venture_members vm WHERE vm.user_cid = ? OR vm.contact_id = ?))";
+    sql += " AND (v.id::text IN (SELECT venture_id FROM venture_staff_assignments WHERE staff_contact_id = ? AND status = 'active') OR v.id::text IN (SELECT vm.venture_id FROM venture_members vm WHERE vm.user_cid = ? OR vm.contact_id = ?))";
     args.push(assignedStaffId, assignedStaffId, assignedStaffId);
   }
 

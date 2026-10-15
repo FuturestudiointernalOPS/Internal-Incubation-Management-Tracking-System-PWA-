@@ -3,8 +3,10 @@ import db from "@/lib/db";
 /**
  * Lead Manager dashboard reads (REPOSITORY layer).
  *
- * Every query is scoped to Venture codes the caller already owns as an active
- * `lead_manager` — the service decides which codes; this file only fetches.
+ * Every query is scoped to the Venture ids the caller already owns as an active
+ * `lead_manager` — the service decides which ones; this file only fetches.
+ * (Those ids are the INTERNAL ones since Phase 0: sessions, activity and reports
+ * all key on `ventures.id`.)
  */
 
 /** Active lead_manager assignments for one staff contact, with Venture facts. */
@@ -15,7 +17,7 @@ export function selectLeadManagerVentures(staffCid) {
                  v.id AS venture_db_id, v.venture_id, v.company_name, v.name,
                  v.status, v.business_stage, v.industry, v.country, v.updated_at
           FROM venture_staff_assignments a
-          JOIN ventures v ON v.venture_id = a.venture_id
+          JOIN ventures v ON a.venture_id = v.id::text
           WHERE a.staff_contact_id = ?
             AND a.status = 'active'
             AND a.responsibility_code = 'lead_manager'
@@ -105,11 +107,11 @@ export function selectDeliverablesAwaitingReview(dbIds = [], limit = 50) {
 }
 
 /**
- * Upcoming / recent sessions for Venture codes (sessions store the VNT code).
- * `fromIso` / `toIso` are inclusive bounds on start_time.
+ * Upcoming / recent sessions for Venture ids. `fromIso` / `toIso` are inclusive
+ * bounds on start_time.
  */
-export function selectSessionsForLeadVentures({ codes = [], fromIso, toIso, limit = 40 } = {}) {
-  const list = (Array.isArray(codes) ? codes : []).map(String).filter(Boolean);
+export function selectSessionsForLeadVentures({ ventureIds = [], fromIso, toIso, limit = 40 } = {}) {
+  const list = (Array.isArray(ventureIds) ? ventureIds : []).map(String).filter(Boolean);
   if (list.length === 0) return Promise.resolve({ rows: [] });
   const safeLimit = Math.min(Math.max(Number(limit) || 40, 1), 100);
   return db.execute({
@@ -139,8 +141,8 @@ export function selectSessionIdsWithNotes(sessionIds = []) {
 }
 
 /** Latest activity timestamp per Venture code. */
-export function selectLastActivityByVentureCodes(codes = []) {
-  const list = (Array.isArray(codes) ? codes : []).map(String).filter(Boolean);
+export function selectLastActivityByVentureIds(ventureIds = []) {
+  const list = (Array.isArray(ventureIds) ? ventureIds : []).map(String).filter(Boolean);
   if (list.length === 0) return Promise.resolve({ rows: [] });
   return db.execute({
     sql: `SELECT venture_id::text AS venture_id, MAX(created_at) AS last_activity_at
@@ -151,9 +153,9 @@ export function selectLastActivityByVentureCodes(codes = []) {
   }).catch(() => ({ rows: [] }));
 }
 
-/** Draft / pending journey reports for Venture codes (when the table exists). */
-export function selectPendingJourneyReports(codes = [], limit = 30) {
-  const list = (Array.isArray(codes) ? codes : []).map(String).filter(Boolean);
+/** Draft / pending journey reports for Venture ids (when the table exists). */
+export function selectPendingJourneyReports(ventureIds = [], limit = 30) {
+  const list = (Array.isArray(ventureIds) ? ventureIds : []).map(String).filter(Boolean);
   if (list.length === 0) return Promise.resolve({ rows: [] });
   const safeLimit = Math.min(Math.max(Number(limit) || 30, 1), 80);
   return db.execute({

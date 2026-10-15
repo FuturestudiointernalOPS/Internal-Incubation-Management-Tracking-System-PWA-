@@ -124,7 +124,7 @@ export async function isParticipantInProgram(cid, programId) {
 export async function isVentureFounderInProgram(cid, programId) {
   return db.execute({
     sql: `SELECT 1 FROM venture_members vm
-                JOIN ventures v ON v.venture_id = vm.venture_id
+                JOIN ventures v ON vm.venture_id = v.id::text
                 WHERE (vm.user_cid = ? OR vm.contact_id = ?)
                   AND CAST(v.program_id AS TEXT) = ?
                 LIMIT 1`,
@@ -170,7 +170,7 @@ export async function getVentureMembershipsForContact(cid) {
                  vm.member_type,
                  COALESCE(vm.is_owner, false) AS is_owner
               FROM venture_members vm
-              LEFT JOIN ventures v ON v.venture_id = vm.venture_id
+              LEFT JOIN ventures v ON vm.venture_id = v.id::text
               WHERE (vm.user_cid = ? OR vm.contact_id = ?) AND vm.removed_at IS NULL
               ORDER BY vm.joined_at DESC`,
     args: [cid, cid],
