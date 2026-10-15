@@ -12,6 +12,7 @@ import {
   deriveProposalDates,
   knownOwnerCids,
   normalizeJourneys,
+  placeTasksByStatedRefs,
   resolveProposalOwners,
   toText,
   validateDependencyRefs,
@@ -226,7 +227,8 @@ export async function revisePlanProposal({ proposal, instruction } = {}) {
     }))
     .slice(0, 100);
 
-  const journeys = normalizeJourneys(parsed.journeys);
+  const journeys = normalizeJourneys(parsed.journeys, warnings);
+  placeTasksByStatedRefs(journeys, warnings);
   deriveProposalDates(journeys, warnings);
   validateDependencyRefs(journeys, warnings);
   // A person the reviewer already placed keeps their place; everyone else is
