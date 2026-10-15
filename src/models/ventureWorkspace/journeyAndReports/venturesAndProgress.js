@@ -10,6 +10,14 @@ import db from "@/lib/db";
  * other way; either one means the Venture must not be offered as active work.
  * Both are excluded unless the caller explicitly asks for them
  * (`includeArchived`, i.e. the history/archived views).
+ *
+ * `is_archived::int` IS NOT DECORATION. On `ventures` this column is an INTEGER
+ * (a legacy generation of the DDL), while the work tables' same-named column is
+ * a BOOLEAN. `COALESCE(v.is_archived, FALSE) = FALSE` therefore does not merely
+ * mis-filter — PostgreSQL refuses to plan it at all ("COALESCE types integer
+ * and boolean cannot be matched"), which takes the whole Venture list down. The
+ * cast to int is what makes the predicate work for either column type, and it is
+ * verified against the live schema, not assumed.
  */
 export async function listVenturesWithCounts({ effectiveContactId, assignedStaffId, status, search, includeArchived = false }) {
   let sql = `
@@ -21,7 +29,7 @@ export async function listVenturesWithCounts({ effectiveContactId, assignedStaff
   const args = [];
 
   if (!includeArchived) {
-    sql += " AND COALESCE(v.is_archived, FALSE) = FALSE AND COALESCE(LOWER(v.status), '') <> 'archived'";
+    sql += " AND COALESCE(v.is_archived::int, 0) = 0 AND COALESCE(LOWER(v.status), '') <> 'archived'";
   }
 
   if (effectiveContactId) {

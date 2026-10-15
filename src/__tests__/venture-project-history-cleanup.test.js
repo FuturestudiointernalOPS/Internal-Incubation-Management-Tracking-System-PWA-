@@ -109,7 +109,12 @@ describe("A. a deleted Venture is not offered as a project", () => {
   test("the directory excludes archived Ventures by default", async () => {
     await listVenturesWithCounts({});
     const sql = lastSql();
-    expect(sql).toMatch(/COALESCE\(v\.is_archived, FALSE\) = FALSE/);
+    // The `::int` cast is load-bearing, not cosmetic: `ventures.is_archived` is an
+    // INTEGER in this schema (the work tables' same-named column is BOOLEAN), so
+    // `COALESCE(v.is_archived, FALSE)` is refused by the planner outright and
+    // takes the whole Venture list down with it. Verified against the live column.
+    expect(sql).toMatch(/COALESCE\(v\.is_archived::int, 0\) = 0/);
+    expect(sql).not.toMatch(/COALESCE\(v\.is_archived, FALSE\)/);
     expect(sql).toMatch(/LOWER\(v\.status\)[\s\S]*<> 'archived'/);
   });
 
