@@ -36,14 +36,14 @@ export default function VentureChangeLogPanel({ ventureId }) {
   const show = (value) => (value === null || value === undefined || value === "" ? "—" : String(value));
 
   return (
-    <div className="card mb-4">
+    <div className="jy-box">
       <button
         type="button"
         onClick={() => setOpen((previous) => !previous)}
         aria-expanded={open}
         className="w-full flex flex-wrap items-center justify-between gap-3 text-left"
       >
-        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+        <h3 className="jy-h">
           <History className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
           {t("venture.changes.title")}
           <span className="px-1.5 py-0.5 rounded bg-[var(--surface-2)] text-slate-400">{changes.length}</span>

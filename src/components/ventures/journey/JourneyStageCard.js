@@ -20,7 +20,6 @@ import AddMilestoneForm from "@/components/ventures/journey/AddMilestoneForm";
 export default function JourneyStageCard({
   stage,
   index,
-  visibleStagesCount,
   access,
   editId,
   setEditId,
@@ -136,21 +135,10 @@ export default function JourneyStageCard({
   const closingMissing =
     isDone && !(reportsByStage[String(stage.id)] || []).some((report) => report.report_kind === "closing");
   return (
-    <div className="relative pl-10">
-      {/* Timeline connector between stage nodes */}
-      {index < visibleStagesCount - 1 && (
-        <span aria-hidden className={`absolute left-[15px] top-9 -bottom-5 w-px ${isDone ? "bg-emerald-500/40" : "bg-[var(--border-primary)]"}`} />
-      )}
-      {/* Stage node */}
-      <span
-        className={`absolute left-0 top-0 w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-black ${stageNodeClass(stage.status)} ${isActive ? "ring-4 ring-blue-500/10" : ""}`}
-      >
-        {isDone ? <CheckCircle2 className="w-4 h-4" /> : (stage.stage_order || index + 1)}
-      </span>
-
-      <div className={`card overflow-hidden ${isLocked ? "opacity-80" : ""}`}>
+    <div className={`jy-stage ${isActive ? "is-active" : ""} ${isLocked ? "is-locked" : ""}`}>
+      <div>
         {isEditing ? (
-          <form onSubmit={saveEdit} className="p-4 space-y-3">
+          <form onSubmit={saveEdit} className="space-y-3" style={{ padding: 20 }}>
             <input
               value={editForm.name || ""}
               onChange={(event) => setEditForm({ ...editForm, name: event.target.value })}
@@ -182,31 +170,50 @@ export default function JourneyStageCard({
               <p className="text-[10px] text-[var(--text-secondary)]">{t("venture.manager.stageStartDateHint")}</p>
             </div>
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => { setEditId(null); setEditForm({}); }} className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:bg-tertiary">
+              <button type="button" onClick={() => { setEditId(null); setEditForm({}); }} className="stf-btn sm">
                 {t("common.cancel")}
               </button>
-              <button type="submit" className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1">
+              <button type="submit" className="stf-btn sm pr">
                 <Save className="w-3 h-3" /> {t("common.save")}
               </button>
             </div>
           </form>
         ) : (
           <>
-            <div className="p-4 pb-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-2 min-w-0">
-                  {access.manage && !stage.is_archived && (
-                    <button
-                      onClick={() => toggleSelectStage(stage.id)}
-                      className={`mt-0.5 shrink-0 transition-colors ${selectedStageIds.has(String(stage.id)) ? "text-[var(--brand-orange)]" : "text-slate-500 hover:text-[var(--text-primary)]"}`}
-                      title={t("venture.manager.selectJourney")}
-                    >
-                      {selectedStageIds.has(String(stage.id)) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
-                    </button>
+            <div className="jy-sh">
+              <div className="jy-sh-row">
+                <span className={`jy-num ${stageNodeClass(stage.status)}`}>
+                  {isDone ? <CheckCircle2 size={17} /> : (stage.stage_order || index + 1)}
+                </span>
+                <div className="jy-sh-body">
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    {access.manage && !stage.is_archived && (
+                      <button
+                        type="button"
+                        onClick={() => toggleSelectStage(stage.id)}
+                        className={`shrink-0 transition-colors ${selectedStageIds.has(String(stage.id)) ? "text-[var(--brand-orange)]" : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"}`}
+                        title={t("venture.manager.selectJourney")}
+                      >
+                        {selectedStageIds.has(String(stage.id)) ? <CheckSquare size={16} /> : <Square size={16} />}
+                      </button>
+                    )}
+                    <h4 className={`jy-sh-title ${isDone ? "is-done" : ""}`}>{stage.name}</h4>
+                  </div>
+                  {stage.description && <p className="jy-sh-meta">{stage.description}</p>}
+                  {stage.objective && (
+                    <p className="jy-obj">
+                      <b>{t("venture.manager.objective")}: </b>{stage.objective}
+                    </p>
                   )}
-                  <h4 className={`text-sm font-black text-[var(--text-primary)] ${isDone ? "line-through text-slate-400" : ""}`}>{stage.name}</h4>
+                  {(stage.completed_at || !isDone) && (
+                    <div className="jy-hint">
+                      {stage.completed_at && <span>{t("venture.manager.completedOn", { date: new Date(stage.completed_at).toLocaleDateString(lang) })}</span>}
+                      {!isDone && <span>{t(isLocked ? "venture.manager.memberVisibilityLocked" : "venture.manager.memberVisibilityActive")}</span>}
+                      {isActive && <span>{t("venture.manager.journeyAutoCompletes")}</span>}
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="jy-sh-side">
                   {statusPill(stage)}
                   {!isEditing && !stage.is_archived && (access.edit || access.manage) && (
                     <AppMenu
@@ -217,43 +224,16 @@ export default function JourneyStageCard({
                     />
                   )}
                   {!isEditing && stage.is_archived && access.manage && (
-                    <button onClick={() => restoreOneJourney(stage)} disabled={bulkBusy} className="p-1 text-slate-400 hover:text-emerald-400 disabled:opacity-40" title={t("venture.manager.restoreJourney")}>
-                      <RotateCcw className="w-3.5 h-3.5" />
+                    <button type="button" onClick={() => restoreOneJourney(stage)} disabled={bulkBusy} className="stf-btn sm ok" title={t("venture.manager.restoreJourney")}>
+                      <RotateCcw size={14} />
                     </button>
                   )}
                 </div>
               </div>
-              {stage.description && <p className="text-xs text-[var(--text-secondary)] mt-1.5">{stage.description}</p>}
-              {stage.objective && (
-                <p className="text-[10px] text-[var(--text-secondary)] italic mt-1">
-                  <span className="font-bold not-italic uppercase tracking-widest text-slate-500">{t("venture.manager.objective")}: </span>{stage.objective}
-                </p>
-              )}
-              {(stage.completed_at || !isDone) && (
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[10px] text-slate-400">
-                  {stage.completed_at && <span>{t("venture.manager.completedOn", { date: new Date(stage.completed_at).toLocaleDateString(lang) })}</span>}
-                  {!isDone && (
-                    <span className={isActive ? "text-sky-300/90" : "text-slate-500"}>
-                      {t(isLocked ? "venture.manager.memberVisibilityLocked" : "venture.manager.memberVisibilityActive")}
-                    </span>
-                  )}
-                  {isActive && (
-                    <span className="text-[10px] text-slate-500 italic">{t("venture.manager.journeyAutoCompletes")}</span>
-                  )}
-                </div>
-              )}
               {total > 0 && (
-                <div className="mt-3">
-                  <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">
-                    <span>{t("venture.manager.milestoneProgress", { done, total })}</span>
-                    <span className={isDone ? "text-emerald-400" : "text-[var(--brand-orange)]"}>{pct}%</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-tertiary overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${isDone ? "bg-emerald-400" : "bg-gradient-to-r from-[var(--brand-orange)] to-orange-400"}`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
+                <div className="jy-prog">
+                  <div className="stf-bar-prog"><i style={{ width: `${pct}%` }} /></div>
+                  <span><b>{pct}%</b> · {t("venture.manager.milestoneProgress", { done, total })}</span>
                 </div>
               )}
             </div>
@@ -281,9 +261,9 @@ export default function JourneyStageCard({
             )}
 
             {(milestones.length > 0 || (milestoneAuthority && !stage.is_archived)) && (
-              <div className="px-4 pb-4 space-y-2">
+              <div>
                 {milestones.length > 0 && (
-                  <div className="rounded-xl border border-[var(--border-primary)] divide-y divide-divider/60 overflow-hidden">
+                  <div className="jy-ms">
                     {milestones.map((milestone, milestoneIndex) => (
                       <JourneyMilestoneRow
                         key={milestone.id}
@@ -362,6 +342,7 @@ export default function JourneyStageCard({
                 )}
 
                 {milestoneAuthority && !stage.is_archived && (
+                  <div className="jy-add">
                   <AddMilestoneForm
                     DELIVERABLE_TYPES={DELIVERABLE_TYPES}
                     addMilestone={addMilestone}
@@ -379,6 +360,7 @@ export default function JourneyStageCard({
                     stages={stages}
                     updateMilestoneDeliverable={updateMilestoneDeliverable}
                   />
+                  </div>
                 )}
               </div>
             )}

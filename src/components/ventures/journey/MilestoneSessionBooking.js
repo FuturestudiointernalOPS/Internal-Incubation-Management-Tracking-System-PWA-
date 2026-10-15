@@ -31,10 +31,10 @@ export default function MilestoneSessionBooking({
 }) {
   const { t } = useI18n();
   return (
-    <div className="mt-2 ml-5">
+    <div className="jy-book">
       {bookFor === bookForKey ? (
         <form onSubmit={(event) => bookSession(event, stage, milestone)} className="rounded-lg border border-[var(--border-primary)] p-2.5 space-y-2">
-          <p className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] flex items-center gap-1.5">
+          <p className="jy-lbl">
             <CalendarPlus className="w-3.5 h-3.5" /> {t("venture.manager.bookSession")}
           </p>
           <input
@@ -53,7 +53,7 @@ export default function MilestoneSessionBooking({
             className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)] resize-none overflow-hidden min-h-[72px]"
           />
           <div className="space-y-1">
-            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
+            <p className="jy-lbl">
               {t("venture.manager.sessionMaterials")}
             </p>
             <input
@@ -90,7 +90,7 @@ export default function MilestoneSessionBooking({
             <p className="text-[9px] text-slate-500">{t("venture.manager.sessionMaterialsHint")}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
+            <p className="jy-lbl">
               {t("venture.manager.sessionDeliverable")}
             </p>
             <select
@@ -145,7 +145,7 @@ export default function MilestoneSessionBooking({
           </div>
           <p className="text-[9px] text-slate-500">{t("venture.manager.sessionLeadHint")}</p>
           <div className="space-y-1">
-            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
+            <p className="jy-lbl">
               {t("venture.manager.inviteGuests")}
             </p>
             <GuestEmailField
@@ -157,10 +157,10 @@ export default function MilestoneSessionBooking({
           </div>
           <p className="text-[9px] text-slate-500">{t("venture.manager.sessionNotifyHint")}</p>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => setBookFor(null)} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
+            <button type="button" onClick={() => setBookFor(null)} className="stf-btn sm">
               {t("common.cancel")}
             </button>
-            <button type="submit" disabled={bookSaving} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5 disabled:opacity-50">
+            <button type="submit" disabled={bookSaving} className="stf-btn sm pr">
               {bookSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <CalendarPlus className="w-3 h-3" />} {t("venture.manager.bookSession")}
             </button>
           </div>
@@ -169,7 +169,7 @@ export default function MilestoneSessionBooking({
         <button
           type="button"
           onClick={onOpen}
-          className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]"
+          className="stf-btn sm"
         >
           <CalendarPlus className="w-3 h-3" /> {t("venture.manager.bookSession")}
         </button>
