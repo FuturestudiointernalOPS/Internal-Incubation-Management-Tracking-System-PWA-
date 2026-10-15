@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import {
-  getVentureCodeByIdForTransition,
   getVentureIdByCodeForTransitionStatus, getDocumentForTransition,
   isFounderForDocumentTransition, updateDocumentStatusForTransition,
 } from "@/models/ventureAssets";
@@ -11,16 +10,6 @@ import {
 const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin"];
 const PRIVILEGED = ["staff", "program_manager", "super_admin"];
 
-// venture_members stores venture_id as the VNT code (TEXT) — resolve the code from a UUID if needed
-async function resolveVentureCode(idOrCode) {
-  if (!idOrCode || (typeof idOrCode === "string" && !idOrCode.startsWith("VNT-") && idOrCode.includes("-"))) {
-    try {
-      const ventureResult = await getVentureCodeByIdForTransition(idOrCode);
-      return ventureResult.rows?.[0]?.venture_id || idOrCode;
-    } catch { return idOrCode; }
-  }
-  return idOrCode;
-}
 const STATUSES = ["private", "pending_review", "approved", "shared_with_investor"];
 
 export async function PATCH(req, { params }) {
@@ -39,8 +28,8 @@ export async function PATCH(req, { params }) {
 
     // Founders/privileged only — not advisors, not team members.
     if (!PRIVILEGED.includes(session.role)) {
-      const code = await resolveVentureCode(dbId);
-      const founder = await isFounderForDocumentTransition(code, session.cid);
+      // `dbId` is the internal id, which the membership table keys on (Phase 0).
+      const founder = await isFounderForDocumentTransition(dbId, session.cid);
       if (!founder.rows?.length) return NextResponse.json({ success: false, error: "Only founders can transition document status." }, { status: 403 });
     }
 
