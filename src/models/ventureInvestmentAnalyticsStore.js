@@ -12,19 +12,23 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 /** A Venture's latest readiness score. */
-export function selectAnalyticsReadinessScore(ventureId) {
+export async function selectAnalyticsReadinessScore(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT overall_score FROM investment_assessments WHERE venture_id=? ORDER BY calculated_at DESC LIMIT 1", args: [ventureId] });
 }
 
 /** Match totals (count / average score) of a Venture. */
-export function selectAnalyticsMatchTotals(ventureId) {
+export async function selectAnalyticsMatchTotals(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as t, AVG(match_score) as avg FROM venture_investor_matches WHERE venture_id=?", args: [ventureId] });
 }
 
 /** Count the Venture's engaged matches. */
-export function countEngagedMatches(ventureId) {
+export async function countEngagedMatches(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT COUNT(*) as c FROM venture_investor_matches WHERE venture_id=? AND (status='contacted' OR status='accepted' OR viewed_by_founder=TRUE)`,
     args: [ventureId],
@@ -32,7 +36,8 @@ export function countEngagedMatches(ventureId) {
 }
 
 /** Pipeline totals (active / won / lost / values / probability). */
-export function selectAnalyticsPipelineTotals(ventureId) {
+export async function selectAnalyticsPipelineTotals(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT COUNT(*) as total,
        SUM(CASE WHEN stage NOT IN ('closed_won','closed_lost') THEN 1 ELSE 0 END) as active,
@@ -67,7 +72,8 @@ export function countPitchDeckViews(ventureId) {
 }
 
 /** Opportunity counts + values grouped by stage (analytics funnel). */
-export function selectAnalyticsPipelineFunnel(ventureId) {
+export async function selectAnalyticsPipelineFunnel(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT stage, COUNT(*) as count, COALESCE(SUM(expected_amount),0) as value
        FROM fundraising_opportunities WHERE venture_id=? GROUP BY stage ORDER BY
@@ -91,7 +97,8 @@ export function selectMonthlyMatchActivity(ventureId) {
 }
 
 /** 12-month funding trend (closed deals) of a Venture. */
-export function selectFundingTrend(ventureId) {
+export async function selectFundingTrend(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT DATE_TRUNC('month', updated_at) as month, COUNT(*) as deals,
        COALESCE(SUM(expected_amount),0) as amount

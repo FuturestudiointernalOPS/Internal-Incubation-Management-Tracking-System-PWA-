@@ -12,6 +12,7 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── Feedback rows ────────────────────────────────────────────────────────────
 
@@ -130,27 +131,32 @@ export function selectMentorAnalytics(coachType) {
 // ── Session + feedback analytics ─────────────────────────────────────────────
 
 /** Total session count of a Venture. */
-export function countVentureSessions(ventureId) {
+export async function countVentureSessions(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE venture_id=?", args: [ventureId] });
 }
 
 /** Completed session count of a Venture. */
-export function countVentureSessionsCompleted(ventureId) {
+export async function countVentureSessionsCompleted(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE venture_id=? AND status='completed'", args: [ventureId] });
 }
 
 /** Cancelled session count of a Venture. */
-export function countVentureSessionsCancelled(ventureId) {
+export async function countVentureSessionsCancelled(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE venture_id=? AND status='cancelled'", args: [ventureId] });
 }
 
 /** No-show session count of a Venture. */
-export function countVentureSessionsNoShow(ventureId) {
+export async function countVentureSessionsNoShow(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE venture_id=? AND status='no_show'", args: [ventureId] });
 }
 
 /** Total completed session hours of a Venture. */
-export function sumVentureSessionHours(ventureId) {
+export async function sumVentureSessionHours(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: `SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (end_time-start_time))/3600),0) as h FROM venture_sessions WHERE venture_id=? AND status='completed'`, args: [ventureId] });
 }
 

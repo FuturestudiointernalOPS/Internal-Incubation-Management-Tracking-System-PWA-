@@ -12,6 +12,7 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── Documents ────────────────────────────────────────────────────────────────
 
@@ -114,9 +115,10 @@ export function insertDocumentVersionNext(docId, nextVersion, fileName, fileSize
 // ── Secure sharing ───────────────────────────────────────────────────────────
 
 /** Insert one document share, returning its id. */
-export function insertDocumentShare({
-  documentId, ventureId, token, sharedWithEmail, sharedWithName, accessType, expiresAt, maxDownloads, createdBy,
+export async function insertDocumentShare({
+  documentId, ventureId: ventureRef, token, sharedWithEmail, sharedWithName, accessType, expiresAt, maxDownloads, createdBy,
 }) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO venture_document_shares (document_id, venture_id, share_token, shared_with_email, shared_with_name, access_type, expires_at, max_downloads, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     args: [documentId, ventureId, token, sharedWithEmail, sharedWithName, accessType, expiresAt, maxDownloads, createdBy],
