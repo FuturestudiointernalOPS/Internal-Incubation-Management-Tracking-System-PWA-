@@ -83,7 +83,7 @@ export default function JourneyConfirmModal({ confirmState, busy, onCancel, onCo
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="text-[9px] font-black uppercase tracking-widest px-3 py-2 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)] disabled:opacity-40"
+            className="stf-btn sm"
           >
             {t("common.cancel")}
           </button>

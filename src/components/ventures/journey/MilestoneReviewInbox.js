@@ -52,20 +52,20 @@ export default function MilestoneReviewInbox({
                 className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
               />
               <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => { setSubmissionReview(null); setSubmissionComment(""); }} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
+                <button type="button" onClick={() => { setSubmissionReview(null); setSubmissionComment(""); }} className="stf-btn sm">
                   {t("common.cancel")}
                 </button>
-                <button type="button" disabled={submissionsBusy === item.submission_id || !submissionComment.trim()} onClick={() => decideSubmission(milestone.id, item, "changes_requested", submissionComment)} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/30 disabled:opacity-50">
+                <button type="button" disabled={submissionsBusy === item.submission_id || !submissionComment.trim()} onClick={() => decideSubmission(milestone.id, item, "changes_requested", submissionComment)} className="stf-btn sm rj">
                   {t("venture.manager.requestChanges")}
                 </button>
               </div>
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <button type="button" disabled={submissionsBusy === item.submission_id} onClick={() => decideSubmission(milestone.id, item, "approved")} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 disabled:opacity-50">
+              <button type="button" disabled={submissionsBusy === item.submission_id} onClick={() => decideSubmission(milestone.id, item, "approved")} className="stf-btn sm ok">
                 {t("venture.manager.approveDeliverable")}
               </button>
-              <button type="button" disabled={submissionsBusy === item.submission_id} onClick={() => { setSubmissionReview({ submission_id: item.submission_id, task_id: item.task_id }); setSubmissionComment(""); }} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/30 disabled:opacity-50">
+              <button type="button" disabled={submissionsBusy === item.submission_id} onClick={() => { setSubmissionReview({ submission_id: item.submission_id, task_id: item.task_id }); setSubmissionComment(""); }} className="stf-btn sm">
                 {t("venture.manager.requestChanges")}
               </button>
               {submissionsBusy === item.submission_id && <Loader2 className="w-3 h-3 animate-spin text-slate-400" />}

@@ -91,7 +91,7 @@ export default function MilestoneSessionsList({
                   <button
                     type="button"
                     onClick={onCancelNote}
-                    className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500"
+                    className="stf-btn sm"
                   >
                     {t("common.cancel")}
                   </button>
@@ -99,7 +99,7 @@ export default function MilestoneSessionsList({
                     type="button"
                     disabled={noteSaving || !noteDraft.trim()}
                     onClick={() => onSaveNote(session.id)}
-                    className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-[var(--brand-orange)] text-black disabled:opacity-50"
+                    className="stf-btn sm pr"
                   >
                     {t("common.save")}
                   </button>

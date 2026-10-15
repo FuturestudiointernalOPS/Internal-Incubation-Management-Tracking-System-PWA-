@@ -29,10 +29,10 @@ export default function JourneyReportSection({
 }) {
   const { lang, t } = useI18n();
   return (
-    <div className="px-4 pb-3">
-      <div className="rounded-xl border border-[var(--border-primary)] p-3 space-y-2">
+    <div className="jy-sec">
+      <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+          <p className="jy-lbl">
             {t("venture.manager.journeyReport")}
           </p>
             <div className="flex flex-wrap items-center gap-2">
@@ -41,7 +41,7 @@ export default function JourneyReportSection({
                   key={report.id}
                   type="button"
                   onClick={() => setReportOpenId(reportOpenId === report.id ? null : report.id)}
-                  className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded transition-colors ${reportOpenId === report.id ? "bg-brand-orange/20 text-[var(--brand-orange)]" : "bg-[var(--surface-3)] text-slate-400 hover:text-[var(--text-primary)]"}`}
+                  className={`stf-tag ${reportOpenId === report.id ? "o" : ""}`} style={{ border: 0, cursor: "pointer" }}
                 >
                   {report.report_kind === "closing" ? t("venture.manager.closingReport") : t("venture.manager.progressReport")} · {reportStatusLabel(report.status)}
                 </button>
@@ -50,7 +50,7 @@ export default function JourneyReportSection({
                 <button
                   type="button"
                   onClick={() => openReportComposer(stage, closingMissing ? "closing" : "progress")}
-                  className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]"
+                  className="stf-btn sm"
                 >
                   {closingMissing ? t("venture.manager.writeClosingReport") : t("venture.manager.writeReport")}
                 </button>
@@ -69,7 +69,7 @@ export default function JourneyReportSection({
           {(reportsByStage[String(stage.id)] || [])
             .filter((report) => report.id === reportOpenId)
             .map((report) => (
-              <div key={`read-${report.id}`} className="rounded-lg border border-[var(--border-primary)] p-2.5 space-y-1.5 text-[11px]">
+              <div key={`read-${report.id}`} className="jy-act text-[12px]">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-bold text-[var(--text-primary)]">{report.title}</p>
                   {report.reporting_period && (
@@ -115,7 +115,7 @@ export default function JourneyReportSection({
         {reportFor === stage.id && reportForm && (
           <form onSubmit={(event) => { event.preventDefault(); saveReport(stage, false); }} className="space-y-2">
             {reportForm.kind === "closing" && (
-              <p className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+              <p className="jy-lbl">
                 {t("venture.manager.closingReport")}
               </p>
             )}
@@ -160,14 +160,14 @@ export default function JourneyReportSection({
               <button
                 type="button"
                 onClick={() => { setReportFor(null); setReportForm(null); }}
-                className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500"
+                className="stf-btn sm"
               >
                 {t("common.cancel")}
               </button>
               <button
                 type="submit"
                 disabled={reportSaving}
-                className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-[var(--border-primary)] text-[var(--text-primary)] disabled:opacity-50"
+                className="stf-btn sm"
               >
                 {t("venture.manager.saveDraft")}
               </button>
@@ -175,7 +175,7 @@ export default function JourneyReportSection({
                 type="button"
                 disabled={reportSaving}
                 onClick={() => saveReport(stage, true)}
-                className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg bg-[var(--brand-orange)] text-black disabled:opacity-50"
+                className="stf-btn sm pr"
               >
                 {t("venture.manager.submitReport")}
               </button>

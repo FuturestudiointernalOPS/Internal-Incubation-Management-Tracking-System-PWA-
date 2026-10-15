@@ -113,7 +113,7 @@ export default function JourneyMilestoneRow({
   ]);
   const isOpen = milestoneOpenId !== null && String(milestoneOpenId) === String(milestone.id);
   return (
-    <div className="px-3 py-2">
+    <div className={`jy-m ${isOpen ? "is-open" : ""}`}>
       {milestoneEditId === milestone.id ? (
         <form onSubmit={saveMilestoneEdit} className="space-y-2 py-1">
           <input
@@ -155,35 +155,35 @@ export default function JourneyMilestoneRow({
             className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
           />
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => { setMilestoneEditId(null); setMilestoneEditForm({}); }} className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
+            <button type="button" onClick={() => { setMilestoneEditId(null); setMilestoneEditForm({}); }} className="stf-btn sm">
               {t("common.cancel")}
             </button>
-            <button type="submit" className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1">
+            <button type="submit" className="stf-btn sm pr">
               <Save className="w-3 h-3" /> {t("common.save")}
             </button>
           </div>
         </form>
       ) : (
         <>
-        <div className="flex items-center gap-3">
+        <div className="jy-mrow">
           <button
             type="button"
             onClick={() => toggleMilestoneOpen(milestone.id)}
             aria-expanded={isOpen}
-            className="flex items-center gap-3 flex-1 min-w-0 text-left"
+            className="jy-mtog"
           >
-            <span className={`w-2 h-2 rounded-full shrink-0 ${milestoneDotClass(milestone.status)}`} />
-            <span className={`flex-1 min-w-0 text-[11px] font-bold text-[var(--text-primary)] truncate ${milestone.status === "completed" ? "line-through text-slate-400" : ""}`}>
+            <span className={`jy-dot ${milestoneDotClass(milestone.status)}`} />
+            <span className={`jy-mt ${milestone.status === "completed" ? "is-done" : ""}`}>
               {milestone.title}
             </span>
             {deliverableList.length > 0 && (
-              <span className="shrink-0 flex items-center gap-1 text-[9px] font-bold text-slate-500" title={t("venture.manager.deliverables")}>
-                <Flag className="w-3 h-3" /> {deliverableList.length}
+              <span className="jy-cnt" title={t("venture.manager.deliverables")}>
+                <Flag size={13} /> {deliverableList.length}
               </span>
             )}
-            {isOpen ? <ChevronDown className="w-3.5 h-3.5 shrink-0 text-slate-500" /> : <ChevronRight className="w-3.5 h-3.5 shrink-0 text-slate-500" />}
+            {isOpen ? <ChevronDown size={15} className="shrink-0 text-[var(--text-secondary)]" /> : <ChevronRight size={15} className="shrink-0 text-[var(--text-secondary)]" />}
           </button>
-          <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0 ${milestoneStatusClass(milestone.status)}`}>
+          <span className={`${milestoneStatusClass(milestone.status)} shrink-0`}>
             {milestoneStatusKey(milestone.status)}
           </span>
           {milestoneAuthority && !stage.is_archived && (
@@ -194,21 +194,17 @@ export default function JourneyMilestoneRow({
               items={milestoneMenuItems(stage, milestone, milestoneIndex, milestones)}
             />
           )}
-          {milestoneBusy === milestone.id && <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400 shrink-0" />}
+          {milestoneBusy === milestone.id && <Loader2 size={14} className="animate-spin text-[var(--text-secondary)] shrink-0" />}
         </div>
 
-        {/* The milestone's metadata, label → value, one row each: people first,
-            then timing. Progress is deliberately absent from this view. */}
+        {/* The milestone's metadata, label → value: people first, then timing.
+            Progress is deliberately absent from this view. */}
         {isOpen && (
-          <div className="mt-2 ml-5 grid grid-cols-[92px_1fr] gap-x-3 gap-y-0.5 text-[10px]">
-            <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.milestoneOwner")}</span>
-            <span className="text-[var(--text-primary)]">{milestoneOwner || "—"}</span>
-            <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.supporting")}</span>
-            <span className="text-[var(--text-primary)]">{milestoneSupport || "—"}</span>
-            <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.startDate")}</span>
-            <span className="text-[var(--text-primary)]">{milestoneStart ? fmtDate(milestoneStart) : "—"}</span>
-            <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.finishDate")}</span>
-            <span className="text-[var(--text-primary)]">{milestoneFinish ? fmtDate(milestoneFinish) : "—"}</span>
+          <div className="jy-facts">
+            <div><span>{t("venture.manager.milestoneOwner")}</span><b>{milestoneOwner || "—"}</b></div>
+            <div><span>{t("venture.manager.supporting")}</span><b>{milestoneSupport || "—"}</b></div>
+            <div><span>{t("venture.manager.startDate")}</span><b>{milestoneStart ? fmtDate(milestoneStart) : "—"}</b></div>
+            <div><span>{t("venture.manager.finishDate")}</span><b>{milestoneFinish ? fmtDate(milestoneFinish) : "—"}</b></div>
           </div>
         )}
 

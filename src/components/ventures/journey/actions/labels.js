@@ -14,7 +14,6 @@ import {
   stageStatusWord,
   milestoneStatusWord,
   statusLabel,
-  statusChipClass,
   statusDotClass,
 } from "@/lib/ventureStatuses";
 
@@ -22,16 +21,14 @@ export function journeyLabels({
   t,
   lang,
 }) {
-  const stageNodeClass = (status) =>
-    status === "completed"
-      ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/40"
-      : status === "active"
-        ? "bg-blue-500/15 text-blue-400 border-blue-500/40"
-        : "bg-slate-500/10 text-slate-400 border-[var(--border-primary)]";
+  const stageNodeClass = (status) => (status === "completed" ? "is-done" : status === "active" ? "is-active" : "");
 
   const milestoneStatusKey = (status) => statusLabel(milestoneStatusWord(status), t);
 
-  const milestoneStatusClass = (status) => statusChipClass(milestoneStatusWord(status));
+  // The kit's tag for a status word: the same tones every surface uses.
+  const TAG_TONE = { blocked: "r", in_progress: "b", awaiting_review: "w", changes_requested: "r", completed: "g", approved: "g" };
+  const tagClass = (word) => `stf-tag ${TAG_TONE[word?.tone] || ""}`;
+  const milestoneStatusClass = (status) => tagClass(milestoneStatusWord(status));
 
   const milestoneDotClass = (status) => statusDotClass(milestoneStatusWord(status));
 
@@ -39,9 +36,7 @@ export function journeyLabels({
   // Admin see for the same state. Stage: Upcoming → In Progress → Completed.
   const statusPill = (stage) => {
     const word = stageStatusWord(stage.status);
-    return (
-      <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${statusChipClass(word)}`}>{statusLabel(word, t)}</span>
-    );
+    return <span className={tagClass(word)}>{statusLabel(word, t)}</span>;
   };
 
   const fmtDate = (iso) => (iso ? new Date(`${String(iso).slice(0, 10)}T00:00:00`).toLocaleDateString(lang) : "");

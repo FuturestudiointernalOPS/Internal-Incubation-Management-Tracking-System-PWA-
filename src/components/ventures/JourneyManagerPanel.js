@@ -328,7 +328,7 @@ export default function JourneyManagerPanel({ ventureId }) {
   } = ctx;
 
   return (
-    <div className="card">
+    <div className="jy">
       <JourneyNotices toast={toast} deliverablesUnavailable={deliverablesUnavailable} />
 
       <JourneyPanelHeader
