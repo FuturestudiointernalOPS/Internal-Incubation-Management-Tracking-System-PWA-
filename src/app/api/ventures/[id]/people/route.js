@@ -77,7 +77,12 @@ export async function POST(req, { params }) {
     }
 
     if (action === "unlink") {
-      const result = await unlinkName({ ventureCode: id, displayName: body?.display_name });
+      const result = await unlinkName({
+        ventureCode: id,
+        dbId,
+        displayName: body?.display_name,
+        actorCid,
+      });
       if (result.error) return NextResponse.json({ success: false, error: result.error }, { status: 400 });
       return NextResponse.json({ success: true, unlinked: result.unlinked });
     }

@@ -139,27 +139,44 @@ export default function VenturePeoplePanel({ ventureId }) {
       align: "right",
       render: (_value, person) =>
         person.contact ? (
-          <span className="flex flex-wrap items-center justify-end gap-2">
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400">
-              <UserCheck className="w-3 h-3" />
-              {person.contact.name || person.contact.email || person.contact.cid}
+          <span className="flex flex-col items-end gap-1">
+            <span className="flex flex-wrap items-center justify-end gap-2">
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400">
+                <UserCheck className="w-3 h-3" />
+                {person.contact.name || person.contact.email || person.contact.cid}
+              </span>
+              <button
+                type="button"
+                disabled={forgetting === person.name}
+                onClick={() => setPicking(person)}
+                className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:underline disabled:opacity-50"
+              >
+                {t("venture.people.change")}
+              </button>
+              <button
+                type="button"
+                disabled={forgetting === person.name}
+                onClick={() => forget(person)}
+                className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-rose-400 hover:underline disabled:opacity-50"
+              >
+                <Unlink className="w-3 h-3" /> {t("venture.people.forget")}
+              </button>
             </span>
-            <button
-              type="button"
-              disabled={forgetting === person.name}
-              onClick={() => setPicking(person)}
-              className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:underline disabled:opacity-50"
-            >
-              {t("venture.people.change")}
-            </button>
-            <button
-              type="button"
-              disabled={forgetting === person.name}
-              onClick={() => forget(person)}
-              className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-rose-400 hover:underline disabled:opacity-50"
-            >
-              <Unlink className="w-3 h-3" /> {t("venture.people.forget")}
-            </button>
+            {/* Identified on the assignments themselves, rather than by a
+                decision about the name: said out loud, because the two records
+                can point at different people. */}
+            {person.contact_source === "assignment" ? (
+              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+                {t("venture.people.fromAssignment")}
+              </span>
+            ) : null}
+            {person.alternative_contact ? (
+              <span className="text-[10px] text-amber-400">
+                {t("venture.people.alternativeContact", {
+                  name: person.alternative_contact.name || person.alternative_contact.cid,
+                })}
+              </span>
+            ) : null}
           </span>
         ) : (
           <AppButton variant="secondary" size="sm" icon={Link2} onClick={() => setPicking(person)}>

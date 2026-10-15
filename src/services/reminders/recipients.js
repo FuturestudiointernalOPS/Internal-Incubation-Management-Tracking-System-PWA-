@@ -6,12 +6,17 @@
  * so the rule is explicit — and it is a single rule, applied in one place:
  *
  *   1. SOMEONE IDENTIFIED is asked for the address on their record. An identity
- *      comes from the assignment itself, or from a decision made once for the
- *      whole Venture ("this Amina is that contact") — which is what makes the
- *      SUPPORTING people reachable too, since a support list is text and can
- *      hold no identifier of its own.
+ *      comes from a decision made once for the whole Venture ("this Amina is
+ *      that contact", taken on the People screen) or, failing that, from the
+ *      assignment itself. The NAME decision wins because it is the one the
+ *      screen shows and edits — a decision that did not take effect would make
+ *      the screen a liar.
  *   2. Failing that, an address typed by hand for this Venture and this name.
  *   3. Anyone still without an address is RETURNED, with `reason` saying why.
+ *
+ * That first rule is also what makes the SUPPORTING people reachable: a support
+ * list is text and can hold no identifier of its own, so a decision taken about
+ * the name is the only thing that can identify them.
  *
  * THE IDENTITY WINS OVER THE TYPED ADDRESS, deliberately. The two used to
  * disagree: the typed address won, so linking a name to a person changed nothing
@@ -160,10 +165,13 @@ export async function resolveWorkItemRecipients({
     linkRows.map((row) => [nameKey(row.display_name), String(row.contact_cid ?? "")]),
   );
 
-  // Everyone who has an identity now: from the assignment itself, or from the name.
+  // Everyone who has an identity now, and WHICH of the two decisions gave it to
+  // them. A decision taken about the NAME wins over one written on a single
+  // assignment: the People screen is where the name decision is made and undone,
+  // and what it shows has to be what happens.
   const identified = wanted.map((entry) => ({
     ...entry,
-    cid: entry.cid || linkByName.get(nameKey(entry.name)) || null,
+    cid: linkByName.get(nameKey(entry.name)) || entry.cid || null,
   }));
 
   // The people who have an account: their own address.

@@ -22,6 +22,8 @@ jest.mock("@/lib/ventureOwnership", () => ({
 
 jest.mock("@/models/ventureAssignments", () => ({
   listExternalAssignees: jest.fn(async () => []),
+  listAssignmentIdentities: jest.fn(async () => []),
+  clearAssignmentIdentities: jest.fn(async () => ({ cleared: 0 })),
 }));
 
 jest.mock("@/models/ventureAssigneeEmails", () => ({
@@ -40,7 +42,7 @@ jest.mock("@/services/workItems", () => ({
 }));
 
 const { requireVentureScopedAccess } = require("@/lib/ventureScopedAccess");
-const { listExternalAssignees } = require("@/models/ventureAssignments");
+const { listExternalAssignees, listAssignmentIdentities, clearAssignmentIdentities } = require("@/models/ventureAssignments");
 const { selectAssigneeEmails, selectContactEmailsByCids } = require("@/models/ventureAssigneeEmails");
 const { selectAssigneeLinks, upsertAssigneeLink, deleteAssigneeLink } = require("@/models/ventureAssigneeLinks");
 const { buildWorkItems } = require("@/services/workItems");
@@ -59,6 +61,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockAccess = { session: { cid: "C1", role: "super_admin", name: "Gwyn" } };
   listExternalAssignees.mockResolvedValue([]);
+  listAssignmentIdentities.mockResolvedValue([]);
+  clearAssignmentIdentities.mockResolvedValue({ cleared: 0 });
   selectAssigneeEmails.mockResolvedValue({ rows: [] });
   selectContactEmailsByCids.mockResolvedValue({ rows: [] });
   selectAssigneeLinks.mockResolvedValue({ rows: [] });
@@ -119,6 +123,50 @@ describe("WHICH PERSON a name is", () => {
     expect(people[0].source).toBe("on_file");
     expect(people[0].contact).toBeNull();
   });
+
+  test("a name already identified on its own assignments is NOT reported as unidentified", async () => {
+    // The older, per-row decision. The screen has to tell the truth about it, or
+    // it contradicts the work it is describing.
+    listAssignmentIdentities.mockResolvedValue([
+      { name: "Amina", total: 2, levels: { task: 2 }, cids: ["c-amina"] },
+    ]);
+    selectContactEmailsByCids.mockResolvedValue({
+      rows: [{ cid: "c-amina", name: "Amina", email: "amina@example.com", deleted: 0 }],
+    });
+
+    const { people, summary } = await listVenturePeople({ ventureCode: "VNT-KORA", dbId: "db-1" });
+
+    expect(people).toHaveLength(1);
+    expect(people[0].contact).toEqual({ cid: "c-amina", name: "Amina", email: "amina@example.com" });
+    expect(people[0].contact_source).toBe("assignment");
+    expect(people[0].email).toBe("amina@example.com");
+    expect(summary).toMatchObject({ identified: 1, unidentified: 0 });
+  });
+
+  test("a decision about the NAME wins, and the disagreement with the rows is reported", async () => {
+    listAssignmentIdentities.mockResolvedValue([
+      { name: "Amina", total: 2, levels: { task: 2 }, cids: ["c-old"] },
+    ]);
+    selectAssigneeLinks.mockResolvedValue({ rows: [{ display_name: "Amina", contact_cid: "c-new" }] });
+    selectContactEmailsByCids.mockResolvedValue({
+      rows: [
+        { cid: "c-new", name: "Amina Sossou", email: "new@example.com", deleted: 0 },
+        { cid: "c-old", name: "Amina Ancienne", email: "old@example.com", deleted: 0 },
+      ],
+    });
+
+    const { people } = await listVenturePeople({ ventureCode: "VNT-KORA", dbId: "db-1" });
+
+    expect(people[0].contact.cid).toBe("c-new");
+    expect(people[0].contact_source).toBe("name");
+    expect(people[0].email).toBe("new@example.com");
+    // Never settled quietly: the other record is reported.
+    expect(people[0].alternative_contact).toEqual({
+      cid: "c-old",
+      name: "Amina Ancienne",
+      email: "old@example.com",
+    });
+  });
 });
 
 describe("naming a person creates NOTHING", () => {
@@ -160,9 +208,24 @@ describe("naming a person creates NOTHING", () => {
     });
   });
 
-  test("letting a name go removes the link and nothing else", async () => {
-    await unlinkName({ ventureCode: "VNT-KORA", displayName: "Amina" });
+  test("letting a name go removes BOTH records of its identity", async () => {
+    clearAssignmentIdentities.mockResolvedValue({ cleared: 3, counts: { task: 3 } });
+
+    const out = await unlinkName({ ventureCode: "VNT-KORA", dbId: "db-1", displayName: "Amina" });
+
     expect(deleteAssigneeLink).toHaveBeenCalledWith({ ventureId: "VNT-KORA", displayName: "Amina" });
+    expect(clearAssignmentIdentities).toHaveBeenCalledWith({
+      dbId: "db-1",
+      displayName: "Amina",
+      actorCid: null,
+    });
+    expect(out.unlinked.cleared_assignments).toBe(3);
+  });
+
+  test("without a Venture to write to, only the link is removed", async () => {
+    await unlinkName({ ventureCode: "VNT-KORA", displayName: "Amina" });
+    expect(deleteAssigneeLink).toHaveBeenCalled();
+    expect(clearAssignmentIdentities).not.toHaveBeenCalled();
   });
 
   test("a name is required on both sides", async () => {
