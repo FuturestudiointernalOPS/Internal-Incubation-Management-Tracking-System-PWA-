@@ -10,6 +10,7 @@
  */
 
 import { getFormScoringSettingsById, getRunScoringSettingsById } from "@/models/formRuns";
+import { resolveRunScoring } from "@/lib/platform/runSettings";
 
 /**
  * Calculate assessment scores for a submission.
@@ -21,18 +22,17 @@ export async function calculateSubmissionScores(runId, submissionData) {
     const run = await getRunScoringSettingsById(runId);
     if (run.rows.length === 0) return null;
 
-    // Check run-level scoring config first, then fall back to form-level
-    const runSettings = run.rows[0].settings || {};
-    let scoring = runSettings.scoring;
-
-    if (!scoring || !scoring.enabled) {
+    // Run-level scoring config first, then the form's — the one shared rule.
+    // The form is only read when the run alone does not decide.
+    const runSettings = run.rows[0].settings;
+    let scoring = resolveRunScoring(null, runSettings);
+    if (!scoring) {
       const form = await getFormScoringSettingsById(run.rows[0].form_id);
       if (form.rows.length === 0) return null;
-      const formSettings = form.rows[0].settings || {};
-      scoring = formSettings.scoring;
+      scoring = resolveRunScoring(form.rows[0].settings, runSettings);
     }
 
-    if (!scoring || !scoring.enabled || !scoring.sections) return null;
+    if (!scoring || !scoring.sections) return null;
 
     const { sections, rankings } = scoring;
     const maxPerQuestion = scoring.max_per_question || 5; // configurable scale (default 5 for Likert)

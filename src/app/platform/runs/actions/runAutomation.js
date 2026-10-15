@@ -7,24 +7,18 @@
  * runAutomationActions().
  */
 
-
+import { isRunAutomationFlagOverride, resolveAutomationFlag } from "@/lib/platform/automationSettings";
 
 export function runAutomationActions({
   runFormSettings,
   runSettings,
   setRunSettings,
 }) {
-  // Run automation switches — same resolution order as the server (run → form →
-  // on), computed locally so this screen never imports server code.
-  const runAutomationValue = (section, flag) => {
-    const runSettingValue = runSettings?.automation?.[section]?.[flag];
-    if (typeof runSettingValue === "boolean") return runSettingValue;
-    const formSettingValue = runFormSettings?.automation?.[section]?.[flag];
-    if (typeof formSettingValue === "boolean") return formSettingValue;
-    return true;
-  };
+  // Run automation switches — the server's own rule (run → form → on), from the
+  // shared resolver: plain functions, safe to import on the client.
+  const runAutomationValue = (section, flag) => resolveAutomationFlag(runFormSettings, runSettings, `${section}.${flag}`);
 
-  const isRunAutomationOverride = (section, flag) => typeof runSettings?.automation?.[section]?.[flag] === "boolean";
+  const isRunAutomationOverride = (section, flag) => isRunAutomationFlagOverride(runSettings, `${section}.${flag}`);
 
   // Write an explicit boolean so the run overrides the form from then on.
   const setRunAutomationFlag = (section, flag, value) => {

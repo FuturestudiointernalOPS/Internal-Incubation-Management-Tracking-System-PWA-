@@ -49,10 +49,17 @@ export async function getGroupAssignedToRunById(runId) {
   });
 }
 
-/** Run form name/settings + run settings (decision-email template selection). */
-export async function getRunTemplateSettingsForDecisionById(runId) {
+/**
+ * A run's settings context: the form's name and `settings`, with the run's own
+ * `settings` as `run_settings` — the two levels every run → form resolver takes
+ * (key map: `@/lib/platform/runSettings`).
+ */
+export async function getRunSettingsContextById(runId) {
   return db.execute({ sql: "SELECT f.name, f.settings, r.settings AS run_settings FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [runId] });
 }
+
+/** Former name, still imported by services and tests (decision-email template selection). */
+export const getRunTemplateSettingsForDecisionById = getRunSettingsContextById;
 
 /** Group name for a run's assignment (decision-email template variable). */
 export async function getGroupNameForDecisionEmailByRunId(runId) {
