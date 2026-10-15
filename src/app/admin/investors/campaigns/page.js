@@ -12,6 +12,7 @@ import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
 import { useApiMulti } from "@/lib/hooks/useApi";
 import { useDialogs } from "@/components/ui/DialogProvider";
+import { notify } from "@/components/staff/notify";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on the list below, so it is built once
@@ -109,7 +110,7 @@ export default function AdminCampaignsPage() {
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
-    } catch (_) {}
+    } catch (_) { notify("error", t("errors.networkError")); }
   };
 
   const handleStatusChange = async (id, newStatus) => {
@@ -128,7 +129,7 @@ export default function AdminCampaignsPage() {
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
-    } catch (_) {}
+    } catch (_) { notify("error", t("errors.networkError")); }
   };
 
   const handleUpdateRaised = async (id) => {
@@ -152,7 +153,7 @@ export default function AdminCampaignsPage() {
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
-    } catch (_) {}
+    } catch (_) { notify("error", t("errors.networkError")); }
   };
 
   const progressPct = (campaign) => {

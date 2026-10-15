@@ -262,6 +262,7 @@ export default function JourneyMilestoneRow({
             setDeliverableNewUrl={setDeliverableNewUrl}
             setDeliverableText={setDeliverableText}
             submitDeliverableEvidence={submitDeliverableEvidence}
+            ventureId={ventureId}
           />
         )}
 

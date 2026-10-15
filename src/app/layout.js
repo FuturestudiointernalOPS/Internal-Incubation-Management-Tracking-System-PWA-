@@ -10,12 +10,12 @@ import { DialogProvider } from "@/components/ui/DialogProvider";
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" data-theme="dark" suppressHydrationWarning>
+    <html lang="en" data-theme="light" suppressHydrationWarning>
       <head>
         {/*
           PRE-HYDRATION THEME SCRIPT
           Runs before React hydrates — prevents FOUT (Flash of Unstyled Theme).
-          Reads localStorage → falls back to system preference → defaults to 'dark'.
+          Reads localStorage → defaults to 'light' when nothing was ever chosen ('system' is honoured when chosen).
           Sets data-theme on <html> synchronously before first paint.
         */}
         <script
@@ -24,12 +24,14 @@ export default function RootLayout({ children }) {
               (function() {
                 try {
                   var theme = localStorage.getItem('impactos_theme');
-                  if (!theme || theme === 'system') {
+                  if (theme === 'system') {
                     theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                  } else if (theme !== 'dark' && theme !== 'light') {
+                    theme = 'light';
                   }
                   document.documentElement.setAttribute('data-theme', theme);
                 } catch(e) {
-                  document.documentElement.setAttribute('data-theme', 'dark');
+                  document.documentElement.setAttribute('data-theme', 'light');
                 }
               })();
             `,
