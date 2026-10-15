@@ -83,14 +83,18 @@ export function selectRecentMetrics(hoursAgo) {
 
 // ── Alerts ───────────────────────────────────────────────────────────────────
 
-/** The open system alerts, newest first. */
+/** Unresolved system alerts (open + acknowledged), newest first. */
 export function selectOpenAlerts() {
-  return db.execute({ sql: "SELECT * FROM system_alerts WHERE status='open' ORDER BY created_at DESC LIMIT 20" });
+  return db.execute({
+    sql: "SELECT * FROM system_alerts WHERE status IN ('open', 'acknowledged') ORDER BY created_at DESC LIMIT 20",
+  });
 }
 
-/** Count the open system alerts. */
+/** Count unresolved system alerts. */
 export function countOpenAlerts() {
-  return db.execute({ sql: "SELECT COUNT(*) as c FROM system_alerts WHERE status='open'" });
+  return db.execute({
+    sql: "SELECT COUNT(*) as c FROM system_alerts WHERE status IN ('open', 'acknowledged')",
+  });
 }
 
 /** Count the critical unresolved alerts. */
@@ -101,6 +105,84 @@ export function countCriticalAlerts() {
 /** Unresolved alerts grouped by type + severity. */
 export function selectAlertsByType() {
   return db.execute({ sql: "SELECT alert_type, severity, COUNT(*) as c FROM system_alerts WHERE status!='resolved' GROUP BY alert_type, severity ORDER BY c DESC" });
+}
+
+/** One alert by id. */
+export function selectAlertById(alertId) {
+  return db.execute({ sql: "SELECT * FROM system_alerts WHERE id=?", args: [alertId] });
+}
+
+/** The latest unresolved alert for a given type (dedup). */
+export function selectUnresolvedAlertByType(alertType) {
+  return db.execute({
+    sql: "SELECT * FROM system_alerts WHERE alert_type=? AND status IN ('open', 'acknowledged') ORDER BY created_at DESC LIMIT 1",
+    args: [alertType],
+  });
+}
+
+/** Insert one system alert. */
+export function insertSystemAlert({ alertType, severity, title, message, metricName, metricValue, threshold }) {
+  return db.execute({
+    sql: `INSERT INTO system_alerts (alert_type, severity, title, message, metric_name, metric_value, threshold, status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'open') RETURNING id`,
+    args: [
+      alertType,
+      severity,
+      title,
+      message || null,
+      metricName || null,
+      metricValue ?? null,
+      threshold ?? null,
+    ],
+  });
+}
+
+/** Refresh title/message/severity of an unresolved alert. */
+export function updateOpenAlertDetails(alertId, { severity, title, message, metricName, metricValue, threshold }) {
+  return db.execute({
+    sql: `UPDATE system_alerts
+          SET severity=?, title=?, message=?, metric_name=?, metric_value=?, threshold=?
+          WHERE id=? AND status IN ('open', 'acknowledged')`,
+    args: [
+      severity,
+      title,
+      message || null,
+      metricName || null,
+      metricValue ?? null,
+      threshold ?? null,
+      alertId,
+    ],
+  });
+}
+
+/** Acknowledge an open alert. */
+export function acknowledgeAlertRow(alertId, actorCid) {
+  return db.execute({
+    sql: `UPDATE system_alerts
+          SET status='acknowledged', acknowledged_by=?, acknowledged_at=NOW()
+          WHERE id=? AND status='open'`,
+    args: [actorCid, alertId],
+  });
+}
+
+/** Resolve an unresolved alert. */
+export function resolveAlertRow(alertId, actorCid) {
+  return db.execute({
+    sql: `UPDATE system_alerts
+          SET status='resolved', resolved_by=?, resolved_at=NOW()
+          WHERE id=? AND status IN ('open', 'acknowledged')`,
+    args: [actorCid, alertId],
+  });
+}
+
+/** Auto-resolve all unresolved alerts of a type (e.g. component recovered). */
+export function resolveAlertsByType(alertType, actorCid) {
+  return db.execute({
+    sql: `UPDATE system_alerts
+          SET status='resolved', resolved_by=?, resolved_at=NOW()
+          WHERE alert_type=? AND status IN ('open', 'acknowledged')`,
+    args: [actorCid, alertType],
+  });
 }
 
 // ── Jobs ─────────────────────────────────────────────────────────────────────

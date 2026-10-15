@@ -39,11 +39,17 @@ const pickReports = (payload) => (payload?.success ? payload.reports || [] : [])
 const STATUS_URL = "/api/system/status";
 const HEALTH_URL = "/api/system/health?type=latest";
 const JOB_STATS_URL = "/api/system/jobs?type=stats";
+const ALERT_STATS_URL = "/api/system/alerts?type=stats";
 const API_MONITOR_URL = "/api/system/metrics?type=recent";
 const STORAGE_URL = "/api/system/storage";
 const DATABASE_URL = "/api/system/database";
 const JOBS_URL = "/api/system/jobs?limit=20";
 const REPORTS_URL = "/api/system/reports?limit=10";
+
+const pickAlertStats = (payload) =>
+  payload?.success
+    ? { open: payload.open || 0, critical: payload.critical || 0, by_type: payload.by_type || [] }
+    : { open: 0, critical: 0, by_type: [] };
 
 export default function SystemMonitoringPage() {
   const { t } = useI18n();
@@ -77,6 +83,16 @@ export default function SystemMonitoringPage() {
     refresh: refreshJobStats,
   } = useApi(JOB_STATS_URL, { transform: pickPayload });
   const {
+    data: alertStats,
+    loading: alertStatsLoading,
+    error: alertStatsError,
+    setData: setAlertStats,
+    refresh: refreshAlertStats,
+  } = useApi(ALERT_STATS_URL, {
+    defaultValue: { open: 0, critical: 0, by_type: [] },
+    transform: pickAlertStats,
+  });
+  const {
     data: apiMonitor,
     loading: apiMonitorLoading,
     error: apiMonitorError,
@@ -105,13 +121,11 @@ export default function SystemMonitoringPage() {
     refresh: refreshReports,
   } = useApi(REPORTS_URL, { defaultValue: [], transform: pickReports });
 
-  // The job statistics answer both the alerts count and the jobs tab.
-  const alerts = jobStats;
-
   const loading =
     statusLoading ||
     healthLoading ||
     jobStatsLoading ||
+    alertStatsLoading ||
     apiMonitorLoading ||
     storageLoading ||
     dbLoading ||
@@ -126,6 +140,7 @@ export default function SystemMonitoringPage() {
     statusError ||
     healthError ||
     jobStatsError ||
+    alertStatsError ||
     apiMonitorError ||
     storageError ||
     dbError ||
@@ -139,8 +154,26 @@ export default function SystemMonitoringPage() {
     refreshStatus();
     refreshHealth();
     refreshJobStats();
+    refreshAlertStats();
     refreshJobs();
     refreshReports();
+  };
+
+  const refreshAlertsView = async () => {
+    const [statusRes, statsRes] = await Promise.all([
+      fetch("/api/system/status"),
+      fetch("/api/system/alerts?type=stats"),
+    ]);
+    const statusData = await statusRes.json();
+    const statsData = await statsRes.json();
+    if (statusData.success) setStatus(statusData);
+    if (statsData.success) {
+      setAlertStats({
+        open: statsData.open || 0,
+        critical: statsData.critical || 0,
+        by_type: statsData.by_type || [],
+      });
+    }
   };
 
   const tabs = [
@@ -160,10 +193,8 @@ export default function SystemMonitoringPage() {
       const response = await fetch("/api/system/health");
       const data = await response.json();
       if (data.success) setHealth(data.results || []);
-      // Re-fetch status after health check
-      const statusRes = await fetch("/api/system/status");
-      const statusData = await statusRes.json();
-      if (statusData.success) setStatus(statusData);
+      // Health check now upserts system_alerts — refresh status + alert counters.
+      await refreshAlertsView();
     } catch (error) { console.error(error); }
     finally { setRunningHealth(false); }
   };
@@ -243,7 +274,11 @@ export default function SystemMonitoringPage() {
 
             {/* ─── ALERTS ────────────────────────────────────────────────── */}
             {activeTab === "alerts" && (
-              <SystemAlertsTab alerts={alerts} status={status} />
+              <SystemAlertsTab
+                alerts={alertStats}
+                status={status}
+                onAlertAction={refreshAlertsView}
+              />
             )}
 
             {/* ─── API ───────────────────────────────────────────────────── */}
