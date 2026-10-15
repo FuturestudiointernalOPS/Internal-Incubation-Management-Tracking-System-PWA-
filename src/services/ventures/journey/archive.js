@@ -7,6 +7,7 @@
  */
 import {
   archiveJourneyStageRow,
+  deleteDependenciesForMilestone,
   deleteDeliverablesForMilestone,
   deleteJourneyStageNotes,
   deleteJourneyStageRow,
@@ -155,6 +156,10 @@ export async function deleteJourneyStages({ dbId, stageIds = [] }) {
 
       await runInTransaction(async (query) => {
         for (const milestoneId of milestoneIds) {
+          // Edges FIRST. They name the tasks and deliverables below, so the
+          // cleanup has to resolve them while they still exist — the journey's
+          // deletion used to leave them behind, pointing at work that was gone.
+          await deleteDependenciesForMilestone(query, milestoneId, dbId);
           await deleteDeliverablesForMilestone(query, milestoneId);
           await deleteTasksForMilestone(query, milestoneId);
           await deleteMilestoneRow(query, milestoneId, dbId);
@@ -163,7 +168,11 @@ export async function deleteJourneyStages({ dbId, stageIds = [] }) {
       });
 
       deleted.push({ id, title: row.name || id });
-    } catch (_) {
+    } catch (error) {
+      // The refusal is reported to the caller; the CAUSE stays server-side. It
+      // used to be swallowed entirely, so "Could not delete this journey." was
+      // the only trace of a real fault.
+      console.error(`[journey] could not delete stage ${id}:`, error?.message || error);
       blocked.push({ id, title: id, reason: "Could not delete this journey." });
     }
   }
