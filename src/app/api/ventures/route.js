@@ -26,6 +26,10 @@ export const GET = createHandler(async (req) => {
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");
   const search = searchParams.get("search");
+  // Deleted/archived Ventures are NOT part of the active directory: the listing
+  // excludes them unless a history surface asks for them explicitly. This is a
+  // server-side default, not a screen's opinion — every caller inherits it.
+  const includeArchived = searchParams.get("include_archived") === "1";
 
   const contactId = searchParams.get("contact_id");
 
@@ -65,6 +69,7 @@ export const GET = createHandler(async (req) => {
     assignedStaffId,
     status,
     search,
+    includeArchived,
   });
 
   // Document-driven readiness (Ready / %), computed live — spread onto each
