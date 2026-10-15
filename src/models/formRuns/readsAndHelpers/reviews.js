@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { selectFormRowById } from "@/models/forms/platform";
 
 /**
  * Platform form-run model — review workflow (REPOSITORY layer).
@@ -68,5 +69,5 @@ export async function getRunDataForReviewAutomationById(runId) {
 
 /** Full form row for the review-completion automation context. */
 export async function getFormById(formId) {
-  return db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [formId] });
+  return selectFormRowById(formId);
 }
