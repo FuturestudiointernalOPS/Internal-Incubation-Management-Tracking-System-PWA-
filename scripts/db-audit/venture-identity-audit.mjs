@@ -158,6 +158,11 @@ for (const file of files) {
       || /[a-z0-9_]+\.id::text\s*=\s*([a-z_]+\.)?venture_id/i.test(body);
     // Tolerant — the column itself is cast, so type never breaks it.
     const tolerant = /venture_id::text/i.test(body);
+    // Self-resolving — the statement resolves the reference in its own VALUES
+    // clause (`(SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?)`),
+    // the technique chosen for the append-only streams. Safe by construction.
+    const selfResolving = /SELECT\s+id\s+FROM\s+ventures/i.test(body);
+    if (selfResolving) continue;
     // B/C — a bare parameter.
     const bareParam = /venture_id\s*(?:=|IN)\s*[?(]/i.test(body) || /venture_id\s+IN\s*\(\s*\$\{/i.test(body);
 

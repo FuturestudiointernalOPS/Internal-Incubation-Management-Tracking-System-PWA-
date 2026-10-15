@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── GET/POST /api/investor/decisions ─────────────────────────────────────────
 
@@ -245,7 +246,9 @@ export async function listFundraisingCampaigns({ ventureId, status, investorId =
 }
 
 /** Create a draft fundraising campaign. */
-export async function insertFundraisingCampaign(ventureId, name, targetRaise, minInvestment, maxInvestment, currency, visibility, openingDate, closingDate) {
+export async function insertFundraisingCampaign(ventureRef, name, targetRaise, minInvestment, maxInvestment, currency, visibility, openingDate, closingDate) {
+  // fundraising_campaigns holds the INTERNAL id (Phase 0).
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO fundraising_campaigns (venture_id, name, target_raise, min_investment, max_investment, currency, visibility, opening_date, closing_date, status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft')
