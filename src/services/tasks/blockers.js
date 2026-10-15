@@ -9,6 +9,7 @@
  *     supervisor may additionally read a supervisee's blockers;
  *   - the CREATE rules: the task must exist and not be closed, and only the task
  *     owner, its assignee, its supervisor or a Super Admin may raise one; the
+ *     same person raising the same open blocker again gets the existing one; the
  *     creation also marks the task blocked, writes the audit entry and fans a
  *     best-effort bell notification out to the Super Admins;
  *   - the RESOLVE rule: only the blocker's creator may resolve it, and the task
@@ -28,6 +29,7 @@ import {
   createBlocker,
   createBlockerDiscussion,
   deleteBlocker,
+  findActiveDuplicateBlocker,
   getAllBlockers,
   getBlockerById,
   getBlockerDiscussions,
@@ -131,6 +133,17 @@ export async function createBlockerForTask({ session, input }) {
         "Cannot add a blocker to a closed task. The task is already " +
         task.status +
         ".",
+    };
+  }
+
+  // A second submit of the same blocker (double click, retried request, the
+  // same blocker raised from two screens) is the blocker already open, not a
+  // new one: it would count twice in every active-blocker figure.
+  const duplicate = await findActiveDuplicateBlocker(task_id, user_id, title);
+  if (duplicate.rows.length > 0) {
+    return {
+      status: 200,
+      body: { success: true, id: Number(duplicate.rows[0].id), action: "existing" },
     };
   }
 

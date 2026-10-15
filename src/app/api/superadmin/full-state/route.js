@@ -7,6 +7,7 @@ import {
   countStaffContacts,
   listRecentActivityLogs,
   listActiveV2Programs,
+  listStaffRoster,
 } from "@/models/adminOps";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ export const GET = createHandler({ roles: ["super_admin"] }, async () => {
     logsResult,
     activePrograms,
     projectsResult,
+    rosterResult,
   ] = await Promise.all([
     countActiveV2Programs(),
     countParticipantContacts(),
@@ -26,6 +28,7 @@ export const GET = createHandler({ roles: ["super_admin"] }, async () => {
     listRecentActivityLogs(),
     listActiveV2Programs(),
     countActiveProjects(),
+    listStaffRoster(),
   ]);
 
   return NextResponse.json(
@@ -39,6 +42,7 @@ export const GET = createHandler({ roles: ["super_admin"] }, async () => {
       },
       activity: logsResult.rows,
       activePrograms: activePrograms.rows,
+      staffRoster: rosterResult.rows,
     },
     { headers: { "Cache-Control": "no-store, max-age=0" } },
   );

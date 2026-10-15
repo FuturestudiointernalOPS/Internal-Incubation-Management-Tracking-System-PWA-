@@ -1,21 +1,32 @@
 "use client";
 
-import { BarChart3, CheckCircle2, Eye, Loader2 } from "lucide-react";
+import { BarChart3, CheckCircle2, Eye } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { levelLabel } from "./constants";
 
 /**
- * The five most recent active blockers, each with the button that resolves it,
- * or the reassurance shown when there are none.
- * Extracted verbatim from app/admin/page.js.
+ * The current blockers: the five most recent active ones, each with its task,
+ * the task's owner and when it was raised, and how many are active in all. A
+ * Super Admin monitors blockers but cannot resolve them (only their creator
+ * can — see /admin/blockers), so the card links to the list instead.
  */
-export function LatestBlockersCard({ blockers, resolvingBlocker, onResolve }) {
+export function LatestBlockersCard({ blockers, lang, onOpenAll }) {
   const { t } = useI18n();
   return (
     <div className="card">
-      <h4 className="text-[11px] font-bold text-rose-500 uppercase tracking-wide mb-4">
-        {t("admin.latestBlockers")}
-      </h4>
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="text-[11px] font-bold text-rose-500 uppercase tracking-wide">
+          {t("admin.latestBlockers")} · {blockers.length}
+        </h4>
+        {blockers.length > 0 && (
+          <button
+            onClick={onOpenAll}
+            className="text-[10px] font-bold text-rose-400 uppercase hover:underline"
+          >
+            {t("common.viewAll")}
+          </button>
+        )}
+      </div>
       {blockers.length > 0 ? (
         <div className="space-y-2">
           {blockers.slice(0, 5).map((blocker) => (
@@ -38,25 +49,14 @@ export function LatestBlockersCard({ blockers, resolvingBlocker, onResolve }) {
                 </div>
                 {blocker.task_title && (
                   <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
-                    {t("admin.taskLabel")}: {blocker.task_title}
+                    {t("admin.taskLabel")} {blocker.task_title}
                   </p>
                 )}
-                {blocker.task_owner && (
-                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
-                    {t("admin.ownerLabel")}: {blocker.task_owner}
-                  </p>
-                )}
+                <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
+                  {t("admin.ownerLabel")} {blocker.task_owner || blocker.user_name || "—"}
+                  {blocker.created_at ? ` · ${new Date(blocker.created_at).toLocaleDateString(lang)}` : ""}
+                </p>
               </div>
-              <button
-                disabled={resolvingBlocker !== null}
-                onClick={() => onResolve(blocker.id)}
-                className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-rose-500/20 transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
-              >
-                {resolvingBlocker === blocker.id ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : null}
-                {t("common.resolve")}
-              </button>
             </div>
           ))}
         </div>

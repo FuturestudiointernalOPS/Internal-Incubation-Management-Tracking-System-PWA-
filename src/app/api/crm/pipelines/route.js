@@ -44,7 +44,7 @@ export const POST = createHandler(
       name,
       description: body.description ?? null,
       type:        body.type ?? null,
-      created_by:  session?.user?.cid ?? null,
+      created_by:  session?.cid ?? null,
     });
 
     return NextResponse.json(

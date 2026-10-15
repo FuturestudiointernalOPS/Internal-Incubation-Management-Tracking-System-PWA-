@@ -67,7 +67,7 @@ export const PATCH = createHandler(
             cid: updatedLead.contact_cid,
             eventType: "lead_status_changed",
             description: `Lead status changed to ${body.status}`,
-            actorCid: session?.user?.cid ?? null,
+            actorCid: session?.cid ?? null,
             metadata: { lead_id: id, old: existingLead.status, new: body.status },
           });
         }
@@ -76,7 +76,7 @@ export const PATCH = createHandler(
             cid: updatedLead.contact_cid,
             eventType: "lead_assigned",
             description: `Lead reassigned`,
-            actorCid: session?.user?.cid ?? null,
+            actorCid: session?.cid ?? null,
             metadata: { lead_id: id, new_owner: body.owner_cid },
           });
         }
@@ -97,7 +97,7 @@ export const PATCH = createHandler(
           newScore: body.score,
           reason: body.qualification_reason || "Score updated manually",
           triggerEvent: "manual",
-          createdBy: session?.user?.cid
+          createdBy: session?.cid
         });
         
         const { fireCrmEvent } = await import("@/services/crm/automationEngine");
@@ -137,7 +137,7 @@ export const DELETE = createHandler(
     const { id } = await params;
     const session = await getSession();
 
-    const result = await softDeleteCrmLead(id, session?.user?.cid ?? null);
+    const result = await softDeleteCrmLead(id, session?.cid ?? null);
     if (!result.rows?.[0]) {
       return NextResponse.json(
         { success: false, error: "crm.leads.notFound" },

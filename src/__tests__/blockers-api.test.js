@@ -12,6 +12,7 @@ const mockBlockers = {
   getAllBlockers: jest.fn(async () => ({ rows: [] })),
   getTaskForBlockerCheck: jest.fn(async () => ({ rows: [] })),
   createBlocker: jest.fn(async () => ({ rows: [{ id: 7 }] })),
+  findActiveDuplicateBlocker: jest.fn(async () => ({ rows: [] })),
   markTaskBlocked: jest.fn(async () => ({})),
   notifySuperAdminsOfBlocker: jest.fn(async () => ({})),
   getBlockerById: jest.fn(async () => ({ rows: [] })),
@@ -85,6 +86,7 @@ beforeEach(() => {
   mockIsSupervisorOf.mockResolvedValue(false);
   mockBlockers.getTaskForBlockerCheck.mockResolvedValue(openTask());
   mockBlockers.createBlocker.mockResolvedValue({ rows: [{ id: 7 }] });
+  mockBlockers.findActiveDuplicateBlocker.mockResolvedValue({ rows: [] });
   mockBlockers.getBlockerById.mockResolvedValue({ rows: [] });
   mockBlockers.getOtherActiveBlockersForTask.mockResolvedValue({ rows: [] });
 });
@@ -122,6 +124,16 @@ describe("POST /api/blockers", () => {
       expect.objectContaining({ entity_type: "blocker", action: "created" }),
     );
     expect(mockBlockers.notifySuperAdminsOfBlocker).toHaveBeenCalled();
+  });
+
+  test("the same open blocker submitted twice is the existing one, not a new row", async () => {
+    mockBlockers.findActiveDuplicateBlocker.mockResolvedValue({ rows: [{ id: 5 }] });
+    const res = await POST(jsonReq({ task_id: 1, user_id: "user-1", title: "B" }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ success: true, id: 5, action: "existing" });
+    expect(mockBlockers.findActiveDuplicateBlocker).toHaveBeenCalledWith(1, "user-1", "B");
+    expect(mockBlockers.createBlocker).not.toHaveBeenCalled();
+    expect(mockBlockers.notifySuperAdminsOfBlocker).not.toHaveBeenCalled();
   });
 });
 

@@ -117,7 +117,7 @@ export const POST = createHandler(
       );
     }
 
-    const actorCid = session?.user?.cid ?? null;
+    const actorCid = session?.cid ?? null;
 
     const result = await createCrmOpportunity({
       name,

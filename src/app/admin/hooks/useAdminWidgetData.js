@@ -14,7 +14,6 @@ export function useAdminWidgetData({ t, lang, externalItems = NO_EXTERNAL_ITEMS 
   const [assignments, setAssignments] = useState([]);
   const [assignmentsLoading] = useState(false);
   const [activeBlockers, setActiveBlockers] = useState([]);
-  const [resolvingBlocker, setResolvingBlocker] = useState(null);
   const [processingId, setProcessingId] = useState(null);
   const [expandedCalendarDays, setExpandedCalendarDays] = useState({});
 
@@ -32,8 +31,9 @@ export function useAdminWidgetData({ t, lang, externalItems = NO_EXTERNAL_ITEMS 
         isSA
           ? "/api/tasks?brief=true"
           : `/api/tasks?user_id=${userId}&brief=true`,
+        // The admin list carries each blocker's task and owner.
         isSA
-          ? "/api/blockers?status=active"
+          ? "/api/admin/blockers?status=active"
           : `/api/blockers?user_id=${userId}&status=active`,
       ];
       if (userId) urls.push(`/api/tasks?assigned_to=${userId}&brief=true`);
@@ -94,26 +94,6 @@ export function useAdminWidgetData({ t, lang, externalItems = NO_EXTERNAL_ITEMS 
       setCalMonth(0);
       setCalYear(calYear + 1);
     } else setCalMonth(calMonth + 1);
-  };
-
-  const handleResolveBlocker = async (blockerId) => {
-    setResolvingBlocker(blockerId);
-    try {
-      await fetch("/api/blockers", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: blockerId,
-          status: "resolved",
-          resolved_by: "sa",
-        }),
-      });
-      fetchWidgetData();
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setResolvingBlocker(null);
-    }
   };
 
   const handleAssignmentAction = async (task, action) => {
@@ -216,8 +196,6 @@ export function useAdminWidgetData({ t, lang, externalItems = NO_EXTERNAL_ITEMS 
     assignments,
     assignmentsLoading,
     activeBlockers,
-    resolvingBlocker,
-    setResolvingBlocker,
     processingId,
     expandedCalendarDays,
     setExpandedCalendarDays,
@@ -227,7 +205,6 @@ export function useAdminWidgetData({ t, lang, externalItems = NO_EXTERNAL_ITEMS 
     setCalMonth,
     handlePrevMonth,
     handleNextMonth,
-    handleResolveBlocker,
     handleAssignmentAction,
     calendarDays,
     calendarTasks,

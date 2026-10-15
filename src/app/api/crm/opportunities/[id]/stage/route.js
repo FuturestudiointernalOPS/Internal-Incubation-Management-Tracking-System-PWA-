@@ -40,7 +40,7 @@ export const PATCH = createHandler(
     const { id } = await params;
     const body = await req.json();
     const session = await getSession();
-    const actorCid = session?.user?.cid ?? null;
+    const actorCid = session?.cid ?? null;
 
     const newStageId = body.stage_id ?? null;
     if (!newStageId) {

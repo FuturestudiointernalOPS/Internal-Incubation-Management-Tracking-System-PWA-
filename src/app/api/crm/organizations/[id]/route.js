@@ -91,7 +91,7 @@ export const DELETE = createHandler(
     const { id } = await params;
     const session = await getSession();
 
-    const result = await softDeleteCrmOrganization(id, session?.user?.cid ?? null);
+    const result = await softDeleteCrmOrganization(id, session?.cid ?? null);
 
     if (!result.rows?.[0]) {
       return NextResponse.json(

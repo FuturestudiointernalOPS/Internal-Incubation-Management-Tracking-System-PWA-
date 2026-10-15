@@ -23,7 +23,7 @@ export const POST = createHandler(
     const { id: leadId } = await params;
     const body = await req.json();
     const session = await getSession();
-    const actorCid = session?.user?.cid;
+    const actorCid = session?.cid;
 
     // Verify the lead exists
     const leadCheck = await getCrmLeadById(leadId);
@@ -38,7 +38,7 @@ export const POST = createHandler(
     const now = new Date();
     const taskRes = await createTask({
       user_id: actorCid,
-      user_name: session?.user?.name || "CRM User",
+      user_name: session?.name || "CRM User",
       title: body.title,
       description: body.description ?? null,
       status: "pending",
