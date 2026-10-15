@@ -13,11 +13,16 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── Reads ────────────────────────────────────────────────────────────────────
+//
+// `venture_founders` keys on the INTERNAL id since Phase 0. Functions that take
+// a Venture reference resolve it, so the routes can keep passing their code.
 
 /** The managing founder row (id, owner flag, role) for an email in a Venture. */
-export function selectFounderForManage(ventureId, email) {
+export async function selectFounderForManage(ventureRef, email) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT id, is_owner, role FROM venture_founders WHERE venture_id = ? AND LOWER(email) = LOWER(?)",
     args: [ventureId, email],
@@ -25,7 +30,8 @@ export function selectFounderForManage(ventureId, email) {
 }
 
 /** Every founder of a Venture, owner first then creation order. */
-export function selectFoundersForVenture(ventureId) {
+export async function selectFoundersForVenture(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT id, venture_id, email, name, phone, title, role, is_owner, status,
                  invitation_token, invitation_sent_at, invitation_accepted_at,
@@ -63,7 +69,8 @@ export function selectFounderByContactId(contactId) {
 }
 
 /** The id + status of an email's founder row within a Venture. */
-export function selectFounderIdAndStatusByEmail(ventureId, email) {
+export async function selectFounderIdAndStatusByEmail(ventureRef, email) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT id, status FROM venture_founders WHERE venture_id = ? AND LOWER(email) = LOWER(?)",
     args: [ventureId, email],
@@ -71,7 +78,8 @@ export function selectFounderIdAndStatusByEmail(ventureId, email) {
 }
 
 /** The id of an email's founder row within a Venture. */
-export function selectFounderIdByEmail(ventureId, email) {
+export async function selectFounderIdByEmail(ventureRef, email) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT id FROM venture_founders WHERE venture_id = ? AND LOWER(email) = LOWER(?)",
     args: [ventureId, email],
@@ -79,7 +87,8 @@ export function selectFounderIdByEmail(ventureId, email) {
 }
 
 /** How many founders have accepted within a Venture. */
-export function countAcceptedFounders(ventureId) {
+export async function countAcceptedFounders(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT COUNT(*) as cnt FROM venture_founders WHERE venture_id = ? AND status = 'accepted'",
     args: [ventureId],
@@ -87,7 +96,8 @@ export function countAcceptedFounders(ventureId) {
 }
 
 /** How many OTHER founders (than `founderId`) have accepted within a Venture. */
-export function countOtherAcceptedFounders(ventureId, founderId) {
+export async function countOtherAcceptedFounders(ventureRef, founderId) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT COUNT(*) as cnt FROM venture_founders WHERE venture_id = ? AND id != ? AND status = 'accepted'",
     args: [ventureId, founderId],
@@ -108,7 +118,8 @@ export function resendFounderInvitation(founderId, token, expiresAt, role, name)
 }
 
 /** Create a pending founder invitation row. */
-export function insertFounderInvitation(ventureId, email, name, role, token, expiresAt) {
+export async function insertFounderInvitation(ventureRef, email, name, role, token, expiresAt) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO venture_founders (venture_id, email, name, role, invitation_token, invitation_sent_at, invitation_expires_at, status)
           VALUES (?, ?, ?, ?, ?, NOW(), ?, 'pending')`,
@@ -125,7 +136,8 @@ export function updateFounderColumns(sets, args) {
 }
 
 /** Delete a founder row within its Venture. */
-export function deleteFounderRow(founderId, ventureId) {
+export async function deleteFounderRow(founderId, ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "DELETE FROM venture_founders WHERE id = ? AND venture_id = ?",
     args: [founderId, ventureId],
@@ -133,10 +145,11 @@ export function deleteFounderRow(founderId, ventureId) {
 }
 
 /** Append an ownership-transfer record. */
-export function insertOwnershipHistory({
-  ventureId, previousOwnerId, previousOwnerEmail, previousOwnerName,
+export async function insertOwnershipHistory({
+  ventureId: ventureRef, previousOwnerId, previousOwnerEmail, previousOwnerName,
   newOwnerId, newOwnerEmail, newOwnerName, transferredById, transferredByEmail,
 }) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO ownership_history (venture_id, previous_owner_id, previous_owner_email, previous_owner_name,
           new_owner_id, new_owner_email, new_owner_name, transferred_by_id, transferred_by_email)

@@ -12,11 +12,16 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── Opportunities ────────────────────────────────────────────────────────────
+//
+// `fundraising_opportunities` keys on the INTERNAL id since Phase 0; the
+// Venture-taking reads and writes below resolve their reference.
 
 /** A Venture's fundraising opportunities (optional stage filter). */
-export function selectOpportunities(ventureId, stage) {
+export async function selectOpportunities(ventureRef, stage) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   let sql = `SELECT fo.*, fi.name as ref_investor_name, fi.organization as ref_organization
              FROM fundraising_opportunities fo
              LEFT JOIN venture_investors fi ON fo.investor_id = fi.id
@@ -48,10 +53,11 @@ export function selectOpportunityNotes(oppId) {
 }
 
 /** Insert one opportunity, returning its id. */
-export function insertOpportunity({
-  ventureId, investorId, investorName, investorEmail, expectedAmount, currency, probability,
+export async function insertOpportunity({
+  ventureId: ventureRef, investorId, investorName, investorEmail, expectedAmount, currency, probability,
   expectedCloseDate, ownerCid, ownerName, tagsJson, nextAction, nextActionDate, createdBy,
 }) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO fundraising_opportunities (venture_id, investor_id, investor_name, investor_email, expected_amount, currency, probability, expected_close_date, owner_cid, owner_name, tags, next_action, next_action_date, created_by)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?) RETURNING id`,
@@ -113,7 +119,8 @@ export function insertOpportunityActivity(opportunityId, activityType, title, de
 // ── Pipeline analytics ───────────────────────────────────────────────────────
 
 /** Opportunity counts + values grouped by stage. */
-export function selectPipelineByStage(ventureId) {
+export async function selectPipelineByStage(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT stage, COUNT(*) as count, COALESCE(SUM(expected_amount), 0) as total_value,
        AVG(probability) as avg_probability
@@ -126,7 +133,8 @@ export function selectPipelineByStage(ventureId) {
 }
 
 /** Pipeline totals for a Venture. */
-export function selectPipelineTotals(ventureId) {
+export async function selectPipelineTotals(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT COUNT(*) as total_opps, COALESCE(SUM(expected_amount), 0) as total_pipeline,
        SUM(CASE WHEN stage='closed_won' THEN 1 ELSE 0 END) as won,

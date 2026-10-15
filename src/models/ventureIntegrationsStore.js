@@ -11,6 +11,7 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── API keys ─────────────────────────────────────────────────────────────────
 
@@ -50,7 +51,8 @@ export function updateApiKeyHash(keyId, newHash) {
 // ── Webhooks ─────────────────────────────────────────────────────────────────
 
 /** Insert one webhook, returning its id. */
-export function insertWebhook(name, url, secret, eventsJson, ventureId, retryCount, timeoutMs, createdBy) {
+export async function insertWebhook(name, url, secret, eventsJson, ventureRef, retryCount, timeoutMs, createdBy) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO webhooks (name, url, secret, events, venture_id, retry_count, timeout_ms, created_by) VALUES (?, ?, ?, ?::jsonb, ?, ?, ?, ?) RETURNING id`,
     args: [name, url, secret, eventsJson, ventureId, retryCount, timeoutMs, createdBy],
@@ -58,7 +60,8 @@ export function insertWebhook(name, url, secret, eventsJson, ventureId, retryCou
 }
 
 /** Webhooks (optional filters), newest first. */
-export function selectWebhooks({ ventureId, event, isActive, limit, offset } = {}) {
+export async function selectWebhooks({ ventureId: ventureRef, event, isActive, limit, offset } = {}) {
+  const ventureId = ventureRef ? await resolveVentureInternalId(ventureRef) : null;
   let sql = "SELECT * FROM webhooks WHERE 1=1";
   const args = [];
   if (ventureId) { sql += " AND venture_id=?"; args.push(ventureId); }

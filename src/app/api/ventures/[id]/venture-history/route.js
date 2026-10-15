@@ -36,7 +36,9 @@ export async function GET(req, { params }) {
 
     const ventureResult = await getVentureDbIdByCodeOrId(id).catch(() => ({ rows: [] }));
     const dbId = ventureResult.rows?.[0]?.id || null;
-    const owners = [id, dbId].filter(Boolean);
+    // The history tables key on the internal id since Phase 0; the raw id is only
+    // the fallback for a Venture whose internal id could not be read.
+    const owners = [dbId || id].filter(Boolean);
 
     const staff = await isStaffActorForVenture(id, session);
 

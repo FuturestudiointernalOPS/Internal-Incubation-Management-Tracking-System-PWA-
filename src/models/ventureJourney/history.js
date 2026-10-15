@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 /**
  * Venture Journey model — venture history (REPOSITORY layer).
@@ -27,7 +28,8 @@ export async function getProgramById(programId) {
 }
 
 /** All founders (incl. removed) of a venture, most recently joined first. */
-export async function getVentureFounderHistory(ventureId) {
+export async function getVentureFounderHistory(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `
         SELECT vm.contact_id, vm.role, vm.joined_at, vm.removed_at, c.name as contact_name

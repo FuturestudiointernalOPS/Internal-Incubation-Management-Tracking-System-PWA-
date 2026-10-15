@@ -11,6 +11,7 @@
  */
 
 import db, { initDb } from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 export async function createPlaybookTemplate({ name, description, stages = [], createdBy }) {
   await initDb();
@@ -61,9 +62,12 @@ export async function createPlaybookTemplate({ name, description, stages = [], c
   return { success: true, template_id: templateId };
 }
 
-export async function assignPlaybookToVenture({ templateId, ventureId, actorCid }) {
+export async function assignPlaybookToVenture({ templateId, ventureId: ventureRef, actorCid }) {
   await initDb();
-  if (!templateId || !ventureId) throw new Error("template_id and venture_id are required.");
+  if (!templateId || !ventureRef) throw new Error("template_id and venture_id are required.");
+
+  // The playbook instance keys on the INTERNAL id since Phase 0.
+  const ventureId = await resolveVentureInternalId(ventureRef);
 
   // One playbook per venture
   const existing = await db.execute({
