@@ -167,5 +167,10 @@ export async function emailSessionInvitation({ session, ventureLabel, invitee })
     email_type: "session_invitation",
     note: `Session invitation #${session.id}`,
     attachments,
+    // GMAIL first, explicitly. This mail carries the .ics, and only the Gmail
+    // transport can attach a file — the Resend sender has no attachment
+    // support, so a fallback drops the calendar file silently. Pinning it here
+    // also survives someone setting EMAIL_PRIMARY_PROVIDER=resend globally.
+    provider: "gmail",
   });
 }
