@@ -99,7 +99,8 @@ export async function completeProfileProgress(ventureRef, step) {
 // ── Documents ────────────────────────────────────────────────────────────────
 
 /** A Venture's profile documents, newest first. */
-export function selectProfileDocuments(ventureId) {
+export async function selectProfileDocuments(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT * FROM startup_profile_documents WHERE venture_id = ? ORDER BY uploaded_at DESC",
     args: [ventureId],
@@ -107,9 +108,10 @@ export function selectProfileDocuments(ventureId) {
 }
 
 /** Upsert one profile document (unique on venture/type/name). */
-export function upsertProfileDocument({
-  ventureId, documentType, fileName, fileSize, fileType, fileUrl, uploadedBy,
+export async function upsertProfileDocument({
+  ventureId: ventureRef, documentType, fileName, fileSize, fileType, fileUrl, uploadedBy,
 }) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO startup_profile_documents (venture_id, document_type, file_name, file_size, file_type, file_url, uploaded_by)
           VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -120,7 +122,8 @@ export function upsertProfileDocument({
 }
 
 /** Delete one profile document by id within its Venture. */
-export function deleteProfileDocumentRow(ventureId, documentId) {
+export async function deleteProfileDocumentRow(ventureRef, documentId) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "DELETE FROM startup_profile_documents WHERE id = ? AND venture_id = ?",
     args: [documentId, ventureId],
@@ -130,7 +133,8 @@ export function deleteProfileDocumentRow(ventureId, documentId) {
 // ── Access probes ────────────────────────────────────────────────────────────
 
 /** Whether an email is a registered founder of the Venture. */
-export function selectFounderIdByEmail(ventureId, email) {
+export async function selectFounderIdByEmail(ventureRef, email) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT id FROM venture_founders WHERE venture_id = ? AND LOWER(email) = LOWER(?)",
     args: [ventureId, email],
@@ -138,7 +142,8 @@ export function selectFounderIdByEmail(ventureId, email) {
 }
 
 /** Whether a contact is a founder-like member of the Venture. */
-export function selectFounderMemberIdByCid(ventureId, cid) {
+export async function selectFounderMemberIdByCid(ventureRef, cid) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT id FROM venture_members WHERE venture_id = ? AND user_cid = ? AND role IN ('founder', 'co-founder')",
     args: [ventureId, cid],
