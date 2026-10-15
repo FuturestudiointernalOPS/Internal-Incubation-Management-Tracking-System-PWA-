@@ -55,6 +55,13 @@ function labelRow(label, value, { bold = false } = {}) {
  *                                          false sends a signed-out click to
  *                                          registration instead of the login page
  * @param {string} [input.contact_cid]
+ * @param {string} [input.subject]         — the sender's OWN subject line, when
+ *                                          a manual reminder carries one
+ * @param {string} [input.message]         — the sender's own words, shown above
+ *                                          the details and sent exactly as written
+ * @param {object[]} [input.attachments]   — files to carry with the message, as
+ *                                          the transport expects them
+ *                                          ({ filename, content, contentType })
  */
 export async function sendVentureReminderEmail({
   to,
@@ -67,6 +74,9 @@ export async function sendVentureReminderEmail({
   sentBy = null,
   hasAccount = true,
   contact_cid = null,
+  subject: customSubject = null,
+  message = null,
+  attachments = null,
 }) {
   const venue = ventureName || "your Venture";
   const title = item.title || "Untitled work";
@@ -82,7 +92,10 @@ export async function sendVentureReminderEmail({
         : `${trigger === "start" ? "starts" : "finishes"} ${date} — in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`
     : "needs your attention";
   const subjectPrefix = trigger === "start" ? "Starting soon" : trigger === "finish" ? "Due soon" : "Reminder";
-  const subject = `${subjectPrefix}: ${item.ref ? `${item.ref} ` : ""}${title} — ${when}`;
+  // A reminder the manager wrote themselves keeps their subject — the whole point
+  // of writing one is that it says what they meant, not what the template says.
+  const written = String(customSubject ?? "").trim();
+  const subject = written || `${subjectPrefix}: ${item.ref ? `${item.ref} ` : ""}${title} — ${when}`;
 
   // The button goes through /open, which decides at CLICK time: a signed-in
   // reader lands on the Venture, a signed-out one on the login page — or on
@@ -94,6 +107,13 @@ export async function sendVentureReminderEmail({
   const context = [item.journey?.name, item.milestone?.title].filter(Boolean).join("  ›  ");
   const manualLine = sentBy
     ? `<p style="color: #64748b; font-size: 12px; margin: 0 0 20px;">${escapeHtml(sentBy)} sent you this reminder.</p>`
+    : "";
+
+  // The manager's own message, quoted in a block so it reads as their words and
+  // never blurs into the details below. Newlines are kept: a list in the message
+  // is a list in the email.
+  const messageBlock = String(message ?? "").trim()
+    ? `<div style="border-left: 3px solid #ff6600; padding: 2px 0 2px 12px; margin: 0 0 20px; color: #e2e8f0; font-size: 14px; line-height: 1.55;">${escapeHtml(String(message).trim()).replace(/\n/g, "<br>")}</div>`
     : "";
 
   const html = `
@@ -113,6 +133,7 @@ export async function sendVentureReminderEmail({
               <h2 style="color: #f8fafc; font-size: 17px; margin: 0 0 6px;">${escapeHtml(title)}</h2>
               <p style="color: #94a3b8; font-size: 13px; margin: 0 0 20px;">${escapeHtml(when)}${context ? ` · ${escapeHtml(context)}` : ""}</p>
               ${manualLine}
+              ${messageBlock}
 
               <table cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
                 ${labelRow("Code", item.ref, { bold: true })}
@@ -149,5 +170,8 @@ export async function sendVentureReminderEmail({
     // one answers "did the mail leave", the other "was the work chased".
     email_type: "venture_reminder",
     note: `${trigger}:${item.id || ""}`,
+    // Files travel with the message when the transport can carry them; the
+    // workspace mailbox can, the transactional fallback cannot.
+    attachments,
   });
 }

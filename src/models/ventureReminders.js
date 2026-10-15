@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 /**
  * Venture reminder rules and the record of what was sent (REPOSITORY layer).
@@ -108,11 +109,12 @@ export function markReminderFailed({ id, error }) {
 // ── history ──────────────────────────────────────────────────────────────────
 
 /** A Venture's reminder history, newest first. */
-export function selectReminderLog(ventureId, limit = 200) {
+export async function selectReminderLog(ventureRef, limit = 200) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT id, work_item_kind, work_item_id, work_item_ref, work_item_title,
                  rule_id, trigger, recipient_name, recipient_email, recipient_role,
-                 status, error, sent_at, created_at
+                 status, error, subject, attachment_name, sent_at, created_at
           FROM venture_reminder_log
           WHERE venture_id::text = ?::text
           ORDER BY created_at DESC
@@ -130,8 +132,8 @@ export function selectReminderLog(ventureId, limit = 200) {
  * treats that as "already handled". A failed attempt is not covered by the
  * partial index, so it may be retried.
  */
-export function insertReminderLog({
-  ventureId,
+export async function insertReminderLog({
+  ventureId: ventureRef,
   workItemKind,
   workItemId,
   workItemRef,
@@ -143,15 +145,21 @@ export function insertReminderLog({
   recipientRole,
   status,
   error,
+  subject,
+  body,
+  attachmentPath,
+  attachmentName,
   dedupeKey,
   sentAt,
 }) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO venture_reminder_log
             (venture_id, work_item_kind, work_item_id, work_item_ref, work_item_title,
              rule_id, trigger, recipient_name, recipient_email, recipient_role,
-             status, error, dedupe_key, sent_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             status, error, subject, body, attachment_path, attachment_name,
+             dedupe_key, sent_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT DO NOTHING
           RETURNING id`,
     args: [
@@ -167,6 +175,12 @@ export function insertReminderLog({
       recipientRole || null,
       status,
       error || null,
+      // What the sender wrote, and the file they attached — recorded with the
+      // attempt so the history is a record of the message, not only of the send.
+      subject || null,
+      body || null,
+      attachmentPath || null,
+      attachmentName || null,
       dedupeKey || null,
       sentAt || null,
     ],

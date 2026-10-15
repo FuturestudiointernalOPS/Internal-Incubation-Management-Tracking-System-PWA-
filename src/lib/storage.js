@@ -319,3 +319,85 @@ export const uploadSessionMaterial = async (file, { ventureId, milestoneId } = {
   }
 }
 
+/**
+ * The storage prefix every reminder attachment of ONE Venture lives under.
+ *
+ * Exported because TWO places must agree on it: the uploader below, and the
+ * reminder send that accepts a path back — which checks the path really belongs
+ * to this Venture instead of taking the caller's word for it.
+ */
+export function reminderAttachmentPrefix(ventureId) {
+  const scope = String(ventureId || 'unknown').replace(/[^A-Za-z0-9_-]/g, '_')
+  return `reminders/${scope}/`
+}
+
+/**
+ * Reminder attachments — the ONE file a manager attaches to a manual reminder.
+ *
+ * Shares the PRIVATE evidence bucket (already provisioned) under a `reminders/`
+ * prefix, so the three kinds of file never blur. The database stores the storage
+ * path (see venture_reminder_log.attachment_path) and the file is never
+ * world-readable; it reaches the recipient as a real email attachment, so it is
+ * limited to the documents and images the mail transport can carry.
+ */
+export const uploadReminderAttachment = async (file, { ventureId } = {}) => {
+  try {
+    if (!file) {
+      return { success: false, error: 'No file provided.' }
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return {
+        success: false,
+        error: `File size exceeds the maximum of 5MB. This file is ${(file.size / (1024 * 1024)).toFixed(1)}MB. Please compress it or paste a link instead.`
+      }
+    }
+
+    if (!isAllowedEvidenceImage(file)) {
+      return { success: false, error: EVIDENCE_IMAGE_ERROR }
+    }
+
+    const bucket = 'deliverable-evidence'
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const client = url && serviceKey ? createClient(url, serviceKey) : supabase
+
+    const path = safeStoragePath(
+      `${reminderAttachmentPrefix(ventureId)}${Date.now()}_${safeStorageName(file.name, 'attachment')}`,
+    )
+
+    let { error } = await client.storage
+      .from(bucket)
+      .upload(path, file, {
+        cacheControl: '3600',
+        upsert: true,
+      })
+
+    if (error && /bucket.*not found|does not exist/i.test(error.message)) {
+      await client.storage.createBucket(bucket, { public: false });
+      const retry = await client.storage
+        .from(bucket)
+        .upload(path, file, {
+          cacheControl: '3600',
+          upsert: true,
+        });
+      error = retry.error;
+    }
+
+    if (error) throw error;
+
+    return { success: true, path, name: file.name, size: file.size || null }
+  } catch (error) {
+    console.error('Storage Error:', error.message)
+
+    if (/bucket/i.test(error.message)) {
+      return {
+        success: false,
+        error: `Storage bucket "deliverable-evidence" is not configured. Please contact your administrator.`
+      }
+    }
+
+    return { success: false, error: `Upload failed: ${error.message}` }
+  }
+}
+

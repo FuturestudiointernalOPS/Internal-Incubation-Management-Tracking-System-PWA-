@@ -23,6 +23,8 @@
  */
 
 import { sendVentureReminderEmail } from "@/lib/email";
+import { transportSupportsAttachments } from "@/lib/email/config";
+import { downloadEvidenceBytes } from "@/lib/ventureEvidence";
 import {
   insertReminderLog,
   markReminderFailed,
@@ -43,6 +45,10 @@ async function deliverOne({
   ruleId,
   sentBy,
   automatic,
+  subject,
+  message,
+  attachment,
+  mailAttachment,
 }) {
   const itemId = String(item.id || "");
   const [kind, ...ownParts] = itemId.split(":");
@@ -66,6 +72,12 @@ async function deliverOne({
     // Claimed as 'sent' so it holds the dedupe slot; corrected below if the
     // transport says otherwise.
     status: "sent",
+    // What was written and what travelled with it, so the history records the
+    // MESSAGE and not only the fact of a send.
+    subject,
+    body: message,
+    attachmentPath: attachment?.path || null,
+    attachmentName: attachment?.name || null,
     dedupeKey,
     sentAt: null,
   });
@@ -88,6 +100,9 @@ async function deliverOne({
     sentBy,
     hasAccount: await hasPlatformAccount(recipient),
     contact_cid: recipient.cid || null,
+    subject,
+    message,
+    attachments: mailAttachment,
   });
 
   if (!result?.success) {
@@ -115,7 +130,15 @@ async function deliverOne({
   }
 
   await markReminderSent({ id: logId, sentAt: new Date().toISOString() });
-  return { email: recipient.email, name: recipient.name, role: recipient.role, outcome: "sent" };
+  return {
+    email: recipient.email,
+    name: recipient.name,
+    role: recipient.role,
+    outcome: "sent",
+    // The transport actually used may not be the one we hoped for: the fallback
+    // cannot carry a file. Said out loud rather than sent quietly without it.
+    attachment_dropped: Boolean(mailAttachment) && !transportSupportsAttachments(result?.provider),
+  };
 }
 
 /** Shared tail: resolve recipients, send to each reachable one, report the rest. */
@@ -130,6 +153,9 @@ async function deliver({
   ruleId,
   sentBy,
   automatic,
+  subject = null,
+  message = null,
+  attachment = null,
 }) {
   const recipients = await resolveWorkItemRecipients({
     ventureId: ventureCode,
@@ -138,6 +164,19 @@ async function deliver({
     includeSupporting,
   });
   const { reachable, unreachable } = splitReachable(recipients);
+
+  // The file is fetched ONCE, before the loop: the same bytes go to every
+  // recipient, and a download per recipient would be work with no reader.
+  const file = attachment?.path ? await downloadEvidenceBytes(attachment.path) : null;
+  const mailAttachment = file?.content
+    ? [
+        {
+          filename: attachment.name || "attachment",
+          content: file.content,
+          contentType: file.contentType,
+        },
+      ]
+    : null;
 
   const results = [];
   for (const recipient of reachable) {
@@ -153,6 +192,10 @@ async function deliver({
         ruleId,
         sentBy,
         automatic,
+        subject,
+        message,
+        attachment,
+        mailAttachment,
       }),
     );
   }
@@ -166,6 +209,9 @@ async function deliver({
     already_sent: results.filter((entry) => entry.outcome === "already_sent").length,
     failed: results.filter((entry) => entry.outcome === "failed"),
     results,
+    // True when a file was asked for and the transport used could not carry it —
+    // the message was sent, the file was not.
+    attachment_dropped: results.some((entry) => entry.attachment_dropped === true),
     unreachable: unreachable.map((entry) => ({ name: entry.name, role: entry.role, reason: entry.reason })),
     // Nobody had an address at all — the caller says "no email on file" rather
     // than reporting a send that never happened.
@@ -177,9 +223,13 @@ async function deliver({
  * A person pressed Send. Goes to the Owner and to the people supporting them:
  * the manager does not choose recipients, the work item already knows them.
  *
+ * The manager MAY write their own subject and message, and attach ONE file —
+ * that is the difference between the standard nudge and saying something. What
+ * they wrote goes out exactly as written; nothing is rewritten on the way.
+ *
  * Never deduped — pressing Send twice is a request, not a mistake.
  */
-export async function sendManualReminder({ ventureCode, ventureName, item, sentBy = null }) {
+export async function sendManualReminder({ ventureCode, ventureName, item, sentBy = null, subject = null, message = null, attachment = null }) {
   if (!item?.id) return { error: "item_required" };
   return deliver({
     ventureCode,
@@ -192,6 +242,9 @@ export async function sendManualReminder({ ventureCode, ventureName, item, sentB
     ruleId: null,
     sentBy,
     automatic: false,
+    subject,
+    message,
+    attachment,
   });
 }
 

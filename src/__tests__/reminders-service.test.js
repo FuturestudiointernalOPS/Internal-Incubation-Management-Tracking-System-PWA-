@@ -1,11 +1,11 @@
 /**
- * The reminder layer — when a reminder is due, who it reaches, and the guard
- * that stops it being sent twice.
+ * The reminder layer — when a reminder is due, and the guard that stops it being
+ * sent twice.
  *
  * The behaviour that matters is the guarding, so most of these tests are about
- * what does NOT happen: a completed activity is not chased, a reminder already
- * sent is not sent again, and an assignee with no address is reported rather
- * than quietly counted as reached.
+ * what does NOT happen: a completed activity is not chased, and a reminder
+ * already sent is not sent again. WHO a reminder reaches, and where it goes, is
+ * pinned in `reminders-recipients.test.js`.
  */
 jest.mock("@/models/ventureAssigneeEmails", () => ({
   selectAssigneeEmails: jest.fn(async () => ({ rows: [] })),
@@ -19,22 +19,23 @@ jest.mock("@/models/ventureReminders", () => ({
   markReminderFailed: jest.fn(async () => ({ rows: [] })),
 }));
 
+jest.mock("@/models/ventureAssigneeLinks", () => ({
+  selectAssigneeLinks: jest.fn(async () => ({ rows: [] })),
+}));
+
 const mockSend = jest.fn(async () => ({ success: true }));
 jest.mock("@/lib/email", () => ({
   sendVentureReminderEmail: (...args) => mockSend(...args),
 }));
 
-const {
-  selectAssigneeEmails,
-  selectContactCidByEmail,
-  selectContactEmailsByCids,
-} = require("@/models/ventureAssigneeEmails");
+const mockDownload = jest.fn(async () => null);
+jest.mock("@/lib/ventureEvidence", () => ({
+  downloadEvidenceBytes: (...args) => mockDownload(...args),
+}));
+
+const { selectAssigneeEmails, selectContactCidByEmail } = require("@/models/ventureAssigneeEmails");
 const { insertReminderLog, markReminderFailed, markReminderSent } = require("@/models/ventureReminders");
-const {
-  hasPlatformAccount,
-  resolveWorkItemRecipients,
-  splitReachable,
-} = require("@/services/reminders/recipients");
+const { hasPlatformAccount } = require("@/services/reminders/recipients");
 const {
   daysUntil,
   dueReminders,
@@ -68,10 +69,12 @@ const VENTURE_RULES = [
 beforeEach(() => {
   jest.clearAllMocks();
   selectAssigneeEmails.mockResolvedValue({ rows: [] });
-  selectContactEmailsByCids.mockResolvedValue({ rows: [] });
   selectContactCidByEmail.mockResolvedValue({ rows: [] });
   insertReminderLog.mockResolvedValue({ rows: [{ id: 1 }] });
-  mockSend.mockResolvedValue({ success: true });
+  // The workspace mailbox is the primary transport, and the only one that can
+  // carry a file attachment.
+  mockSend.mockResolvedValue({ success: true, provider: "gmail" });
+  mockDownload.mockResolvedValue(null);
 });
 
 describe("days before is a setting", () => {
@@ -205,83 +208,6 @@ describe("a reminder's identity keeps it to one send", () => {
   });
 });
 
-describe("who a reminder reaches", () => {
-  test("a person with an account is asked for the address on their record", async () => {
-    selectContactEmailsByCids.mockResolvedValue({ rows: [{ cid: "USR_A", email: "Amina@Example.com", deleted: 0 }] });
-
-    const recipients = await resolveWorkItemRecipients({
-      ventureId: "VNT-1",
-      item: { ...ITEM, owner: { name: "Amina", cid: "USR_A" } },
-    });
-
-    expect(recipients).toEqual([
-      { name: "Amina", role: "owner", cid: "USR_A", email: "amina@example.com", source: "contact", reason: null },
-    ]);
-  });
-
-  test("a name with no account uses the address on file for that name", async () => {
-    selectAssigneeEmails.mockResolvedValue({ rows: [{ display_name: "Amina", email: "amina@example.com" }] });
-
-    const recipients = await resolveWorkItemRecipients({ ventureId: "VNT-1", item: ITEM });
-    expect(recipients[0]).toMatchObject({ email: "amina@example.com", source: "on_file" });
-  });
-
-  test("an address typed in the reminder bar WINS over the contact record", async () => {
-    // Editing the destination must change who the next send reaches.
-    selectContactEmailsByCids.mockResolvedValue({ rows: [{ cid: "USR_A", email: "real@example.com", deleted: 0 }] });
-    selectAssigneeEmails.mockResolvedValue({ rows: [{ display_name: "Amina", email: "typed@example.com" }] });
-
-    const recipients = await resolveWorkItemRecipients({
-      ventureId: "VNT-1",
-      item: { ...ITEM, owner: { name: "Amina", cid: "USR_A" } },
-    });
-    expect(recipients[0].email).toBe("typed@example.com");
-    expect(recipients[0].source).toBe("on_file");
-  });
-
-  test("without an address on file, the contact record is still used", async () => {
-    selectContactEmailsByCids.mockResolvedValue({ rows: [{ cid: "USR_A", email: "real@example.com", deleted: 0 }] });
-    selectAssigneeEmails.mockResolvedValue({ rows: [] });
-
-    const recipients = await resolveWorkItemRecipients({
-      ventureId: "VNT-1",
-      item: { ...ITEM, owner: { name: "Amina", cid: "USR_A" } },
-    });
-    expect(recipients[0].email).toBe("real@example.com");
-    expect(recipients[0].source).toBe("contact");
-  });
-
-  test("someone with no address is RETURNED, with the reason — never dropped", async () => {
-    const recipients = await resolveWorkItemRecipients({ ventureId: "VNT-1", item: ITEM, includeSupporting: true });
-
-    expect(recipients).toHaveLength(3);
-    const { reachable, unreachable } = splitReachable(recipients);
-    expect(reachable).toHaveLength(0);
-    expect(unreachable.map((entry) => entry.name)).toEqual(["Amina", "David", "Grace"]);
-    expect(unreachable[0].reason).toBe("external_without_email");
-  });
-
-  test("an address on file that is not usable says so rather than being used", async () => {
-    selectAssigneeEmails.mockResolvedValue({ rows: [{ display_name: "Amina", email: "not-an-email" }] });
-    const recipients = await resolveWorkItemRecipients({ ventureId: "VNT-1", item: ITEM });
-    expect(recipients[0].email).toBeNull();
-    expect(recipients[0].reason).toBe("invalid_on_file");
-  });
-
-  test("one address is one message, even when named twice", async () => {
-    selectAssigneeEmails.mockResolvedValue({ rows: [{ display_name: "Grace", email: "grace@example.com" }] });
-    const recipients = await resolveWorkItemRecipients({
-      ventureId: "VNT-1",
-      // Grace supports AND owns: she is told once.
-      item: { ...ITEM, owner: { name: "Grace", cid: null }, supporting_names: ["Grace", "David"] },
-      includeSupporting: true,
-    });
-
-    const graces = recipients.filter((entry) => entry.name === "Grace");
-    expect(graces).toHaveLength(1);
-  });
-});
-
 describe("sending claims the reminder before it sends", () => {
   test("a claim that finds the key already taken sends nothing", async () => {
     // The database returned no row: this exact reminder has already been sent.
@@ -369,6 +295,90 @@ describe("sending claims the reminder before it sends", () => {
 
     const outcome = await sendManualReminder({ ventureCode: "VNT-1", ventureName: "KoraHome", item: ITEM });
     expect(outcome.sent).toBe(2);
+  });
+
+  test("the manager's own words go out unchanged, and are recorded with the send", async () => {
+    selectAssigneeEmails.mockResolvedValue({ rows: [{ display_name: "Amina", email: "amina@example.com" }] });
+
+    await sendManualReminder({
+      ventureCode: "VNT-1",
+      ventureName: "KoraHome",
+      item: ITEM,
+      sentBy: "Gwyn",
+      subject: "KoraHome — a word before Friday",
+      message: "Please bring the interview notes.",
+    });
+
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: "KoraHome — a word before Friday", message: "Please bring the interview notes." }),
+    );
+    expect(insertReminderLog).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: "KoraHome — a word before Friday", body: "Please bring the interview notes." }),
+    );
+  });
+
+  test("a reminder nobody wrote carries no subject, no message and no file", async () => {
+    selectAssigneeEmails.mockResolvedValue({ rows: [{ display_name: "Amina", email: "amina@example.com" }] });
+
+    await sendManualReminder({ ventureCode: "VNT-1", ventureName: "KoraHome", item: ITEM });
+
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: null, message: null, attachments: null }),
+    );
+    expect(insertReminderLog).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: null, body: null, attachmentPath: null, attachmentName: null }),
+    );
+  });
+
+  test("the attached file is fetched ONCE and carried to every recipient", async () => {
+    selectAssigneeEmails.mockResolvedValue({
+      rows: [
+        { display_name: "Amina", email: "amina@example.com" },
+        { display_name: "David", email: "david@example.com" },
+      ],
+    });
+    mockDownload.mockResolvedValue({ content: Buffer.from("evidence"), contentType: "application/pdf" });
+
+    const outcome = await sendManualReminder({
+      ventureCode: "VNT-1",
+      ventureName: "KoraHome",
+      item: ITEM,
+      attachment: { path: "reminders/VNT-1/17_plan.pdf", name: "plan.pdf" },
+    });
+
+    expect(mockDownload).toHaveBeenCalledTimes(1);
+    expect(mockDownload).toHaveBeenCalledWith("reminders/VNT-1/17_plan.pdf");
+    expect(mockSend).toHaveBeenCalledTimes(2);
+    for (const call of mockSend.mock.calls) {
+      expect(call[0].attachments).toEqual([
+        { filename: "plan.pdf", content: expect.any(Buffer), contentType: "application/pdf" },
+      ]);
+    }
+    expect(insertReminderLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attachmentPath: "reminders/VNT-1/17_plan.pdf",
+        attachmentName: "plan.pdf",
+      }),
+    );
+    // Nothing went out without the file, so nothing is reported as missing.
+    expect(outcome.attachment_dropped).toBe(false);
+  });
+
+  test("a transport that cannot carry the file says so instead of losing it silently", async () => {
+    selectAssigneeEmails.mockResolvedValue({ rows: [{ display_name: "Amina", email: "amina@example.com" }] });
+    mockDownload.mockResolvedValue({ content: Buffer.from("evidence"), contentType: "application/pdf" });
+    // The transactional fallback has no attachment support.
+    mockSend.mockResolvedValue({ success: true, provider: "resend" });
+
+    const outcome = await sendManualReminder({
+      ventureCode: "VNT-1",
+      ventureName: "KoraHome",
+      item: ITEM,
+      attachment: { path: "reminders/VNT-1/17_plan.pdf", name: "plan.pdf" },
+    });
+
+    expect(outcome.sent).toBe(1);
+    expect(outcome.attachment_dropped).toBe(true);
   });
 });
 
