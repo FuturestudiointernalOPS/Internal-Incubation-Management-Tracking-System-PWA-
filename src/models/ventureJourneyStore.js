@@ -250,6 +250,37 @@ export function deleteTasksForMilestone(query, milestoneId) {
   return query("DELETE FROM venture_tasks WHERE milestone_id = ?", [String(milestoneId)]);
 }
 
+/**
+ * Delete the dependency edges that NAME a milestone or the work beneath it
+ * (cascade, cursor form).
+ *
+ * MUST run BEFORE the rows it names are deleted: the subqueries resolve the
+ * milestone's task and deliverable ids while those rows still exist. Run it
+ * after — or not at all — and it silently matches nothing, which is exactly how a
+ * permanently deleted journey left its edges behind, pointing at tasks that no
+ * longer existed.
+ *
+ * The milestone itself is matched by id; its tasks and deliverables are matched
+ * through their `milestone_id`, so every kind of work under the milestone is
+ * covered in one statement.
+ */
+export function deleteDependenciesForMilestone(query, milestoneId, dbId) {
+  const id = String(milestoneId);
+  return query(
+    `DELETE FROM venture_dependencies d
+      WHERE d.venture_id::text = ?::text
+        AND (
+             (d.source_type = 'milestone' AND d.source_id = ?)
+          OR (d.target_type = 'milestone' AND d.target_id = ?)
+          OR (d.source_type = 'task' AND d.source_id IN (SELECT id::text FROM venture_tasks WHERE milestone_id = ?))
+          OR (d.target_type = 'task' AND d.target_id IN (SELECT id::text FROM venture_tasks WHERE milestone_id = ?))
+          OR (d.source_type = 'deliverable' AND d.source_id IN (SELECT id::text FROM venture_deliverables WHERE milestone_id = ?))
+          OR (d.target_type = 'deliverable' AND d.target_id IN (SELECT id::text FROM venture_deliverables WHERE milestone_id = ?))
+        )`,
+    [String(dbId), id, id, id, id, id, id],
+  );
+}
+
 /** Delete one milestone, scoped to its Venture (cursor form). */
 export function deleteMilestoneRow(query, milestoneId, dbId) {
   return query("DELETE FROM venture_milestones WHERE id = ? AND venture_id = ?", [String(milestoneId), dbId]);

@@ -50,3 +50,36 @@ export async function resolveVentureInternalId(ref, database = db) {
   const result = await selectVentureInternalId(value, database);
   return result.rows?.[0]?.id || ref;
 }
+
+/**
+ * The internal ids for MANY references at once — codes, internal ids, or a mix.
+ *
+ * A list read must not run one resolve per row, and must not ASSUME which form
+ * its caller sends: before the storage was unified the code WAS the stored value,
+ * so a caller that still hands over a code now makes the read raise "invalid input
+ * syntax for type uuid" against the retyped column — and a screen goes blank for a
+ * reason that looks nothing like an identifier problem.
+ *
+ * One statement resolves both forms, and the ORDER of the caller's list is kept.
+ * A reference that resolves to no Venture comes back unchanged, the same fallback
+ * the single-value resolver makes: a stale reference stays visible instead of
+ * becoming an empty result that reads as "nothing recorded".
+ */
+export async function resolveVentureInternalIds(refs = [], database = db) {
+  const list = (Array.isArray(refs) ? refs : [])
+    .map((ref) => (ref === null || ref === undefined ? "" : String(ref).trim()))
+    .filter(Boolean);
+  if (list.length === 0) return [];
+  const placeholders = list.map(() => "?").join(", ");
+  const result = await database.execute({
+    sql: `SELECT venture_id AS code, id::text AS id FROM ventures
+           WHERE venture_id IN (${placeholders}) OR id::text IN (${placeholders})`,
+    args: [...list, ...list],
+  });
+  const byRef = new Map();
+  for (const row of result.rows || []) {
+    if (row.code) byRef.set(String(row.code), String(row.id));
+    if (row.id) byRef.set(String(row.id), String(row.id));
+  }
+  return list.map((ref) => byRef.get(ref) || ref);
+}

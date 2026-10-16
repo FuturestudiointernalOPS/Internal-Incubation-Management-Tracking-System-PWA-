@@ -12,6 +12,8 @@ import {
   computeProposalStats,
   deriveProposalDates,
   normalizeJourneys,
+  placeMilestonesByStatedJourneys,
+  placeTasksByStatedRefs,
   resolveProposalOwners,
   toText,
   validateDependencyRefs,
@@ -480,11 +482,24 @@ export async function interpretPlanSheet({
     );
   }
 
-  const journeys = normalizeJourneys(parsed.journeys);
+  const journeys = normalizeJourneys(parsed.journeys, warnings);
   // A row read twice in overlapping parts is ONE activity, settled BEFORE
   // anything else reads the structure — so the derived dates, the dependency
   // check, the owner lookups and the stats all describe the same set of tasks.
   dedupeTasksByRef(journeys, warnings, refsDerived);
+
+  // The milestone list states which journey each milestone lives in, and the parts
+  // did not agree about it — one described the workbook by its title and collected
+  // every activity, while the others named the real journeys and stayed empty.
+  // Applied BEFORE the tasks: a task is placed into a milestone, so the milestone
+  // has to stand in its right journey first.
+  placeMilestonesByStatedJourneys(journeys, warnings);
+
+  // The explicit milestone list states which activities belong to each milestone.
+  // Applied HERE, on the merged proposal, because a pass that described the
+  // milestone usually did not carry the rows it names — which is how a stated
+  // mapping turned into "needs review" on an otherwise complete plan.
+  placeTasksByStatedRefs(journeys, warnings);
 
   // A DERIVED EMPTY MILESTONE IS NOISE. When the workbook stated no milestone
   // list, a milestone holding no activity describes nothing the tracker said: it

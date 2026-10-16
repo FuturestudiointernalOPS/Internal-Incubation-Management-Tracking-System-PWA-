@@ -3,6 +3,7 @@ import { DEFAULT_VENTURE_DOCUMENT_TYPES } from "@/lib/ventureDocumentTypeDefault
 import {
   ensureVentureDocumentTypesTable,
 } from "@/models/ventureDocumentTypesStore";
+import { resolveVentureInternalIds } from "@/models/ventureIdentityStore";
 
 /**
  * Document-driven Venture readiness — the single source of the Ready / % that
@@ -36,16 +37,25 @@ const REQUIRED_FALLBACK_TYPES = DEFAULT_VENTURE_DOCUMENT_TYPES.filter(
 /**
  * Batch readiness for many Ventures in a constant number of queries.
  *
- * @param {string[]} ventureIds internal `ventures.id` values
+ * @param {string[]} ventureRefs internal `ventures.id` values — or the codes a
+ *   URL carries, which are resolved to ids here
  * @returns {Array<{venture_id:string, readiness_percent:number|null, is_ready:boolean,
  *  total_required:number, verified_count:number, rejected_count:number,
  *  pending_count:number, missing_count:number}>}
  */
-export async function listVentureDocumentReadiness(ventureIds) {
-  const ids = (ventureIds || []).filter(Boolean);
-  if (ids.length === 0) return [];
+export async function listVentureDocumentReadiness(ventureRefs) {
+  const refs = (ventureRefs || []).filter(Boolean);
+  if (refs.length === 0) return [];
 
   await ensureVentureDocumentTypesTable();
+
+  // `venture_document_types` and `venture_verifications` hold the INTERNAL id since
+  // the identity migration, so a caller still passing the decorative code — which is
+  // what every route and URL carries — made both reads below raise "invalid input
+  // syntax for type uuid" and took every readiness gauge down with it. Both forms
+  // are resolved in one statement; the echoed `venture_id` below is therefore an
+  // internal id, which is what the callers key on.
+  const ids = await resolveVentureInternalIds(refs);
 
   const placeholders = ids.map(() => "?").join(", ");
 

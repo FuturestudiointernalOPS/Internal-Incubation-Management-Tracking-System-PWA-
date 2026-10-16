@@ -83,13 +83,37 @@ export function deriveProposalDates(journeys, warnings = []) {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+/**
+ * Excel keeps a date as "days since 1899-12-30", so a tracker exported from a
+ * spreadsheet carries 46331 rather than 2026-11-05.
+ *
+ * THE CONVERSION BELONGS HERE, IN CODE, never to the model. It is arithmetic,
+ * and a model asked to do calendar arithmetic gets it wrong: 46331 came back as
+ * 2026-11-01 (it is 2026-11-05) and 46366 as 2026-12-09 (it is 2026-12-10), and
+ * one reading of a sheet abandoned the attempt altogether and returned every
+ * date as null. Five lines of code are exact and repeatable; a language model
+ * counting days is neither.
+ */
+const EXCEL_EPOCH_UTC = Date.UTC(1899, 11, 30);
+export const excelSerialToIso = (value) => {
+  const days = Number(value);
+  // A day count for a plausible plan window (1982-2119). Anything else is not
+  // a serial and must not be guessed at.
+  if (!Number.isFinite(days) || days < 30000 || days > 80000) return null;
+  return new Date(EXCEL_EPOCH_UTC + Math.round(days) * 86400000).toISOString().slice(0, 10);
+};
+
 export const toText = (value) => {
   const text = value === null || value === undefined ? "" : String(value).trim();
   return text || null;
 };
 const toDate = (value) => {
   const text = toText(value);
-  return text && ISO_DATE.test(text) ? text : null;
+  if (!text) return null;
+  if (ISO_DATE.test(text)) return text;
+  // A bare five-digit day count is a spreadsheet serial, not a date shape.
+  if (/^\d{5}$/.test(text)) return excelSerialToIso(text);
+  return null;
 };
 const PRIORITIES = new Set(["high", "medium", "low"]);
 const toPriority = (value) => {
@@ -157,48 +181,87 @@ async function resolveOwner(cell) {
 /** Shape a raw journey list into what the platform can hold: known fields only,
  *  readable dates, normalized priorities, capped depth. Shared by the first
  *  reading and by every correction, so a revised plan is validated the same way
- *  the original was — one definition of "a proposal". */
-export function normalizeJourneys(rawJourneys = []) {
-  return (Array.isArray(rawJourneys) ? rawJourneys : []).slice(0, 10).map((journey) => ({
-    name: toText(journey?.name) || "Proposed programme",
-    objective: toText(journey?.objective),
-    start_date: toDate(journey?.start_date),
-    target_date: toDate(journey?.target_date),
-    dates_derived: journey?.dates_derived === true || journey?.dates_derived === "true" ? true : null,
-    milestones: (Array.isArray(journey?.milestones) ? journey.milestones : []).map((milestone) => ({
-      ref: toText(milestone?.ref),
-      name: toText(milestone?.name) || "Untitled milestone",
-      description: toText(milestone?.description),
-      objective: toText(milestone?.objective),
-      priority: toPriority(milestone?.priority),
-      // A milestone the analyst could not group honestly says so, and says why.
-      // Stored rather than dropped: "this needs a human" is a finding the review
-      // screen must be able to show, not a warning that scrolls away.
-      requires_review: milestone?.requires_review === true || milestone?.requires_review === "true" ? true : null,
-      reason: toText(milestone?.reason),
-      start_date: toDate(milestone?.start_date),
-      target_date: toDate(milestone?.target_date),
-      dates_derived: milestone?.dates_derived === true || milestone?.dates_derived === "true" ? true : null,
-      tasks: (Array.isArray(milestone?.tasks) ? milestone.tasks : []).map((task) => ({
-        ref: toText(task?.ref),
-        title: toText(task?.title) || "Untitled task",
-        description: toText(task?.description),
-        owner_name: toText(task?.owner_name),
-        support: toText(task?.support),
-        phase: toText(task?.phase),
-        start_date: toDate(task?.start_date),
-        due_date: toDate(task?.due_date),
-        priority: toPriority(task?.priority),
-        definition_of_done: toText(task?.definition_of_done),
-        depends_on: (Array.isArray(task?.depends_on) ? task.depends_on : [])
-          .map((reference) => String(reference).trim())
-          .filter(Boolean),
-        deliverables: (Array.isArray(task?.deliverables) ? task.deliverables : [])
-          .map((deliverable) => ({ title: toText(deliverable?.title) }))
-          .filter((deliverable) => deliverable.title),
-      })),
-    })),
-  }));
+ *  the original was — one definition of "a proposal".
+ *
+ *  A date the sheet STATED but that could not be read is reported by row name in
+ *  `warnings`. It used to vanish in silence — twelve lost dates sat behind one
+ *  generic line among twenty others, and the only way to find them was to compare
+ *  the plan against the original document by hand. */
+export function normalizeJourneys(rawJourneys = [], warnings = []) {
+  /** A date that was stated but unreadable is a finding, not a blank. */
+  const dateOf = (raw, where, field) => {
+    const text = toText(raw);
+    const iso = toDate(raw);
+    if (text && !iso) {
+      warnings.push(
+        `${where}: the ${field} the sheet stated ("${text}") could not be read as a date, so it is missing — check it against the tracker.`,
+      );
+    }
+    return iso;
+  };
+
+  return (Array.isArray(rawJourneys) ? rawJourneys : []).slice(0, 10).map((journey) => {
+    const journeyName = toText(journey?.name) || "Proposed programme";
+    return {
+      name: journeyName,
+      objective: toText(journey?.objective),
+      start_date: dateOf(journey?.start_date, `Journey "${journeyName}"`, "Start"),
+      target_date: dateOf(journey?.target_date, `Journey "${journeyName}"`, "Target"),
+      dates_derived: journey?.dates_derived === true || journey?.dates_derived === "true" ? true : null,
+      milestones: (Array.isArray(journey?.milestones) ? journey.milestones : []).map((milestone) => {
+        const milestoneName = toText(milestone?.name) || "Untitled milestone";
+        return {
+          ref: toText(milestone?.ref),
+          name: milestoneName,
+          description: toText(milestone?.description),
+          objective: toText(milestone?.objective),
+          priority: toPriority(milestone?.priority),
+          // The journey the EXPLICIT milestone list places this milestone under. The
+          // list is the authority for structure, so the home is data too — a part that
+          // named the wrong journey cannot scatter the plan, because the placement is
+          // applied once, on the merged proposal.
+          journey_name: toText(milestone?.journey_name),
+          // The activity ids an EXPLICIT milestone list says belong here. Kept as
+          // data so the placement can be applied across the parts of a sheet that
+          // was read in several passes — the list states the membership, so it must
+          // not depend on which pass happened to carry the row.
+          task_refs: (Array.isArray(milestone?.task_refs) ? milestone.task_refs : [])
+            .map((reference) => String(reference).trim())
+            .filter(Boolean),
+          // A milestone the analyst could not group honestly says so, and says why.
+          // Stored rather than dropped: "this needs a human" is a finding the review
+          // screen must be able to show, not a warning that scrolls away.
+          requires_review: milestone?.requires_review === true || milestone?.requires_review === "true" ? true : null,
+          reason: toText(milestone?.reason),
+          start_date: dateOf(milestone?.start_date, `Milestone "${milestoneName}"`, "Start"),
+          target_date: dateOf(milestone?.target_date, `Milestone "${milestoneName}"`, "Target"),
+          dates_derived: milestone?.dates_derived === true || milestone?.dates_derived === "true" ? true : null,
+          tasks: (Array.isArray(milestone?.tasks) ? milestone.tasks : []).map((task) => {
+            const ref = toText(task?.ref);
+            const where = ref ? `Task ${ref}` : `Task "${toText(task?.title) || "untitled"}"`;
+            return {
+              ref,
+              title: toText(task?.title) || "Untitled task",
+              description: toText(task?.description),
+              owner_name: toText(task?.owner_name),
+              support: toText(task?.support),
+              phase: toText(task?.phase),
+              start_date: dateOf(task?.start_date, where, "Start"),
+              due_date: dateOf(task?.due_date, where, "Due"),
+              priority: toPriority(task?.priority),
+              definition_of_done: toText(task?.definition_of_done),
+              depends_on: (Array.isArray(task?.depends_on) ? task.depends_on : [])
+                .map((reference) => String(reference).trim())
+                .filter(Boolean),
+              deliverables: (Array.isArray(task?.deliverables) ? task.deliverables : [])
+                .map((deliverable) => ({ title: toText(deliverable?.title) }))
+                .filter((deliverable) => deliverable.title),
+            };
+          }),
+        };
+      }),
+    };
+  });
 }
 
 /** Every task ref in the proposal — what a dependency is allowed to point at. */
@@ -212,6 +275,216 @@ export function collectTaskRefs(journeys = []) {
     }
   }
   return refs;
+}
+
+/** A name as a match key: case, "&"/"and" and punctuation are not meaning. */
+const nameKey = (value) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+/** Fold one copy of a stated milestone into the copy already standing in its
+ *  journey: tasks and stated refs are the union, and the first value of everything
+ *  else wins — the same rule the parts themselves were merged under. */
+function keepMilestone(journey, milestone) {
+  const key = nameKey(milestone?.name);
+  const existing = (journey.milestones || []).find((item) => nameKey(item?.name) === key);
+  if (!existing) {
+    journey.milestones = [...(journey.milestones || []), milestone];
+    return;
+  }
+
+  const seen = new Set((existing.tasks || []).map((task) => nameKey(task?.ref) || `t:${nameKey(task?.title)}`));
+  for (const task of milestone.tasks || []) {
+    const identity = nameKey(task?.ref) || `t:${nameKey(task?.title)}`;
+    if (seen.has(identity)) continue;
+    seen.add(identity);
+    existing.tasks = [...(existing.tasks || []), task];
+  }
+
+  existing.task_refs = existing.task_refs || [];
+  const stated = new Set(existing.task_refs.map((reference) => nameKey(reference)));
+  for (const reference of milestone.task_refs || []) {
+    if (stated.has(nameKey(reference))) continue;
+    stated.add(nameKey(reference));
+    existing.task_refs.push(reference);
+  }
+
+  for (const field of ["ref", "description", "objective", "priority", "start_date", "target_date", "reason"]) {
+    if (!existing[field] && milestone[field]) existing[field] = milestone[field];
+  }
+  if (existing.requires_review !== true && milestone.requires_review === true) existing.requires_review = true;
+  if (existing.dates_derived !== true && milestone.dates_derived === true) existing.dates_derived = true;
+}
+
+/**
+ * Put every stated milestone under the journey ITS OWN LIST places it in.
+ *
+ * THE JOURNEY LAYER NEEDED THE SAME TREATMENT AS THE TASK LAYER. A sheet read in
+ * parts is interpreted one part at a time, and the parts disagreed about where the
+ * plan lives: the parts carrying rows described the workbook by its TITLE, while the
+ * parts carrying the milestone list described the programmes the workbook actually
+ * names. Merging kept both, so the plan arrived as one journey holding every
+ * milestone and every activity, PLUS six journeys holding the same nineteen
+ * milestones, empty — and the reviewer had to work out which half was real.
+ *
+ * The list states the home, so the home is DATA (`journey_name`), applied here on the
+ * merged proposal BY THE STATED JOURNEY'S NAME — never by milestone name alone,
+ * because "Regulatory & Corridor Intelligence" legitimately stands under two
+ * different journeys, and name-matching would move real work between them.
+ *
+ * A journey the list names but no part emitted is CREATED: the list is the authority
+ * for structure, and omitting it would drop stated structure rather than a duplicate.
+ * A journey the list does NOT name and that is left holding nothing is REMOVED — it is
+ * a heading invented from the workbook's own title, and an invented heading is not
+ * something a reviewer should have to notice and delete by hand. A journey the list
+ * DOES name is kept even when empty: there, the emptiness is a finding.
+ */
+export function placeMilestonesByStatedJourneys(journeys = [], warnings = []) {
+  const statedNames = new Map();
+  for (const journey of journeys) {
+    for (const milestone of journey.milestones || []) {
+      const name = toText(milestone?.journey_name);
+      if (name && !statedNames.has(nameKey(name))) statedNames.set(nameKey(name), name);
+    }
+  }
+  // No stated journey anywhere: the workbook's structure is the analyst's own, and
+  // this pass must not touch it.
+  if (statedNames.size === 0) return { moved: 0, created: 0, dropped: 0 };
+
+  const byName = new Map();
+  for (const journey of journeys) {
+    const key = nameKey(journey?.name);
+    if (key && !byName.has(key)) byName.set(key, journey);
+  }
+
+  let created = 0;
+  for (const [key, name] of statedNames) {
+    if (byName.has(key)) continue;
+    const journey = { name, objective: null, start_date: null, target_date: null, dates_derived: null, milestones: [] };
+    journeys.push(journey);
+    byName.set(key, journey);
+    created += 1;
+  }
+
+  let moved = 0;
+  for (const journey of journeys) {
+    const kept = [];
+    for (const milestone of journey.milestones || []) {
+      const stated = toText(milestone?.journey_name);
+      const home = stated ? byName.get(nameKey(stated)) : null;
+      if (!home || home === journey) {
+        kept.push(milestone);
+        continue;
+      }
+      keepMilestone(home, milestone);
+      moved += 1;
+    }
+    journey.milestones = kept;
+  }
+
+  const dropped = [];
+  const survivors = [];
+  for (const journey of journeys) {
+    if ((journey.milestones || []).length === 0 && !statedNames.has(nameKey(journey?.name))) {
+      dropped.push(journey.name);
+      continue;
+    }
+    survivors.push(journey);
+  }
+  journeys.splice(0, journeys.length, ...survivors);
+
+  if (moved > 0 || created > 0 || dropped.length > 0) {
+    warnings.push(
+      `The workbook's own milestone list states which journey each milestone belongs to: ${moved} milestone(s) were placed in the journey that states them` +
+        (created > 0 ? `, ${created} journey(s) it names were added` : "") +
+        (dropped.length > 0
+          ? `, and ${dropped.length} journey(s) it does not name, left holding nothing, were removed (${dropped.slice(0, 5).join(", ")}${dropped.length > 5 ? ", and more" : ""})`
+          : "") +
+        ".",
+    );
+  }
+  return { moved, created, dropped: dropped.length };
+}
+
+/**
+ * Give every explicit milestone the activities IT names — once the parts are one.
+ *
+ * A sheet read in several passes is interpreted one pass at a time, so a milestone
+ * whose list states "MS-01, MS-02, MS-04" is described in a pass that may not
+ * CONTAIN those rows. The analyst could then only report "none of those activities
+ * appear in the portion of the Tracker provided", and milestones arrived empty with
+ * a "Needs review — assign the activities" banner — for a mapping the workbook had
+ * already stated.
+ *
+ * The membership is DATA (`task_refs`), so it is applied here: once, on the merged
+ * proposal, BY REFERENCE. References are unique, which is what makes this safe in a
+ * workbook where a milestone NAME is not — "Regulatory & Corridor Intelligence"
+ * legitimately appears under two different pillars, so matching by name would move
+ * real work into the wrong journey.
+ */
+export function placeTasksByStatedRefs(journeys = [], warnings = []) {
+  const byRef = new Map();
+  for (const journey of journeys) {
+    for (const milestone of journey.milestones || []) {
+      for (const ref of milestone.task_refs || []) {
+        const key = String(ref).trim().toLowerCase();
+        if (key && !byRef.has(key)) byRef.set(key, milestone);
+      }
+    }
+  }
+  if (byRef.size === 0) return { moved: 0, cleared: 0 };
+
+  const moves = [];
+  for (const journey of journeys) {
+    for (const milestone of journey.milestones || []) {
+      for (const task of milestone.tasks || []) {
+        const target = byRef.get(String(task?.ref || "").trim().toLowerCase());
+        if (target && target !== milestone) moves.push({ task, from: milestone, to: target });
+      }
+    }
+  }
+
+  let moved = 0;
+  for (const { task, from, to } of moves) {
+    const ref = String(task?.ref || "").trim().toLowerCase();
+    const alreadyThere = (to.tasks || []).some(
+      (existing) => String(existing?.ref || "").trim().toLowerCase() === ref,
+    );
+    from.tasks = (from.tasks || []).filter((item) => item !== task);
+    if (alreadyThere) continue;
+    to.tasks = [...(to.tasks || []), task];
+    moved += 1;
+  }
+
+  // A milestone that now holds the activities its own list named no longer needs a
+  // human: the doubt was "those rows were not in this part", and they are here now.
+  let cleared = 0;
+  for (const journey of journeys) {
+    for (const milestone of journey.milestones || []) {
+      if (milestone.requires_review !== true) continue;
+      const stated = (milestone.task_refs || []).map((ref) => String(ref).trim().toLowerCase()).filter(Boolean);
+      if (stated.length === 0) continue;
+      const held = new Set(
+        (milestone.tasks || []).map((task) => String(task?.ref || "").trim().toLowerCase()).filter(Boolean),
+      );
+      if (stated.every((ref) => held.has(ref))) {
+        milestone.requires_review = null;
+        milestone.reason = null;
+        cleared += 1;
+      }
+    }
+  }
+
+  if (moved > 0 || cleared > 0) {
+    warnings.push(
+      `The tracker's milestone list states which activities belong to each milestone: ${moved} activity(ies) were placed by that stated membership, and ${cleared} milestone(s) no longer need review.`,
+    );
+  }
+  return { moved, cleared };
 }
 
 /** A dependency must point at a task that exists in THIS proposal; anything
