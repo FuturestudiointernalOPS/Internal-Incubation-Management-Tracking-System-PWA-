@@ -97,6 +97,9 @@ describe("a neutral badge that BELONGS to a Venture", () => {
       assignedStaffId: null,
       status: null,
       search: null,
+      // Deleted Ventures are excluded from the directory unless a caller asks
+      // for them: the listing's own default, decided server-side.
+      includeArchived: false,
     });
   });
 

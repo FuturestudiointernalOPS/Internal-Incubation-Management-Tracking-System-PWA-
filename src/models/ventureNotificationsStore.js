@@ -14,13 +14,15 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── Notifications ────────────────────────────────────────────────────────────
 
 /** Insert one venture notification, returning its id. */
-export function insertNotificationRow({
-  recipientId, recipientType, ventureId, type, title, body, dataJson, priority, source, sourceId,
+export async function insertNotificationRow({
+  recipientId, recipientType, ventureId: ventureRef, type, title, body, dataJson, priority, source, sourceId,
 }) {
+  const ventureId = ventureRef ? await resolveVentureInternalId(ventureRef) : null;
   return db.execute({
     sql: `INSERT INTO venture_notifications (recipient_id, recipient_type, venture_id, type, title, body, data, priority, source, source_id) VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?) RETURNING id`,
     args: [recipientId, recipientType, ventureId, type, title, body, dataJson, priority, source, sourceId],

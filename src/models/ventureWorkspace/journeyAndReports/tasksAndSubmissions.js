@@ -35,14 +35,14 @@ export async function hasApprovedTaskSubmission(taskId) {
   });
 }
 
-/** Tasks of a Venture (by code-or-uuid) among the given ids, for bulk archive. */
+/** Tasks of a Venture (by VNT code) among the given ids, for bulk archive. */
 export async function listTasksForArchive(id, ids) {
   return db.execute({
     sql: `SELECT t.id, t.title FROM venture_tasks t
-          JOIN ventures v ON (t.venture_id::text = v.id::text OR t.venture_id::text = v.venture_id)
-          WHERE (v.venture_id = ? OR v.id::text = ?)
+          JOIN ventures v ON t.venture_id = v.id::text
+          WHERE v.venture_id = ?
             AND t.id::text = ANY(?)`,
-    args: [id, id, ids],
+    args: [id, ids],
   });
 }
 

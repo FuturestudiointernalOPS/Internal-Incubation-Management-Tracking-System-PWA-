@@ -30,15 +30,19 @@ import {
   insertLeadOwnershipHistory,
 } from "@/models/ventureRecordStore";
 import { summarizeVentureMembers } from "@/models/ventureMembers";
+import { isVentureCode } from "@/lib/ventureIdentity";
 
 /**
  * Get a venture by its venture_id with founder info.
  */
 export async function getVentureById(ventureId) {
-  // Normalize: routes may receive a numeric/UUID id (e.g. from list pages or
-  // pre-fix promoted ventures). Resolve it to the VNT business key first.
+  // Normalize: routes may receive the internal id (a UUID, or the legacy integer
+  // on a database that has not run the conversion) instead of the code — e.g.
+  // from list pages or pre-fix promoted ventures. Resolve it to the VNT business
+  // key first. The code/business-key test lives in `@/lib/ventureIdentity` so no
+  // reader re-derives the `^VNT-` shape on its own.
   let key = ventureId;
-  if (ventureId && !/^VNT-/i.test(ventureId)) {
+  if (ventureId && !isVentureCode(ventureId)) {
     try {
       const byId = await selectVentureCodeByInternalId(ventureId);
       if (byId.rows.length > 0 && byId.rows[0].venture_id) {
@@ -52,16 +56,21 @@ export async function getVentureById(ventureId) {
   if (ventureRes.rows.length === 0) return null;
 
   const venture = ventureRes.rows[0];
+  const relatedId = venture.id;
+
+  // The related tables key on the INTERNAL id (Phase 0 —
+  // docs/VENTURE_IDENTITY_PHASE0.md); the code above only found the row. The
+  // business key is never handed to a child read again.
 
   // Get founders
-  const foundersRes = await selectFoundersByVenture(key);
+  const foundersRes = await selectFoundersByVenture(relatedId);
 
   // Get members — the membership list IS the Venture's people. The founder table
   // read above is the INVITATION ledger; it is shown on the founders screen and
   // is never the source of a member count.
   let members = [];
   try {
-    members = await selectVentureMembersForRecord(key);
+    members = await selectVentureMembersForRecord(relatedId);
   } catch (_) {}
   const memberSummary = summarizeVentureMembers(members);
 
@@ -69,7 +78,7 @@ export async function getVentureById(ventureId) {
   // id instead of a name, so the journal never reads "by USR_…".
   let activity = [];
   try {
-    const activityRes = await selectVentureActivityForJournal(key);
+    const activityRes = await selectVentureActivityForJournal(relatedId);
     activity = (activityRes.rows || []).map((activityRow) => ({
       ...activityRow,
       actor_name: activityRow.actor_resolved_name || activityRow.actor_name || null,
@@ -77,12 +86,12 @@ export async function getVentureById(ventureId) {
   } catch (_) {}
 
   // Get history
-  const historyRes = await selectVentureHistory(key);
+  const historyRes = await selectVentureHistory(relatedId);
 
   // Get startup profile progress
   let profileProgress = null;
   try {
-    const progressRes = await selectVentureProfileProgress(key);
+    const progressRes = await selectVentureProfileProgress(relatedId);
     profileProgress = progressRes.rows[0] || null;
   } catch (_) {}
 

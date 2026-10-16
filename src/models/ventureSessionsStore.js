@@ -13,11 +13,17 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── Reads ────────────────────────────────────────────────────────────────────
+//
+// `venture_sessions` and `venture_session_activity` key on the INTERNAL id since
+// Phase 0. The Venture-taking reads and writes below resolve their reference, so
+// the routes keep passing the code they carry.
 
 /** A Venture's sessions (optional filters), newest first. */
-export function selectSessions(ventureId, filters = {}) {
+export async function selectSessions(ventureRef, filters = {}) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   let sql = "SELECT * FROM venture_sessions WHERE venture_id = ?";
   const args = [ventureId];
   if (filters.startDate) { sql += " AND start_time >= ?"; args.push(filters.startDate); }
@@ -50,7 +56,8 @@ export function selectSessionActionItems(sessionId) {
 }
 
 /** Sessions of a Venture that overlap a window (optional excluded id). */
-export function selectVentureSessionConflicts(ventureId, endTime, startTime, excludeSessionId) {
+export async function selectVentureSessionConflicts(ventureRef, endTime, startTime, excludeSessionId) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   let sql = `SELECT id FROM venture_sessions WHERE venture_id = ? AND status NOT IN ('cancelled','no_show') AND start_time < ? AND end_time > ?`;
   const args = [ventureId, endTime, startTime];
   if (excludeSessionId) { sql += " AND id != ?"; args.push(parseInt(excludeSessionId)); }
@@ -68,34 +75,41 @@ export function selectCoachSessionConflicts(coachId, endTime, startTime) {
 // ── Session writes ───────────────────────────────────────────────────────────
 
 /** Insert a session with every current column (materials included). */
-export function insertSessionFull(args) {
+export async function insertSessionFull(args) {
+  const [ventureRef, ...rest] = args;
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO venture_sessions (venture_id, title, description, session_type, coach_id, coach_name, founder_cid, founder_name, start_time, end_time, timezone, location, meeting_link, agenda, created_by, venture_facing, preparation_notes, journey_stage_id, milestone_ref, task_id, coach_contact_id, deliverable_id, materials)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-    args,
+    args: [ventureId, ...rest],
   });
 }
 
 /** Insert a session on a database without the `materials` column. */
-export function insertSessionWithoutMaterials(args) {
+export async function insertSessionWithoutMaterials(args) {
+  const [ventureRef, ...rest] = args;
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO venture_sessions (venture_id, title, description, session_type, coach_id, coach_name, founder_cid, founder_name, start_time, end_time, timezone, location, meeting_link, agenda, created_by, venture_facing, preparation_notes, journey_stage_id, milestone_ref, task_id, coach_contact_id, deliverable_id)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-    args,
+    args: [ventureId, ...rest],
   });
 }
 
 /** Insert a session on a database without the `deliverable_id`/`materials` columns. */
-export function insertSessionWithoutDeliverable(args) {
+export async function insertSessionWithoutDeliverable(args) {
+  const [ventureRef, ...rest] = args;
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO venture_sessions (venture_id, title, description, session_type, coach_id, coach_name, founder_cid, founder_name, start_time, end_time, timezone, location, meeting_link, agenda, created_by, venture_facing, preparation_notes, journey_stage_id, milestone_ref, task_id, coach_contact_id)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-    args,
+    args: [ventureId, ...rest],
   });
 }
 
 /** Append the SESSION_CREATED activity row. */
-export function insertSessionActivityCreated(sessionId, ventureId, actorCid, detailsJson) {
+export async function insertSessionActivityCreated(sessionId, ventureRef, actorCid, detailsJson) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO venture_session_activity (session_id, venture_id, action, actor_cid, details) VALUES (?, ?, 'SESSION_CREATED', ?, ?::jsonb)`,
     args: [sessionId, ventureId, actorCid, detailsJson],

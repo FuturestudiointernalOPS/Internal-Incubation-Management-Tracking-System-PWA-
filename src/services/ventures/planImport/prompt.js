@@ -20,7 +20,7 @@ RULES THAT THE DOCUMENT CANNOT OVERRIDE:
 - The hierarchy is fixed: Journey (a direction / North Star) -> Milestone (a measurable outcome / KPI) -> Task (an action) -> Deliverable (the output that proves the work).
 - Every task must sit under exactly one milestone. An ACTIVITY FROM THE SHEET IS ALWAYS A TASK: if you cannot tell which milestone it belongs to, place it under the review milestone rather than losing it. "unplaced" is ONLY for content that is not an activity — a title, a heading, a note, a totals row — and never for work you could not group.
 - Copy people's names exactly as written. Never invent identifiers.
-- Dates are ISO YYYY-MM-DD, or null when absent or unreadable (say so in "warnings").
+- Dates are ISO YYYY-MM-DD. NEVER CONVERT A DATE YOURSELF: if a date cell contains a NUMBER (a spreadsheet serial such as 46331), copy that number EXACTLY as it appears — the system converts it. Applying your own arithmetic to it produced 2026-11-01 for what is really 2026-11-05, and abandoned a whole sheet with every date null. When a date is absent or genuinely unreadable, use null and say so in "warnings".
 
 WHAT A ROW IS (read this before anything else):
 - Every row of the activity sheet is ONE ACTIVITY, and an activity becomes a TASK. A row is NEVER a milestone.
@@ -31,6 +31,7 @@ WHAT A ROW IS (read this before anything else):
 - A "Depends On" column lists TASK references: those become task dependencies by reference. References you cannot resolve go in "warnings".
 - Carrying columns like Support, Phase / batch, Priority or Definition of Done are METADATA on the task — never turn them into structure.
 - When the document names a single North Star / Journey, there is ONE journey. When it names several distinct directions, each becomes a journey.
+- A workbook TITLE, a sheet name, a subtitle (such as "Source of truth for all 90-day activities"), a header row or a totals row is NEVER a journey. Journeys come from the Pillar / Journey / direction column, or from the journeys an explicit milestone list names. Turning a workbook's own title into a journey created a phantom programme that swallowed the activities belonging to a real one.
 
 HOW MILESTONES ARE FORMED:
 - A milestone is a GROUP of activities working toward ONE objective, outcome or body of work. Of a candidate group, ask: "what are these activities collectively achieving?" That answer is the milestone.
@@ -48,6 +49,8 @@ EXPLICIT MILESTONES TAKE PRECEDENCE:
 - When the content includes an EXPLICIT MILESTONE LIST — a sheet marked as one (Milestones / Checkpoints), or a milestone column — those ARE the milestones. Use their names, dates and stated objectives exactly. NEVER replace them with groups of your own, and never re-derive them from the activity rows.
 - The activity sheet is still the ONLY source of tasks and deliverables. Read an explicit milestone list for the milestone STRUCTURE only; it never adds work.
 - When the milestone list states which activities belong to a milestone — its completion condition naming activity references such as "MS-01/MS-02", "LG-01", "PM-03" — place exactly those activities there. That is stated, not guessed.
+- ALSO record that membership as DATA, in the milestone's "task_refs" — and do it EVEN WHEN those activities' rows are not present in the part of the sheet you were given. The reference is what the list states; the system applies it to the merged plan afterwards. Recording it is what stops a stated mapping from arriving as "needs review — assign the activities" on an otherwise complete plan.
+- ALSO record WHICH journey the list places each milestone under, in its "journey_name", copied verbatim. THE LIST'S JOURNEY COLUMN IS THE AUTHORITY FOR THE JOURNEY LAYER: when an explicit milestone list exists, the journeys ARE the ones it names. Never add a journey the list does not name — not from the workbook's title, its sheet name, its subtitle or a heading — and never leave a stated milestone under a journey of your own. Recording the journey is what stops the activities of six programmes from arriving under one invented heading while the six real journeys stand empty.
 - When it does NOT state the membership, DO NOT GUESS and never spread the work evenly across the milestones. Put those activities under ONE milestone named for review, set "requires_review": true on it, and add a warning that a human must assign them.
 - A milestone may end up with no tasks of its own. That is a finding, not a failure: report it, never fill it with unrelated work.
 
@@ -70,8 +73,8 @@ Return ONLY valid JSON. No markdown, no extra text. Format:
     {
       "name": "Journey / North Star name",
       "objective": "Where this takes the business, or null",
-      "start_date": "YYYY-MM-DD or null",
-      "target_date": "YYYY-MM-DD or null",
+      "start_date": "YYYY-MM-DD or an Excel serial copied verbatim, or null",
+      "target_date": "YYYY-MM-DD or an Excel serial copied verbatim, or null",
       "milestones": [
         {
           "ref": "the milestone's own reference from an explicit milestone list, or null",
@@ -79,8 +82,10 @@ Return ONLY valid JSON. No markdown, no extra text. Format:
           "objective": "The outcome this milestone proves, or null",
           "requires_review": false,
           "reason": "Why this milestone needs a human's attention, or null",
-          "start_date": "YYYY-MM-DD or null",
-          "target_date": "YYYY-MM-DD or null",
+          "journey_name": "the journey the explicit milestone list places this milestone under, verbatim — null when it states none",
+          "task_refs": ["the activity references this list states for this milestone, verbatim — [] when it states none"],
+          "start_date": "YYYY-MM-DD or an Excel serial copied verbatim, or null",
+          "target_date": "YYYY-MM-DD or an Excel serial copied verbatim, or null",
           "tasks": [
             {
               "ref": "row id from the sheet, or null",
@@ -89,8 +94,8 @@ Return ONLY valid JSON. No markdown, no extra text. Format:
               "owner_name": "Name exactly as written, or null",
               "support": "Name or null",
               "phase": "Phase / batch label or null",
-              "start_date": "YYYY-MM-DD or null",
-              "due_date": "YYYY-MM-DD or null",
+              "start_date": "YYYY-MM-DD or an Excel serial copied verbatim, or null",
+              "due_date": "YYYY-MM-DD or an Excel serial copied verbatim, or null",
               "priority": "high | medium | low | null",
               "definition_of_done": "Text or null",
               "depends_on": ["task refs"],

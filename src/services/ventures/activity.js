@@ -117,12 +117,11 @@ export async function createVentureNotification({
 /** Notify all venture founders about an event */
 export async function notifyVentureFounders(dbId, title, message, context = {}, template = {}) {
   try {
-    // venture_members stores venture_id as the VNT code (TEXT)
+    // `dbId` IS the internal id and venture_members now keys on it (Phase 0).
     const ventureResult = await selectActivityVentureCode(dbId);
-    const code = ventureResult.rows?.[0]?.venture_id || dbId;
     const notificationContext = { ...(context || {}), venture_id: context?.venture_id || dbId };
     const { templateKey = null, params = null, dedupeKey = null } = template || {};
-    const founders = await selectFounderContactIds(code);
+    const founders = await selectFounderContactIds(dbId);
     for (const founder of founders.rows || []) {
       if (founder.contact_id) {
         await createVentureNotification({

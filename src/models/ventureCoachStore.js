@@ -13,6 +13,7 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── Contact / catalog lookups ────────────────────────────────────────────────
 
@@ -47,19 +48,24 @@ export function selectInvitableContactByEmail(cleanEmail) {
 
 // ── Assignment ───────────────────────────────────────────────────────────────
 
-/** Whether the contact already has an active assignment on the Venture. */
-export function selectActiveAssignmentProbe(code, cid) {
+/**
+ * Whether the contact already has an active assignment on the Venture.
+ * `ventureRef` is the access key or the internal id (Phase 0).
+ */
+export async function selectActiveAssignmentProbe(ventureRef, cid) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT 1 FROM venture_staff_assignments WHERE venture_id = ? AND staff_contact_id = ? AND status = 'active' LIMIT 1",
-    args: [code, cid],
+    args: [ventureId, cid],
   });
 }
 
-/** The contact's active assignment id on the Venture. */
-export function selectActiveAssignmentId(code, cid) {
+/** The contact's active assignment id on the Venture (same resolution). */
+export async function selectActiveAssignmentId(ventureRef, cid) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT id FROM venture_staff_assignments WHERE venture_id = ? AND staff_contact_id = ? AND status = 'active' LIMIT 1",
-    args: [code, cid],
+    args: [ventureId, cid],
   });
 }
 
@@ -81,12 +87,13 @@ export function updateCoachAssignment(assignmentId, responsibilityCode, scopeTyp
   });
 }
 
-/** Create the coach's Venture assignment. */
-export function insertCoachAssignment(code, cid, responsibilityCode, scopeType, actorCid, notes) {
+/** Create the coach's Venture assignment (same resolution). */
+export async function insertCoachAssignment(ventureRef, cid, responsibilityCode, scopeType, actorCid, notes) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO venture_staff_assignments (venture_id, staff_contact_id, responsibility_code, scope_type, assigned_by, notes)
             VALUES (?, ?, ?, ?, ?, ?)`,
-    args: [code, cid, responsibilityCode, scopeType, actorCid, notes],
+    args: [ventureId, cid, responsibilityCode, scopeType, actorCid, notes],
   });
 }
 

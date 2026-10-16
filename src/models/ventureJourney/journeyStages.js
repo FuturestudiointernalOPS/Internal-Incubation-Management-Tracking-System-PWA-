@@ -9,14 +9,23 @@ import db from "@/lib/db";
  * Model-layer rules: no HTTP, one function per query, named after the data.
  */
 
-/** Milestones bound to a Journey stage (rich columns), for the roadmap spine. */
-export async function listJourneyMilestonesByStage(dbId) {
+/**
+ * Milestones bound to a Journey stage (rich columns), for the roadmap spine.
+ *
+ * ARCHIVED milestones are excluded unless the caller explicitly asks for them
+ * (`includeArchived`), the same contract `selectJourneyStagesWithArchive` already
+ * keeps for stages. Without it a soft-deleted milestone — and, through it, its
+ * deliverables, activities and counts — kept appearing on the Journey as if it
+ * were live, while the Projects view (which does filter) showed it as gone.
+ */
+export async function listJourneyMilestonesByStage(dbId, { includeArchived = false } = {}) {
   return db.execute({
     sql: `SELECT id, title, description, objective, status, progress, start_date,
                  target_date, priority, display_order, created_at, journey_stage_id,
                  owner_cid, owner_name, support_name
           FROM venture_milestones
           WHERE venture_id = ? AND journey_stage_id IS NOT NULL
+            ${includeArchived ? "" : "AND COALESCE(is_archived, FALSE) = FALSE"}
           ORDER BY COALESCE(display_order, 0), created_at ASC`,
     args: [dbId],
   });

@@ -64,14 +64,25 @@ export async function createAdminVenture({
     args: [ventureId, name, name, industry, businessStage, createdByCid, now, now],
   });
 
+  // Provenance keys on the INTERNAL id (Phase 0 — docs/VENTURE_IDENTITY_PHASE0.md):
+  // the code is the access key, not a stored reference. Read the id back from
+  // the row we just created rather than guessing it.
+  const created = await db.execute({
+    sql: "SELECT id::text AS id FROM ventures WHERE venture_id = ? LIMIT 1",
+    args: [ventureId],
+  });
+  const internalId = created.rows?.[0]?.id || null;
+
   // Provenance: this Venture has no submission behind it. `admin` records the
   // manual origin so reporting can tell it apart from an approved intake.
-  await db.execute({
-    sql: `INSERT INTO venture_origins (venture_id, source_type, approved_by_cid, approved_at, created_at)
-          VALUES (?, 'admin', ?, ?, ?)
-          ON CONFLICT (venture_id) DO NOTHING`,
-    args: [ventureId, createdByCid, now, now],
-  });
+  if (internalId) {
+    await db.execute({
+      sql: `INSERT INTO venture_origins (venture_id, source_type, approved_by_cid, approved_at, created_at)
+            VALUES (?, 'admin', ?, ?, ?)
+            ON CONFLICT (venture_id) DO NOTHING`,
+      args: [internalId, createdByCid, now, now],
+    });
+  }
 
   return { venture_id: ventureId, company_name: name };
 }

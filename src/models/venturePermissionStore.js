@@ -14,6 +14,7 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── Seed ─────────────────────────────────────────────────────────────────────
 
@@ -110,7 +111,8 @@ export function upsertMatrixCell(responsibilityCode, area, action, allowed, acto
 // ── Assignments ──────────────────────────────────────────────────────────────
 
 /** A Venture's staff assignments, joined with the contact and responsibility. */
-export function selectAssignments(ventureId, includeRemoved) {
+export async function selectAssignments(ventureRef, includeRemoved) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT a.*, c.name AS staff_name, c.email AS staff_email, vr.name AS responsibility_name
           FROM venture_staff_assignments a
@@ -122,8 +124,8 @@ export function selectAssignments(ventureId, includeRemoved) {
   });
 }
 
-/** Create a staff assignment row. */
-export function insertAssignment({ ventureId, staffContactId, responsibilityCode, scopeType, scopeRefType, scopeRefId, assignedBy, notes }) {
+export async function insertAssignment({ ventureId: ventureRef, staffContactId, responsibilityCode, scopeType, scopeRefType, scopeRefId, assignedBy, notes }) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO venture_staff_assignments
           (venture_id, staff_contact_id, responsibility_code, scope_type, scope_ref_type, scope_ref_id, assigned_by, notes)
@@ -143,7 +145,9 @@ export function removeAssignmentRow(id) {
 // ── Capability evaluation ────────────────────────────────────────────────────
 
 /** A contact's active assignments on a Venture (responsibility + scope). */
-export function selectActiveAssignmentsForContact(ventureId, contactId) {
+/** The contact's active assignment rows on a Venture (access key or internal id). */
+export async function selectActiveAssignmentsForContact(ventureRef, contactId) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT a.responsibility_code, a.scope_type, a.scope_ref_type, a.scope_ref_id
           FROM venture_staff_assignments a
@@ -161,7 +165,8 @@ export function selectMatrixCell(responsibilityCode, area, action) {
 }
 
 /** Whether a contact holds any active assignment on a Venture. */
-export function selectAnyActiveAssignment(ventureId, contactId) {
+export async function selectAnyActiveAssignment(ventureRef, contactId) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT 1 FROM venture_staff_assignments WHERE venture_id = ? AND staff_contact_id = ? AND status = 'active' LIMIT 1",
     args: [ventureId, contactId],

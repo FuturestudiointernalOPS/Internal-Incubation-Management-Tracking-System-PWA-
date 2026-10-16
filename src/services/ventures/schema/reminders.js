@@ -23,6 +23,23 @@ export default [
 "CREATE TABLE IF NOT EXISTS venture_assignee_emails (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL, display_name TEXT NOT NULL, email TEXT NOT NULL, created_by TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
 "CREATE UNIQUE INDEX IF NOT EXISTS idx_assignee_email_name ON venture_assignee_emails (venture_id, LOWER(TRIM(display_name)))",
 
+// ─── WHICH PERSON a name in a tracker is ───
+//
+// The sibling of the table above, and the same shape: one row per NAME, keyed
+// by the name the tracker wrote. Where that table records an ADDRESS for a name,
+// this one records the IDENTITY — the contact it turned out to be.
+//
+// It exists because a name can appear where no row can hold an identifier: the
+// people SUPPORTING a piece of work are a text field, not a link. A tracker's
+// "Amina" is therefore identified ONCE for the whole Venture, and every mention
+// of her — owner of nine activities, support on three more — is the same person
+// from that moment on.
+//
+// Linking creates NOTHING: no account, no member, no access. It points at a
+// contact that already exists, and the name is never rewritten.
+"CREATE TABLE IF NOT EXISTS venture_assignee_links (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL, display_name TEXT NOT NULL, contact_cid TEXT NOT NULL, created_by TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
+"CREATE UNIQUE INDEX IF NOT EXISTS idx_assignee_link_name ON venture_assignee_links (venture_id, LOWER(TRIM(display_name)))",
+
 // ─── Reminder rules ───
 //
 // `days_before` is a SETTING, never a constant: the platform's older reminder
@@ -44,4 +61,19 @@ export default [
 // again every day; this index makes the second insert fail instead. Partial on
 // status='sent' so a FAILED send may be retried.
 "CREATE UNIQUE INDEX IF NOT EXISTS idx_reminder_log_once ON venture_reminder_log (dedupe_key) WHERE status = 'sent' AND dedupe_key IS NOT NULL",
+
+// ─── The sender's own words, and the one file that travelled with them ───
+//
+// A MANUAL reminder may carry its own subject, its own message and ONE
+// attachment. All three are recorded on the log row, so the history answers
+// "what exactly did we send", not merely "we sent something".
+//
+// `body` holds the sender's message as written; `subject` replaces the standard
+// line when set; `attachment_path` is the private storage path (the file itself
+// is never world-readable, and `attachment_name` is the name the recipient saw).
+// NULL means the standard wording / no file — an existing row is untouched.
+"ALTER TABLE venture_reminder_log ADD COLUMN IF NOT EXISTS subject TEXT",
+"ALTER TABLE venture_reminder_log ADD COLUMN IF NOT EXISTS body TEXT",
+"ALTER TABLE venture_reminder_log ADD COLUMN IF NOT EXISTS attachment_path TEXT",
+"ALTER TABLE venture_reminder_log ADD COLUMN IF NOT EXISTS attachment_name TEXT",
 ];

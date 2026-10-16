@@ -439,7 +439,10 @@ recrue ne peut pas les deviner. À trancher avant d'ouvrir la contribution :
   colonne `company_name`, l'autre `name`. Interroge avant de supposer.
 - Le code de venture est tantôt un **texte court**, tantôt un **identifiant
   technique**, selon la table. Une conversion est prévue pour ça ; l'oublier
-  refuse silencieusement l'accès aux responsables délégués.
+  refuse silencieusement l'accès aux responsables délégués. La cible est fixée
+  (identifiant interne = `ventures.id` ; le code `VNT-…` = clé d'accès décorative)
+  et vit dans `src/lib/ventureIdentity.js` — voir `docs/VENTURE_IDENTITY_PHASE0.md`
+  et `npm run db:venture-identity` pour la carte et la mise en conformité.
 - Le type d'identifiant des jalons n'est **pas tranché** : le code se protège en
   comparant du texte.
 - Il existe une **dérive historique** entre le code et le schéma réel. Vérifie

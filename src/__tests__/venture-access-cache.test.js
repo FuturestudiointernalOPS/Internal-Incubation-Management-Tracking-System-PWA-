@@ -16,7 +16,7 @@
 const queries = [];
 
 const state = {
-  venture: { code: "VNT-1", status: "active", is_archived: false },
+  venture: { id: "internal-1", code: "VNT-1", status: "active", is_archived: false },
   isMember: true,
   isAssigned: false,
   failVentureRead: false,
@@ -52,13 +52,14 @@ const { requireVentureAccess, resolveVentureLifecycle } = require("@/lib/venture
 const { invalidateVentureAccess, resetVentureAccessCache } = require("@/services/ventures/accessFacts");
 
 const CODE = "VNT-1";
+const INTERNAL = "internal-1";
 const ACCESS_SQL = (sql) => sql.includes("FROM ventures") || sql.includes("FROM venture_members");
 
 beforeEach(() => {
   resetVentureAccessCache();
   queries.length = 0;
   mockDb.execute.mockClear();
-  state.venture = { code: CODE, status: "active", is_archived: false };
+  state.venture = { id: INTERNAL, code: CODE, status: "active", is_archived: false };
   state.isMember = true;
   state.isAssigned = false;
   state.failVentureRead = false;
@@ -105,15 +106,16 @@ describe("one answer, every screen", () => {
 
   test("an internal id reaches the same answer as the human code", async () => {
     const uuid = "2b7feb6c-763a-48e1-84a0-d768cd4abfbf";
-    state.venture = { code: CODE, status: "active", is_archived: false };
+    state.venture = { id: uuid, code: CODE, status: "active", is_archived: false };
 
     const result = await requireVentureAccess(uuid);
     expect(result.session).toBeTruthy();
     expect(queries[0]).toContain("WHERE id = ?");
 
-    // And the relationship was looked up under the CODE the Venture resolved to.
+    // The relationship is looked up under the INTERNAL id (Phase 0) — the id the
+    // membership and assignment tables key on, read off the Venture's own row.
     expect(queries[1]).toContain("FROM venture_members");
-    expect(mockDb.execute.mock.calls[1][0].args.slice(0, 2)).toEqual([CODE, "USR-founder"]);
+    expect(mockDb.execute.mock.calls[1][0].args.slice(0, 2)).toEqual([uuid, "USR-founder"]);
   });
 });
 

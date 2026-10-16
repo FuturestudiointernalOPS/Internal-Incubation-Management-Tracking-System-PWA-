@@ -99,15 +99,25 @@ export function getVentureFacts(ventureId) {
  * The viewer's relationship to one Venture, in one round trip: both facts in a
  * single statement, so the two questions that decide access stop costing two
  * round trips.
+ *
+ * `ventureRef` is the access key OR the internal id — the Venture's own row is
+ * what carries the internal id the two tables key on (Phase 0), and it is
+ * already cached by the access check that precedes this call, so the resolution
+ * costs no query of its own.
+ *
+ * The cache is keyed on the REFERENCE the caller passed, so
+ * `invalidateVentureAccess(ref)` keeps working exactly as before.
  */
-export function getViewerRelationship(ventureCode, cid) {
-  const key = String(ventureCode || "").trim();
+export function getViewerRelationship(ventureRef, cid) {
+  const key = String(ventureRef || "").trim();
   const viewer = String(cid || "").trim();
   if (!key || !viewer) {
     return Promise.resolve({ is_member: false, is_assigned: false });
   }
   return remember(relationshipLayer, `${key}|${viewer}`, async () => {
-    const result = await selectViewerRelationship(key, viewer);
+    const facts = await getVentureFacts(key);
+    if (!facts?.id) return { is_member: false, is_assigned: false };
+    const result = await selectViewerRelationship(facts.id, viewer);
     const row = result.rows?.[0] || {};
     return { is_member: row.is_member === true, is_assigned: row.is_assigned === true };
   });
@@ -115,21 +125,24 @@ export function getViewerRelationship(ventureCode, cid) {
 
 /**
  * Everything an access decision needs, cheapest first: the Venture's facts give
- * the code the relationship is stored under.
+ * the internal id the relationship is stored under.
  */
 export async function ventureAccessFacts(ventureId, cid) {
   const facts = await getVentureFacts(ventureId);
   if (!facts) return { facts: null, relationship: { is_member: false, is_assigned: false } };
-  const relationship = await getViewerRelationship(facts.code, cid);
+  // The SAME reference, so the facts lookup inside is a cache hit, not a new query.
+  const relationship = await getViewerRelationship(ventureId, cid);
   return { facts, relationship };
 }
 
 /**
  * Forget what was remembered about a Venture — call it from the paths that
  * change membership or assignments, so a removed person loses the answer they
- * had without waiting for the window. Accepts the code or the internal id; the
- * relationship entries are stored under the code, so a removal by id relies on
- * the window (which only ever keeps an answer that was true moments before).
+ * had without waiting for the window. Accepts the code or the internal id: the
+ * relationship entries are stored under the reference the caller asked with, so
+ * a removal must invalidate with the SAME reference its screens read with (a
+ * code-keyed screen is cleared by its code). Whatever is missed is bounded by
+ * the window, which only ever keeps an answer that was true moments before.
  */
 export function invalidateVentureAccess(ventureId) {
   const key = String(ventureId || "").trim();

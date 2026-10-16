@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 /**
  * The email on file for an assignee who is only a NAME (REPOSITORY layer).
@@ -15,7 +16,8 @@ import db from "@/lib/db";
  */
 
 /** Every email on file for a Venture, keyed for lookup by display name. */
-export function selectAssigneeEmails(ventureId) {
+export async function selectAssigneeEmails(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT id, display_name, email, updated_at
           FROM venture_assignee_emails
@@ -31,7 +33,8 @@ export function selectAssigneeEmails(ventureId) {
  * Upsert on the lower-cased name: a person's address is corrected, never
  * duplicated, however the sheet capitalises their name on each row.
  */
-export function upsertAssigneeEmail({ ventureId, displayName, email, actorCid }) {
+export async function upsertAssigneeEmail({ ventureId: ventureRef, displayName, email, actorCid }) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO venture_assignee_emails (venture_id, display_name, email, created_by)
           VALUES (?, ?, ?, ?)
@@ -43,7 +46,8 @@ export function upsertAssigneeEmail({ ventureId, displayName, email, actorCid })
 }
 
 /** Remove the address on file for one name. The assignments themselves stay. */
-export function deleteAssigneeEmail({ ventureId, displayName }) {
+export async function deleteAssigneeEmail({ ventureId: ventureRef, displayName }) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `DELETE FROM venture_assignee_emails
           WHERE venture_id::text = ?::text AND LOWER(TRIM(display_name)) = LOWER(TRIM(?))`,

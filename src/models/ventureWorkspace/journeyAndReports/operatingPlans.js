@@ -1,29 +1,37 @@
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── /api/ventures/[id]/operating-plans (+ [planId], [planId]/sections) ───────
+//
+// `venture_operating_plans` keys on the INTERNAL id since Phase 0. Every read
+// and write below takes the access key or the internal id and resolves it, so
+// the routes can keep passing the code they carry.
 
 /** A Venture's operating plans with their section counts. */
-export async function listVentureOperatingPlans(ventureCode) {
+export async function listVentureOperatingPlans(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT p.*,
         (SELECT COUNT(*) FROM venture_plan_sections s WHERE s.plan_id = p.id) AS section_count,
         (SELECT COUNT(*) FROM venture_plan_sections s WHERE s.plan_id = p.id AND s.status = 'completed') AS completed_sections
         FROM venture_operating_plans p WHERE p.venture_id = ? ORDER BY p.created_at DESC`,
-    args: [ventureCode],
+    args: [ventureId],
   });
 }
 
 /** Insert an operating plan, returning the new id. */
-export async function insertVentureOperatingPlan({ ventureCode, name, objective, createdBy }) {
+export async function insertVentureOperatingPlan({ ventureCode: ventureRef, name, objective, createdBy }) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "INSERT INTO venture_operating_plans (venture_id, name, objective, created_by) VALUES (?,?,?,?) RETURNING id",
-    args: [ventureCode, name, objective, createdBy],
+    args: [ventureId, name, objective, createdBy],
   });
 }
 
 /** One operating plan of a Venture, by id (full row). */
-export async function getVentureOperatingPlan(planId, ventureCode) {
-  return db.execute({ sql: "SELECT * FROM venture_operating_plans WHERE id = ? AND venture_id = ?", args: [planId, ventureCode] });
+export async function getVentureOperatingPlan(planId, ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
+  return db.execute({ sql: "SELECT * FROM venture_operating_plans WHERE id = ? AND venture_id = ?", args: [planId, ventureId] });
 }
 
 /** A plan's sections, in display order. */
@@ -42,26 +50,30 @@ export async function listVenturePlanLinks(planId) {
 }
 
 /** Update a plan's name/objective/status (COALESCE: absent = unchanged). */
-export async function updateVentureOperatingPlan({ planId, ventureCode, name, objective, status }) {
+export async function updateVentureOperatingPlan({ planId, ventureCode: ventureRef, name, objective, status }) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "UPDATE venture_operating_plans SET name = COALESCE(?, name), objective = COALESCE(?, objective), status = COALESCE(?, status), updated_at = NOW() WHERE id = ? AND venture_id = ?",
-    args: [name, objective, status, planId, ventureCode],
+    args: [name, objective, status, planId, ventureId],
   });
 }
 
 /** Existence check: an operating plan of a Venture, by id. */
-export async function ventureOperatingPlanExists(planId, ventureCode) {
-  return db.execute({ sql: "SELECT id FROM venture_operating_plans WHERE id = ? AND venture_id = ?", args: [planId, ventureCode] });
+export async function ventureOperatingPlanExists(planId, ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
+  return db.execute({ sql: "SELECT id FROM venture_operating_plans WHERE id = ? AND venture_id = ?", args: [planId, ventureId] });
 }
 
 /** Archive an operating plan. */
-export async function archiveVentureOperatingPlan(planId, ventureCode) {
-  return db.execute({ sql: "UPDATE venture_operating_plans SET status = 'archived', updated_at = NOW() WHERE id = ? AND venture_id = ?", args: [planId, ventureCode] });
+export async function archiveVentureOperatingPlan(planId, ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
+  return db.execute({ sql: "UPDATE venture_operating_plans SET status = 'archived', updated_at = NOW() WHERE id = ? AND venture_id = ?", args: [planId, ventureId] });
 }
 
 /** Existence check: a live (non-archived) plan of a Venture. */
-export async function liveVenturePlanExists(planId, ventureCode) {
-  return db.execute({ sql: "SELECT id FROM venture_operating_plans WHERE id = ? AND venture_id = ? AND status <> 'archived'", args: [planId, ventureCode] });
+export async function liveVenturePlanExists(planId, ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
+  return db.execute({ sql: "SELECT id FROM venture_operating_plans WHERE id = ? AND venture_id = ? AND status <> 'archived'", args: [planId, ventureId] });
 }
 
 /** Existence check: a section of a plan. */

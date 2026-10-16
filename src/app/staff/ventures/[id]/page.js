@@ -16,6 +16,7 @@ import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
 import DocumentTypeManager from "@/components/ventures/DocumentTypeManager";
 import DataBankPanel from "@/components/ventures/DataBankPanel";
 import ProjectsWorkItemsView from "@/components/ventures/projects/ProjectsWorkItemsView";
+import VenturePeoplePanel from "@/components/ventures/projects/VenturePeoplePanel";
 
 /**
  * Staff → Ventures → [Venture] — staff workspace (Phase 3).
@@ -414,6 +415,15 @@ export default function StaffVentureWorkspace() {
           The server gate is `ventures.view` + venture scope, which already admits
           the Venture's own Lead Manager; this is the surface that was missing. */}
       {activeTab === "projects" && isLeadManager && <ProjectsWorkItemsView ventureId={id} />}
+
+      {/* WHO the work stands on: the same linking the Super Admin's Project page
+          offers, so a Lead Manager can name the people their Venture's work
+          mentions and their reminders reach them. */}
+      {activeTab === "projects" && isLeadManager && (
+        <div className="pt-2">
+          <VenturePeoplePanel ventureId={id} />
+        </div>
+      )}
 
       {activeTab === "tasks" && <VentureTasksPanel ventureId={id} />}
 

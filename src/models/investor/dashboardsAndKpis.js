@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── GET /api/investor/dashboard ─────────────────────────────────────────────
 
@@ -327,7 +328,10 @@ export async function listVentureKpisByVentureId(ventureId) {
 }
 
 /** kpis POST — upsert a venture KPI by (venture_id, kpi_key). */
-export async function upsertVentureKpi({ venture_id, kpi_key, kpi_label, kpi_value, trend }) {
+export async function upsertVentureKpi({ venture_id: ventureRef, kpi_key, kpi_label, kpi_value, trend }) {
+  // venture_kpis holds the INTERNAL id (Phase 0): resolve whatever the caller holds,
+  // so a code from a URL never reaches a uuid column as a uuid-parse error.
+  const venture_id = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO venture_kpis (venture_id, kpi_key, kpi_label, kpi_value, trend)
             VALUES (?, ?, ?, ?, ?)
