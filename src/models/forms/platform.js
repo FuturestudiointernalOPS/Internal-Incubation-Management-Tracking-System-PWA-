@@ -52,12 +52,20 @@ export async function listPlatformForms(collectionId, status) {
   return db.execute({ sql, args });
 }
 
-/** Platform form row by numeric id (publish path existence check). */
-export async function getPlatformFormById(formId) {
+/**
+ * THE form-row lookup: the full `platform_forms` row by id. Every other
+ * "form by id" model function delegates here instead of repeating the SQL.
+ */
+export async function selectFormRowById(formId) {
   return db.execute({
     sql: "SELECT * FROM platform_forms WHERE id = ?",
     args: [formId],
   });
+}
+
+/** Platform form row by numeric id (publish path existence check). */
+export async function getPlatformFormById(formId) {
+  return selectFormRowById(formId);
 }
 
 /** Insert a version snapshot row for a published form. */

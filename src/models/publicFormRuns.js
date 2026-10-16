@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { selectFormRowById } from "@/models/forms/platform";
 
 /**
  * Public form-run model — data access for the public form controllers:
@@ -140,10 +141,7 @@ export async function getFormSettingsByRunId(run_id) {
 
 /** Full form row by id (background automation payload). */
 export async function getFormById(form_id) {
-  return db.execute({
-    sql: "SELECT * FROM platform_forms WHERE id = ?",
-    args: [form_id],
-  });
+  return selectFormRowById(form_id);
 }
 
 // ---------------------------------------------------------------------------

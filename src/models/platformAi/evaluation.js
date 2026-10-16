@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { selectFormRowById } from "@/models/forms/platform";
 
 /**
  * Platform AI model — the batch evaluation engine (REPOSITORY layer).
@@ -120,10 +121,7 @@ export async function getRunForAutoApprove(runId) {
 
 /** Full form row used by the auto-approval cutoff check. */
 export async function getFormForAutoApprove(formId) {
-  return db.execute({
-    sql: "SELECT * FROM platform_forms WHERE id = ?",
-    args: [formId],
-  });
+  return selectFormRowById(formId);
 }
 
 /** Field ids + labels of a form (duplicate-guard email resolution). */

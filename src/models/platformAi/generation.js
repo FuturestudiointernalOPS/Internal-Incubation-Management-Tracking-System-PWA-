@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { selectFormRowById } from "@/models/forms/platform";
 
 /**
  * Platform AI model — form generation, analysis log and framework config
@@ -86,10 +87,7 @@ export async function getRunForAiAnalysis(runId) {
 
 /** Full form row providing context for AI analysis. */
 export async function getFormForAiAnalysis(formId) {
-  return db.execute({
-    sql: "SELECT * FROM platform_forms WHERE id = ?",
-    args: [formId],
-  });
+  return selectFormRowById(formId);
 }
 
 /** Governance log entry recording that a submission was AI-analyzed. */

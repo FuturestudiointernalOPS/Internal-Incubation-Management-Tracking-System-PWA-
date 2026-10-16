@@ -27,6 +27,7 @@ import {
 } from "@/models/formRuns";
 
 import { buildRunDetail } from "@/services/platform/formRuns";
+import { resolveRunScoring } from "@/lib/platform/runSettings";
 import { scheduleResultSweep } from "./scheduleResultSweep";
 
 export async function GET(req) {
@@ -153,18 +154,15 @@ export async function GET(req) {
       // Fetch run for context
       const run = await getRunContextForScoringById(submission.run_id);
 
-      // Fetch scoring config from run or form
+      // Scoring config: run → form, through the one shared rule. The form is
+      // only read when the run alone does not decide.
       let scoringConfig = null;
       if (run.rows.length > 0) {
-        const runSettings = run.rows[0].settings || {};
-        if (runSettings.scoring?.enabled) {
-          scoringConfig = runSettings.scoring;
-        } else {
+        const runSettings = run.rows[0].settings;
+        scoringConfig = resolveRunScoring(null, runSettings);
+        if (!scoringConfig) {
           const formResult = await getFormScoringConfigById(run.rows[0].form_id);
-          if (formResult.rows.length > 0) {
-            const formSettings = formResult.rows[0].settings || {};
-            if (formSettings.scoring?.enabled) scoringConfig = formSettings.scoring;
-          }
+          scoringConfig = resolveRunScoring(formResult.rows[0]?.settings, runSettings);
         }
       }
 

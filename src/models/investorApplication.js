@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { selectFormRowById } from "@/models/forms/platform";
 
 /**
  * INVESTOR APPLICATION — data access for the investor intake seed + run
@@ -90,10 +91,7 @@ export async function insertInvestorApplicationSnapshot(formId, snapshot) {
 
 /** Reload the form row after the seed wrote its sections/fields. */
 export async function getFormByIdForInvestorSeed(formId) {
-  return db.execute({
-    sql: "SELECT * FROM platform_forms WHERE id = ?",
-    args: [formId],
-  });
+  return selectFormRowById(formId);
 }
 
 /** The form's active, shareable run (if any). At most one is used as the link. */

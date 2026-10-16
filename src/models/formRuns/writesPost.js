@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { selectFormRowById } from "@/models/forms/platform";
 
 // ── POST /api/platform/form-runs ─────────────────────────────────────────────
 
@@ -66,7 +67,7 @@ export async function getFullRunForSubmissionAutomationById(runId) {
 
 /** Full form row for the submit automation context (existing submission). */
 export async function getFormForSubmissionAutomationById(formId) {
-  return db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [formId] });
+  return selectFormRowById(formId);
 }
 
 /** Insert a new submission from the submit action (returns the created row). */
@@ -84,7 +85,7 @@ export async function getFullRunForInsertSubmissionAutomationById(runId) {
 
 /** Full form row for the new-submission automation context. */
 export async function getFormForInsertSubmissionAutomationById(formId) {
-  return db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [formId] });
+  return selectFormRowById(formId);
 }
 
 /** Full run row for the manual-add action. */
@@ -149,7 +150,7 @@ export async function insertManualAddSubmission({ runId, submitterId, submitterN
 
 /** Full form row for the manual-add automation context. */
 export async function getFormForManualAddAutomationById(formId) {
-  return db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [formId] });
+  return selectFormRowById(formId);
 }
 
 /** Submission rows for bulk-review backend validation (scoped to a run). */
@@ -180,7 +181,7 @@ export async function getRunDataForActivationRetryById(runId) {
 
 /** Full form row for an activation-email retry. */
 export async function getFormForActivationRetryById(formId) {
-  return db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [formId] });
+  return selectFormRowById(formId);
 }
 
 /** Submission ids for cancel-batch backend validation (scoped to a run). */
@@ -309,7 +310,7 @@ export async function getRunDataForActivationSendById(runId) {
 
 /** Full form row for the activation-message send. */
 export async function getFormForActivationSendById(formId) {
-  return db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [formId] });
+  return selectFormRowById(formId);
 }
 
 /** Rotate a run's public slug (regenerate-link action). */
