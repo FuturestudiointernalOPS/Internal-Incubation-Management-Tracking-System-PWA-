@@ -281,3 +281,18 @@ export async function archiveCourse(courseId) {
   });
   return { success: true };
 }
+
+export async function unarchiveCourse(courseId) {
+  const course = await getCourse(courseId);
+  if (!course) throw new LmsError("lms.errors.courseNotFound", 404);
+  if (course.status === "published") return { success: true, alreadyPublished: true };
+  if (course.status !== "archived") throw new LmsError("lms.errors.notArchived", 409);
+
+  // Only a published course can be archived, so restoring returns it to
+  // published: open to new enrollment again. Learner records were never touched.
+  await db.execute({
+    sql: "UPDATE lms_courses SET status = 'published', updated_at = NOW() WHERE id = ?",
+    args: [courseId],
+  });
+  return { success: true };
+}
