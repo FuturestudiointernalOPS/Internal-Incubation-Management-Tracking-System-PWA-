@@ -714,7 +714,24 @@
         "changes_requested": "Changes requested",
         "completed": "Completed"
       },
-      "sessionBookedEmailFailed": "Session booked — but we could not e-mail {emails}. Send them the details another way."
+      "sessionBookedEmailFailed": "Session booked — but we could not e-mail {emails}. Send them the details another way.",
+      "report": {
+        "button": "Report",
+        "title": "Reports",
+        "activity": "Activity",
+        "milestone": "Milestone",
+        "thisActivity": "This activity ({count})",
+        "wholeMilestone": "Whole milestone ({count})",
+        "empty": "No report yet. Write the first one below.",
+        "new": "New report",
+        "add": "Add report",
+        "createdOn": "Created on",
+        "createdAt": "Time",
+        "author": "Written by",
+        "authorId": "Author ID",
+        "updatedOn": "Last edited",
+        "reference": "Reference"
+      }
     },
     "personal": {
       "title": "My Dashboard",

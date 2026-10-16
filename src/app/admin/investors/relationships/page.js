@@ -15,6 +15,7 @@ import WorkspaceListView from "@/components/admin/investor-relationships/Workspa
 import CreateMeetingModal from "@/components/admin/investor-relationships/CreateMeetingModal";
 import CompleteMeetingModal from "@/components/admin/investor-relationships/CompleteMeetingModal";
 import AddDdRequestModal from "@/components/admin/investor-relationships/AddDdRequestModal";
+import { notify } from "@/components/staff/notify";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here
@@ -93,8 +94,10 @@ export default function AdminRelationshipsPage() {
         setAssignField(null);
         setAssignSearch("");
         reloadDetail();
+      } else {
+        notify("error", (data.error && t(data.error)) || t("investorAdmin.list.actionFailed"));
       }
-    } catch (_) {}
+    } catch (_) { notify("error", t("errors.networkError")); }
   };
 
   const selectWorkspace = async (ws, bypassCache = false) => {
@@ -134,7 +137,7 @@ export default function AdminRelationshipsPage() {
           setDdData(dd);
         }
       }
-    } catch (_) {}
+    } catch (_) { notify("error", t("errors.networkError")); }
   };
 
   // Every action below re-reads what it changed. The pending introductions are a
@@ -170,7 +173,7 @@ export default function AdminRelationshipsPage() {
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
-    } catch (_) {}
+    } catch (_) { notify("error", t("errors.networkError")); }
   };
 
   const handleCompleteMeeting = async () => {
@@ -195,7 +198,7 @@ export default function AdminRelationshipsPage() {
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
-    } catch (_) {}
+    } catch (_) { notify("error", t("errors.networkError")); }
   };
 
   const handleCreateWorkspace = async (pipelineId) => {
@@ -212,7 +215,7 @@ export default function AdminRelationshipsPage() {
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
-    } catch (_) {}
+    } catch (_) { notify("error", t("errors.networkError")); }
   };
 
   // DD handlers
@@ -226,7 +229,7 @@ export default function AdminRelationshipsPage() {
       const data = await res.json();
       if (data.success) { setToast({ type: "success", message: t("investorAdmin.relationships.ddWorkspaceCreated") }); reloadDetail(); }
       else { setToast({ type: "error", message: t(data.error || "") || data.error }); }
-    } catch (_) {}
+    } catch (_) { notify("error", t("errors.networkError")); }
   };
 
   const handleAddDdRequest = async () => {
@@ -244,7 +247,7 @@ export default function AdminRelationshipsPage() {
         setRequestForm({ title: "", category: "financial", priority: "medium", due_date: "", description: "" });
         reloadDetail();
       } else { setToast({ type: "error", message: t(data.error || "") || data.error }); }
-    } catch (_) {}
+    } catch (_) { notify("error", t("errors.networkError")); }
   };
 
   const handleUpdateDdRequest = async (requestId, newStatus) => {
@@ -257,7 +260,7 @@ export default function AdminRelationshipsPage() {
       const data = await res.json();
       if (data.success) { setToast({ type: "success", message: t("investorAdmin.relationships.requestStatusToast", { status: newStatus }) }); reloadDetail(); }
       else { setToast({ type: "error", message: t(data.error || "") || data.error }); }
-    } catch (_) {}
+    } catch (_) { notify("error", t("errors.networkError")); }
   };
 
   const [uploadReqId, setUploadReqId] = useState(null);
@@ -281,7 +284,7 @@ export default function AdminRelationshipsPage() {
           // Fetch docs for this request
           fetchDdDocs(requestId);
         } else { setToast({ type: "error", message: t(data.error || "") || data.error }); }
-      } catch (_) {}
+      } catch (_) { notify("error", t("errors.networkError")); }
     };
     reader.readAsDataURL(file);
   };
@@ -291,7 +294,7 @@ export default function AdminRelationshipsPage() {
       const res = await fetch(`/api/investor/diligence/documents?request_id=${requestId}`);
       const data = await res.json();
       if (data.success) setDdDocs(prev => ({ ...prev, [requestId]: data.documents }));
-    } catch (_) {}
+    } catch (_) { notify("error", t("errors.networkError")); }
   };
 
   const handleDownload = async (docId) => {
@@ -304,7 +307,7 @@ export default function AdminRelationshipsPage() {
         link.download = data.document.file_name;
         link.click();
       }
-    } catch (_) {}
+    } catch (_) { notify("error", t("errors.networkError")); }
   };
 
   return (

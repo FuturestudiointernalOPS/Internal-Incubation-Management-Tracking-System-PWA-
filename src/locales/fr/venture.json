@@ -714,7 +714,24 @@
         "changes_requested": "Modifications demandées",
         "completed": "Terminé"
       },
-      "sessionBookedEmailFailed": "Séance réservée — mais l'e-mail n'a pas pu être envoyé à {emails}. Transmettez-leur les détails autrement."
+      "sessionBookedEmailFailed": "Séance réservée — mais l'e-mail n'a pas pu être envoyé à {emails}. Transmettez-leur les détails autrement.",
+      "report": {
+        "button": "Rapport",
+        "title": "Rapports",
+        "activity": "Activité",
+        "milestone": "Jalon",
+        "thisActivity": "Cette activité ({count})",
+        "wholeMilestone": "Tout le jalon ({count})",
+        "empty": "Aucun rapport pour le moment. Écris le premier ci-dessous.",
+        "new": "Nouveau rapport",
+        "add": "Ajouter le rapport",
+        "createdOn": "Créé le",
+        "createdAt": "Heure",
+        "author": "Rédigé par",
+        "authorId": "Identifiant de l'auteur",
+        "updatedOn": "Dernière modification",
+        "reference": "Référence"
+      }
     },
     "personal": {
       "title": "Mon tableau de bord",
